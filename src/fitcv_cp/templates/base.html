@@ -40,7 +40,8 @@ canonical: true
       var payload = contentType.includes('json') ? await response.json() : await response.text();
       if (!response.ok) {
         var error = payload && payload.error ? payload.error : {};
-        var requestError = new Error(error.message || String(payload || response.statusText));
+        var detail = payload && payload.detail ? payload.detail : '';
+        var requestError = new Error(error.message || (Array.isArray(detail) ? detail.join(', ') : detail) || String(payload || response.statusText));
         requestError.code = error.code || 'request_failed';
         requestError.status = response.status;
         requestError.payload = payload;
@@ -155,6 +156,25 @@ canonical: true
       align-items: center;
       gap: 0.75rem;
     }
+    .app-shell { min-height: 100vh; display: grid; grid-template-columns: 16rem minmax(0, 1fr); }
+    .app-sidebar { background: var(--surface-1); border-right: 1px solid var(--border); padding: 1.25rem 0.85rem; }
+    .app-sidebar .brand { display: block; padding: 0 0.75rem 1rem; }
+    .app-sidebar nav { display: grid; align-content: start; gap: 0.25rem; min-height: 0; padding: 0; border: 0; background: transparent; }
+    .app-sidebar nav a { display: flex; align-items: center; gap: 0.7rem; min-height: 2.5rem; padding: 0.55rem 0.75rem; border-radius: 7px; }
+    .app-sidebar nav a:hover { background: var(--table-row-hover); }
+    .app-sidebar nav a[aria-current="page"] { color: var(--accent-text); background: var(--accent-dim); }
+    .app-sidebar nav > .meta { padding: 0.8rem 0.75rem 0.25rem; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; }
+    .nav-icon { flex: 0 0 1.15rem; width: 1.15rem; text-align: center; }
+    .app-frame { min-width: 0; }
+    .global-header { min-height: 4rem; display: flex; align-items: center; justify-content: flex-end; gap: 0.35rem; padding: 0.65rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid var(--border); background: var(--surface-1); }
+    .icon-button { flex: 0 0 2.5rem; width: 2.5rem; height: 2.5rem; display: inline-grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); cursor: pointer; font: inherit; }
+    .icon-button:hover { background: var(--table-row-hover); color: var(--text-primary); }
+    .icon-button.danger { color: var(--badge-error-fg); }
+    .icon-button svg { width: 1.2rem; height: 1.2rem; flex: none; }
+    #page-content { min-width: 0; }
+    .page-back-link { display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 1rem; color: var(--accent-text); text-decoration: none; }
+    .page-back-link:hover { text-decoration: underline; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
     /* ── Layout ───────────────────────────────────────────────────────────── */
     .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
@@ -323,6 +343,19 @@ canonical: true
       transition: background 0.15s;
     }
     .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-danger {
+      background: var(--badge-error-fg);
+      color: #fff;
+      border: 1px solid var(--badge-error-fg);
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-danger:hover { filter: brightness(0.9); }
 
     /* Secondary — supporting actions (Refresh, theme toggle, mode tabs) */
     .btn-secondary {
@@ -533,6 +566,7 @@ canonical: true
       padding: 0.6rem 0.8rem; border-radius: 6px;
     }
     .workspace-stack { display: grid; gap: 0.875rem; min-width: 0; }
+    .workspace-stack > .card, .workspace-stack > .section-card { margin-bottom: 0; }
     .workspace-stack > [aria-live]:empty { display: none; }
     .filter-bar, .selection-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
     .filter-bar label { display: grid; gap: 0.35rem; color: var(--text-muted); font-size: 0.82rem; }
@@ -544,6 +578,10 @@ canonical: true
     .empty-state { padding: 2rem; text-align: center; color: var(--text-muted); }
     .notice { padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; }
     .notice[role="alert"] { border-color: var(--badge-error-fg); color: var(--badge-error-fg); }
+    .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 0.85rem 0; border-top: 1px solid var(--border-soft); }
+    .settings-row:first-of-type { border-top: 0; }
+    .settings-row:hover { background: var(--table-row-hover); }
+    a.settings-row:hover { text-decoration: none; }
     dialog.workspace-dialog { width: min(680px, calc(100vw - 2rem)); border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); color: var(--text-primary); padding: 1.25rem; }
     dialog.workspace-dialog::backdrop { background: rgba(0,0,0,.55); }
     .editor-textarea { min-height: 22rem; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
@@ -555,36 +593,76 @@ canonical: true
     @media (max-width: 768px) {
       .container { padding: 1rem; }
       .page-header { flex-direction: column; align-items: flex-start; }
-      nav { padding: 0 1rem; gap: 1rem; }
+      .app-shell { grid-template-columns: 1fr; }
+      .app-sidebar { border-right: 0; border-bottom: 1px solid var(--border); padding: 0.75rem; }
+      .app-sidebar .brand { padding-bottom: 0.65rem; }
+      .app-sidebar nav { display: flex; overflow-x: auto; padding-bottom: 0.15rem; }
+      .app-sidebar nav a { flex: 0 0 auto; }
+      .global-header { min-height: 3.25rem; padding-block: 0.35rem; }
       table { display: block; overflow-x: auto; }
     }
   </style>
 </head>
 <body>
-  <nav>
-    <span class="brand">⚡ FitCV Admin</span>
-    <a href="/admin/runs">Runs</a>
-    <a href="/admin/candidate-profiles">Candidate Profiles</a>
-    <a href="/admin/bookmarks">Bookmarks</a>
-    <a href="/admin/synonyms">Synonyms</a>
-    <a href="/admin/optimization">Optimization</a>
-    <a href="/admin/settings">Settings</a>
-    <a href="/healthz">Health</a>
-    {% if local_mode %}
-    <a href="/local/onboarding#provider-form">LLM &amp; API</a>
-    <a href="/local/data">Data &amp; Backup</a>
-    <a href="/local/system">System</a>
-    <a href="/local/system#change-log">Change Log</a>
-    {% endif %}
-    <div class="nav-actions">
-      <button class="btn-secondary" id="theme-toggle" aria-label="Switch to Light theme" onclick="toggleTheme()">
-        <span id="theme-icon">☀️</span> <span id="theme-label">Light</span>
-      </button>
+  {% set current_path = request.url.path %}
+  <div class="app-shell">
+    <aside class="app-sidebar" aria-label="Application navigation">
+      <span class="brand">FitCV</span>
+      <nav>
+        <span class="meta">Workspace</span>
+        <a href="/admin/runs" aria-current="{{ 'page' if current_path.startswith('/admin/runs') else 'false' }}"><span class="nav-icon" aria-hidden="true">R</span>Runs</a>
+        <a href="/admin/candidate-profiles" aria-current="{{ 'page' if current_path.startswith('/admin/candidate-profiles') else 'false' }}"><span class="nav-icon" aria-hidden="true">C</span>Candidate Profiles</a>
+        <a href="/admin/bookmarks" aria-current="{{ 'page' if current_path.startswith('/admin/bookmarks') else 'false' }}"><span class="nav-icon" aria-hidden="true">B</span>Bookmarks</a>
+        <a href="/admin/synonyms" aria-current="{{ 'page' if current_path.startswith('/admin/synonyms') else 'false' }}"><span class="nav-icon" aria-hidden="true">S</span>Synonyms</a>
+        {% if local_mode %}
+        <span class="meta">Pipeline</span>
+        <a href="/admin/settings" aria-current="{{ 'page' if current_path == '/admin/settings' else 'false' }}"><span class="nav-icon" aria-hidden="true">O</span>Overview</a>
+        <a href="/admin/settings/enrichment" aria-current="{{ 'page' if current_path == '/admin/settings/enrichment' else 'false' }}"><span class="nav-icon" aria-hidden="true">E</span>Enrichment</a>
+        <a href="/admin/settings/screening" aria-current="{{ 'page' if current_path == '/admin/settings/screening' else 'false' }}"><span class="nav-icon" aria-hidden="true">S</span>Screening</a>
+        <a href="/admin/settings/shortlisting" aria-current="{{ 'page' if current_path == '/admin/settings/shortlisting' else 'false' }}"><span class="nav-icon" aria-hidden="true">H</span>Shortlisting</a>
+        <a href="/admin/settings/ranking" aria-current="{{ 'page' if current_path == '/admin/settings/ranking' else 'false' }}"><span class="nav-icon" aria-hidden="true">R</span>Ranking</a>
+        <a href="/admin/settings/cv-analysis" aria-current="{{ 'page' if current_path == '/admin/settings/cv-analysis' else 'false' }}"><span class="nav-icon" aria-hidden="true">A</span>CV Analysis</a>
+        <a href="/admin/settings/cv-generation" aria-current="{{ 'page' if current_path == '/admin/settings/cv-generation' else 'false' }}"><span class="nav-icon" aria-hidden="true">G</span>CV Generation</a>
+        <a href="/admin/settings/runtime-limits" aria-current="{{ 'page' if current_path == '/admin/settings/runtime-limits' else 'false' }}"><span class="nav-icon" aria-hidden="true">T</span>Runtime &amp; Limits</a>
+        <a href="/admin/settings/automation-reuse" aria-current="{{ 'page' if current_path == '/admin/settings/automation-reuse' else 'false' }}"><span class="nav-icon" aria-hidden="true">U</span>Automation &amp; Reuse</a>
+        <a href="/admin/settings/prompt-management" aria-current="{{ 'page' if current_path == '/admin/settings/prompt-management' else 'false' }}"><span class="nav-icon" aria-hidden="true">M</span>Prompt Management</a>
+        <span class="meta">Application</span>
+        <a href="/admin/api-providers" aria-current="{{ 'page' if current_path.startswith('/admin/api-providers') else 'false' }}"><span class="nav-icon" aria-hidden="true">A</span>API Providers</a>
+        <a href="/admin/llm-configuration" aria-current="{{ 'page' if current_path == '/admin/llm-configuration' else 'false' }}"><span class="nav-icon" aria-hidden="true">L</span>LLM Configuration</a>
+        <a href="/admin/system" aria-current="{{ 'page' if current_path == '/admin/system' else 'false' }}"><span class="nav-icon" aria-hidden="true">Y</span>System</a>
+        <a href="/admin/lifecycle" aria-current="{{ 'page' if current_path == '/admin/lifecycle' else 'false' }}"><span class="nav-icon" aria-hidden="true">F</span>Lifecycle</a>
+        {% else %}
+        <a href="/admin/settings" aria-current="{{ 'page' if current_path == '/admin/settings' else 'false' }}"><span class="nav-icon" aria-hidden="true">P</span>Pipeline</a>
+        {% endif %}
+      </nav>
+    </aside>
+    <div class="app-frame">
+      <header class="global-header">
+        <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme" onclick="toggleTheme()">
+          <span id="theme-icon" aria-hidden="true">☀</span><span class="sr-only" id="theme-label">Light</span>
+        </button>
+        {% if local_mode %}
+        <button class="icon-button danger" id="open-shutdown-dialog" type="button" aria-label="Shutdown FitCV" title="Shutdown FitCV">⏻</button>
+        {% endif %}
+      </header>
+      <div class="container" id="page-content" tabindex="-1">
+        {% block content %}{% endblock %}
+      </div>
     </div>
-  </nav>
-  <div class="container">
-    {% block content %}{% endblock %}
   </div>
+  {% if local_mode %}
+  <dialog class="workspace-dialog" id="shutdown-dialog" aria-labelledby="shutdown-title">
+    <form action="/local/system/shutdown" method="post" id="shutdown-form">
+      <h2 id="shutdown-title">Shutdown FitCV?</h2>
+      <p>Stops the local FitCV service and prevents new Runs until relaunch.</p>
+      <p id="shutdown-status" class="meta" role="status" aria-live="polite"></p>
+      <div class="selection-toolbar" style="margin-top:1rem">
+        <button class="btn-secondary" type="button" id="cancel-shutdown">Cancel</button>
+        <button class="btn-danger" id="confirm-shutdown" type="submit">Shutdown FitCV</button>
+      </div>
+    </form>
+  </dialog>
+  {% endif %}
   <script>
   function applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
@@ -593,9 +671,9 @@ canonical: true
     var label = document.getElementById('theme-label');
     var toggle = document.getElementById('theme-toggle');
     if (icon && label && toggle) {
-      icon.textContent  = t === 'dark' ? '☀️' : '🌙';
+      icon.textContent  = t === 'dark' ? '☀' : '☾';
       label.textContent = t === 'dark' ? 'Light' : 'Dark';
-      toggle.setAttribute('aria-label', t === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme');
+      toggle.setAttribute('aria-label', t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
     }
   }
   function toggleTheme() {
@@ -605,14 +683,79 @@ canonical: true
   }
   // Sync toggle label on every page load
   applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
-  (function() {
+  function syncActiveNavigation(pathname) {
+    document.querySelectorAll('.app-sidebar nav a').forEach(function(link) {
+      var target = new URL(link.href, location.href).pathname;
+      var active = target === '/admin/runs' || target === '/admin/candidate-profiles' || target === '/admin/api-providers'
+        ? pathname.startsWith(target)
+        : pathname === target;
+      link.setAttribute('aria-current', active ? 'page' : 'false');
+    });
+  }
+  function activatePageScripts(root) {
+    root.querySelectorAll('script').forEach(function(script) {
+      var replacement = document.createElement('script');
+      Array.from(script.attributes).forEach(function(attribute) { replacement.setAttribute(attribute.name, attribute.value); });
+      replacement.textContent = script.textContent;
+      script.replaceWith(replacement);
+    });
+  }
+  async function navigateFitCV(url, options) {
+    options = options || {};
+    var response = await fetch(url, {headers: {'X-FitCV-Navigation': 'partial'}});
+    if (!response.ok) throw new Error('Navigation failed');
+    var finalUrl = new URL(response.url || url, location.href);
+    if (finalUrl.origin !== location.origin) throw new Error('Navigation left application origin');
+    var parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
+    var nextContent = parsed.getElementById('page-content');
+    if (!nextContent) throw new Error('Page content missing');
+    var currentContent = document.getElementById('page-content');
+    currentContent.replaceChildren.apply(currentContent, Array.from(nextContent.childNodes));
+    document.title = parsed.title;
+    syncActiveNavigation(finalUrl.pathname);
+    if (options.push !== false) history.pushState({}, '', finalUrl.href);
+    else if (location.href !== finalUrl.href) history.replaceState({}, '', finalUrl.href);
+    initializePageForms(currentContent);
+    activatePageScripts(currentContent);
+    var heading = currentContent.querySelector('h1');
+    if (heading) { heading.tabIndex = -1; heading.focus({preventScroll: true}); }
+    scrollTo({top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  }
+  document.addEventListener('click', function(event) {
+    var link = event.target.closest('a[href]');
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target || link.download) return;
+    var url = new URL(link.href, location.href);
+    if (url.origin !== location.origin || !url.pathname.startsWith('/admin/')) return;
+    event.preventDefault();
+    navigateFitCV(url.href).catch(function() { location.assign(url.href); });
+  });
+  addEventListener('popstate', function() {
+    navigateFitCV(location.href, {push: false}).catch(function() { location.reload(); });
+  });
+  var shutdownDialog = document.getElementById('shutdown-dialog');
+  var openShutdown = document.getElementById('open-shutdown-dialog');
+  var cancelShutdown = document.getElementById('cancel-shutdown');
+  var shutdownForm = document.getElementById('shutdown-form');
+  var confirmShutdown = document.getElementById('confirm-shutdown');
+  var shutdownStatus = document.getElementById('shutdown-status');
+  if (shutdownDialog && openShutdown && cancelShutdown && shutdownForm && confirmShutdown && shutdownStatus) {
+    openShutdown.addEventListener('click', async function() { shutdownStatus.textContent = 'Checking active work…'; confirmShutdown.disabled = true; shutdownDialog.showModal(); try { var lifecycle = await fitcvApiRequest('/local/lifecycle/status'); var reasons = lifecycle.active_work_reasons || []; confirmShutdown.disabled = !lifecycle.capabilities.can_shutdown; shutdownStatus.textContent = reasons.length ? 'Shutdown unavailable: ' + reasons.join(', ') : 'No active work detected.'; } catch (error) { shutdownStatus.textContent = error.message; } });
+    cancelShutdown.addEventListener('click', function() { shutdownDialog.close(); openShutdown.focus(); });
+    shutdownForm.addEventListener('submit', async function(event) { event.preventDefault(); if (confirmShutdown.disabled) return; confirmShutdown.disabled = true; shutdownStatus.textContent = 'Shutting down…'; try { var stoppedPage = await fitcvApiRequest('/local/system/shutdown', {method: 'POST'}); document.open(); document.write(stoppedPage); document.close(); } catch (error) { shutdownStatus.textContent = error.message; confirmShutdown.disabled = false; } });
+  }
+  function initializePageForms(root) {
     var token = document.querySelector('meta[name="fitcv-csrf-token"]').content;
     if (!token) return;
-    document.querySelectorAll('form').forEach(function(form) {
+    root.querySelectorAll('form').forEach(function(form) {
       if ((form.method || 'get').toLowerCase() === 'get' || form.querySelector('input[name="csrf_token"]')) return;
       var input = document.createElement('input');
       input.type = 'hidden'; input.name = 'csrf_token'; input.value = token; form.appendChild(input);
     });
+  }
+  initializePageForms(document);
+  (function() {
+    var token = document.querySelector('meta[name="fitcv-csrf-token"]').content;
+    if (!token) return;
     var originalFetch = window.fetch;
     window.fetch = function(input, init) {
       init = init || {}; var headers = new Headers(init.headers || {});

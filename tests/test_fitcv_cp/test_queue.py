@@ -69,7 +69,7 @@ def test_enqueue_run_with_job_id_returns_tuple():
     assert job_id == "rq-job-abc"
 
 
-def test_enqueue_run_with_job_id_wires_rq_retry_when_enabled() -> None:
+def test_enqueue_run_with_job_id_wires_fixed_rq_retry_when_attempts_exceed_one() -> None:
     from rq.job import Retry
 
     from fitcv_cp.queue import enqueue_run_with_job_id
@@ -85,12 +85,11 @@ def test_enqueue_run_with_job_id_wires_rq_retry_when_enabled() -> None:
             with patch(
                 "fitcv_cp.retry_settings.load_retry_settings",
                 return_value=RetrySettings(
-                    enabled=True,
-                    max_attempts=3,
-                    backoff_seconds=(1, 2),
+                    maximum_attempts=3,
+                    initial_backoff_seconds=10,
                     lease_seconds=900,
-                    reconciler_interval_seconds=0,
-                    error_details_max_chars=2048,
+                    reconciler_interval_seconds=30,
+                    error_detail_limit=2048,
                 ),
             ):
                 _run_id, _job_id = enqueue_run_with_job_id(
@@ -102,6 +101,8 @@ def test_enqueue_run_with_job_id_wires_rq_retry_when_enabled() -> None:
 
     _fn, _args, kwargs = mock_q.enqueue.mock_calls[0]
     assert isinstance(kwargs.get("retry"), Retry)
+    assert kwargs["retry"].max == 2
+    assert kwargs["retry"].intervals == [10]
     assert "attempt_id" not in kwargs
 
 
@@ -244,6 +245,34 @@ def test_run_inline_job_after_delay_waits_before_execution() -> None:
     )
 
 
+def test_run_inline_job_retries_with_same_scalar_backoff() -> None:
+    from fitcv_cp.retry_settings import RetrySettings
+
+    with patch(
+        "fitcv_cp.retry_settings.load_retry_settings",
+        return_value=RetrySettings(
+            maximum_attempts=3,
+            initial_backoff_seconds=7,
+            lease_seconds=300,
+            reconciler_interval_seconds=30,
+            error_detail_limit=10000,
+        ),
+    ), patch(
+        "fitcv_cp.worker_job.execute_pipeline_run",
+        side_effect=[RuntimeError("one"), RuntimeError("two"), None],
+    ) as execute, patch("fitcv_cp.queue.time.sleep") as sleep:
+        queue_module._run_inline_job(
+            "inline-retry",
+            "run-retry",
+            "data/jobs.json",
+            ".env.yaml",
+        )
+
+    assert execute.call_count == 3
+    assert [call.args for call in sleep.call_args_list] == [(7,), (7,)]
+    assert queue_module._INLINE_JOB_STATUS["inline-retry"] == "finished"
+
+
 def test_get_queue_job_status_normalizes_rq_runtime_values() -> None:
     from fitcv_cp.queue import get_queue_job_status
 
@@ -261,7 +290,7 @@ def test_get_queue_job_status_normalizes_inline_missing_run() -> None:
 
 
 
-def test_enqueue_run_with_job_id_does_not_wire_rq_retry_when_disabled() -> None:
+def test_enqueue_run_with_job_id_does_not_wire_rq_retry_for_one_attempt() -> None:
     from fitcv_cp.queue import enqueue_run_with_job_id
 
     mock_q = MagicMock()
@@ -276,12 +305,11 @@ def test_enqueue_run_with_job_id_does_not_wire_rq_retry_when_disabled() -> None:
             with patch(
                 "fitcv_cp.retry_settings.load_retry_settings",
                 return_value=RetrySettings(
-                    enabled=False,
-                    max_attempts=3,
-                    backoff_seconds=(1, 2),
+                    maximum_attempts=1,
+                    initial_backoff_seconds=10,
                     lease_seconds=900,
-                    reconciler_interval_seconds=0,
-                    error_details_max_chars=2048,
+                    reconciler_interval_seconds=30,
+                    error_detail_limit=2048,
                 ),
             ):
                 _run_id, _job_id = enqueue_run_with_job_id(

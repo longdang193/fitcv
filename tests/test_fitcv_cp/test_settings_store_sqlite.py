@@ -15,6 +15,8 @@ tags:
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
 from fitcv_cp import settings_store as ss
 
@@ -162,3 +164,116 @@ def test_local_settings_save_recovers_after_first_disk_io_error(tmp_path, monkey
 
     active = ss.load_active_settings()
     assert active["pipeline.final_top_n"] == 15
+
+
+def test_configuration_resources_have_independent_revisions(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+
+    llm = ss.load_llm_configuration()
+    system = ss.load_system_settings()
+    prompts = ss.load_prompt_configurations()
+
+    updated_llm = ss.patch_llm_configuration(
+        {"tasks": {"enrich_extraction": {"timeout_seconds": 90}}},
+        expected_revision=llm["revision"],
+    )
+
+    assert updated_llm["revision"] == llm["revision"] + 1
+    assert updated_llm["tasks"]["enrich_extraction"]["timeout_seconds"] == 90
+    assert ss.load_system_settings()["revision"] == system["revision"]
+    assert ss.load_prompt_configurations()["ranking_ai_score"]["revision"] == prompts["ranking_ai_score"]["revision"]
+
+
+def test_configuration_resource_rejects_stale_revision_without_writing(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    current = ss.load_system_settings()
+    updated = ss.patch_system_settings(
+        {"maximum_attempts": 4},
+        expected_revision=current["revision"],
+    )
+
+    with pytest.raises(ss.SettingsRevisionConflict):
+        ss.patch_system_settings(
+            {"initial_backoff_seconds": 20},
+            expected_revision=current["revision"],
+        )
+
+    assert ss.load_system_settings() == updated
+
+
+def test_configuration_resource_validation_is_atomic(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    current = ss.load_llm_configuration()
+
+    with pytest.raises(ValueError, match="timeout_seconds"):
+        ss.patch_llm_configuration(
+            {
+                "tasks": {
+                    "enrich_extraction": {"timeout_seconds": 45},
+                    "ranking_ai_score": {"timeout_seconds": 0},
+                }
+            },
+            expected_revision=current["revision"],
+        )
+
+    assert ss.load_llm_configuration() == current
+
+
+def test_llm_configuration_rejects_unavailable_model_reference(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    current = ss.load_llm_configuration()
+
+    with pytest.raises(ValueError, match="unavailable provider models"):
+        ss.patch_llm_configuration(
+            {"default_model_ref": "missing-model"},
+            expected_revision=current["revision"],
+        )
+
+    assert ss.load_llm_configuration() == current
+
+
+def test_prompt_configuration_normalizes_newlines_and_enforces_limit(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    current = ss.load_prompt_configurations()["cv_generation_structured_write"]
+    from fitcv.config import load_prompt_task_registry
+    from fitcv.prompts.loader import load_prompt_template
+
+    prompt = load_prompt_task_registry()["cv_generation_structured_write"]
+    default_text = load_prompt_template(Path(prompt["template_path"]))
+    replacement = default_text.replace("You are", "You are precise and", 1)
+
+    updated = ss.patch_prompt_configuration(
+        "cv_generation_structured_write",
+        replacement_text=replacement.replace("\n", "\r\n"),
+        expected_revision=current["revision"],
+    )
+
+    assert updated["replacement_text"] == replacement
+    with pytest.raises(ValueError, match="4000"):
+        ss.patch_prompt_configuration(
+            "cv_generation_structured_write",
+            replacement_text="x" * 4001,
+            expected_revision=updated["revision"],
+        )
+
+    with pytest.raises(ValueError, match="current default"):
+        ss.patch_prompt_configuration(
+            "cv_generation_structured_write",
+            replacement_text=default_text,
+            expected_revision=updated["revision"],
+        )
+
+    with pytest.raises(ValueError, match="canonical prompt variables"):
+        ss.patch_prompt_configuration(
+            "cv_generation_structured_write",
+            replacement_text=replacement + "\n${unknown_variable}",
+            expected_revision=updated["revision"],
+        )
+
+    reset = ss.patch_prompt_configuration(
+        "cv_generation_structured_write",
+        replacement_text=None,
+        expected_revision=updated["revision"],
+    )
+    assert reset["replacement_text"] is None
+    assert reset["migration_state"] == "clean"

@@ -98,6 +98,8 @@ class LocalStoragePaths:
     controller_overlay_path: Path
     legacy_routing_overlay_path: Path
     migrated_routing_overlay_path: Path
+    onboarding_state_path: Path
+    integration_migration_error_path: Path
     artifacts_path: Path
     exports_path: Path
     logs_path: Path
@@ -279,6 +281,8 @@ def _paths(bootstrap_path: Path, data_root: Path) -> LocalStoragePaths:
         migrated_routing_overlay_path=(
             data_root / "config" / "local_routing_overlay.yaml.migrated.bak"
         ),
+        onboarding_state_path=data_root / "onboarding.json",
+        integration_migration_error_path=data_root / "integration-migration-error.json",
         artifacts_path=data_root / "artifacts",
         exports_path=data_root / "exports",
         logs_path=data_root / "logs",
@@ -286,6 +290,285 @@ def _paths(bootstrap_path: Path, data_root: Path) -> LocalStoragePaths:
         uploads_path=data_root / "uploads",
         temporary_path=data_root / "tmp",
     )
+
+
+def migrate_packaged_local_integration_state(paths: LocalStoragePaths) -> dict[str, Any]:
+    """Import legacy local integration state once, then retire duplicate owners."""
+    import uuid
+
+    from fitcv.config import load_prompt_task_registry
+    from fitcv.prompts.loader import load_prompt_template
+    from fitcv_cp import provider_registry
+    from fitcv_cp.local_credentials import delete_credential, get_credential, set_credential
+    from fitcv_cp.retry_settings import SYSTEM_SETTING_BOUNDS, SYSTEM_SETTINGS_DEFAULTS
+    from fitcv_cp.settings_store import (
+        load_system_settings,
+        migrate_llm_configuration_references,
+        migrate_prompt_configuration,
+        patch_system_settings,
+    )
+    from fitcv_cp.store import ControlPlaneStore
+
+    migration_key = "packaged_local_complete_integration_v1"
+    prompt_addendum_anchors = {
+        "enrich_extraction": "Return ONLY a valid JSON object",
+        "ranking_ai_score": "Return JSON only",
+        "cv_generation_structured_write": "## Structured JSON Schema",
+        "synonym_triage_recommendation": "Return strict JSON only",
+    }
+    store = ControlPlaneStore()
+    if store.integration_migration_applied(migration_key):
+        paths.integration_migration_error_path.unlink(missing_ok=True)
+        return {"migration_key": migration_key, "status": "already_applied"}
+
+    overlay = {}
+    if paths.controller_overlay_path.exists():
+        overlay = validate_local_controller_overlay(
+            yaml.safe_load(paths.controller_overlay_path.read_text(encoding="utf-8")) or {}
+        )
+    onboarding = {}
+    if paths.onboarding_state_path.exists():
+        onboarding = json.loads(paths.onboarding_state_path.read_text(encoding="utf-8"))
+        if not isinstance(onboarding, dict):
+            raise ValueError("onboarding state must be an object")
+
+    copied_credentials: list[tuple[str, str]] = []
+    overlay_before = (
+        paths.controller_overlay_path.read_bytes()
+        if paths.controller_overlay_path.exists()
+        else None
+    )
+    onboarding_before = (
+        paths.onboarding_state_path.read_bytes()
+        if paths.onboarding_state_path.exists()
+        else None
+    )
+    provider_targets: dict[str, str] = {}
+    model_refs: dict[tuple[str, str], str] = {}
+    resulting_system_revision = load_system_settings()["revision"]
+    try:
+        providers = dict(overlay.get("providers") or {})
+        routes = dict((overlay.get("model_routing") or {}).get("parts") or {})
+        source_provider_ids = set(providers)
+        source_provider_ids.update(
+            str(route.get("provider") or "")
+            for route in routes.values()
+            if isinstance(route, dict) and route.get("provider")
+        )
+        legacy_provider_id = str(onboarding.get("provider_id") or "").strip()
+        if legacy_provider_id:
+            source_provider_ids.add(legacy_provider_id)
+
+        for source_provider_id in sorted(source_provider_ids):
+            raw_provider = dict(providers.get(source_provider_id) or {})
+            if source_provider_id in provider_registry.PREDEFINED_PROVIDERS:
+                target_provider_id = source_provider_id
+            else:
+                suffix = hashlib.sha256(source_provider_id.encode("utf-8")).hexdigest()[:12]
+                target_provider_id = f"custom-legacy-{suffix}"
+                if store.get_custom_api_provider(target_provider_id) is None:
+                    store.create_custom_api_provider(
+                        target_provider_id,
+                        display_name=f"Imported {source_provider_id.replace('_', ' ').title()}",
+                        compatibility="openai",
+                    )
+            provider_targets[source_provider_id] = target_provider_id
+
+            legacy_key = get_credential(source_provider_id)
+            if legacy_key and target_provider_id != source_provider_id:
+                set_credential(target_provider_id, legacy_key)
+                if get_credential(target_provider_id) != legacy_key:
+                    raise RuntimeError("canonical credential verification failed")
+                copied_credentials.append((source_provider_id, target_provider_id))
+
+            if store.get_api_provider_connection(target_provider_id) is None:
+                store.save_api_provider_connection(
+                    target_provider_id,
+                    base_url=(
+                        str(raw_provider.get("base_url") or "").strip() or None
+                        if target_provider_id not in provider_registry.PREDEFINED_PROVIDERS
+                        else None
+                    ),
+                    api_type=(
+                        "chat_completions"
+                        if raw_provider.get("wire_api") == "chat_completions"
+                        else "responses"
+                    ),
+                    verification_status="not_configured",
+                    verified_at=None,
+                    credential_account=provider_registry.credential_account(target_provider_id),
+                    expected_revision=store.get_api_provider_revision(target_provider_id),
+                )
+
+        for task_id, route in routes.items():
+            if not isinstance(route, dict):
+                continue
+            source_provider_id = str(route.get("provider") or "")
+            model_id = str(route.get("model") or "").strip()
+            target_provider_id = provider_targets.get(source_provider_id)
+            if not target_provider_id or not model_id:
+                continue
+            existing = next(
+                (
+                    item
+                    for item in store.list_api_provider_models(target_provider_id)
+                    if item["model_id"] == model_id
+                ),
+                None,
+            )
+            if existing is None:
+                connection = store.get_api_provider_connection(target_provider_id)
+                if connection is None:
+                    raise RuntimeError("migrated provider connection metadata is missing")
+                model_record_id = str(
+                    uuid.uuid5(uuid.NAMESPACE_URL, f"fitcv:{target_provider_id}:{model_id}")
+                )
+                created = store.create_api_provider_model(
+                    model_record_id,
+                    provider_id=target_provider_id,
+                    model_id=model_id,
+                    validated_connection_revision=connection["connection_revision"],
+                    last_tested_at=datetime.now(timezone.utc).isoformat(),
+                    expected_revision=store.get_api_provider_revision(target_provider_id),
+                )
+                existing = store.update_api_provider_model(
+                    model_record_id,
+                    validation_status="needs_retest",
+                    validated_connection_revision=None,
+                    last_tested_at=None,
+                    last_test_error_code=None,
+                    expected_revision=created["provider_revision"],
+                )
+            model_refs[(source_provider_id, model_id)] = str(existing["model_record_id"])
+
+        task_refs = {
+            task_id: model_refs.get(
+                (str(route.get("provider") or ""), str(route.get("model") or "").strip())
+            )
+            for task_id, route in routes.items()
+            if isinstance(route, dict)
+        }
+        default_ref = task_refs.get("cv_generation_structured_write") or next(
+            (value for value in task_refs.values() if value),
+            None,
+        )
+        migrate_llm_configuration_references(
+            default_model_ref=default_ref,
+            task_model_refs=task_refs,
+        )
+
+        addenda = dict((overlay.get("prompts") or {}).get("additional_instructions") or {})
+        prompt_registry = load_prompt_task_registry()
+        for task_id, prompt in prompt_registry.items():
+            addendum = str(addenda.get(task_id) or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+            replacement = None
+            migration_state = "clean"
+            if addendum:
+                default_text = load_prompt_template(Path(prompt["template_path"]))
+                anchor = prompt_addendum_anchors[task_id]
+                if anchor not in default_text:
+                    raise RuntimeError(f"legacy prompt insertion anchor missing: {task_id}")
+                replacement = default_text.replace(
+                    anchor,
+                    f"## Additional User Instructions\n{addendum}\n\n{anchor}",
+                    1,
+                )
+                migration_state = "needs_review" if len(replacement) > 4000 else "clean"
+            migrate_prompt_configuration(
+                task_id,
+                replacement_text=replacement,
+                migration_state=migration_state,
+            )
+
+        legacy_retry = dict((overlay.get("fitcv_cp") or {}).get("retry") or {})
+        if legacy_retry:
+            backoff = list(legacy_retry.get("backoff_seconds") or [])
+            values = {
+                "maximum_attempts": (
+                    1
+                    if legacy_retry.get("enabled") is False
+                    else int(legacy_retry.get("max_attempts") or SYSTEM_SETTINGS_DEFAULTS["maximum_attempts"])
+                ),
+                "initial_backoff_seconds": int(
+                    backoff[0] if backoff else SYSTEM_SETTINGS_DEFAULTS["initial_backoff_seconds"]
+                ),
+                "lease_seconds": int(
+                    legacy_retry.get("lease_seconds") or SYSTEM_SETTINGS_DEFAULTS["lease_seconds"]
+                ),
+                "reconciler_interval_seconds": int(
+                    legacy_retry.get("reconciler_interval_seconds")
+                    if int(legacy_retry.get("reconciler_interval_seconds") or 0) > 0
+                    else SYSTEM_SETTINGS_DEFAULTS["reconciler_interval_seconds"]
+                ),
+                "error_detail_limit": int(
+                    legacy_retry.get("error_details_max_chars")
+                    or SYSTEM_SETTINGS_DEFAULTS["error_detail_limit"]
+                ),
+            }
+            for field, (minimum, maximum) in SYSTEM_SETTING_BOUNDS.items():
+                values[field] = max(minimum, min(maximum, values[field]))
+            current_system = load_system_settings()
+            if any(current_system[field] != value for field, value in values.items()):
+                resulting_system_revision = patch_system_settings(
+                    values,
+                    expected_revision=int(current_system["revision"]),
+                )["revision"]
+
+        clean_onboarding = {
+            key: onboarding[key]
+            for key in ("version", "current_step", "complete", "profile_configured")
+            if key in onboarding
+        }
+        if not clean_onboarding:
+            clean_onboarding = {"version": 1, "current_step": "welcome", "complete": False}
+
+        write_controller_overlay(
+            paths.controller_overlay_path,
+            {"version": LOCAL_CONTROLLER_OVERLAY_VERSION},
+        )
+        paths.onboarding_state_path.write_text(
+            json.dumps(clean_onboarding, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        for source_provider_id, target_provider_id in copied_credentials:
+            if target_provider_id != source_provider_id:
+                delete_credential(source_provider_id)
+        paths.integration_migration_error_path.unlink(missing_ok=True)
+        store.record_integration_migration(
+            migration_key,
+            details={
+                "providers": provider_targets,
+                "model_count": len(model_refs),
+                "prompt_count": len(addenda),
+                "retry_migrated": bool(legacy_retry),
+                "legacy_retry": legacy_retry,
+                "system_settings_revision": resulting_system_revision,
+            },
+        )
+        return {"migration_key": migration_key, "status": "applied"}
+    except Exception as exc:
+        for path, previous in (
+            (paths.controller_overlay_path, overlay_before),
+            (paths.onboarding_state_path, onboarding_before),
+        ):
+            if previous is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(previous)
+        for source_provider_id, target_provider_id in copied_credentials:
+            copied_value = get_credential(target_provider_id)
+            if copied_value:
+                set_credential(source_provider_id, copied_value)
+        paths.integration_migration_error_path.write_text(
+            json.dumps(
+                {"error_type": type(exc).__name__, "message": str(exc)[:500]},
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        raise
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()

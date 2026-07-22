@@ -106,49 +106,26 @@ def write_routing_overlay(path: Path, payload: dict[str, Any]) -> None:
 
 
 def discover_models(setup: ProviderSetup, *, api_key: str = "") -> list[str]:
-    import httpx
+    from fitcv_cp.provider_registry import discover_provider_models
 
-    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-    with httpx.Client(timeout=setup.timeout_seconds) as client:
-        response = client.get(f"{normalize_api_root(setup.base_url)}/models", headers=headers)
-        response.raise_for_status()
-    payload = response.json()
-    rows = payload.get("data") if isinstance(payload, dict) else None
-    return sorted(
-        str(row.get("id") or "").strip()
-        for row in rows or []
-        if isinstance(row, dict) and str(row.get("id") or "").strip()
+    return discover_provider_models(
+        compatibility="openai",
+        base_url=setup.base_url,
+        api_key=api_key,
+        timeout_seconds=setup.timeout_seconds,
     )
 
 
-def test_provider(setup: ProviderSetup) -> dict[str, object]:
-    from fitcv.llm_runtime import LlmTaskRequest, LlmValidationResult, execute_llm_task
-    from fitcv.runtime_routing import LlmRouting
+def test_provider(setup: ProviderSetup, *, api_key: str = "") -> dict[str, object]:
+    from fitcv_cp.provider_registry import validate_connection_draft
 
-    result = execute_llm_task(
-        LlmTaskRequest(
-            routing_part="fitcv_local_provider_test",
-            prompt="Reply with OK.",
-            response_mode="text",
-        ),
-        parser=lambda response: response.raw_text.strip(),
-        validator=lambda value: LlmValidationResult(
-            valid=bool(str(value or "").strip()), errors=[], details={}
-        ),
-        resolved_route=LlmRouting(
-            provider=setup.provider_id,
-            base_url=normalize_api_root(setup.base_url),
-            wire_api=setup.wire_api,
-            model=setup.default_model,
-            timeout_seconds=setup.timeout_seconds,
-            auth_mode=setup.auth_mode,
-        ),
+    return validate_connection_draft(
+        compatibility="openai",
+        base_url=setup.base_url,
+        api_type=setup.wire_api,
+        api_key=api_key,
+        timeout_seconds=setup.timeout_seconds,
     )
-    return {
-        "ok": result.status == "succeeded",
-        "failure_code": result.failure.code if result.failure else None,
-        "http_status": result.failure.http_status if result.failure else None,
-    }
 
 
 def readiness(

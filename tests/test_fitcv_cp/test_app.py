@@ -44,6 +44,19 @@ def _app():
     return create_app(redis_url="redis://localhost:6379/0")
 
 
+def test_provider_api_is_not_mounted_outside_packaged_local_mode() -> None:
+    app = _app()
+
+    assert TestClient(app).get("/api-providers").status_code == 404
+    assert TestClient(app).get("/llm-configuration").status_code == 404
+    assert TestClient(app).get("/prompt-configurations").status_code == 404
+    assert TestClient(app).get("/system-settings").status_code == 404
+    assert "/api-providers" not in TestClient(app).get("/openapi.json").json()["paths"]
+    assert "/llm-configuration" not in TestClient(app).get("/openapi.json").json()["paths"]
+    assert "/prompt-configurations" not in TestClient(app).get("/openapi.json").json()["paths"]
+    assert "/system-settings" not in TestClient(app).get("/openapi.json").json()["paths"]
+
+
 def _app_with_active_profile():
     app = _app()
     app.state.run_store.get_candidate_profile_fn = lambda profile_id: {
@@ -139,6 +152,7 @@ def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
     assert manifest == [
         ("/admin/bookmarks", ("GET",), "admin_bookmarks", "HTMLResponse"),
         ("/admin/candidate-profiles", ("GET",), "admin_candidate_profiles", "HTMLResponse"),
+        ("/admin/candidate-profiles/{profile_id}", ("GET",), "admin_candidate_profile_detail", "HTMLResponse"),
         ("/admin/cvs/{version_id}/download", ("GET",), "download_cv", "DefaultPlaceholder"),
         ("/admin/diagnostics/orchestration-schema", ("GET",), "admin_orchestration_schema_diagnostics", "DefaultPlaceholder"),
         ("/admin/mapping-suggestions.json", ("GET",), "download_aggregate_mapping_suggestions_json", "DefaultPlaceholder"),
@@ -1187,6 +1201,46 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     assert "auto_promote_global_enabled" not in synonym_settings
 
 
+def test_trigger_runtime_envelope_snapshots_prompt_metadata_without_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv_cp import app as app_module
+
+    prompt_snapshot = {
+        "tasks": {
+            "enrich_extraction": {
+                "revision": 2,
+                "replacement_sha256": "abc123",
+                "replacement_char_count": 42,
+            }
+        }
+    }
+    monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
+    monkeypatch.setattr(
+        app_module,
+        "build_packaged_llm_configuration_snapshot",
+        lambda: {"revision": 1, "tasks": {}},
+    )
+    monkeypatch.setattr(
+        app_module,
+        "build_prompt_configuration_snapshot",
+        lambda: prompt_snapshot,
+    )
+
+    effective = app_module._apply_trigger_runtime_envelope(
+        {},
+        jobs_input_source=None,
+        jobs_input_json=None,
+        jobs_input_manifest_json=None,
+        candidate_profile_source=None,
+        candidate_profile_json=None,
+        run_mode="run_all",
+    )
+
+    assert effective["runtime_inputs"]["prompt_configuration_snapshot"] == prompt_snapshot
+    assert "replacement_text" not in json.dumps(effective)
+
+
 def test_post_runs_queue_failure_terminalizes_existing_run(tmp_path) -> None:
     jobs_file = tmp_path / "jobs.json"
     jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
@@ -1632,7 +1686,9 @@ def test_central_workspace_pages_share_navigation_and_retire_legacy_labels() -> 
         assert "fitcvApiRequest" in html
         assert html.index("async function fitcvApiRequest") < html.index('data-page=')
     assert "table-shell" in candidate_html
-    assert "if(status)query.set('status',status)" in candidate_html
+    assert 'name="status"' in candidate_html
+    assert 'name="search"' in candidate_html
+    assert "return_to={{ current_url|urlencode }}" in Path("src/fitcv_cp/templates/candidate_profiles.html").read_text(encoding="utf-8")
     assert "table-shell" in bookmark_html
     assert bookmark_html.index('id="bookmarkNotice"') < bookmark_html.index('id="bookmarkCount"') < bookmark_html.index('class="table-shell"')
     assert "Submitted" not in bookmark_html and "Archived" not in bookmark_html
@@ -4664,7 +4720,8 @@ def test_admin_runs_rendered_nav():
          patch("fitcv_cp.app.get_events", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
-    assert 'href="/admin/settings">Settings</a>' in resp.text
+    assert 'href="/admin/settings"' in resp.text
+    assert '>Pipeline</a>' in resp.text
     assert 'Refresh' in resp.text
     assert 'id="jobs_file"' in resp.text
     assert 'id="candidate_profile_id"' in resp.text
@@ -12470,92 +12527,55 @@ def test_admin_settings_uses_pipeline_resource_ui() -> None:
     html = resp.text
     assert 'id="pipeline-settings-app"' in html
     assert 'id="pipeline-manage-dialog"' in html
-    assert 'requestJson("/settings/pipeline"' in html
-    assert "async function loadSettings" in html
+    assert 'data-setting-row=' in html
+    assert "fitcvApiRequest('/settings/pipeline'" in html
     assert "async function patchSettings" in html
-    assert "async function resetSettings" in html
-    assert 'input.type = "checkbox"' in html
-    template_source = open("src/fitcv_cp/templates/settings.html", encoding="utf-8").read()
-    assert "localStorage" in template_source
+    assert "fitcvApiRequest('/settings/pipeline/reset'" in html
+    assert "field.type==='bool'" in html
+    base_source = open("src/fitcv_cp/templates/base.html", encoding="utf-8").read()
+    assert "localStorage" in base_source
     assert "Skip Incomplete Listings" not in html
     assert "Require Manual Review" not in html
     assert "Gap Threshold" not in html
 
 
-def test_admin_settings_wires_prototype_runs_actions() -> None:
+def test_admin_settings_does_not_duplicate_workspace_pages_or_global_controls() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'id="runsNav" href="#runs"' in html
-    assert 'id="runDialog"' in html
-    assert 'id="runDetailsDrawer"' in html
-    assert 'requestJson("/candidate-profiles?active=true")' in html
-    assert 'requestEnvelope(`/runs?${params}`)' in html
-    assert 'fetch("/runs", {method: "POST"' in html
-    assert 'requestJson(`/runs/${runId}/actions/cancel`' in html
-    assert 'requestJson(`/runs/${runId}/actions/archive`' in html
-    assert 'requestJson(`/runs/${runId}/actions/unarchive`' in html
-    assert 'requestJson("/runs/actions/delete-archived"' in html
-    assert 'requestEnvelope(`/runs/${runId}/jobs?' in html
-    assert 'requestEnvelope(`/runs/${runId}/events?' in html
-    assert 'requestJson(`/runs/${runId}/jobs/${runJobId}/cvs`' in html
-    assert 'requestJson(`/runs/${runId}/jobs/${runJobId}/bookmark`' in html
-    assert 'requestJson(`/runs/${runId}/jobs/${runJobId}/interest`' in html
-    assert '`/runs/${runId}/jobs/export.csv?${params}`' in html
-    assert '`/runs/${runId}/debug-bundle`' in html
-    assert 'Promise.all([loadSettings(), loadCandidateProfiles(), loadRuns({quiet: true})])' in html
-    assert 'runForm.addEventListener("submit"' in html
-    assert 'runDetailsDrawer.addEventListener("click"' in html
-    assert 'loadRuns({quiet: true}).catch(error => showError(error.message))' in html
-    assert 'if (selectedRunDetailId && runDetailsDrawer.open) openRunDetails' not in html
-    assert 'latest?.capabilities?.download' in html
-    assert 'latest?.capabilities?.regenerate' in html
-    assert 'catch (error) { runDetailsBody.insertAdjacentHTML("afterbegin", `<div class="pipeline-notice pipeline-error" role="alert">${escapeHtml(error.message)}</div>`); }' in html
+    assert 'href="#runs"' not in html
+    assert 'id="runDialog"' not in html
+    assert 'id="runDetailsDrawer"' not in html
+    assert 'id="candidateProfileDrawer"' not in html
+    assert 'requestEnvelope(`/runs?' not in html
+    assert "fitcvApiRequest('/runs'" not in html
     assert 'settings_revision_conflict' in html
-    assert 'result_bucket: pipelineResult' in html
-    assert 'next_cursor' in html
-    assert 'const loadMoreButton = event.currentTarget;' in html
-    assert '.btn{display:inline-flex;min-height:38px;align-items:center;justify-content:center;' in html
-    assert '.summary-card span{display:block;color:var(--mirror-strong);font-size:11px}' in html
-    assert '<ol class="console-log" id="runConsoleEvents" aria-live="polite" aria-label="Run console events">' in html
-    assert '<option value="default_config">Default Candidate Profile</option>' not in html
-    assert '"/admin/upload-trigger"' not in html
-    assert 'if (dialog.open) dialog.close();' in html
-    assert 'requestId !== runDetailsRequestId || activePageId !== "runs"' in html
     assert 'id="pipeline-dialog-status"' in html
 
 
 def test_admin_settings_uses_approved_prototype_visual_contract() -> None:
     prototype = Path("docs/fitcv-settings-ui-prototype.html").read_text(encoding="utf-8")
+    base = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
     template = Path("src/fitcv_cp/templates/settings.html").read_text(encoding="utf-8")
 
-    for fragment in (
-        "--accent:#b94d36",
-        "--sidebar-w:288px",
-        ".shell{display:flex;min-height:100vh",
-        ".sidebar{width:var(--sidebar-w)",
-        ".section-card{overflow:hidden",
-        ".collapsible-section summary{display:flex",
-        ".section-content{overflow:hidden",
-        ".row{display:grid;grid-template-columns:minmax(0,1fr) auto",
-        ".switch{position:relative",
-        '<aside class="sidebar"',
-        '<div class="scroll"><div class="content">',
-    ):
-        assert fragment in prototype
-        assert fragment in template
-
-    assert ':root[data-theme="light"]{color-scheme:light;--accent:#b94d36' in template
-    assert ':root[data-theme="dark"]{color-scheme:dark;--accent:#ee8d6a' in template
-
-    assert "pipeline-settings__layout" not in template
+    assert "--accent:#b94d36" in prototype
+    assert 'class="app-shell"' in base
+    assert 'class="app-sidebar"' in base
+    assert 'id="page-content"' in base
+    assert ".settings-row" in base
+    assert "history.pushState" in base
+    assert "response.url || url" in base
+    assert "history.replaceState" in base
+    assert "addEventListener('popstate'" in base
+    assert '<aside class="app-sidebar"' not in template
+    assert "toggleTheme" not in template
 
 
 def test_admin_settings_archived_run_delete_uses_preview_contract() -> None:
-    template = Path("src/fitcv_cp/templates/settings.html").read_text(encoding="utf-8")
+    template = Path("src/fitcv_cp/templates/runs_list.html").read_text(encoding="utf-8")
 
-    assert 'requestJson("/runs/actions/delete-archived/preview"' in template
-    assert 'requestJson("/runs/actions/delete-archived"' in template
+    assert "fitcvApiRequest('/runs/actions/delete-archived/preview'" in template
+    assert "fitcvApiRequest('/runs/actions/delete-archived'" in template
     assert "preview_revision: preview.preview_revision" in template
     assert "bookmark_count" in template
 
@@ -12862,8 +12882,8 @@ def test_call_synonym_triage_provider_routes_through_llm_runtime(
                 "version": "v1",
                 "template_path": "prompt.md",
                 "customized": False,
-                "addendum_sha256": None,
-                "addendum_char_count": 0,
+                "replacement_sha256": None,
+                "replacement_char_count": 0,
             },
         )()
 

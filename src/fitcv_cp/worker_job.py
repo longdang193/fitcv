@@ -2528,7 +2528,7 @@ def execute_pipeline_run(
                                 error_classification=classification.classification,
                                 error_summary=classification.summary,
                                 error_details=classification.details,
-                                error_details_max_chars=settings.error_details_max_chars,
+                                error_details_max_chars=settings.error_detail_limit,
                                 retry_eligible=(classification.classification in {"transient", "unknown"}),
                             ),
                             ensure_ascii=False,

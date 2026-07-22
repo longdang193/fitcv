@@ -34,7 +34,7 @@ from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
     get_cv_generation_structured_prompt_id,
-    get_prompt_addendum,
+    get_prompt_replacement,
     get_required_structured_section_keys,
 )
 from fitcv.contracts import (
@@ -59,6 +59,7 @@ from fitcv.llm_runtime import (
     execute_llm_task,
     project_llm_runtime_evidence,
 )
+from fitcv.runtime_routing import resolve_llm_routing
 from fitcv.rule_filter import canonicalize_skill
 
 # ── template variant map ─────────────────────────────────────────────────────
@@ -1338,7 +1339,7 @@ def build_structured_generation_prompt(
                 "Do not add commentary. Do not wrap the JSON in markdown code fences."
             ),
         },
-        additional_instructions=get_prompt_addendum(
+        replacement_text=get_prompt_replacement(
             "cv_generation_structured_write", config
         ),
     ).text
@@ -1667,6 +1668,9 @@ def _execute_cv_generation_runtime(
         parser=_parser,
         validator=validator or _structural_validator,
         adapter=adapter,
+        resolved_route=resolve_llm_routing(
+            "cv_generation_structured_write", runtime_config=config
+        ),
     )
 
 

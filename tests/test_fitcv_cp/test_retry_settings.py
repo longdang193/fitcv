@@ -1,42 +1,46 @@
-"""@meta
-type: test
-scope: unit
-domain: run_orchestration
-covers:
-  - fitcv_cp.retry_settings load_retry_settings
-tags:
-  - fast
-  - ci-safe
-"""
+"""Tests for canonical retry/recovery settings."""
 
 from fitcv_cp.retry_settings import load_retry_settings
 
 
-def test_load_retry_settings_rejects_missing_canonical_fields() -> None:
-    import pytest
+def test_load_retry_settings_reads_packaged_local_system_resource(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from fitcv_cp.settings_store import load_system_settings, patch_system_settings
 
-    with pytest.raises(ValueError, match="fitcv_cp.retry.enabled is required"):
-        load_retry_settings({})
-
-
-def test_load_retry_settings_parses_values_from_control_plane_cfg() -> None:
-    settings = load_retry_settings(
+    monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    current = load_system_settings()
+    updated = patch_system_settings(
         {
-            "fitcv_cp": {
-                "retry": {
-                    "enabled": True,
-                    "max_attempts": 3,
-                    "backoff_seconds": [1, 5],
-                    "lease_seconds": 120,
-                    "reconciler_interval_seconds": 10,
-                    "error_details_max_chars": 4096,
-                }
-            }
-        }
+            "maximum_attempts": 4,
+            "initial_backoff_seconds": 12,
+            "lease_seconds": 120,
+            "reconciler_interval_seconds": 15,
+            "error_detail_limit": 4096,
+        },
+        expected_revision=current["revision"],
     )
-    assert settings.enabled is True
-    assert settings.max_attempts == 3
-    assert settings.backoff_seconds == (1, 5)
+
+    settings = load_retry_settings()
+
+    assert settings.maximum_attempts == 4
+    assert settings.initial_backoff_seconds == 12
     assert settings.lease_seconds == 120
-    assert settings.reconciler_interval_seconds == 10
-    assert settings.error_details_max_chars == 4096
+    assert settings.reconciler_interval_seconds == 15
+    assert settings.error_detail_limit == 4096
+    assert settings.revision == updated["revision"]
+
+
+def test_load_retry_settings_uses_explicit_non_local_defaults(monkeypatch) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+
+    settings = load_retry_settings({})
+
+    assert settings.maximum_attempts == 3
+    assert settings.initial_backoff_seconds == 10
+    assert settings.lease_seconds == 300
+    assert settings.reconciler_interval_seconds == 30
+    assert settings.error_detail_limit == 10000
+    assert settings.revision == 0

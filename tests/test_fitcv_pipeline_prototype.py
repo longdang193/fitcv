@@ -14,7 +14,6 @@ from pathlib import Path
 
 
 PROTOTYPE = Path("docs/fitcv-settings-ui-prototype.html")
-INTEGRATION_INTENT = Path("docs/fitcv-settings-ui-prototype.integration.md")
 
 
 def test_run_page_prototype_contract() -> None:
@@ -246,56 +245,6 @@ def test_api_provider_and_llm_configuration_ui_contract() -> None:
     assert 'id="systemReconcilerInterval"' in html
     assert 'id="systemErrorDetailLimit"' in html
     assert "fetch(" not in html
-
-def test_prototype_integration_intent_tracks_profile_theme_and_backup_wiring() -> None:
-    intent = INTEGRATION_INTENT.read_text(encoding="utf-8")
-
-    assert "GET /candidate-profiles/{profile_id}" in intent
-    assert "GET /candidate-profiles/{profile_id}/runs" not in intent
-    assert "Back to Candidate Profiles" in intent
-    assert "omit reverse Run listings" in intent
-    assert "unbounded Run list" in intent
-    assert "Health is absent from the sidebar" in intent
-    assert "fixed size" in intent
-    assert "same hover surface token" in intent
-    assert "Appearance is absent from sidebar" in intent
-    assert "POST /local/data/backup" in intent
-    assert "POST /local/data/import" in intent
-    assert "fitcv-backup.v1" in intent
-    assert "## API Providers" in intent
-    assert "Windows Credential Manager" in intent
-    assert "one connection" in intent
-    assert "## LLM Configuration" in intent
-    assert "OpenAI-compatible" in intent
-    assert "Anthropic-compatible" in intent
-    assert "connection counts are not shown" in intent
-    assert "Connection actions are Test" in intent
-    assert "remains disabled until the current draft passes Test" in intent
-    assert "sole owner of Connected display" in intent
-    assert "Needs retest" in intent
-    assert "validation before Add Model" in intent
-    assert "Task Configuration" in intent
-    assert "Prompt Management" in intent
-    assert "Synonym Recommendation" in intent
-    assert "4000 characters" in intent
-    assert "Maximum Attempts" in intent
-    assert "Initial Backoff" in intent
-    assert "Lease" in intent
-    assert "Reconciler Interval" in intent
-    assert "## System" in intent
-    assert "Shutdown FitCV" in intent
-    assert "Theme precedes Shutdown FitCV" in intent
-    assert "borderless icon-button rest state" in intent
-    assert "one outer section boundary" in intent
-    assert "separate layout groups" in intent
-    assert "text-only Test action" in intent
-    assert "parent-owned section gap" in intent
-    assert "do not repeat lifecycle status" in intent
-    assert "show only the linked Run ID" in intent
-    assert "remain unframed" in intent
-    assert "does not duplicate Shutdown FitCV" in intent
-    assert "active work" in intent
-
 
 def test_synonym_backup_prototype_uses_opaque_zip_contract() -> None:
     html = PROTOTYPE.read_text(encoding="utf-8")

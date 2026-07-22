@@ -23,7 +23,7 @@ Penalize missing core technologies, weak required-skill evidence, seniority
 mismatch, and practical-readiness gaps. Prefer conservative scoring when
 evidence is ambiguous.
 
-${prompt_addendum}Return JSON only, without prose or markdown fences. Diagnostic arrays do not
+Return JSON only, without prose or markdown fences. Diagnostic arrays do not
 control ranking or CV generation.
 
 {

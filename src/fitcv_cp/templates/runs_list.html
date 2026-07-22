@@ -12,6 +12,13 @@
   </div>
 </div>
 
+<form class="filter-bar section-card" method="get" action="/admin/runs">
+  <input type="hidden" name="view" value="{{ view }}">
+  <label>Search<input name="search" type="search" value="{{ search }}" autocomplete="off"></label>
+  <label>Status<input name="status" value="{{ status }}" placeholder="Any status" autocomplete="off"></label>
+  <button class="btn-secondary" type="submit">Apply</button>
+</form>
+
 <style>
   .runs-table {
     width: 100%;
@@ -150,7 +157,7 @@
             onchange="updateBulkActionBar()"
           >
         </td>
-        <td><a href="/admin/runs/{{ run.run_id }}"><code>{{ run.run_id[:8] }}…</code></a></td>
+        <td><a href="/admin/runs/{{ run.run_id }}?return_to={{ current_url|urlencode }}"><code>{{ run.run_id[:8] }}…</code></a></td>
         <td>
           <span class="run-status-text" data-status="{{ run.status.value }}">{{ run.status.value }}</span>
           {% if status_projection.is_archived %}<div class="meta" style="margin-top:0.15rem">archived</div>{% endif %}
@@ -184,6 +191,11 @@
     </tbody>
   </table>
 </div>
+<nav class="selection-toolbar" aria-label="Run pages" style="margin-top:0.75rem">
+  {% if page > 1 %}<a class="btn-secondary" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page - 1)) }}">Previous</a>{% endif %}
+  <span class="meta">Page {{ page }} of {{ total_pages }}</span>
+  {% if page < total_pages %}<a class="btn-secondary" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page + 1)) }}">Next</a>{% endif %}
+</nav>
 
 <script>
 async function refreshCandidateProfiles() {

@@ -40,6 +40,7 @@ from fitcv_cp.local_storage import (
     load_bootstrap,
     load_pending_operation,
     local_storage_paths,
+    migrate_packaged_local_integration_state,
     relocate_data_root,
     reset_local_database,
     restore_backup_archive,
@@ -236,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
         previous_root = process_pending_storage_operation(app_version=LOCAL_APP_VERSION)
         paths = activate_local_storage(app_version=LOCAL_APP_VERSION, bundle_root=bundle_root)
         ensure_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
+        migrate_packaged_local_integration_state(paths)
     except Exception as exc:
         if previous_root is not None:
             write_bootstrap(

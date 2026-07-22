@@ -28,6 +28,14 @@ def test_control_plane_store_uses_injected_insert_fn() -> None:
     assert isinstance(captured["run"], PipelineRun)
 
 
+def test_control_plane_store_uses_injected_provider_registry_fn() -> None:
+    store = ControlPlaneStore(
+        list_custom_api_providers_fn=lambda: [{"provider_id": "provider-1"}]
+    )
+
+    assert store.list_custom_api_providers() == [{"provider_id": "provider-1"}]
+
+
 def test_control_plane_store_uses_injected_binding_fn() -> None:
     captured: dict[str, object] = {}
 

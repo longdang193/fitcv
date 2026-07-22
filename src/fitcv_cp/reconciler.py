@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -170,17 +171,7 @@ def reconcile_abandoned_attempts(
                 )
             )
 
-            if not settings.enabled:
-                store.update_run_status(
-                    run.run_id,
-                    RunStatus.FAILED,
-                    finished_at=now,
-                    error_message="abandoned_attempt_lease_expired",
-                )
-                terminal_failed_runs += 1
-                continue
-
-            if attempt_count >= settings.max_attempts:
+            if attempt_count >= settings.maximum_attempts:
                 store.update_run_status(
                     run.run_id,
                     RunStatus.FAILED,
@@ -190,6 +181,7 @@ def reconcile_abandoned_attempts(
                 terminal_failed_runs += 1
                 continue
 
+            time.sleep(settings.initial_backoff_seconds)
             enqueue_run_with_job_id(
                 jobs_path=str(getattr(run, "jobs_path", "")),
                 config_path=str(getattr(run, "config_path", "")),

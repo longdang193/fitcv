@@ -1069,7 +1069,9 @@ def test_build_ranking_features_drops_jobs_missing_from_ai_scores() -> None:
     assert all(f["job_url"] != "https://example.com/99" for f in features)
 
 
-def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_provenance() -> None:
+def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     config = _minimal_config()
     config["prompts_runtime"] = {
         "enrich": {"extraction": {"prompt_id": "enrich.extraction.v1", "template_path": "enrich.md"}},
@@ -1081,12 +1083,31 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
             }
         },
     }
-    prompt_addendum = "Keep evidence direct."
-    config.setdefault("prompts", {})["additional_instructions"] = {
-        "enrich_extraction": prompt_addendum,
-        "ranking_ai_score": prompt_addendum,
-        "cv_generation_structured_write": prompt_addendum,
-    }
+    prompt_replacement = "Keep evidence direct."
+    monkeypatch.setattr(
+        "fitcv.pipeline.get_prompt_replacement_metadata",
+        lambda *_args, **_kwargs: {
+            "customized": True,
+            "replacement_sha256": __import__("hashlib").sha256(
+                prompt_replacement.encode("utf-8")
+            ).hexdigest(),
+            "replacement_char_count": len(prompt_replacement),
+        },
+    )
+    monkeypatch.setattr(
+        "fitcv.pipeline.get_enrich_prompt_provenance",
+        lambda *_args, **_kwargs: {
+            "prompt_id": "enrich.extraction.v1",
+            "prompt_version": "v1",
+            "template_path": "enrich.md",
+            "model": "cx/gpt-5.4-mini",
+            "prompt_customized": True,
+            "prompt_replacement_sha256": __import__("hashlib").sha256(
+                prompt_replacement.encode("utf-8")
+            ).hexdigest(),
+            "prompt_replacement_char_count": len(prompt_replacement),
+        },
+    )
     raw_job = _minimal_job()
     enriched_job = {**raw_job, "title": "Data Analyst"}
     ai_score_row = {
@@ -1183,20 +1204,20 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
     )
 
     expected_hash = __import__("hashlib").sha256(
-        prompt_addendum.encode("utf-8")
+        prompt_replacement.encode("utf-8")
     ).hexdigest()
     enrich_summary = artifacts["stages"]["enrich"]["decision_summary"]
     assert enrich_summary["enrich_prompt_customized"] is True
-    assert enrich_summary["enrich_prompt_addendum_sha256"] == expected_hash
-    assert enrich_summary["enrich_prompt_addendum_char_count"] == len(prompt_addendum)
+    assert enrich_summary["enrich_prompt_replacement_sha256"] == expected_hash
+    assert enrich_summary["enrich_prompt_replacement_char_count"] == len(prompt_replacement)
 
     ranking_summary = artifacts["stages"]["ranking"]["decision_summary"]
     assert ranking_summary["ranking_prompt_id"] == "ranking.ai_score.v1"
     assert ranking_summary["ranking_prompt_template_path"] == "ranking_ai_score_v1.md"
     assert ranking_summary["ai_score_model"] == "cx/gpt-5.4-mini"
     assert ranking_summary["ranking_prompt_customized"] is True
-    assert ranking_summary["ranking_prompt_addendum_sha256"] == expected_hash
-    assert ranking_summary["ranking_prompt_addendum_char_count"] == len(prompt_addendum)
+    assert ranking_summary["ranking_prompt_replacement_sha256"] == expected_hash
+    assert ranking_summary["ranking_prompt_replacement_char_count"] == len(prompt_replacement)
     assert artifacts["stages"]["enrich"]["llm_runtime_summary"]["calls_total"] == 1
     assert artifacts["stages"]["ranking"]["llm_runtime_summary"]["calls_total"] == 1
 
@@ -1205,8 +1226,8 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
     assert cv_generation_summary["cv_prompt_template_path"] == "cv_generation_structured_write_v1.md"
     assert cv_generation_summary["cv_generation_model"] == "cx/gpt-5.4-mini"
     assert cv_generation_summary["cv_prompt_customized"] is True
-    assert cv_generation_summary["cv_prompt_addendum_sha256"] == expected_hash
-    assert cv_generation_summary["cv_prompt_addendum_char_count"] == len(prompt_addendum)
+    assert cv_generation_summary["cv_prompt_replacement_sha256"] == expected_hash
+    assert cv_generation_summary["cv_prompt_replacement_char_count"] == len(prompt_replacement)
 
 
 def test_build_ranking_features_preserves_structured_job_fields_from_shortlist() -> None:

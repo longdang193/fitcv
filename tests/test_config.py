@@ -36,6 +36,9 @@ from fitcv.config import (
     resolve_data_backend,
 )
 from fitcv.persistence import get_local_sqlite_path
+from fitcv_cp.backend_runtime import set_backend_runtime
+from fitcv_cp.sqlite_store import initialize_control_plane_database
+from fitcv_cp.store import ControlPlaneStore
 
 
 def test_get_cv_acceptance_policy_defaults_when_missing() -> None:
@@ -254,6 +257,33 @@ def test_load_control_plane_config_merges_narrow_local_overlay(
     assert config["providers"]["openai"]["base_url"] == "https://example.test/v1"
     assert config["providers"]["openai"]["wire_api"] == "chat_completions"
     assert config["model_routing"]["parts"]["ranking_ai_score"]["model"] == "test-model"
+
+
+def test_load_control_plane_config_ignores_retired_overlay_after_local_migration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    overlay_path = tmp_path / "local_controller_overlay.yaml"
+    overlay_path.write_text(
+        "version: 1\nproviders:\n  openai:\n    base_url: https://example.test/v1\n"
+        "model_routing:\n  parts:\n    ranking_ai_score:\n      provider: openai\n      model: test-model\n",
+        encoding="utf-8",
+    )
+    database_path = tmp_path / "fitcv.sqlite3"
+    set_backend_runtime(None)
+    initialize_control_plane_database(database_path, tmp_path / "candidate_profile.yaml")
+    monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(database_path))
+    monkeypatch.setenv("FITCV_LOCAL_CONTROLLER_OVERLAY_PATH", str(overlay_path))
+    ControlPlaneStore().record_integration_migration(
+        "packaged_local_complete_integration_v1",
+        details={},
+    )
+
+    config = load_control_plane_config()
+
+    assert config["providers"]["openai"]["base_url"] == "https://api.openai.com/v1"
+    assert config["model_routing"]["parts"]["ranking_ai_score"]["model"] != "test-model"
 
 
 

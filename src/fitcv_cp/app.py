@@ -32,12 +32,12 @@ import uuid
 import zipfile
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Any, Callable, Literal, TypedDict
 from urllib.parse import unquote, urlencode, urlparse
 from zoneinfo import ZoneInfo
 
 import yaml
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
+from fastapi import FastAPI, Header, HTTPException, Request, UploadFile, File, Form
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -45,7 +45,8 @@ from pydantic import BaseModel, ValidationError as PydanticValidationError, fiel
 
 from fitcv.config import (
     apply_cv_compatibility_projection,
-    get_prompt_addendum,
+    build_prompt_configuration_snapshot,
+    get_prompt_replacement,
     apply_runtime_skill_synonym_overlay,
     apply_runtime_synonym_overlay,
     load_config,
@@ -100,7 +101,8 @@ from fitcv.pipeline_contracts import (
     timeline_stage_label,
 )
 from fitcv.pipeline_stages.common import job_identity_keys, normalize_job_url_key
-from fitcv.prompts import render_prompt
+from fitcv.prompts import get_prompt_definition, render_prompt, required_template_variables
+from fitcv.prompts.loader import load_prompt_template
 from fitcv.pipeline import (
     _infer_last_completed_stage_from_state,
     _restore_pipeline_state,
@@ -113,6 +115,7 @@ from fitcv.late_stage_contract import (
 from fitcv.tracker import create_cv_version_record
 import fitcv_cp.sqlite_store as sqlite_store_module
 from fitcv_cp.backend_runtime import BackendRuntime
+from fitcv_cp import provider_registry
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
 from fitcv_cp.queue import (
@@ -135,7 +138,7 @@ from fitcv_cp.run_artifact_contracts import (
     pretty_json_string_or_fallback,
     run_mode_label,
 )
-from fitcv.runtime_routing import LlmRouting, build_runtime_routing_snapshot, resolve_openai_compatible_api_key
+from fitcv.runtime_routing import LlmRouting, build_packaged_llm_configuration_snapshot, build_runtime_routing_snapshot, resolve_openai_compatible_api_key
 from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv_cp.run_artifact_mirror import build_terminal_run_artifact_payloads
 from fitcv_cp.settings_schema import (
@@ -178,11 +181,18 @@ update_run_orchestration_binding = sqlite_store_module.update_run_orchestration_
 from fitcv_cp.settings_store import (
     SettingsRevisionConflict,
     load_active_settings,
+    load_llm_configuration,
+    load_prompt_configurations,
+    load_system_settings,
     mutate_settings_atomically,
+    patch_llm_configuration,
+    patch_prompt_configuration,
+    patch_system_settings,
     save_setting,
     save_settings_group,
     settings_revision,
 )
+from fitcv_cp.retry_settings import SYSTEM_SETTING_BOUNDS, SYSTEM_SETTINGS_DEFAULTS
 from fitcv_cp.synonym_proposals import (
     apply_synonym_management_defaults,
     build_builtin_synonym_triage_recommendation,
@@ -746,6 +756,9 @@ def _apply_trigger_runtime_envelope(
         runtime_inputs["jobs_input_manifest_json"] = jobs_input_manifest_json
     if candidate_profile_json:
         runtime_inputs["candidate_profile_json"] = candidate_profile_json
+    if str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {"1", "true", "yes", "on"}:
+        runtime_inputs["llm_configuration_snapshot"] = build_packaged_llm_configuration_snapshot()
+        runtime_inputs["prompt_configuration_snapshot"] = build_prompt_configuration_snapshot()
     runtime_inputs["cv_generation_runtime_expectation"] = _resolve_live_runtime_expectation(
         "cv_generation_structured_write",
         default_model="",
@@ -2915,7 +2928,7 @@ def _call_synonym_triage_provider(
         {
             "proposal_json": _json.dumps(proposal_view, ensure_ascii=False),
         },
-        additional_instructions=get_prompt_addendum(
+        replacement_text=get_prompt_replacement(
             "synonym_triage_recommendation"
         ),
     )
@@ -2940,6 +2953,9 @@ def _call_synonym_triage_provider(
         wire_api=str(route_values["wire_api"]),
         model=str(route_values["model"]),
         timeout_seconds=float(route_values["timeout_seconds"]),
+        temperature=float(runtime.get("temperature") or 0),
+        model_record_id=str(runtime.get("model_record_id") or "").strip() or None,
+        configuration_revision=int(runtime.get("configuration_revision") or 0) or None,
     )
 
     def _parse(response: LlmAdapterResponse) -> dict[str, Any]:
@@ -2990,8 +3006,8 @@ def _call_synonym_triage_provider(
             "prompt_version": rendered.version,
             "template_path": str(rendered.template_path),
             "customized": rendered.customized,
-            "addendum_sha256": rendered.addendum_sha256,
-            "addendum_char_count": rendered.addendum_char_count,
+            "replacement_sha256": rendered.replacement_sha256,
+            "replacement_char_count": rendered.replacement_char_count,
         },
     }
 
@@ -3024,7 +3040,14 @@ def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
     effective_settings = _load_json_object(run.effective_settings_json)
     if isinstance(effective_settings, dict):
         runtime_inputs = dict(effective_settings.get("runtime_inputs") or {})
-        expected = dict(runtime_inputs.get("synonym_triage_runtime_expectation") or {})
+        llm_snapshot = dict(runtime_inputs.get("llm_configuration_snapshot") or {})
+        expected = dict(
+            (llm_snapshot.get("tasks") or {}).get("synonym_triage_recommendation") or {}
+        )
+        if expected:
+            expected["configuration_revision"] = llm_snapshot.get("revision")
+        else:
+            expected = dict(runtime_inputs.get("synonym_triage_runtime_expectation") or {})
     if not expected:
         expected = _resolve_live_runtime_expectation(
             "synonym_triage_recommendation",
@@ -5674,6 +5697,235 @@ class BulkRunActionRequest(BaseModel):
         return deduped
 
 
+class CreateCustomProviderRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    display_name: str
+    compatibility: Literal["openai", "anthropic"]
+
+
+class UpdateCustomProviderRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    display_name: str | None = None
+    expected_revision: int
+
+
+class ConnectionTestRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    base_url: str | None = None
+    api_type: Literal["chat_completions", "responses", "messages"] | None = None
+    api_key: str | None = None
+
+
+class ConnectionWriteRequest(ConnectionTestRequest):
+    expected_revision: int
+
+
+class ModelTestRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    model_id: str
+
+
+class ModelCreateRequest(ModelTestRequest):
+    expected_revision: int
+
+
+class ExpectedProviderRevisionRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    expected_revision: int
+
+
+class ProviderModelResource(BaseModel):
+    model_record_id: str
+    provider_id: str
+    model_id: str
+    validation_status: Literal["validated", "needs_retest"]
+    validated_connection_revision: int | None
+    last_tested_at: str | None
+    last_test_error_code: str | None
+    revision: int
+    provider_revision: int
+    created_at: str
+    updated_at: str
+
+
+class ProviderCapabilities(BaseModel):
+    update: bool
+    delete: bool
+    test_connection: bool
+    remove_connection: bool
+    add_model: bool
+
+
+class ProviderResource(BaseModel):
+    provider_id: str
+    kind: Literal["predefined", "custom"]
+    display_name: str
+    compatibility: Literal["openai", "anthropic"]
+    base_url: str | None
+    base_url_editable: bool
+    supported_api_types: list[Literal["chat_completions", "responses", "messages"]]
+    api_type_fixed: bool
+    api_type: Literal["chat_completions", "responses", "messages"]
+    connection_status: Literal["verified", "not_configured"]
+    credential_configured: bool
+    connection_revision: int | None
+    model_count: int
+    eligible_model_count: int
+    revision: int
+    models: list[ProviderModelResource]
+    capabilities: ProviderCapabilities
+
+
+class ProviderEnvelope(BaseModel):
+    data: ProviderResource
+
+
+class ProviderModelEnvelope(BaseModel):
+    data: ProviderModelResource
+
+
+class ProviderCollectionEnvelope(BaseModel):
+    data: list[ProviderResource]
+    page: dict[str, int]
+    meta: dict[str, Any]
+
+
+class ProviderValidationResult(BaseModel):
+    ok: bool
+    failure_code: str | None
+    http_status: int | None
+
+
+class ProviderValidationEnvelope(BaseModel):
+    data: ProviderValidationResult
+
+
+class ProviderDeletedResource(BaseModel):
+    provider_id: str
+    deleted: Literal[True]
+
+
+class ProviderDeletedEnvelope(BaseModel):
+    data: ProviderDeletedResource
+
+
+class LlmTaskConfigurationPatch(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    model_ref: str | None = None
+    timeout_seconds: int | None = None
+    temperature: float | None = None
+
+
+class LlmConfigurationPatchRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    default_model_ref: str | None = None
+    tasks: dict[
+        Literal[
+            "enrich_extraction",
+            "ranking_ai_score",
+            "cv_generation_structured_write",
+            "synonym_triage_recommendation",
+        ],
+        LlmTaskConfigurationPatch,
+    ] | None = None
+    expected_revision: int
+
+
+class LlmTaskConfigurationResource(BaseModel):
+    model_ref: str | None
+    timeout_seconds: int
+    temperature: float
+
+
+class EligibleLlmModelResource(BaseModel):
+    model_record_id: str
+    provider_id: str
+    provider_display_name: str
+    model_id: str
+    api_type: str
+
+
+class LlmConfigurationResource(BaseModel):
+    default_model_ref: str | None
+    tasks: dict[str, LlmTaskConfigurationResource]
+    revision: int
+    updated_at: str
+    eligible_models: list[EligibleLlmModelResource]
+
+
+class LlmConfigurationEnvelope(BaseModel):
+    data: LlmConfigurationResource
+
+
+class PromptConfigurationPatchRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    replacement_text: str | None
+    expected_revision: int
+
+
+class PromptConfigurationResource(BaseModel):
+    task_id: str
+    display_name: str
+    group: Literal["Pipeline Prompts", "Synonym Prompts"]
+    prompt_id: str
+    prompt_version: str
+    default_text: str
+    required_runtime_variables: list[str]
+    mode: Literal["default", "custom"]
+    replacement_text: str | None
+    migration_state: Literal["clean", "needs_review"]
+    revision: int
+    updated_at: str
+
+
+class PromptConfigurationEnvelope(BaseModel):
+    data: PromptConfigurationResource
+
+
+class PromptConfigurationCollectionEnvelope(BaseModel):
+    data: list[PromptConfigurationResource]
+
+
+class SystemSettingsPatchRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    maximum_attempts: int
+    initial_backoff_seconds: int
+    lease_seconds: int
+    reconciler_interval_seconds: int
+    error_detail_limit: int
+    expected_revision: int
+
+
+class SystemSettingBound(BaseModel):
+    minimum: int
+    maximum: int
+
+
+class SystemSettingsResource(BaseModel):
+    maximum_attempts: int
+    initial_backoff_seconds: int
+    lease_seconds: int
+    reconciler_interval_seconds: int
+    error_detail_limit: int
+    revision: int
+    updated_at: str
+    defaults: dict[str, int]
+    bounds: dict[str, SystemSettingBound]
+
+
+class SystemSettingsEnvelope(BaseModel):
+    data: SystemSettingsResource
+
+
 class ApiError(Exception):
     def __init__(
         self,
@@ -6177,6 +6429,8 @@ def create_app(
     if local_mode:
         from fitcv_cp.local_routes import (
             build_local_router,
+            local_data_status_resource,
+            local_lifecycle_status_resource,
             local_readiness_status,
             onboarding_is_complete,
         )
@@ -6198,10 +6452,16 @@ def create_app(
                 supplied_token = request.headers.get("x-fitcv-csrf") or request.cookies.get("fitcv_csrf") or ""
                 if not secrets.compare_digest(supplied_token, csrf_token):
                     return Response("Invalid CSRF token", status_code=403)
-            allowed_before_setup = request.url.path.startswith("/local/") or request.url.path in {
-                "/healthz",
-                "/openapi.json",
-            }
+            setup_path = request.url.path
+            allowed_before_setup = setup_path.startswith(
+                (
+                    "/local/",
+                    "/api-providers",
+                    "/llm-configuration",
+                    "/admin/api-providers",
+                    "/admin/llm-configuration",
+                )
+            ) or setup_path in {"/healthz", "/openapi.json"}
             if not allowed_before_setup and not onboarding_is_complete():
                 if unsafe:
                     return Response("FitCV Local onboarding is incomplete", status_code=409)
@@ -6233,6 +6493,559 @@ def create_app(
             return RedirectResponse(target, status_code=307)
 
         app.include_router(build_local_router(templates))
+
+        def _provider_api_call(callback: Callable[[], Any]) -> Any:
+            try:
+                return callback()
+            except sqlite_store_module.ProviderPersistenceRevisionConflict as exc:
+                raise ApiError(
+                    409,
+                    "provider_revision_conflict",
+                    "Provider changed since last read.",
+                    action="Reload the provider and retry.",
+                ) from exc
+            except provider_registry.ProviderRegistryError as exc:
+                status_code = 422
+                code = exc.code
+                retryable = False
+                action = "Review the provider settings and retry."
+                if exc.code in {"provider_not_found", "model_not_found"}:
+                    status_code = 404
+                    action = None
+                elif exc.code == "provider_predefined":
+                    status_code = 409
+                    code = "provider_predefined_read_only"
+                    action = None
+                elif exc.code in {
+                    "provider_name_conflict",
+                    "provider_connection_required",
+                    "model_already_exists",
+                    "model_in_use",
+                }:
+                    status_code = 409
+                elif exc.code in {"credential_store_failed", "provider_unavailable"}:
+                    status_code = 503
+                    retryable = True
+                    action = "Retry after the local credential or provider service recovers."
+                elif exc.code in {"provider_auth_failed", "provider_connection_failed"}:
+                    code = "provider_connection_test_failed"
+                raise ApiError(
+                    status_code,
+                    code,
+                    str(exc),
+                    retryable=retryable,
+                    action=action,
+                ) from exc
+            except KeyError as exc:
+                raise ApiError(404, "provider_not_found", "Provider resource was not found.") from exc
+            except Exception as exc:
+                logger.error("Provider registry operation failed: %s", type(exc).__name__)
+                raise ApiError(
+                    500,
+                    "provider_persistence_failed",
+                    "Provider change could not be saved.",
+                    action="Retry. If the problem continues, restart FitCV.",
+                ) from exc
+
+        def _provider_api_type(provider_id: str, requested: str | None) -> str:
+            if requested:
+                return requested
+            provider = _provider_api_call(
+                lambda: provider_registry.get_provider(provider_id, store=_resolve_run_store())
+            )
+            return str(provider["api_type"])
+
+        def _reserve_provider_action(
+            scope: str,
+            idempotency_key: str,
+            payload: dict[str, Any],
+        ) -> dict[str, Any]:
+            try:
+                return _resolve_run_store().reserve_idempotent_action(
+                    scope,
+                    idempotency_key.strip(),
+                    _request_fingerprint(payload),
+                )
+            except ValueError as exc:
+                if str(exc) == "idempotency_conflict":
+                    raise ApiError(
+                        409,
+                        "idempotency_conflict",
+                        "Idempotency-Key was already used for a different request.",
+                        action="Use a new Idempotency-Key.",
+                    ) from exc
+                raise
+
+        @app.get("/api-providers", response_model=ProviderCollectionEnvelope)
+        def get_api_providers() -> dict[str, Any]:
+            providers = _provider_api_call(
+                lambda: provider_registry.list_providers(store=_resolve_run_store())
+            )
+            total = len(providers)
+            return {
+                "data": providers,
+                "page": {
+                    "number": 1,
+                    "size": total,
+                    "total_items": total,
+                    "total_pages": 1,
+                },
+                "meta": {},
+            }
+
+        @app.post("/api-providers", response_model=ProviderEnvelope)
+        def post_api_provider(
+            body: CreateCustomProviderRequest,
+            idempotency_key: str = Header(alias="Idempotency-Key"),
+        ) -> dict[str, Any]:
+            payload = body.model_dump()
+            reservation = _reserve_provider_action(
+                "api-providers:create",
+                idempotency_key,
+                payload,
+            )
+            if reservation.get("replayed") and reservation.get("response") is not None:
+                return _data_response(reservation["response"])
+            resource = _provider_api_call(
+                lambda: provider_registry.create_custom_provider(
+                    display_name=body.display_name,
+                    compatibility=body.compatibility,
+                    store=_resolve_run_store(),
+                )
+            )
+            _resolve_run_store().complete_idempotent_action(
+                str(reservation["action_id"]), resource
+            )
+            return _data_response(resource)
+
+        @app.get("/api-providers/{provider_id}", response_model=ProviderEnvelope)
+        def get_api_provider(provider_id: str) -> dict[str, Any]:
+            return _data_response(
+                _provider_api_call(
+                    lambda: provider_registry.get_provider(
+                        provider_id, store=_resolve_run_store()
+                    )
+                )
+            )
+
+        @app.patch("/api-providers/{provider_id}", response_model=ProviderEnvelope)
+        def patch_api_provider(
+            provider_id: str,
+            body: UpdateCustomProviderRequest,
+        ) -> dict[str, Any]:
+            return _data_response(
+                _provider_api_call(
+                    lambda: provider_registry.update_custom_provider(
+                        provider_id,
+                        display_name=body.display_name,
+                        expected_revision=body.expected_revision,
+                        store=_resolve_run_store(),
+                    )
+                )
+            )
+
+        @app.delete("/api-providers/{provider_id}", response_model=ProviderDeletedEnvelope)
+        def delete_api_provider(
+            provider_id: str,
+            body: ExpectedProviderRevisionRequest,
+        ) -> dict[str, Any]:
+            _provider_api_call(
+                lambda: provider_registry.delete_custom_provider(
+                    provider_id,
+                    expected_revision=body.expected_revision,
+                    store=_resolve_run_store(),
+                )
+            )
+            return _data_response({"provider_id": provider_id, "deleted": True})
+
+        @app.post(
+            "/api-providers/{provider_id}/connection/actions/test",
+            response_model=ProviderValidationEnvelope,
+        )
+        def test_api_provider_connection(
+            provider_id: str,
+            body: ConnectionTestRequest,
+        ) -> dict[str, Any]:
+            result = _provider_api_call(
+                lambda: provider_registry.test_connection(
+                    provider_id,
+                    base_url=body.base_url,
+                    api_type=_provider_api_type(provider_id, body.api_type),
+                    api_key=body.api_key,
+                    store=_resolve_run_store(),
+                )
+            )
+            return _data_response(result)
+
+        @app.put(
+            "/api-providers/{provider_id}/connection",
+            response_model=ProviderEnvelope,
+        )
+        def put_api_provider_connection(
+            provider_id: str,
+            body: ConnectionWriteRequest,
+        ) -> dict[str, Any]:
+            return _data_response(
+                _provider_api_call(
+                    lambda: provider_registry.save_connection(
+                        provider_id,
+                        base_url=body.base_url,
+                        api_type=_provider_api_type(provider_id, body.api_type),
+                        api_key=body.api_key,
+                        expected_revision=body.expected_revision,
+                        store=_resolve_run_store(),
+                    )
+                )
+            )
+
+        @app.delete(
+            "/api-providers/{provider_id}/connection",
+            response_model=ProviderEnvelope,
+        )
+        def delete_api_provider_connection(
+            provider_id: str,
+            body: ExpectedProviderRevisionRequest,
+        ) -> dict[str, Any]:
+            return _data_response(
+                _provider_api_call(
+                    lambda: provider_registry.remove_connection(
+                        provider_id,
+                        expected_revision=body.expected_revision,
+                        store=_resolve_run_store(),
+                    )
+                )
+            )
+
+        @app.post(
+            "/api-providers/{provider_id}/models/actions/test",
+            response_model=ProviderValidationEnvelope,
+        )
+        def test_api_provider_model(
+            provider_id: str,
+            body: ModelTestRequest,
+        ) -> dict[str, Any]:
+            return _data_response(
+                _provider_api_call(
+                    lambda: provider_registry.test_model(
+                        provider_id,
+                        model_id=body.model_id,
+                        store=_resolve_run_store(),
+                    )
+                )
+            )
+
+        @app.post(
+            "/api-providers/{provider_id}/models",
+            response_model=ProviderModelEnvelope,
+        )
+        def post_api_provider_model(
+            provider_id: str,
+            body: ModelCreateRequest,
+            idempotency_key: str = Header(alias="Idempotency-Key"),
+        ) -> dict[str, Any]:
+            payload = body.model_dump()
+            reservation = _reserve_provider_action(
+                f"api-providers:{provider_id}:models:create",
+                idempotency_key,
+                payload,
+            )
+            if reservation.get("replayed") and reservation.get("response") is not None:
+                return _data_response(reservation["response"])
+            resource = _provider_api_call(
+                lambda: provider_registry.add_model(
+                    provider_id,
+                    model_id=body.model_id,
+                    expected_revision=body.expected_revision,
+                    store=_resolve_run_store(),
+                )
+            )
+            _resolve_run_store().complete_idempotent_action(
+                str(reservation["action_id"]), resource
+            )
+            return _data_response(resource)
+
+        @app.post(
+            "/api-providers/{provider_id}/models/{model_record_id}/actions/test",
+            response_model=ProviderModelEnvelope,
+        )
+        def retest_api_provider_model(
+            provider_id: str,
+            model_record_id: str,
+            body: ExpectedProviderRevisionRequest,
+        ) -> dict[str, Any]:
+            return _data_response(
+                _provider_api_call(
+                    lambda: provider_registry.retest_model(
+                        provider_id,
+                        model_record_id,
+                        expected_revision=body.expected_revision,
+                        store=_resolve_run_store(),
+                    )
+                )
+            )
+
+        @app.delete(
+            "/api-providers/{provider_id}/models/{model_record_id}",
+            response_model=ProviderEnvelope,
+        )
+        def delete_api_provider_model(
+            provider_id: str,
+            model_record_id: str,
+            body: ExpectedProviderRevisionRequest,
+        ) -> dict[str, Any]:
+            store = _resolve_run_store()
+            _provider_api_call(
+                lambda: provider_registry.remove_model(
+                    provider_id,
+                    model_record_id,
+                    expected_revision=body.expected_revision,
+                    store=store,
+                )
+            )
+            return _data_response(
+                _provider_api_call(
+                    lambda: provider_registry.get_provider(provider_id, store=store)
+                )
+            )
+
+        def _llm_configuration_resource() -> dict[str, Any]:
+            return {
+                **load_llm_configuration(),
+                "eligible_models": provider_registry.list_eligible_models(
+                    store=_resolve_run_store()
+                ),
+            }
+
+        @app.get("/llm-configuration", response_model=LlmConfigurationEnvelope)
+        def get_llm_configuration(response: Response) -> dict[str, Any]:
+            resource = _provider_api_call(_llm_configuration_resource)
+            response.headers["ETag"] = f'"{resource["revision"]}"'
+            return _data_response(resource)
+
+        @app.patch("/llm-configuration", response_model=LlmConfigurationEnvelope)
+        def patch_llm_configuration_route(
+            body: LlmConfigurationPatchRequest,
+            response: Response,
+        ) -> dict[str, Any]:
+            payload = body.model_dump(exclude_unset=True)
+            expected_revision = int(payload.pop("expected_revision"))
+            try:
+                patch_llm_configuration(payload, expected_revision=expected_revision)
+            except SettingsRevisionConflict as exc:
+                raise ApiError(
+                    409,
+                    "llm_configuration_revision_conflict",
+                    "LLM Configuration changed since last read.",
+                    action="Reload LLM Configuration and retry.",
+                ) from exc
+            except ValueError as exc:
+                raise ApiError(
+                    422,
+                    "llm_configuration_invalid",
+                    str(exc),
+                    action="Review the model and task settings.",
+                ) from exc
+            resource = _provider_api_call(_llm_configuration_resource)
+            response.headers["ETag"] = f'"{resource["revision"]}"'
+            return _data_response(resource)
+
+        prompt_presentation = {
+            "enrich_extraction": ("Enrich Extraction", "Pipeline Prompts"),
+            "ranking_ai_score": ("Ranking AI Score", "Pipeline Prompts"),
+            "cv_generation_structured_write": ("CV Generation", "Pipeline Prompts"),
+            "synonym_triage_recommendation": ("Synonym Recommendation", "Synonym Prompts"),
+        }
+
+        def _prompt_configuration_resource(task_id: str) -> dict[str, Any]:
+            try:
+                stored = load_prompt_configurations()[task_id]
+                prompt = load_prompt_task_registry()[task_id]
+                display_name, group = prompt_presentation[task_id]
+            except KeyError as exc:
+                raise ApiError(
+                    404,
+                    "prompt_configuration_not_found",
+                    "Prompt configuration was not found.",
+                    action="Choose a supported prompt task.",
+                ) from exc
+            definition = get_prompt_definition(prompt["prompt_id"])
+            default_text = load_prompt_template(definition.template_path)
+            replacement_text = stored.get("replacement_text")
+            return {
+                "task_id": task_id,
+                "display_name": display_name,
+                "group": group,
+                "prompt_id": definition.prompt_id,
+                "prompt_version": definition.version,
+                "default_text": default_text,
+                "required_runtime_variables": sorted(
+                    required_template_variables(default_text)
+                ),
+                "mode": "custom" if replacement_text is not None else "default",
+                "replacement_text": replacement_text,
+                "migration_state": stored.get("migration_state", "clean"),
+                "revision": int(stored["revision"]),
+                "updated_at": str(stored["updated_at"]),
+            }
+
+        def _prompt_collection_etag(resources: list[dict[str, Any]]) -> str:
+            payload = [(resource["task_id"], resource["revision"]) for resource in resources]
+            digest = hashlib.sha256(
+                _json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            return f'"{digest}"'
+
+        @app.get(
+            "/prompt-configurations",
+            response_model=PromptConfigurationCollectionEnvelope,
+        )
+        def get_prompt_configurations(response: Response) -> dict[str, Any]:
+            resources = [
+                _prompt_configuration_resource(task_id)
+                for task_id in prompt_presentation
+            ]
+            response.headers["ETag"] = _prompt_collection_etag(resources)
+            return _data_response(resources)
+
+        @app.patch(
+            "/prompt-configurations/{task_id}",
+            response_model=PromptConfigurationEnvelope,
+        )
+        def patch_prompt_configuration_route(
+            task_id: str,
+            body: PromptConfigurationPatchRequest,
+            response: Response,
+        ) -> dict[str, Any]:
+            if task_id not in prompt_presentation:
+                return _data_response(_prompt_configuration_resource(task_id))
+            try:
+                patch_prompt_configuration(
+                    task_id,
+                    replacement_text=body.replacement_text,
+                    expected_revision=body.expected_revision,
+                )
+            except SettingsRevisionConflict as exc:
+                raise ApiError(
+                    409,
+                    "prompt_configuration_revision_conflict",
+                    "Prompt configuration changed since last read.",
+                    action="Reload the prompt and retry.",
+                ) from exc
+            except ValueError as exc:
+                raise ApiError(
+                    422,
+                    "prompt_configuration_invalid",
+                    str(exc),
+                    action="Review the replacement prompt.",
+                ) from exc
+            resource = _prompt_configuration_resource(task_id)
+            response.headers["ETag"] = f'"{resource["revision"]}"'
+            return _data_response(resource)
+
+        def _system_settings_resource() -> dict[str, Any]:
+            return {
+                **load_system_settings(),
+                "defaults": dict(SYSTEM_SETTINGS_DEFAULTS),
+                "bounds": {
+                    field: {"minimum": minimum, "maximum": maximum}
+                    for field, (minimum, maximum) in SYSTEM_SETTING_BOUNDS.items()
+                },
+            }
+
+        @app.get("/system-settings", response_model=SystemSettingsEnvelope)
+        def get_system_settings(response: Response) -> dict[str, Any]:
+            resource = _system_settings_resource()
+            response.headers["ETag"] = f'"{resource["revision"]}"'
+            return _data_response(resource)
+
+        @app.patch("/system-settings", response_model=SystemSettingsEnvelope)
+        def patch_system_settings_route(
+            body: SystemSettingsPatchRequest,
+            response: Response,
+        ) -> dict[str, Any]:
+            payload = body.model_dump()
+            expected_revision = int(payload.pop("expected_revision"))
+            try:
+                patch_system_settings(payload, expected_revision=expected_revision)
+            except SettingsRevisionConflict as exc:
+                raise ApiError(
+                    409,
+                    "system_settings_revision_conflict",
+                    "System settings changed since last read.",
+                    action="Reload System settings and retry.",
+                ) from exc
+            except ValueError as exc:
+                raise ApiError(
+                    422,
+                    "system_settings_invalid",
+                    str(exc),
+                    action="Review the retry and worker recovery values.",
+                ) from exc
+            resource = _system_settings_resource()
+            response.headers["ETag"] = f'"{resource["revision"]}"'
+            return _data_response(resource)
+
+        @app.get("/admin/api-providers", response_class=HTMLResponse)
+        def admin_api_providers(request: Request) -> HTMLResponse:
+            providers = _provider_api_call(
+                lambda: provider_registry.list_providers(store=_resolve_run_store())
+            )
+            return templates.TemplateResponse(
+                request=request,
+                name="api_providers.html",
+                context={
+                    "predefined_providers": [provider for provider in providers if provider["kind"] == "predefined"],
+                    "custom_providers": [provider for provider in providers if provider["kind"] == "custom"],
+                },
+            )
+
+        @app.get("/admin/api-providers/{provider_id}", response_class=HTMLResponse)
+        def admin_api_provider_detail(request: Request, provider_id: str) -> HTMLResponse:
+            provider = _provider_api_call(
+                lambda: provider_registry.get_provider(provider_id, store=_resolve_run_store())
+            )
+            return templates.TemplateResponse(
+                request=request,
+                name="api_provider_detail.html",
+                context={"provider": provider},
+            )
+
+        @app.get("/admin/llm-configuration", response_class=HTMLResponse)
+        def admin_llm_configuration(request: Request) -> HTMLResponse:
+            configuration = _provider_api_call(_llm_configuration_resource)
+            return templates.TemplateResponse(
+                request=request,
+                name="llm_configuration.html",
+                context={
+                    "configuration": configuration,
+                    "eligible_model_ids": {
+                        model["model_record_id"] for model in configuration["eligible_models"]
+                    },
+                },
+            )
+
+        @app.get("/admin/prompt-management", response_class=HTMLResponse)
+        def admin_prompt_management() -> RedirectResponse:
+            return RedirectResponse("/admin/settings/prompt-management", status_code=308)
+
+        @app.get("/admin/system", response_class=HTMLResponse)
+        def admin_system(request: Request) -> HTMLResponse:
+            return templates.TemplateResponse(
+                request=request,
+                name="system.html",
+                context={
+                    "settings": _system_settings_resource(),
+                    "data_status": local_data_status_resource(request),
+                },
+            )
+
+        @app.get("/admin/lifecycle", response_class=HTMLResponse)
+        def admin_lifecycle(request: Request) -> HTMLResponse:
+            return templates.TemplateResponse(
+                request=request,
+                name="lifecycle.html",
+                context={"lifecycle": local_lifecycle_status_resource(request)},
+            )
     baseline_config = load_config()
     runtime_settings_schema = settings_schema_with_runtime_defaults(baseline_config)
     schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
@@ -7047,6 +7860,11 @@ def create_app(
             "settings_decision_groups": settings_decision_groups,
             "settings_decision_domain_filters": decision_domain_filters,
             "settings_readiness_summary": settings_readiness_summary,
+            "group_error": group_error,
+            "section_errors": section_errors,
+            "pipeline_resource": _pipeline_settings_resource(active),
+            "pipeline_pages": list(pipeline_projection["pages"]),
+            "pipeline_page": next(page for page in pipeline_projection["pages"] if page["id"] == "overview"),
         }
         context.update(extra)
         return context
@@ -9235,6 +10053,29 @@ def create_app(
             context=_build_settings_context(active),
         )
 
+    if local_mode:
+        @app.get("/admin/settings/{section}", response_class=HTMLResponse)
+        def admin_settings_section(request: Request, section: str) -> HTMLResponse:
+            if section == "prompt-management":
+                prompts = [_prompt_configuration_resource(task_id) for task_id in prompt_presentation]
+                return templates.TemplateResponse(
+                    request=request,
+                    name="prompt_management.html",
+                    context={"prompts": prompts},
+                )
+            page = next(
+                (candidate for candidate in pipeline_projection["pages"] if candidate["id"] == section),
+                None,
+            )
+            if page is None or section == "overview":
+                raise HTTPException(status_code=404, detail="Pipeline section not found")
+            active = load_active_settings()
+            return templates.TemplateResponse(
+                request=request,
+                name="settings.html",
+                context=_build_settings_context(active, pipeline_page=page),
+            )
+
     @app.post("/admin/settings/{key}", response_class=HTMLResponse)
     async def admin_settings_update_key(request: Request, key: str) -> HTMLResponse:
         from fastapi.responses import RedirectResponse
@@ -9597,6 +10438,14 @@ def create_app(
     @app.get("/admin/runs", response_class=HTMLResponse)
     def admin_runs(request: Request) -> HTMLResponse:
         view = request.query_params.get("view", "active")
+        if view not in {"active", "all", "archived"}:
+            view = "active"
+        status = str(request.query_params.get("status") or "").strip().lower()
+        search = str(request.query_params.get("search") or "").strip()
+        try:
+            page = max(1, int(request.query_params.get("page") or 1))
+        except ValueError:
+            page = 1
         if view == "archived":
             runs = list_runs(client=client, archived_only=True)
         elif view == "all":
@@ -9607,19 +10456,112 @@ def create_app(
         runs = [_attach_jobs_path_display(run) for run in runs]
         max_runtime_minutes = _run_max_runtime_minutes()
         runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
+        if status:
+            runs = [run for run in runs if str(run.status.value).lower() == status]
+        if search:
+            needle = search.casefold()
+            runs = [
+                run
+                for run in runs
+                if needle in " ".join(
+                    (
+                        str(run.run_id),
+                        str(getattr(run, "run_name", "") or ""),
+                        str(getattr(run, "jobs_path_display", "") or run.jobs_path),
+                    )
+                ).casefold()
+            ]
+        page_size = 20
+        total_items = len(runs)
+        total_pages = max(1, (total_items + page_size - 1) // page_size)
+        page = min(page, total_pages)
+        runs = runs[(page - 1) * page_size : page * page_size]
         run_status_projection_by_id = {run.run_id: run_status_projection(run) for run in runs}
+        query = {"view": view, "page": page}
+        if status:
+            query["status"] = status
+        if search:
+            query["search"] = search
+        current_url = "/admin/runs?" + urlencode(query)
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
             context={
                 "runs": runs,
                 "view": view,
+                "status": status,
+                "search": search,
+                "page": page,
+                "total_pages": total_pages,
+                "current_url": current_url,
                 "run_status_projection": run_status_projection_by_id,
             }
         )
 
     @app.get("/admin/candidate-profiles", response_class=HTMLResponse)
     def admin_candidate_profiles(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse(request=request, name="candidate_profiles.html", context={})
+        view = request.query_params.get("view", "active")
+        if view not in {"active", "archived"}:
+            view = "active"
+        status = str(request.query_params.get("status") or "").strip().lower()
+        if status not in {"", "succeeded", "failed"}:
+            status = ""
+        search = str(request.query_params.get("search") or "").strip()
+        try:
+            page = max(1, int(request.query_params.get("page") or 1))
+        except ValueError:
+            page = 1
+        result = _resolve_run_store().query_candidate_profiles(
+            view=view,
+            status=status or None,
+            search=search,
+            page=page,
+            page_size=20,
+            sort="created_desc",
+        )
+        total_items = int(result.get("total") or 0)
+        total_pages = max(1, (total_items + 19) // 20)
+        page = min(page, total_pages)
+        query = {"view": view, "page": page}
+        if status:
+            query["status"] = status
+        if search:
+            query["search"] = search
+        return templates.TemplateResponse(
+            request=request,
+            name="candidate_profiles.html",
+            context={
+                "profiles": list(result.get("items") or []),
+                "view": view,
+                "status": status,
+                "search": search,
+                "page": page,
+                "total_pages": total_pages,
+                "current_url": "/admin/candidate-profiles?" + urlencode(query),
+            },
+        )
+
+    @app.get("/admin/candidate-profiles/{profile_id}", response_class=HTMLResponse)
+    def admin_candidate_profile_detail(
+        request: Request,
+        profile_id: str,
+    ) -> HTMLResponse:
+        profile = _resolve_run_store().get_candidate_profile_detail(profile_id)
+        if profile is None:
+            raise HTTPException(status_code=404, detail="Candidate Profile not found")
+        raw_return = str(request.query_params.get("return_to") or "")
+        parsed_return = urlparse(raw_return)
+        back_url = (
+            raw_return
+            if not parsed_return.scheme
+            and not parsed_return.netloc
+            and parsed_return.path == "/admin/candidate-profiles"
+            else "/admin/candidate-profiles"
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="candidate_profile_detail.html",
+            context={"profile": profile, "back_url": back_url},
+        )
 
     @app.get("/admin/synonyms", response_class=HTMLResponse)
     def admin_synonyms(request: Request) -> HTMLResponse:
@@ -9985,7 +10927,7 @@ def create_app(
         attempt_count = len(attempt_ids)
         from fitcv_cp.retry_settings import load_retry_settings
 
-        max_attempts = load_retry_settings().max_attempts
+        max_attempts = load_retry_settings().maximum_attempts
         if attempt_count >= max_attempts:
             raise HTTPException(status_code=409, detail="Retry rejected: max_attempts exhausted")
 
@@ -10113,6 +11055,15 @@ def create_app(
         run = _reconcile_orphaned_run(run)
         run = _attach_jobs_path_display(run)
         run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
+        raw_return = str(request.query_params.get("return_to") or "")
+        parsed_return = urlparse(raw_return)
+        back_url = (
+            raw_return
+            if not parsed_return.scheme
+            and not parsed_return.netloc
+            and parsed_return.path == "/admin/runs"
+            else "/admin/runs"
+        )
         timeline_limit = _coerce_positive_int(
             request.query_params.get("timeline_limit"),
             default=25,
@@ -10218,6 +11169,7 @@ def create_app(
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
                 "run": run,
+                "back_url": back_url,
                 "run_status_projection": run_status_projection(run),
                 "run_mode_label": run_mode_label(run.run_mode),
                 "events": timeline_events,

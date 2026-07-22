@@ -119,35 +119,44 @@ def _run_inline_job(
     from fitcv_cp.sqlite_store import append_event, update_run_status
     from fitcv_cp.models import RunEvent, RunStatus
 
+    from fitcv_cp.retry_settings import load_retry_settings
+
+    settings = load_retry_settings()
     _INLINE_JOB_STATUS[job_id] = "started"
-    try:
-        worker_job.execute_pipeline_run(
-            run_id=run_id,
-            jobs_path=jobs_path,
-            config_path=config_path,
-            attempt_id=attempt_id,
-            queue_job_id=job_id,
-        )
-        _INLINE_JOB_STATUS[job_id] = "finished"
-    except Exception as exc:
-        _INLINE_JOB_STATUS[job_id] = "failed"
-        update_run_status(
-            run_id,
-            RunStatus.FAILED,
-            finished_at=datetime.now(timezone.utc),
-            error_message=f"Inline execution failed: {exc}",
-            error_stage="inline_execution",
-        )
-        append_event(
-            RunEvent(
+    for attempt_index in range(settings.maximum_attempts):
+        current_attempt_id = attempt_id if attempt_index == 0 and attempt_id else str(uuid.uuid4())
+        try:
+            worker_job.execute_pipeline_run(
                 run_id=run_id,
-                event_id=str(uuid.uuid4()),
-                stage="inline_execution",
-                level="error",
-                message=f"Inline execution failed: {exc}",
-                created_at=datetime.now(timezone.utc),
+                jobs_path=jobs_path,
+                config_path=config_path,
+                attempt_id=current_attempt_id,
+                queue_job_id=job_id,
             )
-        )
+            _INLINE_JOB_STATUS[job_id] = "finished"
+            return
+        except Exception as exc:
+            if attempt_index + 1 < settings.maximum_attempts:
+                time.sleep(settings.initial_backoff_seconds)
+                continue
+            _INLINE_JOB_STATUS[job_id] = "failed"
+            update_run_status(
+                run_id,
+                RunStatus.FAILED,
+                finished_at=datetime.now(timezone.utc),
+                error_message=f"Inline execution failed: {exc}",
+                error_stage="inline_execution",
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="inline_execution",
+                    level="error",
+                    message=f"Inline execution failed: {exc}",
+                    created_at=datetime.now(timezone.utc),
+                )
+            )
 
 
 def _run_inline_job_after_delay(
@@ -262,9 +271,11 @@ def enqueue_run_with_job_id(
     from fitcv_cp.retry_settings import load_retry_settings
 
     settings = load_retry_settings()
-    if settings.enabled and settings.max_attempts > 1:
-        intervals = list(settings.backoff_seconds)
-        retry = Retry(max=settings.max_attempts - 1, interval=intervals or [1, 2, 4, 8])
+    if settings.maximum_attempts > 1:
+        retry = Retry(
+            max=settings.maximum_attempts - 1,
+            interval=settings.initial_backoff_seconds,
+        )
 
 
     from fitcv_cp import worker_job  # noqa: F401
