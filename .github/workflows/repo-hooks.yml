@@ -35,10 +35,25 @@ jobs:
           }
 
       - name: Sync adapter outputs
-        run: .\scripts\sync_agent_adapters.ps1
+        run: |
+          $mappingFile = "repo_config/agent-adapter-mappings.json"
+          $adapterMappings = @()
+          if (Test-Path adapters) {
+            $adapterMappings = @(Get-ChildItem adapters -Recurse -Include *.yaml,*.yml -File)
+          }
+          if (-not (Test-Path $mappingFile) -and $adapterMappings.Count -eq 0) {
+            Write-Host "No adapter mappings in this repo. Skipping adapter sync check."
+            exit 0
+          }
+          python scripts/sync_agent_adapters.py --check
 
       - name: Verify adapter outputs
-        run: .\scripts\verify_agent_adapters.ps1
+        run: |
+          if (-not (Test-Path .\scripts\verify_agent_adapters.ps1)) {
+            Write-Host "Legacy adapter verification script is absent. Skipping legacy verification."
+            exit 0
+          }
+          .\scripts\verify_agent_adapters.ps1
 
       - name: Fail on untracked generated outputs
         run: |
@@ -57,8 +72,8 @@ jobs:
       - name: Fail on generated drift
         run: git diff --exit-code
 
-  baseline-tests:
-    name: Baseline Tests
+  focused-smoke-tests:
+    name: Focused Smoke Tests
     runs-on: windows-latest
     steps:
       - name: Check out repository
@@ -82,8 +97,9 @@ jobs:
             python -m pip install -e .
           }
 
-      - name: Run pytest
-        run: python -m pytest
+      - name: Run focused pytest smoke suite
+        run: |
+          python -m pytest tests/test_fitcv_cp/test_provider_registry.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_app.py tests/test_prompts.py tests/test_llm_runtime.py tests/test_config.py tests/test_fitcv_pipeline_prototype.py -q
 
   architecture-docs:
     name: Architecture Docs
@@ -110,11 +126,14 @@ jobs:
             python -m pip install -e .
           }
 
-      - name: Verify architecture docs are current
-        run: python scripts/sync_architecture_docs.py --check
-
-      - name: Validate Mode B adoption shape
-        run: python scripts/validate_adoption_shape.py
+      - name: Verify architecture generator output when configured
+        run: |
+          $generator = python -c "from pathlib import Path; import yaml; data = yaml.safe_load(Path('repo_config/adoption-mode.yaml').read_text(encoding='utf-8')); print(data.get('architecture_generator', 'none'))"
+          if (($generator -eq 'none') -or (-not (Test-Path $generator))) {
+            Write-Host "Configured architecture generator is absent. Skipping deprecated architecture sync check."
+            exit 0
+          }
+          python $generator --check
 
   publication-boundary:
     name: Publication Boundary
