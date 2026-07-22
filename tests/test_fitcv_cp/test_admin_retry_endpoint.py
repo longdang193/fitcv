@@ -108,10 +108,10 @@ def test_admin_retry_run_enqueues_when_under_cap() -> None:
 
     with patch("fitcv_cp.sqlite_store.get_run", return_value=run):
         with patch("fitcv_cp.sqlite_store.get_events", return_value=attempts):
-            with patch("fitcv_cp.sqlite_store.update_run_status", update_run_status):
-                with patch("fitcv_cp.sqlite_store.update_run_orchestration_binding", update_binding):
-                    with patch("fitcv_cp.sqlite_store.update_run_queue_job_id", update_job_id):
-                        with patch("fitcv_cp.sqlite_store.append_event", append_event):
+            with patch("fitcv_cp.app.update_run_status", update_run_status):
+                with patch("fitcv_cp.app.update_run_orchestration_binding", update_binding):
+                    with patch("fitcv_cp.app.update_run_queue_job_id", update_job_id):
+                        with patch("fitcv_cp.app.append_event", append_event):
                             with patch(
                                 "fitcv_cp.queue.enqueue_run_with_job_id",
                                 return_value=("r1", "job-1"),

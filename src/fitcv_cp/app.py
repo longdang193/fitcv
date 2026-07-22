@@ -15,8 +15,10 @@ lifecycle:
 
 import dataclasses
 import datetime
+import base64
 import csv
 import hashlib
+import hmac
 import html
 import io
 import json as _json
@@ -175,17 +177,11 @@ update_run_queue_job_id = sqlite_store_module.update_run_queue_job_id
 update_run_orchestration_binding = sqlite_store_module.update_run_orchestration_binding
 from fitcv_cp.settings_store import (
     SettingsRevisionConflict,
-    bookmark_key_for_job,
-    delete_bookmarked_job,
-    is_job_bookmarked,
-    list_bookmarked_jobs,
     load_active_settings,
     mutate_settings_atomically,
-    set_bookmarked_job_status,
     save_setting,
     save_settings_group,
     settings_revision,
-    upsert_bookmarked_job,
 )
 from fitcv_cp.synonym_proposals import (
     apply_synonym_management_defaults,
@@ -200,6 +196,9 @@ from fitcv_cp.synonym_proposals import (
 from fitcv_cp.synonym_policy_io import (
     compile_global_synonym_map,
     load_global_synonym_map,
+    parse_synonym_editor_text,
+    export_synonym_backup_zip,
+    inspect_synonym_backup_zip,
     persist_global_synonym_map,
     render_yaml_top_level_mapping,
     replace_yaml_top_level_mapping_block,
@@ -735,8 +734,7 @@ def _apply_trigger_runtime_envelope(
     run_mode: str,
 ) -> dict[str, Any]:
     synonym_management = dict(effective_config.get("synonym_management") or {})
-    synonym_management.setdefault("auto_apply_recommendation_enabled", False)
-    synonym_management.setdefault("auto_promote_global_enabled", False)
+    synonym_management.setdefault("auto_accept_suggestions_enabled", False)
     synonym_management.setdefault("auto_accept_ai_action_enabled", True)
     effective_config["synonym_management"] = synonym_management
     effective_config = apply_synonym_management_defaults(effective_config)
@@ -3608,7 +3606,7 @@ def _run_post_validation_auto_promote_global(
         promote_skip_reason = "no_payload"
     else:
         mode = _synonym_management_mode(run)
-        if bool(mode.get("auto_promote_global_enabled")) and bool(mode.get("promote_global_enabled")):
+        if bool(mode.get("auto_accept_suggestions_enabled")) and bool(mode.get("apply_approved_enabled")):
             if not _is_validation_eligible_for_auto_promote(run):
                 promote_skip_reason = "validation_not_eligible"
             else:
@@ -5455,7 +5453,7 @@ class PipelineSettingsReset(BaseModel):
     expected_revision: str | None = None
 
 
-class DeleteArchivedRunsRequest(BaseModel):
+class DeleteArchivedRunsPreviewRequest(BaseModel):
     run_ids: list[str]
 
     @field_validator("run_ids")
@@ -5466,6 +5464,184 @@ class DeleteArchivedRunsRequest(BaseModel):
         if not run_ids:
             raise ValueError("run_ids must include at least one run id")
         return run_ids
+
+class DeleteArchivedRunsRequest(DeleteArchivedRunsPreviewRequest):
+    preview_revision: str
+
+
+class CandidateProfileLifecycleRequest(BaseModel):
+    expected_revision: int
+
+
+class CandidateProfileFailure(BaseModel):
+    code: str
+    message: str
+
+
+class CandidateProfileCapabilities(BaseModel):
+    inspect: bool
+    archive: bool
+    restore: bool
+    use_for_run: bool
+
+
+class CandidateProfileInput(BaseModel):
+    original_filename: str
+    checksum: str
+    byte_length: int
+    media_type: str
+
+
+class CandidateProfileOverview(BaseModel):
+    model_config = {"extra": "allow"}
+
+
+class CandidateProfileRelatedRun(BaseModel):
+    run_id: str
+    run_name: str
+    backend_status: str
+    created_at: str
+
+
+class CandidateProfileResource(BaseModel):
+    profile_id: str
+    profile_name: str | None
+    display_name: str
+    original_filename: str
+    creation_status: Literal["succeeded", "failed"]
+    lifecycle: Literal["active", "archived"]
+    created_at: str
+    updated_at: str
+    archived_at: str | None
+    profile_revision_id: str | None
+    failure: CandidateProfileFailure | None
+    related_run_count: int
+    capabilities: CandidateProfileCapabilities
+    revision: int
+    overview: CandidateProfileOverview | None = None
+    input: CandidateProfileInput | None = None
+
+
+class CandidateProfileEnvelope(BaseModel):
+    data: CandidateProfileResource
+
+
+class CandidateProfilePage(BaseModel):
+    number: int
+    size: int
+    total_items: int
+    total_pages: int
+
+
+class CandidateProfileCollectionEnvelope(BaseModel):
+    data: list[CandidateProfileResource]
+    page: CandidateProfilePage
+    meta: dict[str, Any]
+
+
+class CandidateProfileRunsEnvelope(BaseModel):
+    data: list[CandidateProfileRelatedRun]
+    page: CandidateProfilePage
+    meta: dict[str, Any]
+
+class SynonymPolicyIssue(BaseModel):
+    code: str
+    message: str
+    severity: Literal["error"]
+    lines: list[int]
+    aliases: list[str]
+    canonicals: list[str]
+
+class SynonymPolicyResource(BaseModel):
+    synonym_type: Literal["skills", "domain", "role_family"]
+    editor_text: str
+    normalized_policy: dict[str, str] | None
+    issues: list[SynonymPolicyIssue]
+    validation_status: Literal["valid", "invalid"]
+    draft_revision: int
+    active_type_revision_id: str | None
+    active_type_revision: int
+    active_bundle_revision_id: str | None
+    active_bundle_revision: int
+    mirror_status: Literal["in_sync", "repair_required", "repair_failed"]
+    mirror_error_code: str | None
+
+class SynonymPolicyEnvelope(BaseModel):
+    data: SynonymPolicyResource
+
+class SynonymPolicyUpdateRequest(BaseModel):
+    editor_text: str
+    expected_draft_revision: int
+    expected_active_bundle_revision_id: str | None
+
+class SynonymSuggestionResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+class SynonymSuggestionCollectionEnvelope(BaseModel):
+    data: list[SynonymSuggestionResource]
+    page: CandidateProfilePage
+    meta: dict[str, Any]
+
+class SynonymSuggestionEnvelope(BaseModel):
+    data: SynonymSuggestionResource
+
+class SynonymSuggestionActionRequest(BaseModel):
+    suggestion_ids: list[str]
+
+class SynonymSuggestionApproveRequest(SynonymSuggestionActionRequest):
+    expected_draft_revision: int
+    expected_active_bundle_revision_id: str | None
+
+class SynonymProcessingResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+    processing_run_id: str
+    processed_at: str
+    total_processed: int
+    approved_count: int
+    declined_count: int
+    pending_count: int
+    successfully_added_count: int
+    source_operation: str
+    issue_count: int
+
+class SynonymProcessingCollectionEnvelope(BaseModel):
+    data: list[SynonymProcessingResource]
+    page: CandidateProfilePage
+    meta: dict[str, Any]
+
+class SelectionContext(BaseModel):
+    selected_run_job_ids: list[str]
+    stage: str | None = None
+    result: str | None = None
+    search: str = ""
+
+class SelectionExportRequest(SelectionContext):
+    preview_revision: str
+
+class FlexibleResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+class FlexibleEnvelope(BaseModel):
+    data: FlexibleResource
+
+class BookmarkCollectionEnvelope(BaseModel):
+    data: list[FlexibleResource]
+    page: CandidateProfilePage
+    meta: dict[str, Any]
+
+class SelectionPreviewResource(BaseModel):
+    selected_count: int
+    matched_count: int
+    excluded_count: int
+    matched_run_job_ids: list[str]
+    excluded_run_job_ids: list[str]
+    preview_revision: str
+    expires_in_seconds: int
+    expires_at: str
+
+class SelectionPreviewEnvelope(BaseModel):
+    data: SelectionPreviewResource
 
 
 class InterestRequest(BaseModel):
@@ -5508,6 +5684,7 @@ class ApiError(Exception):
         field_errors: list[dict[str, str]] | None = None,
         retryable: bool = False,
         action: str | None = None,
+        data: Any | None = None,
     ) -> None:
         self.status_code = status_code
         self.payload = {
@@ -5519,11 +5696,68 @@ class ApiError(Exception):
                 "action": action,
             }
         }
+        if data is not None:
+            self.payload["data"] = data
         super().__init__(message)
 
 
 def _data_response(data: Any) -> dict[str, Any]:
     return {"data": data}
+
+_SELECTION_PREVIEW_SECRET = secrets.token_bytes(32)
+
+def _selection_preview_revision(
+    *, scope: str, context: dict[str, Any], matched_ids: list[str], expires_at: int | None = None
+) -> str:
+    payload = {
+        "scope": scope,
+        "context": context,
+        "matched_ids": matched_ids,
+        "expires_at": expires_at or int(time.time()) + 300,
+    }
+    raw = _json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    signature = hmac.new(_SELECTION_PREVIEW_SECRET, raw, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(raw + signature).decode("ascii")
+
+def _verify_selection_preview(
+    revision: str,
+    *,
+    scope: str,
+    context: dict[str, Any],
+    matched_ids: list[str],
+    error_code: str = "export_selection_changed",
+    error_message: str = "Export selection changed or preview expired.",
+) -> None:
+    try:
+        decoded = base64.urlsafe_b64decode(revision.encode("ascii"))
+        raw, signature = decoded[:-32], decoded[-32:]
+        if not hmac.compare_digest(signature, hmac.new(_SELECTION_PREVIEW_SECRET, raw, hashlib.sha256).digest()):
+            raise ValueError
+        payload = _json.loads(raw)
+    except (ValueError, UnicodeError, _json.JSONDecodeError) as exc:
+        raise ApiError(409, error_code, error_message) from exc
+    if (
+        int(payload.get("expires_at") or 0) < int(time.time())
+        or payload.get("scope") != scope
+        or payload.get("context") != context
+        or payload.get("matched_ids") != matched_ids
+    ):
+        raise ApiError(409, error_code, error_message)
+
+def _selection_csv(rows: list[dict[str, Any]], *, include_run: bool) -> bytes:
+    output = io.StringIO(newline="")
+    fields = (["run_id", "run_name"] if include_run else []) + [
+        "run_job_id", "title", "company", "location", "source_url"
+    ]
+    writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
+    writer.writeheader()
+    for row in rows:
+        safe = dict(row)
+        for key in fields:
+            value = str(safe.get(key) or "")
+            safe[key] = f"'{value}" if value.startswith(("=", "+", "-", "@")) else value
+        writer.writerow(safe)
+    return output.getvalue().encode("utf-8-sig")
 
 
 def _run_enqueue_failure_response(data: dict[str, Any]) -> dict[str, Any]:
@@ -5645,25 +5879,6 @@ def _redact_debug_bundle_value(value: Any) -> Any:
         return [_redact_debug_bundle_value(item) for item in value]
     return value
 
-class BulkDeleteArchivedRunsRequest(BaseModel):
-    older_than_days: int | str
-    run_ids: list[str] | None = None
-
-    @field_validator("older_than_days")
-    @classmethod
-    def validate_older_than_days(cls, v: int | str) -> int | str:
-        if isinstance(v, str):
-            normalized = v.strip().lower()
-            if normalized == "all":
-                return "all"
-            if not normalized.isdigit():
-                raise ValueError("older_than_days must be a positive integer or all")
-            value = int(normalized)
-        else:
-            value = int(v)
-        if value <= 0:
-            raise ValueError("older_than_days must be a positive integer or all")
-        return value
 class CvReviewActionRequest(BaseModel):
     review_item_id: str | None = None
     job_url: str
@@ -6568,8 +6783,7 @@ def create_app(
                     has_quality_risk=bool(ia_contract.get("is_dangerous") and key in active),
                 )
                 semantic_alignment_enabled = bool(effective.get("cv_analysis.semantic_alignment.enabled"))
-                apply_to_run_enabled = bool(effective.get("synonym_management.apply_to_run_enabled"))
-                promote_global_enabled = bool(effective.get("synonym_management.promote_global_enabled"))
+                apply_approved_enabled = bool(effective.get("synonym_management.apply_approved_enabled"))
                 owner_label = "Settings"
                 active_label = "Yes"
                 compatibility_alias_for = str(entry.get("compatibility_alias_for") or "").strip()
@@ -6580,12 +6794,9 @@ def create_app(
                 elif key.startswith("cv_analysis.semantic_alignment.") and key.endswith("_semantic_weight"):
                     owner_label = "Settings"
                     active_label = "Yes" if semantic_alignment_enabled else "No (semantic alignment OFF)"
-                elif key == "synonym_management.auto_apply_recommendation_enabled":
+                elif key == "synonym_management.auto_accept_suggestions_enabled":
                     owner_label = "Settings"
-                    active_label = "Yes" if apply_to_run_enabled else "No (requires Apply-to-Run Enabled)"
-                elif key == "synonym_management.auto_promote_global_enabled":
-                    owner_label = "Settings"
-                    active_label = "Yes" if promote_global_enabled else "No (requires Promote-Global Enabled)"
+                    active_label = "Yes"
                 elif compatibility_alias_for:
                     owner_label = "Compatibility surface (legacy alias)"
                     active_label = "Yes (maps to canonical runtime key)"
@@ -7180,7 +7391,30 @@ def create_app(
             next_stage="normalize" if run_mode == "manual_staged" else None,
             completed_stages=[],
         )
-        _persist_run_initial(run, client=client)
+        if _CP_STORE is not None and jobs_input_json and candidate_profile_source:
+            try:
+                parsed_run_jobs = _json.loads(jobs_input_json)
+                if not isinstance(parsed_run_jobs, list):
+                    raise ValueError("jobs_input_invalid")
+                _CP_STORE.create_run_bundle(
+                    run,
+                    input_resource={
+                        "strict_candidate_profile": True,
+                        "candidate_profile_id": candidate_profile_source,
+                        "jobs_snapshot_json": jobs_input_json,
+                        "jobs_manifest_json": jobs_input_manifest_json or "{}",
+                    },
+                    jobs=[dict(job) for job in parsed_run_jobs if isinstance(job, dict)],
+                )
+            except sqlite_store_module.CandidateProfileUnavailableError as exc:
+                raise ApiError(
+                    409,
+                    "candidate_profile_unavailable",
+                    "Candidate Profile is no longer available for Runs.",
+                    action="Refresh Candidate Profiles and select an Active, Succeeded profile.",
+                ) from exc
+        else:
+            _persist_run_initial(run, client=client)
         try:
             submission = submit_run(
                 jobs_path=jobs_path,
@@ -7342,31 +7576,24 @@ def create_app(
                 ],
                 action="Fix the file and retry.",
             )
-        candidate_profile_id = str(form.get("candidate_profile_id") or "").strip()
+        candidate_profile_id = str(form.get("profile_id") or "").strip()
         if not candidate_profile_id:
             raise ApiError(
                 422,
                 "validation_failed",
                 "Candidate Profile is required.",
                 field_errors=[
-                    {"field": "candidate_profile_id", "code": "required", "message": "Select a Candidate Profile."}
+                    {"field": "profile_id", "code": "required", "message": "Select a Candidate Profile."}
                 ],
                 action="Select a Candidate Profile and retry.",
             )
         profile = _resolve_run_store().get_candidate_profile(candidate_profile_id)
-        if profile is None:
-            raise ApiError(
-                404,
-                "candidate_profile_not_found",
-                "Candidate Profile not found.",
-                action="Refresh Candidate Profiles and select an existing profile.",
-            )
-        if not bool(profile.get("is_active")):
+        if profile is None or not bool(profile.get("is_active")):
             raise ApiError(
                 409,
-                "candidate_profile_inactive",
-                "Candidate Profile is inactive.",
-                action="Select an active Candidate Profile.",
+                "candidate_profile_unavailable",
+                "Candidate Profile is not available for Runs.",
+                action="Refresh Candidate Profiles and select an Active, Succeeded profile.",
             )
         run_name = str(form.get("run_name") or "").strip() or Path(filename).stem
         if len(run_name) > 120:
@@ -7461,12 +7688,7 @@ def create_app(
         jobs_text: str = Form(""),
         config_path: str = Form(".env.yaml"),
         run_mode: str = Form("run_all"),
-        candidate_profile_mode: str = Form("default_config"),  # "default_config" | "upload" | "paste"
-        candidate_profile_file: UploadFile | None = File(None),
-        candidate_profile_text: str = Form(""),
-        synonym_overlay_mode: str = Form("default_config"),
-        overlay_upload_scope: str = Form("combined"),
-        synonym_overlay_file: UploadFile | None = File(None),
+        candidate_profile_id: str = Form(...),
     ) -> dict:
         _MAX_FILES = 20
         _MAX_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB
@@ -7616,40 +7838,20 @@ def create_app(
             raise HTTPException(status_code=422, detail=f"Unknown jobs_input_mode: {jobs_input_mode!r}")
 
         # ── Candidate profile resolution ─────────────────────────────────
-        candidate_json_snapshot: str | None = None
-        if candidate_profile_mode == "default_config":
-            candidate_json_snapshot = _resolve_default_candidate_profile_snapshot(config_path)
-            candidate_profile_source = "default_config"
-        elif candidate_profile_mode == "upload":
-            if not candidate_profile_file or not candidate_profile_file.filename:
-                raise HTTPException(status_code=422, detail="candidate_profile_file required for upload mode")
-            raw_bytes = await candidate_profile_file.read()
-            raw_text = raw_bytes.decode("utf-8")
-            candidate_json_snapshot = _resolve_candidate_profile_snapshot_from_text(raw_text)
-            candidate_profile_source = "upload"
-        elif candidate_profile_mode == "paste":
-            if not candidate_profile_text or not candidate_profile_text.strip():
-                raise HTTPException(status_code=422, detail="candidate_profile_text required for paste mode")
-            candidate_json_snapshot = _resolve_candidate_profile_snapshot_from_text(candidate_profile_text)
-            candidate_profile_source = "paste"
-        else:
-            raise HTTPException(status_code=422, detail=f"Unknown candidate_profile_mode: {candidate_profile_mode!r}")
-
-        # ── Run-scoped synonym overlay resolution ───────────────────────
-        synonym_overlay_payload: dict[str, Any] | None = None
-        synonym_overlay_filename: str | None = None
-        synonym_overlay_raw_yaml: str | None = None
-        if synonym_overlay_mode == "default_config":
-            pass
-        elif synonym_overlay_mode == "upload":
-            synonym_overlay_filename, synonym_overlay_payload, synonym_overlay_raw_yaml = await _parse_uploaded_synonym_overlay(
-                synonym_overlay_file,
-                overlay_upload_scope=overlay_upload_scope,
-                missing_file_detail="synonym_overlay_file required for upload mode",
-                missing_filename_detail="synonym_overlay_file required for upload mode",
+        profile = _resolve_run_store().get_candidate_profile(candidate_profile_id)
+        if profile is None or not bool(profile.get("is_active")):
+            raise ApiError(
+                409,
+                "candidate_profile_unavailable",
+                "Candidate Profile is not available for Runs.",
+                action="Refresh Candidate Profiles and select an Active, Succeeded profile.",
             )
-        else:
-            raise HTTPException(status_code=422, detail=f"Unknown synonym_overlay_mode: {synonym_overlay_mode!r}")
+        candidate_profile_source = candidate_profile_id
+        candidate_snapshot = dict(profile.get("profile") or {})
+        candidate_snapshot.setdefault("name", profile.get("name"))
+        candidate_snapshot["revision"] = profile.get("revision")
+        candidate_snapshot["candidate_profile_id"] = candidate_profile_id
+        candidate_json_snapshot = _json.dumps(candidate_snapshot, ensure_ascii=False)
 
         return _execute_trigger_with_inputs(
             jobs_path=actual_jobs_path,
@@ -7661,26 +7863,459 @@ def create_app(
             jobs_input_manifest_json=jobs_input_manifest_json,
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_json_snapshot,
-            run_synonym_overlay=synonym_overlay_payload,
-            run_synonym_overlay_filename=synonym_overlay_filename,
-            run_synonym_overlay_raw_yaml=synonym_overlay_raw_yaml,
-            run_synonym_overlay_source="trigger_upload",
             run_mode=run_mode,
         )
 
-    @app.get("/candidate-profiles")
-    def get_candidate_profiles(active: bool = True) -> dict[str, Any]:
-        profiles = _resolve_run_store().list_candidate_profiles()
-        if active:
-            profiles = [profile for profile in profiles if bool(profile.get("is_active", True))]
-        total = len(profiles)
+    @app.get("/candidate-profiles", response_model=CandidateProfileCollectionEnvelope)
+    def get_candidate_profiles(
+        view: str = "active",
+        status: str | None = None,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 20,
+        sort: Literal["created_desc"] = "created_desc",
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        try:
+            result = _resolve_run_store().query_candidate_profiles(
+                view=view, status=status, search=search, page=page, page_size=page_size,
+                sort=sort,
+            )
+        except ValueError as exc:
+            raise ApiError(422, "validation_failed", "Request validation failed.") from exc
         return _collection_response(
-            profiles,
-            page=1,
-            page_size=total,
-            total_items=total,
-            meta={"active": active},
+            list(result.get("items") or []),
+            page=int(result.get("page") or page),
+            page_size=int(result.get("page_size") or page_size),
+            total_items=int(result.get("total") or 0),
+            meta={
+                "view": view,
+                "status": status,
+                "active_count": int(result.get("active_count") or 0),
+                "archived_count": int(result.get("archived_count") or 0),
+            },
         )
+
+    @app.post("/candidate-profiles", status_code=201, response_model=CandidateProfileEnvelope)
+    async def post_candidate_profile(
+        request: Request,
+        profile_file: UploadFile = File(..., description="Candidate profile .yaml file"),
+        profile_name: str | None = Form(None),
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        content = await profile_file.read()
+        fingerprint = _request_fingerprint(
+            {
+                "filename": profile_file.filename,
+                "profile_name": profile_name,
+                "sha256": hashlib.sha256(content).hexdigest(),
+            }
+        )
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action("candidate-profiles:create", key, fingerprint)
+        if reservation.get("replayed") and reservation.get("response") is not None:
+            return _data_response(reservation["response"])
+        try:
+            resource = store.create_candidate_profile_attempt(
+                profile_bytes=content,
+                original_filename=str(profile_file.filename or ""),
+                profile_name=profile_name,
+                media_type=str(profile_file.content_type or "application/yaml"),
+            )
+        except ValueError as exc:
+            code = str(exc)
+            raise ApiError(422, code, "Candidate profile import was rejected.") from exc
+        store.complete_idempotent_action(str(reservation["action_id"]), resource)
+        return _data_response(resource)
+
+    @app.get("/candidate-profiles/{profile_id}", response_model=CandidateProfileEnvelope)
+    def get_candidate_profile_detail(profile_id: str) -> dict[str, Any]:
+        resource = _resolve_run_store().get_candidate_profile_detail(profile_id)
+        if resource is None:
+            raise ApiError(404, "candidate_profile_not_found", "Candidate Profile not found.")
+        return _data_response(resource)
+
+    @app.get("/candidate-profiles/{profile_id}/runs", response_model=CandidateProfileRunsEnvelope)
+    def get_candidate_profile_runs(
+        profile_id: str, page: int = 1, page_size: int = 20
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        result = _resolve_run_store().query_candidate_profile_runs(
+            profile_id, page=page, page_size=page_size
+        )
+        return _collection_response(
+            list(result.get("items") or []), page=page, page_size=page_size,
+            total_items=int(result.get("total") or 0),
+        )
+
+    def _transition_candidate_profile(
+        request: Request,
+        profile_id: str,
+        body: CandidateProfileLifecycleRequest,
+        lifecycle: str,
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action(
+            f"candidate-profiles:{lifecycle}", key,
+            _request_fingerprint({"profile_id": profile_id, "expected_revision": body.expected_revision}),
+        )
+        if reservation.get("replayed") and reservation.get("response") is not None:
+            return _data_response(reservation["response"])
+        try:
+            resource = store.transition_candidate_profile_lifecycle(
+                profile_id, lifecycle=lifecycle, expected_revision=body.expected_revision
+            )
+        except ValueError as exc:
+            code = str(exc)
+            status_code = 404 if code == "profile_not_found" else 409
+            raise ApiError(status_code, code, "Candidate Profile could not be updated.") from exc
+        store.complete_idempotent_action(str(reservation["action_id"]), resource)
+        return _data_response(resource)
+
+    @app.post("/candidate-profiles/{profile_id}/actions/archive", response_model=CandidateProfileEnvelope)
+    def archive_candidate_profile(
+        request: Request, profile_id: str, body: CandidateProfileLifecycleRequest
+    ) -> dict[str, Any]:
+        return _transition_candidate_profile(request, profile_id, body, "archived")
+
+    @app.post("/candidate-profiles/{profile_id}/actions/restore", response_model=CandidateProfileEnvelope)
+    def restore_candidate_profile(
+        request: Request, profile_id: str, body: CandidateProfileLifecycleRequest
+    ) -> dict[str, Any]:
+        return _transition_candidate_profile(request, profile_id, body, "active")
+
+    @app.get("/synonym-policies/{synonym_type}", response_model=SynonymPolicyEnvelope)
+    def get_synonym_policy(synonym_type: Literal["skills", "domain", "role_family"]) -> dict[str, Any]:
+        return _data_response(_resolve_run_store().get_synonym_policy(synonym_type))
+
+    @app.put("/synonym-policies/{synonym_type}", response_model=SynonymPolicyEnvelope)
+    def put_synonym_policy(
+        request: Request,
+        synonym_type: Literal["skills", "domain", "role_family"],
+        body: SynonymPolicyUpdateRequest,
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action(
+            f"synonym-policies:{synonym_type}:update",
+            key,
+            _request_fingerprint(body.model_dump()),
+        )
+        if reservation.get("replayed") and reservation.get("response") is not None:
+            return _data_response(reservation["response"])
+        parsed = parse_synonym_editor_text(synonym_type, body.editor_text)
+        if parsed["issues"]:
+            try:
+                resource = store.save_synonym_policy_draft(
+                    synonym_type,
+                    editor_text=body.editor_text,
+                    normalized_policy=None,
+                    issues=parsed["issues"],
+                    expected_draft_revision=body.expected_draft_revision,
+                )
+            except sqlite_store_module.SynonymPolicyRevisionConflict as exc:
+                raise ApiError(409, "revision_conflict", "Synonym policy changed since last read.") from exc
+            store.complete_idempotent_action(str(reservation["action_id"]), resource)
+            raise ApiError(
+                422,
+                "synonym_policy_invalid",
+                "Synonym policy contains invalid mappings.",
+                action="Fix affected entries and save again.",
+                data=resource,
+            )
+        try:
+            result = store.activate_synonym_policy_bundle(
+                synonym_type,
+                editor_text=body.editor_text,
+                normalized_policy=parsed["mappings"],
+                expected_draft_revision=body.expected_draft_revision,
+                expected_active_bundle_revision_id=body.expected_active_bundle_revision_id,
+            )
+        except sqlite_store_module.SynonymPolicyRevisionConflict as exc:
+            raise ApiError(409, "revision_conflict", "Synonym policy changed since last read.") from exc
+        try:
+            store.repair_active_synonym_policy_mirrors()
+        except (OSError, UnicodeError, ValueError):
+            pass
+        resource = dict(store.get_synonym_policy(synonym_type))
+        store.complete_idempotent_action(str(reservation["action_id"]), resource)
+        return _data_response(resource)
+
+    @app.get("/synonym-suggestions", response_model=SynonymSuggestionCollectionEnvelope)
+    def get_synonym_suggestions(
+        type: Literal["skills", "domain", "role_family"] | None = None,
+        status: Literal["pending", "approved", "declined"] | None = None,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 20,
+        sort: Literal["updated_desc"] = "updated_desc",
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        result = _resolve_run_store().query_synonym_suggestions(
+            synonym_type=type, review_status=status, search=search,
+            page=page, page_size=page_size, sort=sort,
+        )
+        return _collection_response(
+            list(result.get("items") or []), page=page, page_size=page_size,
+            total_items=int(result.get("total") or 0),
+        )
+
+    @app.get("/synonym-suggestions/{suggestion_id}", response_model=SynonymSuggestionEnvelope)
+    def get_synonym_suggestion(
+        suggestion_id: str,
+        evidence_page: int = 1,
+        evidence_page_size: int = 20,
+    ) -> dict[str, Any]:
+        evidence_page, evidence_page_size = _validated_page(
+            evidence_page, evidence_page_size
+        )
+        resource = _resolve_run_store().get_synonym_suggestion(
+            suggestion_id,
+            evidence_page=evidence_page,
+            evidence_page_size=evidence_page_size,
+        )
+        if resource is None:
+            raise ApiError(404, "synonym_suggestion_not_found", "Synonym suggestion not found.")
+        return _data_response(resource)
+
+    def _apply_synonym_action(
+        request: Request,
+        body: SynonymSuggestionActionRequest,
+        action: str,
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        ids = list(dict.fromkeys(value.strip() for value in body.suggestion_ids if value.strip()))
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action(
+            f"synonym-suggestions:{action}", key,
+            _request_fingerprint({"suggestion_ids": ids}),
+        )
+        if reservation.get("replayed") and reservation.get("response") is not None:
+            return _data_response(reservation["response"])
+        try:
+            kwargs: dict[str, Any] = {}
+            if isinstance(body, SynonymSuggestionApproveRequest):
+                kwargs = {
+                    "expected_draft_revision": body.expected_draft_revision,
+                    "expected_active_bundle_revision_id": body.expected_active_bundle_revision_id,
+                }
+            summary = store.apply_synonym_suggestion_action(
+                ids,
+                action=action,
+                acted_by="admin",
+                **kwargs,
+            )
+        except ValueError as exc:
+            code = str(exc)
+            status_code = 409 if code == "revision_conflict" else 422
+            raise ApiError(status_code, code, "Synonym suggestion action was rejected.") from exc
+        store.complete_idempotent_action(str(reservation["action_id"]), summary)
+        return _data_response(summary)
+
+    @app.post("/synonym-suggestions/actions/approve", response_model=FlexibleEnvelope)
+    def approve_synonym_suggestions(request: Request, body: SynonymSuggestionApproveRequest) -> dict[str, Any]:
+        return _apply_synonym_action(request, body, "approve")
+
+    @app.post("/synonym-suggestions/actions/decline", response_model=FlexibleEnvelope)
+    def decline_synonym_suggestions(request: Request, body: SynonymSuggestionActionRequest) -> dict[str, Any]:
+        return _apply_synonym_action(request, body, "decline")
+
+    @app.post("/synonym-suggestions/actions/clear", response_model=FlexibleEnvelope)
+    def clear_synonym_suggestions(request: Request, body: SynonymSuggestionActionRequest) -> dict[str, Any]:
+        return _apply_synonym_action(request, body, "clear")
+
+    @app.get("/synonym-processing-runs", response_model=SynonymProcessingCollectionEnvelope)
+    def get_synonym_processing_runs(page: int = 1, page_size: int = 20) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        result = _resolve_run_store().query_synonym_processing_runs(page=page, page_size=page_size)
+        return _collection_response(
+            list(result.get("items") or []), page=page, page_size=page_size,
+            total_items=int(result.get("total") or 0),
+        )
+
+    @app.get(
+        "/synonym-backups/export.zip",
+        responses={200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}},
+    )
+    def export_synonym_backup() -> Response:
+        store = _resolve_run_store()
+        try:
+            store.repair_active_synonym_policy_mirrors()
+        except (OSError, UnicodeError, ValueError):
+            pass
+        bundle = store.resolve_active_synonym_bundle()
+        content = export_synonym_backup_zip(
+            dict(bundle.get("normalized_bundle") or {}),
+            bundle_revision_id=str(bundle.get("bundle_revision_id") or ""),
+            bundle_checksum=str(bundle.get("bundle_checksum") or ""),
+            type_revisions=dict(bundle.get("type_revisions") or {}),
+            exported_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        )
+        return Response(
+            content=content,
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="fitcv-synonyms-backup.zip"'},
+        )
+
+    @app.post("/synonym-backups/import", response_model=FlexibleEnvelope)
+    async def import_synonym_backup(
+        request: Request,
+        backup_file: UploadFile = File(...),
+        expected_active_bundle_revision_id: str | None = Form(None),
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        content = await backup_file.read()
+        reservation = _resolve_run_store().reserve_idempotent_action(
+            "synonym-backups:import", key,
+            _request_fingerprint({
+                "sha256": hashlib.sha256(content).hexdigest(),
+                "expected_active_bundle_revision_id": expected_active_bundle_revision_id,
+            }),
+        )
+        if reservation.get("replayed") and reservation.get("response") is not None:
+            return _data_response(reservation["response"])
+        try:
+            inspected = inspect_synonym_backup_zip(content)
+            result = _resolve_run_store().activate_synonym_policy_bundle_set(
+                inspected["policies"],
+                expected_active_bundle_revision_id=expected_active_bundle_revision_id,
+            )
+        except (ValueError, sqlite_store_module.SynonymPolicyRevisionConflict) as exc:
+            code = "revision_conflict" if isinstance(exc, sqlite_store_module.SynonymPolicyRevisionConflict) else "synonym_backup_invalid"
+            status_code = 409 if code == "revision_conflict" else 422
+            raise ApiError(status_code, code, "Synonym backup import was rejected.") from exc
+        try:
+            result = _resolve_run_store().repair_active_synonym_policy_mirrors()
+        except (OSError, UnicodeError, ValueError):
+            result = _resolve_run_store().resolve_active_synonym_bundle()
+        _resolve_run_store().complete_idempotent_action(str(reservation["action_id"]), result)
+        return _data_response(result)
+
+    @app.get("/bookmarks", response_model=BookmarkCollectionEnvelope)
+    def get_bookmarks(
+        stage: str | None = None,
+        result: str | None = None,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 20,
+        sort: Literal["bookmarked_desc"] = "bookmarked_desc",
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        result_page = _resolve_run_store().query_bookmarks(
+            stage=stage, result=result, search=search, page=page, page_size=page_size,
+            sort=sort,
+        )
+        return _collection_response(
+            list(result_page.get("items") or []), page=page, page_size=page_size,
+            total_items=int(result_page.get("total") or 0),
+        )
+
+    @app.post("/bookmarks/actions/remove", response_model=FlexibleEnvelope)
+    def remove_bookmark_selection(request: Request, body: SelectionContext) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        context = body.model_dump()
+        reservation = _resolve_run_store().reserve_idempotent_action(
+            "bookmarks:remove", key, _request_fingerprint(context)
+        )
+        if reservation.get("replayed") and reservation.get("response") is not None:
+            return _data_response(reservation["response"])
+        try:
+            summary = _resolve_run_store().remove_bookmarks(
+                body.selected_run_job_ids, stage=body.stage, result=body.result,
+                search=body.search,
+            )
+        except ValueError as exc:
+            raise ApiError(422, str(exc), "Bookmark selection was rejected.") from exc
+        _resolve_run_store().complete_idempotent_action(str(reservation["action_id"]), summary)
+        return _data_response(summary)
+
+    def _selection_preview(body: SelectionContext, *, scope: str, run_id: str | None = None) -> dict[str, Any]:
+        context = body.model_dump()
+        selection = _resolve_run_store().resolve_job_selection(
+            body.selected_run_job_ids, scope=scope, run_id=run_id,
+            stage=body.stage, result=body.result, search=body.search,
+        )
+        matched = list(selection["matched_run_job_ids"])
+        expires_at = int(time.time()) + 300
+        return {
+            **selection,
+            "preview_revision": _selection_preview_revision(
+                scope=f"{scope}:{run_id or ''}", context=context, matched_ids=matched,
+                expires_at=expires_at,
+            ),
+            "expires_in_seconds": 300,
+            "expires_at": datetime.datetime.fromtimestamp(
+                expires_at, tz=datetime.timezone.utc
+            ).isoformat(),
+        }
+
+    @app.post("/bookmarks/actions/export/preview", response_model=SelectionPreviewEnvelope)
+    def preview_bookmark_export(body: SelectionContext) -> dict[str, Any]:
+        return _data_response(_selection_preview(body, scope="bookmarks"))
+
+    @app.post(
+        "/bookmarks/actions/export",
+        responses={200: {"content": {"text/csv": {"schema": {"type": "string", "format": "binary"}}}}},
+    )
+    def export_bookmark_selection(request: Request, body: SelectionExportRequest) -> Response:
+        key = _required_idempotency_key(request)
+        context = body.model_dump(exclude={"preview_revision"})
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action(
+            "bookmarks:export", key, _request_fingerprint(body.model_dump())
+        )
+        if reservation.get("replayed") and reservation.get("binary_response") is not None:
+            stored = reservation["binary_response"]
+            return Response(
+                content=stored["content"], media_type=stored["media_type"],
+                headers={"Content-Disposition": f'attachment; filename="{stored["filename"]}"'},
+            )
+        selection = store.resolve_job_selection(
+            body.selected_run_job_ids, scope="bookmarks", stage=body.stage,
+            result=body.result, search=body.search,
+        )
+        matched = list(selection["matched_run_job_ids"])
+        _verify_selection_preview(body.preview_revision, scope="bookmarks:", context=context, matched_ids=matched)
+        content = _selection_csv(
+            store.list_selected_jobs(matched, bookmarks_only=True), include_run=True
+        )
+        filename = "fitcv-bookmarks.csv"
+        store.complete_idempotent_binary_action(
+            str(reservation["action_id"]), content, media_type="text/csv", filename=filename
+        )
+        return Response(content=content, media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="fitcv-bookmarks.csv"'})
+
+    @app.post("/runs/{run_id}/jobs/actions/export/preview", response_model=SelectionPreviewEnvelope)
+    def preview_run_job_export(run_id: str, body: SelectionContext) -> dict[str, Any]:
+        return _data_response(_selection_preview(body, scope="run_jobs", run_id=run_id))
+
+    @app.post(
+        "/runs/{run_id}/jobs/actions/export",
+        responses={200: {"content": {"text/csv": {"schema": {"type": "string", "format": "binary"}}}}},
+    )
+    def export_run_job_selection(request: Request, run_id: str, body: SelectionExportRequest) -> Response:
+        key = _required_idempotency_key(request)
+        context = body.model_dump(exclude={"preview_revision"})
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action(
+            f"runs:{run_id}:jobs:export", key, _request_fingerprint(body.model_dump())
+        )
+        if reservation.get("replayed") and reservation.get("binary_response") is not None:
+            stored = reservation["binary_response"]
+            return Response(content=stored["content"], media_type=stored["media_type"], headers={"Content-Disposition": f'attachment; filename="{stored["filename"]}"'})
+        selection = store.resolve_job_selection(
+            body.selected_run_job_ids, scope="run_jobs", run_id=run_id,
+            stage=body.stage, result=body.result, search=body.search,
+        )
+        matched = list(selection["matched_run_job_ids"])
+        _verify_selection_preview(body.preview_revision, scope=f"run_jobs:{run_id}", context=context, matched_ids=matched)
+        content = _selection_csv(store.list_selected_jobs(matched), include_run=False)
+        filename = f"fitcv-run-{run_id}-jobs.csv"
+        store.complete_idempotent_binary_action(
+            str(reservation["action_id"]), content, media_type="text/csv", filename=filename
+        )
+        return Response(content=content, media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
     @app.get("/runs")
     def get_runs_list(
@@ -7927,14 +8562,46 @@ def create_app(
         store.unarchive_run(run_id)
         return _data_response(_refreshed_run(run_id))
 
+    @app.post("/runs/actions/delete-archived/preview")
+    def preview_canonical_archived_runs(
+        body: DeleteArchivedRunsPreviewRequest,
+    ) -> dict[str, Any]:
+        preview = _resolve_run_store().preview_delete_archived_runs(body.run_ids)
+        context = {"run_ids": list(preview["requested_run_ids"])}
+        return _data_response({
+            **preview,
+            "preview_revision": _selection_preview_revision(
+                scope="runs:delete-archived",
+                context=context,
+                matched_ids=list(preview["state_tokens"]),
+            ),
+        })
+
     @app.post("/runs/actions/delete-archived")
     def delete_canonical_archived_runs(
         body: DeleteArchivedRunsRequest,
         request: Request,
     ) -> dict[str, Any]:
         store = _resolve_run_store()
+        preview = store.preview_delete_archived_runs(body.run_ids)
+        if preview["blocked_run_ids"] or preview["missing_run_ids"]:
+            raise ApiError(
+                409,
+                "delete_preview_stale",
+                "Run deletion preview changed or expired.",
+                action="Refresh Runs, select archived Runs only, and retry.",
+                data=preview,
+            )
+        _verify_selection_preview(
+            body.preview_revision,
+            scope="runs:delete-archived",
+            context={"run_ids": list(preview["requested_run_ids"])},
+            matched_ids=list(preview["state_tokens"]),
+            error_code="delete_preview_stale",
+            error_message="Run deletion preview changed or expired.",
+        )
         key = _required_idempotency_key(request)
-        fingerprint = _request_fingerprint({"run_ids": body.run_ids})
+        fingerprint = _request_fingerprint(body.model_dump())
         try:
             action = store.reserve_idempotent_action("runs.delete_archived", key, fingerprint)
         except ValueError as exc:
@@ -7947,18 +8614,26 @@ def create_app(
         if action.get("replayed") and action.get("response") is not None:
             return _data_response(action["response"])
         try:
-            result = store.delete_archived_runs("all", body.run_ids)
+            result = store.delete_archived_runs(
+                "all",
+                body.run_ids,
+                expected_state_tokens=list(preview["state_tokens"]),
+            )
         except ValueError as exc:
             raise ApiError(
                 409,
-                "run_state_conflict",
-                "Every selected Run must exist and be archived.",
+                "delete_preview_stale",
+                "Run deletion preview changed or expired.",
                 action="Refresh Runs, select archived Runs only, and retry.",
             ) from exc
         response = {
             "action_id": action["action_id"],
             "deleted_count": int(result.get("deleted_count") or 0),
             "deleted_run_ids": list(result.get("deleted_run_ids") or []),
+            "deleted_bookmark_count": int(result.get("deleted_bookmark_count") or 0),
+            "deleted_synonym_suggestion_count": int(result.get("deleted_synonym_suggestion_count") or 0),
+            "filesystem_cleanup_failed_run_ids": list(result.get("filesystem_cleanup_failed_run_ids") or []),
+            "filesystem_cleanup_error_code": result.get("filesystem_cleanup_error_code"),
         }
         store.complete_idempotent_action(str(action["action_id"]), response)
         return _data_response(response)
@@ -8729,41 +9404,6 @@ def create_app(
             except HTTPException as exc:
                 section_errors[key] = str(exc.detail)
 
-        if section_name == "agentic-automation" and not section_errors:
-            enable_apply_prereq = str(form.get("__enable_prereq_apply_to_run", "")).strip().lower() in {"true", "1", "yes", "on"}
-            enable_promote_prereq = str(form.get("__enable_prereq_promote_global", "")).strip().lower() in {"true", "1", "yes", "on"}
-
-            if enable_apply_prereq:
-                coerced["synonym_management.apply_to_run_enabled"] = True
-            if enable_promote_prereq:
-                coerced["synonym_management.promote_global_enabled"] = True
-
-            apply_gate_on = bool(
-                coerced.get(
-                    "synonym_management.apply_to_run_enabled",
-                    active.get("synonym_management.apply_to_run_enabled", schema_by_key["synonym_management.apply_to_run_enabled"]["default"]),
-                )
-            )
-            promote_gate_on = bool(
-                coerced.get(
-                    "synonym_management.promote_global_enabled",
-                    active.get("synonym_management.promote_global_enabled", schema_by_key["synonym_management.promote_global_enabled"]["default"]),
-                )
-            )
-            auto_apply_on = bool(coerced.get("synonym_management.auto_apply_recommendation_enabled", False))
-            auto_promote_on = bool(coerced.get("synonym_management.auto_promote_global_enabled", False))
-
-            if auto_apply_on and not apply_gate_on:
-                section_errors["synonym_management.auto_apply_recommendation_enabled"] = (
-                    "Auto Apply Recommendation requires Synonym Apply-to-Run gate enabled. "
-                    "Enable prerequisite and continue, or keep Auto Apply off."
-                )
-            if auto_promote_on and not promote_gate_on:
-                section_errors["synonym_management.auto_promote_global_enabled"] = (
-                    "Auto Promote to Global requires Synonym Promote-Global gate enabled. "
-                    "Enable prerequisite and continue, or keep Auto Promote off."
-                )
-
         # Run cross-key validation across all coerced values in this section
         if not section_errors:
             try:
@@ -8976,6 +9616,14 @@ def create_app(
                 "run_status_projection": run_status_projection_by_id,
             }
         )
+
+    @app.get("/admin/candidate-profiles", response_class=HTMLResponse)
+    def admin_candidate_profiles(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(request=request, name="candidate_profiles.html", context={})
+
+    @app.get("/admin/synonyms", response_class=HTMLResponse)
+    def admin_synonyms(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(request=request, name="synonyms.html", context={})
     @app.post("/admin/runs/{run_id}/stop")
     def admin_stop_run(run_id: str) -> dict:
         """Stop a cancellable run. Returns JSON for fetch() callers."""
@@ -9181,122 +9829,6 @@ def create_app(
             "processed_run_ids": processed_run_ids,
             "skipped_items": skipped_items,
         }
-
-    @app.post("/admin/runs/bulk/delete-archived")
-    def admin_bulk_delete_archived_runs(payload: BulkDeleteArchivedRunsRequest) -> dict[str, Any]:
-        result = delete_archived_runs(payload.older_than_days, client=client)
-        deleted_count = int(result.get("deleted_count") or 0)
-        deleted_run_ids = [str(item) for item in list(result.get("deleted_run_ids") or []) if str(item).strip()]
-        status = "deleted" if deleted_count > 0 else "no_matches"
-        logger.info(
-            "Admin bulk delete archived runs completed",
-            extra={
-                "older_than_days": payload.older_than_days,
-                "deleted_count": deleted_count,
-                "deleted_run_ids": deleted_run_ids,
-                "status": status,
-            },
-        )
-        return {
-            "status": status,
-            "deleted_count": deleted_count,
-            "deleted_run_ids": deleted_run_ids,
-            "older_than_days": payload.older_than_days,
-        }
-    @app.post("/admin/runs/{run_id}/synonym-overlay")
-    async def admin_upload_run_synonym_overlay(
-        request: Request,
-        run_id: str,
-        overlay_upload_scope: str = Form("combined"),
-        synonym_overlay_file: UploadFile = File(...),
-    ) -> RedirectResponse:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        if not _can_upload_synonym_overlay(run):
-            raise HTTPException(
-                status_code=409,
-                detail="Synonym overlay upload is only available for manual runs paused after enrich",
-            )
-        filename, overlay_payload, raw_text = await _parse_uploaded_synonym_overlay(
-            synonym_overlay_file,
-            overlay_upload_scope=overlay_upload_scope,
-            missing_file_detail="A synonym overlay YAML file is required",
-            missing_filename_detail="A synonym overlay YAML file is required",
-        )
-
-        effective_config = _load_run_effective_config_snapshot(run)
-        uploaded_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        updated_config = apply_runtime_synonym_overlay(
-            effective_config,
-            overlay_payload,
-            source="staged_override",
-            filename=filename,
-            uploaded_at=uploaded_at,
-            raw_yaml=raw_text,
-        )
-        update_run_effective_settings(
-            run_id,
-            _json.dumps(updated_config, ensure_ascii=False),
-            client=client,
-        )
-        synonym_mode = dict(updated_config.get("synonym_management") or {})
-        if bool(synonym_mode.get("propose_enabled", True)) and run.mapping_suggestions_json:
-            mapping_payload = decode_json_object_or_none(run.mapping_suggestions_json) or {}
-            suggestions = list(mapping_payload.get("suggestions") or [])
-            synonym_payload_json = build_synonym_proposals_payload(
-                run_id=run_id,
-                summary={"mapping_suggestions": suggestions},
-                created_at=datetime.datetime.now(datetime.timezone.utc),
-                existing_payload_json=run.synonym_proposals_json,
-                global_synonyms=dict(updated_config.get("skill_synonyms") or {}),
-            )
-            update_run_synonym_proposals(
-                run_id,
-                synonym_payload_json,
-                client=client,
-            )
-        append_event(
-            RunEvent(
-                run_id=run_id,
-                event_id=str(uuid.uuid4()),
-                stage="synonym_overlay_uploaded",
-                level="info",
-                message=(
-                    "Run-scoped synonym overlay uploaded "
-                    f"[scope={str(overlay_upload_scope or 'combined').strip().lower() or 'combined'}] "
-                    f"({int(((updated_config.get('skill_synonyms_runtime') or {}).get('run_overlay_entry_count') or 0))} skill entries)"
-                ),
-                created_at=datetime.datetime.now(datetime.timezone.utc),
-                payload_json=_json.dumps(
-                    {
-                        "scope": str(overlay_upload_scope or "combined").strip().lower() or "combined",
-                        "filename": filename,
-                        "entry_count": int(
-                            ((updated_config.get("skill_synonyms_runtime") or {}).get("run_overlay_entry_count") or 0)
-                        ),
-                        "section_counts": dict(
-                            ((updated_config.get("skill_synonyms_runtime") or {}).get("run_overlay_section_counts") or {})
-                        ),
-                    },
-                    ensure_ascii=False,
-                ),
-            ),
-            client=client,
-        )
-        redirect_target = f"/admin/runs/{run_id}/review-queue"
-        referer = str(request.headers.get("referer") or "").strip()
-        if referer:
-            parsed_referer = urlparse(referer)
-            referer_path = str(parsed_referer.path or "").strip()
-            allowed_paths = {
-                f"/admin/runs/{run_id}",
-                f"/admin/runs/{run_id}/review-queue",
-            }
-            if referer_path in allowed_paths:
-                query_suffix = f"?{parsed_referer.query}" if parsed_referer.query else ""
-                redirect_target = f"{referer_path}{query_suffix}"
-        return RedirectResponse(redirect_target, status_code=303)
 
     @app.post("/admin/runs/{run_id}/continue")
     def admin_continue_run(request: Request, run_id: str) -> dict:
@@ -9637,7 +10169,7 @@ def create_app(
         job_metadata_by_url = _job_metadata_by_url_from_results_rows(results_rows)
         for metadata_key, metadata_value in _job_metadata_by_url_from_cv_generation_debug(run).items():
             job_metadata_by_url.setdefault(metadata_key, metadata_value)
-        cv_versions_with_bookmarks: list[dict[str, Any]] = []
+        cv_versions_with_metadata: list[dict[str, Any]] = []
         for cv in cv_versions:
             if not isinstance(cv, dict):
                 continue
@@ -9647,12 +10179,6 @@ def create_app(
             job_title = str(row.get("job_title") or row.get("title") or metadata.get("title") or "View Job").strip()
             company = str(row.get("company") or metadata.get("company") or "").strip()
             location = str(row.get("location") or metadata.get("location") or "").strip()
-            bookmark_key = bookmark_key_for_job(
-                job_id=str(row.get("job_id") or "").strip() or None,
-                url=job_url or None,
-                title=job_title,
-            )
-            row["bookmark_key"] = bookmark_key
             row["job_title"] = job_title
             row["company"] = company or None
             row["location"] = location or None
@@ -9661,12 +10187,7 @@ def create_app(
                 company=company,
                 location=location,
             )
-            row["bookmarked"] = is_job_bookmarked(
-                job_id=str(row.get("job_id") or "").strip() or None,
-                url=job_url or None,
-                title=job_title,
-            )
-            cv_versions_with_bookmarks.append(row)
+            cv_versions_with_metadata.append(row)
         output_availability = _build_output_availability(run, cv_versions)
         ranked_cv_outcome_summary = _build_ranked_cv_outcome_summary(results_rows)
         cv_generation_failure_reason_summary = _build_cv_generation_failure_reason_summary(run)
@@ -9703,7 +10224,7 @@ def create_app(
                 "process_console": process_console,
                 "timeline_has_more": len(events) > timeline_limit,
                 "timeline_next_limit": min(timeline_limit + 25, 200),
-                "cv_versions": cv_versions_with_bookmarks,
+                "cv_versions": cv_versions_with_metadata,
                 "output_availability": output_availability,
                 "stage_quality_metrics": stage_quality_metrics,
                 "stage_quality_metric_rows": stage_quality_metric_rows,
@@ -9742,53 +10263,7 @@ def create_app(
             }
         )
 
-    @app.post("/admin/runs/{run_id}/bookmarks/save")
-    async def admin_run_bookmark_save(request: Request, run_id: str) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        form = await request.form()
-        job_id = str(form.get("job_id") or "").strip() or None
-        title = str(form.get("title") or "").strip()
-        url = str(form.get("url") or "").strip()
-        if not title or not url:
-            raise HTTPException(status_code=422, detail="Bookmark requires title and url")
-        version_id = str(form.get("version_id") or "").strip() or None
-        upsert_bookmarked_job(
-            job_id=job_id,
-            title=title,
-            company=str(form.get("company") or "").strip() or None,
-            location=str(form.get("location") or "").strip() or None,
-            url=url,
-            fit_classification=str(form.get("fit_classification") or "").strip() or None,
-            source_run_id=run_id,
-            source=str(form.get("source") or "").strip() or "pipeline_results",
-            snapshot={"version_id": version_id},
-        )
-        redirect_to = _safe_admin_redirect_target(
-            str(form.get("redirect_to") or ""),
-            fallback=_bookmark_destination_for_request(request, run_id),
-        )
-        return RedirectResponse(url=redirect_to, status_code=303)
 
-    @app.post("/admin/runs/{run_id}/bookmarks/delete")
-    async def admin_run_bookmark_delete(request: Request, run_id: str) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        form = await request.form()
-        bookmark_key = str(form.get("bookmark_key") or "").strip()
-        if not bookmark_key:
-            job_id = str(form.get("job_id") or "").strip() or None
-            title = str(form.get("title") or "").strip() or None
-            url = str(form.get("url") or "").strip() or None
-            bookmark_key = bookmark_key_for_job(job_id=job_id, url=url, title=title)
-        delete_bookmarked_job(bookmark_key)
-        redirect_to = _safe_admin_redirect_target(
-            str(form.get("redirect_to") or ""),
-            fallback=_bookmark_destination_for_request(request, run_id),
-        )
-        return RedirectResponse(url=redirect_to, status_code=303)
 
     @app.post("/admin/reconciler/run-attempts")
     def admin_reconcile_run_attempts() -> dict[str, Any]:
@@ -9805,85 +10280,7 @@ def create_app(
 
     @app.get("/admin/bookmarks", response_class=HTMLResponse)
     def admin_bookmarks(request: Request) -> HTMLResponse:
-        view = str(request.query_params.get("view") or "all").strip().lower()
-        allowed_views = {"all", "submitted", "archived"}
-        if view not in allowed_views:
-            view = "all"
-
-        bookmarks = list_bookmarked_jobs()
-        bookmarks_view: list[dict[str, Any]] = []
-        for item in bookmarks:
-            row = dict(item)
-            fit_classification = str(row.get("fit_classification") or "").strip()
-            snapshot = dict(row.get("snapshot") or {})
-            version_id = str(snapshot.get("version_id") or "").strip() or None
-            status = str(row.get("status") or "active").strip().lower()
-            if status not in {"active", "submitted", "archived"}:
-                status = "active"
-            row["saved_at_display"] = _format_compact_utc_timestamp(row.get("saved_at")) or "—"
-            row["fit_classification_display"] = fit_classification.lower() if fit_classification else None
-            row["fit_classification_badge_class"] = _fit_classification_badge_class(fit_classification)
-            row["version_id"] = version_id
-            row["status"] = status
-            row["job_primary_label"] = _build_job_primary_label(
-                title=str(row.get("title") or "").strip() or "View Job",
-                company=str(row.get("company") or "").strip() or None,
-                location=str(row.get("location") or "").strip() or None,
-            )
-            bookmarks_view.append(row)
-
-        active_bookmarks = [row for row in bookmarks_view if row.get("status") == "active"]
-        submitted_bookmarks = [row for row in bookmarks_view if row.get("status") == "submitted"]
-        archived_bookmarks = [row for row in bookmarks_view if row.get("status") == "archived"]
-
-        if view == "submitted":
-            visible_bookmarks = submitted_bookmarks
-        elif view == "archived":
-            visible_bookmarks = archived_bookmarks
-        else:
-            visible_bookmarks = bookmarks_view
-        return templates.TemplateResponse(
-            request=request,
-            name="bookmarks.html",
-            context={
-                "view": view,
-                "bookmarks": visible_bookmarks,
-                "active_bookmarks": active_bookmarks,
-                "submitted_bookmarks": submitted_bookmarks,
-                "archived_bookmarks": archived_bookmarks,
-            },
-        )
-
-    @app.post("/admin/bookmarks/delete")
-    async def admin_bookmarks_delete(request: Request) -> Response:
-        form = await request.form()
-        bookmark_key = str(form.get("bookmark_key") or "").strip()
-        if not bookmark_key:
-            raise HTTPException(status_code=422, detail="bookmark_key is required")
-        delete_bookmarked_job(bookmark_key)
-        redirect_to = _safe_admin_redirect_target(
-            str(form.get("redirect_to") or ""),
-            fallback="/admin/bookmarks",
-        )
-        return RedirectResponse(url=redirect_to, status_code=303)
-
-    @app.post("/admin/bookmarks/status")
-    async def admin_bookmarks_status(request: Request) -> Response:
-        form = await request.form()
-        bookmark_key = str(form.get("bookmark_key") or "").strip()
-        status = str(form.get("status") or "").strip()
-        if not bookmark_key:
-            raise HTTPException(status_code=422, detail="bookmark_key is required")
-        if not status:
-            raise HTTPException(status_code=422, detail="status is required")
-        updated = set_bookmarked_job_status(bookmark_key, status)
-        if not updated:
-            raise HTTPException(status_code=404, detail="Bookmark not found")
-        redirect_to = _safe_admin_redirect_target(
-            str(form.get("redirect_to") or ""),
-            fallback="/admin/bookmarks",
-        )
-        return RedirectResponse(url=redirect_to, status_code=303)
+        return templates.TemplateResponse(request=request, name="bookmarks.html", context={})
 
     @app.get("/admin/runs/{run_id}/review-queue", response_class=HTMLResponse)
     def admin_run_review_queue(request: Request, run_id: str) -> HTMLResponse:
@@ -10511,898 +10908,14 @@ def create_app(
         )
         return RedirectResponse(f"/admin/runs/{run_id}/review-queue?{query}", status_code=303)
 
-    @app.post("/admin/runs/{run_id}/synonym-proposals/{proposal_id}/action")
-    async def admin_run_synonym_proposal_action(
-        request: Request,
-        run_id: str,
-        proposal_id: str,
-    ) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        mode = _synonym_management_mode(run)
-        if not mode["apply_to_run_enabled"]:
-            raise HTTPException(status_code=409, detail="Synonym apply-to-run actions are disabled by rollout settings")
-        form = await request.form()
-        action = str(form.get("action") or "").strip()
-        actor = str(form.get("acted_by") or "admin").strip() or "admin"
-        note = str(form.get("note") or "").strip()
-        action_map = {
-            "approve": "approve_for_run_overlay",
-            "reject": "reject",
-            "defer": "defer",
-        }
-        mapped_action = action_map.get(action)
-        if not mapped_action:
-            raise HTTPException(status_code=422, detail="Invalid synonym proposal action")
-        payload = _load_run_synonym_proposals_payload(run)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-        idx = _find_synonym_proposal_index(payload, proposal_id)
-        if idx is None:
-            raise HTTPException(status_code=404, detail="Synonym proposal not found")
-        result = _apply_synonym_proposal_action_in_run(
-            run=run,
-            payload=payload,
-            proposal_index=idx,
-            action=mapped_action,
-            acted_by=actor,
-            note=note,
-        )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review", status_code=303)
 
-    @app.post("/admin/runs/{run_id}/synonym-proposals/batch-action")
-    async def admin_run_synonym_proposals_batch_action(
-        request: Request,
-        run_id: str,
-    ) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        mode = _synonym_management_mode(run)
-        if not mode["apply_to_run_enabled"]:
-            raise HTTPException(status_code=409, detail="Synonym apply-to-run actions are disabled by rollout settings")
-        form = await request.form()
-        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
-        note = str(form.get("note") or "").strip()
-        valid_actions = {"approve", "defer", "reject", "reopen_pending"}
-        decisions: list[SynonymBatchDecision] = []
 
-        selected_ids = [str(value or "").strip() for value in form.getlist("proposal_id")]
-        selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
-        batch_action = str(form.get("batch_action") or "").strip()
-        if selected_ids:
-            for proposal_id in selected_ids:
-                row_action = str(form.get(f"proposal_action__{proposal_id}") or "").strip()
-                resolved_action = row_action if row_action in valid_actions else batch_action
-                if resolved_action not in valid_actions:
-                    continue
-                decisions.append(SynonymBatchDecision(proposal_id=proposal_id, action=resolved_action))
-        else:
-            # Backward-compat fallback for older UI payload shape.
-            for key, raw_value in form.multi_items():
-                if not str(key).startswith("proposal_action__"):
-                    continue
-                proposal_id = str(key).split("proposal_action__", 1)[-1].strip()
-                action = str(raw_value or "").strip()
-                if not proposal_id or action not in valid_actions:
-                    continue
-                decisions.append(SynonymBatchDecision(proposal_id=proposal_id, action=action))
-        payload = _load_run_synonym_proposals_payload(run)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-        seen: set[tuple[str, str]] = set()
-        deduped_decisions: list[SynonymBatchDecision] = []
-        for decision in decisions:
-            key = (decision.proposal_id, decision.action)
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped_decisions.append(decision)
-        action_map = {
-            "approve": "approve_for_run_overlay",
-            "defer": "defer",
-            "reject": "reject",
-            "reopen_pending": "start_review",
-        }
-        if not deduped_decisions:
-            raise HTTPException(status_code=422, detail="Select at least one synonym proposal row")
-        applied = 0
-        skipped = 0
-        failed = 0
-        for decision in deduped_decisions:
-            idx = _find_synonym_proposal_index(payload, decision.proposal_id)
-            if idx is None:
-                skipped += 1
-                continue
-            try:
-                _apply_synonym_proposal_action_in_run(
-                    run=run,
-                    payload=payload,
-                    proposal_index=idx,
-                    action=action_map[decision.action],
-                    acted_by=acted_by,
-                    note=note,
-                    persist=False,
-                )
-            except HTTPException as exc:
-                if exc.status_code == 409:
-                    skipped += 1
-                else:
-                    failed += 1
-                continue
-            applied += 1
 
-        if applied == 0 and failed == 0 and len(deduped_decisions) > 0 and skipped == len(deduped_decisions):
-            recent_noop_guard_exists = any(
-                event.stage == "synonym_noop_guard_triggered"
-                for event in get_events(run.run_id, client=client)[-10:]
-            )
-            if not recent_noop_guard_exists:
-                append_event(
-                    RunEvent(
-                        run_id=run.run_id,
-                        event_id=str(uuid.uuid4()),
-                        stage="synonym_noop_guard_triggered",
-                        level="info",
-                        message=(
-                            "Synonym batch decision loop suppressed: no actionable proposals remained "
-                            f"(requested={len(deduped_decisions)}, skipped={skipped})."
-                        ),
-                        created_at=datetime.datetime.now(datetime.timezone.utc),
-                        payload_json=_json.dumps(
-                            {
-                                "decisions_requested": len(deduped_decisions),
-                                "skipped_count": skipped,
-                                "failed_count": failed,
-                                "acted_by": acted_by,
-                            },
-                            ensure_ascii=False,
-                        ),
-                    ),
-                    client=client,
-                )
-            query = urlencode(
-                {
-                    "synonym_batch_applied": applied,
-                    "synonym_batch_skipped": skipped,
-                    "synonym_batch_failed": failed,
-                }
-            )
-            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
-        if applied > 0:
-            _persist_synonym_proposal_payload(
-                run=run,
-                payload=payload,
-                acted_by=acted_by,
-                note=note,
-                event_stage="synonym_proposal_batch_reviewed",
-                event_message=f"Applied {applied} synonym proposal review decision(s)",
-            )
-        append_event(
-            RunEvent(
-                run_id=run.run_id,
-                event_id=str(uuid.uuid4()),
-                stage="synonym_proposal_batch_summary",
-                level="info",
-                message=f"Synonym batch review summary: applied={applied}, skipped={skipped}, failed={failed}",
-                created_at=datetime.datetime.now(datetime.timezone.utc),
-                payload_json=_json.dumps(
-                    {
-                        "applied_count": applied,
-                        "skipped_count": skipped,
-                        "failed_count": failed,
-                        "decisions_requested": len(deduped_decisions),
-                        "acted_by": acted_by,
-                    },
-                    ensure_ascii=False,
-                ),
-            ),
-            client=client,
-        )
-        query = urlencode(
-            {
-                "synonym_batch_applied": applied,
-                "synonym_batch_skipped": skipped,
-                "synonym_batch_failed": failed,
-            }
-        )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
-    @app.post("/admin/runs/{run_id}/synonym-proposals/apply-approved-to-run")
-    async def admin_run_synonym_proposals_apply_approved_to_run(
-        request: Request,
-        run_id: str,
-    ) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        mode = _synonym_management_mode(run)
-        if not mode["apply_to_run_enabled"]:
-            raise HTTPException(status_code=409, detail="Synonym apply-to-run is disabled by rollout settings")
-        if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}:
-            raise HTTPException(status_code=409, detail="Cannot apply approved overlay for terminal runs")
-        payload = _load_run_synonym_proposals_payload(run)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-        proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
-        overlay_synonyms, _proposal_ids = _approved_synonym_overlay_payload(proposals)
-        if not overlay_synonyms:
-            raise HTTPException(status_code=409, detail="No approved synonym proposals are available for this run")
-        form = await request.form()
-        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
-        note = str(form.get("note") or "").strip() or "ui:apply-approved-to-run"
-        _persist_synonym_proposal_payload(
-            run=run,
-            payload=payload,
-            acted_by=acted_by,
-            note=note,
-            event_stage="synonym_apply_approved_to_run",
-            event_message=f"Applied {len(overlay_synonyms)} approved synonym mapping(s) to this run overlay",
-            event_payload={
-                "applied_count": len(overlay_synonyms),
-                "skipped_count": 0,
-                "failed_count": 0,
-            },
-        )
-        query = urlencode(
-            {
-                "synonym_apply_to_run_applied": len(overlay_synonyms),
-                "synonym_apply_to_run_skipped": 0,
-                "synonym_apply_to_run_failed": 0,
-            }
-        )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
-    @app.post("/admin/runs/{run_id}/synonym-proposals/regenerate")
-    async def admin_run_synonym_proposals_regenerate(
-        run_id: str,
-    ) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        mode = _synonym_management_mode(run)
-        if not mode["propose_enabled"]:
-            raise HTTPException(status_code=409, detail="Synonym proposal generation is disabled by rollout settings")
-        if not _can_regenerate_synonym_proposals(run):
-            raise HTTPException(
-                status_code=409,
-                detail="Synonym proposals can be regenerated only at awaiting-continue enrich->rule_filter checkpoint",
-            )
-        if not run.mapping_suggestions_json:
-            raise HTTPException(status_code=404, detail="Mapping suggestions payload is not available for this run")
-        mapping_payload = decode_json_object_or_none(run.mapping_suggestions_json)
-        if mapping_payload is None:
-            raise HTTPException(status_code=409, detail="Mapping suggestions payload is invalid for this run")
-        suggestions = list(mapping_payload.get("suggestions") or [])
 
-        synonym_payload_json = build_synonym_proposals_payload(
-            run_id=run.run_id,
-            summary={"mapping_suggestions": suggestions},
-            created_at=datetime.datetime.now(datetime.timezone.utc),
-            existing_payload_json=run.synonym_proposals_json,
-            global_synonyms=_global_synonyms_for_proposal_evaluation(run),
-        )
-        persistence_status = update_run_synonym_proposals(
-            run.run_id,
-            synonym_payload_json,
-            client=client,
-        )
-        synonym_payload = decode_json_object_or_none(synonym_payload_json) or {}
-        trace_summary = dict(
-            ((synonym_payload.get("synonym_proposals_trace") or {}).get("trace_summary") or {})
-            if isinstance(synonym_payload, dict)
-            else {}
-        )
-        regenerated_total = int(trace_summary.get("generated_for_review_count") or 0)
-        regenerated_suppressed = int(trace_summary.get("suppressed_as_already_global_count") or 0)
-        failed = 0 if persistence_status.get("persistence_status") in {"persisted", "not_applicable"} else 1
-        append_event(
-            RunEvent(
-                run_id=run.run_id,
-                event_id=str(uuid.uuid4()),
-                stage="synonym_proposals_regenerated",
-                level="info",
-                message=(
-                    "Synonym proposals regenerated from mapping suggestions: "
-                    f"generated={regenerated_total}, suppressed={regenerated_suppressed}, failed={failed}"
-                ),
-                created_at=datetime.datetime.now(datetime.timezone.utc),
-                payload_json=_json.dumps(
-                    {
-                        "generated_for_review_count": regenerated_total,
-                        "suppressed_as_already_global_count": regenerated_suppressed,
-                        "failed_count": failed,
-                        "persistence_status": persistence_status.get("persistence_status"),
-                        "degradation_reason": persistence_status.get("degradation_reason"),
-                    },
-                    ensure_ascii=False,
-                ),
-            ),
-            client=client,
-        )
-        query = urlencode(
-            {
-                "synonym_regenerated_total": regenerated_total,
-                "synonym_regenerated_suppressed": regenerated_suppressed,
-                "synonym_regenerated_failed": failed,
-            }
-        )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
-    @app.post("/admin/runs/{run_id}/synonym-proposals/promote-preview", response_class=HTMLResponse)
-    async def admin_run_synonym_proposals_promote_preview(
-        request: Request,
-        run_id: str,
-    ) -> HTMLResponse:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        mode = _synonym_management_mode(run)
-        if not mode["promote_global_enabled"]:
-            raise HTTPException(status_code=409, detail="Synonym global promotion is disabled by rollout settings")
-        form = await request.form()
-        selected_ids = [str(value or "").strip() for value in form.getlist("promote_proposal_id")]
-        selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
-        payload = _load_run_synonym_proposals_payload(run)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-        if not selected_ids:
-            proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
-            approved_ids: list[str] = []
-            approved_rows: list[dict[str, Any]] = []
-            for item in proposals:
-                if str(item.get("proposal_status") or "").strip() != "approved_for_run_overlay":
-                    continue
-                proposal_id = str(item.get("proposal_id") or "").strip()
-                if not proposal_id:
-                    continue
-                approved_ids.append(proposal_id)
-                approved_rows.append(item)
-            if not approved_ids:
-                query = urlencode(
-                    {
-                        "synonym_promote_preview_status": "no_approved",
-                    }
-                )
-                return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
-            global_maps = {
-                "skill": _load_global_skill_synonyms_map(),
-                "domain": _load_global_domain_alias_map(),
-                "role_family": _load_global_role_family_alias_map(),
-            }
-            for item in approved_rows:
-                proposal_id = str(item.get("proposal_id") or "").strip()
-                field = str(item.get("field") or "skill").strip().lower() or "skill"
-                alias = str(item.get("alias") or "").strip().lower()
-                canonical = str(item.get("canonical") or "").strip().lower()
-                if not proposal_id or not alias or not canonical:
-                    continue
-                global_map = global_maps.get(field)
-                if global_map is None:
-                    selected_ids.append(proposal_id)
-                    continue
-                # Default preview should focus on promotable deltas.
-                if str(global_map.get(alias) or "").strip().lower() == canonical:
-                    continue
-                selected_ids.append(proposal_id)
-            selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
-        if not selected_ids:
-            query = urlencode(
-                {
-                    "synonym_promote_preview_status": "no_promotable",
-                }
-            )
-            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
-        preview = _build_promote_global_preview(
-            run=run,
-            payload=payload,
-            selected_proposal_ids=selected_ids,
-        )
-        return templates.TemplateResponse(
-            request=request,
-            name="synonym_promote_preview.html",
-            context={
-                "run": run,
-                "preview": preview,
-            },
-        )
-
-    @app.get("/admin/runs/{run_id}/synonym-proposals/promote-review", response_class=HTMLResponse)
-    async def admin_run_synonym_proposals_promote_review(
-        request: Request,
-        run_id: str,
-    ) -> HTMLResponse:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        mode = _synonym_management_mode(run)
-        if not mode["promote_global_enabled"]:
-            raise HTTPException(status_code=409, detail="Synonym global promotion is disabled by rollout settings")
-        payload = _load_run_synonym_proposals_payload(run)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-        proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
-        approved_ids: list[str] = []
-        for item in proposals:
-            if str(item.get("proposal_status") or "").strip() != "approved_for_run_overlay":
-                continue
-            proposal_id = str(item.get("proposal_id") or "").strip()
-            if proposal_id:
-                approved_ids.append(proposal_id)
-        if not approved_ids:
-            query = urlencode(
-                {
-                    "synonym_promote_preview_status": "no_approved",
-                }
-            )
-            return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
-        preview = _build_promote_global_preview(
-            run=run,
-            payload=payload,
-            selected_proposal_ids=approved_ids,
-        )
-        return templates.TemplateResponse(
-            request=request,
-            name="synonym_promote_preview.html",
-            context={
-                "run": run,
-                "preview": preview,
-                "selected_ids_csv": ",".join(approved_ids),
-            },
-        )
-
-    @app.post("/admin/runs/{run_id}/synonym-proposals/promote-commit")
-    async def admin_run_synonym_proposals_promote_commit(
-        request: Request,
-        run_id: str,
-    ) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        mode = _synonym_management_mode(run)
-        if not mode["promote_global_enabled"]:
-            raise HTTPException(status_code=409, detail="Synonym global promotion is disabled by rollout settings")
-        form = await request.form()
-        selected_ids = [str(value or "").strip() for value in form.getlist("promote_proposal_id")]
-        selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
-        if not selected_ids:
-            raise HTTPException(status_code=422, detail="No proposals selected for promotion")
-        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
-        note = str(form.get("note") or "").strip()
-        payload = _load_run_synonym_proposals_payload(run)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-        preview = _build_promote_global_preview(
-            run=run,
-            payload=payload,
-            selected_proposal_ids=selected_ids,
-        )
-        promote_result = _commit_synonym_global_promotion(
-            run=run,
-            payload=payload,
-            preview=preview,
-            selected_ids=selected_ids,
-            acted_by=acted_by,
-            note=note,
-            client=client,
-        )
-        query = urlencode(
-            {
-                "synonym_promote_applied": promote_result["applied"],
-                "synonym_promote_skipped": promote_result["skipped"],
-                "synonym_promote_failed": promote_result["failed"],
-                "synonym_promote_new_aliases": promote_result["new_aliases"],
-                "synonym_promote_unchanged_aliases": promote_result["unchanged_aliases"],
-                "synonym_promote_overridden_aliases": promote_result["overridden_aliases"],
-            }
-        )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
-
-    @app.post("/admin/runs/{run_id}/synonym-proposals/triage-refresh")
-    async def admin_run_synonym_proposals_triage_refresh(
-        request: Request,
-        run_id: str,
-    ) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        payload = _load_run_synonym_proposals_payload(run)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-        mode = dict(_synonym_management_mode(run))
-        # Triage refresh is advisory by default. Auto-apply / auto-promote requires explicit opt-in
-        # in stored effective settings, not just defaulted mode values.
-        explicit_settings = decode_json_object_or_none(run.effective_settings_json) or {}
-        explicit_synonym_management = dict(explicit_settings.get("synonym_management") or {})
-        auto_apply_opt_in = explicit_synonym_management.get("auto_apply_recommendation_enabled") is True
-        auto_promote_opt_in = explicit_synonym_management.get("auto_promote_global_enabled") is True
-        if not auto_apply_opt_in:
-            mode["auto_apply_recommendation_enabled"] = False
-        if not auto_promote_opt_in:
-            mode["auto_promote_global_enabled"] = False
-        form = await request.form()
-        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
-        note = str(form.get("note") or "").strip()
-        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        triage_runtime = _resolve_synonym_triage_runtime(run)
-        fingerprints = _synonym_observability_fingerprints(run)
-        overlay_fp = str(fingerprints.get("run_overlay_fingerprint") or "").strip() or None
-        proposals = list(payload.get("proposals") or [])
-        original_status_by_id = {
-            str(item.get("proposal_id") or "").strip(): str(item.get("proposal_status") or "").strip()
-            for item in proposals
-            if isinstance(item, dict) and str(item.get("proposal_id") or "").strip()
-        }
-        triaged_count = 0
-        reused_count = 0
-        reused_strict_count = 0
-        reused_core_count = 0
-        skipped_count = 0
-        failed_count = 0
-        fallback_count = 0
-        fresh_count = 0
-        generated_total = 0
-        reuse_reason = "reuse_enabled"
-        if not bool(mode.get("auto_triage_recommendation_enabled")):
-            reuse_reason = "auto_triage_disabled"
-        elif not bool(mode.get("triage_recommendation_reuse_enabled")):
-            reuse_reason = "reuse_disabled"
-        for idx, proposal in enumerate(proposals):
-            if not isinstance(proposal, dict):
-                skipped_count += 1
-                continue
-            status = str(proposal.get("proposal_status") or "proposed_unreviewed").strip() or "proposed_unreviewed"
-            if status not in {"proposed_unreviewed", "in_review", "deferred"}:
-                skipped_count += 1
-                continue
-            generated_total += 1
-            if not bool(mode.get("auto_triage_recommendation_enabled")):
-                skipped_count += 1
-                continue
-            runtime_meta = dict(proposal.get("recommendation_runtime") or {})
-            reuse_eval = evaluate_synonym_triage_reuse(
-                proposal=proposal,
-                runtime=triage_runtime,
-                runtime_meta=runtime_meta,
-            )
-            reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
-            if reuse_enabled and str(reuse_eval.get("decision") or "") in {"strict_reuse", "core_reuse"}:
-                reused_count += 1
-                if str(reuse_eval.get("decision") or "") == "strict_reuse":
-                    reused_strict_count += 1
-                else:
-                    reused_core_count += 1
-                triaged_count += 1
-                continue
-            if reuse_enabled:
-                reuse_reason = str(reuse_eval.get("reason") or "fingerprint_mismatch")
-            try:
-                sleep_secs = max(0.0, float(triage_runtime.get("sleep_secs") or 0.0))
-                if sleep_secs > 0:
-                    time.sleep(sleep_secs)
-                recommendation = _triage_synonym_proposal_recommendation(
-                    proposal,
-                    now_iso=now_iso,
-                    runtime=triage_runtime,
-                )
-            except Exception:
-                # Provider/runtime degradation fallback: preserve advisory output
-                # using deterministic builtin triage instead of failing the row.
-                try:
-                    recommendation = _triage_synonym_proposal_recommendation(
-                        proposal,
-                        now_iso=now_iso,
-                        runtime={
-                            "provider": "fitcv_builtin",
-                            "model": "synonym_triage_v1_fallback",
-                            "wire_api": "builtin",
-                        },
-                    )
-                    fallback_count += 1
-                except Exception:
-                    failed_count += 1
-                    continue
-            fresh_count += 1
-            updated = dict(proposal)
-            # Advisory-only: never mutate proposal_status during triage refresh.
-            updated.update(recommendation)
-            updated["proposal_status"] = status
-            recommendation_runtime = dict(updated.get("recommendation_runtime") or {})
-            recommendation_runtime["triage_fingerprint"] = str(reuse_eval.get("strict_fingerprint") or "")
-            recommendation_runtime["triage_fingerprint_strict"] = str(reuse_eval.get("strict_fingerprint") or "")
-            recommendation_runtime["triage_fingerprint_core"] = str(reuse_eval.get("core_fingerprint") or "")
-            gate = dict(reuse_eval.get("gate") or {})
-            recommendation_runtime["triage_gate_status"] = str(gate.get("status") or "")
-            recommendation_runtime["triage_gate_has_conflict"] = bool(gate.get("has_conflict"))
-            recommendation_runtime["triage_gate_canonical"] = str(gate.get("canonical") or "")
-            recommendation_runtime["triage_gate_candidate_canonicals"] = list(gate.get("candidate_canonicals") or [])
-            updated["recommendation_runtime"] = recommendation_runtime
-            proposals[idx] = updated
-            triaged_count += 1
-        for idx, proposal in enumerate(proposals):
-            if not isinstance(proposal, dict):
-                continue
-            proposal_id = str(proposal.get("proposal_id") or "").strip()
-            if not proposal_id:
-                continue
-            original_status = original_status_by_id.get(proposal_id)
-            if original_status is not None:
-                proposal["proposal_status"] = original_status
-                proposals[idx] = proposal
-        payload["proposals"] = proposals
-        _persist_synonym_proposal_payload(
-            run=run,
-            payload=payload,
-            acted_by=acted_by,
-            note=note,
-            event_stage="synonym_proposal_triage_completed",
-            event_message=(
-                "Synonym triage refresh completed: "
-                f"triaged={triaged_count}, reused={reused_count}, "
-                f"fallback={fallback_count}, skipped={skipped_count}, failed={failed_count}"
-            ),
-            event_payload={
-                "triaged_count": triaged_count,
-                "reused_count": reused_count,
-                "reused_strict_count": reused_strict_count,
-                "reused_core_count": reused_core_count,
-                "fresh_count": fresh_count,
-                "generated_total": generated_total,
-                "fallback_count": fallback_count,
-                "skipped_count": skipped_count,
-                "failed_count": failed_count,
-                "reuse_reason": reuse_reason,
-                "auto_triage_recommendation_enabled": bool(mode.get("auto_triage_recommendation_enabled")),
-                "triage_recommendation_reuse_enabled": bool(mode.get("triage_recommendation_reuse_enabled")),
-                "provider": str(triage_runtime.get("provider") or "fitcv_builtin"),
-                "model": str(triage_runtime.get("model") or "synonym_triage_v1"),
-                "wire_api": str(triage_runtime.get("wire_api") or "builtin"),
-                "base_url": str(triage_runtime.get("base_url") or "") or None,
-                "api_key_available": bool(triage_runtime.get("api_key_available")),
-            },
-        )
-        trace_payload = dict(payload.get("synonym_proposals_trace") or {})
-        trace_summary = dict(trace_payload.get("trace_summary") or {})
-        trace_summary["triage_recommendation_generated_total"] = int(generated_total)
-        trace_summary["triage_recommendation_reused_total"] = int(reused_count)
-        trace_summary["triage_recommendation_reused_strict_total"] = int(reused_strict_count)
-        trace_summary["triage_recommendation_reused_core_total"] = int(reused_core_count)
-        trace_summary["triage_recommendation_fresh_total"] = int(fresh_count)
-        trace_summary["triage_recommendation_suppressed_total"] = 0
-        trace_summary["triage_recommendation_reuse_reason"] = reuse_reason
-        trace_summary["triage_recommendation_fingerprint"] = _stable_sha256_json(
-            {
-                "provider": str(triage_runtime.get("provider") or "fitcv_builtin"),
-                "model": str(triage_runtime.get("model") or "synonym_triage_v1"),
-                "wire_api": str(triage_runtime.get("wire_api") or "builtin"),
-                "overlay_fingerprint": overlay_fp,
-            }
-        )
-        trace_payload["trace_summary"] = trace_summary
-        payload["synonym_proposals_trace"] = trace_payload
-        auto_apply_counts = {
-            "applied": 0,
-            "skipped": 0,
-            "failed": 0,
-            "reason_counts": {},
-        }
-        if bool(mode.get("auto_apply_recommendation_enabled")) and bool(mode.get("apply_to_run_enabled")):
-            auto_apply_counts = _auto_apply_synonym_recommendations(
-                run=run,
-                payload=payload,
-                acted_by=acted_by,
-                note=note or "auto:triage-refresh",
-            )
-            if int(auto_apply_counts.get("applied") or 0) > 0:
-                _sync_run_overlay_from_approved_synonym_proposals(
-                    run=run,
-                    payload=payload,
-                    client=client,
-                )
-                append_event(
-                    RunEvent(
-                        run_id=run.run_id,
-                        event_id=str(uuid.uuid4()),
-                        stage="synonym_proposal_auto_apply_completed",
-                        level="info",
-                        message=(
-                            "Synonym auto-apply completed: "
-                            f"applied={auto_apply_counts['applied']}, "
-                            f"skipped={auto_apply_counts['skipped']}, "
-                            f"failed={auto_apply_counts['failed']}"
-                        ),
-                        created_at=datetime.datetime.now(datetime.timezone.utc),
-                        payload_json=_json.dumps(
-                            {
-                                "applied_count": int(auto_apply_counts.get("applied") or 0),
-                                "skipped_count": int(auto_apply_counts.get("skipped") or 0),
-                                "failed_count": int(auto_apply_counts.get("failed") or 0),
-                                "reason_counts": dict(auto_apply_counts.get("reason_counts") or {}),
-                                "acted_by": acted_by,
-                                "note": note or "auto:triage-refresh",
-                            },
-                            ensure_ascii=False,
-                        ),
-                    ),
-                    client=client,
-                )
-        promote_counts = {
-            "applied": 0,
-            "skipped": 0,
-            "failed": 0,
-            "new_aliases": 0,
-            "unchanged_aliases": 0,
-            "overridden_aliases": 0,
-        }
-        promote_skip_reason = "disabled"
-        if bool(mode.get("auto_promote_global_enabled")) and bool(mode.get("promote_global_enabled")):
-            if not _is_validation_eligible_for_auto_promote(run):
-                promote_skip_reason = "validation_not_eligible"
-            else:
-                selected_ids = [
-                    str(item.get("proposal_id") or "").strip()
-                    for item in list(payload.get("proposals") or [])
-                    if isinstance(item, dict)
-                    and str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
-                    and str(item.get("field") or "skill").strip().lower() == "skill"
-                    and str(item.get("proposal_id") or "").strip()
-                ]
-                if not selected_ids:
-                    promote_skip_reason = "no_approved_proposals"
-                else:
-                    preview = _build_promote_global_preview(
-                        run=run,
-                        payload=payload,
-                        selected_proposal_ids=selected_ids,
-                    )
-                    if int((preview.get("counts") or {}).get("conflict") or 0) > 0:
-                        promote_counts["failed"] = int((preview.get("counts") or {}).get("conflict") or 0)
-                        promote_counts["skipped"] = int((preview.get("counts") or {}).get("skip") or 0)
-                        promote_skip_reason = "conflicts_present"
-                    else:
-                        promote_counts = _commit_synonym_global_promotion(
-                            run=run,
-                            payload=payload,
-                            preview=preview,
-                            selected_ids=selected_ids,
-                            acted_by=acted_by,
-                            note=note or "auto:triage-refresh",
-                            client=client,
-                        )
-                        promote_skip_reason = "applied"
-        trace_summary["auto_apply_recommendation_applied"] = int(auto_apply_counts.get("applied") or 0)
-        trace_summary["auto_apply_recommendation_skipped"] = int(auto_apply_counts.get("skipped") or 0)
-        trace_summary["auto_apply_recommendation_failed"] = int(auto_apply_counts.get("failed") or 0)
-        trace_summary["auto_apply_recommendation_reason_counts"] = dict(auto_apply_counts.get("reason_counts") or {})
-        trace_summary["auto_promote_global_applied"] = int(promote_counts.get("applied") or 0)
-        trace_summary["auto_promote_global_skipped"] = int(promote_counts.get("skipped") or 0)
-        trace_summary["auto_promote_global_failed"] = int(promote_counts.get("failed") or 0)
-        trace_summary["auto_promote_global_skip_reason"] = promote_skip_reason
-        update_run_synonym_proposals(
-            run_id=run.run_id,
-            synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
-            client=client,
-        )
-        query = urlencode(
-            {
-                "synonym_triage_triaged": triaged_count,
-                "synonym_triage_reused": reused_count,
-                "synonym_triage_fresh": fresh_count,
-                "synonym_triage_skipped": skipped_count,
-                "synonym_triage_failed": failed_count,
-                "synonym_triage_fallback": fallback_count,
-                "synonym_auto_apply_applied": int(auto_apply_counts.get("applied") or 0),
-                "synonym_auto_apply_failed": int(auto_apply_counts.get("failed") or 0),
-                "synonym_auto_promote_applied": int(promote_counts.get("applied") or 0),
-                "synonym_auto_promote_failed": int(promote_counts.get("failed") or 0),
-            }
-        )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
-
-    @app.post("/admin/runs/{run_id}/synonym-proposals/ai-fast-path-execute")
-    async def admin_run_synonym_proposals_ai_fast_path_execute(
-        request: Request,
-        run_id: str,
-    ) -> Response:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        payload = _load_run_synonym_proposals_payload(run)
-        if not isinstance(payload, dict):
-            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
-
-        form = await request.form()
-        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
-        note = str(form.get("note") or "").strip() or "ai_fast_path"
-        mode = _synonym_management_mode(run)
-
-        auto_apply_counts = _auto_apply_synonym_recommendations(
-            run=run,
-            payload=payload,
-            acted_by=acted_by,
-            note=note,
-        )
-        _persist_synonym_proposal_payload(
-            run=run,
-            payload=payload,
-            acted_by=acted_by,
-            note=note,
-            event_stage="synonym_proposal_ai_fast_path_applied",
-            event_message=(
-                "AI fast-path decision apply completed: "
-                f"applied={int(auto_apply_counts.get('applied') or 0)}, "
-                f"skipped={int(auto_apply_counts.get('skipped') or 0)}, "
-                f"failed={int(auto_apply_counts.get('failed') or 0)}"
-            ),
-            event_payload={
-                "decision_source": "ai_fast_path",
-                "applied_count": int(auto_apply_counts.get("applied") or 0),
-                "skipped_count": int(auto_apply_counts.get("skipped") or 0),
-                "failed_count": int(auto_apply_counts.get("failed") or 0),
-                "reason_counts": dict(auto_apply_counts.get("reason_counts") or {}),
-                "acted_by": acted_by,
-                "note": note,
-            },
-        )
-        if int(auto_apply_counts.get("applied") or 0) > 0:
-            _sync_run_overlay_from_approved_synonym_proposals(
-                run=run,
-                payload=payload,
-                client=client,
-            )
-
-        promote_counts = {
-            "applied": 0,
-            "skipped": 0,
-            "failed": 0,
-            "new_aliases": 0,
-            "unchanged_aliases": 0,
-            "overridden_aliases": 0,
-        }
-        if bool(mode.get("promote_global_enabled")) and _is_validation_eligible_for_auto_promote(run):
-            selected_ids = [
-                str(item.get("proposal_id") or "").strip()
-                for item in list(payload.get("proposals") or [])
-                if isinstance(item, dict)
-                and str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
-                and str(item.get("proposal_id") or "").strip()
-            ]
-            if selected_ids:
-                preview = _build_promote_global_preview(
-                    run=run,
-                    payload=payload,
-                    selected_proposal_ids=selected_ids,
-                )
-                if int((preview.get("counts") or {}).get("conflict") or 0) > 0:
-                    promote_counts["failed"] = int((preview.get("counts") or {}).get("conflict") or 0)
-                    promote_counts["skipped"] = int((preview.get("counts") or {}).get("skip") or 0)
-                else:
-                    promote_counts = _commit_synonym_global_promotion(
-                        run=run,
-                        payload=payload,
-                        preview=preview,
-                        selected_ids=selected_ids,
-                        acted_by=acted_by,
-                        note=note,
-                        client=client,
-                    )
-
-        query = urlencode(
-            {
-                "synonym_fast_path_applied": int(auto_apply_counts.get("applied") or 0),
-                "synonym_fast_path_skipped": int(auto_apply_counts.get("skipped") or 0),
-                "synonym_fast_path_failed": int(auto_apply_counts.get("failed") or 0),
-                "synonym_fast_path_promote_applied": int(promote_counts.get("applied") or 0),
-                "synonym_fast_path_promote_skipped": int(promote_counts.get("skipped") or 0),
-                "synonym_fast_path_promote_failed": int(promote_counts.get("failed") or 0),
-                "synonym_fast_path_promote_new_aliases": int(promote_counts.get("new_aliases") or 0),
-                "synonym_fast_path_promote_unchanged_aliases": int(promote_counts.get("unchanged_aliases") or 0),
-                "synonym_fast_path_promote_overridden_aliases": int(promote_counts.get("overridden_aliases") or 0),
-            }
-        )
-        return RedirectResponse(f"/admin/runs/{run_id}/synonym-review?{query}", status_code=303)
 
     @app.get("/admin/runs/{run_id}/approved-synonym-proposals.yaml")
     def download_run_approved_synonym_overlay_yaml(run_id: str) -> Response:
@@ -11687,28 +11200,6 @@ def create_app(
             },
         )
 
-    @app.get("/admin/runs/{run_id}/synonym-review", response_class=HTMLResponse)
-    def admin_run_synonym_review_workspace(request: Request, run_id: str) -> HTMLResponse:
-        run = get_run(run_id, client=client)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
-        return templates.TemplateResponse(
-            request=request,
-            name="synonym_review.html",
-            context={
-                "run": run,
-                "synonym_proposal_review_queue": _build_synonym_proposal_review_queue(run),
-                "synonym_proposal_decision_ledger": _build_synonym_proposal_decision_ledger(run),
-                "synonym_management_mode": _synonym_management_mode(run),
-                "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
-                "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
-            },
-            headers={
-                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-                "Pragma": "no-cache",
-                "Expires": "0",
-            },
-        )
 
     @app.get("/admin/cvs/{version_id}/download")
     def download_cv(version_id: str):
@@ -12093,57 +11584,9 @@ def create_app(
             headers={"Content-Disposition": 'attachment; filename="fitcv-synonym-proposals.json"'},
         )
 
-    @app.post("/admin/synonym-proposals/{proposal_id}/start-review")
-    def start_synonym_proposal_review(
-        proposal_id: str,
-        acted_by: str = Form("admin"),
-        note: str = Form(""),
-    ) -> dict[str, Any]:
-        return _apply_synonym_proposal_action(
-            proposal_id=proposal_id,
-            action="start_review",
-            acted_by=acted_by,
-            note=note,
-        )
 
-    @app.post("/admin/synonym-proposals/{proposal_id}/approve-for-run-overlay")
-    def approve_synonym_proposal_for_run_overlay(
-        proposal_id: str,
-        acted_by: str = Form("admin"),
-        note: str = Form(""),
-    ) -> dict[str, Any]:
-        return _apply_synonym_proposal_action(
-            proposal_id=proposal_id,
-            action="approve_for_run_overlay",
-            acted_by=acted_by,
-            note=note,
-        )
 
-    @app.post("/admin/synonym-proposals/{proposal_id}/reject")
-    def reject_synonym_proposal(
-        proposal_id: str,
-        acted_by: str = Form("admin"),
-        note: str = Form(""),
-    ) -> dict[str, Any]:
-        return _apply_synonym_proposal_action(
-            proposal_id=proposal_id,
-            action="reject",
-            acted_by=acted_by,
-            note=note,
-        )
 
-    @app.post("/admin/synonym-proposals/{proposal_id}/defer")
-    def defer_synonym_proposal(
-        proposal_id: str,
-        acted_by: str = Form("admin"),
-        note: str = Form(""),
-    ) -> dict[str, Any]:
-        return _apply_synonym_proposal_action(
-            proposal_id=proposal_id,
-            action="defer",
-            acted_by=acted_by,
-            note=note,
-        )
 
     def _apply_synonym_proposal_action_in_run(
         *,

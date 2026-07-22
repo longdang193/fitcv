@@ -25,12 +25,10 @@ from fitcv.contracts import SYNONYM_PROPOSALS_SCHEMA_VERSION
 _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
 _SYNONYM_MANAGEMENT_DEFAULTS: dict[str, bool] = {
     "propose_enabled": True,
-    "apply_to_run_enabled": True,
-    "promote_global_enabled": True,
+    "apply_approved_enabled": True,
     "auto_triage_recommendation_enabled": True,
     "triage_recommendation_reuse_enabled": True,
-    "auto_apply_recommendation_enabled": True,
-    "auto_promote_global_enabled": True,
+    "auto_accept_suggestions_enabled": False,
     "auto_accept_ai_action_enabled": True,
 }
 _REUSE_DEFAULTS: dict[str, bool] = {

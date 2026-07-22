@@ -1,6 +1,8 @@
 import concurrent.futures
 import datetime
+import hashlib
 import json
+import os
 import sqlite3
 import uuid
 from pathlib import Path
@@ -41,6 +43,7 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
         }
         assert {
             "candidate_profiles",
+            "candidate_profile_revisions",
             "pipeline_runs",
             "run_inputs",
             "run_stage_executions",
@@ -52,37 +55,188 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             "bookmarks",
             "run_job_interest",
             "idempotent_actions",
+            "synonym_policy_type_revisions",
+            "synonym_policy_state",
+            "synonym_policy_drafts",
+            "synonym_policy_bundle_revisions",
+            "synonym_suggestions",
+            "synonym_suggestion_sources",
+            "synonym_processing_runs",
         } <= tables
+        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 3
         assert conn.execute("PRAGMA user_version").fetchone()[0] == sqlite_store.CONTROL_PLANE_SCHEMA_VERSION
         assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(run_inputs)"))
-        assert any(row[2] == "run_jobs" and row[6] == "SET NULL" for row in conn.execute("PRAGMA foreign_key_list(bookmarks)"))
+        assert any(row[2] == "candidate_profiles" and row[6] == "RESTRICT" for row in conn.execute("PRAGMA foreign_key_list(candidate_profile_revisions)"))
+        assert any(row[2] == "run_jobs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(bookmarks)"))
+        assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(bookmarks)"))
+        assert any(row[2] == "synonym_suggestions" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(synonym_suggestion_sources)"))
+        assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(synonym_suggestion_sources)"))
+
+        profile_columns = {row[1]: row for row in conn.execute("PRAGMA table_info(candidate_profiles)")}
+        assert profile_columns["profile_name"][3] == 0
+        assert "profile_json" not in profile_columns
+        assert profile_columns["revision"][3] == 1
+
+        bookmark_columns = {row[1]: row for row in conn.execute("PRAGMA table_info(bookmarks)")}
+        assert bookmark_columns["run_id"][3] == 1
+        assert bookmark_columns["run_job_id"][3] == 1
+        assert "display_snapshot_json" not in bookmark_columns
+
+        run_input_columns = {row[1] for row in conn.execute("PRAGMA table_info(run_inputs)")}
+        assert {
+            "candidate_profile_revision_id",
+            "synonym_policy_bundle_revision_id",
+            "synonym_policy_bundle_checksum",
+            "synonym_policy_bundle_snapshot_json",
+        } <= run_input_columns
+
+        idempotency_columns = {row[1] for row in conn.execute("PRAGMA table_info(idempotent_actions)")}
+        assert {
+            "response_blob",
+            "response_media_type",
+            "response_filename",
+            "response_checksum",
+        } <= idempotency_columns
+
+        for table in ("pipeline_runs", "bookmarks", "synonym_suggestions", "synonym_processing_runs"):
+            assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
 
 
-def test_control_plane_schema_enforces_single_active_default_profile() -> None:
+def test_control_plane_schema_allows_duplicate_profile_names_and_enforces_one_active_default() -> None:
     with sqlite3.connect(":memory:") as conn:
         sqlite_store._configure_sqlite_connection(conn)
         sqlite_store._ensure_control_plane_schema(conn)
         row = (
-            "candidate-one", "Candidate One", "", "{}", 1, "sha", 1, 1, 1, "seed-v1", "now", "now",
+            "candidate-one", "Candidate", "candidate.yaml", "application/yaml", 1, "sha",
+            "succeeded", "active", None, None, 1, 1, "seed-v1", "now", "now", None, 1,
         )
         conn.execute(
             """
             INSERT INTO candidate_profiles (
-                candidate_profile_id, name, description, profile_json, revision, checksum,
-                is_active, is_default, sort_order, seed_manifest_revision, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                candidate_profile_id, profile_name, original_filename, media_type, byte_length,
+                input_checksum, creation_status, lifecycle, failure_code, failure_message,
+                is_default, sort_order, seed_manifest_revision, created_at, updated_at,
+                archived_at, revision
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             row,
+        )
+        duplicate_name = list(row)
+        duplicate_name[0] = "candidate-two"
+        duplicate_name[5] = "sha2"
+        duplicate_name[10] = 0
+        conn.execute(
+            "INSERT INTO candidate_profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            duplicate_name,
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE candidate_profiles SET is_default = 1 WHERE candidate_profile_id = 'candidate-two'")
+
+
+def test_control_plane_schema_enforces_profile_and_synonym_states() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                """
+                INSERT INTO candidate_profiles VALUES (
+                    'failed-archived', NULL, 'bad.yaml', 'application/yaml', 3, 'sha',
+                    'failed', 'archived', 'invalid_yaml', 'Invalid YAML', 0, 0, NULL,
+                    'now', 'now', 'now', 1
+                )
+                """
+            )
+        conn.execute(
+            """
+            INSERT INTO synonym_suggestions (
+                suggestion_id, synonym_type, alias, canonical, normalized_alias,
+                normalized_canonical, concept_key, review_status, policy_effect,
+                created_at, updated_at, revision
+            ) VALUES (
+                'suggestion-absent', 'skills', 'js', 'javascript', 'js',
+                'javascript', 'skills:js:javascript', 'pending', 'absent',
+                'now', 'now', 1
+            )
+            """
         )
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
                 """
-                INSERT INTO candidate_profiles (
-                    candidate_profile_id, name, description, profile_json, revision, checksum,
-                    is_active, is_default, sort_order, seed_manifest_revision, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                ("candidate-two", "Candidate Two", "", "{}", 1, "sha2", 1, 1, 2, "seed-v1", "now", "now"),
+                INSERT INTO synonym_suggestions (
+                    suggestion_id, synonym_type, alias, canonical, normalized_alias,
+                    normalized_canonical, concept_key, review_status, policy_effect,
+                    created_at, updated_at, revision
+                ) VALUES (
+                    'suggestion-none', 'skills', 'ts', 'typescript', 'ts',
+                    'typescript', 'skills:ts:typescript', 'pending', 'none',
+                    'now', 'now', 1
+                )
+                """
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                """
+                INSERT INTO synonym_suggestions (
+                    suggestion_id, synonym_type, alias, canonical, normalized_alias,
+                    normalized_canonical, concept_key, review_status, policy_effect,
+                    created_at, updated_at, revision
+                ) VALUES (
+                    'suggestion-1', 'skills', 'sql', 'structured query language', 'sql',
+                    'structured query language', 'skills:sql:structured query language',
+                    'pending', 'active', 'now', 'now', 1
+                )
+                """
+            )
+
+
+def test_control_plane_schema_requires_one_succeeded_idempotent_response_representation() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+
+        conn.execute(
+            """
+            INSERT INTO idempotent_actions (
+                action_id, action_scope, idempotency_key, request_fingerprint, status,
+                response_json, created_at, updated_at
+            ) VALUES ('json', 'test', 'json', 'sha-json', 'succeeded', '{}', 'now', 'now')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO idempotent_actions (
+                action_id, action_scope, idempotency_key, request_fingerprint, status,
+                response_blob, response_media_type, response_filename, response_checksum,
+                created_at, updated_at
+            ) VALUES (
+                'binary', 'test', 'binary', 'sha-binary', 'succeeded', X'504B',
+                'application/zip', 'backup.zip', 'sha-response', 'now', 'now'
+            )
+            """
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                """
+                INSERT INTO idempotent_actions (
+                    action_id, action_scope, idempotency_key, request_fingerprint, status,
+                    created_at, updated_at
+                ) VALUES ('missing', 'test', 'missing', 'sha-missing', 'succeeded', 'now', 'now')
+                """
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                """
+                INSERT INTO idempotent_actions (
+                    action_id, action_scope, idempotency_key, request_fingerprint, status,
+                    response_json, response_blob, response_media_type, response_filename,
+                    response_checksum, created_at, updated_at
+                ) VALUES (
+                    'both', 'test', 'both', 'sha-both', 'succeeded', '{}', X'504B',
+                    'application/zip', 'backup.zip', 'sha-response', 'now', 'now'
+                )
+                """
             )
 
 
@@ -101,12 +255,12 @@ def test_control_plane_schema_rejects_previous_version_database() -> None:
         conn.execute(
             "CREATE TABLE cv_evaluations (cv_evaluation_id TEXT PRIMARY KEY)"
         )
-        conn.execute("PRAGMA user_version = 1")
+        conn.execute("PRAGMA user_version = 2")
 
         with pytest.raises(sqlite_store.DatabaseSchemaIncompatibleError) as exc_info:
             sqlite_store._ensure_control_plane_schema(conn)
 
-        assert exc_info.value.found_version == 1
+        assert exc_info.value.found_version == 2
 
 def test_initialize_control_plane_database_seeds_profile_catalog(tmp_path: Path) -> None:
     profile_path = tmp_path / "candidate_profile.yaml"
@@ -145,6 +299,11 @@ preferences:
     ]
     assert rows[0]["is_default"] is True
     assert all("profile_json" not in row and row["revision"] == 1 for row in rows)
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM candidate_profiles WHERE creation_status = 'succeeded' AND lifecycle = 'active'"
+        ).fetchone()[0] == 3
+        assert connection.execute("SELECT COUNT(*) FROM candidate_profile_revisions").fetchone()[0] == 3
     assert sqlite_store.list_startup_warnings(database_path=database_path) == []
 
 def test_initialize_control_plane_database_keeps_empty_catalog_with_setup_warning(
@@ -161,6 +320,645 @@ def test_initialize_control_plane_database_keeps_empty_catalog_with_setup_warnin
     assert [warning["code"] for warning in warnings] == ["candidate_profile_setup_required"]
     assert "candidate profile" in warnings[0]["message"].lower()
     assert warnings[0]["action"] == "Update candidate_profile.yaml, then reset the database."
+
+
+def _synonym_policy_paths(tmp_path: Path) -> dict[str, Path]:
+    paths = {
+        "skills": tmp_path / "skill_synonyms.yaml",
+        "domain": tmp_path / "domain_synonyms.yaml",
+        "role_family": tmp_path / "role_family_synonyms.yaml",
+    }
+    paths["skills"].write_text("skill_synonyms:\n  js: javascript\n", encoding="utf-8")
+    paths["domain"].write_text(
+        "domain_alias_map:\n  fintech: financial services\ndomain_neighbors:\n  data: [analytics]\n",
+        encoding="utf-8",
+    )
+    paths["role_family"].write_text(
+        "role_family_alias_map:\n  analyst: data analyst\n",
+        encoding="utf-8",
+    )
+    return paths
+
+
+def test_initialize_control_plane_database_seeds_active_synonym_bundle_and_defaults(tmp_path: Path) -> None:
+    profile_path = tmp_path / "candidate_profile.yaml"
+    profile_path.write_text("experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n", encoding="utf-8")
+    database_path = tmp_path / "fitcv.sqlite3"
+
+    sqlite_store.initialize_control_plane_database(
+        database_path,
+        profile_path,
+        synonym_paths=_synonym_policy_paths(tmp_path),
+    )
+
+    bundle = sqlite_store.resolve_active_synonym_bundle(database_path=database_path)
+    assert bundle["revision"] == 1
+    assert bundle["normalized_bundle"] == {
+        "skills": {"js": "javascript"},
+        "domain": {"fintech": "financial services"},
+        "role_family": {"analyst": "data analyst"},
+    }
+    assert set(bundle["type_revisions"]) == {"skills", "domain", "role_family"}
+    assert all(
+        revision["revision"] == 1 and revision["type_revision_id"]
+        for revision in bundle["type_revisions"].values()
+    )
+    with sqlite3.connect(database_path) as connection:
+        defaults = dict(connection.execute(
+            "SELECT setting_key, json_extract(setting_value_json, '$') FROM pipeline_settings"
+        ))
+    assert defaults == {
+        "synonym_management.apply_approved_enabled": 1,
+        "synonym_management.auto_accept_suggestions_enabled": 0,
+    }
+
+
+def test_invalid_synonym_draft_preserves_active_bundle(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    with sqlite3.connect(database_path) as connection:
+        sqlite_store._configure_sqlite_connection(connection)
+        sqlite_store._ensure_control_plane_schema(connection)
+    sqlite_store.activate_synonym_policy_bundle(
+        "skills",
+        editor_text="js: javascript\n",
+        normalized_policy={"js": "javascript"},
+        expected_draft_revision=0,
+        expected_active_bundle_revision_id=None,
+        database_path=database_path,
+    )
+    active_before = sqlite_store.resolve_active_synonym_bundle(database_path=database_path)
+
+    draft = sqlite_store.save_synonym_policy_draft(
+        "skills",
+        editor_text="js:\n",
+        normalized_policy=None,
+        issues=[{"code": "synonym_missing_canonical", "lines": [1]}],
+        expected_draft_revision=1,
+        database_path=database_path,
+    )
+
+    assert draft["validation_status"] == "invalid"
+    assert draft["draft_revision"] == 2
+    assert sqlite_store.resolve_active_synonym_bundle(database_path=database_path) == active_before
+
+
+def test_synonym_policy_activation_uses_draft_and_bundle_compare_and_swap(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    first = sqlite_store.activate_synonym_policy_bundle(
+        "skills",
+        editor_text="js: javascript\n",
+        normalized_policy={"js": "javascript"},
+        expected_draft_revision=0,
+        expected_active_bundle_revision_id=None,
+        database_path=database_path,
+    )
+
+    second = sqlite_store.activate_synonym_policy_bundle(
+        "domain",
+        editor_text="fintech: financial services\n",
+        normalized_policy={"fintech": "financial services"},
+        expected_draft_revision=0,
+        expected_active_bundle_revision_id=first["active_bundle_revision_id"],
+        database_path=database_path,
+    )
+
+    assert second["active_bundle_revision"] == 2
+    assert second["normalized_bundle"]["skills"] == {"js": "javascript"}
+    assert second["normalized_bundle"]["domain"] == {"fintech": "financial services"}
+    with pytest.raises(sqlite_store.SynonymPolicyRevisionConflict):
+        sqlite_store.activate_synonym_policy_bundle(
+            "role_family",
+            editor_text="analyst: data analyst\n",
+            normalized_policy={"analyst": "data analyst"},
+            expected_draft_revision=0,
+            expected_active_bundle_revision_id=first["active_bundle_revision_id"],
+            database_path=database_path,
+        )
+
+def test_repair_active_synonym_policy_mirrors_marks_state_in_sync(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    paths = _synonym_policy_paths(tmp_path)
+    activated = sqlite_store.activate_synonym_policy_bundle_set(
+        {
+            "skills": {"ts": "typescript"},
+            "domain": {"payments": "financial services"},
+            "role_family": {"developer": "software engineer"},
+        },
+        expected_active_bundle_revision_id=None,
+        database_path=database_path,
+    )
+    assert activated["mirror_status"] == "repair_required"
+
+    repaired = sqlite_store.repair_active_synonym_policy_mirrors(
+        database_path=database_path,
+        synonym_paths=paths,
+    )
+
+    assert repaired["mirror_status"] == "in_sync"
+    assert "ts: typescript" in paths["skills"].read_text(encoding="utf-8")
+    assert "domain_neighbors:\n  data: [analytics]\n" in paths["domain"].read_text(encoding="utf-8")
+
+@pytest.mark.parametrize("failure_call", [1, 2, 3])
+def test_repair_active_synonym_policy_mirrors_recovers_after_each_replace_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_call: int,
+) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    paths = _synonym_policy_paths(tmp_path)
+    activated = sqlite_store.activate_synonym_policy_bundle_set(
+        {
+            "skills": {"ts": "typescript"},
+            "domain": {"payments": "financial services"},
+            "role_family": {"developer": "software engineer"},
+        },
+        expected_active_bundle_revision_id=None,
+        database_path=database_path,
+    )
+    real_replace = os.replace
+    calls = 0
+
+    def fail_selected_replace(source: str | os.PathLike[str], target: str | os.PathLike[str]) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == failure_call:
+            raise OSError("replace failed")
+        real_replace(source, target)
+
+    monkeypatch.setattr("fitcv_cp.synonym_policy_io.os.replace", fail_selected_replace)
+    with pytest.raises(OSError, match="replace failed"):
+        sqlite_store.repair_active_synonym_policy_mirrors(
+            database_path=database_path,
+            synonym_paths=paths,
+        )
+
+    failed = sqlite_store.resolve_active_synonym_bundle(database_path=database_path)
+    assert failed["bundle_revision_id"] == activated["bundle_revision_id"]
+    assert failed["mirror_status"] == "repair_failed"
+    monkeypatch.setattr("fitcv_cp.synonym_policy_io.os.replace", real_replace)
+    repaired = sqlite_store.repair_active_synonym_policy_mirrors(
+        database_path=database_path,
+        synonym_paths=paths,
+    )
+    assert repaired["mirror_status"] == "in_sync"
+
+
+def test_create_run_bundle_atomically_captures_profile_settings_and_apply_off_bundle(tmp_path: Path) -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    profile = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Candidate",
+        database_path=database_path,
+    )
+    bundle = sqlite_store.activate_synonym_policy_bundle(
+        "skills",
+        editor_text="js: javascript\n",
+        normalized_policy={"js": "javascript"},
+        expected_draft_revision=0,
+        expected_active_bundle_revision_id=None,
+        database_path=database_path,
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "INSERT INTO pipeline_settings VALUES (?, ?, ?, ?)",
+            ("synonym_management.apply_approved_enabled", "false", "test", "now"),
+        )
+        connection.commit()
+    run = _make_run("run-snapshot")
+
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "strict_candidate_profile": True,
+            "candidate_profile_id": profile["profile_id"],
+            "jobs_snapshot_json": '[{"title":"Analyst"}]',
+            "jobs_manifest_json": "{}",
+        },
+        jobs=[{"title": "Analyst"}],
+    )
+
+    with sqlite3.connect(database_path) as connection:
+        row = connection.execute(
+            """SELECT candidate_profile_revision_id, settings_snapshot_json,
+                      synonym_policy_bundle_revision_id, synonym_policy_bundle_snapshot_json
+               FROM run_inputs WHERE run_id = ?""",
+            (run.run_id,),
+        ).fetchone()
+    assert row[0] == profile["profile_revision_id"]
+    assert json.loads(row[1])["synonym_management.apply_approved_enabled"] is False
+    assert row[2] == bundle["active_bundle_revision_id"]
+    assert json.loads(row[3])["approved_mapping_projection"]["skills"] == {}
+
+
+def test_create_run_bundle_rejects_archived_profile_without_run_row(tmp_path: Path) -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    profile = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Candidate",
+        database_path=database_path,
+    )
+    sqlite_store.transition_candidate_profile_lifecycle(
+        profile["profile_id"], lifecycle="archived", expected_revision=1, database_path=database_path
+    )
+
+    with pytest.raises(sqlite_store.CandidateProfileUnavailableError):
+        sqlite_store.create_run_bundle(
+            _make_run("run-stale-profile"),
+            input_resource={
+                "strict_candidate_profile": True,
+                "candidate_profile_id": profile["profile_id"],
+                "jobs_snapshot_json": '[{"title":"Analyst"}]',
+                "jobs_manifest_json": "{}",
+            },
+            jobs=[{"title": "Analyst"}],
+        )
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM pipeline_runs WHERE run_id = 'run-stale-profile'"
+        ).fetchone()[0] == 0
+
+
+def test_synonym_suggestions_aggregate_across_runs_and_preserve_approved_decision() -> None:
+    for run_id in ("run-source-1", "run-source-2"):
+        sqlite_store.insert_run(_make_run(run_id))
+
+    first = sqlite_store.ingest_synonym_suggestions(
+        [{"synonym_type": "skills", "alias": "JS", "canonical": "JavaScript", "run_id": "run-source-1", "evidence": {"text": "JS"}}]
+    )
+    second = sqlite_store.ingest_synonym_suggestions(
+        [{"synonym_type": "skills", "alias": "js", "canonical": "javascript", "run_id": "run-source-2", "evidence": {"text": "js"}}]
+    )
+
+    assert first["created_count"] == 1
+    assert second["created_count"] == 0
+    page = sqlite_store.query_synonym_suggestions(synonym_type="skills", review_status="pending")
+    assert page["total"] == 1 and page["items"][0]["source_count"] == 2
+    suggestion_id = page["items"][0]["suggestion_id"]
+    summary = sqlite_store.apply_synonym_suggestion_action(
+        [suggestion_id], action="approve", acted_by="admin"
+    )
+    assert summary["approved_count"] == 1
+    assert sqlite_store.get_synonym_suggestion(suggestion_id)["policy_effect"] == "active"
+
+    sqlite_store.delete_run_synonym_sources("run-source-1")
+    sqlite_store.delete_run_synonym_sources("run-source-2")
+    assert sqlite_store.get_synonym_suggestion(suggestion_id)["source_count"] == 0
+
+
+def test_synonym_suggestion_detail_pages_evidence_sources() -> None:
+    for index in range(11):
+        run_id = f"run-evidence-{index:02d}"
+        sqlite_store.insert_run(_make_run(run_id))
+        sqlite_store.ingest_synonym_suggestions([
+            {
+                "synonym_type": "skills",
+                "alias": "JS",
+                "canonical": "JavaScript",
+                "run_id": run_id,
+                "evidence": {"signals": [{"text": run_id}]},
+            }
+        ])
+
+    suggestion_id = sqlite_store.query_synonym_suggestions()["items"][0]["suggestion_id"]
+    first = sqlite_store.get_synonym_suggestion(
+        suggestion_id, evidence_page=1, evidence_page_size=10
+    )
+    second = sqlite_store.get_synonym_suggestion(
+        suggestion_id, evidence_page=2, evidence_page_size=10
+    )
+
+    assert first["source_page"] == {
+        "page": 1,
+        "page_size": 10,
+        "total_items": 11,
+        "total_pages": 2,
+    }
+    assert len(first["sources"]) == 10
+    assert len(second["sources"]) == 1
+    assert first["sources"][0]["run_id"] != second["sources"][0]["run_id"]
+    assert set(first["sources"][0]["evidence"]) == {"signals"}
+    assert "evidence_json" not in first["sources"][0]
+
+def test_synonym_approval_rolls_back_policy_and_decision_when_processing_log_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sqlite_store.insert_run(_make_run("run-atomic-approval"))
+    sqlite_store.ingest_synonym_suggestions([
+        {
+            "synonym_type": "skills",
+            "alias": "JS",
+            "canonical": "JavaScript",
+            "run_id": "run-atomic-approval",
+            "evidence": {},
+        }
+    ])
+    suggestion = sqlite_store.query_synonym_suggestions(review_status="pending")["items"][0]
+    monkeypatch.setattr(
+        sqlite_store,
+        "_record_synonym_processing_run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("log failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="log failed"):
+        sqlite_store.apply_synonym_suggestion_action(
+            [suggestion["suggestion_id"]],
+            action="approve",
+            acted_by="admin",
+        )
+
+    assert sqlite_store.get_synonym_suggestion(suggestion["suggestion_id"])["review_status"] == "pending"
+    assert sqlite_store.resolve_active_synonym_bundle()["revision"] == 0
+
+def test_synonym_approval_rejects_stale_policy_revision() -> None:
+    sqlite_store.insert_run(_make_run("run-stale-approval"))
+    sqlite_store.ingest_synonym_suggestions([
+        {
+            "synonym_type": "skills",
+            "alias": "JS",
+            "canonical": "JavaScript",
+            "run_id": "run-stale-approval",
+            "evidence": {},
+        }
+    ])
+    suggestion = sqlite_store.query_synonym_suggestions(review_status="pending")["items"][0]
+
+    with pytest.raises(ValueError, match="revision_conflict"):
+        sqlite_store.apply_synonym_suggestion_action(
+            [suggestion["suggestion_id"]],
+            action="approve",
+            acted_by="admin",
+            expected_draft_revision=1,
+            expected_active_bundle_revision_id=None,
+        )
+
+    assert sqlite_store.get_synonym_suggestion(suggestion["suggestion_id"])["review_status"] == "pending"
+
+def test_valid_policy_save_reconciles_matching_approved_blocked_suggestion() -> None:
+    sqlite_store.insert_run(_make_run("run-blocked-reconcile"))
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "skills", "alias": "a", "canonical": "b", "run_id": "run-blocked-reconcile", "evidence": {}},
+        {"synonym_type": "skills", "alias": "b", "canonical": "a", "run_id": "run-blocked-reconcile", "evidence": {}},
+    ])
+    items = sqlite_store.query_synonym_suggestions(review_status="pending")["items"]
+    sqlite_store.apply_synonym_suggestion_action(
+        [item["suggestion_id"] for item in items],
+        action="approve",
+        acted_by="admin",
+    )
+    blocked = {item["normalized_alias"]: item for item in sqlite_store.query_synonym_suggestions(review_status="approved")["items"]}
+    assert {item["policy_effect"] for item in blocked.values()} == {"blocked"}
+
+    policy = sqlite_store.get_synonym_policy("skills")
+    sqlite_store.activate_synonym_policy_bundle(
+        "skills",
+        editor_text="a: b\n",
+        normalized_policy={"a": "b"},
+        expected_draft_revision=policy["draft_revision"],
+        expected_active_bundle_revision_id=policy["active_bundle_revision_id"],
+    )
+
+    assert sqlite_store.get_synonym_suggestion(blocked["a"]["suggestion_id"])["policy_effect"] == "active"
+    assert sqlite_store.get_synonym_suggestion(blocked["b"]["suggestion_id"])["policy_effect"] == "blocked"
+
+
+def test_run_source_cleanup_deletes_zero_source_pending_and_declined() -> None:
+    sqlite_store.insert_run(_make_run("run-source-cleanup"))
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "domain", "alias": "fintech", "canonical": "financial services", "run_id": "run-source-cleanup", "evidence": {}},
+        {"synonym_type": "domain", "alias": "insurtech", "canonical": "insurance", "run_id": "run-source-cleanup", "evidence": {}},
+    ])
+    items = sqlite_store.query_synonym_suggestions(synonym_type="domain", review_status="pending")["items"]
+    sqlite_store.apply_synonym_suggestion_action([items[1]["suggestion_id"]], action="decline", acted_by="admin")
+
+    cleanup = sqlite_store.delete_run_synonym_sources("run-source-cleanup")
+
+    assert cleanup["deleted_suggestion_count"] == 2
+    assert sqlite_store.query_synonym_suggestions(synonym_type="domain")["total"] == 0
+
+
+def test_bookmark_query_selection_and_removal_share_filtered_intersection() -> None:
+    run = _make_run("run-bookmark-selection")
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={"jobs_snapshot_json": '[{"title":"Alpha"},{"title":"Beta"}]', "jobs_manifest_json": "{}"},
+        jobs=[{"title": "Alpha", "company": "One"}, {"title": "Beta", "company": "Two"}],
+    )
+    jobs = sqlite_store.query_run_jobs(run.run_id, page_size=20)["items"]
+    for job in jobs:
+        sqlite_store.set_bookmark(job["run_job_id"])
+
+    page = sqlite_store.query_bookmarks(search="Alpha", page_size=20)
+    selection = sqlite_store.resolve_job_selection(
+        [job["run_job_id"] for job in jobs], scope="bookmarks", search="Alpha"
+    )
+    removed = sqlite_store.remove_bookmarks(
+        [job["run_job_id"] for job in jobs], search="Alpha"
+    )
+
+    assert page["total"] == 1 and page["items"][0]["title"] == "Alpha"
+    assert selection["matched_count"] == 1 and selection["excluded_count"] == 1
+    assert removed["removed_count"] == 1
+    assert sqlite_store.query_bookmarks(page_size=20)["total"] == 1
+
+
+def test_delete_archived_runs_reports_bookmark_loss_and_cleans_zero_source_suggestions() -> None:
+    run = _make_run("run-delete-counts")
+    run.status = RunStatus.SUCCEEDED
+    run.archived_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={"jobs_snapshot_json": '[{"title":"Alpha"}]', "jobs_manifest_json": "{}"},
+        jobs=[{"title": "Alpha"}],
+    )
+    job = sqlite_store.query_run_jobs(run.run_id)["items"][0]
+    sqlite_store.set_bookmark(job["run_job_id"])
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "skills", "alias": "js", "canonical": "javascript", "run_id": run.run_id, "evidence": {}}
+    ])
+
+    summary = sqlite_store.delete_archived_runs("all", run_ids=[run.run_id])
+
+    assert summary["deleted_count"] == 1
+    assert summary["deleted_bookmark_count"] == 1
+    assert summary["deleted_synonym_suggestion_count"] == 1
+
+def test_preview_delete_archived_runs_reports_missing_active_and_bookmark_counts() -> None:
+    archived = _make_run("run-delete-preview-archived")
+    archived.status = RunStatus.SUCCEEDED
+    archived.archived_at = datetime.datetime.now(datetime.timezone.utc)
+    active = _make_run("run-delete-preview-active")
+    sqlite_store.create_run_bundle(
+        archived,
+        input_resource={"jobs_snapshot_json": '[{"title":"Analyst"}]', "jobs_manifest_json": "{}"},
+        jobs=[{"title": "Analyst"}],
+    )
+    sqlite_store.insert_run(active)
+    job = sqlite_store.query_run_jobs(archived.run_id)["items"][0]
+    sqlite_store.set_bookmark(job["run_job_id"])
+
+    preview = sqlite_store.preview_delete_archived_runs([
+        archived.run_id,
+        active.run_id,
+        "run-delete-preview-missing",
+    ])
+
+    assert preview["eligible_run_ids"] == [archived.run_id]
+    assert preview["blocked_run_ids"] == [active.run_id]
+    assert preview["missing_run_ids"] == ["run-delete-preview-missing"]
+    assert preview["bookmark_count"] == 1
+    assert len(preview["state_tokens"]) == 1
+
+def test_delete_archived_runs_rejects_state_change_after_preview() -> None:
+    run = _make_run("run-delete-stale")
+    run.status = RunStatus.SUCCEEDED
+    run.archived_at = datetime.datetime.now(datetime.timezone.utc)
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={"jobs_snapshot_json": '[{"title":"Analyst"}]', "jobs_manifest_json": "{}"},
+        jobs=[{"title": "Analyst"}],
+    )
+    preview = sqlite_store.preview_delete_archived_runs([run.run_id])
+    job = sqlite_store.query_run_jobs(run.run_id)["items"][0]
+    sqlite_store.set_bookmark(job["run_job_id"])
+
+    with pytest.raises(ValueError, match="delete_preview_stale"):
+        sqlite_store.delete_archived_runs(
+            "all",
+            run_ids=[run.run_id],
+            expected_state_tokens=preview["state_tokens"],
+        )
+
+    assert sqlite_store.get_run(run.run_id) is not None
+
+def test_delete_archived_runs_reports_filesystem_cleanup_failure_after_database_commit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = _make_run("run-delete-cleanup-failure")
+    run.status = RunStatus.SUCCEEDED
+    run.archived_at = datetime.datetime.now(datetime.timezone.utc)
+    sqlite_store.insert_run(run)
+    monkeypatch.setattr(
+        sqlite_store,
+        "_cleanup_deleted_run_files",
+        lambda _run_id: (_ for _ in ()).throw(OSError("locked")),
+    )
+
+    summary = sqlite_store.delete_archived_runs("all", run_ids=[run.run_id])
+
+    assert summary["deleted_run_ids"] == [run.run_id]
+    assert summary["filesystem_cleanup_failed_run_ids"] == [run.run_id]
+    assert summary["filesystem_cleanup_error_code"] == "run_files_cleanup_failed"
+    assert sqlite_store.get_run(run.run_id) is None
+
+
+def test_candidate_profile_attempts_keep_failed_imports_and_support_lifecycle(tmp_path: Path) -> None:
+    database_path = tmp_path / "profiles.sqlite3"
+    valid_yaml = b"""
+experiences: []
+skills: []
+projects: []
+achievements: []
+preferences: {}
+""".strip() + b"\n"
+
+    created = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=valid_yaml,
+        original_filename=r"C:\uploads\profile.yaml",
+        profile_name="  Shared Name  ",
+        database_path=database_path,
+    )
+    duplicate = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=valid_yaml,
+        original_filename="second.yaml",
+        profile_name="Shared Name",
+        database_path=database_path,
+    )
+    failed = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=b"skills: [",
+        original_filename="broken.yaml",
+        profile_name="   ",
+        database_path=database_path,
+    )
+
+    assert created["creation_status"] == "succeeded"
+    assert created["profile_name"] == "Shared Name"
+    assert created["original_filename"] == "profile.yaml"
+    assert created["overview"] is not None and created["failure"] is None
+    assert duplicate["profile_id"] != created["profile_id"]
+    assert failed["creation_status"] == "failed"
+    assert failed["profile_name"] is None
+    assert failed["profile_revision_id"] is None
+    assert failed["overview"] is None
+    assert failed["failure"]["code"] == "invalid_yaml"
+
+    page = sqlite_store.query_candidate_profiles(database_path=database_path)
+    assert page["total"] == 3
+    assert page["active_count"] == 3 and page["archived_count"] == 0
+
+    archived = sqlite_store.transition_candidate_profile_lifecycle(
+        created["profile_id"],
+        lifecycle="archived",
+        expected_revision=created["revision"],
+        database_path=database_path,
+    )
+    assert archived["lifecycle"] == "archived"
+    with pytest.raises(ValueError, match="revision_conflict"):
+        sqlite_store.transition_candidate_profile_lifecycle(
+            created["profile_id"],
+            lifecycle="active",
+            expected_revision=created["revision"],
+            database_path=database_path,
+        )
+    with pytest.raises(ValueError, match="profile_transition_unavailable"):
+        sqlite_store.transition_candidate_profile_lifecycle(
+            failed["profile_id"],
+            lifecycle="archived",
+            expected_revision=failed["revision"],
+            database_path=database_path,
+        )
+
+
+def test_candidate_profile_pre_admission_validation_creates_no_rows(tmp_path: Path) -> None:
+    database_path = tmp_path / "profiles.sqlite3"
+
+    for filename, payload, error in (
+        ("profile.yml", b"skills: []", "profile_file_type_invalid"),
+        ("profile.yaml", b"", "profile_file_empty"),
+        ("profile.yaml", b"x" * (1024 * 1024 + 1), "profile_file_too_large"),
+    ):
+        with pytest.raises(ValueError, match=error):
+            sqlite_store.create_candidate_profile_attempt(
+                profile_bytes=payload,
+                original_filename=filename,
+                profile_name=None,
+                database_path=database_path,
+            )
+
+    assert sqlite_store.query_candidate_profiles(database_path=database_path)["total"] == 0
+
+
+def test_candidate_profile_unexpected_processing_failure_is_retained(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "fitcv.candidate.load_profile_text",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("secret parser detail")),
+    )
+
+    failed = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=b"skills: []\n",
+        original_filename="profile.yaml",
+        profile_name=None,
+        database_path=tmp_path / "profiles.sqlite3",
+    )
+
+    assert failed["creation_status"] == "failed"
+    assert failed["failure"] == {
+        "code": "profile_processing_failed",
+        "message": "Candidate profile could not be processed.",
+    }
 
 
 def test_insert_run_round_trips_from_sqlite() -> None:
@@ -738,7 +1536,7 @@ def test_idempotent_action_replays_same_fingerprint_and_rejects_conflict() -> No
     with pytest.raises(ValueError, match="idempotency_conflict"):
         sqlite_store.reserve_idempotent_action("runs:create", "key-1", "fingerprint-2")
 
-def test_bookmark_snapshot_survives_archived_run_deletion() -> None:
+def test_bookmark_is_deleted_with_archived_run() -> None:
     run = _make_run("run-bookmark")
     run.status = RunStatus.SUCCEEDED
     run.archived_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)
@@ -753,14 +1551,11 @@ def test_bookmark_snapshot_survives_archived_run_deletion() -> None:
         jobs=[{"title": "Alpha", "job_url": "https://example.com/a"}],
     )
     run_job_id = sqlite_store.query_run_jobs(run.run_id)["items"][0]["run_job_id"]
-    bookmark = sqlite_store.set_bookmark(run_job_id)
+    sqlite_store.set_bookmark(run_job_id)
 
     sqlite_store.delete_archived_runs("all", run_ids=[run.run_id])
 
-    stored = sqlite_store.list_bookmarks()[0]
-    assert stored["bookmark_id"] == bookmark["bookmark_id"]
-    assert stored["run_id"] is None and stored["run_job_id"] is None
-    assert stored["display_snapshot"]["title"] == "Alpha"
+    assert sqlite_store.list_bookmarks() == []
 
 
 
@@ -1266,8 +2061,8 @@ def test_job_query_and_export_share_exhaustive_result_predicate() -> None:
     exported = list(
         sqlite_store.iter_run_jobs_for_export(
             "run-results", stage="screening", result_bucket="rejected"
-        )
-    )
+                )
+            )
 
     assert [row["title"] for row in page["items"]] == ["Alpha", "beta", "Delta"]
     assert page["total_evaluated"] == 3
@@ -1277,12 +2072,41 @@ def test_job_query_and_export_share_exhaustive_result_predicate() -> None:
     ]
     assert all(row["result_bucket"] == "rejected" for row in exported)
 
+def test_binary_idempotent_action_replays_exact_bytes_and_metadata() -> None:
+    reserved = sqlite_store.reserve_idempotent_action("backup", "key-1", "request-sha")
+    sqlite_store.complete_idempotent_binary_action(
+        reserved["action_id"],
+        b"PK\x03\x04payload",
+        media_type="application/zip",
+        filename="fitcv-synonyms.zip",
+    )
+
+    replay = sqlite_store.reserve_idempotent_action("backup", "key-1", "request-sha")
+
+    assert replay["binary_response"] == {
+        "content": b"PK\x03\x04payload",
+        "media_type": "application/zip",
+        "filename": "fitcv-synonyms.zip",
+        "checksum": hashlib.sha256(b"PK\x03\x04payload").hexdigest(),
+    }
+
 
 def test_list_run_structured_jobs_is_not_truncated_at_fifty() -> None:
     jobs = [{"title": f"Job {index:03d}"} for index in range(55)]
     _create_normalized_run_with_jobs("run-many", jobs)
 
     assert len(sqlite_store.list_run_structured_jobs("run-many")) == 55
+
+def test_list_run_structured_jobs_projects_canonical_bookmark_state() -> None:
+    run_job_id = _create_normalized_run_with_jobs(
+        "run-structured-bookmark", [{"title": "Bookmarked Job"}]
+    )[0]
+    sqlite_store.set_bookmark(run_job_id)
+
+    rows = sqlite_store.list_run_structured_jobs("run-structured-bookmark")
+
+    assert rows[0]["run_job_id"] == run_job_id
+    assert rows[0]["bookmarked"] is True
 
 
 def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:

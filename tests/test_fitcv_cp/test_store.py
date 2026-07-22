@@ -385,6 +385,11 @@ def test_control_plane_store_delegates_remaining_prototype_store_contracts() -> 
     store = ControlPlaneStore(
         list_candidate_profiles_fn=lambda: [{"candidate_profile_id": "candidate-1"}],
         get_candidate_profile_fn=lambda profile_id: {"candidate_profile_id": profile_id},
+        query_candidate_profiles_fn=lambda **kwargs: {"items": [kwargs]},
+        create_candidate_profile_attempt_fn=lambda **kwargs: {"profile_id": kwargs["original_filename"]},
+        get_candidate_profile_detail_fn=lambda profile_id: {"profile_id": profile_id},
+        query_candidate_profile_runs_fn=lambda profile_id, **kwargs: {"items": [{"profile_id": profile_id, **kwargs}]},
+        transition_candidate_profile_lifecycle_fn=lambda profile_id, **kwargs: {"profile_id": profile_id, **kwargs},
         get_run_detail_fn=lambda run_id: {"run_id": run_id},
         iter_run_jobs_for_export_fn=lambda run_id, **kwargs: iter([{"run_id": run_id, **kwargs}]),
         list_bookmarks_fn=lambda: [{"bookmark_id": "bookmark-1"}],
@@ -403,6 +408,15 @@ def test_control_plane_store_delegates_remaining_prototype_store_contracts() -> 
 
     assert store.list_candidate_profiles()[0]["candidate_profile_id"] == "candidate-1"
     assert store.get_candidate_profile("candidate-1")["candidate_profile_id"] == "candidate-1"
+    assert store.query_candidate_profiles(view="active")["items"][0]["view"] == "active"
+    assert store.create_candidate_profile_attempt(
+        profile_bytes=b"x", original_filename="profile.yaml", profile_name=None
+    )["profile_id"] == "profile.yaml"
+    assert store.get_candidate_profile_detail("profile-1")["profile_id"] == "profile-1"
+    assert store.query_candidate_profile_runs("profile-1", page=2)["items"][0]["page"] == 2
+    assert store.transition_candidate_profile_lifecycle(
+        "profile-1", lifecycle="archived", expected_revision=1
+    )["lifecycle"] == "archived"
     assert store.get_run_detail("run-1")["run_id"] == "run-1"
     assert list(store.iter_run_jobs_for_export("run-1", stage="screening"))[0]["stage"] == "screening"
     assert store.list_bookmarks()[0]["bookmark_id"] == "bookmark-1"

@@ -49,7 +49,8 @@ def test_run_detail_template_mentions_output_availability_contract() -> None:
     content = open(template_path, encoding="utf-8").read()
     assert 'id="outputs-action"' not in content
     assert 'id="run-overview-core"' in content
-    assert "<h3 style=\"margin:0\">Synonyms (List Entities)</h3>" in content
+    assert "<h3 style=\"margin:0 0 0.35rem\">Synonym Configuration</h3>" in content
+    assert 'href="/admin/synonyms"' in content
     assert "<h3>Pipeline Results</h3>" in content
     assert '{% include "_process_console.html" %}' in content
     assert "<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>" in content
@@ -64,7 +65,7 @@ def test_run_detail_template_enforces_canonical_section_order_and_no_overview_du
     content = open(template_path, encoding="utf-8").read()
     assert content.count(">Run Overview</h3>") == 1
     overview_pos = content.index(">Run Overview</h3>")
-    synonym_pos = content.index(">Synonyms (List Entities)</h3>")
+    synonym_pos = content.index(">Synonym Configuration</h3>")
     pipeline_pos = content.index(">Pipeline Results</h3>")
     console_pos = content.index('{% include "_process_console.html" %}')
     artifacts_pos = content.index('id="artifacts"')
@@ -92,14 +93,15 @@ def test_overview_core_excludes_diagnostic_only_snippets() -> None:
     template_path = "src/fitcv_cp/templates/run_detail.html"
     content = open(template_path, encoding="utf-8").read()
     start = content.index('id="run-overview-core"')
-    end = content.index("<!-- ── Run Metadata Card", start)
+    end = content.index(">Synonym Configuration</h3>", start)
     overview_block = content[start:end]
     assert "pre_run_global={{ synonym_fingerprints.pre_run_global_map_fingerprint" not in overview_block
     assert "overlay={{ synonym_fingerprints.run_overlay_fingerprint" not in overview_block
     assert "suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint" not in overview_block
     assert '/admin/cvs/{{ cv.version_id }}/download' in content
-    assert '/admin/runs/{{ run.run_id }}/bookmarks/save' in content
-    assert '/admin/runs/{{ run.run_id }}/bookmarks/delete' in content
+    assert '/admin/runs/{{ run.run_id }}/bookmarks/save' not in content
+    assert '/admin/runs/{{ run.run_id }}/bookmarks/delete' not in content
+    assert "Manage bookmarks in Pipeline Results." in content
     assert 'href="#generated-outputs"' not in content
 
 

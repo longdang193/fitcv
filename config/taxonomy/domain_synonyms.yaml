@@ -12,17 +12,5 @@
 
 # Domain synonym source-of-truth.
 # Keys = alias variants; values = canonical domain token (both normalized to lowercase by loaders).
-domain_alias_map:
-  "ecommerce": "ecommerce"
-  "e-commerce": "ecommerce"
-  "E-commerce": "ecommerce"
-  "marketplace platforms": "marketplace"
-  "core banking": "banking technology"
-  "banking technology": "banking technology"
-  "iot": "internet of things"
-  "internet of things": "internet of things"
-  "beauty / personal care": "beauty and personal care"
-  "beauty & personal care": "beauty and personal care"
-
-# Optional neighbor graph (kept empty unless intentionally curated).
+domain_alias_map: {}
 domain_neighbors: {}

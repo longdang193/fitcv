@@ -647,23 +647,33 @@
 
   async function deleteSelectedRuns() {
     const runIds = runs.filter(run => selectedRunIds.has(run.run_id)).map(run => run.run_id);
-    if (!runIds.length || !window.confirm(`Delete ${runIds.length} archived run${runIds.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    if (!runIds.length) return;
     try {
-      await requestJson("/runs/actions/delete-archived", {
+      const preview = await requestJson("/runs/actions/delete-archived/preview", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({run_ids: runIds}),
+      });
+      if (preview.blocked_run_ids?.length || preview.missing_run_ids?.length) {
+        throw new Error("Run deletion preview changed. Refresh archived Runs and retry.");
+      }
+      const bookmarkCount = Number(preview.bookmark_count || 0);
+      if (!window.confirm(`Delete ${runIds.length} archived run${runIds.length === 1 ? "" : "s"}? This also removes ${bookmarkCount} bookmarked job${bookmarkCount === 1 ? "" : "s"}. This cannot be undone.`)) return;
+      const result = await requestJson("/runs/actions/delete-archived", {
         method: "POST",
         headers: {"Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID()},
-        body: JSON.stringify({run_ids: runIds}),
+        body: JSON.stringify({run_ids: runIds, preview_revision: preview.preview_revision}),
       });
       selectedRunIds.clear();
       await loadRuns({quiet: true});
-      notify(`${runIds.length} archived run${runIds.length === 1 ? "" : "s"} deleted`);
+      notify(`${result.deleted_count} archived run${result.deleted_count === 1 ? "" : "s"} deleted; ${result.deleted_bookmark_count} bookmark${result.deleted_bookmark_count === 1 ? "" : "s"} removed`);
     } catch (error) { showError(error.message); }
   }
 
   function validateRunDialog() {
     const ready = Boolean(jobFile.files?.[0] && candidateProfile.value);
     triggerRunButton.disabled = !ready;
-    runDialogStatus.textContent = ready ? "Ready to trigger. Latest Synonym Overlay will be used automatically." : candidateProfiles.length ? "Select a file and Candidate Profile to enable Trigger." : "No active Candidate Profiles are available.";
+  runDialogStatus.textContent = ready ? "Ready to trigger. Active synonym policy snapshot will be captured automatically." : candidateProfiles.length ? "Select a file and Candidate Profile to enable Trigger." : "No active Candidate Profiles are available.";
   }
 
   function openRunDialog() {

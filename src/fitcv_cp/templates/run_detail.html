@@ -101,75 +101,15 @@
 {% endif %}
 {% endif %}
 
-<!-- ── Run Metadata Card ─────────────────────────────────────────────────── -->
-
-{% if request.query_params.get("synonym_regenerated_total") is not none %}
-<div class="card">
-  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    Regeneration summary:
-    generated={{ request.query_params.get("synonym_regenerated_total") }},
-    suppressed={{ request.query_params.get("synonym_regenerated_suppressed") or "0" }},
-    failed={{ request.query_params.get("synonym_regenerated_failed") or "0" }}.
-  </div>
-</div>
-{% endif %}
-
-{% if request.query_params.get("synonym_workspace_status") == "unavailable" %}
-<div class="card">
-  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    Synonym review workspace is unavailable for this run right now. Continue pipeline, or regenerate proposals when new synonym candidates exist.
-  </div>
-</div>
-{% endif %}
-{% if request.query_params.get("synonym_promote_preview_status") == "no_approved" %}
-<div class="card">
-  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    No approved proposals available to preview promotion.
-  </div>
-</div>
-{% endif %}
-
-{% if synonym_review_section_state != "hidden" %}
-{% set manual_synonym_workspace_active = false %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
     <div>
-      <h3 style="margin:0">Synonyms (List Entities)</h3>
+      <h3 style="margin:0 0 0.35rem">Synonym Configuration</h3>
+      <div class="meta">This Run keeps its trigger-time synonym snapshot. Central changes affect future Runs only.</div>
     </div>
-  </div>
-  {% if request.query_params.get("synonym_fast_path_applied") is not none %}
-  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    Synonym fast-path completed. Open Synonym Workspace for detailed action summary.
-  </div>
-  {% endif %}
-  {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
-  <div style="margin:0 0 0.85rem 0;padding:0.75rem;border:1px solid var(--accent);border-radius:6px">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;margin-bottom:0.6rem">
-      <div style="font-weight:700">Synonym Overlay</div>
-      <span class="badge badge-info">{% if synonym_overlay_info.has_run_overlay %}run-specific overlay active{% else %}using global default synonyms (no run overlay){% endif %}</span>
-    </div>
-    {% if can_upload_synonym_overlay %}
-    {% include "_synonym_overlay_upload_form.html" %}
-    {% endif %}
-  </div>
-  {% endif %}
-  {% if synonym_proposal_decision_ledger %}
-  {% include "_synonym_decision_ledger.html" %}
-  {% else %}
-  <div class="meta" style="margin:0.2rem 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
-    Proposal Decision Ledger: no rows yet (all suppressed or none generated).
-  </div>
-  {% endif %}
-  <div style="margin:0 0 0.35rem 0;display:flex;gap:0.6rem;flex-wrap:wrap">
-    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/ai-fast-path-execute" style="display:inline" onsubmit="return confirm('Confirm AI fast-path execute? This will apply AI recommendations and promote approved mappings to global.');">
-      <input type="hidden" name="acted_by" value="admin">
-      <input type="hidden" name="note" value="ai_fast_path">
-      <button class="btn-secondary decision-toggle" type="submit">AI-Assisted Decide + Promote</button>
-    </form>
-    <a class="btn-secondary decision-toggle" href="/admin/runs/{{ run.run_id }}/synonym-review">Manual Decide + Promote</a>
+    <a class="btn-secondary" href="/admin/synonyms">Open central Synonyms</a>
   </div>
 </div>
-{% endif %}
 
 
 
@@ -256,26 +196,7 @@
               <a class="truncate-link job-title-link" href="{{ cv.job_url }}" target="_blank" rel="noopener">{{ cv.job_primary_label }} ↗</a>
             </div>
             <div style="display:flex;align-items:center;gap:0.45rem">
-              {% if cv.bookmarked %}
-              <form method="post" action="/admin/runs/{{ run.run_id }}/bookmarks/delete" style="display:inline">
-                <input type="hidden" name="bookmark_key" value="{{ cv.bookmark_key }}">
-                <input type="hidden" name="redirect_to" value="/admin/runs/{{ run.run_id }}">
-                <button type="submit" class="btn-secondary" title="Remove bookmark" aria-label="Remove bookmark" style="{{ icons.icon_button_style() }}">{{ icons.icon_star_filled() }}</button>
-              </form>
-              {% else %}
-              <form method="post" action="/admin/runs/{{ run.run_id }}/bookmarks/save" style="display:inline">
-                <input type="hidden" name="job_id" value="{{ cv.job_id or '' }}">
-                <input type="hidden" name="version_id" value="{{ cv.version_id or '' }}">
-                <input type="hidden" name="title" value="{{ cv.job_title }}">
-                <input type="hidden" name="company" value="{{ cv.company or '' }}">
-                <input type="hidden" name="location" value="{{ cv.location or '' }}">
-                <input type="hidden" name="url" value="{{ cv.job_url }}">
-                <input type="hidden" name="fit_classification" value="{{ cv.fit_classification }}">
-                <input type="hidden" name="source" value="pipeline_results">
-                <input type="hidden" name="redirect_to" value="/admin/runs/{{ run.run_id }}">
-                <button type="submit" class="btn-secondary" title="Save bookmark" aria-label="Save bookmark" style="{{ icons.icon_button_style() }}">{{ icons.icon_star_outline() }}</button>
-              </form>
-              {% endif %}
+              <span class="meta">Manage bookmarks in Pipeline Results.</span>
               <a href="/admin/cvs/{{ cv.version_id }}/download" class="btn-secondary" title="Download CV" aria-label="Download CV" style="{{ icons.icon_button_style() }}">{{ icons.icon_download() }}</a>
             </div>
           </div>
@@ -435,59 +356,7 @@
 </div>
 {% endif %}
 
-{% if (synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay) and synonym_review_section_state == "hidden" %}
-<div class="card">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
-    <div>
-      <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
-      <div class="meta">
-        {% if synonym_overlay_info.has_run_overlay %}
-          Run-scoped synonym mappings are active for skills, domain, and role family.
-        {% elif can_upload_synonym_overlay %}
-          No run-specific overlay is active yet. You can replace default skill/domain/role-family synonym config before continuing into <code>rule_filter</code>.
-        {% endif %}
-      </div>
-    </div>
-    {% if synonym_overlay_info.has_run_overlay %}
-    <span class="badge badge-info">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
-    {% endif %}
-  </div>
-
-  <div class="kv">
-    <span class="k">Status</span>
-    <span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">run-specific overlay active</span>{% else %}default config only{% endif %}</span>
-    {% if synonym_overlay_info.has_run_overlay %}
-    <span class="k">Source</span><span class="v">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
-    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
-    <span class="k">Skill Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
-    <span class="k">Domain Entries</span><span class="v">{{ synonym_overlay_info.section_counts.domain_alias_map or 0 }}</span>
-    <span class="k">Role Family Entries</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_alias_map or 0 }}</span>
-    <span class="k">Domain Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.domain_neighbors or 0 }}</span>
-    <span class="k">Role Family Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_neighbors or 0 }}</span>
-    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at_display or '—' }}</span>
-    {% endif %}
-    <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
-  </div>
-
-  {% if synonym_overlay_info.snapshot_yaml %}
-  <details style="margin-top:1rem">
-    <summary class="meta" style="cursor:pointer;user-select:none">
-      ▾ {{ synonym_overlay_info.snapshot_label or 'Synonym' }} YAML Snapshot
-    </summary>
-    <pre class="code-area" style="overflow-x:auto;max-height:320px;overflow-y:auto;margin-top:0.75rem">{{ synonym_overlay_info.snapshot_yaml }}</pre>
-  </details>
-  {% endif %}
-
-  {% if can_upload_synonym_overlay %}
-  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
-    <div class="meta" style="margin-bottom:0.65rem">Stage by Stage runs can replace the current run overlay after <code>enrich</code> and before <code>rule_filter</code>. This override does not change the shared default config.</div>
-    {% include "_synonym_overlay_upload_form.html" %}
-    <div class="meta" style="margin-top:0.4rem">Field-specific scopes reject mixed sections to avoid accidental cross-field updates.</div>
-  </div>
-  {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
-  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Run All uses trigger-time synonym uploads only.</div>
-  {% endif %}
-</div>{% endif %}  </div></details><script>
+</div></details><script>
 function showTab(id) {
   document.querySelectorAll('.tab-pane').forEach(p => {
     p.classList.remove('active');
@@ -524,6 +393,7 @@ async function ensureTabLoaded(id, overrideUrl = null) {
     if (!resp.ok) throw new Error('Failed to load tab');
     pane.innerHTML = await resp.text();
     initEnrichedOutcomeMultiselect(pane);
+    initRunJobSelection(pane);
     pane.dataset.loaded = 'true';
   } catch (err) {
     pane.innerHTML = '<div class="card"><p class="field-error">Could not load this tab right now.</p></div>';
@@ -592,6 +462,93 @@ function initEnrichedOutcomeMultiselect(scope = document) {
   }
   checkboxes.forEach((box) => box.addEventListener('change', syncAll));
   syncAll();
+}
+
+function initRunJobSelection(scope = document) {
+  const root = scope.querySelector('[data-run-job-selection-root]');
+  if (!root || root.dataset.initialized === 'true') return;
+  root.dataset.initialized = 'true';
+  const selected = new Set();
+  const rows = Array.from(scope.querySelectorAll('input[data-run-job-id]'));
+  const selectAll = root.querySelector('[data-run-job-select-all]');
+  const count = root.querySelector('[data-run-job-selected-count]');
+  const exportButton = root.querySelector('[data-run-job-export]');
+  const notice = root.querySelector('[data-run-job-notice]');
+  const context = () => ({
+          selected_run_job_ids: Array.from(selected),
+    stage: root.dataset.stage || null,
+    result: root.dataset.result || null,
+    search: root.dataset.search || '',
+  });
+  const sync = () => {
+    count.textContent = `${selected.size} selected`;
+    exportButton.disabled = selected.size === 0;
+    selectAll.checked = rows.length > 0 && rows.every((row) => selected.has(row.dataset.runJobId));
+    selectAll.indeterminate = selected.size > 0 && !selectAll.checked;
+  };
+  rows.forEach((row) => row.addEventListener('change', () => {
+    row.checked ? selected.add(row.dataset.runJobId) : selected.delete(row.dataset.runJobId);
+    sync();
+  }));
+  selectAll.addEventListener('change', () => {
+    rows.forEach((row) => {
+      row.checked = selectAll.checked;
+      selectAll.checked ? selected.add(row.dataset.runJobId) : selected.delete(row.dataset.runJobId);
+    });
+    sync();
+  });
+  scope.querySelectorAll('[data-bookmark-toggle]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const bookmarked = button.dataset.bookmarked === 'true';
+      button.disabled = true;
+      try {
+        await fitcvApiRequest(`/runs/${encodeURIComponent(root.dataset.runId)}/jobs/${encodeURIComponent(button.dataset.runJobId)}/bookmark`, {
+          method: bookmarked ? 'DELETE' : 'PUT',
+        });
+        button.dataset.bookmarked = bookmarked ? 'false' : 'true';
+        button.setAttribute('aria-pressed', bookmarked ? 'false' : 'true');
+        button.textContent = bookmarked ? 'Bookmark' : 'Remove bookmark';
+        notice.textContent = bookmarked ? 'Bookmark removed.' : 'Bookmark saved.';
+      } catch (error) {
+        notice.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+  exportButton.addEventListener('click', async () => {
+    exportButton.disabled = true;
+    try {
+      const exportContext = context();
+      const preview = (await fitcvApiRequest(root.dataset.previewUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(exportContext),
+      })).data;
+      notice.textContent = `Export summary: ${preview.matched_count} matched, ${preview.excluded_count} excluded.`;
+      if (!confirm(`Export ${preview.matched_count} selected jobs matching current stage and filters? ${preview.excluded_count} selected jobs will be excluded.`)) return;
+      const response = await fetch(root.dataset.exportUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify({...exportContext, preview_revision: preview.preview_revision}),
+      });
+      if (!response.ok) throw new Error('Export failed');
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `fitcv-run-${root.dataset.runId}-jobs.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (error) {
+      notice.textContent = error.message;
+    } finally {
+      sync();
+    }
+  });
+  sync();
 }
 function submitRunDetailTabForm(event, tabId, form) {
   event.preventDefault();
@@ -994,55 +951,6 @@ document.addEventListener('DOMContentLoaded', () => {
   {% endif %}
   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
   initEnrichedOutcomeMultiselect(document);
-  const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
-  const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
-  const promoteSelectedCount = document.getElementById('promote-selected-count');
-  const promoteControls = document.getElementById('promote-controls');
-  const promoteEmptyNote = document.getElementById('promote-empty-note');
-  const promoteCheckboxes = () => Array.from(document.querySelectorAll('input[type="checkbox"][name="promote_proposal_id"][data-promote-selectable="true"]'));
-
-  const refreshPromoteSelectedCount = () => {
-    if (!promoteSelectedCount) {
-      return;
-    }
-    const selected = promoteCheckboxes().filter((cb) => cb.checked).length;
-    promoteSelectedCount.textContent = `Selected: ${selected}`;
-  };
-
-  const promoteRows = promoteCheckboxes();
-  if (promoteControls && promoteEmptyNote) {
-    if (promoteRows.length === 0) {
-      promoteControls.style.display = 'none';
-      promoteEmptyNote.style.display = '';
-    } else {
-      promoteControls.style.display = 'flex';
-      promoteEmptyNote.style.display = 'none';
-    }
-  }
-
-  promoteRows.forEach((checkboxEl) => {
-    checkboxEl.addEventListener('change', refreshPromoteSelectedCount);
-  });
-  refreshPromoteSelectedCount();
-
-  if (promoteSelectAllBtn) {
-    promoteSelectAllBtn.addEventListener('click', () => {
-      promoteCheckboxes().forEach((checkboxEl) => {
-        checkboxEl.checked = true;
-      });
-      refreshPromoteSelectedCount();
-    });
-  }
-
-  if (promoteClearAllBtn) {
-    promoteClearAllBtn.addEventListener('click', () => {
-      promoteCheckboxes().forEach((checkboxEl) => {
-        checkboxEl.checked = false;
-      });
-      refreshPromoteSelectedCount();
-    });
-  }
-
 });
 </script>
 {% endblock %}

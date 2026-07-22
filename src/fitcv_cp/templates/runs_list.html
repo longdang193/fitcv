@@ -82,98 +82,26 @@
   }
 </style>
 
-<!-- ── Trigger Form ──────────────────────────────────────────────────────── -->
-<div class="section-card">
-
-  <!-- Jobs input mode selector -->
-  <div style="margin-bottom:1rem">
-    <label class="section-helper" style="display:block;margin-bottom:0.4rem">Jobs Input</label>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-      <button type="button" class="btn-secondary" id="jobs-tab-path"   aria-pressed="true"  onclick="setJobsMode('path')">📂 Path</button>
-      <button type="button" class="btn-secondary" id="jobs-tab-upload" aria-pressed="false" onclick="setJobsMode('upload')">⬆ Upload</button>
-      <button type="button" class="btn-secondary" id="jobs-tab-paste"  aria-pressed="false" onclick="setJobsMode('paste')">📋 Paste JSON</button>
-    </div>
+<section class="section-card workspace-stack" aria-labelledby="trigger-run-title">
+  <div>
+    <h2 id="trigger-run-title">Trigger Run</h2>
+    <p class="meta">Upload one JSON or JSONL jobs file and select an Active, Succeeded Candidate Profile.</p>
   </div>
-
-  <div id="jobs-pane-path" style="margin-bottom:1rem">
-    <input type="text" id="jobs_path" value="data/sample_jobs.json" placeholder="jobs_path">
+  <div class="filter-bar">
+    <label>Jobs file<input type="file" id="jobs_file" accept=".json,.jsonl,application/json,application/x-ndjson" required></label>
+    <label>Run Name <span class="meta">Optional</span><input type="text" id="run_name" maxlength="120" autocomplete="off"></label>
+    <label>Candidate Profile<select id="candidate_profile_id" required aria-describedby="candidate-profile-status candidate-profile-empty-link"><option value="">Loading Candidate Profiles…</option></select></label>
+    <label>Config path<input type="text" id="config_path" value=".env.yaml" autocomplete="off"></label>
   </div>
-  <div id="jobs-pane-upload" style="display:none;margin-bottom:1rem">
-    <input type="file" id="jobs_file" accept=".json,.jsonl,application/json,application/x-ndjson,text/plain" multiple>
-    <span class="meta" style="display:block;margin-top:0.25rem">Select one or more JSON or JSONL files to merge into one run</span>
+  <div>
+    <span id="candidate-profile-status" class="meta" aria-live="polite"></span>
+    <a id="candidate-profile-empty-link" href="/admin/candidate-profiles" class="meta" hidden>Create a Candidate Profile before triggering a Run.</a>
   </div>
-  <div id="jobs-pane-paste" style="display:none;margin-bottom:1rem">
-    <textarea id="jobs_text" class="code-area" placeholder='[{"title": "Data Engineer", "job_url": "..."}, ...]'
-      style="height:100px;font-size:0.8rem;resize:vertical"></textarea>
+  <div class="selection-toolbar">
+    <button type="button" id="trigger-btn" class="btn-primary" onclick="triggerRun()">Trigger Run</button>
+    <span id="trigger-status" class="meta" role="status" aria-live="polite"></span>
   </div>
-
-  <hr>
-
-  <!-- Candidate profile mode selector -->
-  <div style="margin-bottom:1rem">
-    <label class="section-helper" style="display:block;margin-bottom:0.4rem">Candidate Profile</label>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-      <button type="button" class="btn-secondary" id="prof-tab-default" aria-pressed="true"  onclick="setProfMode('default_config')">⚙ Default Config</button>
-      <button type="button" class="btn-secondary" id="prof-tab-upload"  aria-pressed="false" onclick="setProfMode('upload')">⬆ Upload Profile</button>
-      <button type="button" class="btn-secondary" id="prof-tab-paste"   aria-pressed="false" onclick="setProfMode('paste')">📋 Paste Profile</button>
-    </div>
-  </div>
-
-  <div id="prof-pane-default" style="margin-bottom:1rem">
-    <span class="meta">Uses the candidate profile YAML path from <code>.env.yaml</code></span>
-  </div>
-  <div id="prof-pane-upload" style="display:none;margin-bottom:1rem">
-    <input type="file" id="candidate_profile_file" accept=".json,.yaml,.yml,application/json,text/yaml,application/x-yaml">
-    <span class="meta" style="display:block;margin-top:0.25rem">JSON or YAML file matching the FitCV candidate profile schema</span>
-  </div>
-  <div id="prof-pane-paste" style="display:none;margin-bottom:1rem">
-    <textarea id="candidate_profile_text" class="code-area" placeholder='JSON or YAML profile (for example: {"experiences":[...]} or experiences: [...])'
-      style="height:100px;font-size:0.8rem;resize:vertical"></textarea>
-  </div>
-
-  <hr>
-
-  <div style="margin-bottom:1rem">
-    <label class="section-helper" style="display:block;margin-bottom:0.4rem">Synonym Overlay</label>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-      <button type="button" class="btn-secondary" id="synonym-tab-default" aria-pressed="true" onclick="setSynonymOverlayMode('default_config')">⚙ Default Config</button>
-      <button type="button" class="btn-secondary" id="synonym-tab-upload" aria-pressed="false" onclick="setSynonymOverlayMode('upload')">⬆ Upload YAML</button>
-    </div>
-  </div>
-
-  <div id="synonym-pane-default" style="margin-bottom:1rem">
-    <span class="meta">Uses shared synonym config for <code>skill_synonyms</code>, <code>domain_alias_map</code>, and <code>role_family_alias_map</code>. Stage by Stage runs can later replace it after <code>enrich</code> and before <code>rule_filter</code>.</span>
-  </div>
-  <div id="synonym-pane-upload" style="display:none;margin-bottom:1rem">
-    <input type="file" id="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml">
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">
-      <button type="button" class="btn-secondary" id="synonym-scope-combined" aria-pressed="true" onclick="setSynonymOverlayScope('combined')">Combined Upload</button>
-      <button type="button" class="btn-secondary" id="synonym-scope-skill" aria-pressed="false" onclick="setSynonymOverlayScope('skill')">Skills Upload</button>
-      <button type="button" class="btn-secondary" id="synonym-scope-domain" aria-pressed="false" onclick="setSynonymOverlayScope('domain')">Domain Upload</button>
-      <button type="button" class="btn-secondary" id="synonym-scope-role_family" aria-pressed="false" onclick="setSynonymOverlayScope('role_family')">Role Family Upload</button>
-    </div>
-    <span class="meta" style="display:block;margin-top:0.25rem">Run-scoped YAML can include <code>skill_synonyms</code>, <code>domain_alias_map</code>, <code>role_family_alias_map</code>, and optional neighbor maps. <code>Run All</code> uses this trigger-time overlay; <code>Stage by Stage</code> can replace it later before Rule Filter.</span>
-    <span class="meta" style="display:block;margin-top:0.2rem">Field-specific scopes reject mixed sections to prevent accidental cross-field updates.</span>
-  </div>
-
-  <hr>
-
-  <div style="margin-bottom:1rem">
-    <label class="section-helper" style="display:block;margin-bottom:0.4rem">Execution Mode</label>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-      <button type="button" class="btn-secondary" id="mode-tab-run_all" aria-pressed="true" onclick="setRunMode('run_all')">▶ Run All</button>
-      <button type="button" class="btn-secondary" id="mode-tab-manual_staged" aria-pressed="false" onclick="setRunMode('manual_staged')">⏸ Stage by Stage</button>
-    </div>
-  </div>
-
-  <hr>
-
-  <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
-    <input type="text" id="config_path" value=".env.yaml" placeholder="config_path" style="width:140px">
-    <button type="button" id="trigger-btn" class="btn-primary" onclick="triggerRun()" style="min-width:140px">▶ Trigger Run</button>
-    <span id="trigger-status" class="meta"></span>
-  </div>
-</div>
+</section>
 
 <!-- ── Runs Table ─────────────────────────────────────────────────────────── -->
 <div class="section-card" style="padding:0;overflow:hidden">
@@ -181,18 +109,9 @@
   <div id="delete-archived-controls" style="padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
     <div>
       <div style="font-weight:700">Delete archived runs</div>
-      <div class="meta">Permanently deletes archived runs you no longer need.</div>
+      <div class="meta">Select archived Runs in the table before deleting. Related bookmarks are deleted too.</div>
     </div>
-    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-      <label class="meta" for="delete-archived-threshold">Delete scope</label>
-      <select id="delete-archived-threshold" aria-label="Delete archived runs age filter">
-        <option value="7">Older than 7 days</option>
-        <option value="30" selected>Older than 30 days</option>
-        <option value="90">Older than 90 days</option>
-        <option value="all">All archived runs</option>
-      </select>
-      <button type="button" id="delete-archived-runs-btn" class="btn-secondary" onclick="bulkDeleteArchivedRuns(this)">Delete archived runs</button>
-    </div>
+    <button type="button" id="delete-archived-runs-btn" class="btn-secondary" onclick="bulkDeleteArchivedRuns(this)">Delete selected</button>
   </div>
   {% endif %}
   <div id="bulk-action-bar" style="display:none;padding:0.75rem 1rem;border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
@@ -267,52 +186,34 @@
 </div>
 
 <script>
-let _jobsMode = 'path';
-let _profMode = 'default_config';
-let _synonymOverlayMode = 'default_config';
-let _synonymOverlayScope = 'combined';
-let _runMode = 'run_all';
-
-function setJobsMode(m) {
-  _jobsMode = m;
-  ['path','upload','paste'].forEach(k => {
-    document.getElementById('jobs-pane-' + k).style.display = k === m ? '' : 'none';
-    document.getElementById('jobs-tab-' + k).setAttribute('aria-pressed', String(k === m));
-  });
-}
-
-function setProfMode(m) {
-  _profMode = m;
-  ['default', 'upload', 'paste'].forEach(k => {
-    const key = k === 'default' ? 'default_config' : k;
-    document.getElementById('prof-pane-' + k).style.display = key === m ? '' : 'none';
-    document.getElementById('prof-tab-' + k).setAttribute('aria-pressed', String(key === m));
-  });
-}
-
-function setSynonymOverlayMode(m) {
-  _synonymOverlayMode = m;
-  ['default', 'upload'].forEach(k => {
-    const key = k === 'default' ? 'default_config' : k;
-    document.getElementById('synonym-pane-' + k).style.display = key === m ? '' : 'none';
-    document.getElementById('synonym-tab-' + k).setAttribute('aria-pressed', String(key === m));
-  });
-}
-
-function setSynonymOverlayScope(scope) {
-  _synonymOverlayScope = scope;
-  ['combined', 'skill', 'domain', 'role_family'].forEach((key) => {
-    const el = document.getElementById('synonym-scope-' + key);
-    if (!el) return;
-    el.setAttribute('aria-pressed', String(key === scope));
-  });
-}
-
-function setRunMode(m) {
-  _runMode = m;
-  ['run_all', 'manual_staged'].forEach(k => {
-    document.getElementById('mode-tab-' + k).setAttribute('aria-pressed', String(k === m));
-  });
+async function refreshCandidateProfiles() {
+  const select = document.getElementById('candidate_profile_id');
+  const status = document.getElementById('candidate-profile-status');
+  const emptyLink = document.getElementById('candidate-profile-empty-link');
+  const preserved = select.value;
+  select.disabled = true;
+  select.innerHTML = '<option value="">Loading Candidate Profiles…</option>';
+  status.textContent = '';
+  emptyLink.hidden = true;
+  try {
+    const payload = await fitcvApiRequest('/candidate-profiles?view=active&status=succeeded&page=1&page_size=50');
+    const profiles = Array.isArray(payload.data) ? payload.data : [];
+    select.innerHTML = '<option value="">Select Candidate Profile</option>';
+    profiles.forEach(profile => {
+      const option = document.createElement('option');
+      option.value = profile.profile_id;
+      option.textContent = `${profile.display_name} - ${profile.profile_id}`;
+      option.selected = option.value === preserved;
+      select.appendChild(option);
+    });
+    status.textContent = profiles.length ? `${profiles.length} available` : 'No Active, Succeeded Candidate Profiles.';
+    emptyLink.hidden = profiles.length > 0;
+  } catch (error) {
+    select.innerHTML = '<option value="">Candidate Profiles unavailable</option>';
+    status.textContent = error.message;
+  } finally {
+    select.disabled = false;
+  }
 }
 
 async function triggerRun() {
@@ -322,54 +223,30 @@ async function triggerRun() {
 
   try {
     const fd = new FormData();
+    const jobsFile = document.getElementById('jobs_file').files[0];
+    if (!jobsFile) { status.textContent = 'Choose one JSON or JSONL jobs file.'; return; }
     fd.append('config_path', document.getElementById('config_path').value);
-    fd.append('jobs_input_mode', _jobsMode);
-    fd.append('candidate_profile_mode', _profMode);
-    fd.append('run_mode', _runMode);
-
-    if (_jobsMode === 'path') {
-      fd.append('jobs_path', document.getElementById('jobs_path').value);
-    } else if (_jobsMode === 'upload') {
-      const files = document.getElementById('jobs_file').files;
-      if (!files.length) { alert('Please select at least one jobs JSON or JSONL file.'); return; }
-      for (const f of files) {
-        fd.append('jobs_files', f);
-      }
-    } else {
-      fd.append('jobs_text', document.getElementById('jobs_text').value);
-    }
-
-    if (_profMode === 'upload') {
-      const pf = document.getElementById('candidate_profile_file').files[0];
-      if (!pf) { alert('Please select a candidate profile JSON or YAML file.'); return; }
-      fd.append('candidate_profile_file', pf);
-    } else if (_profMode === 'paste') {
-      fd.append('candidate_profile_text', document.getElementById('candidate_profile_text').value);
-    }
-
-    fd.append('synonym_overlay_mode', _synonymOverlayMode);
-    if (_synonymOverlayMode === 'upload') {
-      const sf = document.getElementById('synonym_overlay_file').files[0];
-      if (!sf) { alert('Please select a synonym overlay YAML file.'); return; }
-      fd.append('overlay_upload_scope', _synonymOverlayScope);
-      fd.append('synonym_overlay_file', sf);
-    }
-
-    const resp = await fetch('/admin/upload-trigger', { method: 'POST', body: fd });
-    if (resp.ok) {
-      status.textContent = '✓ Run queued';
-      status.style.color = 'var(--badge-success-fg)';
-      setTimeout(() => location.reload(), 800);
-    } else {
-      const err = await resp.text();
-      alert('Error: ' + err);
-      status.textContent = '⚠ Failed';
-      status.style.color = 'var(--badge-error-fg)';
-    }
+    fd.append('jobs_file', jobsFile);
+    fd.append('run_name', document.getElementById('run_name').value);
+    const candidateProfileId = document.getElementById('candidate_profile_id').value;
+    if (!candidateProfileId) { status.textContent = 'Select an Active, Succeeded Candidate Profile.'; return; }
+    fd.append('profile_id', candidateProfileId);
+    await fitcvApiRequest('/runs', {
+      method: 'POST',
+      headers: {'Idempotency-Key': crypto.randomUUID()},
+      body: fd,
+    });
+    status.textContent = 'Run queued.';
+    setTimeout(() => location.reload(), 800);
+  } catch (error) {
+    status.textContent = error.message;
+    if (error.code === 'candidate_profile_unavailable') await refreshCandidateProfiles();
   } finally {
-    btn.disabled = false; btn.textContent = '▶ Trigger Run';
+    btn.disabled = false; btn.textContent = 'Trigger Run';
   }
 }
+
+document.addEventListener('DOMContentLoaded', refreshCandidateProfiles);
 
 function showLifecycleBanner(message, kind = 'info') {
   let banner = document.getElementById('lifecycle-error-banner');
@@ -463,32 +340,10 @@ function toggleSelectAllRuns(source) {
   updateBulkActionBar();
 }
 
-function deleteArchivedThresholdControl() {
-  return document.getElementById('delete-archived-threshold');
-}
-function deleteArchivedThresholdValue() {
-  const control = deleteArchivedThresholdControl();
-  return control ? control.value : '30';
-}
-
-function deleteArchivedThresholdLabel() {
-  const control = deleteArchivedThresholdControl();
-  if (!control) {
-    return 'Older than 30 days';
-  }
-  const selected = control.options[control.selectedIndex];
-  return selected ? selected.text : 'Older than 30 days';
-}
-
 async function bulkDeleteArchivedRuns(btn) {
-  const olderThanDays = deleteArchivedThresholdValue();
-  const thresholdLabel = deleteArchivedThresholdLabel();
-  const confirmMessage = [
-    'Delete archived runs?',
-    `This permanently deletes archived runs matching ${thresholdLabel} and their stored artifacts. This cannot be undone.`,
-    `Threshold: ${thresholdLabel}`,
-  ].join('\n\n');
-  if (!confirm(confirmMessage)) {
+  const runIds = selectedRunIds();
+  if (!runIds.length) {
+    alert('Select at least one archived Run first.');
     return;
   }
 
@@ -496,24 +351,31 @@ async function bulkDeleteArchivedRuns(btn) {
   btn.disabled = true;
   btn.textContent = '…';
   try {
-    const resp = await fetch('/admin/runs/bulk/delete-archived', {
+    const previewEnvelope = await fitcvApiRequest('/runs/actions/delete-archived/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ older_than_days: olderThanDays }),
+      body: JSON.stringify({ run_ids: runIds }),
     });
-    const body = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      alert(body.detail || 'Delete archived runs failed');
-      return;
-    }
-    const deletedCount = Number(body.deleted_count || 0);
-    const summary = deletedCount > 0
-      ? `Deleted ${deletedCount} archived run(s) matching ${thresholdLabel.toLowerCase()}.`
-      : `No archived runs match this threshold.`;
-    persistLifecycleNotice(summary, deletedCount > 0 ? 'success' : 'info');
+    const preview = previewEnvelope.data;
+    const confirmMessage = `Delete ${preview.eligible_run_ids.length} archived Run(s)?\n\n${preview.bookmark_count} bookmark(s) will also be deleted. This cannot be undone.`;
+    if (!confirm(confirmMessage)) return;
+    const resultEnvelope = await fitcvApiRequest('/runs/actions/delete-archived', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': crypto.randomUUID(),
+      },
+      body: JSON.stringify({
+        run_ids: runIds,
+        preview_revision: preview.preview_revision,
+      }),
+    });
+    const result = resultEnvelope.data;
+    const summary = `Deleted ${result.deleted_count} archived Run(s) and ${result.deleted_bookmark_count} bookmark(s).`;
+    persistLifecycleNotice(summary, result.filesystem_cleanup_failed_run_ids.length ? 'info' : 'success');
     location.href = '/admin/runs?view=archived';
   } catch (e) {
-    alert('Delete archived runs failed');
+    alert(e.message || 'Delete archived Runs failed');
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;

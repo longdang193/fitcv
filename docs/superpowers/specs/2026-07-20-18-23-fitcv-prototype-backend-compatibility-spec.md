@@ -39,6 +39,9 @@ related_stages:
 - desired outcome: make backend, API contracts, persistence, pipeline workflow, and application state support every prototype-defined non-navigation behavior without changing prototype structure, labels, hierarchy, or interaction model.
 - observable success: frontend renders and operates all in-scope views from backend resources, including empty, loading, progress, success, warning, failure, partial, CV regeneration, stretch review, download, and validation states.
 
+> [!IMPORTANT]
+> `2026-07-21-19-02-fitcv-central-workspace-frontend-backend-integration-spec.md` supersedes this specification for Candidate Profile CRUD/navigation, standalone Bookmarks, bookmark deletion/orphan behavior, Run Details export-selection, central Synonyms, and captured synonym revisions. This specification remains authoritative for other Runs, Run Details, pipeline results, CVs, Console, and diagnostics behavior.
+
 ## Required Outcomes
 
 ### Outcome: Prototype-Compatible Settings
@@ -101,8 +104,7 @@ related_stages:
 
 ### Non-Goals
 
-- standalone Bookmarks navigation/page marked `data-prototype-link`.
-- Create Candidate Profile navigation and Candidate Profile CRUD UI/API marked navigation-only; only selectable persistent catalog is required.
+- central Bookmarks and Candidate Profile management behavior owned by `2026-07-21-19-02-fitcv-central-workspace-frontend-backend-integration-spec.md`.
 - Appearance, LLM & API, Data & Backup, System, and Health areas marked navigation-only.
 - frontend redesign, replacement component system, changed labels, hierarchy, or navigation.
 - PDF/DOCX generation; Markdown download is sufficient when metadata is complete.
@@ -256,7 +258,7 @@ related_stages:
   - `POST /runs/actions/delete-archived` accepts `{ "run_ids": [...] }` plus required `Idempotency-Key` header; at least one explicit ID is required.
   - server verifies every ID exists and is archived before transactional delete.
   - response reports `requested_ids`, `deleted_ids`, `not_found_ids`, and `blocked_ids`; mixed invalid request deletes none.
-  - delete cascades run-owned DB/files; bookmark snapshots survive with nullable source references.
+  - delete cascades run-owned DB/files and bookmarks; response includes exact deleted Run and bookmark counts.
 - output or state change: lifecycle transition or permanent removal.
 - failure behavior: submitted IDs are never ignored; partial silent deletion is forbidden; cleanup failure is recorded and actionable.
 - observable acceptance: only selected archived Runs disappear; active Runs cannot delete; no run-owned orphan remains.
@@ -276,7 +278,7 @@ related_stages:
   - each row includes identity/source order/fingerprint/URL; title/company; bookmark/rating/actions; location/work mode/language/seniority/family/domain; ordered skills; stage/status/outcome/reason codes and labels; warning/error summary; latest CV/evaluation/review summary and capabilities.
   - `outcome_code` and `reason_code` are persisted truth; labels/text are projection.
   - totals cover full filtered result, not current page; no matches returns prototype empty state.
-  - `GET /runs/{run_id}/jobs/export.csv` accepts same filters and exports full filtered set in prototype column order.
+  - Run Details export preview and download routes, selection intersection, stale-preview behavior, and CSV scope follow the central-workspace specification.
 - output or state change: read-only page or CSV download.
 - failure behavior: invalid filter returns `validation_failed`; unstarted stage returns `stage_not_ready`; missing persistence returns `results_not_ready`.
 - observable acceptance: table, counts, search, pagination, empty state, and Export are mutually consistent.
@@ -287,7 +289,7 @@ related_stages:
 - preconditions: Run and job exist.
 - required behavior:
   - `PUT /runs/{run_id}/jobs/{run_job_id}/bookmark` returns `{run_job_id, bookmarked: true, bookmark_id}`; `DELETE` clears it.
-  - bookmark retains immutable job snapshot and survives source Run deletion through `ON DELETE SET NULL` references.
+  - bookmark references non-null Run and Run Job owners and deletes with source Run through `ON DELETE CASCADE`.
   - `PUT /runs/{run_id}/jobs/{run_job_id}/interest` accepts `{ "rating": 1..5, "rating_contract_revision": "..." }`; `DELETE` clears current rating.
   - set/clear writes append-only decision-feedback event and current projection.
   - same action request is idempotent and cannot duplicate feedback history.
@@ -404,7 +406,7 @@ related_stages:
 
 #### `bookmarks`, Interest, and Existing Process Events
 
-- `bookmarks`: primary ID, nullable Run/job FKs using `ON DELETE SET NULL`, source fingerprint, immutable display snapshot, timestamps; one active bookmark per `run_job_id`. Same listing in different Runs has independent bookmark state, matching prototype. After Run deletion, detached bookmark remains identified by `bookmark_id` and snapshot.
+- `bookmarks`: primary ID, non-null Run/job FKs using `ON DELETE CASCADE`, timestamps; one bookmark per `run_job_id`. Same listing in different Runs has independent bookmark state. Central listing and deletion behavior are owned by the central-workspace specification.
 - current interest is one projection per `run_job_id` and rating-contract revision; each set/clear writes existing append-only decision feedback.
 - Run deletion cascades current run-job interest projection. Feedback event survives with Run/job FKs set null and retains only source fingerprint, rating/clear action, rating-contract revision, policy/model identifiers already required by optimization, and timestamp; uploaded raw job payload, Candidate Profile snapshot, and CV content are not copied into retained feedback.
 - existing process-event ledger remains Console SSOT; canonical Run/job/stage/CV/action IDs become references. No competing event table is added.
@@ -425,8 +427,8 @@ related_stages:
   - reason accepted or rejected: rejected.
 - alternative: full Candidate Profile CRUD.
   - benefit: broader administration.
-  - trade-off: Create Candidate Profile is navigation-only.
-  - reason accepted or rejected: rejected for this specification.
+  - trade-off: expands this Run-focused specification.
+  - reason accepted or rejected: moved to the central-workspace specification.
 - alternative: client-side current-page CSV.
   - benefit: no export endpoint.
   - trade-off: incomplete under server pagination.
@@ -444,17 +446,17 @@ related_stages:
 - selected approach: implement every non-navigation behavior; exclude only explicit navigation-only areas.
 - rationale: preserves frontend truth without inventing placeholder-destination work.
 - alternatives considered: implement every link; treat prototype as illustrative.
-- accepted trade-offs: Candidate Profile management and standalone Bookmarks remain outside phase.
+- accepted trade-offs: Candidate Profile management and standalone Bookmarks are governed by the central-workspace specification rather than duplicated here.
 - affected owners and boundaries: frontend integration, APIs, domain model, tests.
 
-### Decision: Preserve Settings API and Add Read-Only Profile Catalog
+### Decision: Preserve Settings API and Stable Profile Identity
 
-- context: Settings is connected; trigger lacks stable profile options; profile creation is excluded.
-- selected approach: retain Settings routes/schema; add persistent read-only profile catalog with three seeds.
-- rationale: shortest SSOT-preserving path.
-- alternatives considered: new Settings family; frontend hard-coding; full profile CRUD.
-- accepted trade-offs: profile edits require existing configuration/admin mechanism pending separate navigation spec.
-- affected owners and boundaries: settings schema/store, DB initialization, trigger validation.
+- context: Settings is connected; Trigger Run requires stable profile options and immutable snapshots.
+- selected approach: retain Settings routes/schema and stable seeded profile IDs; central profile creation and lifecycle follow the central-workspace specification.
+- rationale: prevents Trigger Run from hard-coding labels or owning profile data.
+- alternatives considered: new Settings family; frontend hard-coding; duplicated profile catalog.
+- accepted trade-offs: profile administration remains a separate central resource rather than part of Run APIs.
+- affected owners and boundaries: settings schema/store, profile resource, DB initialization, trigger validation.
 
 ### Decision: One Public Stage and Status Registry
 
@@ -483,11 +485,11 @@ related_stages:
 - accepted trade-offs: durable async version/action state and extra constrained rows.
 - affected owners and boundaries: worker, CV generation/evaluation, persisted review projection, storage, APIs.
 
-### Decision: Server-Side Full Filtered Export
+### Decision: Server-Side Selected Filtered Export
 
 - context: prototype Export applies while results are paginated.
-- selected approach: CSV endpoint reuses exact result predicates over full filtered set.
-- rationale: correct export independent of loaded page.
+- selected approach: preview and CSV routes reuse exact result predicates and export explicit selection intersected with current stage, result filter, and search.
+- rationale: correct export independent of loaded page without exporting unselected matches.
 - alternatives considered: browser current-page export.
 - accepted trade-offs: backend streams export.
 - affected owners and boundaries: result query and CSV response.
@@ -510,7 +512,7 @@ related_stages:
 - risk: summary/result drift; mitigation: transactional writes, constraints, recomputation integrity checks.
 - risk: duplicate actions; mitigation: durable idempotency key bound to payload fingerprint.
 - risk: polling reshuffles pages; mitigation: immutable sort keys and server totals.
-- risk: deletion loses curated state; mitigation: bookmark snapshot survives and feedback retention is explicit.
+- risk: Run deletion removes curated bookmarks; mitigation: preview and confirmation expose exact bookmark count, while response proves exact cascade.
 - risk: large result/bundle memory; mitigation: indexes, bounds, and streaming.
 
 ## Invariants and Edge Cases
@@ -524,7 +526,7 @@ related_stages:
 - one registry owns stage/status projections; list, detail, stage, job, CSV, and action responses agree for same revision.
 - terminal downloadable CV requires stored bytes and verified checksum; regeneration never mutates prior version.
 - evaluation failure never implies fit; `stretch` and review state are never inferred from prose.
-- bookmark and Application Interest are independent; bookmark snapshot survives Run deletion.
+- bookmark and Application Interest are independent; bookmark deletes with source Run while feedback retention follows its separate contract.
 - Clear View never deletes process events.
 - run-owned stage/job/result/CV/evaluation rows cascade on permanent Run deletion.
 - input/profile/settings snapshots, CV bytes, evaluation evidence, and review history are immutable after creation.
@@ -594,8 +596,8 @@ related_stages:
 
 - setup or precondition: multiple archived Runs, one active Run, children, bookmarks, feedback, and files.
 - action: delete selected IDs; submit active/unknown mix; retry same request.
-- expected result: only selected archived Runs delete transactionally; invalid mix deletes none; children/files clean; bookmark survives; response lists exact outcomes.
-- failure condition: ignored IDs, unselected deletion, orphan, or lost bookmark.
+- expected result: only selected archived Runs delete transactionally; invalid mix deletes none; children/files clean; source bookmarks cascade; response lists exact Run and bookmark outcomes.
+- failure condition: ignored IDs, unselected deletion, orphan, or unreported bookmark loss.
 - proof method: API, FK/cascade, filesystem, and idempotency tests.
 - expected evidence: before/after DB and file assertions.
 
@@ -611,9 +613,9 @@ related_stages:
 ### Acceptance Criterion: Pipeline Results Match Filters and Export
 
 - setup or precondition: Run with diverse attributes/outcomes across six stages.
-- action: query stage/result/search/page combinations and same-filter CSV.
-- expected result: stable job IDs, title-ascending order, page default `10`, page sizes `10|20|50`, exhaustive Passed/Rejected partition with `total_evaluated = passed + rejected`, correct empty state, and full filtered CSV in prototype columns.
-- failure condition: page-only export, identity drift, wrong totals, or unstable order.
+- action: query stage/result/search/page combinations, select explicit jobs, preview export, and download selected-filtered CSV.
+- expected result: stable job IDs, title-ascending order, page default `10`, page sizes `10|20|50`, exhaustive Passed/Rejected partition with `total_evaluated = passed + rejected`, correct empty state, and CSV containing only selected jobs still matching current predicates.
+- failure condition: page-only export, unselected row export, identity drift, wrong totals, stale-preview download, or unstable order.
 - proof method: query/API tests plus browser filter/search/pagination/export flow.
 - expected evidence: API and CSV row-ID sets match.
 
@@ -621,7 +623,7 @@ related_stages:
 
 - setup or precondition: addressable job and current rating contract.
 - action: use same listing in two Runs; set/clear/retry one Run's bookmark and ratings 1–5; reload; delete source Run.
-- expected result: bookmark remains independent per `run_job_id`; state persists; retry is idempotent; feedback records actions; detached bookmark survives deletion; stale contract rejects.
+- expected result: bookmark remains independent per `run_job_id`; state persists; retry is idempotent; feedback records actions; source Run deletion cascades bookmark; stale contract rejects.
 - failure condition: redirect-only behavior, duplicate history, state loss, or invalid rating.
 - proof method: API, DB ownership, and browser control tests.
 - expected evidence: projections and append-only events match actions.

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
   <title>FitCV Pipeline Prototype</title>
   <style>
     :root{color-scheme:light;--accent:#b94d36;--accent-hover:#a64027;--accent-soft:#fdf1ed;--bg:#fdfaf6;--surface:#fff;--surface-2:#f4f4f5;--sidebar:#fff;--border:#e5e7eb;--border-soft:#f1f1f3;--text:#111827;--muted:#6b7280;--subtle:#6b7280;--mirror-bg:#fafafa;--mirror-strong:#4b5563;--mirror-text:#6b7280;--sidebar-w:288px;--header-h:72px;--shadow:0 1px 2px rgba(0,0,0,.04);--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--display-font:var(--font)}
@@ -715,30 +716,15 @@
     selectedSynonymReviewIds.clear();writeSynonymState();renderSynonymsPage();notify(`${selected.length} review entr${selected.length===1?'y':'ies'} cleared`);
   }
   function downloadSynonymBackup(){
-    const backup={database:synonymState.database,reviewQueue:synonymState.reviewQueue.map(item=>({id:item.id,type:item.type,alias:item.alias,proposedCanonical:item.proposedCanonical,candidateCanonicals:item.candidateCanonicals,confidence:item.confidence,sourceRuns:item.sourceRuns,status:synonymReviewStatus(item),note:item.note||''})),processingLog:synonymState.processingLog};
-    const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/yaml;charset=utf-8'})),link=document.createElement('a');
-    link.href=url;link.download='synonym-backup.yaml';link.click();URL.revokeObjectURL(url);notify('Synonym backup downloaded');
+    const members=['skill_synonyms.yaml','domain_synonyms.yaml','role_family_synonyms.yaml','manifest.json'];
+    const url=URL.createObjectURL(new Blob([`FitCV opaque ZIP prototype\n${members.join('\n')}`],{type:'application/zip'})),link=document.createElement('a');
+    link.href=url;link.download='fitcv-synonyms-backup.zip';link.click();URL.revokeObjectURL(url);notify('Synonym backup ZIP downloaded: 3 YAML files and manifest.json');
   }
-  function isSynonymBackup(value){return Boolean(value&&typeof value==='object'&&!Array.isArray(value)&&value.database&&SYNONYM_TYPES.every(type=>Array.isArray(value.database[type]))&&Array.isArray(value.reviewQueue))}
+  function isSynonymBackupFile(file){return Boolean(file&&String(file.name||'').toLowerCase().endsWith('.zip'))}
   function importSynonymBackup(file){
     if(!file)return;
-    const reader=new FileReader();
-    reader.onload=()=>{
-      try{
-        const parsed=JSON.parse(String(reader.result||'{}'));
-        if(!isSynonymBackup(parsed))throw new Error('Invalid synonym backup');
-        const imported=normaliseSynonymState(parsed);
-        synonymState=imported;synonymProcessingLogStart=0;
-        synonymEditorEditing=false;synonymEditorDraft='';synonymEditorSearch='';
-        selectedSynonymReviewIds.clear();
-        writeSynonymState();
-        renderSynonymsPage();
-        notify('Synonym backup imported');
-      }catch{
-        notify('Import failed: backup must match exported synonym format');
-      }
-    };
-    reader.readAsText(file);
+    if(!isSynonymBackupFile(file)){notify('Import failed: choose the FitCV synonym backup ZIP');return}
+    notify('Backup validated: 3 canonical YAML files and manifest.json. Active bundle replaced.');
   }
   function synonymReviewSelectionMarkup(queue){
     const selected=queue.filter(item=>selectedSynonymReviewIds.has(item.id));
@@ -754,7 +740,7 @@
     const queue=activeSynonymReviewQueue();
     selectedSynonymReviewIds.forEach(id=>{if(!queue.some(item=>item.id===id))selectedSynonymReviewIds.delete(id)});
     const counts=currentSynonymCounts();
-    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Synonyms</h2><p>Manage shared mappings and suggestions across runs. Changes apply to future runs; completed outcomes stay unchanged. <a class="inline-link" href="#automation-reuse">Open Synonym Settings</a>.</p></div><div class="run-selection-actions"><button class="btn" id="downloadSynonymBackup" type="button">Download Backup Synonym</button><button class="btn" id="importSynonymBackup" type="button">Import Backup</button><input class="synonym-import" id="synonymBackupFile" type="file" accept=".yaml,.yml,application/yaml,text/yaml" aria-label="Choose synonym backup file"></div></div><div class="stack"><details class="section-card collapsible-section" open><summary><span class="section-heading"><strong>Current Synonym List</strong><span>Edit flat YAML mappings using <code>alias: canonical</code>.</span></span></summary><div class="section-content drawer-section-content run-panel"><div class="run-tabs synonym-tabs" role="tablist" aria-label="Synonym types">${SYNONYM_TYPES.map(type=>`<button class="btn" id="synonym-${type}-tab" type="button" role="tab" aria-controls="synonymDatabasePanel" data-synonym-tab="${type}" aria-selected="${synonymState.activeTab===type}" tabindex="${synonymState.activeTab===type?'0':'-1'}">${SYNONYM_TYPE_LABELS[type]}<span class="run-tab-count">${counts[type]}</span></button>`).join('')}</div><div id="synonymDatabasePanel" role="tabpanel" aria-labelledby="synonym-${synonymState.activeTab}-tab">${synonymEditorMarkup(synonymState.activeTab)}</div></div></details><details class="section-card collapsible-section" open><summary><span class="section-heading"><strong>Synonyms to Review</strong><span>When Auto-accept is off, every suggestion enters this queue as Pending.</span></span></summary><div class="section-content drawer-section-content run-panel">${synonymReviewTabsMarkup()}<div class="run-panel" id="synonymReviewPanel" role="tabpanel" aria-labelledby="review-${synonymState.reviewActiveTab}-tab">${synonymReviewSelectionMarkup(queue)}${synonymReviewMarkup(queue)}</div></div></details><details class="section-card collapsible-section"><summary><span class="section-heading"><strong>Processing Summary Log</strong><span>Review totals and successfully added mappings for each processing action.</span></span></summary><div class="section-content drawer-section-content">${synonymProcessingLogMarkup()}</div></details></div>`;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Synonyms</h2><p>Manage shared mappings and suggestions across runs. Changes apply to future runs; completed outcomes stay unchanged. <a class="inline-link" href="#automation-reuse">Open Synonym Settings</a>.</p></div><div class="run-selection-actions"><button class="btn" id="downloadSynonymBackup" type="button">Download Backup Synonym</button><button class="btn" id="importSynonymBackup" type="button">Import Backup</button><input class="synonym-import" id="synonymBackupFile" type="file" accept=".zip,application/zip" aria-label="Choose synonym backup ZIP"></div></div><div class="stack"><details class="section-card collapsible-section" open><summary><span class="section-heading"><strong>Current Synonym List</strong><span>Edit flat YAML mappings using <code>alias: canonical</code>.</span></span></summary><div class="section-content drawer-section-content run-panel"><div class="run-tabs synonym-tabs" role="tablist" aria-label="Synonym types">${SYNONYM_TYPES.map(type=>`<button class="btn" id="synonym-${type}-tab" type="button" role="tab" aria-controls="synonymDatabasePanel" data-synonym-tab="${type}" aria-selected="${synonymState.activeTab===type}" tabindex="${synonymState.activeTab===type?'0':'-1'}">${SYNONYM_TYPE_LABELS[type]}<span class="run-tab-count">${counts[type]}</span></button>`).join('')}</div><div id="synonymDatabasePanel" role="tabpanel" aria-labelledby="synonym-${synonymState.activeTab}-tab">${synonymEditorMarkup(synonymState.activeTab)}</div></div></details><details class="section-card collapsible-section" open><summary><span class="section-heading"><strong>Synonyms to Review</strong><span>When Auto-accept is off, every suggestion enters this queue as Pending.</span></span></summary><div class="section-content drawer-section-content run-panel">${synonymReviewTabsMarkup()}<div class="run-panel" id="synonymReviewPanel" role="tabpanel" aria-labelledby="review-${synonymState.reviewActiveTab}-tab">${synonymReviewSelectionMarkup(queue)}${synonymReviewMarkup(queue)}</div></div></details><details class="section-card collapsible-section"><summary><span class="section-heading"><strong>Processing Summary Log</strong><span>Review totals and successfully added mappings for each processing action.</span></span></summary><div class="section-content drawer-section-content">${synonymProcessingLogMarkup()}</div></details></div>`;
     bindSynonymsPage(queue);
   }
   function setSynonymTab(type){
@@ -1319,19 +1305,35 @@
     renderRunsPage();
     notify(`${selected.length} run${selected.length===1?'':'s'} archived`);
   }
+  function archivedRunDeletionPreview(runs,bookmarkKeys=bookmarkedJobs,reviewQueue=synonymState.reviewQueue){
+    const runIds=runs.filter(run=>run.archived).map(run=>run.id),idSet=new Set(runIds);
+    return {
+      runIds,
+      runCount:runIds.length,
+      bookmarkCount:[...bookmarkKeys].filter(key=>idSet.has(key.split(':')[0])).length,
+      synonymSourceCount:reviewQueue.reduce((total,item)=>total+(item.sourceRuns||[]).filter(runId=>idSet.has(runId)).length,0),
+      previewRevision:crypto.randomUUID()
+    };
+  }
   function deleteSelectedRuns(){
     const selected=runState.runs.filter(run=>selectedRunIds.has(run.id)&&run.archived);
     if(!selected.length)return;
-    if(!confirm(`Delete ${selected.length} archived run${selected.length===1?'':'s'}?\n\nThis permanently removes the selected run${selected.length===1?'':'s'} from prototype state. This cannot be undone.`))return;
-    const deletedIds=new Set(selected.map(run=>run.id));
+    const preview=archivedRunDeletionPreview(selected);
+    if(!confirm(`Delete ${preview.runCount} archived run${preview.runCount===1?'':'s'}?\n\nThis also removes ${preview.bookmarkCount} bookmarked job${preview.bookmarkCount===1?'':'s'} and ${preview.synonymSourceCount} synonym source association${preview.synonymSourceCount===1?'':'s'}. Approved synonym decisions remain. This cannot be undone.`))return;
+    const current=runState.runs.filter(run=>preview.runIds.includes(run.id)&&run.archived);
+    if(current.length!==preview.runCount){notify('Delete preview is stale. Review selection and try again.');return}
+    const deletedIds=new Set(preview.runIds);
     runState.runs=runState.runs.filter(run=>!deletedIds.has(run.id));
     for(const key of bookmarkedJobs){
       if(deletedIds.has(key.split(':')[0]))bookmarkedJobs.delete(key);
     }
+    synonymState.reviewQueue=synonymState.reviewQueue.map(item=>({...item,sourceRuns:(item.sourceRuns||[]).filter(runId=>!deletedIds.has(runId))})).filter(item=>(item.sourceRuns||[]).length||synonymReviewStatus(item)==='approved');
     selectedRunIds.clear();
+    writeRunState();
     writeBookmarks();
+    writeSynonymState();
     renderRunsPage();
-    notify(`${selected.length} archived run${selected.length===1?'':'s'} deleted`);
+    notify(`${preview.runCount} archived run${preview.runCount===1?'':'s'} deleted; ${preview.bookmarkCount} bookmark${preview.bookmarkCount===1?'':'s'} removed`);
   }
   function updateRunningDurations(){
     for(const run of visibleRuns().filter(item=>item.status==='Running')){
@@ -1606,7 +1608,9 @@
     if(SYNONYM_TYPES.join(',')!=='skill,domain,role_family')throw new Error('Synonym types must match global taxonomy owners');
     if(SYNONYM_REVIEW_STATUSES.join(',')!=='pending,approved,declined')throw new Error('Synonym review statuses must have one canonical lifecycle');
     if(synonymReviewMarkup(synonymState.reviewQueue).includes('>Conflict<')||!synonymProcessingLogMarkup().includes('id="clearSynonymProcessingLog"'))throw new Error('Synonym review table and processing log controls must match approved UI intent');
-    if(!isSynonymBackup({database:DEFAULT_SYNONYM_DATABASE,reviewQueue:DEFAULT_SYNONYM_REVIEW_QUEUE}))throw new Error('Default synonym backup shape must remain importable');
+    if(!isSynonymBackupFile({name:'fitcv-synonyms-backup.zip'})||isSynonymBackupFile({name:'backup.txt'}))throw new Error('Synonym backup must use one opaque ZIP contract');
+    const deletePreview=archivedRunDeletionPreview([{id:'RUN-DELETE',archived:true}],new Set(['RUN-DELETE:JOB-1']),[{status:'pending',sourceRuns:['RUN-DELETE']}]);
+    if(deletePreview.runCount!==1||deletePreview.bookmarkCount!==1||deletePreview.synonymSourceCount!==1||!deletePreview.previewRevision)throw new Error('Archived Run deletion preview must report dependent removals');
     const synonymParserCheck=parseSynonymEditor('wrong - syntax\nempty:\na: b\nb: a\nshared: one\nshared: two');
     if(synonymParserCheck.syntaxIssues.length!==2||synonymParserCheck.conflictIssues.length!==1||synonymParserCheck.cycleIssues.length!==2)throw new Error('Synonym editor validation must detect syntax, conflicts, and cycles');
     const normalisedSynonyms=normaliseSynonymState({reviewActiveTab:'deferred',reviewQueue:[{id:'legacy',type:'skill',status:'deferred'}]});
@@ -1647,7 +1651,7 @@
     if(normaliseRunState({}).bookmarks.length!==DEFAULT_BOOKMARK_KEYS.length)throw new Error('Default bookmarks must reference valid run jobs');
     if(new Set(PROTOTYPE_JOB_CATALOG.map(job=>job.id)).size!==PROTOTYPE_JOB_CATALOG.length)throw new Error('Prototype Job IDs must be unique');
     if(!PIPELINE_STAGES.some(stage=>stage.id==='shortlisting'))throw new Error('Run Details must support Shortlisting');
-    if(!jobResultsTableMarkup(DEFAULT_RUNS[0],[evaluatedJobResults(DEFAULT_RUNS[0])[0]],1).includes('selectAllJobResults')||!bookmarkTableMarkup([],0).includes('No bookmarked jobs'))throw new Error('Run Details and Bookmarks must expose shared selection and empty states');
+    if(!jobResultsTableMarkup(DEFAULT_RUNS[0],[evaluatedJobResults(DEFAULT_RUNS[0])[0]],1).includes('selectAllJobResults')||!bookmarkTableMarkup([],0).includes('No bookmarks match this view')||!bookmarkTableMarkup.toString().includes('No bookmarked jobs yet'))throw new Error('Run Details and Bookmarks must expose shared selection and distinct empty states');
     if(jobFile.multiple)throw new Error('Run dialog must accept one Job Input file');
     if(profileFile.accept!=='.yaml'||profileFile.multiple||!isYamlProfileFile({name:'profile.yaml'})||isYamlProfileFile({name:'profile.yml'})||isYamlProfileFile({name:'profile.pdf'}))throw new Error('Candidate Profile dialog must accept one .yaml file');
     if(paginationItems(1,10).join(',')!=='1,2,3,4,5,…,10')throw new Error('Pagination must compact trailing pages');

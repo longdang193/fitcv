@@ -155,23 +155,23 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "agentic_section": _AGENTIC_SECTION_CORE,
     },
     {
-        "key": "synonym_management.apply_to_run_enabled",
+        "key": "synonym_management.apply_approved_enabled",
         "type": "bool",
         "default": True,
-        "label": "Synonym Apply-to-Run (Manual Capability Gate)",
-        "description": "Permission gate for apply-to-run capability. OFF blocks both manual and automatic apply actions. ON allows manual apply. Automatic apply still needs its own automation toggle.",
+        "label": "Apply Approved Synonyms",
+        "description": "Use active approved synonym mappings in future Runs. Runs still capture active bundle identity when disabled.",
         "group": "agentic",
-        "config_path": ["synonym_management", "apply_to_run_enabled"],
+        "config_path": ["synonym_management", "apply_approved_enabled"],
         "agentic_section": _AGENTIC_SECTION_CORE,
     },
     {
-        "key": "synonym_management.promote_global_enabled",
+        "key": "synonym_management.auto_accept_suggestions_enabled",
         "type": "bool",
-        "default": True,
-        "label": "Synonym Promote-Global (Manual Capability Gate)",
-        "description": "Permission gate for promote-global capability. OFF blocks both manual and automatic promote actions. ON allows manual promote. Automatic promote still needs its own automation toggle.",
+        "default": False,
+        "label": "Auto-accept Synonym Suggestions",
+        "description": "Approve valid suggestions automatically through the same validation and activation transaction used by manual approval.",
         "group": "agentic",
-        "config_path": ["synonym_management", "promote_global_enabled"],
+        "config_path": ["synonym_management", "auto_accept_suggestions_enabled"],
         "agentic_section": _AGENTIC_SECTION_CORE,
     },
     {
@@ -232,26 +232,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Canonical synonym triage reuse gate; when unset, legacy synonym-management reuse key remains backward compatible.",
         "group": "agentic",
         "config_path": ["reuse", "synonym_triage", "enabled"],
-        "agentic_section": _AGENTIC_SECTION_CORE,
-    },
-    {
-        "key": "synonym_management.auto_apply_recommendation_enabled",
-        "type": "bool",
-        "default": False,
-        "label": "Auto Apply Recommendation (Automatic Execution)",
-        "description": "Automation policy toggle. When ON, system can auto-apply recommended actions after safety checks pass. Requires Synonym Apply-to-Run gate ON and never bypasses that gate.",
-        "group": "agentic",
-        "config_path": ["synonym_management", "auto_apply_recommendation_enabled"],
-        "agentic_section": _AGENTIC_SECTION_CORE,
-    },
-    {
-        "key": "synonym_management.auto_promote_global_enabled",
-        "type": "bool",
-        "default": False,
-        "label": "Auto Promote to Global (Automatic Execution)",
-        "description": "Automation policy toggle. When ON, system can auto-promote approved actions after validation and conflict checks pass. Requires Synonym Promote-Global gate ON and never bypasses that gate.",
-        "group": "agentic",
-        "config_path": ["synonym_management", "auto_promote_global_enabled"],
         "agentic_section": _AGENTIC_SECTION_CORE,
     },
     {
@@ -847,8 +827,7 @@ def _derive_agentic_settings_sections() -> dict[str, list[str]]:
         "agentic-enablement": _ordered_key_projection([
             "cv_analysis.semantic_alignment.enabled",
             "synonym_management.propose_enabled",
-            "synonym_management.apply_to_run_enabled",
-            "synonym_management.promote_global_enabled",
+            "synonym_management.apply_approved_enabled",
             "reuse.enrich.enabled",
             "reuse.ranking.enabled",
             "reuse.cv_analysis.enabled",
@@ -864,8 +843,7 @@ def _derive_agentic_settings_sections() -> dict[str, list[str]]:
         ]),
         "agentic-automation": _ordered_key_projection([
             "synonym_management.auto_triage_recommendation_enabled",
-            "synonym_management.auto_apply_recommendation_enabled",
-            "synonym_management.auto_promote_global_enabled",
+            "synonym_management.auto_accept_suggestions_enabled",
             "synonym_management.auto_accept_ai_action_enabled",
         ]),
         "agentic-advanced": _ordered_key_projection([
@@ -1259,8 +1237,7 @@ def _default_decision_area(entry: dict[str, Any]) -> str:
             return _DECISION_AREA_AUTOMATION
         if key in {
             "synonym_management.propose_enabled",
-            "synonym_management.apply_to_run_enabled",
-            "synonym_management.promote_global_enabled",
+            "synonym_management.apply_approved_enabled",
         }:
             return _DECISION_AREA_ENABLEMENT
     if key.startswith("cv_analysis.semantic_alignment."):
@@ -1945,16 +1922,6 @@ def merge_and_validate_settings(
     if not effective["cv_education_enabled"] and not effective["cv_experience_enabled"]:
         raise ValidationError("Select Education or Experience. Every CV must include at least one.")
 
-    if (
-        effective["synonym_management.auto_apply_recommendation_enabled"]
-        and not effective["synonym_management.apply_to_run_enabled"]
-    ):
-        raise ValidationError("Auto Apply Recommendation requires Synonym Apply-to-Run enabled.")
-    if (
-        effective["synonym_management.auto_promote_global_enabled"]
-        and not effective["synonym_management.promote_global_enabled"]
-    ):
-        raise ValidationError("Auto Promote to Global requires Synonym Promote-Global enabled.")
     return effective
 
 
@@ -2204,8 +2171,8 @@ def pipeline_settings_projection(
                     row("synonym_management.propose_enabled", label="Generate Synonym Proposals"),
                 ]},
                 {"title": "Approved Synonym Use", "rows": [
-                    row("synonym_management.apply_to_run_enabled", label="Apply Approved Synonyms"),
-                    row("synonym_management.promote_global_enabled", label="Promote Approved Synonyms"),
+                    row("synonym_management.apply_approved_enabled", label="Apply Approved Synonyms"),
+                    row("synonym_management.auto_accept_suggestions_enabled", label="Auto-accept Suggestions"),
                 ]},
             ],
         },

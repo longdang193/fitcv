@@ -66,6 +66,11 @@ from fitcv_cp.run_lifecycle import (
     run_display_status,
     run_stage_status_from_pipeline,
 )
+from fitcv_cp.synonym_policy_io import (
+    compile_global_synonym_map,
+    load_global_synonym_map,
+    repair_synonym_policy_mirrors,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +83,8 @@ _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
 _DEGRADATION_REASON_NONE = "none"
 _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
-CONTROL_PLANE_SCHEMA_VERSION = 2
+CONTROL_PLANE_SCHEMA_VERSION = 3
+_CANDIDATE_PROFILE_MAX_BYTES = 1024 * 1024
 
 class DatabaseSchemaIncompatibleError(RuntimeError):
     code = "database_schema_incompatible"
@@ -88,6 +94,12 @@ class DatabaseSchemaIncompatibleError(RuntimeError):
         super().__init__(
             f"Database schema is incompatible: found version {found_version}, expected {CONTROL_PLANE_SCHEMA_VERSION}."
         )
+
+class SynonymPolicyRevisionConflict(RuntimeError):
+    pass
+
+class CandidateProfileUnavailableError(RuntimeError):
+    pass
 
 
 def _is_transient_sqlite_open_error(exc: sqlite3.OperationalError) -> bool:
@@ -122,28 +134,48 @@ def _persist_initial_profile_state(
     startup_warning: dict[str, str] | None,
 ) -> None:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    conn.execute("DELETE FROM candidate_profile_revisions")
     conn.execute("DELETE FROM candidate_profiles")
     conn.execute("DELETE FROM startup_warnings WHERE code = 'candidate_profile_setup_required'")
     for row in candidate_profiles:
+        profile_json = str(row["profile_json"])
+        profile_revision_id = f"{row['candidate_profile_id']}:1"
         conn.execute(
             """
             INSERT INTO candidate_profiles (
-                candidate_profile_id, name, description, profile_json, revision, checksum,
-                is_active, is_default, sort_order, seed_manifest_revision, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                candidate_profile_id, profile_name, original_filename, media_type, byte_length,
+                input_checksum, creation_status, lifecycle, failure_code, failure_message,
+                is_default, sort_order, seed_manifest_revision, created_at, updated_at,
+                archived_at, revision
+            ) VALUES (?, ?, ?, ?, ?, ?, 'succeeded', 'active', NULL, NULL, ?, ?, ?, ?, ?, NULL, 1)
             """,
             (
                 row["candidate_profile_id"],
                 row["name"],
-                row["description"],
-                row["profile_json"],
-                row["revision"],
+                "candidate_profile.yaml",
+                "application/yaml",
+                len(profile_json.encode("utf-8")),
                 row["checksum"],
-                int(row["is_active"]),
                 int(row["is_default"]),
                 row["sort_order"],
                 row["seed_manifest_revision"],
                 now,
+                now,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO candidate_profile_revisions (
+                profile_revision_id, candidate_profile_id, revision, profile_json,
+                checksum, schema_revision, created_at
+            ) VALUES (?, ?, 1, ?, ?, ?, ?)
+            """,
+            (
+                profile_revision_id,
+                row["candidate_profile_id"],
+                profile_json,
+                row["checksum"],
+                row["seed_manifest_revision"],
                 now,
             ),
         )
@@ -172,20 +204,49 @@ def _ensure_control_plane_schema(
     schema = """
     CREATE TABLE IF NOT EXISTS candidate_profiles (
         candidate_profile_id TEXT PRIMARY KEY,
-        name TEXT NOT NULL COLLATE NOCASE UNIQUE,
-        description TEXT NOT NULL DEFAULT '',
-        profile_json TEXT NOT NULL CHECK (json_valid(profile_json)),
-        revision INTEGER NOT NULL CHECK (revision > 0),
-        checksum TEXT NOT NULL,
-        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+        profile_name TEXT COLLATE NOCASE CHECK (profile_name IS NULL OR (length(trim(profile_name)) BETWEEN 1 AND 120)),
+        original_filename TEXT NOT NULL CHECK (lower(substr(original_filename, -5)) = '.yaml'),
+        media_type TEXT NOT NULL,
+        byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
+        input_checksum TEXT NOT NULL,
+        creation_status TEXT NOT NULL CHECK (creation_status IN ('succeeded', 'failed')),
+        lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'archived')),
+        failure_code TEXT,
+        failure_message TEXT,
         is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
         sort_order INTEGER NOT NULL DEFAULT 0,
         seed_manifest_revision TEXT,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        archived_at TEXT,
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        CHECK (
+            (creation_status = 'succeeded' AND failure_code IS NULL AND failure_message IS NULL)
+            OR
+            (creation_status = 'failed' AND failure_code IS NOT NULL AND failure_message IS NOT NULL)
+        ),
+        CHECK (creation_status != 'failed' OR lifecycle = 'active'),
+        CHECK (
+            (lifecycle = 'active' AND archived_at IS NULL)
+            OR
+            (lifecycle = 'archived' AND archived_at IS NOT NULL)
+        ),
+        CHECK (is_default = 0 OR (creation_status = 'succeeded' AND lifecycle = 'active'))
     );
     CREATE UNIQUE INDEX IF NOT EXISTS ux_candidate_profiles_active_default
-        ON candidate_profiles(is_default) WHERE is_active = 1 AND is_default = 1;
+        ON candidate_profiles(is_default)
+        WHERE creation_status = 'succeeded' AND lifecycle = 'active' AND is_default = 1;
+
+    CREATE TABLE IF NOT EXISTS candidate_profile_revisions (
+        profile_revision_id TEXT PRIMARY KEY,
+        candidate_profile_id TEXT NOT NULL REFERENCES candidate_profiles(candidate_profile_id) ON DELETE RESTRICT,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        profile_json TEXT NOT NULL CHECK (json_valid(profile_json)),
+        checksum TEXT NOT NULL,
+        schema_revision TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE (candidate_profile_id, revision)
+    );
 
     CREATE TABLE IF NOT EXISTS startup_warnings (
         code TEXT PRIMARY KEY,
@@ -238,12 +299,18 @@ def _ensure_control_plane_schema(
         record_count INTEGER NOT NULL CHECK (record_count >= 0),
         jobs_snapshot_json TEXT NOT NULL CHECK (json_valid(jobs_snapshot_json)),
         jobs_manifest_json TEXT NOT NULL CHECK (json_valid(jobs_manifest_json)),
-        candidate_profile_id TEXT,
+        candidate_profile_id TEXT REFERENCES candidate_profiles(candidate_profile_id) ON DELETE RESTRICT,
+        candidate_profile_revision_id TEXT REFERENCES candidate_profile_revisions(profile_revision_id) ON DELETE RESTRICT,
         candidate_profile_revision INTEGER,
         candidate_profile_name TEXT NOT NULL,
         candidate_profile_json TEXT NOT NULL CHECK (json_valid(candidate_profile_json)),
         settings_revision TEXT NOT NULL,
         settings_snapshot_json TEXT NOT NULL CHECK (json_valid(settings_snapshot_json)),
+        synonym_policy_bundle_revision_id TEXT REFERENCES synonym_policy_bundle_revisions(bundle_revision_id) ON DELETE RESTRICT,
+        synonym_policy_bundle_checksum TEXT,
+        synonym_policy_bundle_snapshot_json TEXT CHECK (
+            synonym_policy_bundle_snapshot_json IS NULL OR json_valid(synonym_policy_bundle_snapshot_json)
+        ),
         created_at TEXT NOT NULL
     );
 
@@ -390,15 +457,14 @@ def _ensure_control_plane_schema(
 
     CREATE TABLE IF NOT EXISTS bookmarks (
         bookmark_id TEXT PRIMARY KEY,
-        run_id TEXT REFERENCES pipeline_runs(run_id) ON DELETE SET NULL,
-        run_job_id TEXT REFERENCES run_jobs(run_job_id) ON DELETE SET NULL,
-        source_fingerprint TEXT NOT NULL,
-        display_snapshot_json TEXT NOT NULL CHECK (json_valid(display_snapshot_json)),
+        run_id TEXT NOT NULL REFERENCES pipeline_runs(run_id) ON DELETE CASCADE,
+        run_job_id TEXT NOT NULL REFERENCES run_jobs(run_job_id) ON DELETE CASCADE,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        UNIQUE (run_job_id)
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS ux_bookmarks_run_job
-        ON bookmarks(run_job_id) WHERE run_job_id IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS ix_bookmarks_run_created
+        ON bookmarks(run_id, created_at DESC, bookmark_id);
 
     CREATE TABLE IF NOT EXISTS run_job_interest (
         run_job_id TEXT PRIMARY KEY REFERENCES run_jobs(run_job_id) ON DELETE CASCADE,
@@ -409,6 +475,111 @@ def _ensure_control_plane_schema(
         row_revision INTEGER NOT NULL DEFAULT 1 CHECK (row_revision > 0)
     );
 
+    CREATE TABLE IF NOT EXISTS synonym_policy_type_revisions (
+        type_revision_id TEXT PRIMARY KEY,
+        synonym_type TEXT NOT NULL CHECK (synonym_type IN ('skills', 'domain', 'role_family')),
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        editor_text TEXT NOT NULL,
+        normalized_policy_json TEXT NOT NULL CHECK (json_valid(normalized_policy_json)),
+        checksum TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE (synonym_type, revision),
+        UNIQUE (synonym_type, checksum)
+    );
+
+    CREATE TABLE IF NOT EXISTS synonym_policy_drafts (
+        synonym_type TEXT PRIMARY KEY CHECK (synonym_type IN ('skills', 'domain', 'role_family')),
+        editor_text TEXT NOT NULL,
+        normalized_policy_json TEXT CHECK (normalized_policy_json IS NULL OR json_valid(normalized_policy_json)),
+        issues_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(issues_json)),
+        validation_status TEXT NOT NULL CHECK (validation_status IN ('valid', 'invalid')),
+        base_type_revision_id TEXT REFERENCES synonym_policy_type_revisions(type_revision_id) ON DELETE RESTRICT,
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        updated_at TEXT NOT NULL,
+        CHECK (
+            (validation_status = 'valid' AND normalized_policy_json IS NOT NULL)
+            OR validation_status = 'invalid'
+        )
+    );
+
+    CREATE TABLE IF NOT EXISTS synonym_policy_bundle_revisions (
+        bundle_revision_id TEXT PRIMARY KEY,
+        revision INTEGER NOT NULL UNIQUE CHECK (revision > 0),
+        skills_type_revision_id TEXT NOT NULL REFERENCES synonym_policy_type_revisions(type_revision_id) ON DELETE RESTRICT,
+        domain_type_revision_id TEXT NOT NULL REFERENCES synonym_policy_type_revisions(type_revision_id) ON DELETE RESTRICT,
+        role_family_type_revision_id TEXT NOT NULL REFERENCES synonym_policy_type_revisions(type_revision_id) ON DELETE RESTRICT,
+        bundle_checksum TEXT NOT NULL UNIQUE,
+        normalized_bundle_json TEXT NOT NULL CHECK (json_valid(normalized_bundle_json)),
+        created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS synonym_policy_state (
+        state_id INTEGER PRIMARY KEY CHECK (state_id = 1),
+        active_bundle_revision_id TEXT REFERENCES synonym_policy_bundle_revisions(bundle_revision_id) ON DELETE RESTRICT,
+        mirror_status TEXT NOT NULL DEFAULT 'in_sync' CHECK (mirror_status IN ('in_sync', 'repair_required', 'repair_failed')),
+        mirror_error_code TEXT,
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        updated_at TEXT NOT NULL,
+        CHECK (mirror_status = 'repair_failed' OR mirror_error_code IS NULL)
+    );
+
+    CREATE TABLE IF NOT EXISTS synonym_suggestions (
+        suggestion_id TEXT PRIMARY KEY,
+        synonym_type TEXT NOT NULL CHECK (synonym_type IN ('skills', 'domain', 'role_family')),
+        alias TEXT NOT NULL,
+        canonical TEXT NOT NULL,
+        normalized_alias TEXT NOT NULL,
+        normalized_canonical TEXT NOT NULL,
+        concept_key TEXT NOT NULL UNIQUE,
+        review_status TEXT NOT NULL CHECK (review_status IN ('pending', 'approved', 'declined')),
+        policy_effect TEXT NOT NULL DEFAULT 'absent' CHECK (policy_effect IN ('absent', 'active', 'blocked')),
+        decided_at TEXT,
+        decided_by TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        UNIQUE (synonym_type, normalized_alias, normalized_canonical),
+        CHECK (
+            (review_status = 'approved' AND policy_effect IN ('active', 'blocked'))
+            OR
+            (review_status IN ('pending', 'declined') AND policy_effect = 'absent')
+        )
+    );
+    CREATE INDEX IF NOT EXISTS ix_synonym_suggestions_queue
+        ON synonym_suggestions(synonym_type, review_status, updated_at DESC, suggestion_id);
+
+    CREATE TABLE IF NOT EXISTS synonym_suggestion_sources (
+        suggestion_id TEXT NOT NULL REFERENCES synonym_suggestions(suggestion_id) ON DELETE CASCADE,
+        run_id TEXT NOT NULL REFERENCES pipeline_runs(run_id) ON DELETE CASCADE,
+        evidence_json TEXT NOT NULL CHECK (json_valid(evidence_json)),
+        occurrence_count INTEGER NOT NULL DEFAULT 1 CHECK (occurrence_count > 0),
+        first_seen_at TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL,
+        PRIMARY KEY (suggestion_id, run_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS synonym_processing_runs (
+        processing_run_id TEXT PRIMARY KEY,
+        processed_at TEXT NOT NULL,
+        total_processed INTEGER NOT NULL CHECK (total_processed >= 0),
+        approved_count INTEGER NOT NULL CHECK (approved_count >= 0),
+        declined_count INTEGER NOT NULL CHECK (declined_count >= 0),
+        pending_count INTEGER NOT NULL CHECK (pending_count >= 0),
+        successfully_added_count INTEGER NOT NULL CHECK (successfully_added_count >= 0),
+        source_operation TEXT NOT NULL,
+        issue_count INTEGER NOT NULL DEFAULT 0 CHECK (issue_count >= 0),
+        summary_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(summary_json))
+    );
+    CREATE INDEX IF NOT EXISTS ix_synonym_processing_runs_processed
+        ON synonym_processing_runs(processed_at DESC, processing_run_id);
+
+    CREATE TABLE IF NOT EXISTS pipeline_settings (
+        setting_key TEXT NOT NULL,
+        setting_value_json TEXT NOT NULL,
+        updated_by TEXT,
+        updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS idempotent_actions (
         action_id TEXT PRIMARY KEY,
         action_scope TEXT NOT NULL,
@@ -416,10 +587,33 @@ def _ensure_control_plane_schema(
         request_fingerprint TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'succeeded', 'failed')),
         response_json TEXT CHECK (response_json IS NULL OR json_valid(response_json)),
+        response_blob BLOB,
+        response_media_type TEXT,
+        response_filename TEXT,
+        response_checksum TEXT,
         error_json TEXT CHECK (error_json IS NULL OR json_valid(error_json)),
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        UNIQUE (action_scope, idempotency_key)
+        UNIQUE (action_scope, idempotency_key),
+        CHECK (
+            status != 'succeeded'
+            OR
+            (
+                response_json IS NOT NULL
+                AND response_blob IS NULL
+                AND response_media_type IS NULL
+                AND response_filename IS NULL
+                AND response_checksum IS NULL
+            )
+            OR
+            (
+                response_json IS NULL
+                AND response_blob IS NOT NULL
+                AND response_media_type IS NOT NULL
+                AND response_filename IS NOT NULL
+                AND response_checksum IS NOT NULL
+            )
+        )
     );
     """
     try:
@@ -429,6 +623,19 @@ def _ensure_control_plane_schema(
                 conn.execute(statement)
         if candidate_profiles is not None:
             _persist_initial_profile_state(conn, candidate_profiles, startup_warning)
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        for key, value in (
+            ("synonym_management.apply_approved_enabled", True),
+            ("synonym_management.auto_accept_suggestions_enabled", False),
+        ):
+            if conn.execute(
+                "SELECT 1 FROM pipeline_settings WHERE setting_key = ? LIMIT 1",
+                (key,),
+            ).fetchone() is None:
+                conn.execute(
+                    "INSERT INTO pipeline_settings VALUES (?, ?, ?, ?)",
+                    (key, json.dumps(value), "system", now),
+                )
         conn.execute(f"PRAGMA user_version = {CONTROL_PLANE_SCHEMA_VERSION}")
         conn.commit()
     except Exception:
@@ -437,7 +644,58 @@ def _ensure_control_plane_schema(
         raise
 
 
-def initialize_control_plane_database(database_path: Path, candidate_profile_path: Path) -> None:
+def _policy_checksum(value: Any) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+def _policy_editor_text(mappings: dict[str, str]) -> str:
+    return "".join(f"{alias}: {canonical}\n" for alias, canonical in sorted(mappings.items()))
+
+def _seed_synonym_policy_bundle(conn: sqlite3.Connection, policies: dict[str, dict[str, str]]) -> None:
+    if conn.execute("SELECT active_bundle_revision_id FROM synonym_policy_state WHERE state_id = 1").fetchone():
+        return
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    type_ids: dict[str, str] = {}
+    for synonym_type in ("skills", "domain", "role_family"):
+        normalized = dict(sorted((policies.get(synonym_type) or {}).items()))
+        checksum = _policy_checksum(normalized)
+        type_revision_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"synonym-policy:{synonym_type}:1:{checksum}"))
+        type_ids[synonym_type] = type_revision_id
+        editor_text = _policy_editor_text(normalized)
+        conn.execute(
+            "INSERT INTO synonym_policy_type_revisions VALUES (?, ?, 1, ?, ?, ?, ?)",
+            (type_revision_id, synonym_type, editor_text, json.dumps(normalized), checksum, now),
+        )
+        conn.execute(
+            "INSERT INTO synonym_policy_drafts VALUES (?, ?, ?, '[]', 'valid', ?, 1, ?)",
+            (synonym_type, editor_text, json.dumps(normalized), type_revision_id, now),
+        )
+    bundle = {synonym_type: dict(sorted((policies.get(synonym_type) or {}).items())) for synonym_type in type_ids}
+    bundle_checksum = _policy_checksum(bundle)
+    bundle_revision_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"synonym-bundle:1:{bundle_checksum}"))
+    conn.execute(
+        "INSERT INTO synonym_policy_bundle_revisions VALUES (?, 1, ?, ?, ?, ?, ?, ?)",
+        (
+            bundle_revision_id,
+            type_ids["skills"],
+            type_ids["domain"],
+            type_ids["role_family"],
+            bundle_checksum,
+            json.dumps(bundle),
+            now,
+        ),
+    )
+    conn.execute(
+        "INSERT INTO synonym_policy_state VALUES (1, ?, 'in_sync', NULL, 1, ?)",
+        (bundle_revision_id, now),
+    )
+
+def initialize_control_plane_database(
+    database_path: Path,
+    candidate_profile_path: Path,
+    *,
+    synonym_paths: dict[str, Path] | None = None,
+) -> None:
     warning: dict[str, str] | None = None
     try:
         from fitcv.candidate import load_profile_text
@@ -451,35 +709,903 @@ def initialize_control_plane_database(database_path: Path, candidate_profile_pat
             "message": f"Candidate profile could not be loaded: {exc}",
             "action": "Update candidate_profile.yaml, then reset the database.",
         }
+    paths = synonym_paths or {}
+    policies = {
+        synonym_type: load_global_synonym_map(
+            synonym_type,
+            path=paths.get(synonym_type),
+        )
+        for synonym_type in ("skills", "domain", "role_family")
+    }
     with _sqlite_connection(database_path) as conn:
         _ensure_control_plane_schema(
             conn,
             candidate_profiles=candidate_profiles,
             startup_warning=warning,
         )
+        conn.execute("BEGIN IMMEDIATE")
+        _seed_synonym_policy_bundle(conn, policies)
+        conn.commit()
 
 
-def ensure_control_plane_database(database_path: Path, candidate_profile_path: Path) -> None:
+def ensure_control_plane_database(
+    database_path: Path,
+    candidate_profile_path: Path,
+    *,
+    synonym_paths: dict[str, Path] | None = None,
+) -> None:
     if not database_path.exists():
-        initialize_control_plane_database(database_path, candidate_profile_path)
+        initialize_control_plane_database(
+            database_path,
+            candidate_profile_path,
+            synonym_paths=synonym_paths,
+        )
         return
     with _sqlite_connection(database_path) as conn:
         _ensure_control_plane_schema(conn)
+    repair_active_synonym_policy_mirrors(
+        database_path=database_path,
+        synonym_paths=synonym_paths,
+    )
+
+def _synonym_policy_resource(conn: sqlite3.Connection, synonym_type: str) -> dict[str, Any]:
+    conn.row_factory = sqlite3.Row
+    draft = conn.execute(
+        "SELECT * FROM synonym_policy_drafts WHERE synonym_type = ?",
+        (synonym_type,),
+    ).fetchone()
+    state = conn.execute(
+        "SELECT active_bundle_revision_id, revision, mirror_status, mirror_error_code FROM synonym_policy_state WHERE state_id = 1"
+    ).fetchone()
+    active_type = None
+    if state and state["active_bundle_revision_id"]:
+        column = {
+            "skills": "skills_type_revision_id",
+            "domain": "domain_type_revision_id",
+            "role_family": "role_family_type_revision_id",
+        }[synonym_type]
+        active_type = conn.execute(
+            f"""SELECT tr.* FROM synonym_policy_bundle_revisions br
+                JOIN synonym_policy_type_revisions tr ON tr.type_revision_id = br.{column}
+                WHERE br.bundle_revision_id = ?""",
+            (state["active_bundle_revision_id"],),
+        ).fetchone()
+    return {
+        "synonym_type": synonym_type,
+        "editor_text": str(draft["editor_text"]) if draft else (_policy_editor_text(json.loads(active_type["normalized_policy_json"])) if active_type else ""),
+        "normalized_policy": json.loads(draft["normalized_policy_json"]) if draft and draft["normalized_policy_json"] else None,
+        "issues": json.loads(draft["issues_json"]) if draft else [],
+        "validation_status": str(draft["validation_status"]) if draft else "valid",
+        "draft_revision": int(draft["revision"]) if draft else 0,
+        "active_type_revision_id": str(active_type["type_revision_id"]) if active_type else None,
+        "active_type_revision": int(active_type["revision"]) if active_type else 0,
+        "active_bundle_revision_id": str(state["active_bundle_revision_id"]) if state and state["active_bundle_revision_id"] else None,
+        "active_bundle_revision": int(state["revision"]) if state else 0,
+        "mirror_status": str(state["mirror_status"]) if state else "in_sync",
+        "mirror_error_code": state["mirror_error_code"] if state else None,
+    }
+
+def get_synonym_policy(
+    synonym_type: str,
+    *,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if synonym_type not in {"skills", "domain", "role_family"}:
+        raise ValueError(f"unsupported synonym type: {synonym_type}")
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        return _synonym_policy_resource(conn, synonym_type)
+
+def save_synonym_policy_draft(
+    synonym_type: str,
+    *,
+    editor_text: str,
+    normalized_policy: dict[str, str] | None,
+    issues: list[dict[str, Any]],
+    expected_draft_revision: int,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        current = conn.execute(
+            "SELECT revision FROM synonym_policy_drafts WHERE synonym_type = ?",
+            (synonym_type,),
+        ).fetchone()
+        current_revision = int(current[0]) if current else 0
+        if current_revision != int(expected_draft_revision):
+            conn.rollback()
+            raise SynonymPolicyRevisionConflict("Synonym policy draft changed since last read")
+        active = _synonym_policy_resource(conn, synonym_type)
+        revision = current_revision + 1
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        conn.execute(
+            """INSERT INTO synonym_policy_drafts (
+                    synonym_type, editor_text, normalized_policy_json, issues_json,
+                    validation_status, base_type_revision_id, revision, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(synonym_type) DO UPDATE SET
+                    editor_text=excluded.editor_text,
+                    normalized_policy_json=excluded.normalized_policy_json,
+                    issues_json=excluded.issues_json,
+                    validation_status=excluded.validation_status,
+                    base_type_revision_id=excluded.base_type_revision_id,
+                    revision=excluded.revision,
+                    updated_at=excluded.updated_at""",
+            (
+                synonym_type,
+                editor_text,
+                json.dumps(normalized_policy) if normalized_policy is not None else None,
+                json.dumps(issues),
+                "valid" if not issues else "invalid",
+                active["active_type_revision_id"],
+                revision,
+                now,
+            ),
+        )
+        conn.commit()
+        return _synonym_policy_resource(conn, synonym_type)
+
+def resolve_active_synonym_bundle(*, database_path: Path | None = None) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """SELECT br.*, ps.mirror_status, ps.mirror_error_code,
+                      skills.revision AS skills_type_revision,
+                      domain.revision AS domain_type_revision,
+                      role_family.revision AS role_family_type_revision
+               FROM synonym_policy_state ps
+               JOIN synonym_policy_bundle_revisions br
+                 ON br.bundle_revision_id = ps.active_bundle_revision_id
+               JOIN synonym_policy_type_revisions skills
+                 ON skills.type_revision_id = br.skills_type_revision_id
+               JOIN synonym_policy_type_revisions domain
+                 ON domain.type_revision_id = br.domain_type_revision_id
+               JOIN synonym_policy_type_revisions role_family
+                 ON role_family.type_revision_id = br.role_family_type_revision_id
+               WHERE ps.state_id = 1"""
+        ).fetchone()
+    if row is None:
+        return {
+            "bundle_revision_id": None,
+            "revision": 0,
+            "bundle_checksum": None,
+            "normalized_bundle": {"skills": {}, "domain": {}, "role_family": {}},
+            "type_revisions": {},
+            "mirror_status": "in_sync",
+            "mirror_error_code": None,
+        }
+    return {
+        "bundle_revision_id": str(row["bundle_revision_id"]),
+        "revision": int(row["revision"]),
+        "bundle_checksum": str(row["bundle_checksum"]),
+        "normalized_bundle": json.loads(row["normalized_bundle_json"]),
+        "type_revisions": {
+            "skills": {
+                "type_revision_id": str(row["skills_type_revision_id"]),
+                "revision": int(row["skills_type_revision"]),
+            },
+            "domain": {
+                "type_revision_id": str(row["domain_type_revision_id"]),
+                "revision": int(row["domain_type_revision"]),
+            },
+            "role_family": {
+                "type_revision_id": str(row["role_family_type_revision_id"]),
+                "revision": int(row["role_family_type_revision"]),
+            },
+        },
+        "mirror_status": str(row["mirror_status"]),
+        "mirror_error_code": row["mirror_error_code"],
+    }
+
+def repair_active_synonym_policy_mirrors(
+    *,
+    database_path: Path | None = None,
+    synonym_paths: dict[str, Path] | None = None,
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    active = resolve_active_synonym_bundle(database_path=path)
+    try:
+        repair_synonym_policy_mirrors(active["normalized_bundle"], paths=synonym_paths)
+    except (OSError, UnicodeError, ValueError):
+        with _sqlite_connection(path) as conn:
+            _ensure_control_plane_schema(conn)
+            conn.execute(
+                """UPDATE synonym_policy_state
+                   SET mirror_status='repair_failed', mirror_error_code=?, updated_at=?
+                   WHERE state_id=1""",
+                (
+                    "synonym_mirror_repair_failed",
+                    datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                ),
+            )
+            conn.commit()
+        raise
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.execute(
+            """UPDATE synonym_policy_state
+               SET mirror_status='in_sync', mirror_error_code=NULL, updated_at=?
+               WHERE state_id=1""",
+            (datetime.datetime.now(datetime.timezone.utc).isoformat(),),
+        )
+        conn.commit()
+    return resolve_active_synonym_bundle(database_path=path)
+
+def _activate_synonym_policy_bundle_in_transaction(
+    conn: sqlite3.Connection,
+    synonym_type: str,
+    *,
+    editor_text: str,
+    normalized_policy: dict[str, str],
+    expected_draft_revision: int,
+    expected_active_bundle_revision_id: str | None,
+) -> dict[str, Any]:
+    draft = conn.execute(
+        "SELECT revision FROM synonym_policy_drafts WHERE synonym_type = ?",
+        (synonym_type,),
+    ).fetchone()
+    draft_revision = int(draft["revision"]) if draft else 0
+    state = conn.execute("SELECT * FROM synonym_policy_state WHERE state_id = 1").fetchone()
+    active_bundle_id = str(state["active_bundle_revision_id"]) if state and state["active_bundle_revision_id"] else None
+    if draft_revision != int(expected_draft_revision) or active_bundle_id != expected_active_bundle_revision_id:
+        raise SynonymPolicyRevisionConflict("Synonym policy changed since last read")
+    active_bundle = conn.execute(
+        "SELECT * FROM synonym_policy_bundle_revisions WHERE bundle_revision_id = ?",
+        (active_bundle_id,),
+    ).fetchone() if active_bundle_id else None
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    type_ids: dict[str, str] = {}
+    bundle_maps = {"skills": {}, "domain": {}, "role_family": {}}
+    if active_bundle:
+        bundle_maps = json.loads(active_bundle["normalized_bundle_json"])
+        type_ids = {
+            "skills": str(active_bundle["skills_type_revision_id"]),
+            "domain": str(active_bundle["domain_type_revision_id"]),
+            "role_family": str(active_bundle["role_family_type_revision_id"]),
+        }
+    for current_type in ("skills", "domain", "role_family"):
+        if current_type in type_ids:
+            continue
+        empty_checksum = _policy_checksum({})
+        empty_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"synonym-policy:{current_type}:1:{empty_checksum}"))
+        conn.execute(
+            "INSERT OR IGNORE INTO synonym_policy_type_revisions VALUES (?, ?, 1, '', '{}', ?, ?)",
+            (empty_id, current_type, empty_checksum, now),
+        )
+        type_ids[current_type] = empty_id
+    normalized = dict(sorted(normalized_policy.items()))
+    checksum = _policy_checksum(normalized)
+    existing_type = conn.execute(
+        "SELECT type_revision_id, revision FROM synonym_policy_type_revisions WHERE synonym_type = ? AND checksum = ?",
+        (synonym_type, checksum),
+    ).fetchone()
+    if existing_type:
+        type_revision_id = str(existing_type["type_revision_id"])
+    else:
+        next_type_revision = int(conn.execute(
+            "SELECT COALESCE(MAX(revision), 0) + 1 FROM synonym_policy_type_revisions WHERE synonym_type = ?",
+            (synonym_type,),
+        ).fetchone()[0])
+        type_revision_id = str(uuid.uuid4())
+        conn.execute(
+            "INSERT INTO synonym_policy_type_revisions VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (type_revision_id, synonym_type, next_type_revision, editor_text, json.dumps(normalized), checksum, now),
+        )
+    type_ids[synonym_type] = type_revision_id
+    bundle_maps[synonym_type] = normalized
+    bundle_checksum = _policy_checksum(bundle_maps)
+    existing_bundle = conn.execute(
+        "SELECT bundle_revision_id, revision FROM synonym_policy_bundle_revisions WHERE bundle_checksum = ?",
+        (bundle_checksum,),
+    ).fetchone()
+    if existing_bundle:
+        bundle_revision_id = str(existing_bundle["bundle_revision_id"])
+        bundle_revision = int(existing_bundle["revision"])
+    else:
+        bundle_revision = int(conn.execute(
+            "SELECT COALESCE(MAX(revision), 0) + 1 FROM synonym_policy_bundle_revisions"
+        ).fetchone()[0])
+        bundle_revision_id = str(uuid.uuid4())
+        conn.execute(
+            "INSERT INTO synonym_policy_bundle_revisions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                bundle_revision_id,
+                bundle_revision,
+                type_ids["skills"],
+                type_ids["domain"],
+                type_ids["role_family"],
+                bundle_checksum,
+                json.dumps(bundle_maps),
+                now,
+            ),
+        )
+    conn.execute(
+        """INSERT INTO synonym_policy_drafts VALUES (?, ?, ?, '[]', 'valid', ?, ?, ?)
+           ON CONFLICT(synonym_type) DO UPDATE SET
+             editor_text=excluded.editor_text,
+             normalized_policy_json=excluded.normalized_policy_json,
+             issues_json='[]', validation_status='valid',
+             base_type_revision_id=excluded.base_type_revision_id,
+             revision=excluded.revision, updated_at=excluded.updated_at""",
+        (synonym_type, editor_text, json.dumps(normalized), type_revision_id, draft_revision + 1, now),
+    )
+    state_revision = int(state["revision"]) + 1 if state else 1
+    conn.execute(
+        """INSERT INTO synonym_policy_state VALUES (1, ?, 'repair_required', NULL, ?, ?)
+           ON CONFLICT(state_id) DO UPDATE SET
+             active_bundle_revision_id=excluded.active_bundle_revision_id,
+             mirror_status='repair_required', mirror_error_code=NULL,
+             revision=excluded.revision, updated_at=excluded.updated_at""",
+        (bundle_revision_id, state_revision, now),
+    )
+    for alias, canonical in normalized.items():
+        conn.execute(
+            """UPDATE synonym_suggestions
+               SET policy_effect='active', updated_at=?, revision=revision + 1
+               WHERE synonym_type=? AND normalized_alias=? AND normalized_canonical=?
+                 AND review_status='approved' AND policy_effect='blocked'""",
+            (now, synonym_type, alias, canonical),
+        )
+    return {
+        "active_bundle_revision_id": bundle_revision_id,
+        "active_bundle_revision": bundle_revision,
+        "bundle_checksum": bundle_checksum,
+        "normalized_bundle": bundle_maps,
+    }
+
+def activate_synonym_policy_bundle(
+    synonym_type: str,
+    *,
+    editor_text: str,
+    normalized_policy: dict[str, str],
+    expected_draft_revision: int,
+    expected_active_bundle_revision_id: str | None,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if synonym_type not in {"skills", "domain", "role_family"}:
+        raise ValueError(f"unsupported synonym type: {synonym_type}")
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            result = _activate_synonym_policy_bundle_in_transaction(
+                conn,
+                synonym_type,
+                editor_text=editor_text,
+                normalized_policy=normalized_policy,
+                expected_draft_revision=expected_draft_revision,
+                expected_active_bundle_revision_id=expected_active_bundle_revision_id,
+            )
+        except Exception:
+            conn.rollback()
+            raise
+        conn.commit()
+    result["policy"] = get_synonym_policy(synonym_type, database_path=path)
+    return result
+
+def activate_synonym_policy_bundle_set(
+    policies: dict[str, dict[str, str]],
+    *,
+    expected_active_bundle_revision_id: str | None,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    normalized = {
+        synonym_type: compile_global_synonym_map(synonym_type, policies.get(synonym_type) or {})
+        for synonym_type in ("skills", "domain", "role_family")
+    }
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        state = conn.execute("SELECT * FROM synonym_policy_state WHERE state_id = 1").fetchone()
+        active_id = str(state["active_bundle_revision_id"]) if state and state["active_bundle_revision_id"] else None
+        if active_id != expected_active_bundle_revision_id:
+            conn.rollback()
+            raise SynonymPolicyRevisionConflict("Synonym policy changed since backup was inspected")
+        type_ids: dict[str, str] = {}
+        for synonym_type, mapping in normalized.items():
+            checksum = _policy_checksum(mapping)
+            existing = conn.execute(
+                "SELECT type_revision_id FROM synonym_policy_type_revisions WHERE synonym_type = ? AND checksum = ?",
+                (synonym_type, checksum),
+            ).fetchone()
+            if existing:
+                type_revision_id = str(existing[0])
+            else:
+                revision = int(conn.execute(
+                    "SELECT COALESCE(MAX(revision), 0) + 1 FROM synonym_policy_type_revisions WHERE synonym_type = ?",
+                    (synonym_type,),
+                ).fetchone()[0])
+                type_revision_id = str(uuid.uuid4())
+                conn.execute(
+                    "INSERT INTO synonym_policy_type_revisions VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (type_revision_id, synonym_type, revision, _policy_editor_text(mapping), json.dumps(mapping), checksum, now),
+                )
+            type_ids[synonym_type] = type_revision_id
+            draft = conn.execute(
+                "SELECT revision FROM synonym_policy_drafts WHERE synonym_type = ?",
+                (synonym_type,),
+            ).fetchone()
+            next_draft_revision = int(draft[0]) + 1 if draft else 1
+            conn.execute(
+                """INSERT INTO synonym_policy_drafts VALUES (?, ?, ?, '[]', 'valid', ?, ?, ?)
+                   ON CONFLICT(synonym_type) DO UPDATE SET
+                     editor_text=excluded.editor_text,
+                     normalized_policy_json=excluded.normalized_policy_json,
+                     issues_json='[]', validation_status='valid',
+                     base_type_revision_id=excluded.base_type_revision_id,
+                     revision=excluded.revision, updated_at=excluded.updated_at""",
+                (synonym_type, _policy_editor_text(mapping), json.dumps(mapping), type_revision_id, next_draft_revision, now),
+            )
+        bundle_checksum = _policy_checksum(normalized)
+        existing_bundle = conn.execute(
+            "SELECT bundle_revision_id, revision FROM synonym_policy_bundle_revisions WHERE bundle_checksum = ?",
+            (bundle_checksum,),
+        ).fetchone()
+        if existing_bundle:
+            bundle_revision_id, bundle_revision = str(existing_bundle[0]), int(existing_bundle[1])
+        else:
+            bundle_revision = int(conn.execute(
+                "SELECT COALESCE(MAX(revision), 0) + 1 FROM synonym_policy_bundle_revisions"
+            ).fetchone()[0])
+            bundle_revision_id = str(uuid.uuid4())
+            conn.execute(
+                "INSERT INTO synonym_policy_bundle_revisions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (bundle_revision_id, bundle_revision, type_ids["skills"], type_ids["domain"], type_ids["role_family"], bundle_checksum, json.dumps(normalized), now),
+            )
+        state_revision = int(state["revision"]) + 1 if state else 1
+        conn.execute(
+            """INSERT INTO synonym_policy_state VALUES (1, ?, 'repair_required', NULL, ?, ?)
+               ON CONFLICT(state_id) DO UPDATE SET
+                 active_bundle_revision_id=excluded.active_bundle_revision_id,
+                 mirror_status='repair_required', mirror_error_code=NULL,
+                 revision=excluded.revision, updated_at=excluded.updated_at""",
+            (bundle_revision_id, state_revision, now),
+        )
+        conn.commit()
+    return resolve_active_synonym_bundle(database_path=path)
+
+def _normalized_synonym_pair(synonym_type: str, alias: str, canonical: str) -> tuple[str, str]:
+    compiled = compile_global_synonym_map(synonym_type, {alias: canonical})
+    return next(iter(compiled.items()), ("", ""))
+
+def ingest_synonym_suggestions(
+    suggestions: list[dict[str, Any]],
+    *,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    active = resolve_active_synonym_bundle(database_path=path)["normalized_bundle"]
+    created_count = 0
+    source_count = 0
+    suppressed_count = 0
+    suggestion_ids: list[str] = []
+    actionable_suggestion_ids: list[str] = []
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        for item in suggestions:
+            synonym_type = str(item.get("synonym_type") or "").strip()
+            if synonym_type not in {"skills", "domain", "role_family"}:
+                raise ValueError("unsupported_synonym_type")
+            alias = str(item.get("alias") or "").strip()
+            canonical = str(item.get("canonical") or "").strip()
+            normalized_alias, normalized_canonical = _normalized_synonym_pair(
+                synonym_type, alias, canonical
+            )
+            if not normalized_alias or not normalized_canonical:
+                raise ValueError("invalid_synonym_suggestion")
+            if (active.get(synonym_type) or {}).get(normalized_alias) == normalized_canonical:
+                suppressed_count += 1
+                continue
+            concept_key = _policy_checksum(
+                [synonym_type, normalized_alias, normalized_canonical]
+            )
+            existing = conn.execute(
+                "SELECT suggestion_id, review_status FROM synonym_suggestions WHERE concept_key = ?",
+                (concept_key,),
+            ).fetchone()
+            if existing:
+                suggestion_id = str(existing[0])
+                review_status = str(existing[1])
+                conn.execute(
+                    "UPDATE synonym_suggestions SET updated_at = ?, revision = revision + 1 WHERE suggestion_id = ?",
+                    (now, suggestion_id),
+                )
+            else:
+                suggestion_id = str(uuid.uuid4())
+                review_status = "pending"
+                conn.execute(
+                    """INSERT INTO synonym_suggestions (
+                        suggestion_id, synonym_type, alias, canonical, normalized_alias,
+                        normalized_canonical, concept_key, review_status, policy_effect,
+                        decided_at, decided_by, created_at, updated_at, revision
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'absent', NULL, NULL, ?, ?, 1)""",
+                    (
+                        suggestion_id, synonym_type, alias, canonical, normalized_alias,
+                        normalized_canonical, concept_key, now, now,
+                    ),
+                )
+                created_count += 1
+            suggestion_ids.append(suggestion_id)
+            if review_status in {"pending", "declined"}:
+                actionable_suggestion_ids.append(suggestion_id)
+            run_id = str(item.get("run_id") or "").strip()
+            if run_id:
+                evidence_json = json.dumps(item.get("evidence") or {}, ensure_ascii=False)
+                conn.execute(
+                    """INSERT INTO synonym_suggestion_sources (
+                        suggestion_id, run_id, evidence_json, occurrence_count, first_seen_at, last_seen_at
+                    ) VALUES (?, ?, ?, 1, ?, ?)
+                    ON CONFLICT(suggestion_id, run_id) DO UPDATE SET
+                        evidence_json=excluded.evidence_json,
+                        occurrence_count=synonym_suggestion_sources.occurrence_count + 1,
+                        last_seen_at=excluded.last_seen_at""",
+                    (suggestion_id, run_id, evidence_json, now, now),
+                )
+                source_count += 1
+        conn.commit()
+    return {
+        "created_count": created_count,
+        "source_count": source_count,
+        "suppressed_count": suppressed_count,
+        "suggestion_ids": list(dict.fromkeys(suggestion_ids)),
+        "actionable_suggestion_ids": list(dict.fromkeys(actionable_suggestion_ids)),
+    }
+
+def query_synonym_suggestions(
+    *,
+    synonym_type: str | None = None,
+    review_status: str | None = None,
+    search: str = "",
+    page: int = 1,
+    page_size: int = 20,
+    sort: str = "updated_desc",
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if page_size not in {10, 20, 50}:
+        raise ValueError("page_size must be 10, 20, or 50")
+    if sort != "updated_desc":
+        raise ValueError("synonym_sort_invalid")
+    clauses: list[str] = []
+    params: list[Any] = []
+    if synonym_type:
+        clauses.append("s.synonym_type = ?")
+        params.append(synonym_type)
+    if review_status:
+        clauses.append("s.review_status = ?")
+        params.append("pending" if review_status == "deferred" else review_status)
+    if search.strip():
+        clauses.append("(s.alias LIKE ? COLLATE NOCASE OR s.canonical LIKE ? COLLATE NOCASE)")
+        params.extend([f"%{search.strip()}%", f"%{search.strip()}%"])
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        total = int(conn.execute(
+            f"SELECT COUNT(*) FROM synonym_suggestions s {where}", params
+        ).fetchone()[0])
+        rows = conn.execute(
+            f"""SELECT s.*, COUNT(src.run_id) AS source_count
+                FROM synonym_suggestions s
+                LEFT JOIN synonym_suggestion_sources src ON src.suggestion_id = s.suggestion_id
+                {where}
+                GROUP BY s.suggestion_id
+                ORDER BY s.updated_at DESC, s.suggestion_id
+                LIMIT ? OFFSET ?""",
+            (*params, page_size, (max(1, page) - 1) * page_size),
+        ).fetchall()
+    return {"items": [dict(row) for row in rows], "total": total, "page": max(1, page), "page_size": page_size}
+
+def get_synonym_suggestion(
+    suggestion_id: str,
+    *,
+    evidence_page: int = 1,
+    evidence_page_size: int = 20,
+    database_path: Path | None = None,
+) -> dict[str, Any] | None:
+    if evidence_page_size not in {10, 20, 50}:
+        raise ValueError("page_size must be 10, 20, or 50")
+    evidence_page = max(1, evidence_page)
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        row = conn.execute(
+            """SELECT s.*, COUNT(src.run_id) AS source_count
+               FROM synonym_suggestions s
+               LEFT JOIN synonym_suggestion_sources src ON src.suggestion_id = s.suggestion_id
+               WHERE s.suggestion_id = ? GROUP BY s.suggestion_id""",
+            (suggestion_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        source_total = int(conn.execute(
+            "SELECT COUNT(*) FROM synonym_suggestion_sources WHERE suggestion_id = ?",
+            (suggestion_id,),
+        ).fetchone()[0])
+        sources = conn.execute(
+            """SELECT src.run_id, src.evidence_json, src.occurrence_count,
+                      src.first_seen_at, src.last_seen_at, run.run_name,
+                      run.backend_status AS run_status, run.created_at AS run_created_at
+               FROM synonym_suggestion_sources src
+               LEFT JOIN pipeline_runs run ON run.run_id = src.run_id
+               WHERE src.suggestion_id = ?
+               ORDER BY src.last_seen_at DESC, src.run_id
+               LIMIT ? OFFSET ?""",
+            (
+                suggestion_id,
+                evidence_page_size,
+                (evidence_page - 1) * evidence_page_size,
+            ),
+        ).fetchall()
+    resource = dict(row)
+    resource["sources"] = []
+    for source in sources:
+        source_resource = dict(source)
+        source_resource["evidence"] = json.loads(source_resource.pop("evidence_json"))
+        resource["sources"].append(source_resource)
+    resource["source_page"] = {
+        "page": evidence_page,
+        "page_size": evidence_page_size,
+        "total_items": source_total,
+        "total_pages": (source_total + evidence_page_size - 1) // evidence_page_size,
+    }
+    return resource
+
+def _record_synonym_processing_run(
+    conn: sqlite3.Connection,
+    *,
+    action: str,
+    total: int,
+    approved: int = 0,
+    declined: int = 0,
+    pending: int = 0,
+    added: int = 0,
+    issues: int = 0,
+) -> str:
+    processing_run_id = str(uuid.uuid4())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    summary = {
+        "action": action, "total_processed": total, "approved": approved,
+        "declined": declined, "pending": pending, "successfully_added": added,
+    }
+    conn.execute(
+        "INSERT INTO synonym_processing_runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (processing_run_id, now, total, approved, declined, pending, added, action, issues, json.dumps(summary)),
+    )
+    conn.execute(
+        """DELETE FROM synonym_processing_runs WHERE processing_run_id IN (
+               SELECT processing_run_id FROM synonym_processing_runs
+               ORDER BY processed_at DESC, processing_run_id DESC LIMIT -1 OFFSET 1000
+           )"""
+    )
+    return processing_run_id
+
+def apply_synonym_suggestion_action(
+    suggestion_ids: list[str],
+    *,
+    action: str,
+    acted_by: str,
+    expected_draft_revision: int | None = None,
+    expected_active_bundle_revision_id: str | None = None,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    ids = list(dict.fromkeys(str(value).strip() for value in suggestion_ids if str(value).strip()))
+    if not ids:
+        raise ValueError("selection_required")
+    if len(ids) > 1000:
+        raise ValueError("selection_too_large")
+    if action not in {"approve", "decline", "clear"}:
+        raise ValueError("invalid_synonym_action")
+    path = database_path or Path(_local_sqlite_path())
+    placeholders = ",".join("?" for _ in ids)
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            rows = conn.execute(
+                f"SELECT * FROM synonym_suggestions WHERE suggestion_id IN ({placeholders})",
+                ids,
+            ).fetchall()
+            if len(rows) != len(ids):
+                raise ValueError("synonym_suggestion_not_found")
+            types = {str(row["synonym_type"]) for row in rows}
+            if len(types) != 1:
+                raise ValueError("mixed_synonym_types")
+            synonym_type = next(iter(types))
+            statuses = {str(row["review_status"]) for row in rows}
+            if action == "decline" and statuses != {"pending"}:
+                raise ValueError("invalid_synonym_transition")
+            if action == "approve" and not statuses.issubset({"pending", "declined"}):
+                raise ValueError("invalid_synonym_transition")
+
+            added = 0
+            policy_effect = "absent"
+            issue_count = 0
+            if action == "approve":
+                policy = _synonym_policy_resource(conn, synonym_type)
+                if expected_draft_revision is not None and (
+                    int(policy["draft_revision"]) != int(expected_draft_revision)
+                    or policy["active_bundle_revision_id"] != expected_active_bundle_revision_id
+                ):
+                    raise ValueError("revision_conflict")
+                state = conn.execute(
+                    "SELECT active_bundle_revision_id FROM synonym_policy_state WHERE state_id = 1"
+                ).fetchone()
+                active_bundle_id = str(state[0]) if state and state[0] else None
+                active_row = conn.execute(
+                    "SELECT normalized_bundle_json FROM synonym_policy_bundle_revisions WHERE bundle_revision_id = ?",
+                    (active_bundle_id,),
+                ).fetchone() if active_bundle_id else None
+                active_bundle = json.loads(active_row[0]) if active_row else {
+                    "skills": {}, "domain": {}, "role_family": {}
+                }
+                before = dict(active_bundle.get(synonym_type) or {})
+                merged = dict(before)
+                requested: dict[str, str] = {}
+                conflict = False
+                for row in rows:
+                    alias = str(row["normalized_alias"])
+                    canonical = str(row["normalized_canonical"])
+                    if alias in requested and requested[alias] != canonical:
+                        conflict = True
+                    if alias in before and before[alias] != canonical:
+                        conflict = True
+                    requested[alias] = canonical
+                    merged[alias] = canonical
+                editor_text = _policy_editor_text(merged)
+                try:
+                    if conflict:
+                        raise ValueError("synonym alias conflict")
+                    compiled = compile_global_synonym_map(synonym_type, merged)
+                    _activate_synonym_policy_bundle_in_transaction(
+                        conn,
+                        synonym_type,
+                        editor_text=editor_text,
+                        normalized_policy=compiled,
+                        expected_draft_revision=int(policy["draft_revision"]),
+                        expected_active_bundle_revision_id=policy["active_bundle_revision_id"],
+                    )
+                    policy_effect = "active"
+                    added = sum(
+                        1 for alias, canonical in requested.items()
+                        if before.get(alias) != canonical
+                    )
+                except ValueError as exc:
+                    issue_count = 1
+                    policy_effect = "blocked"
+                    issue = {
+                        "code": "synonym_cycle" if "cycle" in str(exc).lower() else "synonym_alias_conflict",
+                        "message": "Approved mapping is blocked by synonym policy validation.",
+                        "severity": "error", "lines": [], "aliases": [], "canonicals": [],
+                    }
+                    conn.execute(
+                        """INSERT INTO synonym_policy_drafts (
+                               synonym_type, editor_text, normalized_policy_json, issues_json,
+                               validation_status, base_type_revision_id, revision, updated_at
+                           ) VALUES (?, ?, NULL, ?, 'invalid', ?, ?, ?)
+                           ON CONFLICT(synonym_type) DO UPDATE SET
+                             editor_text=excluded.editor_text,
+                             normalized_policy_json=NULL,
+                             issues_json=excluded.issues_json,
+                             validation_status='invalid',
+                             base_type_revision_id=excluded.base_type_revision_id,
+                             revision=excluded.revision,
+                             updated_at=excluded.updated_at""",
+                        (
+                            synonym_type,
+                            editor_text,
+                            json.dumps([issue]),
+                            policy["active_type_revision_id"],
+                            int(policy["draft_revision"]) + 1,
+                            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        ),
+                    )
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            if action == "clear":
+                conn.execute(
+                    f"DELETE FROM synonym_suggestions WHERE suggestion_id IN ({placeholders})",
+                    ids,
+                )
+            else:
+                conn.execute(
+                    f"""UPDATE synonym_suggestions SET review_status = ?, policy_effect = ?,
+                        decided_at = ?, decided_by = ?, updated_at = ?, revision = revision + 1
+                        WHERE suggestion_id IN ({placeholders})""",
+                    (
+                        "approved" if action == "approve" else "declined",
+                        policy_effect if action == "approve" else "absent",
+                        now,
+                        acted_by,
+                        now,
+                        *ids,
+                    ),
+                )
+            processing_run_id = _record_synonym_processing_run(
+                conn, action=action, total=len(ids),
+                approved=len(ids) if action == "approve" else 0,
+                declined=len(ids) if action == "decline" else 0,
+                pending=0, added=added, issues=issue_count,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return {
+        "processing_run_id": processing_run_id,
+        "processed_count": len(ids),
+        "approved_count": len(ids) if action == "approve" else 0,
+        "declined_count": len(ids) if action == "decline" else 0,
+        "successfully_added_count": added,
+        "issue_count": issue_count,
+    }
+
+def query_synonym_processing_runs(
+    *, page: int = 1, page_size: int = 20, database_path: Path | None = None
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        total = int(conn.execute("SELECT COUNT(*) FROM synonym_processing_runs").fetchone()[0])
+        rows = conn.execute(
+            "SELECT * FROM synonym_processing_runs ORDER BY processed_at DESC, processing_run_id DESC LIMIT ? OFFSET ?",
+            (page_size, (max(1, page) - 1) * page_size),
+        ).fetchall()
+    return {"items": [dict(row) for row in rows], "total": total, "page": max(1, page), "page_size": page_size}
+
+def delete_run_synonym_sources(
+    run_id: str, *, database_path: Path | None = None
+) -> dict[str, int]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        deleted_sources = conn.execute(
+            "DELETE FROM synonym_suggestion_sources WHERE run_id = ?", (run_id,)
+        ).rowcount
+        deleted_suggestions = conn.execute(
+            """DELETE FROM synonym_suggestions
+               WHERE review_status IN ('pending', 'declined')
+                 AND NOT EXISTS (
+                   SELECT 1 FROM synonym_suggestion_sources src
+                   WHERE src.suggestion_id = synonym_suggestions.suggestion_id
+                 )"""
+        ).rowcount
+        conn.commit()
+    return {"deleted_source_count": deleted_sources, "deleted_suggestion_count": deleted_suggestions}
 
 
 def list_candidate_profiles(
     *, database_path: Path | None = None, active_only: bool = True
 ) -> list[dict[str, Any]]:
     path = database_path or Path(_local_sqlite_path())
-    where = "WHERE is_active = 1" if active_only else ""
+    where = "WHERE cp.creation_status = 'succeeded' AND cp.lifecycle = 'active'" if active_only else ""
     with _sqlite_connection(path) as conn:
         rows = conn.execute(
             f"""
-            SELECT candidate_profile_id, name, description, is_active, is_default,
-                   updated_at, revision, sort_order, checksum, seed_manifest_revision
-            FROM candidate_profiles
+            SELECT cp.candidate_profile_id, cp.profile_name, '',
+                   CASE WHEN cp.creation_status = 'succeeded' AND cp.lifecycle = 'active' THEN 1 ELSE 0 END,
+                   cp.is_default, cp.updated_at, cp.revision, cp.sort_order,
+                   pr.checksum, cp.seed_manifest_revision
+            FROM candidate_profiles AS cp
+            LEFT JOIN candidate_profile_revisions AS pr
+              ON pr.candidate_profile_id = cp.candidate_profile_id
             {where}
-            ORDER BY sort_order, name COLLATE NOCASE, candidate_profile_id
+            ORDER BY cp.sort_order, cp.profile_name COLLATE NOCASE, cp.candidate_profile_id
             """
         ).fetchall()
     keys = (
@@ -498,7 +1624,16 @@ def get_candidate_profile(
     path = database_path or Path(_local_sqlite_path())
     with _sqlite_connection(path) as conn:
         row = conn.execute(
-            "SELECT candidate_profile_id, name, profile_json, revision, checksum, is_active FROM candidate_profiles WHERE candidate_profile_id = ?",
+            """
+            SELECT cp.candidate_profile_id, cp.profile_name, pr.profile_json,
+                   cp.revision, pr.checksum, pr.profile_revision_id,
+                   cp.creation_status, cp.lifecycle,
+                   CASE WHEN cp.creation_status = 'succeeded' AND cp.lifecycle = 'active' THEN 1 ELSE 0 END
+            FROM candidate_profiles AS cp
+            JOIN candidate_profile_revisions AS pr
+              ON pr.candidate_profile_id = cp.candidate_profile_id
+            WHERE cp.candidate_profile_id = ?
+            """,
             (candidate_profile_id,),
         ).fetchone()
     if row is None:
@@ -509,8 +1644,287 @@ def get_candidate_profile(
         "profile": json.loads(row[2]),
         "revision": row[3],
         "checksum": row[4],
-        "is_active": bool(row[5]),
+        "profile_revision_id": row[5],
+        "creation_status": row[6],
+        "lifecycle": row[7],
+        "is_active": bool(row[8]),
     }
+
+
+def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> dict[str, Any] | None:
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        """
+        SELECT cp.*, pr.profile_revision_id, pr.profile_json, pr.checksum AS profile_checksum
+        FROM candidate_profiles AS cp
+        LEFT JOIN candidate_profile_revisions AS pr
+          ON pr.candidate_profile_id = cp.candidate_profile_id
+        WHERE cp.candidate_profile_id = ?
+        """,
+        (profile_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    profile = json.loads(row["profile_json"]) if row["profile_json"] else None
+    display_name = row["profile_name"] or Path(row["original_filename"]).stem or "Unnamed profile"
+    succeeded = row["creation_status"] == "succeeded"
+    active = row["lifecycle"] == "active"
+    related_run_count = int(
+        conn.execute(
+            "SELECT COUNT(*) FROM run_inputs WHERE candidate_profile_id = ?", (profile_id,)
+        ).fetchone()[0]
+    )
+    return {
+        "profile_id": row["candidate_profile_id"],
+        "profile_name": row["profile_name"],
+        "display_name": display_name,
+        "original_filename": row["original_filename"],
+        "creation_status": row["creation_status"],
+        "lifecycle": row["lifecycle"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "archived_at": row["archived_at"],
+        "profile_revision_id": row["profile_revision_id"],
+        "failure": (
+            {"code": row["failure_code"], "message": row["failure_message"]}
+            if row["failure_code"]
+            else None
+        ),
+        "related_run_count": related_run_count,
+        "capabilities": {
+            "inspect": True,
+            "archive": succeeded and active,
+            "restore": succeeded and not active,
+            "use_for_run": succeeded and active,
+        },
+        "revision": row["revision"],
+        "overview": profile,
+        "input": {
+            "original_filename": row["original_filename"],
+            "checksum": row["input_checksum"],
+            "byte_length": row["byte_length"],
+            "media_type": row["media_type"],
+        },
+    }
+
+
+def create_candidate_profile_attempt(
+    *,
+    profile_bytes: bytes,
+    original_filename: str,
+    profile_name: str | None,
+    media_type: str = "application/yaml",
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    safe_filename = Path(str(original_filename or "").replace("\\", "/")).name
+    if not safe_filename.lower().endswith(".yaml"):
+        raise ValueError("profile_file_type_invalid")
+    if not profile_bytes:
+        raise ValueError("profile_file_empty")
+    if len(profile_bytes) > _CANDIDATE_PROFILE_MAX_BYTES:
+        raise ValueError("profile_file_too_large")
+    normalized_name = str(profile_name or "").strip() or None
+    if normalized_name is not None and len(normalized_name) > 120:
+        raise ValueError("profile_name_too_long")
+
+    profile_id = f"profile-{uuid.uuid4().hex}"
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    input_checksum = hashlib.sha256(profile_bytes).hexdigest()
+    failure_code: str | None = None
+    failure_message: str | None = None
+    profile: dict[str, Any] | None = None
+    try:
+        raw_text = profile_bytes.decode("utf-8")
+        from fitcv.candidate import load_profile_text
+
+        profile = load_profile_text(raw_text, format_hint="yaml")
+    except UnicodeDecodeError:
+        failure_code, failure_message = "invalid_utf8", "Profile file must use UTF-8 encoding."
+    except ValueError as exc:
+        failure_code = "invalid_yaml" if "Invalid YAML" in str(exc) else "invalid_profile"
+        failure_message = "Profile YAML is invalid." if failure_code == "invalid_yaml" else "Candidate profile validation failed."
+    except Exception:
+        failure_code = "profile_processing_failed"
+        failure_message = "Candidate profile could not be processed."
+
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """
+            INSERT INTO candidate_profiles (
+                candidate_profile_id, profile_name, original_filename, media_type, byte_length,
+                input_checksum, creation_status, lifecycle, failure_code, failure_message,
+                is_default, sort_order, created_at, updated_at, archived_at, revision
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, 0, 0, ?, ?, NULL, 1)
+            """,
+            (
+                profile_id,
+                normalized_name,
+                safe_filename,
+                media_type,
+                len(profile_bytes),
+                input_checksum,
+                "succeeded" if profile is not None else "failed",
+                failure_code,
+                failure_message,
+                now,
+                now,
+            ),
+        )
+        if profile is not None:
+            profile_json = json.dumps(profile, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+            conn.execute(
+                """
+                INSERT INTO candidate_profile_revisions (
+                    profile_revision_id, candidate_profile_id, revision, profile_json,
+                    checksum, schema_revision, created_at
+                ) VALUES (?, ?, 1, ?, ?, 'candidate-profile.v1', ?)
+                """,
+                (
+                    f"profile-revision-{uuid.uuid4().hex}",
+                    profile_id,
+                    profile_json,
+                    hashlib.sha256(profile_json.encode("utf-8")).hexdigest(),
+                    now,
+                ),
+            )
+        conn.commit()
+        resource = _candidate_profile_resource(conn, profile_id)
+    assert resource is not None
+    return resource
+
+
+def get_candidate_profile_detail(
+    profile_id: str, *, database_path: Path | None = None
+) -> dict[str, Any] | None:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        return _candidate_profile_resource(conn, profile_id)
+
+
+def query_candidate_profiles(
+    *,
+    view: str = "active",
+    status: str | None = None,
+    search: str = "",
+    page: int = 1,
+    page_size: int = 20,
+    sort: str = "created_desc",
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if view not in {"active", "archived"}:
+        raise ValueError("profile_view_invalid")
+    if status not in {None, "succeeded", "failed"}:
+        raise ValueError("profile_status_invalid")
+    if page_size not in {10, 20, 50}:
+        raise ValueError("page_size must be 10, 20, or 50")
+    if sort != "created_desc":
+        raise ValueError("profile_sort_invalid")
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        params: list[Any] = [view]
+        where = ["lifecycle = ?"]
+        if status:
+            where.append("creation_status = ?")
+            params.append(status)
+        normalized_search = search.strip().casefold()
+        if normalized_search:
+            where.append("lower(candidate_profile_id || ' ' || coalesce(profile_name, '') || ' ' || original_filename) LIKE ?")
+            params.append(f"%{normalized_search}%")
+        clause = " AND ".join(where)
+        total = int(conn.execute(f"SELECT COUNT(*) FROM candidate_profiles WHERE {clause}", params).fetchone()[0])
+        ids = conn.execute(
+            f"""
+            SELECT candidate_profile_id FROM candidate_profiles
+            WHERE {clause}
+            ORDER BY created_at DESC, candidate_profile_id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (*params, page_size, (max(1, page) - 1) * page_size),
+        ).fetchall()
+        counts = conn.execute(
+            "SELECT SUM(lifecycle = 'active'), SUM(lifecycle = 'archived') FROM candidate_profiles"
+        ).fetchone()
+        items = [_candidate_profile_resource(conn, str(row[0])) for row in ids]
+    return {
+        "items": [item for item in items if item is not None],
+        "total": total,
+        "active_count": int(counts[0] or 0),
+        "archived_count": int(counts[1] or 0),
+        "page": max(1, page),
+        "page_size": page_size,
+    }
+
+
+def transition_candidate_profile_lifecycle(
+    profile_id: str,
+    *,
+    lifecycle: str,
+    expected_revision: int,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if lifecycle not in {"active", "archived"}:
+        raise ValueError("profile_lifecycle_invalid")
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT creation_status, lifecycle, revision FROM candidate_profiles WHERE candidate_profile_id = ?",
+            (profile_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("profile_not_found")
+        if int(row["revision"]) != expected_revision:
+            raise ValueError("revision_conflict")
+        if row["creation_status"] != "succeeded":
+            raise ValueError("profile_transition_unavailable")
+        if row["lifecycle"] != lifecycle:
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            conn.execute(
+                """
+                UPDATE candidate_profiles
+                SET lifecycle = ?, archived_at = ?, updated_at = ?, revision = revision + 1
+                WHERE candidate_profile_id = ?
+                """,
+                (lifecycle, now if lifecycle == "archived" else None, now, profile_id),
+            )
+            conn.commit()
+        resource = _candidate_profile_resource(conn, profile_id)
+    assert resource is not None
+    return resource
+
+
+def query_candidate_profile_runs(
+    profile_id: str,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        total = int(
+            conn.execute(
+                "SELECT COUNT(*) FROM run_inputs WHERE candidate_profile_id = ?", (profile_id,)
+            ).fetchone()[0]
+        )
+        rows = conn.execute(
+            """
+            SELECT r.run_id, r.run_name, r.backend_status, r.created_at
+            FROM run_inputs AS i
+            JOIN pipeline_runs AS r ON r.run_id = i.run_id
+            WHERE i.candidate_profile_id = ?
+            ORDER BY r.created_at DESC, r.run_id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (profile_id, page_size, (max(1, page) - 1) * page_size),
+        ).fetchall()
+    return {"items": [dict(row) for row in rows], "total": total, "page": max(1, page), "page_size": page_size}
 
 
 def list_startup_warnings(*, database_path: Path | None = None) -> list[dict[str, str]]:
@@ -3879,6 +5293,79 @@ def create_run_bundle(
         _ensure_control_plane_schema(conn)
         try:
             conn.execute("BEGIN IMMEDIATE")
+            strict_profile = bool(input_resource.get("strict_candidate_profile"))
+            profile_id = str(input_resource.get("candidate_profile_id") or "").strip()
+            if strict_profile:
+                profile_row = conn.execute(
+                    """SELECT cp.candidate_profile_id, cp.profile_name, cp.revision,
+                              pr.profile_revision_id, pr.profile_json, pr.checksum
+                       FROM candidate_profiles cp
+                       JOIN candidate_profile_revisions pr
+                         ON pr.candidate_profile_id = cp.candidate_profile_id
+                       WHERE cp.candidate_profile_id = ?
+                         AND cp.creation_status = 'succeeded'
+                         AND cp.lifecycle = 'active'
+                         AND pr.revision = cp.revision""",
+                    (profile_id,),
+                ).fetchone()
+                if profile_row is None:
+                    raise CandidateProfileUnavailableError("candidate_profile_unavailable")
+                input_resource = {
+                    **input_resource,
+                    "candidate_profile_id": profile_row[0],
+                    "candidate_profile_name": str(profile_row[1] or ""),
+                    "candidate_profile_revision": int(profile_row[2]),
+                    "candidate_profile_revision_id": str(profile_row[3]),
+                    "candidate_profile_json": str(profile_row[4]),
+                }
+
+                from fitcv_cp.settings_schema import merge_and_validate_settings
+                from fitcv_cp.settings_store import settings_revision
+
+                settings_overrides: dict[str, Any] = {}
+                for setting_key, setting_value_json in conn.execute(
+                    "SELECT setting_key, setting_value_json FROM pipeline_settings ORDER BY rowid"
+                ).fetchall():
+                    try:
+                        settings_overrides[str(setting_key)] = json.loads(setting_value_json)
+                    except (TypeError, ValueError):
+                        continue
+                effective_settings = merge_and_validate_settings({}, current_settings=settings_overrides)
+                active_bundle_row = conn.execute(
+                    """SELECT br.bundle_revision_id, br.bundle_checksum, br.normalized_bundle_json
+                       FROM synonym_policy_state ps
+                       JOIN synonym_policy_bundle_revisions br
+                         ON br.bundle_revision_id = ps.active_bundle_revision_id
+                       WHERE ps.state_id = 1"""
+                ).fetchone()
+                active_bundle = (
+                    json.loads(active_bundle_row[2])
+                    if active_bundle_row is not None
+                    else {"skills": {}, "domain": {}, "role_family": {}}
+                )
+                approved_projection = (
+                    active_bundle
+                    if bool(effective_settings["synonym_management.apply_approved_enabled"])
+                    else {"skills": {}, "domain": {}, "role_family": {}}
+                )
+                run_config = _json_dict(run.effective_settings_json)
+                run_config.update(effective_settings)
+                run_config["skill_synonyms"] = approved_projection["skills"]
+                run_config["domain_alias_map"] = approved_projection["domain"]
+                run_config["role_family_alias_map"] = approved_projection["role_family"]
+                run.effective_settings_json = json.dumps(run_config, ensure_ascii=False)
+                bundle_snapshot = {
+                    "normalized_bundle": active_bundle,
+                    "approved_mapping_projection": approved_projection,
+                }
+                input_resource = {
+                    **input_resource,
+                    "settings_revision": settings_revision(effective_settings),
+                    "settings_snapshot_json": json.dumps(effective_settings, ensure_ascii=False),
+                    "synonym_policy_bundle_revision_id": active_bundle_row[0] if active_bundle_row else None,
+                    "synonym_policy_bundle_checksum": active_bundle_row[1] if active_bundle_row else None,
+                    "synonym_policy_bundle_snapshot_json": json.dumps(bundle_snapshot, ensure_ascii=False),
+                }
             run.total_jobs = len(jobs)
             _write_normalized_run(conn, run, insert=True)
             jobs_json = str(input_resource.get("jobs_snapshot_json") or json.dumps(jobs))
@@ -3888,8 +5375,24 @@ def create_run_bundle(
             sha256 = str(input_resource.get("sha256") or "").strip()
             if not sha256:
                 sha256 = hashlib.sha256(jobs_json.encode("utf-8")).hexdigest()
+            candidate_profile_revision_id = input_resource.get("candidate_profile_revision_id")
+            candidate_profile_id = (
+                input_resource.get("candidate_profile_id")
+                if candidate_profile_revision_id
+                else None
+            )
             conn.execute(
-                """INSERT INTO run_inputs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """
+                INSERT INTO run_inputs (
+                    run_id, original_filename, media_type, byte_length, sha256, record_count,
+                    jobs_snapshot_json, jobs_manifest_json, candidate_profile_id,
+                    candidate_profile_revision_id, candidate_profile_revision,
+                    candidate_profile_name, candidate_profile_json, settings_revision,
+                    settings_snapshot_json, synonym_policy_bundle_revision_id,
+                    synonym_policy_bundle_checksum, synonym_policy_bundle_snapshot_json,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
                 (
                     run.run_id,
                     str(input_resource.get("original_filename") or Path(run.jobs_path).name),
@@ -3899,12 +5402,16 @@ def create_run_bundle(
                     len(jobs),
                     jobs_json,
                     str(input_resource.get("jobs_manifest_json") or "{}"),
-                    input_resource.get("candidate_profile_id"),
+                    candidate_profile_id,
+                    candidate_profile_revision_id,
                     input_resource.get("candidate_profile_revision"),
                     str(input_resource.get("candidate_profile_name") or ""),
                     str(input_resource.get("candidate_profile_json") or "{}"),
                     str(input_resource.get("settings_revision") or _settings_revision(run)),
                     str(input_resource.get("settings_snapshot_json") or "{}"),
+                    input_resource.get("synonym_policy_bundle_revision_id"),
+                    input_resource.get("synonym_policy_bundle_checksum"),
+                    input_resource.get("synonym_policy_bundle_snapshot_json"),
                     run.created_at.isoformat(),
                 ),
             )
@@ -4045,15 +5552,32 @@ def reserve_idempotent_action(scope: str, key: str, fingerprint: str) -> dict[st
                 "status": row["status"],
                 "replayed": True,
                 "response": json.loads(row["response_json"]) if row["response_json"] else None,
+                "binary_response": {
+                    "content": bytes(row["response_blob"]),
+                    "media_type": str(row["response_media_type"]),
+                    "filename": str(row["response_filename"]),
+                    "checksum": str(row["response_checksum"]),
+                } if row["response_blob"] is not None else None,
             }
         action_id = str(uuid.uuid4())
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         conn.execute(
-            "INSERT INTO idempotent_actions VALUES (?, ?, ?, ?, 'queued', NULL, NULL, ?, ?)",
+            """
+            INSERT INTO idempotent_actions (
+                action_id, action_scope, idempotency_key, request_fingerprint,
+                status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, 'queued', ?, ?)
+            """,
             (action_id, scope, key, fingerprint, now, now),
         )
         conn.commit()
-    return {"action_id": action_id, "status": "queued", "replayed": False, "response": None}
+    return {
+        "action_id": action_id,
+        "status": "queued",
+        "replayed": False,
+        "response": None,
+        "binary_response": None,
+    }
 
 
 def complete_idempotent_action(action_id: str, response: dict[str, Any]) -> None:
@@ -4075,19 +5599,45 @@ def set_bookmark(run_job_id: str) -> dict[str, Any]:
         bookmark_id = str(uuid.uuid4())
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         conn.execute(
-            "INSERT OR REPLACE INTO bookmarks VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                bookmark_id,
-                job["run_id"],
-                run_job_id,
-                job["source_fingerprint"],
-                json.dumps(snapshot),
-                now,
-                now,
-            ),
+            """
+            INSERT INTO bookmarks (bookmark_id, run_id, run_job_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(run_job_id) DO UPDATE SET updated_at = excluded.updated_at
+            """,
+            (bookmark_id, job["run_id"], run_job_id, now, now),
+        )
+        bookmark_id = str(
+            conn.execute(
+                "SELECT bookmark_id FROM bookmarks WHERE run_job_id = ?", (run_job_id,)
+            ).fetchone()[0]
         )
         conn.commit()
     return {"bookmark_id": bookmark_id, "run_job_id": run_job_id, "display_snapshot": snapshot}
+
+def complete_idempotent_binary_action(
+    action_id: str,
+    content: bytes,
+    *,
+    media_type: str,
+    filename: str,
+) -> None:
+    checksum = hashlib.sha256(content).hexdigest()
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.execute(
+            """UPDATE idempotent_actions
+               SET status='succeeded', response_json=NULL, response_blob=?,
+                   response_media_type=?, response_filename=?, response_checksum=?, updated_at=?
+               WHERE action_id=?""",
+            (
+                content,
+                media_type,
+                filename,
+                checksum,
+                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                action_id,
+            ),
+        )
+        conn.commit()
 
 
 def clear_bookmark(run_job_id: str) -> dict[str, Any]:
@@ -4100,11 +5650,175 @@ def clear_bookmark(run_job_id: str) -> dict[str, Any]:
 def list_bookmarks() -> list[dict[str, Any]]:
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT * FROM bookmarks ORDER BY created_at DESC, bookmark_id").fetchall()
+        rows = conn.execute(
+            """
+            SELECT b.*, j.source_fingerprint, j.title, j.company, j.location, j.source_url
+            FROM bookmarks AS b
+            JOIN run_jobs AS j ON j.run_job_id = b.run_job_id
+            ORDER BY b.created_at DESC, b.bookmark_id
+            """
+        ).fetchall()
     return [
-        {**dict(row), "display_snapshot": json.loads(row["display_snapshot_json"])}
+        {
+            **dict(row),
+            "display_snapshot": {
+                key: row[key] for key in ("title", "company", "location", "source_url")
+            },
+        }
         for row in rows
     ]
+
+def _bookmark_filter_sql(
+    *, search: str, stage: str | None, result: str | None
+) -> tuple[list[str], list[Any]]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    if search.strip():
+        clauses.append("(j.title LIKE ? COLLATE NOCASE OR COALESCE(j.company, '') LIKE ? COLLATE NOCASE)")
+        params.extend([f"%{search.strip()}%", f"%{search.strip()}%"])
+    if stage:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM run_job_stage_results sr WHERE sr.run_job_id = j.run_job_id AND sr.stage_id = ?)"
+        )
+        params.append(stage)
+    if result:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM run_job_stage_results sr WHERE sr.run_job_id = j.run_job_id AND sr.result_bucket = ?)"
+        )
+        params.append(result)
+    return clauses, params
+
+def query_bookmarks(
+    *,
+    search: str = "",
+    stage: str | None = None,
+    result: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    sort: str = "bookmarked_desc",
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if page_size not in {10, 20, 50}:
+        raise ValueError("page_size must be 10, 20, or 50")
+    if sort != "bookmarked_desc":
+        raise ValueError("bookmark_sort_invalid")
+    clauses, params = _bookmark_filter_sql(search=search, stage=stage, result=result)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        total = int(conn.execute(
+            f"SELECT COUNT(*) FROM bookmarks b JOIN run_jobs j ON j.run_job_id=b.run_job_id {where}",
+            params,
+        ).fetchone()[0])
+        rows = conn.execute(
+            f"""SELECT b.bookmark_id, b.created_at AS bookmarked_at,
+                       r.run_id, r.run_name, j.*
+                FROM bookmarks b
+                JOIN run_jobs j ON j.run_job_id=b.run_job_id
+                JOIN pipeline_runs r ON r.run_id=b.run_id
+                {where}
+                ORDER BY b.created_at DESC, b.bookmark_id
+                LIMIT ? OFFSET ?""",
+            (*params, page_size, (max(1, page) - 1) * page_size),
+        ).fetchall()
+    items = [dict(row) for row in rows]
+    for item in items:
+        item["source_snapshot"] = json.loads(item.pop("source_snapshot_json"))
+        item["skills"] = json.loads(item.pop("skills_json"))
+    return {"items": items, "total": total, "page": max(1, page), "page_size": page_size}
+
+def resolve_job_selection(
+    run_job_ids: list[str],
+    *,
+    scope: str,
+    run_id: str | None = None,
+    search: str = "",
+    stage: str | None = None,
+    result: str | None = None,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    selected = list(dict.fromkeys(str(value).strip() for value in run_job_ids if str(value).strip()))
+    if not selected:
+        raise ValueError("selection_required")
+    if len(selected) > 5000:
+        raise ValueError("selection_too_large")
+    clauses, params = _bookmark_filter_sql(search=search, stage=stage, result=result)
+    if scope == "bookmarks":
+        from_sql = "bookmarks b JOIN run_jobs j ON j.run_job_id=b.run_job_id"
+    elif scope == "run_jobs" and run_id:
+        from_sql = "run_jobs j"
+        clauses.append("j.run_id = ?")
+        params.append(run_id)
+    else:
+        raise ValueError("invalid_selection_scope")
+    placeholders = ",".join("?" for _ in selected)
+    clauses.append(f"j.run_job_id IN ({placeholders})")
+    params.extend(selected)
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        matched = {
+            str(row[0])
+            for row in conn.execute(
+                f"SELECT j.run_job_id FROM {from_sql} WHERE {' AND '.join(clauses)}",
+                params,
+            ).fetchall()
+        }
+    matched_ids = [value for value in selected if value in matched]
+    excluded_ids = [value for value in selected if value not in matched]
+    return {
+        "selected_count": len(selected),
+        "matched_count": len(matched_ids),
+        "excluded_count": len(excluded_ids),
+        "matched_run_job_ids": matched_ids,
+        "excluded_run_job_ids": excluded_ids,
+    }
+
+def remove_bookmarks(
+    run_job_ids: list[str],
+    *,
+    search: str = "",
+    stage: str | None = None,
+    result: str | None = None,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    selection = resolve_job_selection(
+        run_job_ids, scope="bookmarks", search=search, stage=stage, result=result,
+        database_path=path,
+    )
+    matched = selection["matched_run_job_ids"]
+    if matched:
+        placeholders = ",".join("?" for _ in matched)
+        with _sqlite_connection(path) as conn:
+            conn.execute(f"DELETE FROM bookmarks WHERE run_job_id IN ({placeholders})", matched)
+            conn.commit()
+    return {**selection, "removed_count": len(matched)}
+
+def list_selected_jobs(
+    run_job_ids: list[str],
+    *,
+    bookmarks_only: bool = False,
+    database_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    ids = list(dict.fromkeys(run_job_ids))
+    if not ids:
+        return []
+    placeholders = ",".join("?" for _ in ids)
+    bookmark_join = "JOIN bookmarks b ON b.run_job_id=j.run_job_id" if bookmarks_only else ""
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            f"""SELECT r.run_id, r.run_name, j.* FROM run_jobs j
+                JOIN pipeline_runs r ON r.run_id=j.run_id
+                {bookmark_join}
+                WHERE j.run_job_id IN ({placeholders})""",
+            ids,
+        ).fetchall()
+    by_id = {str(row["run_job_id"]): dict(row) for row in rows}
+    return [by_id[value] for value in ids if value in by_id]
 
 
 def set_run_job_interest(
@@ -4171,33 +5885,114 @@ def request_run_cancel(
     )
 
 
+def preview_delete_archived_runs(run_ids: list[str]) -> dict[str, Any]:
+    requested = list(dict.fromkeys(str(value).strip() for value in run_ids if str(value).strip()))
+    if not requested:
+        raise ValueError("selection_required")
+    if len(requested) > 5000:
+        raise ValueError("selection_too_large")
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        return _delete_archived_run_state(conn, requested)
+
+def _delete_archived_run_state(
+    conn: sqlite3.Connection,
+    requested: list[str],
+) -> dict[str, Any]:
+    placeholders = ",".join("?" for _ in requested)
+    rows = conn.execute(
+        f"""SELECT r.run_id, r.archived_at,
+                   COUNT(DISTINCT b.bookmark_id) AS bookmark_count,
+                   COUNT(DISTINCT src.suggestion_id) AS synonym_source_count
+            FROM pipeline_runs r
+            LEFT JOIN bookmarks b ON b.run_id = r.run_id
+            LEFT JOIN synonym_suggestion_sources src ON src.run_id = r.run_id
+            WHERE r.run_id IN ({placeholders})
+            GROUP BY r.run_id, r.archived_at""",
+        requested,
+    ).fetchall()
+    by_id = {str(row["run_id"]): row for row in rows}
+    eligible = [run_id for run_id in requested if run_id in by_id and by_id[run_id]["archived_at"]]
+    blocked = [run_id for run_id in requested if run_id in by_id and not by_id[run_id]["archived_at"]]
+    missing = [run_id for run_id in requested if run_id not in by_id]
+    return {
+        "requested_run_ids": requested,
+        "eligible_run_ids": eligible,
+        "blocked_run_ids": blocked,
+        "missing_run_ids": missing,
+        "bookmark_count": sum(int(by_id[run_id]["bookmark_count"]) for run_id in eligible),
+        "state_tokens": [
+            _policy_checksum({
+                "run_id": run_id,
+                "archived_at": by_id[run_id]["archived_at"],
+                "bookmark_count": int(by_id[run_id]["bookmark_count"]),
+                "synonym_source_count": int(by_id[run_id]["synonym_source_count"]),
+            })
+            for run_id in eligible
+        ],
+    }
+
+def _cleanup_deleted_run_files(run_id: str) -> None:
+    legacy_event_file = _local_event_history_file(run_id)
+    legacy_event_file.unlink(missing_ok=True)
+    journal_dir = _process_event_journal_dir("pipeline", run_id)
+    if journal_dir.exists():
+        shutil.rmtree(journal_dir)
+    artifact_root = Path("artifacts").resolve()
+    artifact_dir = (artifact_root / f"live_run_{run_id}").resolve()
+    if artifact_dir.parent != artifact_root:
+        raise OSError("run artifact path is outside artifact root")
+    if artifact_dir.exists():
+        shutil.rmtree(artifact_dir)
+
 def delete_archived_runs(
     older_than_days: int | str,
     *_compat_args: Any,
     run_ids: list[str] | None = None,
+    expected_state_tokens: list[str] | None = None,
     **_compat_kwargs: Any,
 ) -> dict[str, Any]:
     cutoff = None
     if older_than_days != "all":
         cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=int(older_than_days))
-    requested = [str(value) for value in (run_ids or [])]
+    requested = list(dict.fromkeys(str(value).strip() for value in (run_ids or []) if str(value).strip()))
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
         _ensure_control_plane_schema(conn)
-        rows = conn.execute(
-            "SELECT run_id, archived_at FROM pipeline_runs WHERE archived_at IS NOT NULL"
-        ).fetchall()
+        conn.execute("BEGIN IMMEDIATE")
+        state = _delete_archived_run_state(conn, requested) if requested else None
+        if state is not None and expected_state_tokens is not None:
+            if (
+                state["blocked_run_ids"]
+                or state["missing_run_ids"]
+                or state["state_tokens"] != list(expected_state_tokens)
+            ):
+                conn.rollback()
+                raise ValueError("delete_preview_stale")
+        if requested:
+            rows = conn.execute(
+                "SELECT run_id, archived_at FROM pipeline_runs WHERE run_id IN ({})".format(
+                    ",".join("?" for _ in requested)
+                ),
+                requested,
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT run_id, archived_at FROM pipeline_runs WHERE archived_at IS NOT NULL"
+            ).fetchall()
         eligible = [
-            row["run_id"]
+            str(row["run_id"])
             for row in rows
-            if (not requested or row["run_id"] in requested)
-            and (cutoff is None or datetime.datetime.fromisoformat(row["archived_at"]) <= cutoff)
+            if row["archived_at"]
+            and (cutoff is None or datetime.datetime.fromisoformat(str(row["archived_at"])) <= cutoff)
         ]
         if requested:
-            found = {row["run_id"] for row in rows}
+            found = {str(row["run_id"]) for row in rows}
             not_found = [value for value in requested if value not in found]
             blocked = [value for value in requested if value in found and value not in eligible]
             if not_found or blocked:
+                conn.rollback()
                 return {
                     "requested_run_ids": requested,
                     "deleted_count": 0,
@@ -4205,14 +6000,40 @@ def delete_archived_runs(
                     "not_found_run_ids": not_found,
                     "blocked_run_ids": blocked,
                 }
+        bookmark_count = 0
+        if eligible:
+            placeholders = ",".join("?" for _ in eligible)
+            bookmark_count = int(conn.execute(
+                f"SELECT COUNT(*) FROM bookmarks WHERE run_id IN ({placeholders})", eligible
+            ).fetchone()[0])
         conn.executemany("DELETE FROM pipeline_runs WHERE run_id=?", [(value,) for value in eligible])
+        deleted_suggestions = conn.execute(
+            """DELETE FROM synonym_suggestions
+               WHERE review_status IN ('pending', 'declined')
+                 AND NOT EXISTS (
+                   SELECT 1 FROM synonym_suggestion_sources src
+                   WHERE src.suggestion_id = synonym_suggestions.suggestion_id
+                 )"""
+        ).rowcount
         conn.commit()
+    cleanup_failed_run_ids: list[str] = []
+    for run_id in eligible:
+        try:
+            _cleanup_deleted_run_files(run_id)
+        except OSError:
+            cleanup_failed_run_ids.append(run_id)
     return {
         "requested_run_ids": requested,
         "deleted_count": len(eligible),
         "deleted_run_ids": eligible,
         "not_found_run_ids": [],
         "blocked_run_ids": [],
+        "deleted_bookmark_count": bookmark_count,
+        "deleted_synonym_suggestion_count": deleted_suggestions,
+        "filesystem_cleanup_failed_run_ids": cleanup_failed_run_ids,
+        "filesystem_cleanup_error_code": (
+            "run_files_cleanup_failed" if cleanup_failed_run_ids else None
+        ),
     }
 
 
@@ -4750,12 +6571,16 @@ def list_run_structured_jobs(
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            """SELECT run_job_id, source_snapshot_json FROM run_jobs
-               WHERE run_id=? ORDER BY title COLLATE NOCASE, run_job_id""",
+            """SELECT j.run_job_id, j.source_snapshot_json,
+                      CASE WHEN b.bookmark_id IS NULL THEN 0 ELSE 1 END AS bookmarked
+               FROM run_jobs j
+               LEFT JOIN bookmarks b ON b.run_job_id=j.run_job_id
+               WHERE j.run_id=? ORDER BY j.title COLLATE NOCASE, j.run_job_id""",
             (run_id,),
         ).fetchall()
     return [
-        json.loads(str(row["source_snapshot_json"])) | {"run_job_id": row["run_job_id"]}
+        json.loads(str(row["source_snapshot_json"]))
+        | {"run_job_id": row["run_job_id"], "bookmarked": bool(row["bookmarked"])}
         for row in rows
     ]
 

@@ -130,19 +130,36 @@
   </div>
 
   <button type="submit" class="btn-secondary">Apply</button>
-  <a class="btn-secondary enr-export-btn" href="{{ enriched_download_url }}" data-tab-fragment-skip="true">Export</a>
 </form>
 
-<div class="card" style="padding:0;overflow:hidden">
+<div
+  class="selection-toolbar"
+  data-run-job-selection-root
+  data-run-id="{{ run.run_id }}"
+  data-stage="enrichment"
+  data-result="{% if enriched_filter in ('passed', 'rejected') %}{{ enriched_filter }}{% endif %}"
+  data-search="{{ enriched_query }}"
+  data-preview-url="/runs/{{ run.run_id }}/jobs/actions/export/preview"
+  data-export-url="/runs/{{ run.run_id }}/jobs/actions/export"
+>
+  <label><input type="checkbox" data-run-job-select-all> Select visible</label>
+  <strong data-run-job-selected-count>0 selected</strong>
+  <button class="btn-primary" type="button" data-run-job-export disabled>Export</button>
+  <span class="meta" data-run-job-notice aria-live="polite"></span>
+</div>
+
+<div class="table-shell">
   <table class="enr-table">
     <thead>
       <tr>
+        <th><span class="sr-only">Select</span></th>
         <th>Job</th>
         <th>Fit Context</th>
         <th>Required Skills (top 5)</th>
         <th>Filter</th>
         <th>Pipeline Outcome</th>
         <th>Application Interest</th>
+        <th>Bookmark</th>
       </tr>
     </thead>
     <tbody>
@@ -160,6 +177,13 @@
         {% set language_requirements = language_evidence.get('requirements') or [] %}
       {% endif %}
       <tr>
+        <td>
+          {% if job.run_job_id %}
+          <input type="checkbox" data-run-job-id="{{ job.run_job_id }}" aria-label="Select {{ job.title or job.job_url }}">
+          {% else %}
+          <span class="meta" title="Selection unavailable for legacy row">—</span>
+          {% endif %}
+        </td>
         <td><a href="{{ job.job_url }}" target="_blank" rel="noopener">{{ job.title or job.job_url }}</a></td>
         <td class="meta">
           <div class="fit-context-stack">
@@ -257,10 +281,24 @@
             <span class="meta">Unrated</span>
           {% endif %}
         </td>
+        <td>
+          {% if job.run_job_id %}
+          <button
+            type="button"
+            class="btn-secondary"
+            data-bookmark-toggle
+            data-run-job-id="{{ job.run_job_id }}"
+            data-bookmarked="{{ 'true' if job.bookmarked else 'false' }}"
+            aria-pressed="{{ 'true' if job.bookmarked else 'false' }}"
+          >{% if job.bookmarked %}Remove bookmark{% else %}Bookmark{% endif %}</button>
+          {% else %}
+          <span class="meta">Unavailable</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
       {% if not enriched_jobs %}
-      <tr class="empty-row"><td colspan="6">No jobs match the current controls.</td></tr>
+      <tr class="empty-row"><td colspan="8">No jobs match the current controls.</td></tr>
       {% endif %}
     </tbody>
   </table>

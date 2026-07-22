@@ -336,6 +336,20 @@ def test_agentic_settings_sections_have_expected_slugs() -> None:
         "agentic-advanced",
     }
 
+
+def test_synonym_management_uses_one_approved_mapping_setting() -> None:
+    keys = {item["key"] for item in SETTINGS_SCHEMA}
+
+    assert "synonym_management.apply_approved_enabled" in keys
+    assert "synonym_management.auto_accept_suggestions_enabled" in keys
+    assert "synonym_management.auto_accept_ai_action_enabled" in keys
+    assert {
+        "synonym_management.apply_to_run_enabled",
+        "synonym_management.promote_global_enabled",
+        "synonym_management.auto_apply_recommendation_enabled",
+        "synonym_management.auto_promote_global_enabled",
+    }.isdisjoint(keys)
+
 def test_settings_sections_exclude_legacy_retrieval_advanced_slug() -> None:
     """Task-first agentic advanced controls replace the legacy retrieval-advanced section."""
     assert "retrieval-advanced" not in SETTINGS_SECTIONS
@@ -345,8 +359,7 @@ def test_agentic_settings_section_ownership_is_explicit() -> None:
     assert AGENTIC_SETTINGS_SECTIONS["agentic-enablement"] == [
         "cv_analysis.semantic_alignment.enabled",
         "synonym_management.propose_enabled",
-        "synonym_management.apply_to_run_enabled",
-        "synonym_management.promote_global_enabled",
+        "synonym_management.apply_approved_enabled",
         "reuse.enrich.enabled",
         "reuse.ranking.enabled",
         "reuse.cv_analysis.enabled",
@@ -362,8 +375,7 @@ def test_agentic_settings_section_ownership_is_explicit() -> None:
     ]
     assert AGENTIC_SETTINGS_SECTIONS["agentic-automation"] == [
         "synonym_management.auto_triage_recommendation_enabled",
-        "synonym_management.auto_apply_recommendation_enabled",
-        "synonym_management.auto_promote_global_enabled",
+        "synonym_management.auto_accept_suggestions_enabled",
         "synonym_management.auto_accept_ai_action_enabled",
     ]
     assert AGENTIC_SETTINGS_SECTIONS["agentic-advanced"] == [
@@ -386,16 +398,14 @@ def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_ex
     }
     assert editable_agentic_settings_keys() == {
         "synonym_management.propose_enabled",
-        "synonym_management.apply_to_run_enabled",
-        "synonym_management.promote_global_enabled",
+        "synonym_management.apply_approved_enabled",
         "reuse.enrich.enabled",
         "reuse.ranking.enabled",
         "reuse.cv_analysis.enabled",
         "reuse.cv_generation.enabled",
         "reuse.synonym_triage.enabled",
         "synonym_management.auto_triage_recommendation_enabled",
-        "synonym_management.auto_apply_recommendation_enabled",
-        "synonym_management.auto_promote_global_enabled",
+        "synonym_management.auto_accept_suggestions_enabled",
         "synonym_management.auto_accept_ai_action_enabled",
         "cv_analysis.semantic_alignment.enabled",
         "cv_analysis.semantic_alignment.required_skill_lexical_weight",
@@ -1350,17 +1360,15 @@ def test_cv_preset_key_registered():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "cv_preset" in keys
     assert "synonym_management.propose_enabled" in keys
-    assert "synonym_management.apply_to_run_enabled" in keys
-    assert "synonym_management.promote_global_enabled" in keys
-    assert "synonym_management.auto_apply_recommendation_enabled" in keys
-    assert "synonym_management.auto_promote_global_enabled" in keys
+    assert "synonym_management.apply_approved_enabled" in keys
+    assert "synonym_management.auto_accept_suggestions_enabled" in keys
     assert "synonym_management.auto_accept_ai_action_enabled" in keys
 
 
 def test_synonym_management_automation_defaults() -> None:
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["synonym_management.auto_apply_recommendation_enabled"]["default"] is False
-    assert schema_by_key["synonym_management.auto_promote_global_enabled"]["default"] is False
+    assert schema_by_key["synonym_management.apply_approved_enabled"]["default"] is True
+    assert schema_by_key["synonym_management.auto_accept_suggestions_enabled"]["default"] is False
     assert schema_by_key["synonym_management.auto_accept_ai_action_enabled"]["default"] is True
 
 

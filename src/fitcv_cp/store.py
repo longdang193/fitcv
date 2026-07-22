@@ -29,6 +29,22 @@ from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none
 class RunStore(Protocol):
     def list_candidate_profiles(self) -> list[dict[str, Any]]: ...
     def get_candidate_profile(self, candidate_profile_id: str) -> dict[str, Any] | None: ...
+    def query_candidate_profiles(self, **kwargs: Any) -> dict[str, Any]: ...
+    def create_candidate_profile_attempt(self, **kwargs: Any) -> dict[str, Any]: ...
+    def get_candidate_profile_detail(self, profile_id: str) -> dict[str, Any] | None: ...
+    def query_candidate_profile_runs(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def transition_candidate_profile_lifecycle(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def get_synonym_policy(self, synonym_type: str) -> dict[str, Any]: ...
+    def save_synonym_policy_draft(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]: ...
+    def activate_synonym_policy_bundle(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]: ...
+    def activate_synonym_policy_bundle_set(self, policies: dict[str, dict[str, str]], **kwargs: Any) -> dict[str, Any]: ...
+    def resolve_active_synonym_bundle(self) -> dict[str, Any]: ...
+    def repair_active_synonym_policy_mirrors(self) -> dict[str, Any]: ...
+    def ingest_synonym_suggestions(self, suggestions: list[dict[str, Any]]) -> dict[str, Any]: ...
+    def query_synonym_suggestions(self, **kwargs: Any) -> dict[str, Any]: ...
+    def get_synonym_suggestion(self, suggestion_id: str) -> dict[str, Any] | None: ...
+    def apply_synonym_suggestion_action(self, suggestion_ids: list[str], **kwargs: Any) -> dict[str, Any]: ...
+    def query_synonym_processing_runs(self, **kwargs: Any) -> dict[str, Any]: ...
     def insert_run(self, run: PipelineRun) -> None: ...
     def create_run_bundle(self, run: PipelineRun, *, input_resource: dict[str, Any], jobs: list[dict[str, Any]]) -> dict[str, Any]: ...
     def query_runs(self, **kwargs: Any) -> dict[str, Any]: ...
@@ -40,10 +56,15 @@ class RunStore(Protocol):
     def set_bookmark(self, run_job_id: str) -> dict[str, Any]: ...
     def clear_bookmark(self, run_job_id: str) -> dict[str, Any]: ...
     def list_bookmarks(self) -> list[dict[str, Any]]: ...
+    def query_bookmarks(self, **kwargs: Any) -> dict[str, Any]: ...
+    def resolve_job_selection(self, run_job_ids: list[str], **kwargs: Any) -> dict[str, Any]: ...
+    def remove_bookmarks(self, run_job_ids: list[str], **kwargs: Any) -> dict[str, Any]: ...
+    def list_selected_jobs(self, run_job_ids: list[str], **kwargs: Any) -> list[dict[str, Any]]: ...
     def set_run_job_interest(self, run_job_id: str, rating: int, **kwargs: Any) -> dict[str, Any]: ...
     def clear_run_job_interest(self, run_job_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def reserve_idempotent_action(self, scope: str, key: str, fingerprint: str) -> dict[str, Any]: ...
     def complete_idempotent_action(self, action_id: str, response: dict[str, Any]) -> None: ...
+    def complete_idempotent_binary_action(self, action_id: str, content: bytes, **kwargs: Any) -> None: ...
     def update_run_queue_job_id(self, run_id: str, queue_job_id: str, **kwargs: Any) -> dict[str, str]: ...
     def update_run_orchestration_binding(
         self,
@@ -73,7 +94,8 @@ class RunStore(Protocol):
     ) -> bool: ...
     def archive_run(self, run_id: str, archived_by: str) -> None: ...
     def unarchive_run(self, run_id: str) -> None: ...
-    def delete_archived_runs(self, older_than_days: int | str, run_ids: list[str] | None = None) -> dict[str, Any]: ...
+    def delete_archived_runs(self, older_than_days: int | str, run_ids: list[str] | None = None, **kwargs: Any) -> dict[str, Any]: ...
+    def preview_delete_archived_runs(self, run_ids: list[str]) -> dict[str, Any]: ...
     def list_cvs_for_run(self, run_id: str) -> list[dict[str, Any]]: ...
     def list_cv_versions(self, run_job_id: str) -> list[dict[str, Any]]: ...
     def reserve_cv_regeneration(self, run_job_id: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -119,6 +141,22 @@ class ControlPlaneStore:
     backend_runtime: BackendRuntime | None = None
     list_candidate_profiles_fn: Any | None = None
     get_candidate_profile_fn: Any | None = None
+    query_candidate_profiles_fn: Any | None = None
+    create_candidate_profile_attempt_fn: Any | None = None
+    get_candidate_profile_detail_fn: Any | None = None
+    query_candidate_profile_runs_fn: Any | None = None
+    transition_candidate_profile_lifecycle_fn: Any | None = None
+    get_synonym_policy_fn: Any | None = None
+    save_synonym_policy_draft_fn: Any | None = None
+    activate_synonym_policy_bundle_fn: Any | None = None
+    activate_synonym_policy_bundle_set_fn: Any | None = None
+    resolve_active_synonym_bundle_fn: Any | None = None
+    repair_active_synonym_policy_mirrors_fn: Any | None = None
+    ingest_synonym_suggestions_fn: Any | None = None
+    query_synonym_suggestions_fn: Any | None = None
+    get_synonym_suggestion_fn: Any | None = None
+    apply_synonym_suggestion_action_fn: Any | None = None
+    query_synonym_processing_runs_fn: Any | None = None
     insert_run_fn: Any | None = None
     update_run_queue_job_id_fn: Any | None = None
     update_run_orchestration_binding_fn: Any | None = None
@@ -134,6 +172,7 @@ class ControlPlaneStore:
     archive_run_fn: Any | None = None
     unarchive_run_fn: Any | None = None
     delete_archived_runs_fn: Any | None = None
+    preview_delete_archived_runs_fn: Any | None = None
     list_cvs_for_run_fn: Any | None = None
     list_cv_versions_fn: Any | None = None
     reserve_cv_regeneration_fn: Any | None = None
@@ -173,10 +212,15 @@ class ControlPlaneStore:
     set_bookmark_fn: Any | None = None
     clear_bookmark_fn: Any | None = None
     list_bookmarks_fn: Any | None = None
+    query_bookmarks_fn: Any | None = None
+    resolve_job_selection_fn: Any | None = None
+    remove_bookmarks_fn: Any | None = None
+    list_selected_jobs_fn: Any | None = None
     set_run_job_interest_fn: Any | None = None
     clear_run_job_interest_fn: Any | None = None
     reserve_idempotent_action_fn: Any | None = None
     complete_idempotent_action_fn: Any | None = None
+    complete_idempotent_binary_action_fn: Any | None = None
 
     def __post_init__(self) -> None:
         if self.backend_runtime is not None:
@@ -222,6 +266,131 @@ class ControlPlaneStore:
                 sqlite_store.get_candidate_profile,
                 candidate_profile_id,
             ),
+        )
+
+    def query_candidate_profiles(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.query_candidate_profiles_fn, sqlite_store.query_candidate_profiles, **kwargs
+        )
+
+    def create_candidate_profile_attempt(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.create_candidate_profile_attempt_fn,
+            sqlite_store.create_candidate_profile_attempt,
+            **kwargs,
+        )
+
+    def get_candidate_profile_detail(self, profile_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(
+                self.get_candidate_profile_detail_fn,
+                sqlite_store.get_candidate_profile_detail,
+                profile_id,
+            ),
+        )
+
+    def query_candidate_profile_runs(self, profile_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.query_candidate_profile_runs_fn,
+            sqlite_store.query_candidate_profile_runs,
+            profile_id,
+            **kwargs,
+        )
+
+    def transition_candidate_profile_lifecycle(
+        self, profile_id: str, **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._call_dict(
+            self.transition_candidate_profile_lifecycle_fn,
+            sqlite_store.transition_candidate_profile_lifecycle,
+            profile_id,
+            **kwargs,
+        )
+
+    def get_synonym_policy(self, synonym_type: str) -> dict[str, Any]:
+        return self._call_dict(
+            self.get_synonym_policy_fn, sqlite_store.get_synonym_policy, synonym_type
+        )
+
+    def save_synonym_policy_draft(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.save_synonym_policy_draft_fn,
+            sqlite_store.save_synonym_policy_draft,
+            synonym_type,
+            **kwargs,
+        )
+
+    def activate_synonym_policy_bundle(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.activate_synonym_policy_bundle_fn,
+            sqlite_store.activate_synonym_policy_bundle,
+            synonym_type,
+            **kwargs,
+        )
+
+    def activate_synonym_policy_bundle_set(
+        self, policies: dict[str, dict[str, str]], **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._call_dict(
+            self.activate_synonym_policy_bundle_set_fn,
+            sqlite_store.activate_synonym_policy_bundle_set,
+            policies,
+            **kwargs,
+        )
+
+    def resolve_active_synonym_bundle(self) -> dict[str, Any]:
+        return self._call_dict(
+            self.resolve_active_synonym_bundle_fn,
+            sqlite_store.resolve_active_synonym_bundle,
+        )
+
+    def repair_active_synonym_policy_mirrors(self) -> dict[str, Any]:
+        return self._call_dict(
+            self.repair_active_synonym_policy_mirrors_fn,
+            sqlite_store.repair_active_synonym_policy_mirrors,
+        )
+
+    def ingest_synonym_suggestions(self, suggestions: list[dict[str, Any]]) -> dict[str, Any]:
+        return self._call_dict(
+            self.ingest_synonym_suggestions_fn,
+            sqlite_store.ingest_synonym_suggestions,
+            suggestions,
+        )
+
+    def query_synonym_suggestions(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.query_synonym_suggestions_fn,
+            sqlite_store.query_synonym_suggestions,
+            **kwargs,
+        )
+
+    def get_synonym_suggestion(self, suggestion_id: str, **kwargs: Any) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(
+                self.get_synonym_suggestion_fn,
+                sqlite_store.get_synonym_suggestion,
+                suggestion_id,
+                **kwargs,
+            ),
+        )
+
+    def apply_synonym_suggestion_action(
+        self, suggestion_ids: list[str], **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._call_dict(
+            self.apply_synonym_suggestion_action_fn,
+            sqlite_store.apply_synonym_suggestion_action,
+            suggestion_ids,
+            **kwargs,
+        )
+
+    def query_synonym_processing_runs(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.query_synonym_processing_runs_fn,
+            sqlite_store.query_synonym_processing_runs,
+            **kwargs,
         )
 
     def create_run_bundle(
@@ -278,6 +447,33 @@ class ControlPlaneStore:
 
     def list_bookmarks(self) -> list[dict[str, Any]]:
         return self._call_list(self.list_bookmarks_fn, sqlite_store.list_bookmarks)
+
+    def query_bookmarks(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.query_bookmarks_fn, sqlite_store.query_bookmarks, **kwargs)
+
+    def resolve_job_selection(self, run_job_ids: list[str], **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.resolve_job_selection_fn,
+            sqlite_store.resolve_job_selection,
+            run_job_ids,
+            **kwargs,
+        )
+
+    def remove_bookmarks(self, run_job_ids: list[str], **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.remove_bookmarks_fn,
+            sqlite_store.remove_bookmarks,
+            run_job_ids,
+            **kwargs,
+        )
+
+    def list_selected_jobs(self, run_job_ids: list[str], **kwargs: Any) -> list[dict[str, Any]]:
+        return self._call_list(
+            self.list_selected_jobs_fn,
+            sqlite_store.list_selected_jobs,
+            run_job_ids,
+            **kwargs,
+        )
 
     def set_run_job_interest(self, run_job_id: str, rating: int, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(
@@ -436,12 +632,37 @@ class ControlPlaneStore:
         )
 
 
-    def delete_archived_runs(self, older_than_days: int | str, run_ids: list[str] | None = None) -> dict[str, Any]:
+    def delete_archived_runs(self, older_than_days: int | str, run_ids: list[str] | None = None, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(
             self.delete_archived_runs_fn,
             sqlite_store.delete_archived_runs,
             older_than_days,
             run_ids=run_ids,
+            **kwargs,
+        )
+
+    def complete_idempotent_binary_action(
+        self,
+        action_id: str,
+        content: bytes,
+        *,
+        media_type: str,
+        filename: str,
+    ) -> None:
+        self._call(
+            self.complete_idempotent_binary_action_fn,
+            sqlite_store.complete_idempotent_binary_action,
+            action_id,
+            content,
+            media_type=media_type,
+            filename=filename,
+        )
+
+    def preview_delete_archived_runs(self, run_ids: list[str]) -> dict[str, Any]:
+        return self._call_dict(
+            self.preview_delete_archived_runs_fn,
+            sqlite_store.preview_delete_archived_runs,
+            run_ids,
         )
     def list_cvs_for_run(self, run_id: str) -> list[dict[str, Any]]:
         return self._call_list(

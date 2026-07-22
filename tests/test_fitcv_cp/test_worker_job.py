@@ -20,16 +20,70 @@ import os
 from copy import deepcopy
 from pathlib import Path
 from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
+from fitcv_cp import sqlite_store
 from fitcv_cp.worker_job import execute_pipeline_run
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import pytest
 
 @pytest.fixture(autouse=True)
-def _force_sqlite_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+def _force_sqlite_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     set_backend_runtime(None)
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", "data/fitcv_cp.sqlite3")
+    database_path = tmp_path / "fitcv-cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(database_path))
+    sqlite_store.initialize_control_plane_database(
+        database_path,
+        tmp_path / "missing-candidate-profile.yaml",
+    )
     yield
     set_backend_runtime(None)
+
+
+def test_central_synonym_sync_ingests_evidence_and_uses_shared_approve_transaction() -> None:
+    from fitcv_cp import worker_job
+
+    run = MagicMock(
+        effective_settings_json=json.dumps(
+            {"synonym_management": {"auto_accept_suggestions_enabled": True}}
+        )
+    )
+    payload = {
+        "proposals": [
+            {
+                "field": "skill",
+                "alias": "gcp",
+                "canonical": "google cloud",
+                "evidence_summary": {"occurrence_count": 2},
+                "conflict_summary": {"has_conflict": False},
+            }
+        ]
+    }
+
+    with patch(
+        "fitcv_cp.worker_job.ingest_synonym_suggestions",
+        return_value={"suggestion_ids": ["suggestion-1"]},
+    ) as ingest_mock, patch(
+        "fitcv_cp.worker_job.apply_synonym_suggestion_action",
+        return_value={"approved": 1},
+    ) as approve_mock:
+        worker_job._sync_central_synonym_suggestions(
+            run_id="run-1", run_record=run, payload=payload
+        )
+
+    assert ingest_mock.call_args.args[0] == [
+        {
+            "synonym_type": "skills",
+            "alias": "gcp",
+            "canonical": "google cloud",
+            "run_id": "run-1",
+            "evidence": {
+                "evidence_summary": {"occurrence_count": 2},
+                "conflict_summary": {"has_conflict": False},
+            },
+        }
+    ]
+    approve_mock.assert_called_once_with(
+        ["suggestion-1"], action="approve", acted_by="automation"
+    )
 
 def test_worker_entrypoints_retry_pending_process_event_deliveries(
     monkeypatch: pytest.MonkeyPatch,
@@ -384,7 +438,7 @@ def test_worker_uses_local_runtime_without_remote_client_bootstrap():
             backend_type="sqlite",
             project = "local",
             dataset = "fitcv",
-            sqlite_path="data/fitcv_cp.sqlite3",
+            sqlite_path=os.environ["FITCV_CP_SQLITE_PATH"],
         ),
     ), patch(
         "fitcv_cp.worker_job._get_bq",
@@ -448,7 +502,7 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
                 backend_type=backend_type,
                 project = "local",
                 dataset = "fitcv",
-                sqlite_path="data/fitcv_cp.sqlite3" if backend_type == "sqlite" else None,
+                sqlite_path=os.environ["FITCV_CP_SQLITE_PATH"] if backend_type == "sqlite" else None,
             ),
         ), patch("fitcv_cp.worker_job._get_bq", return_value=client), patch(
             "fitcv_cp.worker_job.get_run",
@@ -1639,6 +1693,7 @@ def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
            "persistence_status": "bundle_only_degraded",
            "degradation_reason": "missing_synonym_proposals_json_column",
        }), \
+       patch("fitcv_cp.worker_job._sync_central_synonym_suggestions"), \
        patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock, \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
@@ -1679,6 +1734,7 @@ def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_map
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
     }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job._sync_central_synonym_suggestions"), \
        patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping_update, \
        patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={"persistence_status": "persisted"}) as mock_syn_update, \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
@@ -1820,7 +1876,7 @@ def test_worker_run_all_awaiting_review_persists_terminal_snapshots_as_succeeded
     assert stage_payload["degradation_reason"] == ""
     assert isinstance(stage_payload.get("created_at"), str) and stage_payload["created_at"]
 
-def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
+def test_worker_run_all_routes_synonym_auto_accept_to_central_queue() -> None:
     client = MagicMock()
     client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
@@ -1829,12 +1885,10 @@ def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
                 "skill_synonyms": {},
                 "synonym_management": {
                     "propose_enabled": True,
-                    "apply_to_run_enabled": True,
-                    "promote_global_enabled": True,
+                    "apply_approved_enabled": True,
                     "auto_triage_recommendation_enabled": True,
                     "triage_recommendation_reuse_enabled": True,
-                    "auto_apply_recommendation_enabled": True,
-                    "auto_promote_global_enabled": True,
+                    "auto_accept_suggestions_enabled": True,
                     "auto_accept_ai_action_enabled": True,
                 },
             }
@@ -1866,6 +1920,7 @@ def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
         "cv_generation_debug_records": [],
     }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job._sync_central_synonym_suggestions") as sync_mock, \
        patch("fitcv_cp.worker_job._persist_global_skill_synonyms_map"), \
        patch("fitcv_cp.worker_job._load_global_skill_synonyms_map", return_value={}), \
        patch("fitcv_cp.worker_job.update_run_effective_settings"), \
@@ -1879,11 +1934,12 @@ def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
     proposals = list(synonym_payload.get("proposals") or [])
     assert proposals
     assert proposals[0]["recommended_action"] == "approve"
-    assert proposals[0]["proposal_status"] == "approved_for_run_overlay"
+    assert proposals[0]["proposal_status"] == "proposed_unreviewed"
+    sync_mock.assert_called_once()
     trace_summary = dict((synonym_payload.get("synonym_proposals_trace") or {}).get("trace_summary") or {})
     assert int(trace_summary.get("triage_recommendation_generated_total") or 0) >= 1
-    assert int(trace_summary.get("auto_apply_recommendation_applied") or 0) >= 1
-    assert trace_summary.get("auto_promote_global_skip_reason") == "applied"
+    assert "auto_apply_recommendation_applied" not in trace_summary
+    assert "auto_promote_global_skip_reason" not in trace_summary
 
 def test_worker_run_all_does_not_execute_synonym_automation_when_disabled() -> None:
     client = MagicMock()
@@ -1894,12 +1950,10 @@ def test_worker_run_all_does_not_execute_synonym_automation_when_disabled() -> N
                 "skill_synonyms": {},
                 "synonym_management": {
                     "propose_enabled": True,
-                    "apply_to_run_enabled": True,
-                    "promote_global_enabled": True,
+                    "apply_approved_enabled": True,
+                    "auto_accept_suggestions_enabled": False,
                     "auto_triage_recommendation_enabled": False,
                     "triage_recommendation_reuse_enabled": True,
-                    "auto_apply_recommendation_enabled": False,
-                    "auto_promote_global_enabled": False,
                     "auto_accept_ai_action_enabled": True,
                 },
             }
@@ -1931,6 +1985,7 @@ def test_worker_run_all_does_not_execute_synonym_automation_when_disabled() -> N
         "cv_generation_debug_records": [],
     }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job._sync_central_synonym_suggestions"), \
        patch("fitcv_cp.worker_job._persist_global_skill_synonyms_map"), \
        patch("fitcv_cp.worker_job._load_global_skill_synonyms_map", return_value={}), \
        patch("fitcv_cp.worker_job.update_run_effective_settings"), \
@@ -1948,8 +2003,8 @@ def test_worker_run_all_does_not_execute_synonym_automation_when_disabled() -> N
     assert proposals[0]["proposal_status"] == "proposed_unreviewed"
     trace_summary = dict((synonym_payload.get("synonym_proposals_trace") or {}).get("trace_summary") or {})
     assert int(trace_summary.get("triage_recommendation_generated_total") or 0) == 0
-    assert int(trace_summary.get("auto_apply_recommendation_applied") or 0) == 0
-    assert int(trace_summary.get("auto_promote_global_applied") or 0) == 0
+    assert "auto_apply_recommendation_applied" not in trace_summary
+    assert "auto_promote_global_applied" not in trace_summary
     automation_stages = {
         "synonym_proposal_triage_completed",
         "synonym_proposal_auto_apply_completed",
