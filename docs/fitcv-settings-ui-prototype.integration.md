@@ -1,65 +1,48 @@
 # Preference Optimization Prototype Integration Intent
 
-Status: UI intent revised; prototype remains local-state only until backend contracts are updated and wired.
+Status: pending implementation against `docs/superpowers/specs/2026-07-23-12-31-fitcv-preference-optimization-frontend-backend-integration-spec.md`.
 
-Operation: select ranking mode, manage Personalization Strength, and create, inspect, activate, inactivate, remove, or clear the current console view for optimization runs from saved application-interest ratings.
+Operation: select workspace Ranking Mode, manage bounded workspace Personalization Strength, synchronously optimize current ratings, inspect historical evidence, activate or inactivate one policy, remove a run from the normal list, and clear the current Console Log view.
 
-Current contract owners:
-
-- decision-learning policy: `config/policy/decision_learning.yaml`
-- optimization lifecycle: existing `/admin/optimization` routes and shared optimization service
-- rating evidence: canonical stored rating events and compiled preference comparisons
-
-Future contract owner: backend Preference Optimization API exposing ranking mode, bounded Personalization Strength, rating evidence, and optimization lifecycle data. This sidecar does not define transport schemas.
+Contract owner: `docs/superpowers/specs/2026-07-23-12-31-fitcv-preference-optimization-frontend-backend-integration-spec.md`. Canonical source, routes, persistence, runtime contracts, and tests replace this temporary sidecar as implementation lands.
 
 ## UI Behavior
 
-- `Preference Optimization` uses the same collapsible section, setting row, `Manage` dialog, and table patterns as other Pipeline settings pages.
-- Section 1, `Ranking Mode`, exposes a dropdown with `Baseline Ranking` and `Personalized Ranking`.
-- When `Personalized Ranking` has no active successful policy, the UI states that `Baseline Ranking` will be used.
-- Section 2, `Personalization Strength`, is disabled for `Baseline Ranking` and edited through `Manage` for `Personalized Ranking`. Helper text explains how higher and lower values affect ranking movement.
-- Prototype-only bounds are `0.01–0.10`, step `0.01`, recommended `0.05`. Backend policy must replace these illustrative values before production wiring.
-- Section 3, `Rating Evidence`, shows saved ratings across runs and exposes `Optimize Current Ratings` without a readiness gate. The button is disabled for `Baseline Ranking`.
-- A new optimization appears immediately in Section 4, `Optimization Runs`, with `Running`, `Succeeded`, or `Failed` status.
-- Optimization Runs uses `Activate Policy` or `Inactivate Policy` plus `Remove`; no Usage column or Reject action exists. All action buttons are disabled for `Baseline Ranking`.
-- Only one policy can be active. Activating another policy inactivates the previous one and selects `Personalized Ranking`.
-- Optimization IDs open restorable details at `#preference-optimization/{optimization_id}`.
-- Details place `Activate Policy` or `Inactivate Policy` at the top right. The action is disabled for `Baseline Ranking`, with a message directing the user to select `Personalized Ranking`.
-- Details contain Overview, Rating Evidence, and Console Log only. Overview omits Policy Version; both rating tables use the same columns and styles. Console Log provides `Clear`, which clears the current view without deleting authoritative lifecycle evidence.
-- Completed pipeline results never change when ranking mode or active policy changes.
+- Reuse existing Pipeline setting rows, Manage dialog, collapsible sections, tables, statuses, buttons, and Console patterns.
+- Ranking Mode is a persisted workspace select with Baseline Ranking and Personalized Ranking.
+- Personalization Strength is workspace-wide, disabled under baseline, bounded by backend policy metadata, and captured per Optimization Run.
+- Changing strength while policy is active is blocked with `Inactivate Policy before changing Personalization Strength.` Manual inactivation keeps Personalized Ranking selected and shows baseline fallback.
+- Optimize Current Ratings is disabled only under baseline. Submission is synchronous with transient `Optimizing…` and terminal `Succeeded`, `No Change`, `Not Created`, or `Failed` row.
+- Optimization Runs uses public `preference_optimization_run_id`; production details use direct server URLs.
+- Activate/Inactivate actions are disabled under baseline. Inactivate keeps Personalized Ranking selected and shows fallback.
+- Active but runtime-incompatible policy displays `Active · Not in use`; Inactivate remains available under Personalized Ranking.
+- Remove permanently hides non-active row from current default view without deleting backend record, evidence, policy, or audit history. Storage keeps reversible `hidden_at`; no Restore UI exists until separately needed.
+- Details contain Overview, historical Rating Evidence, and Console Log only. Clear changes current browser view only.
+- Personalized Ranking without compatible active policy displays baseline fallback.
 
 ## Backend Integration Intent
 
-- Backend returns authoritative ranking mode plus Personalization Strength minimum, maximum, recommended value, step, and current value.
-- Backend returns canonical rating evidence rows for both the main page and optimization details.
-- Optimization creation accepts one backend-validated strength and returns a durable optimization run immediately.
-- Optimization run status is backend-owned and transitions through supported lifecycle states.
-- Every successful optimization stores the exact strength and rating evidence snapshot used.
-- Backend allows one active successful policy at a time and supports explicit activation, inactivation, and removal rules.
-- Backend rejects optimization creation and policy mutations when ranking mode is `Baseline Ranking`; disabled UI controls are not the enforcement boundary.
-- Runtime scoring uses the active policy only when ranking mode is `Personalized Ranking`; otherwise it uses baseline ranking.
-- Personalized mode without an active compatible policy safely falls back to baseline ranking.
-- UI must not write `decision_learning.yaml`; policy YAML owns bounds and defaults while mutable user settings belong to backend storage.
-- Console logs expose bounded, authorized lifecycle events without sensitive free-text rating content.
+- Use existing revisioned workspace settings and server-rendered PRG forms.
+- Keep optimization synchronous; add no JSON API, typed client, polling, or durable Running state.
+- Retain internal `training_run_id`; expose only public `preference_optimization_run_id` in normal UI.
+- Store exact strength, settings revision, evidence fingerprint, event watermark, source rating-event IDs, and minimal immutable displayed rows for each new run.
+- Preserve CAS, provenance, one-active-domain-policy, local Host/Origin/CSRF/onboarding, and server-derived audit actor.
+- Mount feature only in local mode.
 
 ## Required Evidence
 
-- Ranking mode selection survives refresh and matches runtime behavior.
-- Personalization Strength cannot be managed while Baseline Ranking is selected.
-- Optimize Current Ratings and all Optimization Runs actions are disabled while Baseline Ranking is selected.
-- Optimization details disable the policy action under Baseline Ranking and explain how to enable it.
-- Backend-provided strength bounds reject malformed values.
-- Rating Evidence columns and rows match on the main and details pages.
-- Optimization creation appears immediately with status and captures the selected strength.
-- Activate Policy, Inactivate Policy, and Remove enforce one-active-policy semantics and preserve unrelated runs.
-- Personalized mode without an active policy visibly and operationally falls back to baseline ranking.
-- Direct detail URL, refresh, Back, and Forward preserve the selected Optimization ID.
-- Clear removes Console Log entries from the current view without deleting authoritative lifecycle evidence.
-- Running, success, failure, empty, active, inactive, baseline, and personalized states pass.
-- Light, dark, narrow, zoomed, keyboard, focus, and reduced-motion states pass.
-- Browser request payload and visible lifecycle state match canonical backend contracts and focused tests.
+- Mode and strength survive refresh/restart and match ranking runtime.
+- Baseline disables strength, optimization, and policy actions in UI and backend.
+- Personalized fallback is visible and operational without compatible active policy.
+- Synchronous submissions create one idempotent terminal run with correct status mapping.
+- Historical details remain stable after rating changes and trace to source event IDs.
+- Activation/inactivation preserve audit and one-active-policy semantics.
+- Remove hides only normal row; direct details and backend history remain.
+- Direct details, refresh, Back, Forward, Console Clear, validation, stale, and duplicate-submit states pass.
+- Light, dark, narrow, 200% zoom, keyboard, focus, reduced-motion, and contrast states pass.
+- Existing optimization/runtime contracts and prototype self-checks pass after integration.
 
 ## Known Backend Gap
 
-- Current contract keeps `inverse_optimization.learned_alpha` config-only and accepts no numeric optimizer parameter from admin UI or CLI.
-- Backend schemas, persistence, policy fingerprinting, runtime resolution, lifecycle compatibility, routes, and tests must be updated together before wiring editable Personalization Strength and ranking mode.
+- Current source lacks persisted Ranking Mode, workspace Strength, public Preference Optimization Run identity, historical display snapshots, direct details, dedicated Inactivate action, and hide-from-list metadata.
+- Implement affected owners together; never wire prototype-local state directly.
