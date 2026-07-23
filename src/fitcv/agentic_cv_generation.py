@@ -22,7 +22,6 @@ import hashlib
 import json
 from pathlib import Path
 import os
-import time
 from typing import Any, Callable, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
@@ -39,7 +38,6 @@ from fitcv.config import (
     get_cv_generation_model,
     get_cv_generation_prompt_version,
     get_cv_generation_structured_prompt_id,
-    get_stage_runtime_sleep_secs,
 )
 from fitcv.runtime_routing import resolve_cv_generation_routing_snapshot
 from fitcv.cv_generator import (
@@ -691,10 +689,6 @@ def _execute_generation_attempt(
     )
     return structured_cv, markdown, validation, runtime_provenance
 
-def _cv_generation_sleep_secs(config: dict[str, Any]) -> float:
-    return get_stage_runtime_sleep_secs(config, stage="cv_generation", default=0.0)
-
-
 def _build_fallback_provider_generator(
     *,
     job: dict[str, Any],
@@ -729,9 +723,6 @@ def _build_fallback_retry_executor(
     def _retry(
         repair_targets: list[str],
     ) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
-        sleep_secs = _cv_generation_sleep_secs(config)
-        if sleep_secs > 0.0:
-            time.sleep(sleep_secs)
         return _execute_generation_attempt(
             fallback_provider_generator,
             profile=profile,
@@ -1338,10 +1329,6 @@ def _generate_fresh_from_analysis(
             "response_schema_name": _LIVE_TRACE_SCHEMA_NAME,
         }
         trace_payload["attempts"].append(attempt_trace)
-        if attempt_index > 1:
-            sleep_secs = _cv_generation_sleep_secs(config)
-            if sleep_secs > 0.0:
-                time.sleep(sleep_secs)
         result = _execute_generation_attempt(
             lambda missing: _call_provider(missing, attempt_trace, attempt_index),
             profile=profile,

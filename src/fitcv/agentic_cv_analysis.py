@@ -18,12 +18,10 @@ lifecycle:
 import hashlib
 import json
 import math
-import time
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
 from fitcv.candidate import flatten_skills
-from fitcv.config import get_stage_runtime_sleep_secs
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
     build_cv_analysis_input_fingerprint,
@@ -425,10 +423,6 @@ def _build_evidence_selection_summary(
     )
 
 
-def _cv_analysis_sleep_secs(config: dict[str, Any]) -> float:
-    return get_stage_runtime_sleep_secs(config, stage="cv_analysis", default=0.0)
-
-
 _REUSABLE_ANALYSIS_STATUSES = {READY_FOR_GENERATION_STATUS, SKIPPED_FIT_GATE_STATUS}
 _REUSABLE_RECORD_REQUIRED_FIELDS = frozenset(
     {
@@ -612,9 +606,6 @@ def analyze_ranked_job(
             source_artifact_type="cv_analysis",
         )
 
-        sleep_secs = _cv_analysis_sleep_secs(config)
-        if sleep_secs > 0:
-            time.sleep(sleep_secs)
         evidence_top_k = int(top_k if top_k is not None else config["pipeline"]["evidence_top_k"])
         evidence_bundle = retrieve_evidence_bundle(
             profile,

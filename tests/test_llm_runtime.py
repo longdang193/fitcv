@@ -32,6 +32,35 @@ from fitcv.llm_runtime import (
 )
 from fitcv.runtime_routing import LlmRouting
 
+class _FakePacingClock:
+    def __init__(self) -> None:
+        self.current = 0.0
+        self.sleeps: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.current
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.current += seconds
+
+def _paced_route(*, provider: str = "openai_compatible", interval: float = 1.0) -> LlmRouting:
+    return LlmRouting(
+        provider=provider,
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
+        request_start_interval_secs=interval,
+    )
+
+def _reset_request_start_slots() -> None:
+    from fitcv import llm_runtime as runtime_module
+
+    slots = getattr(runtime_module, "_NEXT_REQUEST_START_BY_PROVIDER", None)
+    if isinstance(slots, dict):
+        slots.clear()
+
 
 def _route(*, wire_api: str = "responses") -> LlmRouting:
     return LlmRouting(
@@ -431,3 +460,89 @@ def test_execute_llm_task_uses_pre_resolved_route_without_reloading_config() -> 
     assert result.provenance.provider == route.provider
     assert result.provenance.model == route.model
     assert result.provenance.wire_api == route.wire_api
+
+def test_execute_llm_task_spaces_same_provider_request_starts(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv import llm_runtime as runtime_module
+
+    _reset_request_start_slots()
+    clock = _FakePacingClock()
+    starts: list[float] = []
+    monkeypatch.setattr(runtime_module, "_REQUEST_START_MONOTONIC", clock.monotonic, raising=False)
+    monkeypatch.setattr(runtime_module, "_REQUEST_START_SLEEP", clock.sleep, raising=False)
+
+    def adapter(request, route, api_key):
+        starts.append(clock.current)
+        return _response()
+
+    with patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"):
+        for _ in range(2):
+            result = execute_llm_task(
+                _request(),
+                parser=lambda response: json.loads(response.raw_text),
+                validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+                adapter=adapter,
+                resolved_route=_paced_route(interval=1.0),
+            )
+            assert result.status == "succeeded"
+
+    assert starts == [0.0, 1.0]
+    assert clock.sleeps == [1.0]
+
+def test_execute_llm_task_keeps_provider_pacing_buckets_independent(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv import llm_runtime as runtime_module
+
+    _reset_request_start_slots()
+    clock = _FakePacingClock()
+    starts: list[tuple[str, float]] = []
+    monkeypatch.setattr(runtime_module, "_REQUEST_START_MONOTONIC", clock.monotonic, raising=False)
+    monkeypatch.setattr(runtime_module, "_REQUEST_START_SLEEP", clock.sleep, raising=False)
+
+    def adapter(request, route, api_key):
+        starts.append((route.provider, clock.current))
+        return _response()
+
+    with patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"):
+        for provider in ("openai", "anthropic"):
+            execute_llm_task(
+                _request(),
+                parser=lambda response: json.loads(response.raw_text),
+                validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+                adapter=adapter,
+                resolved_route=_paced_route(provider=provider, interval=1.0),
+            )
+
+    assert starts == [("openai", 0.0), ("anthropic", 0.0)]
+    assert clock.sleeps == []
+
+def test_execute_llm_task_zero_interval_and_routing_failure_do_not_reserve_slots(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv import llm_runtime as runtime_module
+
+    _reset_request_start_slots()
+    clock = _FakePacingClock()
+    monkeypatch.setattr(runtime_module, "_REQUEST_START_MONOTONIC", clock.monotonic, raising=False)
+    monkeypatch.setattr(runtime_module, "_REQUEST_START_SLEEP", clock.sleep, raising=False)
+
+    with patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"):
+        result = execute_llm_task(
+            _request(),
+            parser=lambda response: json.loads(response.raw_text),
+            validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+            adapter=lambda request, route, api_key: _response(),
+            resolved_route=_paced_route(interval=0.0),
+        )
+    assert result.status == "succeeded"
+    assert clock.sleeps == []
+
+    with patch("fitcv.llm_runtime.resolve_llm_api_key", side_effect=RuntimeError("API key missing")):
+        failed = execute_llm_task(
+            _request(),
+            parser=lambda response: json.loads(response.raw_text),
+            validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+            adapter=lambda request, route, api_key: _response(),
+            resolved_route=_paced_route(interval=1.0),
+        )
+    assert failed.failure is not None
+    assert failed.failure.stage == "routing"
+    assert getattr(runtime_module, "_NEXT_REQUEST_START_BY_PROVIDER", {}) == {}

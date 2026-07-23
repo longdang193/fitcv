@@ -4606,7 +4606,7 @@ def test_run_pipeline_cv_generation_parallel_completion_preserves_deterministic_
     assert heartbeat[3]["completed_items"] == 0
     assert heartbeat[3]["pending_items"] == 2
     assert heartbeat[3]["configured_concurrency"] == 4
-    assert heartbeat[3]["cv_generation_concurrency_effective"] == 1
+    assert heartbeat[3]["cv_generation_concurrency_effective"] == 2
     assert all(item.args != (0.25,) for item in mock_generation_sleep.call_args_list)
     debug_urls = [str(r.get("job_url") or "") for r in result["cv_generation_debug_records"]]
     assert debug_urls == [job_a["job_url"], job_b["job_url"]]
@@ -5450,8 +5450,117 @@ def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
         {"ai_score_model": "cx/gpt-5.4-mini"},
         job_event_callback=None,
         runtime_observation_callback=None,
-        on_chunk_complete=None,
+        on_item_complete=ANY,
+        cancellation_callback=None,
     )
+
+
+@pytest.mark.parametrize("debug_heartbeat", [False, True])
+def test_enrich_jobs_with_reuse_uses_one_parallel_scheduler_in_debug_and_normal_modes(
+    monkeypatch: pytest.MonkeyPatch,
+    debug_heartbeat: bool,
+) -> None:
+    jobs = [{"job_url": f"https://example.com/{index}"} for index in range(4)]
+    calls: list[list[str]] = []
+    store = MagicMock()
+    store.lookup_reusable_structured_jobs.return_value = {}
+
+    def fake_enrich_batch(rows, config, **kwargs):
+        calls.append([row["job_url"] for row in rows])
+        enriched = [{**row, "enriched": True} for row in rows]
+        for row in enriched:
+            kwargs["on_item_complete"](row)
+        return enriched
+
+    monkeypatch.setenv("FITCV_ENRICH_DEBUG_HEARTBEAT", "1" if debug_heartbeat else "0")
+    monkeypatch.setattr("fitcv.pipeline.enrich_batch", fake_enrich_batch)
+    monkeypatch.setattr(
+        "fitcv.pipeline.build_raw_job_fingerprint",
+        lambda row: {"fingerprint": f"raw-{row['job_url']}"},
+    )
+    monkeypatch.setattr(
+        "fitcv.pipeline.build_enrich_contract_fingerprint",
+        lambda config: {"fingerprint": "contract"},
+    )
+
+    enriched, fresh = _enrich_jobs_with_reuse(
+        jobs,
+        {"stage_runtime": {"enrich": {"concurrency": 2}}},
+        pipeline_store=store,
+        incremental_save_run_id="run-1",
+    )
+
+    assert calls == [[job["job_url"] for job in jobs]]
+    assert [row["job_url"] for row in enriched] == [job["job_url"] for job in jobs]
+    assert [row["job_url"] for row in fresh] == [job["job_url"] for job in jobs]
+
+
+def test_enrich_jobs_with_reuse_flushes_completed_rows_in_tens_plus_remainder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    jobs = [{"job_url": f"https://example.com/{index}"} for index in range(23)]
+    store = MagicMock()
+    store.lookup_reusable_structured_jobs.return_value = {}
+
+    def fake_enrich_batch(rows, config, **kwargs):
+        enriched = [{**row, "enriched": True} for row in rows]
+        for row in enriched:
+            kwargs["on_item_complete"](row)
+        return enriched
+
+    monkeypatch.setattr("fitcv.pipeline.enrich_batch", fake_enrich_batch)
+    monkeypatch.setattr(
+        "fitcv.pipeline.build_raw_job_fingerprint",
+        lambda row: {"fingerprint": f"raw-{row['job_url']}"},
+    )
+    monkeypatch.setattr(
+        "fitcv.pipeline.build_enrich_contract_fingerprint",
+        lambda config: {"fingerprint": "contract"},
+    )
+
+    _enrich_jobs_with_reuse(
+        jobs,
+        {"stage_runtime": {"enrich": {"concurrency": 4}}},
+        pipeline_store=store,
+        incremental_save_run_id="run-1",
+    )
+
+    assert [len(call.args[0]) for call in store.load_structured_jobs.call_args_list] == [10, 10, 3]
+    assert [len(call.args[0]) for call in store.load_run_structured_jobs.call_args_list] == [10, 10, 3]
+
+
+def test_enrich_jobs_with_reuse_flushes_delivered_rows_before_worker_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    jobs = [{"job_url": f"https://example.com/{index}"} for index in range(5)]
+    store = MagicMock()
+    store.lookup_reusable_structured_jobs.return_value = {}
+
+    def failing_enrich_batch(rows, config, **kwargs):
+        for row in rows[:3]:
+            kwargs["on_item_complete"]({**row, "enriched": True})
+        raise RuntimeError("provider failed")
+
+    monkeypatch.setattr("fitcv.pipeline.enrich_batch", failing_enrich_batch)
+    monkeypatch.setattr(
+        "fitcv.pipeline.build_raw_job_fingerprint",
+        lambda row: {"fingerprint": f"raw-{row['job_url']}"},
+    )
+    monkeypatch.setattr(
+        "fitcv.pipeline.build_enrich_contract_fingerprint",
+        lambda config: {"fingerprint": "contract"},
+    )
+
+    with pytest.raises(RuntimeError, match="provider failed"):
+        _enrich_jobs_with_reuse(
+            jobs,
+            {"stage_runtime": {"enrich": {"concurrency": 4}}},
+            pipeline_store=store,
+            incremental_save_run_id="run-1",
+        )
+
+    assert [len(call.args[0]) for call in store.load_structured_jobs.call_args_list] == [3]
+    assert [len(call.args[0]) for call in store.load_run_structured_jobs.call_args_list] == [3]
 
 
 def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and_must_have_skill() -> None:
@@ -7635,7 +7744,7 @@ def test_run_pipeline_cv_analysis_concurrency_preserves_result_order(
         job_a["job_url"],
         job_b["job_url"],
     ]
-    assert max_active_calls == 1
+    assert max_active_calls == 2
 
 
 def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_rows() -> None:
@@ -9013,7 +9122,7 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
-def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
+def test_run_pipeline_forwards_canonical_enrichment_concurrency_to_enrich_batch(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_norm: MagicMock,
@@ -9037,20 +9146,13 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
 ) -> None:
-    """@proves bounded_parallel_enrichment.enrichment-batch-size-setting
-    @proves bounded_parallel_enrichment.enrichment-concurrency-setting
-    """
+    """@proves per_item_enrichment.enrichment-concurrency-setting"""
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
     profile = _minimal_profile()
 
     cfg = dict(_minimal_config())
-    cfg["enrichment_batch_size"] = 5
-    cfg["enrichment_concurrency"] = 3
-    cfg["pipeline"]["enrichment_batch_size"] = 5
-    cfg["pipeline"]["enrichment_concurrency"] = 3
-    cfg["stage_runtime"]["enrich"]["batch_size"] = 5
     cfg["stage_runtime"]["enrich"]["concurrency"] = 3
 
     mock_config.return_value = cfg
@@ -9068,140 +9170,9 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
 
     args, kwargs = mock_enrich.call_args
     passed_config = kwargs.get("config", args[1] if len(args) > 1 else {})
-    assert passed_config.get("enrichment_batch_size") == 5, (
-        f"enrichment_batch_size not forwarded. config={passed_config}"
-    )
-    assert passed_config.get("enrichment_concurrency") == 3, (
-        f"enrichment_concurrency not forwarded. config={passed_config}"
-    )
+    assert passed_config["stage_runtime"]["enrich"] == {"concurrency": 3}
 
 
-@patch("fitcv.pipeline.store_final_ranking")
-@patch("fitcv.pipeline.rank_jobs")
-@patch("fitcv.pipeline.build_ranking_features")
-@patch("fitcv.pipeline.run_ai_scoring")
-@patch("fitcv.pipeline.run_vector_search")
-@patch("fitcv.pipeline.embed_and_store_jobs")
-@patch("fitcv.pipeline.store_filter_results")
-@patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_profile")
-@patch("fitcv.pipeline.load_profile_yaml")
-@patch("fitcv.pipeline.load_structured_jobs")
-@patch("fitcv.pipeline.load_run_structured_jobs")
-@patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_raw_jobs")
-@patch("fitcv.pipeline.normalize_batch")
-@patch("fitcv.pipeline.parse_jobs_file")
-@patch("fitcv.pipeline.load_config")
-def test_run_pipeline_projects_canonical_enrich_runtime_to_legacy_keys(
-    mock_config: MagicMock,
-    mock_parse: MagicMock,
-    mock_norm: MagicMock,
-    mock_load_bq: MagicMock,
-    mock_enrich: MagicMock,
-    mock_load_run_struct: MagicMock,
-    mock_load_struct: MagicMock,
-    mock_profile_yaml: MagicMock,
-    mock_load_cand: MagicMock,
-    mock_filter: MagicMock,
-    mock_store_filter: MagicMock,
-    mock_embed_jobs: MagicMock,
-    mock_vec: MagicMock,
-    mock_ai: MagicMock,
-    mock_build_feat: MagicMock,
-    mock_rank: MagicMock,
-    mock_store_rank: MagicMock,
-) -> None:
-    from fitcv.pipeline import run_pipeline
-
-    job = _minimal_job()
-    profile = _minimal_profile()
-    cfg = dict(_minimal_config())
-    cfg["stage_runtime"] = {"enrich": {"sleep_secs": 0.3, "batch_size": 7, "concurrency": 2}}
-
-    mock_config.return_value = cfg
-    mock_parse.return_value = [job]
-    mock_norm.return_value = [job]
-    mock_enrich.return_value = [job]
-    mock_profile_yaml.return_value = profile
-    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
-    mock_ai.return_value = [job]
-    mock_build_feat.return_value = [job]
-    mock_rank.return_value = []
-
-    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="reg-test-canonical-enrich")
-
-    args, kwargs = mock_enrich.call_args
-    passed_config = kwargs.get("config", args[1] if len(args) > 1 else {})
-    assert passed_config.get("enrichment_sleep_secs") == 0.3
-    assert passed_config.get("enrichment_batch_size") == 7
-    assert passed_config.get("enrichment_concurrency") == 2
-
-@patch("fitcv.pipeline.store_final_ranking")
-@patch("fitcv.pipeline.rank_jobs")
-@patch("fitcv.pipeline.build_ranking_features")
-@patch("fitcv.pipeline.run_ai_scoring")
-@patch("fitcv.pipeline.run_vector_search")
-@patch("fitcv.pipeline.embed_and_store_jobs")
-@patch("fitcv.pipeline.store_filter_results")
-@patch("fitcv.pipeline.apply_rule_filters")
-@patch("fitcv.pipeline.load_candidate_profile")
-@patch("fitcv.pipeline.load_profile_yaml")
-@patch("fitcv.pipeline.load_structured_jobs")
-@patch("fitcv.pipeline.load_run_structured_jobs")
-@patch("fitcv.pipeline.enrich_batch")
-@patch("fitcv.pipeline.load_raw_jobs")
-@patch("fitcv.pipeline.normalize_batch")
-@patch("fitcv.pipeline.parse_jobs_file")
-@patch("fitcv.pipeline.load_config")
-def test_run_pipeline_canonical_enrich_runtime_overrides_legacy_throughput_keys(
-    mock_config: MagicMock,
-    mock_parse: MagicMock,
-    mock_norm: MagicMock,
-    mock_load_bq: MagicMock,
-    mock_enrich: MagicMock,
-    mock_load_run_struct: MagicMock,
-    mock_load_struct: MagicMock,
-    mock_profile_yaml: MagicMock,
-    mock_load_cand: MagicMock,
-    mock_filter: MagicMock,
-    mock_store_filter: MagicMock,
-    mock_embed_jobs: MagicMock,
-    mock_vec: MagicMock,
-    mock_ai: MagicMock,
-    mock_build_feat: MagicMock,
-    mock_rank: MagicMock,
-    mock_store_rank: MagicMock,
-) -> None:
-    from fitcv.pipeline import run_pipeline
-
-    job = _minimal_job()
-    profile = _minimal_profile()
-    cfg = dict(_minimal_config())
-    cfg["enrichment_sleep_secs"] = 9.0
-    cfg["enrichment_batch_size"] = 99
-    cfg["enrichment_concurrency"] = 11
-    cfg["stage_runtime"] = {"enrich": {"sleep_secs": 0.2, "batch_size": 6, "concurrency": 3}}
-
-    mock_config.return_value = cfg
-    mock_parse.return_value = [job]
-    mock_norm.return_value = [job]
-    mock_enrich.return_value = [job]
-    mock_profile_yaml.return_value = profile
-    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
-    mock_ai.return_value = [job]
-    mock_build_feat.return_value = [job]
-    mock_rank.return_value = []
-
-    run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="reg-test-canonical-precedence")
-
-    args, kwargs = mock_enrich.call_args
-    passed_config = kwargs.get("config", args[1] if len(args) > 1 else {})
-    assert passed_config.get("enrichment_sleep_secs") == 0.2
-    assert passed_config.get("enrichment_batch_size") == 6
-    assert passed_config.get("enrichment_concurrency") == 3
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -9509,7 +9480,8 @@ def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
         config,
         job_event_callback=None,
         runtime_observation_callback=None,
-        on_chunk_complete=None,
+        on_item_complete=None,
+        cancellation_callback=None,
     ):
         enriched = [
             {
@@ -9520,8 +9492,9 @@ def test_run_pipeline_incremental_enrich_persists_each_store_exactly_once(
             }
             for row in rows
         ]
-        if on_chunk_complete is not None:
-            on_chunk_complete(enriched)
+        if on_item_complete is not None:
+            for row in enriched:
+                on_item_complete(row)
         return enriched
 
     mock_enrich.side_effect = enrich_side_effect

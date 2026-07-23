@@ -15,6 +15,7 @@ lifecycle:
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from fitcv.config import load_config
@@ -358,158 +359,50 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     },
     # ── Timing / Throttling ───────────────────────────────────────────────────
     {
-        "key": "stage_runtime.enrich.sleep_secs",
+        "key": "llm_runtime.request_start_interval_secs",
         "type": "float",
         "float_range": "nonnegative",
         "default": 0.0,
-        "label": "API Delay: Enrichment Stage",
-        "description": "Canonical delay between enrich-stage API calls for shared throttling.",
+        "label": "Minimum Request Start Interval (seconds)",
+        "description": "Minimum time between generative request starts for the same provider connection. Zero disables pacing; retry backoff remains separate.",
         "group": "timing",
-        "config_path": ["stage_runtime", "enrich", "sleep_secs"],
-    },
-    {
-        "key": "stage_runtime.enrich.batch_size",
-        "type": "int",
-        "default": 10,
-        "label": "Batch Size: Enrichment Stage",
-        "description": "Canonical enrich-stage batch size before each scheduling boundary.",
-        "group": "timing",
-        "config_path": ["stage_runtime", "enrich", "batch_size"],
+        "config_path": ["llm_runtime", "request_start_interval_secs"],
     },
     {
         "key": "stage_runtime.enrich.concurrency",
         "type": "int",
         "default": 8,
-        "label": "Concurrency: Enrichment Stage",
-        "description": "Canonical enrich-stage concurrent batch worker count.",
+        "label": "Maximum Concurrent Jobs",
+        "description": "Maximum number of Enrichment jobs that may run simultaneously.",
         "group": "timing",
         "config_path": ["stage_runtime", "enrich", "concurrency"],
-    },
-    {
-        "key": "stage_runtime.ranking.sleep_secs",
-        "type": "float",
-        "float_range": "nonnegative",
-        "default": 0.0,
-        "label": "API Delay: Ranking Stage",
-        "description": "Canonical delay between ranking-stage AI scoring calls.",
-        "group": "timing",
-        "config_path": ["stage_runtime", "ranking", "sleep_secs"],
-    },
-    {
-        "key": "stage_runtime.ranking.batch_size",
-        "type": "int",
-        "default": 1,
-        "label": "Batch Size: Ranking Stage",
-        "description": "Maximum items processed by each ranking worker task.",
-        "group": "timing",
-        "config_path": ["stage_runtime", "ranking", "batch_size"],
     },
     {
         "key": "stage_runtime.ranking.concurrency",
         "type": "int",
         "default": 4,
-        "label": "Concurrency: Ranking Stage",
-        "description": "Canonical ranking-stage concurrent AI scoring worker count.",
+        "label": "Maximum Concurrent Jobs",
+        "description": "Maximum number of Ranking jobs that may run simultaneously.",
         "group": "timing",
         "config_path": ["stage_runtime", "ranking", "concurrency"],
-    },
-    {
-        "key": "stage_runtime.cv_analysis.sleep_secs",
-        "type": "float",
-        "float_range": "nonnegative",
-        "default": 0.0,
-        "label": "API Delay: CV Analysis Stage",
-        "description": "Canonical delay between cv_analysis stage AI calls when enabled.",
-        "group": "timing",
-        "config_path": ["stage_runtime", "cv_analysis", "sleep_secs"],
-    },
-    {
-        "key": "stage_runtime.cv_analysis.batch_size",
-        "type": "int",
-        "default": 1,
-        "label": "Batch Size: CV Analysis Stage",
-        "description": "Maximum items processed by each CV analysis worker task.",
-        "group": "timing",
-        "config_path": ["stage_runtime", "cv_analysis", "batch_size"],
     },
     {
         "key": "stage_runtime.cv_analysis.concurrency",
         "type": "int",
         "default": 4,
-        "label": "Concurrency: CV Analysis Stage",
-        "description": "Canonical cv_analysis stage concurrent worker count.",
+        "label": "Maximum Concurrent Jobs",
+        "description": "Maximum number of local CV Analysis jobs that may run simultaneously.",
         "group": "timing",
         "config_path": ["stage_runtime", "cv_analysis", "concurrency"],
-    },
-    {
-        "key": "stage_runtime.cv_generation.sleep_secs",
-        "type": "float",
-        "float_range": "nonnegative",
-        "default": 0.0,
-        "label": "API Delay: CV Generation Stage",
-        "description": "Canonical delay between cv_generation stage AI calls when enabled.",
-        "group": "timing",
-        "config_path": ["stage_runtime", "cv_generation", "sleep_secs"],
-    },
-    {
-        "key": "stage_runtime.cv_generation.batch_size",
-        "type": "int",
-        "default": 1,
-        "label": "Batch Size: CV Generation Stage",
-        "description": "Maximum items processed by each CV generation worker task.",
-        "group": "timing",
-        "config_path": ["stage_runtime", "cv_generation", "batch_size"],
     },
     {
         "key": "stage_runtime.cv_generation.concurrency",
         "type": "int",
         "default": 4,
-        "label": "Concurrency: CV Generation Stage",
-        "description": "Canonical cv_generation stage concurrent worker count.",
+        "label": "Maximum Concurrent Jobs",
+        "description": "Maximum number of CV Generation jobs that may run simultaneously.",
         "group": "timing",
         "config_path": ["stage_runtime", "cv_generation", "concurrency"],
-    },
-    {
-        "key": "enrichment_sleep_secs",
-        "type": "float",
-        "float_range": "nonnegative",
-        "default": 0.0,
-        "label": "API Delay: Data Enrichment",
-        "description": "Seconds to wait between calls to the web scraping/enrichment API to avoid rate limiting.",
-        "group": "timing",
-        "config_path": ["enrichment_sleep_secs"],
-        "compatibility_alias_for": "stage_runtime.enrich.sleep_secs",
-    },
-    {
-        "key": "rerank_sleep_secs",
-        "type": "float",
-        "float_range": "nonnegative",
-        "default": 0.0,
-        "label": "API Delay: AI Reranking",
-        "description": "Seconds to wait between concurrent/sequential LLM calls during candidate scoring.",
-        "group": "timing",
-        "config_path": ["rerank_sleep_secs"],
-        "compatibility_alias_for": "stage_runtime.ranking.sleep_secs",
-    },
-    {
-        "key": "enrichment_batch_size",
-        "type": "int",
-        "default": 10,
-        "label": "Enrichment Batch Size",
-        "description": "How many jobs each enrich worker batch handles at once before the next scheduling boundary.",
-        "group": "timing",
-        "config_path": ["enrichment_batch_size"],
-        "compatibility_alias_for": "stage_runtime.enrich.batch_size",
-    },
-    {
-        "key": "enrichment_concurrency",
-        "type": "int",
-        "default": 8,
-        "label": "Enrichment Concurrency",
-        "description": "How many enrich batches may run concurrently. Higher values can improve throughput, but the stage still uses shared rate limiting so gains are not linear.",
-        "group": "timing",
-        "config_path": ["enrichment_concurrency"],
-        "compatibility_alias_for": "stage_runtime.enrich.concurrency",
     },
     # ── Run Lifecycle ─────────────────────────────────────────────────────────
     {
@@ -792,22 +685,11 @@ def _derive_settings_sections() -> dict[str, list[str]]:
             "pipeline.evidence_top_k",
         ]),
         "timing": _ordered_key_projection([
-            "stage_runtime.enrich.sleep_secs",
-            "stage_runtime.enrich.batch_size",
+            "llm_runtime.request_start_interval_secs",
             "stage_runtime.enrich.concurrency",
-            "stage_runtime.ranking.sleep_secs",
-            "stage_runtime.ranking.batch_size",
             "stage_runtime.ranking.concurrency",
-            "stage_runtime.cv_analysis.sleep_secs",
-            "stage_runtime.cv_analysis.batch_size",
             "stage_runtime.cv_analysis.concurrency",
-            "stage_runtime.cv_generation.sleep_secs",
-            "stage_runtime.cv_generation.batch_size",
             "stage_runtime.cv_generation.concurrency",
-            "enrichment_sleep_secs",
-            "rerank_sleep_secs",
-            "enrichment_batch_size",
-            "enrichment_concurrency",
         ]),
         "run-lifecycle": _ordered_key_projection([
             "run_lifecycle.max_runtime_minutes",
@@ -1364,11 +1246,7 @@ def settings_ia_contract_for_key(key: str) -> dict[str, Any]:
 
 
 def timing_canonical_runtime_throughput_keys() -> list[str]:
-    return [
-        key
-        for key in SETTINGS_SECTIONS["timing"]
-        if key.startswith("stage_runtime.")
-    ]
+    return list(SETTINGS_SECTIONS["timing"])
 
 
 def timing_compatibility_runtime_alias_keys() -> list[str]:
@@ -1534,23 +1412,12 @@ def build_settings_page_spec() -> dict[str, Any]:
                 {
                     "id": "agentic-runtime-throughput",
                     "title": "Runtime Throughput",
-                    "helper": "Canonical runtime pacing and concurrency controls grouped by stage.",
+                    "helper": "Shared provider request pacing and maximum simultaneous jobs.",
                     "submit_kind": "section",
                     "submit_slug": "timing",
                     "save_label": "Save Timing Settings",
                     "keys": timing_canonical_runtime_throughput_keys(),
                     "group_by_stage": True,
-                },
-                {
-                    "id": "agentic-runtime-compatibility",
-                    "title": "Legacy Compatibility",
-                    "helper": "Collapsed read-only mapping of legacy aliases to canonical runtime throughput keys.",
-                    "submit_kind": "section",
-                    "submit_slug": "timing",
-                    "keys": timing_compatibility_runtime_alias_keys(),
-                    "is_collapsible": True,
-                    "collapsed_by_default": True,
-                    "read_only": True,
                 },
             ],
         },
@@ -1828,6 +1695,8 @@ def validate_settings(settings: dict[str, Any]) -> None:
                 raise ValidationError(f"{key} must be an integer >= 1, got {value!r}")
         elif entry["type"] == "float":
             fval = float(value)
+            if not math.isfinite(fval):
+                raise ValidationError(f"{key} must be finite, got {fval}")
             if _is_nonnegative_float_entry(entry):
                 if fval < 0.0:
                     raise ValidationError(f"{key} must be >= 0.0, got {fval}")
@@ -1929,29 +1798,13 @@ def derive_settings_warnings(settings: dict[str, Any]) -> list[dict[str, Any]]:
     warnings: list[dict[str, Any]] = []
     for stage in ("enrich", "ranking", "cv_analysis", "cv_generation"):
         prefix = f"stage_runtime.{stage}"
-        delay = float(settings.get(f"{prefix}.sleep_secs", 0.0))
-        batch_size = int(settings.get(f"{prefix}.batch_size", 1))
         concurrency = int(settings.get(f"{prefix}.concurrency", 1))
-        if delay == 0 and concurrency > 8:
-            warnings.append({
-                "code": "runtime-no-delay-high-concurrency",
-                "stage": stage,
-                "keys": [f"{prefix}.sleep_secs", f"{prefix}.concurrency"],
-                "message": "No request delay with concurrency above 8 may trigger rate limits.",
-            })
         if concurrency > 16:
             warnings.append({
                 "code": "runtime-high-concurrency",
                 "stage": stage,
                 "keys": [f"{prefix}.concurrency"],
                 "message": "Concurrency above 16 may overload external services.",
-            })
-        if batch_size > 50:
-            warnings.append({
-                "code": "runtime-large-batch",
-                "stage": stage,
-                "keys": [f"{prefix}.batch_size"],
-                "message": "Batch Size above 50 may increase memory use and retry cost.",
             })
     return warnings
 
@@ -2149,12 +2002,13 @@ def pipeline_settings_projection(
         {
             "id": "runtime-limits",
             "title": "Runtime & Limits",
-            "description": "Set request pacing for each pipeline stage from one place.",
-            "sections": [{"title": "Stage Runtime", "rows": [
-                managed("runtime-enrichment", "Enrichment", "Manage request delay, batch size, and concurrency.", SETTINGS_SECTIONS["timing"][0:3]),
-                managed("runtime-ranking", "Ranking", "Manage request delay, batch size, and concurrency.", SETTINGS_SECTIONS["timing"][3:6]),
-                managed("runtime-cv-analysis", "CV Analysis", "Manage request delay, batch size, and concurrency.", SETTINGS_SECTIONS["timing"][6:9]),
-                managed("runtime-cv-generation", "CV Generation", "Manage request delay, batch size, and concurrency.", SETTINGS_SECTIONS["timing"][9:12]),
+            "description": "Set shared provider request pacing and maximum simultaneous jobs.",
+            "sections": [{"title": "Runtime", "rows": [
+                row("llm_runtime.request_start_interval_secs"),
+                managed("runtime-enrichment", "Enrichment", "Set the maximum simultaneous Enrichment jobs.", ["stage_runtime.enrich.concurrency"]),
+                managed("runtime-ranking", "Ranking", "Set the maximum simultaneous Ranking jobs.", ["stage_runtime.ranking.concurrency"]),
+                managed("runtime-cv-analysis", "CV Analysis", "Set the maximum simultaneous local CV Analysis jobs.", ["stage_runtime.cv_analysis.concurrency"]),
+                managed("runtime-cv-generation", "CV Generation", "Set the maximum simultaneous CV Generation jobs.", ["stage_runtime.cv_generation.concurrency"]),
             ]}],
         },
         {
@@ -2195,12 +2049,7 @@ def apply_settings_to_config(config: dict[str, Any], settings: dict[str, Any]) -
             target = target.setdefault(part, {})
         target[path[-1]] = value
 
-_LEGACY_THROUGHPUT_ALIAS_TO_CANONICAL: dict[str, str] = {
-    "enrichment_sleep_secs": "stage_runtime.enrich.sleep_secs",
-    "rerank_sleep_secs": "stage_runtime.ranking.sleep_secs",
-    "enrichment_batch_size": "stage_runtime.enrich.batch_size",
-    "enrichment_concurrency": "stage_runtime.enrich.concurrency",
-}
+_LEGACY_THROUGHPUT_ALIAS_TO_CANONICAL: dict[str, str] = {}
 
 def canonical_settings_key(key: str) -> str:
     raw_key = str(key or "").strip()

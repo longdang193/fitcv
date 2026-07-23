@@ -71,9 +71,25 @@ def test_all_expected_keys_present():
     assert "ranking_policy.fit_label_thresholds.strong" in keys
     assert "gap_thresholds.strong_min_matched_ratio" not in keys
     assert "gap_thresholds.stretch_min_matched_ratio" not in keys
-    assert "stage_runtime.ranking.batch_size" in keys
-    assert "stage_runtime.cv_analysis.batch_size" in keys
-    assert "stage_runtime.cv_generation.batch_size" in keys
+    assert "llm_runtime.request_start_interval_secs" in keys
+    assert "stage_runtime.enrich.concurrency" in keys
+    assert "stage_runtime.ranking.concurrency" in keys
+    assert "stage_runtime.cv_analysis.concurrency" in keys
+    assert "stage_runtime.cv_generation.concurrency" in keys
+    assert not {
+        "stage_runtime.enrich.sleep_secs",
+        "stage_runtime.enrich.batch_size",
+        "stage_runtime.ranking.sleep_secs",
+        "stage_runtime.ranking.batch_size",
+        "stage_runtime.cv_analysis.sleep_secs",
+        "stage_runtime.cv_analysis.batch_size",
+        "stage_runtime.cv_generation.sleep_secs",
+        "stage_runtime.cv_generation.batch_size",
+        "enrichment_sleep_secs",
+        "rerank_sleep_secs",
+        "enrichment_batch_size",
+        "enrichment_concurrency",
+    } & keys
     assert "reuse.enrich.enabled" in keys
     assert "reuse.ranking.enabled" in keys
     assert "reuse.cv_analysis.enabled" in keys
@@ -164,11 +180,11 @@ def test_settings_ia_contract_marks_metadata_only_as_non_overrideable() -> None:
 
 def test_settings_ia_contract_canonical_timing_keys_are_throughput_runtime_used() -> None:
     for key in [
-        "stage_runtime.enrich.sleep_secs",
-        "stage_runtime.ranking.sleep_secs",
+        "llm_runtime.request_start_interval_secs",
+        "stage_runtime.enrich.concurrency",
         "stage_runtime.ranking.concurrency",
         "stage_runtime.cv_analysis.concurrency",
-        "stage_runtime.cv_generation.sleep_secs",
+        "stage_runtime.cv_generation.concurrency",
     ]:
         contract = settings_ia_contract_for_key(key)
         assert contract["decision_area"] == "throughput"
@@ -177,14 +193,14 @@ def test_settings_ia_contract_canonical_timing_keys_are_throughput_runtime_used(
 
 
 def test_settings_ia_contract_timing_workflow_stages_cover_late_agentic_stages() -> None:
-    contract = settings_ia_contract_for_key("stage_runtime.ranking.sleep_secs")
+    contract = settings_ia_contract_for_key("llm_runtime.request_start_interval_secs")
     workflow_stages = set(contract["workflow_stages"])
     assert "cv_analysis" in workflow_stages
     assert "cv_generation" in workflow_stages
 
 def test_danger_zone_settings_keys_contains_high_risk_groups() -> None:
     keys = set(danger_zone_settings_keys())
-    assert "enrichment_concurrency" in keys
+    assert "stage_runtime.enrich.concurrency" in keys
     assert "run_lifecycle.max_runtime_minutes" in keys
 
 def test_derive_settings_decision_state_prefers_needs_review_when_blocking() -> None:
@@ -249,7 +265,7 @@ def test_schema_tracks_editable_keys_separately_from_metadata_only() -> None:
 def test_settings_native_input_attrs_follow_existing_schema_conventions() -> None:
     assert settings_native_input_attrs("cv_max_pages") == {"min": "1", "step": "1"}
     assert settings_native_input_attrs("ranking_policy.structured_factor_weights.must_have_match") == {"min": "0", "max": "1", "step": "any"}
-    assert settings_native_input_attrs("stage_runtime.enrich.sleep_secs") == {"min": "0", "step": "any"}
+    assert settings_native_input_attrs("llm_runtime.request_start_interval_secs") == {"min": "0", "step": "any"}
     assert settings_native_input_attrs("cv_generation_model") == {}
 
 
@@ -488,9 +504,8 @@ def test_float_threshold_must_be_in_range():
         validate_settings({"ranking_policy.fit_label_thresholds.strong": 1.5})
 
 
-def test_sleep_secs_may_be_zero():
-    validate_settings({"enrichment_sleep_secs": 0.0})  # should not raise
-    validate_settings({"stage_runtime.cv_generation.sleep_secs": 0.0})  # should not raise
+def test_request_start_interval_may_be_zero():
+    validate_settings({"llm_runtime.request_start_interval_secs": 0.0})
 
 
 # ── relational validation ─────────────────────────────────────────────────────
@@ -585,11 +600,20 @@ def test_unknown_key_rejected():
         validate_settings({"unknown.key": 1})
 
 
-def test_pipeline_runtime_batch_defaults_are_one_for_latter_stages() -> None:
+def test_runtime_defaults_are_one_pacing_value_and_four_concurrency_values() -> None:
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
-    assert schema_by_key["stage_runtime.ranking.batch_size"]["default"] == 1
-    assert schema_by_key["stage_runtime.cv_analysis.batch_size"]["default"] == 1
-    assert schema_by_key["stage_runtime.cv_generation.batch_size"]["default"] == 1
+    assert schema_by_key["llm_runtime.request_start_interval_secs"]["default"] == 0.0
+    assert schema_by_key["stage_runtime.enrich.concurrency"]["default"] == 8
+    assert schema_by_key["stage_runtime.ranking.concurrency"]["default"] == 4
+    assert schema_by_key["stage_runtime.cv_analysis.concurrency"]["default"] == 4
+    assert schema_by_key["stage_runtime.cv_generation.concurrency"]["default"] == 4
+
+def test_request_start_interval_requires_finite_nonnegative_value() -> None:
+    validate_settings({"llm_runtime.request_start_interval_secs": 0.0})
+    validate_settings({"llm_runtime.request_start_interval_secs": 1.5})
+    for invalid in (-0.1, float("inf"), float("-inf"), float("nan")):
+        with pytest.raises(ValidationError):
+            validate_settings({"llm_runtime.request_start_interval_secs": invalid})
 
 
 def test_merge_and_validate_uses_effective_sibling_values() -> None:
@@ -641,17 +665,17 @@ def test_pipeline_projection_owns_supported_rows_only() -> None:
     assert screening_members == set(DEFAULT_SELECTED_RULE_FILTERS)
 
     runtime_groups = {
-        row["id"]: row["keys"]
+        row["id"]: row.get("keys", [row.get("key")])
         for section in pages["runtime-limits"]["sections"]
         for row in section["rows"]
     }
-    assert runtime_groups["runtime-ranking"] == [
-        "stage_runtime.ranking.sleep_secs",
-        "stage_runtime.ranking.batch_size",
-        "stage_runtime.ranking.concurrency",
+    assert runtime_groups["llm_runtime.request_start_interval_secs"] == [
+        "llm_runtime.request_start_interval_secs"
     ]
-    assert runtime_groups["runtime-cv-analysis"][1] == "stage_runtime.cv_analysis.batch_size"
-    assert runtime_groups["runtime-cv-generation"][1] == "stage_runtime.cv_generation.batch_size"
+    assert runtime_groups["runtime-enrichment"] == ["stage_runtime.enrich.concurrency"]
+    assert runtime_groups["runtime-ranking"] == ["stage_runtime.ranking.concurrency"]
+    assert runtime_groups["runtime-cv-analysis"] == ["stage_runtime.cv_analysis.concurrency"]
+    assert runtime_groups["runtime-cv-generation"] == ["stage_runtime.cv_generation.concurrency"]
 
     ranking_rows = {
         row["id"]: row
@@ -681,18 +705,12 @@ def test_pipeline_projection_owns_supported_rows_only() -> None:
 def test_settings_diagnostics_use_effective_runtime_values() -> None:
     settings = merge_and_validate_settings(
         {
-            "stage_runtime.ranking.sleep_secs": 0,
-            "stage_runtime.ranking.batch_size": 51,
             "stage_runtime.ranking.concurrency": 17,
         },
         baseline_config={},
     )
     warnings = derive_settings_warnings(settings)
-    assert {warning["code"] for warning in warnings} == {
-        "runtime-no-delay-high-concurrency",
-        "runtime-high-concurrency",
-        "runtime-large-batch",
-    }
+    assert {warning["code"] for warning in warnings} == {"runtime-high-concurrency"}
     assert settings_disabled_reasons(settings)["cv-skills"] == (
         "Turn on Semantic Alignment to configure Skills Match."
     )
@@ -716,30 +734,23 @@ def test_apply_settings_to_config_nested():
     assert config["ranking_policy"]["structured_factor_weights"]["must_have_match"] == 0.50
 
 
-def test_apply_settings_to_config_flat_key():
-    config = {"enrichment_sleep_secs": 1.0}
-    apply_settings_to_config(config, {"enrichment_sleep_secs": 0.5})
-    assert config["enrichment_sleep_secs"] == 0.5
+def test_apply_settings_to_config_request_pacing_path():
+    config: dict = {}
+    apply_settings_to_config(config, {"llm_runtime.request_start_interval_secs": 0.5})
+    assert config["llm_runtime"]["request_start_interval_secs"] == 0.5
 
 def test_apply_settings_to_config_stage_runtime_nested_path() -> None:
     config: dict[str, object] = {}
     apply_settings_to_config(config, {"stage_runtime.cv_analysis.concurrency": 2})
     assert config["stage_runtime"] == {"cv_analysis": {"concurrency": 2}}
 
-def test_legacy_throughput_alias_hydrates_canonical_value() -> None:
-    config = {"enrichment_sleep_secs": 1.0}
-    apply_settings_to_config(config, {"enrichment_sleep_secs": 0.75})
-    assert config["stage_runtime"]["enrich"]["sleep_secs"] == 0.75
-
-def test_canonical_value_wins_over_legacy_alias_for_validation_and_apply() -> None:
-    settings = {
-        "enrichment_sleep_secs": 0.8,
-        "stage_runtime.enrich.sleep_secs": 0.2,
-    }
-    validate_settings(settings)
-    config = {"enrichment_sleep_secs": 1.0}
-    apply_settings_to_config(config, settings)
-    assert config["stage_runtime"]["enrich"]["sleep_secs"] == 0.2
+@pytest.mark.parametrize(
+    "retired_key",
+    ["enrichment_sleep_secs", "rerank_sleep_secs", "stage_runtime.enrich.sleep_secs"],
+)
+def test_retired_throughput_aliases_are_rejected(retired_key: str) -> None:
+    with pytest.raises(ValidationError):
+        validate_settings({retired_key: 0.5})
 
 
 # ── global_job_filters settings ───────────────────────────────────────────────
@@ -1218,66 +1229,88 @@ def test_settings_sections_global_job_filters_has_two_keys():
 
 # ── enrichment parallelism settings ───────────────────────────────────────────
 
-def test_enrichment_parallelism_keys_registered():
-    """@proves bounded_parallel_enrichment.enrichment-batch-size-setting
-    @proves bounded_parallel_enrichment.enrichment-concurrency-setting
-    """
+def test_runtime_concurrency_keys_registered():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
-    assert "enrichment_batch_size" in keys
-    assert "enrichment_concurrency" in keys
+    assert "stage_runtime.enrich.concurrency" in keys
+    assert "stage_runtime.ranking.concurrency" in keys
+    assert "stage_runtime.cv_analysis.concurrency" in keys
     assert "stage_runtime.cv_generation.concurrency" in keys
 
 
-def test_enrichment_parallelism_defaults():
-    """@proves bounded_parallel_enrichment.defaults-batch-size-10-concurrency-8"""
+def test_runtime_concurrency_defaults():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["enrichment_batch_size"]["default"] == 10
-    assert schema_by_key["enrichment_concurrency"]["default"] == 8
+    assert schema_by_key["stage_runtime.enrich.concurrency"]["default"] == 8
+    assert schema_by_key["stage_runtime.ranking.concurrency"]["default"] == 4
+    assert schema_by_key["stage_runtime.cv_analysis.concurrency"]["default"] == 4
+    assert schema_by_key["stage_runtime.cv_generation.concurrency"]["default"] == 4
 
 
-def test_enrichment_parallelism_group_is_timing():
+def test_runtime_concurrency_group_is_timing():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["enrichment_batch_size"]["group"] == "timing"
-    assert schema_by_key["enrichment_concurrency"]["group"] == "timing"
+    assert schema_by_key["stage_runtime.enrich.concurrency"]["group"] == "timing"
 
 
-def test_enrichment_batch_size_validate_rejects_zero():
+def test_runtime_concurrency_validate_rejects_zero():
     with pytest.raises(ValidationError):
-        validate_settings({"enrichment_batch_size": 0})
+        validate_settings({"stage_runtime.enrich.concurrency": 0})
 
 
-def test_enrichment_batch_size_validate_rejects_negative():
+def test_runtime_concurrency_validate_rejects_negative():
     with pytest.raises(ValidationError):
-        validate_settings({"enrichment_batch_size": -5})
+        validate_settings({"stage_runtime.enrich.concurrency": -5})
 
 
-def test_enrichment_concurrency_validate_rejects_zero():
+def test_retired_enrichment_concurrency_key_is_rejected():
     with pytest.raises(ValidationError):
         validate_settings({"enrichment_concurrency": 0})
 
 
-def test_enrichment_concurrency_validate_accepts_one():
-    validate_settings({"enrichment_concurrency": 1})  # must not raise
+def test_runtime_concurrency_validate_accepts_one():
+    validate_settings({"stage_runtime.enrich.concurrency": 1})
 
 
-def test_enrichment_batch_size_apply_writes_correct_path():
-    """@proves bounded_parallel_enrichment.enrichment-batch-size-setting"""
-    config: dict = {}
-    apply_settings_to_config(config, {"enrichment_batch_size": 5})
-    assert config["enrichment_batch_size"] == 5
+def test_retired_enrichment_batch_size_key_is_rejected_by_apply():
+    with pytest.raises(KeyError):
+        apply_settings_to_config({}, {"enrichment_batch_size": 5})
 
 
-def test_enrichment_concurrency_apply_writes_correct_path():
+def test_runtime_concurrency_apply_writes_canonical_path():
     """@proves bounded_parallel_enrichment.enrichment-concurrency-setting"""
     config: dict = {}
-    apply_settings_to_config(config, {"enrichment_concurrency": 3})
-    assert config["enrichment_concurrency"] == 3
+    apply_settings_to_config(config, {"stage_runtime.enrich.concurrency": 3})
+    assert config["stage_runtime"]["enrich"]["concurrency"] == 3
 
 
-def test_enrichment_parallelism_in_settings_sections_timing():
+def test_runtime_controls_in_settings_sections_timing():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
-    assert "enrichment_batch_size" in SETTINGS_SECTIONS["timing"]
-    assert "enrichment_concurrency" in SETTINGS_SECTIONS["timing"]
+    assert SETTINGS_SECTIONS["timing"] == [
+        "llm_runtime.request_start_interval_secs",
+        "stage_runtime.enrich.concurrency",
+        "stage_runtime.ranking.concurrency",
+        "stage_runtime.cv_analysis.concurrency",
+        "stage_runtime.cv_generation.concurrency",
+    ]
+
+
+def test_runtime_limits_page_spec_uses_shared_pacing_and_concurrency_only() -> None:
+    from fitcv_cp.settings_schema import pipeline_settings_projection
+
+    page = next(item for item in pipeline_settings_projection({})["pages"] if item["id"] == "runtime-limits")
+    rows = page["sections"][0]["rows"]
+
+    assert rows[0]["key"] == "llm_runtime.request_start_interval_secs"
+    assert [row["id"] for row in rows[1:]] == [
+        "runtime-enrichment",
+        "runtime-ranking",
+        "runtime-cv-analysis",
+        "runtime-cv-generation",
+    ]
+    assert all(row["keys"] == [f"stage_runtime.{stage}.concurrency"] for row, stage in zip(
+        rows[1:],
+        ("enrich", "ranking", "cv_analysis", "cv_generation"),
+        strict=True,
+    ))
+    assert "local CV Analysis" in rows[3]["description"]
 
 
 # ── CV settings schema ────────────────────────────────────────────────────────

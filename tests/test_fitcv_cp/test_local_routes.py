@@ -163,6 +163,21 @@ def test_pipeline_section_urls_render_server_owned_settings(local_client: TestCl
 
     assert local_client.get("/admin/settings/unknown").status_code == 404
 
+
+def test_runtime_limits_route_renders_shared_pacing_and_concurrency_only(local_client: TestClient) -> None:
+    _complete_onboarding()
+
+    response = local_client.get("/admin/settings/runtime-limits")
+
+    assert response.status_code == 200
+    assert "Minimum Request Start Interval (seconds)" in response.text
+    assert response.text.count("Maximum Concurrent Jobs") == 4
+    assert "same provider connection" in response.text
+    assert "retry backoff remains separate" in response.text
+    assert "Maximum number of local CV Analysis jobs" in response.text
+    assert "Batch Size" not in response.text
+    assert "Request Delay" not in response.text
+
 def test_packaged_local_pages_encode_approved_ui_states(local_client: TestClient) -> None:
     _complete_onboarding()
 

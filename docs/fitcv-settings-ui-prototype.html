@@ -198,12 +198,10 @@
       {key:'semantic',label:'Semantic Similarity',description:`Higher values reward equivalent meaning even when ${subject} uses different wording.`,value:.55}
     ]
   });
-  const runtime=(title,description,delay,batch,concurrency)=>({
+  const runtime=(title,description,concurrency)=>({
     type:'runtime',title,description,
     fields:[
-      {key:'delay',label:'Request Delay',description:'Seconds to wait between requests. Higher values reduce service pressure but increase run time.',value:delay,min:0,step:.1},
-      {key:'batch',label:'Batch Size',description:'Items processed together. Larger batches can improve throughput but increase memory and retry cost.',value:batch,min:1,step:1},
-      {key:'concurrency',label:'Concurrency',description:'Tasks processed at the same time. Higher values can run faster but may trigger rate limits.',value:concurrency,min:1,step:1}
+      {key:'concurrency',label:'Maximum Concurrent Jobs',description:'Maximum number of jobs that may run simultaneously.',value:concurrency,min:1,step:1}
     ]
   });
 
@@ -240,10 +238,10 @@
         {key:'publications',label:'Publications',value:false},{key:'languages',label:'Languages',value:true}
       ]
     },
-    'runtime-enrichment':runtime('Enrichment Runtime','Controls request pacing while job listings are prepared.',.5,10,6),
-    'runtime-ranking':runtime('Ranking Runtime','Controls request pacing while shortlisted listings are scored.',0,1,8),
-    'runtime-cv-analysis':runtime('CV Analysis Runtime','Controls request pacing while CV evidence is compared with jobs.',.2,1,6),
-    'runtime-cv-generation':runtime('CV Generation Runtime','Controls request pacing while tailored CVs are generated.',1,1,4)
+    'runtime-enrichment':runtime('Enrichment Runtime','Set the maximum number of listing-preparation jobs that may run simultaneously.',8),
+    'runtime-ranking':runtime('Ranking Runtime','Set the maximum number of scoring jobs that may run simultaneously.',4),
+    'runtime-cv-analysis':runtime('CV Analysis Runtime','CV Analysis runs locally and does not use provider request pacing.',4),
+    'runtime-cv-generation':runtime('CV Generation Runtime','Set the maximum number of CV creation jobs that may run simultaneously.',4)
   };
 
   const pages=[
@@ -314,12 +312,15 @@
         tx('included-sections','Included Sections','Choose which CV sections are included. Changes apply together when saved.')
       ]}
     ]},
-    {id:'runtime-limits',title:'Runtime & Limits',description:'Set request pacing for each pipeline stage from one place.',sections:[
-      {title:'Stage Runtime',open:true,rows:[
-        tx('runtime-enrichment','Enrichment','Manage request delay, batch size, and concurrency for listing preparation.'),
-        tx('runtime-ranking','Ranking','Manage request delay, batch size, and concurrency for scoring.'),
-        tx('runtime-cv-analysis','CV Analysis','Manage request delay, batch size, and concurrency for evidence comparison.'),
-        tx('runtime-cv-generation','CV Generation','Manage request delay, batch size, and concurrency for CV creation.')
+    {id:'runtime-limits',title:'Runtime & Limits',description:'Set shared provider request pacing and maximum simultaneous jobs.',sections:[
+      {title:'Provider Request Pacing',open:true,rows:[
+        n('llm_runtime.request_start_interval_secs','Minimum Request Start Interval (seconds)','Minimum time between generative request starts for the same provider connection. Providers are paced independently. Zero disables pacing; retry backoff remains separate.',0,0,3600,.1)
+      ]},
+      {title:'Stage Concurrency',open:true,rows:[
+        tx('runtime-enrichment','Enrichment','Set the maximum simultaneous Enrichment jobs.'),
+        tx('runtime-ranking','Ranking','Set the maximum simultaneous Ranking jobs.'),
+        tx('runtime-cv-analysis','CV Analysis','Set the maximum simultaneous local CV Analysis jobs.'),
+        tx('runtime-cv-generation','CV Generation','Set the maximum simultaneous CV Generation jobs.')
       ]}
     ]},
     {id:'automation-reuse',title:'Automation & Reuse',description:'Control reuse of previous pipeline outputs and automation of shared synonym mappings.',sections:[
@@ -348,16 +349,12 @@
     }
     if(definition.type==='runtime'){
       const errors=[];
-      if(!Number.isFinite(values.delay)||values.delay<0)errors.push('Request Delay must be 0 or greater.');
-      if(!Number.isFinite(values.batch)||values.batch<1)errors.push('Batch Size must be at least 1.');
-      if(!Number.isFinite(values.concurrency)||values.concurrency<1)errors.push('Concurrency must be at least 1.');
+      if(!Number.isInteger(values.concurrency)||values.concurrency<1)errors.push('Maximum Concurrent Jobs must be a positive integer.');
       if(errors.length)return {valid:false,kind:'invalid',message:`Error: ${errors.join(' ')}`};
       const warnings=[];
-      if(values.delay===0&&values.concurrency>8)warnings.push('No request delay with concurrency above 8 may trigger rate limits.');
       if(values.concurrency>16)warnings.push('Concurrency above 16 may overload external services.');
-      if(values.batch>50)warnings.push('Batch Size above 50 may increase memory use and retry cost.');
       if(warnings.length)return {valid:true,kind:'warning',message:`Warning: ${warnings.join(' ')} Save is allowed.`};
-      return {valid:true,kind:'valid',message:'Runtime values valid — ready to save.'};
+      return {valid:true,kind:'valid',message:'Maximum Concurrent Jobs is valid — ready to save.'};
     }
     if(definition.type==='checks'){
       if(Object.hasOwn(values,'education')&&Object.hasOwn(values,'experience')&&!values.education&&!values.experience){
@@ -1717,7 +1714,7 @@
   }
   function transactionSummary(group){
     const definition=transactions[group],value=transactionValue(group);
-    if(definition.type==='runtime')return `${Number(value.delay).toFixed(1)}s delay · batch ${value.batch} · concurrency ${value.concurrency}`;
+    if(definition.type==='runtime')return `${value.concurrency} maximum concurrent jobs`;
     if(definition.type==='pair')return `Exact ${Number(value.exact).toFixed(2)} · Semantic ${Number(value.semantic).toFixed(2)}`;
     if(definition.type==='checks')return `${Object.values(value).filter(Boolean).length} of ${definition.fields.length} sections included`;
     return definition.fields.map(field=>`${field.label} ${Number(value[field.key]).toFixed(2)}`).join(' · ');
@@ -2118,11 +2115,13 @@
     if(automationRows.filter(row=>row.key==='synonyms.applyApproved').length!==1||!automationRows.some(row=>row.key==='reuse.synonymProposalAnalysis'))throw new Error('Synonym automation must have one approved-use gate and proposal-only reuse');
     const screeningRows=pages.find(page=>page.id==='screening').sections.flatMap(section=>section.rows);
     if(!screeningRows.some(row=>row.key==='screening.locationWorkMode')||screeningRows.some(row=>['screening.locationPreference','screening.workModePreference'].includes(row.key)))throw new Error('Screening must expose one Location & Work Mode control');
-    if(transactions['runtime-ranking'].fields.find(field=>field.key==='batch')?.value!==1||transactions['runtime-cv-analysis'].fields.find(field=>field.key==='batch')?.value!==1||transactions['runtime-cv-generation'].fields.find(field=>field.key==='batch')?.value!==1)throw new Error('Ranking, CV Analysis, and CV Generation Batch Size must default to 1');
+    const runtimeDefaults=['runtime-enrichment','runtime-ranking','runtime-cv-analysis','runtime-cv-generation'].map(group=>transactions[group]);
+    if(runtimeDefaults.some(definition=>definition.fields.length!==1||definition.fields[0].key!=='concurrency'||!Number.isInteger(definition.fields[0].value)||definition.fields[0].value<1))throw new Error('Each runtime dialog must own one positive integer concurrency value');
     const generation=pages.find(page=>page.id==='cv-generation');
     if(generation.sections.flatMap(section=>section.rows).some(row=>row.label!=='Included Sections'))throw new Error('CV Generation must expose only Included Sections');
     const runtimeRows=pages.find(page=>page.id==='runtime-limits').sections.flatMap(section=>section.rows);
-    if(runtimeRows.length!==4||runtimeRows.some(row=>transactions[row.group]?.type!=='runtime'))throw new Error('Runtime page must own four managed stage rows');
+    if(runtimeRows.length!==5||runtimeRows[0].key!=='llm_runtime.request_start_interval_secs'||runtimeRows.slice(1).some(row=>transactions[row.group]?.type!=='runtime'))throw new Error('Runtime page must own one pacing row and four managed concurrency rows');
+    if(JSON.stringify({pages,transactions}).includes('Request'+' Delay')||JSON.stringify({pages,transactions}).includes('Batch'+' Size'))throw new Error('Removed stage delay and batch controls must not exist');
     const rankingRows=pages.find(page=>page.id==='ranking').sections.flatMap(section=>section.rows);
     if(rankingRows.some(row=>row.group==='preference-fit'))throw new Error('Preference Fit Balance must be opened from Factor Weights');
     if(!transactions['factor-weights'].fields.some(field=>field.detailsGroup==='preference-fit'))throw new Error('Factor Weights must link to Preference Fit Balance');

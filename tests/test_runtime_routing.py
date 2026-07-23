@@ -219,6 +219,23 @@ def test_resolve_llm_routing_matches_cv_wrapper() -> None:
     assert generic.model == cv_route.model == "cx/test-model"
     assert generic.timeout_seconds == cv_route.timeout_seconds == 42.0
 
+def test_resolve_llm_routing_carries_global_request_start_interval() -> None:
+    route_payload = {
+        "provider": "openai_compatible",
+        "model": "cx/test-model",
+        "base_url": "https://provider.example/v1",
+        "wire_api": "responses",
+        "timeout_seconds": "42",
+        "auth_mode": "required",
+    }
+    with patch("fitcv.runtime_routing.resolve_model_routing_part", return_value=route_payload):
+        route = resolve_llm_routing(
+            "ranking_ai_score",
+            runtime_config={"llm_runtime": {"request_start_interval_secs": 1.25}},
+        )
+
+    assert route.request_start_interval_secs == pytest.approx(1.25)
+
 
 def test_generic_readiness_uses_env_only_openai_credential() -> None:
     with patch(

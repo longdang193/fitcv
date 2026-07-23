@@ -56,9 +56,7 @@ def _config() -> dict:
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-@patch("fitcv.agentic_cv_analysis.time.sleep")
 def test_analyze_ranked_job_emits_extended_analysis_fields(
-    mock_sleep,
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -80,15 +78,12 @@ def test_analyze_ranked_job_emits_extended_analysis_fields(
     assert any(item["requirement"] == "Python" for item in result["requirement_coverage"])
     assert result["do_not_claim"] == ["Python"]
     assert result["section_confidence_hints"]["experience"] in {"medium", "high"}
-    mock_sleep.assert_not_called()
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-@patch("fitcv.agentic_cv_analysis.time.sleep")
 def test_analyze_ranked_job_preserves_bundle_evidence_summary_fields(
-    mock_sleep,
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -118,15 +113,12 @@ def test_analyze_ranked_job_preserves_bundle_evidence_summary_fields(
         "lexical_weight": 0.25,
         "semantic_weight": 0.75,
     }
-    mock_sleep.assert_not_called()
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-@patch("fitcv.agentic_cv_analysis.time.sleep")
-def test_analyze_ranked_job_uses_stage_runtime_cv_analysis_sleep(
-    mock_sleep,
+def test_analyze_ranked_job_ignores_retired_cv_analysis_sleep(
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -145,7 +137,6 @@ def test_analyze_ranked_job_uses_stage_runtime_cv_analysis_sleep(
 
     analyze_ranked_job(_job(), _profile(), config)
 
-    mock_sleep.assert_called_once_with(0.3)
 
 
 
@@ -199,9 +190,7 @@ def test_build_analysis_input_summary_falls_back_to_raw_skills_when_canonical_mi
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-@patch("fitcv.agentic_cv_analysis.time.sleep")
 def test_analyze_ranked_job_trace_input_summary_prefers_canonical_skill_counts(
-    mock_sleep,
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -235,7 +224,6 @@ def test_analyze_ranked_job_trace_input_summary_prefers_canonical_skill_counts(
 
     assert fallback_input_summary["required_skills_count"] == 3
     assert fallback_input_summary["preferred_skills_count"] == 2
-    mock_sleep.assert_not_called()
 
 def _complete_reusable_record() -> dict:
     job = _job()

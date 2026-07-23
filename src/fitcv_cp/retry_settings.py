@@ -6,23 +6,11 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from fitcv.config import load_control_plane_config
-
-SYSTEM_SETTINGS_DEFAULTS = {
-    "maximum_attempts": 3,
-    "initial_backoff_seconds": 10,
-    "lease_seconds": 300,
-    "reconciler_interval_seconds": 30,
-    "error_detail_limit": 10000,
-}
-
-SYSTEM_SETTING_BOUNDS = {
-    "maximum_attempts": (1, 10),
-    "initial_backoff_seconds": (0, 3600),
-    "lease_seconds": (30, 86400),
-    "reconciler_interval_seconds": (5, 3600),
-    "error_detail_limit": (1000, 100000),
-}
+from fitcv.config import (
+    SYSTEM_SETTING_BOUNDS,
+    SYSTEM_SETTINGS_DEFAULTS,
+    load_control_plane_config,
+)
 
 
 @dataclass(frozen=True)

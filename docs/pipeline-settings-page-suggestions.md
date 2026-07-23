@@ -19,7 +19,7 @@
 |---|---|
 | **Skip Incomplete Listings** | Ignore jobs missing essential title, company, or description details. |
 
-Keep request timing, batches, and concurrency in `Runtime & Limits`.
+Keep shared provider request pacing and Enrichment concurrency in `Runtime & Limits`. Enrichment submits one job per executor task; its ten-row persistence buffer is internal and not configurable.
 
 ## Rules & Filters
 
@@ -110,24 +110,26 @@ Use one transactional dialog. Each lexical and semantic pair must total `1.00`. 
 
 ## Runtime & Limits
 
-### Run lifecycle
+### Provider request pacing
 
 | Label | Description |
 |---|---|
-| **Maximum Run Duration** | Stop a pipeline run after this many minutes. |
+| **Minimum Request Start Interval (seconds)** | Minimum time between generative request starts for the same provider connection. Providers are paced independently; `0` disables pacing. |
 
-### Stage runtime
+Request pacing is global for generative provider calls. System **Initial Backoff** remains a separate retry delay.
+
+### Stage concurrency
 
 Use a compact stage matrix. One row per stage; show only supported controls.
 
 | Stage | Controls |
 |---|---|
-| **Enrichment** | Request Delay, Batch Size, Concurrency |
-| **Ranking** | Request Delay, Concurrency |
-| **CV Analysis** | Request Delay, Concurrency |
-| **CV Generation** | Request Delay, Concurrency |
+| **Enrichment** | Maximum Concurrent Jobs |
+| **Ranking** | Maximum Concurrent Jobs |
+| **CV Analysis** | Maximum Concurrent Jobs |
+| **CV Generation** | Maximum Concurrent Jobs |
 
-This is sole owner for `stage_runtime.*`. Never show timing aliases elsewhere.
+Each stage submits one runnable job per executor task. CV Analysis is local and does not use provider request pacing. This page is sole owner for `llm_runtime.request_start_interval_secs` and `stage_runtime.*.concurrency`; never show retired delay or batch controls elsewhere.
 
 ## Automation & Reuse
 

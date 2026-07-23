@@ -17,8 +17,6 @@ import json
 from pathlib import Path
 
 import pytest
-import fitcv.enrich as enrich_module
-
 from fitcv.enrich import (
     EnrichmentOutput,
     _apply_structured_normalization,
@@ -478,20 +476,26 @@ def test_enrich_batch_retries_normalized_rate_limit_once(
         return {"job_url": "url1"}
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
-    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
     monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
 
     result = enrich_batch(
         normalized_jobs=[{"job_url": "url1"}],
-        config={"enrichment_sleep_secs": 1.5, "enrichment_max_retries": 1},
+        config={
+            "runtime_inputs": {
+                "system_settings_snapshot": {
+                    "maximum_attempts": 2,
+                    "initial_backoff_seconds": 7,
+                }
+            }
+        },
     )
 
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 2
-    assert sleeps == [1.5]
+    assert sleeps == [7]
 
 
-def test_enrich_chunk_isolates_single_job_retry_from_following_jobs(
+def test_enrich_job_retry_is_isolated_from_following_jobs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """@proves bounded_parallel_enrichment.per-job-failure-isolation"""
@@ -512,10 +516,13 @@ def test_enrich_chunk_isolates_single_job_retry_from_following_jobs(
     result = enrich_batch(
         normalized_jobs=[{"job_url": "url1"}, {"job_url": "url2"}],
         config={
-            "enrichment_batch_size": 2,
-            "enrichment_concurrency": 1,
-            "enrichment_sleep_secs": 0.0,
-            "enrichment_max_retries": 1,
+            "stage_runtime": {"enrich": {"concurrency": 1}},
+            "runtime_inputs": {
+                "system_settings_snapshot": {
+                    "maximum_attempts": 2,
+                    "initial_backoff_seconds": 0,
+                }
+            },
         },
     )
 
@@ -523,7 +530,7 @@ def test_enrich_chunk_isolates_single_job_retry_from_following_jobs(
     assert attempts_by_url == {"url1": 2, "url2": 1}
 
 
-def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
+def test_enrich_batch_uses_fixed_system_backoff_for_repeated_429s(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from fitcv.enrich import enrich_batch
@@ -538,17 +545,23 @@ def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
         return {"job_url": "url1"}
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
-    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
     monkeypatch.setattr("time.sleep", lambda secs: sleeps.append(secs))
 
     result = enrich_batch(
         normalized_jobs=[{"job_url": "url1"}],
-        config={"enrichment_sleep_secs": 1.5, "enrichment_max_retries": 2},
+        config={
+            "runtime_inputs": {
+                "system_settings_snapshot": {
+                    "maximum_attempts": 3,
+                    "initial_backoff_seconds": 7,
+                }
+            }
+        },
     )
 
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 3
-    assert sleeps == [1.5, 3.0]
+    assert sleeps == [7, 7]
 
 # ── load_run_structured_jobs ──────────────────────────────────────────────────
 
@@ -1590,44 +1603,36 @@ def test_enrich_job_falls_back_when_structured_payload_fails_validation() -> Non
     assert result["required_skills_canonical"] == ["sql"]
     assert result["years_experience_min"] == 0
 
-# ── bounded parallel enrichment (Tasks 3 + 4) ─────────────────────────────────
+# ── per-item parallel enrichment ───────────────────────────────────────────────
 
 def _fake_enrich_job(job: dict, config: dict) -> dict:
     """Simple fake: echoes job with enriched=True marker."""
     return {**job, "enriched": True}
 
 
-def test_enrich_batch_preserves_input_order_under_parallel_batches() -> None:
+def test_enrich_batch_preserves_input_order_under_out_of_order_completion() -> None:
     """@proves bounded_parallel_enrichment.deterministic-output-order"""
     from unittest.mock import patch
     from fitcv.enrich import enrich_batch
 
-    jobs = [{"job_url": f"u{i}"} for i in range(6)]
-    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
-         patch("time.sleep"):
+    import time
+
+    jobs = [{"job_url": f"u{i}", "delay": delay} for i, delay in enumerate((0.04, 0.01, 0.03, 0.0))]
+
+    def complete_out_of_order(job: dict, config: dict) -> dict:
+        time.sleep(job["delay"])
+        return {**job, "enriched": True}
+
+    completed: list[str] = []
+    with patch("fitcv.enrich.enrich_job", side_effect=complete_out_of_order):
         result = enrich_batch(
             jobs,
-            config={"enrichment_batch_size": 2, "enrichment_concurrency": 3},
+            config={"stage_runtime": {"enrich": {"concurrency": 4}}},
+            on_item_complete=lambda row: completed.append(row["job_url"]),
         )
 
-    assert [r["job_url"] for r in result] == [f"u{i}" for i in range(6)]
-
-
-def test_enrich_batch_respects_batch_size() -> None:
-    """All jobs are enriched even when batch_size < len(jobs)."""
-    from unittest.mock import patch
-    from fitcv.enrich import enrich_batch
-
-    jobs = [{"job_url": f"j{i}"} for i in range(7)]
-    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
-         patch("time.sleep"):
-        result = enrich_batch(
-            jobs,
-            config={"enrichment_batch_size": 3, "enrichment_concurrency": 2},
-        )
-
-    assert len(result) == 7
-    assert all(r["enriched"] is True for r in result)
+    assert [r["job_url"] for r in result] == [f"u{i}" for i in range(4)]
+    assert completed != [f"u{i}" for i in range(4)]
 
 
 def test_enrich_batch_concurrency_one_behaves_like_sequential() -> None:
@@ -1640,7 +1645,7 @@ def test_enrich_batch_concurrency_one_behaves_like_sequential() -> None:
          patch("time.sleep"):
         result = enrich_batch(
             jobs,
-            config={"enrichment_batch_size": 2, "enrichment_concurrency": 1},
+            config={"stage_runtime": {"enrich": {"concurrency": 1}}},
         )
 
     assert len(result) == 5
@@ -1658,7 +1663,7 @@ def test_enrich_batch_no_jobs_dropped() -> None:
          patch("time.sleep"):
         result = enrich_batch(
             jobs,
-            config={"enrichment_batch_size": 4, "enrichment_concurrency": 3},
+            config={"stage_runtime": {"enrich": {"concurrency": 3}}},
         )
 
     assert len(result) == N
@@ -1667,7 +1672,6 @@ def test_enrich_batch_allows_overlapping_inflight_calls_when_concurrent() -> Non
     """concurrency>1 allows overlapping enrich_job calls when pacing interval is zero."""
     import threading
     import time
-    import fitcv.enrich as enrich_mod
     from unittest.mock import patch
     from fitcv.enrich import enrich_batch
 
@@ -1684,15 +1688,10 @@ def test_enrich_batch_allows_overlapping_inflight_calls_when_concurrent() -> Non
             inflight["now"] -= 1
         return {**job, "enriched": True}
 
-    enrich_mod._ENRICH_NEXT_ALLOWED_START_AT = 0.0
     with patch("fitcv.enrich.enrich_job", side_effect=fake_enrich):
         result = enrich_batch(
             jobs,
-            config={
-                "enrichment_batch_size": 1,
-                "enrichment_concurrency": 4,
-                "enrichment_sleep_secs": 0.0,
-            },
+            config={"stage_runtime": {"enrich": {"concurrency": 4}}},
         )
 
     assert len(result) == 4
@@ -1718,120 +1717,60 @@ def test_enrich_batch_non_recoverable_error_propagates() -> None:
              patch("time.sleep"):
             enrich_batch(
                 [{"job_url": "x"}],
-                config={"enrichment_batch_size": 1, "enrichment_concurrency": 1},
+                config={"stage_runtime": {"enrich": {"concurrency": 1}}},
             )
 
 
-def test_enrich_batch_uses_configured_batch_size_and_concurrency() -> None:
-    """Config values are respected: batch_size=1 means one job per chunk."""
+def test_enrich_batch_submits_every_job_individually_despite_retired_batch_size() -> None:
+    import threading
+    import time
     from unittest.mock import patch
     from fitcv.enrich import enrich_batch
 
-    call_sizes: list[int] = []
+    jobs = [{"job_url": f"j{i}"} for i in range(4)]
+    state_lock = threading.Lock()
+    active = {"count": 0, "maximum": 0}
+    completed: list[str] = []
 
-    def fake_enrich(job, config):
+    def fake_enrich(job: dict, config: dict) -> dict:
+        with state_lock:
+            active["count"] += 1
+            active["maximum"] = max(active["maximum"], active["count"])
+        time.sleep(0.02)
+        with state_lock:
+            active["count"] -= 1
         return {**job, "enriched": True}
 
-    original_chunk = None
-
-    def capture_chunk(chunk, config, *, job_event_callback=None):
-        call_sizes.append(len(chunk))
-        return [fake_enrich(j, config) for j in chunk]
-
-    with patch("fitcv.enrich.enrich_job", side_effect=fake_enrich), \
-         patch("time.sleep"):
-        # Monkey-patch _enrich_chunk to capture chunk sizes
-        import fitcv.enrich as _enrich_mod
-        orig = getattr(_enrich_mod, "_enrich_chunk", None)
-        _enrich_mod._enrich_chunk = capture_chunk
-        try:
-            result = enrich_batch(
-                [{"job_url": f"c{i}"} for i in range(4)],
-                config={"enrichment_batch_size": 2, "enrichment_concurrency": 2},
-            )
-        finally:
-            if orig is not None:
-                _enrich_mod._enrich_chunk = orig
-
-    assert len(result) == 4
-    # Each chunk had at most batch_size=2 jobs
-    assert all(s <= 2 for s in call_sizes), f"Chunk sizes: {call_sizes}"
-
-
-def test_enrich_batch_prefers_canonical_stage_runtime() -> None:
-    from fitcv.enrich import enrich_batch
-    import fitcv.enrich as enrich_mod
-
-    call_sizes: list[int] = []
-
-    def capture_chunk(chunk, config, *, job_event_callback=None):
-        call_sizes.append(len(chunk))
-        return [{**job, "enriched": True} for job in chunk]
-
-    original = enrich_mod._enrich_chunk
-    enrich_mod._enrich_chunk = capture_chunk
-    try:
-        result = enrich_batch(
-            [{"job_url": f"canonical-{i}"} for i in range(4)],
-            config={
-                "enrichment_batch_size": 4,
-                "enrichment_concurrency": 1,
-                "stage_runtime": {"enrich": {"batch_size": 2, "concurrency": 2}},
-            },
-        )
-    finally:
-        enrich_mod._enrich_chunk = original
-
-    assert len(result) == 4
-    assert call_sizes == [2, 2]
-
-
-def test_enrich_batch_calls_on_chunk_complete_for_each_chunk() -> None:
-    """on_chunk_complete callback is invoked once per chunk with that chunk's results."""
-    from unittest.mock import patch
-    from fitcv.enrich import enrich_batch
-
-    jobs = [{"job_url": f"u{i}"} for i in range(6)]
-    chunk_calls: list[list[dict]] = []
-
-    def on_chunk_complete(chunk_rows: list[dict]) -> None:
-        chunk_calls.append(list(chunk_rows))
-
-    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
-         patch("time.sleep"):
+    with patch("fitcv.enrich.enrich_job", side_effect=fake_enrich):
         result = enrich_batch(
             jobs,
-            config={"enrichment_batch_size": 2, "enrichment_concurrency": 1},
-            on_chunk_complete=on_chunk_complete,
+            config={
+                "enrichment_batch_size": 2,
+                "stage_runtime": {"enrich": {"concurrency": 2}},
+            },
+            on_item_complete=lambda row: completed.append(row["job_url"]),
         )
 
-    # 6 jobs / batch_size 2 = 3 chunks
-    assert len(chunk_calls) == 3
-    # Each chunk should have 2 jobs
-    assert all(len(chunk) == 2 for chunk in chunk_calls)
-    # All jobs should be accounted for across chunks
-    all_chunk_urls = [r["job_url"] for chunk in chunk_calls for r in chunk]
-    assert sorted(all_chunk_urls) == [f"u{i}" for i in range(6)]
-    # Final result should still match
-    assert [r["job_url"] for r in result] == [f"u{i}" for i in range(6)]
+    assert len(result) == 4
+    assert sorted(completed) == [f"j{i}" for i in range(4)]
+    assert active["maximum"] == 2
 
 
-def test_enrich_batch_on_chunk_complete_exception_does_not_propagate() -> None:
-    """If on_chunk_complete raises, enrich_batch continues and returns results."""
+def test_enrich_batch_on_item_complete_exception_does_not_propagate() -> None:
     from unittest.mock import patch
     from fitcv.enrich import enrich_batch
 
     jobs = [{"job_url": f"u{i}"} for i in range(4)]
 
-    def failing_callback(chunk_rows: list[dict]) -> None:
+    def failing_callback(row: dict) -> None:
         raise RuntimeError("save failed")
 
     with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
          patch("time.sleep"):
         result = enrich_batch(
             jobs,
-            config={"enrichment_batch_size": 2, "enrichment_concurrency": 1},
-            on_chunk_complete=failing_callback,
+            config={"stage_runtime": {"enrich": {"concurrency": 2}}},
+            on_item_complete=failing_callback,
         )
 
     # Should still return all results despite callback failures
@@ -1839,39 +1778,30 @@ def test_enrich_batch_on_chunk_complete_exception_does_not_propagate() -> None:
     assert [r["job_url"] for r in result] == [f"u{i}" for i in range(4)]
 
 
-def test_enrich_batch_calls_on_chunk_complete_in_completion_order() -> None:
-    """Callback order follows finished chunk order, while returned rows keep input order."""
+def test_enrich_batch_calls_on_item_complete_in_completion_order() -> None:
     import time
+    from unittest.mock import patch
     from fitcv.enrich import enrich_batch
 
     jobs = [{"job_url": f"u{i}"} for i in range(3)]
     callback_order: list[str] = []
 
-    def delayed_chunk(chunk: list[dict], config: dict, job_event_callback=None) -> list[dict]:
-        first_url = str(chunk[0]["job_url"])
-        if first_url == "u0":
+    def delayed_job(job: dict, config: dict) -> dict:
+        job_url = str(job["job_url"])
+        if job_url == "u0":
             time.sleep(0.05)
-        elif first_url == "u1":
+        elif job_url == "u1":
             time.sleep(0.0)
         else:
             time.sleep(0.01)
-        return [{**row, "enriched": True} for row in chunk]
+        return {**job, "enriched": True}
 
-    def on_chunk_complete(chunk_rows: list[dict]) -> None:
-        callback_order.append(str(chunk_rows[0]["job_url"]))
-
-    import fitcv.enrich as enrich_mod
-
-    original = enrich_mod._enrich_chunk
-    enrich_mod._enrich_chunk = delayed_chunk
-    try:
+    with patch("fitcv.enrich.enrich_job", side_effect=delayed_job):
         result = enrich_batch(
             jobs,
-            config={"enrichment_batch_size": 1, "enrichment_concurrency": 3},
-            on_chunk_complete=on_chunk_complete,
+            config={"stage_runtime": {"enrich": {"concurrency": 3}}},
+            on_item_complete=lambda row: callback_order.append(str(row["job_url"])),
         )
-    finally:
-        enrich_mod._enrich_chunk = original
 
     assert callback_order == ["u1", "u2", "u0"]
     assert [row["job_url"] for row in result] == ["u0", "u1", "u2"]
@@ -1944,12 +1874,18 @@ def test_enrich_retry_callbacks_remain_attempt_scoped(monkeypatch: pytest.Monkey
         return {"job_url": job["job_url"]}
 
     monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
-    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
     monkeypatch.setattr("time.sleep", lambda seconds: None)
 
     result = enrich_batch(
         [{"job_url": "url1"}],
-        {"enrichment_sleep_secs": 0, "enrichment_max_retries": 1},
+        {
+            "runtime_inputs": {
+                "system_settings_snapshot": {
+                    "maximum_attempts": 2,
+                    "initial_backoff_seconds": 0,
+                }
+            }
+        },
         job_event_callback=lambda event: events.append(str(event["phase"])),
     )
 
@@ -2005,13 +1941,19 @@ def test_enrich_runtime_observations_record_each_outer_retry(monkeypatch: pytest
         ]
     )
     monkeypatch.setattr("fitcv.enrich._execute_enrich_runtime", lambda job, config: next(results))
-    monkeypatch.setattr("fitcv.enrich._acquire_enrich_rate_slot", lambda sleep_secs: None)
     monkeypatch.setattr("time.sleep", lambda seconds: None)
     observations: list[dict[str, Any]] = []
 
     rows = enrich_batch(
         [{"job_url": "https://example.com/jobs/1", "title": "Data Engineer"}],
-        {"enrichment_sleep_secs": 0, "enrichment_max_retries": 1},
+        {
+            "runtime_inputs": {
+                "system_settings_snapshot": {
+                    "maximum_attempts": 2,
+                    "initial_backoff_seconds": 0,
+                }
+            }
+        },
         runtime_observation_callback=observations.append,
     )
 

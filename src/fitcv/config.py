@@ -18,6 +18,7 @@ lifecycle:
 
 import hashlib
 import logging
+import math
 import os
 import re
 import sqlite3
@@ -117,6 +118,20 @@ PROVIDER_REGISTRY = {
 }
 MAX_PROMPT_ADDENDUM_CHARS = 4000
 LOCAL_CONTROLLER_OVERLAY_VERSION = 1
+SYSTEM_SETTINGS_DEFAULTS = {
+    "maximum_attempts": 3,
+    "initial_backoff_seconds": 10,
+    "lease_seconds": 300,
+    "reconciler_interval_seconds": 30,
+    "error_detail_limit": 10000,
+}
+SYSTEM_SETTING_BOUNDS = {
+    "maximum_attempts": (1, 10),
+    "initial_backoff_seconds": (0, 3600),
+    "lease_seconds": (30, 86400),
+    "reconciler_interval_seconds": (5, 3600),
+    "error_detail_limit": (1000, 100000),
+}
 _RETRY_BOUNDS = {
     "max_attempts": (1, 20),
     "lease_seconds": (30, 24 * 3600),
@@ -138,14 +153,13 @@ _CANONICAL_INFRA_KEYS: set[str] = set()
 _CANONICAL_PIPELINE_TOP_LEVEL_KEYS = {
     "embedding_model",
     "enrichment_version",
-    "enrichment_sleep_secs",
-    "enrichment_max_retries",
     "embedding_batch_size",
+    "llm_runtime",
     "run_lifecycle",
+    "stage_runtime",
     "vector_top_n",
     "vector_max_candidate_skills",
     "rerank_top_n",
-    "rerank_sleep_secs",
     "pipeline",
 }
 _CANONICAL_POLICY_TOP_LEVEL_KEYS = {
@@ -1706,78 +1720,65 @@ def get_stage_runtime_value(
     stage: str,
     key: str,
     default: Any,
-    compatibility_fallback_key: str | None = None,
 ) -> Any:
-    """Resolve runtime throughput value from canonical stage_runtime with optional legacy fallback."""
+    """Resolve a canonical stage runtime value."""
     stage_runtime = dict(config.get("stage_runtime") or {})
     stage_runtime_cfg = dict(stage_runtime.get(stage) or {})
     if key in stage_runtime_cfg:
         return stage_runtime_cfg[key]
-    if compatibility_fallback_key:
-        fallback_value = config.get(compatibility_fallback_key)
-        if fallback_value is not None:
-            return fallback_value
     return default
 
 
-def get_stage_runtime_batch_size(
-    config: dict[str, Any],
-    *,
-    stage: str,
-    default: int = 1,
-    compatibility_fallback_key: str | None = None,
-) -> int:
-    raw_value = get_stage_runtime_value(
-        config,
-        stage=stage,
-        key="batch_size",
-        default=default,
-        compatibility_fallback_key=compatibility_fallback_key,
-    )
+def get_llm_request_start_interval_secs(config: dict[str, Any]) -> float:
+    """Return the finite nonnegative provider request-start interval."""
+    llm_runtime = dict(config.get("llm_runtime") or {})
     try:
-        return max(1, int(raw_value))
+        value = float(llm_runtime.get("request_start_interval_secs", 0.0))
     except (TypeError, ValueError):
-        return max(1, int(default))
+        return 0.0
+    return value if math.isfinite(value) and value >= 0.0 else 0.0
 
+
+def _get_frozen_system_int(config: dict[str, Any], field: str) -> int:
+    runtime_inputs = dict(config.get("runtime_inputs") or {})
+    snapshot = dict(runtime_inputs.get("system_settings_snapshot") or {})
+    default = SYSTEM_SETTINGS_DEFAULTS[field]
+    minimum, maximum = SYSTEM_SETTING_BOUNDS[field]
+    value = snapshot.get(field, default)
+    if isinstance(value, bool):
+        return default
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, parsed))
+
+
+def get_system_maximum_attempts(config: dict[str, Any]) -> int:
+    """Return frozen total request attempts, including the initial attempt."""
+    return _get_frozen_system_int(config, "maximum_attempts")
+
+
+def get_system_initial_backoff_seconds(config: dict[str, Any]) -> int:
+    """Return frozen fixed delay applied before every retry."""
+    return _get_frozen_system_int(config, "initial_backoff_seconds")
 
 def get_stage_runtime_concurrency(
     config: dict[str, Any],
     *,
     stage: str,
     default: int = 1,
-    compatibility_fallback_key: str | None = None,
 ) -> int:
     raw_value = get_stage_runtime_value(
         config,
         stage=stage,
         key="concurrency",
         default=default,
-        compatibility_fallback_key=compatibility_fallback_key,
     )
     try:
         return max(1, int(raw_value))
     except (TypeError, ValueError):
         return max(1, int(default))
-
-
-def get_stage_runtime_sleep_secs(
-    config: dict[str, Any],
-    *,
-    stage: str,
-    default: float = 0.5,
-    compatibility_fallback_key: str | None = None,
-) -> float:
-    raw_value = get_stage_runtime_value(
-        config,
-        stage=stage,
-        key="sleep_secs",
-        default=default,
-        compatibility_fallback_key=compatibility_fallback_key,
-    )
-    try:
-        return float(raw_value)
-    except (TypeError, ValueError):
-        return float(default)
 
 
 def get_ranking_ai_score_model(config: dict[str, Any]) -> str:

@@ -248,20 +248,20 @@ Schema ownership rules:
 - editable: schema-backed controls with persistence keys and save handlers
 - metadata-only: fixed/runtime-owned values shown for operator context and provenance
 - hidden-deprecated: compatibility keys intentionally removed from operator UI and rejected by settings-save routes (`422`) to prevent false runtime authority signals
-- compatibility-readonly: legacy alias keys shown for migration visibility but rendered non-editable; canonical runtime throughput keys remain single editable authority
+- retired timing aliases are pruned from current Settings and run snapshots; canonical runtime keys are the only active authority
 
 Examples:
 
 - editable: retrieval funnel sizes, ranking weights, timing, run lifecycle guard, CV composition toggles
 - metadata-only: fixed runtime-contract fields such as single-option model metadata
 - hidden-deprecated: legacy AI-authority controls (for example `cv_generation_model`) retained only for compatibility projection, not operator control
-- compatibility-readonly: runtime throughput legacy aliases mapped to canonical `stage_runtime.*` keys
-- canonical-save-path: settings-save routes persist canonical `stage_runtime.*` throughput keys and ignore compatibility alias inputs in timing-section writes
+- canonical-save-path: settings-save routes persist only `llm_runtime.request_start_interval_secs` and `stage_runtime.*.concurrency`; retired timing aliases are rejected or pruned
 - effective-concurrency-contract: `configured_concurrency` is the stage cap; `*_concurrency_effective` is `min(configured_concurrency, runnable_work_items)` and is `0` when reuse or gating leaves no runnable work
-- enrich-pacing-contract: enrich work items are batches, so effective concurrency is capped by `ceil(fresh_jobs / batch_size)`; shared request-start pacing still limits aggregate request rate
-- ranking-pacing-contract: ranking work items are batches of up to `stage_runtime.ranking.batch_size`; concurrency caps batch workers, input order is preserved, and sleep applies between batch submissions
-- cv-analysis-pacing-contract: CV analysis work items are batches of up to `stage_runtime.cv_analysis.batch_size`; concurrency caps batch workers while preserving input order
-- cv-generation-pacing-contract: CV generation work items are batches of up to `stage_runtime.cv_generation.batch_size`; concurrency caps batch workers, input order is preserved, and sleep applies between batch submissions
+- request-pacing-contract: `llm_runtime.request_start_interval_secs` spaces generative request starts per provider connection inside one packaged-local worker process; providers are independent, `0` disables pacing, and System retry backoff remains separate
+- enrich-runtime-contract: one fresh job is submitted per executor task; completed rows return in input order and persistence flushes internally after ten completed rows plus the final remainder
+- ranking-runtime-contract: one selected job is submitted per executor task; concurrency caps simultaneous jobs and returned rows preserve input order
+- cv-analysis-runtime-contract: one local analysis job is submitted per executor task; concurrency caps simultaneous jobs, output order is preserved, and no provider request pacing applies
+- cv-generation-runtime-contract: one generation job is submitted per executor task; concurrency caps simultaneous jobs and returned artifacts preserve input order
 
 ### LLM Runtime Contract
 

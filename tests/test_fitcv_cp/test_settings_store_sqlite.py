@@ -84,6 +84,34 @@ def test_local_settings_prunes_removed_agentic_late_stage_row(tmp_path, monkeypa
         ).fetchall()
     assert rows == []
 
+def test_local_settings_prunes_retired_runtime_rows(tmp_path, monkeypatch):
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    ss.save_setting("pipeline.final_top_n", 10, updated_by="local")
+
+    retired_keys = [
+        "stage_runtime.enrich.sleep_secs",
+        "stage_runtime.enrich.batch_size",
+        "enrichment_concurrency",
+        "rerank_sleep_secs",
+    ]
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.executemany(
+            "INSERT INTO pipeline_settings (setting_key, setting_value_json, updated_by, updated_at) VALUES (?, ?, ?, ?)",
+            [(key, "1", "legacy", "9999-01-01T00:00:00+00:00") for key in retired_keys],
+        )
+        conn.commit()
+
+    active = ss.load_active_settings()
+
+    assert set(active) == {"pipeline.final_top_n"}
+    with sqlite3.connect(sqlite_path) as conn:
+        rows = conn.execute(
+            "SELECT setting_key FROM pipeline_settings WHERE setting_key IN (?, ?, ?, ?)",
+            retired_keys,
+        ).fetchall()
+    assert rows == []
+
 
 def test_local_settings_load_recovers_from_disk_io_error(tmp_path, monkeypatch):
     sqlite_path = tmp_path / "settings.sqlite3"

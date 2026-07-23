@@ -32,9 +32,7 @@ from fitcv.config import (
     get_prompt_replacement_metadata,
     get_ranking_ai_score_model,
     get_ranking_prompt_id,
-    get_stage_runtime_batch_size,
     get_stage_runtime_concurrency,
-    get_stage_runtime_sleep_secs,
 )
 from fitcv.contracts import RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION
 from fitcv.llm_runtime import (
@@ -287,7 +285,7 @@ def score_job(
     )
 
 
-# ── integration: batch score shortlist ───────────────────────────────────────
+# ── integration: score shortlist ─────────────────────────────────────────────
 
 def run_ai_scoring(
     shortlist: list[dict[str, Any]],
@@ -300,34 +298,18 @@ def run_ai_scoring(
     """Score at most top_n shortlisted jobs.
 
     top_n defaults to config["pipeline"]["ai_score_top_n"] (50 if missing).
-    sleep between calls prefers config["stage_runtime"]["ranking"]["sleep_secs"].
-    Falls back to config["rerank_sleep_secs"] (0.5 if missing).
-
     shortlist: list of job dicts from VECTOR_SEARCH (must include job_url and
                structured JD fields). Each item may optionally include
                "top_evidence" (list[str]).
 
     Requires routed OpenAI-compatible provider config and API key.
     """
-    import time
-
     effective_top_n = (
         top_n
         if top_n is not None
         else int((config.get("pipeline") or {}).get("ai_score_top_n") or config.get("rerank_top_n", 50))
     )
-    sleep_secs = get_stage_runtime_sleep_secs(
-        config,
-        stage="ranking",
-        default=0.5,
-        compatibility_fallback_key="rerank_sleep_secs",
-    )
     ranking_concurrency = get_stage_runtime_concurrency(
-        config,
-        stage="ranking",
-        default=1,
-    )
-    ranking_batch_size = get_stage_runtime_batch_size(
         config,
         stage="ranking",
         default=1,
@@ -368,30 +350,18 @@ def run_ai_scoring(
                 "parser_status": "runtime_exception",
             }
 
-    indexed_jobs = list(enumerate(selected_jobs))
-    batches = [
-        indexed_jobs[index:index + ranking_batch_size]
-        for index in range(0, len(indexed_jobs), ranking_batch_size)
-    ]
-
-    def _score_batch(batch: list[tuple[int, dict[str, Any]]]) -> list[tuple[int, dict[str, Any]]]:
-        return [(index, _score_single(index, job)) for index, job in batch]
-
     scored_by_index: dict[int, dict[str, Any]] = {}
     if ranking_concurrency <= 1:
-        for batch_index, batch in enumerate(batches):
-            scored_by_index.update(_score_batch(batch))
-            if batch_index < len(batches) - 1:
-                time.sleep(sleep_secs)
+        for index, job in enumerate(selected_jobs):
+            scored_by_index[index] = _score_single(index, job)
     else:
         with ThreadPoolExecutor(max_workers=ranking_concurrency) as executor:
-            futures: list[Any] = []
-            for batch_index, batch in enumerate(batches):
-                futures.append(executor.submit(_score_batch, batch))
-                if batch_index < len(batches) - 1:
-                    time.sleep(sleep_secs)
-            for future in as_completed(futures):
-                scored_by_index.update(future.result())
+            future_to_index = {
+                executor.submit(_score_single, index, job): index
+                for index, job in enumerate(selected_jobs)
+            }
+            for future in as_completed(future_to_index):
+                scored_by_index[future_to_index[future]] = future.result()
 
     scored: list[dict[str, Any]] = []
     for i in range(len(selected_jobs)):

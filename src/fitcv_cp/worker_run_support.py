@@ -18,7 +18,7 @@ import hashlib
 import json
 from typing import Any
 
-from fitcv.config import get_stage_runtime_concurrency, get_stage_runtime_sleep_secs
+from fitcv.config import get_llm_request_start_interval_secs, get_stage_runtime_concurrency
 from fitcv.contracts import (
     MAPPING_SUGGESTIONS_SCHEMA_VERSION,
     SETTINGS_USED_SCHEMA_VERSION,
@@ -155,46 +155,29 @@ def _build_settings_used_payload_dict(
     effective_settings = dict(effective_config or {})
 
     def _materialize_stage_runtime_snapshot(settings: dict[str, Any]) -> None:
-        """Persist canonical stage_runtime values in settings-used snapshots."""
-        stage_runtime = dict(settings.get("stage_runtime") or {})
-
-        def _stage_block(stage: str) -> dict[str, Any]:
-            block = dict(stage_runtime.get(stage) or {})
-            stage_runtime[stage] = block
-            return block
-
-        enrich = _stage_block("enrich")
-        if "sleep_secs" not in enrich:
-            enrich["sleep_secs"] = settings.get("enrichment_sleep_secs", 0.5)
-        if "batch_size" not in enrich:
-            enrich["batch_size"] = settings.get("enrichment_batch_size", 10)
-        if "concurrency" not in enrich:
-            enrich["concurrency"] = settings.get("enrichment_concurrency", 1)
-
-        ranking = _stage_block("ranking")
-        if "sleep_secs" not in ranking:
-            ranking["sleep_secs"] = get_stage_runtime_sleep_secs(
-                settings,
-                stage="ranking",
-                default=0.5,
-                compatibility_fallback_key="rerank_sleep_secs",
-            )
-        if "concurrency" not in ranking:
-            ranking["concurrency"] = get_stage_runtime_concurrency(
-                settings,
-                stage="ranking",
-                default=1,
-            )
-
-        cv_analysis = _stage_block("cv_analysis")
-        cv_analysis.setdefault("sleep_secs", 0.0)
-        cv_analysis.setdefault("concurrency", 1)
-
-        cv_generation = _stage_block("cv_generation")
-        cv_generation.setdefault("sleep_secs", 0.0)
-        cv_generation.setdefault("concurrency", 1)
-
-        settings["stage_runtime"] = stage_runtime
+        """Persist only canonical current-run runtime values."""
+        settings["llm_runtime"] = {
+            "request_start_interval_secs": get_llm_request_start_interval_secs(settings)
+        }
+        defaults = {"enrich": 8, "ranking": 4, "cv_analysis": 4, "cv_generation": 4}
+        settings["stage_runtime"] = {
+            stage: {
+                "concurrency": get_stage_runtime_concurrency(
+                    settings,
+                    stage=stage,
+                    default=default,
+                )
+            }
+            for stage, default in defaults.items()
+        }
+        for retired_key in (
+            "enrichment_sleep_secs",
+            "enrichment_batch_size",
+            "enrichment_concurrency",
+            "enrichment_max_retries",
+            "rerank_sleep_secs",
+        ):
+            settings.pop(retired_key, None)
 
     _materialize_stage_runtime_snapshot(effective_settings)
     cv_settings = dict(effective_settings.get("cv") or {})

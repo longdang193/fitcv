@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 
 import pytest
+import fitcv.config as config_module
 
 from fitcv.config import (
     apply_runtime_synonym_overlay,
@@ -25,9 +26,9 @@ from fitcv.config import (
     get_cv_generation_structured_prompt_id,
     get_ranking_ai_score_model,
     get_ranking_prompt_id,
-    get_stage_runtime_batch_size,
+    get_system_initial_backoff_seconds,
+    get_system_maximum_attempts,
     get_stage_runtime_concurrency,
-    get_stage_runtime_sleep_secs,
     load_config,
     load_control_plane_config,
     parse_runtime_synonym_overlay_yaml,
@@ -39,6 +40,26 @@ from fitcv.persistence import get_local_sqlite_path
 from fitcv_cp.backend_runtime import set_backend_runtime
 from fitcv_cp.sqlite_store import initialize_control_plane_database
 from fitcv_cp.store import ControlPlaneStore
+
+
+def test_system_retry_accessors_read_frozen_runtime_snapshot() -> None:
+    config = {
+        "runtime_inputs": {
+            "system_settings_snapshot": {
+                "maximum_attempts": 4,
+                "initial_backoff_seconds": 12,
+                "revision": 7,
+            }
+        }
+    }
+
+    assert get_system_maximum_attempts(config) == 4
+    assert get_system_initial_backoff_seconds(config) == 12
+
+
+def test_system_retry_accessors_use_canonical_defaults_without_snapshot() -> None:
+    assert get_system_maximum_attempts({}) == 3
+    assert get_system_initial_backoff_seconds({}) == 10
 
 
 def test_get_cv_acceptance_policy_defaults_when_missing() -> None:
@@ -288,92 +309,46 @@ def test_load_control_plane_config_ignores_retired_overlay_after_local_migration
 
 
 
-def test_get_stage_runtime_sleep_secs_prefers_canonical_stage_runtime() -> None:
-    cfg = {
-        "rerank_sleep_secs": 0.9,
-        "stage_runtime": {"ranking": {"sleep_secs": 0.2}},
-    }
-    assert get_stage_runtime_sleep_secs(
-        cfg,
-        stage="ranking",
-        default=0.5,
-        compatibility_fallback_key="rerank_sleep_secs",
-    ) == pytest.approx(0.2)
-
-
-def test_get_stage_runtime_sleep_secs_falls_back_to_compatibility_key() -> None:
-    cfg = {"rerank_sleep_secs": 0.7, "stage_runtime": {"ranking": {}}}
-    assert get_stage_runtime_sleep_secs(
-        cfg,
-        stage="ranking",
-        default=0.5,
-        compatibility_fallback_key="rerank_sleep_secs",
-    ) == pytest.approx(0.7)
-
-
 def test_get_stage_runtime_concurrency_clamps_and_defaults() -> None:
     assert get_stage_runtime_concurrency({"stage_runtime": {"cv_generation": {"concurrency": 3}}}, stage="cv_generation") == 3
     assert get_stage_runtime_concurrency({"stage_runtime": {"cv_generation": {"concurrency": 0}}}, stage="cv_generation") == 1
     assert get_stage_runtime_concurrency({"stage_runtime": {"cv_generation": {"concurrency": "bad"}}}, stage="cv_generation") == 1
 
+def test_llm_request_start_interval_defaults_and_rejects_invalid_values() -> None:
+    accessor = getattr(config_module, "get_llm_request_start_interval_secs", None)
+    assert accessor is not None
+    assert accessor({}) == 0.0
+    assert accessor({"llm_runtime": {"request_start_interval_secs": 1.25}}) == pytest.approx(1.25)
+    assert accessor({"llm_runtime": {"request_start_interval_secs": -1}}) == 0.0
+    assert accessor({"llm_runtime": {"request_start_interval_secs": float("inf")}}) == 0.0
+    assert accessor({"llm_runtime": {"request_start_interval_secs": float("nan")}}) == 0.0
+
 def test_get_stage_runtime_concurrency_prefers_canonical_stage_runtime() -> None:
-    cfg = {
-        "enrichment_concurrency": 9,
-        "stage_runtime": {"enrich": {"concurrency": 4}},
-    }
+    cfg = {"stage_runtime": {"enrich": {"concurrency": 4}}}
     assert get_stage_runtime_concurrency(
         cfg,
         stage="enrich",
         default=1,
-        compatibility_fallback_key="enrichment_concurrency",
     ) == 4
-
-def test_get_stage_runtime_concurrency_falls_back_to_compatibility_key() -> None:
-    cfg = {"enrichment_concurrency": 7, "stage_runtime": {"enrich": {}}}
-    assert get_stage_runtime_concurrency(
-        cfg,
-        stage="enrich",
-        default=1,
-        compatibility_fallback_key="enrichment_concurrency",
-    ) == 7
-
-
-def test_get_stage_runtime_batch_size_prefers_canonical_stage_runtime() -> None:
-    cfg = {
-        "enrichment_batch_size": 9,
-        "stage_runtime": {"enrich": {"batch_size": 4}},
-    }
-    assert get_stage_runtime_batch_size(
-        cfg,
-        stage="enrich",
-        default=1,
-        compatibility_fallback_key="enrichment_batch_size",
-    ) == 4
-
-
-def test_get_stage_runtime_batch_size_falls_back_to_compatibility_key() -> None:
-    cfg = {"enrichment_batch_size": 7, "stage_runtime": {"enrich": {}}}
-    assert get_stage_runtime_batch_size(
-        cfg,
-        stage="enrich",
-        default=1,
-        compatibility_fallback_key="enrichment_batch_size",
-    ) == 7
-
-
-def test_get_stage_runtime_batch_size_clamps_and_defaults() -> None:
-    assert get_stage_runtime_batch_size(
-        {"stage_runtime": {"ranking": {"batch_size": 0}}},
-        stage="ranking",
-    ) == 1
-    assert get_stage_runtime_batch_size(
-        {"stage_runtime": {"ranking": {"batch_size": "bad"}}},
-        stage="ranking",
-    ) == 1
 
 
 def test_load_config_defaults_to_repo_config_shape() -> None:
     cfg = load_config()
+    assert cfg["llm_runtime"] == {"request_start_interval_secs": 0.0}
+    assert cfg["stage_runtime"] == {
+        "enrich": {"concurrency": 8},
+        "ranking": {"concurrency": 4},
+        "cv_analysis": {"concurrency": 4},
+        "cv_generation": {"concurrency": 4},
+    }
+    for retired_key in (
+        "enrichment_sleep_secs",
+        "enrichment_batch_size",
+        "enrichment_concurrency",
+        "enrichment_max_retries",
+        "rerank_sleep_secs",
+    ):
+        assert retired_key not in cfg
     assert "gemini_model" not in cfg
     assert "vertex_location" not in cfg
     assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.private.yaml"

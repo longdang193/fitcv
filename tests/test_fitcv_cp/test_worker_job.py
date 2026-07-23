@@ -1456,6 +1456,13 @@ def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
         "rerank_top_n": 15,
         "cv_generation_model": "legacy-model",
         "cv_max_pages": 3,
+        "runtime_inputs": {
+            "system_settings_snapshot": {
+                "maximum_attempts": 4,
+                "initial_backoff_seconds": 12,
+                "revision": 7,
+            }
+        },
         "pipeline": {"vector_search_top_n": 50, "ai_score_top_n": 10, "final_top_n": 5},
         "cv": {"generation": {"model": "cx/gpt-5.4-mini"}, "validation": {"max_pages": 2}},
         "prompts_runtime": {
@@ -1490,12 +1497,18 @@ def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
     assert payload["compatibility_projection"]["rerank_top_n"] == 15
     assert payload["compatibility_projection"]["cv_generation_model"] == "legacy-model"
     assert payload["compatibility_projection"]["cv_max_pages"] == 3
-    assert payload["effective_settings"]["stage_runtime"]["enrich"]["batch_size"] == 10
-    assert payload["effective_settings"]["stage_runtime"]["enrich"]["concurrency"] == 1
-    assert payload["effective_settings"]["stage_runtime"]["ranking"]["sleep_secs"] == 0.5
-    assert payload["effective_settings"]["stage_runtime"]["ranking"]["concurrency"] == 1
-    assert payload["effective_settings"]["stage_runtime"]["cv_analysis"]["concurrency"] == 1
-    assert payload["effective_settings"]["stage_runtime"]["cv_generation"]["concurrency"] == 1
+    assert payload["effective_settings"]["llm_runtime"] == {"request_start_interval_secs": 0.0}
+    assert payload["effective_settings"]["stage_runtime"] == {
+        "enrich": {"concurrency": 8},
+        "ranking": {"concurrency": 4},
+        "cv_analysis": {"concurrency": 4},
+        "cv_generation": {"concurrency": 4},
+    }
+    assert payload["effective_settings"]["runtime_inputs"]["system_settings_snapshot"] == {
+        "maximum_attempts": 4,
+        "initial_backoff_seconds": 12,
+        "revision": 7,
+    }
 
 def test_worker_settings_used_snapshot_materializes_ranking_concurrency_from_canonical_stage_runtime() -> None:
     client = MagicMock()

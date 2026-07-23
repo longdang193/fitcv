@@ -16,6 +16,20 @@ from pathlib import Path
 PROTOTYPE = Path("docs/fitcv-settings-ui-prototype.html")
 
 
+def test_runtime_limits_prototype_uses_shared_pacing_and_concurrency_only() -> None:
+    text = PROTOTYPE.read_text(encoding="utf-8")
+
+    assert "Minimum Request Start Interval (seconds)" in text
+    assert "same provider connection" in text
+    assert "Zero disables pacing" in text
+    assert "retry backoff remains separate" in text
+    assert text.count("label:'Maximum Concurrent Jobs'") == 1
+    assert "maximum concurrent jobs`" in text
+    assert "Request Delay" not in text
+    assert "Batch Size" not in text
+    assert "CV Analysis runs locally and does not use provider request pacing." in text
+
+
 def test_run_page_prototype_contract() -> None:
     html = PROTOTYPE.read_text(encoding="utf-8")
 

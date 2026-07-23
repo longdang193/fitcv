@@ -340,7 +340,7 @@ def test_run_ai_scoring_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> 
     assert mock_score_job.call_count == 1
     assert results[0]["job_url"] == "https://example.com/1"
 
-def test_run_ai_scoring_prefers_stage_runtime_ranking_sleep_over_legacy() -> None:
+def test_run_ai_scoring_ignores_retired_ranking_sleep_settings() -> None:
     from fitcv.ai_score import run_ai_scoring
 
     shortlist = [
@@ -369,7 +369,7 @@ def test_run_ai_scoring_prefers_stage_runtime_ranking_sleep_over_legacy() -> Non
             },
         )
 
-    assert sleep_calls == [0.2]
+    assert sleep_calls == []
 
 
 def test_run_ai_scoring_parallel_path_preserves_input_order() -> None:
@@ -476,7 +476,7 @@ def test_run_ai_scoring_parallel_path_overlaps_workers_when_sleep_zero() -> None
 
     assert len(results) == 2
 
-def test_run_ai_scoring_parallel_path_still_paces_submission_when_sleep_positive() -> None:
+def test_run_ai_scoring_parallel_path_does_not_pace_executor_submission() -> None:
     from fitcv.ai_score import run_ai_scoring
 
     shortlist = [
@@ -505,19 +505,38 @@ def test_run_ai_scoring_parallel_path_still_paces_submission_when_sleep_positive
             },
         )
 
-    assert sleep_calls == [0.2, 0.2]
+    assert sleep_calls == []
 
 
 # ── store_ai_scores ───────────────────────────────────────────────────────────
 
 
-def test_run_ai_scoring_paces_batch_worker_submissions() -> None:
+def test_run_ai_scoring_submits_one_future_per_item() -> None:
     from fitcv.ai_score import run_ai_scoring
+    from concurrent.futures import ThreadPoolExecutor as RealThreadPoolExecutor
 
     shortlist = [{"job_url": f"https://example.com/{index}"} for index in range(4)]
     sleep_calls: list[float] = []
+    submissions: list[tuple[Any, ...]] = []
 
-    with patch("fitcv.ai_score.score_job") as mock_score_job, patch.object(time, "sleep") as mock_sleep:
+    class RecordingThreadPoolExecutor:
+        def __init__(self, *, max_workers: int) -> None:
+            self.executor = RealThreadPoolExecutor(max_workers=max_workers)
+
+        def __enter__(self):
+            self.executor.__enter__()
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            self.executor.__exit__(*args)
+
+        def submit(self, fn: Any, *args: Any):
+            submissions.append(args)
+            return self.executor.submit(fn, *args)
+
+    with patch("fitcv.ai_score.score_job") as mock_score_job, \
+         patch.object(time, "sleep") as mock_sleep, \
+         patch("fitcv.ai_score.ThreadPoolExecutor", RecordingThreadPoolExecutor):
         mock_score_job.side_effect = lambda **kwargs: {
             "job_url": kwargs["job"]["job_url"],
             "ai_score": 0.5,
@@ -539,7 +558,9 @@ def test_run_ai_scoring_paces_batch_worker_submissions() -> None:
         )
 
     assert [row["job_url"] for row in results] == [job["job_url"] for job in shortlist]
-    assert sleep_calls == [0.2]
+    assert len(submissions) == len(shortlist)
+    assert all(len(args) == 2 and isinstance(args[0], int) and isinstance(args[1], dict) for args in submissions)
+    assert sleep_calls == []
 
 
 def test_store_ai_scores_writes_sqlite_rows(

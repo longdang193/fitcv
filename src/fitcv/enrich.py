@@ -22,7 +22,6 @@ import logging
 import os
 import re
 import sqlite3
-import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -33,8 +32,9 @@ from fitcv.config import (
     get_enrich_extraction_model,
     get_prompt_replacement,
     get_prompt_replacement_metadata,
-    get_stage_runtime_batch_size,
     get_stage_runtime_concurrency,
+    get_system_initial_backoff_seconds,
+    get_system_maximum_attempts,
     load_prompt_task_registry,
     sqlite_mode_enabled,
 )
@@ -68,26 +68,6 @@ logger = logging.getLogger(__name__)
 
 _SQLITE_STRUCTURED_JOBS_TABLE = "structured_jobs_cache"
 _VERBOSE_REQUIRED_SKILL_MAX_LEN = 80
-
-# ── shared request-start pacing state ─────────────────────────────────────────
-_ENRICH_RATE_STATE_LOCK: threading.Lock = threading.Lock()
-_ENRICH_NEXT_ALLOWED_START_AT: float = 0.0
-
-def _acquire_enrich_rate_slot(sleep_secs: float) -> None:
-    """Reserve next globally paced enrich request-start slot."""
-    global _ENRICH_NEXT_ALLOWED_START_AT
-    if sleep_secs <= 0.0:
-        return
-    while True:
-        now = time.monotonic()
-        wait_for = 0.0
-        with _ENRICH_RATE_STATE_LOCK:
-            if now >= _ENRICH_NEXT_ALLOWED_START_AT:
-                _ENRICH_NEXT_ALLOWED_START_AT = now + sleep_secs
-                return
-            wait_for = _ENRICH_NEXT_ALLOWED_START_AT - now
-        if wait_for > 0.0:
-            time.sleep(wait_for)
 
 # ── enum definitions (fallbacks — overridden by taxonomy.yaml via config) ──────
 
@@ -1981,88 +1961,76 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     return _enrich_result_to_row(job, config, _execute_enrich_runtime(job, config))
 
 
-def _enrich_chunk(
-    chunk: list[dict[str, Any]],
+def _enrich_one(
+    job: dict[str, Any],
     config: dict[str, Any],
     *,
     job_event_callback: Callable[[dict[str, Any]], None] | None = None,
     runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
-    input_offset: int = 0,
-) -> list[dict[str, Any]]:
-    """Enrich one bounded chunk of normalized jobs with global rate limiting and retry.
+    input_index: int = 0,
+    cancellation_callback: Callable[[], None] | None = None,
+) -> dict[str, Any]:
+    """Enrich one job with System-owned fixed-backoff retry semantics."""
+    maximum_attempts = get_system_maximum_attempts(config)
+    backoff_seconds = get_system_initial_backoff_seconds(config)
+    job_url = extract_job_url(job)
 
-    @capability bounded_parallel_enrichment.per-job-failure-isolation
-
-    Uses shared request-start pacing across concurrent chunks so aggregate
-    request starts remain globally throttled without forcing single in-flight
-    API request execution.
-
-    Raises:
-        Any exception that enrich_job raises after exhausting retries —
-        non-recoverable failures propagate to the caller.
-    """
-    sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
-    max_retries = int(config.get("enrichment_max_retries", 2))
-    results: list[dict[str, Any]] = []
-    for local_index, job in enumerate(chunk):
-        attempts = 0
-        while True:
-            _acquire_enrich_rate_slot(sleep_secs)
+    for attempt_number in range(1, maximum_attempts + 1):
+        if cancellation_callback is not None:
+            cancellation_callback()
+        started_at = time.monotonic()
+        if job_event_callback and job_url:
             try:
-                job_url = extract_job_url(job)
-                started_at = time.monotonic()
-                if job_event_callback and job_url:
-                    try:
-                        job_event_callback({"phase": "job_start", "job_url": job_url})
-                    except Exception:  # noqa: BLE001
-                        pass
-                if runtime_observation_callback is None:
-                    enriched = enrich_job(job, config)
-                else:
-                    result = _execute_enrich_runtime(job, config)
-                    try:
-                        runtime_observation_callback(
-                            {
-                                "contract_version": "llm_runtime_observation_v1",
-                                "scope_key": str(
-                                    job.get("raw_job_fingerprint")
-                                    or build_raw_job_fingerprint(job)["fingerprint"]
-                                ),
-                                "input_index": input_offset + local_index,
-                                "invocation_index": attempts + 1,
-                                "evidence": project_llm_runtime_evidence(result),
-                            }
-                        )
-                    except Exception:  # noqa: BLE001
-                        logger.warning("runtime observation callback failed", exc_info=True)
-                    enriched = _enrich_result_to_row(job, config, result)
-                results.append(enriched)
-                elapsed_secs = max(0.0, time.monotonic() - started_at)
-                if job_event_callback and job_url:
-                    try:
-                        job_event_callback(
-                            {
-                                "phase": "job_done",
-                                "job_url": job_url,
-                                "elapsed_secs": int(elapsed_secs),
-                            }
-                        )
-                    except Exception:  # noqa: BLE001
-                        pass
-                break
-            except EnrichRuntimeError as exc:
-                failure = exc.failure
-                is_rate_limit = (
-                    failure.stage == "adapter"
-                    and failure.code == "adapter_http_error"
-                    and failure.http_status == 429
-                )
-                if not is_rate_limit or attempts >= max_retries:
-                    raise
-                attempts += 1
-                time.sleep(sleep_secs * (2 ** (attempts - 1)))
-    return results
+                job_event_callback({"phase": "job_start", "job_url": job_url})
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            if runtime_observation_callback is None:
+                enriched = enrich_job(job, config)
+            else:
+                result = _execute_enrich_runtime(job, config)
+                try:
+                    runtime_observation_callback(
+                        {
+                            "contract_version": "llm_runtime_observation_v1",
+                            "scope_key": str(
+                                job.get("raw_job_fingerprint")
+                                or build_raw_job_fingerprint(job)["fingerprint"]
+                            ),
+                            "input_index": input_index,
+                            "invocation_index": attempt_number,
+                            "evidence": project_llm_runtime_evidence(result),
+                        }
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.warning("runtime observation callback failed", exc_info=True)
+                enriched = _enrich_result_to_row(job, config, result)
+        except EnrichRuntimeError as exc:
+            failure = exc.failure
+            retryable_rate_limit = (
+                failure.stage == "adapter"
+                and failure.code == "adapter_http_error"
+                and failure.http_status == 429
+            )
+            if not retryable_rate_limit or attempt_number >= maximum_attempts:
+                raise
+            time.sleep(backoff_seconds)
+            continue
 
+        if job_event_callback and job_url:
+            try:
+                job_event_callback(
+                    {
+                        "phase": "job_done",
+                        "job_url": job_url,
+                        "elapsed_secs": int(max(0.0, time.monotonic() - started_at)),
+                    }
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        return enriched
+
+    raise RuntimeError("enrichment attempts exhausted")
 
 
 def enrich_batch(
@@ -2071,99 +2039,52 @@ def enrich_batch(
     *,
     job_event_callback: Callable[[dict[str, Any]], None] | None = None,
     runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
-    on_chunk_complete: Callable[[list[dict[str, Any]]], None] | None = None,
+    on_item_complete: Callable[[dict[str, Any]], None] | None = None,
+    cancellation_callback: Callable[[], None] | None = None,
 ) -> list[dict[str, Any]]:
-    """Enrich a batch of normalized jobs with bounded parallel execution.
-
-    @capability bounded_parallel_enrichment.deterministic-output-order
-
-    Splits normalized_jobs into chunks of enrichment_batch_size, then submits
-    up to enrichment_concurrency chunks in parallel via ThreadPoolExecutor.
-    Results are collected BY ORIGINAL CHUNK INDEX (not completion order) to
-    guarantee deterministic output ordering matching the input.
-
-    Fail-fast semantics: any non-recoverable exception from a chunk propagates
-    immediately — the parallel version does not silently degrade to partial success
-    when a chunk raises an exception that the sequential path would have raised.
-
-    Config keys prefer canonical stage_runtime.enrich values and retain
-    enrichment_batch_size/enrichment_concurrency as read-only fallbacks.
-
-    Rate limiting: request-start pacing is shared across chunk workers using a
-    global slot scheduler. This preserves global throttling while allowing
-    overlapping in-flight API calls when latency exceeds pacing interval.
-
-    Incremental persistence: if on_chunk_complete is provided, it is called with
-    each chunk's results immediately after that chunk finishes (in completion
-    order). This allows callers to persist partial results incrementally rather
-    than waiting for the entire batch to complete.
-    """
+    """Enrich one job per future while returning rows in input order."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    batch_size = get_stage_runtime_batch_size(
-        config,
-        stage="enrich",
-        default=10,
-        compatibility_fallback_key="enrichment_batch_size",
-    )
     concurrency = get_stage_runtime_concurrency(
         config,
         stage="enrich",
-        default=1,
-        compatibility_fallback_key="enrichment_concurrency",
+        default=8,
     )
-
-    # Split into chunks of batch_size
-    chunks = [
-        normalized_jobs[i:i + batch_size]
-        for i in range(0, len(normalized_jobs), batch_size)
-    ]
-
-    if not chunks:
+    if not normalized_jobs:
         return []
 
-    # Submit all chunks; collect futures in original order while allowing
-    # completion-driven callbacks for incremental persistence.
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
         future_to_idx = {
             executor.submit(
-                _enrich_chunk,
-                chunk,
+                _enrich_one,
+                job,
                 config,
                 job_event_callback=job_event_callback,
-                **(
-                    {
-                        "runtime_observation_callback": runtime_observation_callback,
-                        "input_offset": idx * batch_size,
-                    }
-                    if runtime_observation_callback is not None
-                    else {}
-                ),
+                runtime_observation_callback=runtime_observation_callback,
+                input_index=idx,
+                cancellation_callback=cancellation_callback,
             ): idx
-            for idx, chunk in enumerate(chunks)
+            for idx, job in enumerate(normalized_jobs)
         }
+        results: list[dict[str, Any] | None] = [None] * len(normalized_jobs)
+        try:
+            for future in as_completed(future_to_idx):
+                if cancellation_callback is not None:
+                    cancellation_callback()
+                idx = future_to_idx[future]
+                row = future.result()
+                results[idx] = row
+                if on_item_complete is not None:
+                    try:
+                        on_item_complete(row)
+                    except Exception:  # noqa: BLE001
+                        logger.warning("on_item_complete callback failed for item %d", idx, exc_info=True)
+        except BaseException:
+            for future in future_to_idx:
+                future.cancel()
+            raise
 
-        # Collect results by original chunk index, not completion order.
-        # This preserves deterministic merged output ordering.
-        chunk_results: list[list[dict[str, Any]]] = [None] * len(future_to_idx)  # type: ignore[list-item]
-        for future in as_completed(future_to_idx):
-            idx = future_to_idx[future]
-            # Calling .result() re-raises any exception from the chunk.
-            # This preserves fail-fast semantics: if any chunk raises a
-            # non-recoverable exception, it propagates here immediately.
-            chunk_result = future.result()
-            chunk_results[idx] = chunk_result
-            if on_chunk_complete is not None and chunk_result:
-                try:
-                    on_chunk_complete(chunk_result)
-                except Exception:
-                    logger.warning('on_chunk_complete callback failed for chunk %d', idx, exc_info=True)
-
-    # Flatten chunk results in original chunk order
-    results: list[dict[str, Any]] = []
-    for chunk_result in chunk_results:
-        results.extend(chunk_result)
-    return results
+    return [row for row in results if row is not None]
 
 
 # ── structured-job upsert ─────────────────────────────────────────────────────

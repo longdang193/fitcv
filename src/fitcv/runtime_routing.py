@@ -21,6 +21,7 @@ from typing import Any
 from fitcv.config import (
     SUPPORTED_PROVIDER_IDS,
     get_cv_generation_model,
+    get_llm_request_start_interval_secs,
     resolve_model_routing_part,
 )
 
@@ -32,6 +33,7 @@ class LlmRouting:
     wire_api: str
     model: str
     timeout_seconds: float
+    request_start_interval_secs: float = 0.0
     auth_mode: str = "required"
     temperature: float = 0.2
     model_record_id: str | None = None
@@ -127,6 +129,7 @@ def resolve_llm_routing(
             wire_api=str(route.get("wire_api") or "").strip(),
             model=str(route.get("model") or "").strip(),
             timeout_seconds=float(route.get("timeout_seconds") or 120),
+            request_start_interval_secs=get_llm_request_start_interval_secs(runtime_config or {}),
             auth_mode="required",
             temperature=float(route.get("temperature") or 0),
             model_record_id=str(route.get("model_record_id") or "").strip() or None,
@@ -154,6 +157,7 @@ def resolve_llm_routing(
         wire_api=wire_api,
         model=str(route.get("model") or "").strip(),
         timeout_seconds=timeout_seconds,
+        request_start_interval_secs=get_llm_request_start_interval_secs(runtime_config or {}),
         auth_mode=auth_mode,
     )
 
@@ -194,6 +198,7 @@ def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting
         wire_api=route.wire_api,
         model=route.model,
         timeout_seconds=route.timeout_seconds,
+        request_start_interval_secs=route.request_start_interval_secs,
         auth_mode=route.auth_mode,
     )
 

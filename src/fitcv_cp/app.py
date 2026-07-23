@@ -46,7 +46,9 @@ from pydantic import BaseModel, ValidationError as PydanticValidationError, fiel
 from fitcv.config import (
     apply_cv_compatibility_projection,
     build_prompt_configuration_snapshot,
+    get_llm_request_start_interval_secs,
     get_prompt_replacement,
+    get_stage_runtime_concurrency,
     apply_runtime_skill_synonym_overlay,
     apply_runtime_synonym_overlay,
     load_config,
@@ -749,6 +751,34 @@ def _apply_trigger_runtime_envelope(
     effective_config["synonym_management"] = synonym_management
     effective_config = apply_synonym_management_defaults(effective_config)
 
+    effective_config["llm_runtime"] = {
+        "request_start_interval_secs": get_llm_request_start_interval_secs(effective_config)
+    }
+    concurrency_defaults = {
+        "enrich": 8,
+        "ranking": 4,
+        "cv_analysis": 4,
+        "cv_generation": 4,
+    }
+    effective_config["stage_runtime"] = {
+        stage: {
+            "concurrency": get_stage_runtime_concurrency(
+                effective_config,
+                stage=stage,
+                default=default,
+            )
+        }
+        for stage, default in concurrency_defaults.items()
+    }
+    for retired_key in (
+        "enrichment_sleep_secs",
+        "enrichment_batch_size",
+        "enrichment_concurrency",
+        "enrichment_max_retries",
+        "rerank_sleep_secs",
+    ):
+        effective_config.pop(retired_key, None)
+
     runtime_inputs = effective_config.setdefault("runtime_inputs", {})
     if jobs_input_json:
         runtime_inputs["jobs_input_json"] = jobs_input_json
@@ -759,6 +789,7 @@ def _apply_trigger_runtime_envelope(
     if str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {"1", "true", "yes", "on"}:
         runtime_inputs["llm_configuration_snapshot"] = build_packaged_llm_configuration_snapshot()
         runtime_inputs["prompt_configuration_snapshot"] = build_prompt_configuration_snapshot()
+        runtime_inputs["system_settings_snapshot"] = load_system_settings()
     runtime_inputs["cv_generation_runtime_expectation"] = _resolve_live_runtime_expectation(
         "cv_generation_structured_write",
         default_model="",
@@ -3067,24 +3098,9 @@ def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
             default_wire_api="builtin",
         ),
     }
-    sleep_secs = 0.0
-    concurrency = 1
-    if isinstance(effective_settings, dict):
-        stage_runtime = dict(effective_settings.get("stage_runtime") or {})
-        cv_analysis_runtime = dict(stage_runtime.get("cv_analysis") or {})
-        try:
-            sleep_secs = max(0.0, float(cv_analysis_runtime.get("sleep_secs", 0.0)))
-        except (TypeError, ValueError):
-            sleep_secs = 0.0
-        try:
-            concurrency = max(1, int(cv_analysis_runtime.get("concurrency", 1)))
-        except (TypeError, ValueError):
-            concurrency = 1
     return {
         **snapshot,
         "api_key": api_key,
-        "sleep_secs": sleep_secs,
-        "concurrency": concurrency,
     }
 
 def _synonym_triage_fingerprint(
@@ -4846,7 +4862,7 @@ def _timeline_stage_summary_message(
             payload.get("concurrency_effective"),
             payload.get("configured_concurrency"),
         )
-        if phase == "batch_start":
+        if phase in {"work_start", "batch_start"}:
             return _format_message(
                 "Enrich starting",
                 [
@@ -4855,7 +4871,7 @@ def _timeline_stage_summary_message(
                     ("concurrency", concurrency),
                 ],
             )
-        if phase == "batch_progress":
+        if phase in {"work_progress", "batch_progress"}:
             return _format_message(
                 "Enrich in progress",
                 [
@@ -4864,7 +4880,7 @@ def _timeline_stage_summary_message(
                     ("concurrency", concurrency),
                 ],
             )
-        if phase == "batch_done":
+        if phase in {"work_done", "batch_done"}:
             fresh_rows_total = payload.get("fresh_rows_total")
             return _format_message(
                 "Enrich complete",
@@ -5423,7 +5439,7 @@ def _dedupe_timeline_semantic_overlaps(
             if prev_stage == "enrich_heartbeat":
                 prev_payload = _event_payload(prev_event)
                 prev_phase = str(prev_payload.get("phase") or "").strip()
-                if prev_phase == "batch_done":
+                if prev_phase in {"work_done", "batch_done"}:
                     prev_fresh = prev_payload.get("fresh_jobs_total")
                     prev_reused = prev_payload.get("reused_jobs_total")
                     current_fresh = outputs.get("fresh_rows")

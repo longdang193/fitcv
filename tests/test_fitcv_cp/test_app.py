@@ -1241,6 +1241,38 @@ def test_trigger_runtime_envelope_snapshots_prompt_metadata_without_text(
     assert "replacement_text" not in json.dumps(effective)
 
 
+def test_trigger_runtime_envelope_snapshots_system_retry_resource(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv_cp import app as app_module
+
+    system_snapshot = {
+        "maximum_attempts": 4,
+        "initial_backoff_seconds": 12,
+        "lease_seconds": 300,
+        "reconciler_interval_seconds": 30,
+        "error_detail_limit": 10000,
+        "revision": 7,
+        "updated_at": "2026-07-22T12:00:00+00:00",
+    }
+    monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
+    monkeypatch.setattr(app_module, "load_system_settings", lambda: system_snapshot)
+    monkeypatch.setattr(app_module, "build_packaged_llm_configuration_snapshot", lambda: {"revision": 1, "tasks": {}})
+    monkeypatch.setattr(app_module, "build_prompt_configuration_snapshot", lambda: {"tasks": {}})
+
+    effective = app_module._apply_trigger_runtime_envelope(
+        {},
+        jobs_input_source=None,
+        jobs_input_json=None,
+        jobs_input_manifest_json=None,
+        candidate_profile_source=None,
+        candidate_profile_json=None,
+        run_mode="run_all",
+    )
+
+    assert effective["runtime_inputs"]["system_settings_snapshot"] == system_snapshot
+
+
 def test_post_runs_queue_failure_terminalizes_existing_run(tmp_path) -> None:
     jobs_file = tmp_path / "jobs.json"
     jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
@@ -2502,14 +2534,14 @@ def test_patch_pipeline_settings_rejects_stale_revision() -> None:
     assert resp.json()["error"]["retryable"] is False
 
 
-def test_patch_pipeline_settings_rejects_partial_managed_group() -> None:
+def test_patch_pipeline_settings_rejects_retired_runtime_field() -> None:
     resp = TestClient(_app()).patch(
         "/settings/pipeline",
         json={"changes": {"stage_runtime.ranking.batch_size": 2}},
     )
 
     assert resp.status_code == 422
-    assert "runtime-ranking" in resp.text
+    assert "stage_runtime.ranking.batch_size" in resp.text
 
 
 def test_reset_pipeline_settings_uses_atomic_mutation() -> None:
@@ -2537,15 +2569,14 @@ def test_post_settings_key_saves_and_returns_200():
     assert resp.status_code == 200
     mock_save.assert_called_once()
 
-def test_post_settings_key_canonicalizes_legacy_throughput_alias():
+def test_post_settings_key_rejects_legacy_throughput_alias():
     with patch("fitcv_cp.app.save_setting") as mock_save:
         resp = TestClient(_app()).post(
             "/settings/enrichment_sleep_secs",
             json={"value": 3.5, "updated_by": "admin"},
         )
-    assert resp.status_code == 200
-    assert resp.json()["key"] == "stage_runtime.enrich.sleep_secs"
-    assert mock_save.call_args.args[0] == "stage_runtime.enrich.sleep_secs"
+    assert resp.status_code == 422
+    mock_save.assert_not_called()
 
 
 def test_post_settings_key_surfaces_bigquery_save_failure():
@@ -2655,15 +2686,17 @@ def test_post_runs_accepts_nested_stage_runtime_overrides(tmp_path):
         resp = TestClient(_app()).post("/runs", json={
             "jobs_path": str(jobs_file),
             "config_overrides": {
+                "llm_runtime": {"request_start_interval_secs": 0.25},
                 "stage_runtime": {
-                    "ranking": {"concurrency": 4, "sleep_secs": 0.0},
+                    "ranking": {"concurrency": 4},
                 },
             },
         })
     assert resp.status_code == 201, resp.text
     effective = json.loads(captured["run"].effective_settings_json)
+    assert effective["llm_runtime"]["request_start_interval_secs"] == pytest.approx(0.25)
     assert effective["stage_runtime"]["ranking"]["concurrency"] == 4
-    assert float(effective["stage_runtime"]["ranking"]["sleep_secs"]) == pytest.approx(0.0)
+    assert set(effective["stage_runtime"]["ranking"]) == {"concurrency"}
 
 def test_post_runs_accepts_mixed_nested_and_flat_same_value(tmp_path):
     jobs_file = tmp_path / "jobs.json"
@@ -4689,9 +4722,11 @@ def test_admin_upload_trigger_multi_file_non_array_rejected():
     assert resp.status_code == 422
 
 
-def test_admin_upload_trigger_effective_settings_includes_enrichment_parallelism():
-    """Trigger run with mocked active settings containing batch_size/concurrency → stored in effective_settings_json."""
-    active = {"enrichment_batch_size": 5, "enrichment_concurrency": 3}
+def test_admin_upload_trigger_effective_settings_includes_runtime_contract():
+    active = {
+        "llm_runtime.request_start_interval_secs": 0.5,
+        "stage_runtime.enrich.concurrency": 3,
+    }
     captured = {}
 
     p = _upload_patches()
@@ -4708,8 +4743,10 @@ def test_admin_upload_trigger_effective_settings_includes_enrichment_parallelism
 
     assert resp.status_code == 201, resp.text
     effective = json.loads(captured["run"].effective_settings_json)
-    assert effective.get("enrichment_batch_size") == 5
-    assert effective.get("enrichment_concurrency") == 3
+    assert effective["llm_runtime"] == {"request_start_interval_secs": 0.5}
+    assert effective["stage_runtime"]["enrich"] == {"concurrency": 3}
+    assert "enrichment_batch_size" not in effective
+    assert "enrichment_concurrency" not in effective
 
 
 
@@ -6315,7 +6352,7 @@ def test_synonym_management_mode_includes_new_automation_flags_with_defaults() -
 
 
 
-def test_resolve_synonym_triage_runtime_includes_canonical_cv_analysis_runtime() -> None:
+def test_resolve_synonym_triage_runtime_does_not_inherit_cv_analysis_scheduling() -> None:
     from datetime import datetime, timezone
 
     from fitcv_cp.app import _resolve_synonym_triage_runtime
@@ -6335,8 +6372,8 @@ def test_resolve_synonym_triage_runtime_includes_canonical_cv_analysis_runtime()
 
     runtime = _resolve_synonym_triage_runtime(run)
 
-    assert runtime["sleep_secs"] == 0.4
-    assert runtime["concurrency"] == 5
+    assert "sleep_secs" not in runtime
+    assert "concurrency" not in runtime
 
 
 def test_resolve_synonym_triage_runtime_uses_dedicated_control_plane_route(
@@ -8525,7 +8562,7 @@ def test_post_settings_section_valid_redirects():
     assert resp.headers["location"] == "/admin/settings"
 
 
-def test_post_settings_section_timing_drops_throughput_compatibility_aliases() -> None:
+def test_post_settings_section_timing_ignores_retired_runtime_fields() -> None:
     captured: dict[str, dict[str, object]] = {}
 
     def _capture_save(payload: dict[str, object], **_: object) -> None:
@@ -8536,17 +8573,10 @@ def test_post_settings_section_timing_drops_throughput_compatibility_aliases() -
         resp = TestClient(_app()).post(
             "/admin/settings/section/timing",
             data={
-                "stage_runtime.enrich.sleep_secs": "0.4",
-                "stage_runtime.enrich.batch_size": "8",
+                "llm_runtime.request_start_interval_secs": "0.4",
                 "stage_runtime.enrich.concurrency": "2",
-                "stage_runtime.ranking.sleep_secs": "0.2",
-                "stage_runtime.ranking.batch_size": "1",
                 "stage_runtime.ranking.concurrency": "4",
-                "stage_runtime.cv_analysis.sleep_secs": "0.1",
-                "stage_runtime.cv_analysis.batch_size": "1",
                 "stage_runtime.cv_analysis.concurrency": "2",
-                "stage_runtime.cv_generation.sleep_secs": "0.1",
-                "stage_runtime.cv_generation.batch_size": "1",
                 "stage_runtime.cv_generation.concurrency": "2",
                 "enrichment_sleep_secs": "0.9",
                 "rerank_sleep_secs": "0.9",
@@ -8558,8 +8588,13 @@ def test_post_settings_section_timing_drops_throughput_compatibility_aliases() -
 
     assert resp.status_code == 303
     payload = captured["payload"]
-    assert "enrichment_sleep_secs" not in payload
-    assert payload["stage_runtime.enrich.sleep_secs"] == 0.4
+    assert payload == {
+        "llm_runtime.request_start_interval_secs": 0.4,
+        "stage_runtime.enrich.concurrency": 2,
+        "stage_runtime.ranking.concurrency": 4,
+        "stage_runtime.cv_analysis.concurrency": 2,
+        "stage_runtime.cv_generation.concurrency": 2,
+    }
 
 def test_post_settings_section_timing_accepts_canonical_only_payload() -> None:
     captured: dict[str, dict[str, object]] = {}
@@ -8572,17 +8607,10 @@ def test_post_settings_section_timing_accepts_canonical_only_payload() -> None:
         resp = TestClient(_app()).post(
             "/admin/settings/section/timing",
             data={
-                "stage_runtime.enrich.sleep_secs": "0.0",
-                "stage_runtime.enrich.batch_size": "25",
+                "llm_runtime.request_start_interval_secs": "0.0",
                 "stage_runtime.enrich.concurrency": "8",
-                "stage_runtime.ranking.sleep_secs": "0.0",
-                "stage_runtime.ranking.batch_size": "1",
                 "stage_runtime.ranking.concurrency": "6",
-                "stage_runtime.cv_analysis.sleep_secs": "0.0",
-                "stage_runtime.cv_analysis.batch_size": "1",
                 "stage_runtime.cv_analysis.concurrency": "3",
-                "stage_runtime.cv_generation.sleep_secs": "0.0",
-                "stage_runtime.cv_generation.batch_size": "1",
                 "stage_runtime.cv_generation.concurrency": "3",
             },
             follow_redirects=False,
@@ -8590,6 +8618,7 @@ def test_post_settings_section_timing_accepts_canonical_only_payload() -> None:
 
     assert resp.status_code == 303
     payload = captured["payload"]
+    assert payload["llm_runtime.request_start_interval_secs"] == 0.0
     assert payload["stage_runtime.enrich.concurrency"] == 8
     assert payload["stage_runtime.ranking.concurrency"] == 6
     assert "enrichment_concurrency" not in payload

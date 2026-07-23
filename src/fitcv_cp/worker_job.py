@@ -33,7 +33,6 @@ from fitcv.agentic_cv_generation import generate_from_analysis
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
     get_stage_runtime_concurrency,
-    get_stage_runtime_sleep_secs,
     parse_skill_synonym_overlay_yaml,
 )
 from fitcv.late_stage_contract import (

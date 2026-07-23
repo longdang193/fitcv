@@ -81,9 +81,7 @@ from fitcv.config import (
     get_prompt_replacement_metadata,
     get_cv_generation_prompt_version,
     get_ranking_ai_score_model,
-    get_stage_runtime_batch_size,
     get_stage_runtime_concurrency,
-    get_stage_runtime_sleep_secs,
     load_config,
     resolve_model_routing_part,
 )
@@ -224,6 +222,7 @@ from fitcv.pipeline_stage_context import (
 )
 
 logger = logging.getLogger(__name__)
+_ENRICH_PERSISTENCE_BUFFER_SIZE = 10
 _EXPORT_ENRICHED_JOB_FIELDS = (
     "location_type",
     "seniority",
@@ -373,6 +372,7 @@ def _enrich_jobs_with_reuse(
     heartbeat_callback: Callable[[dict[str, Any]], None] | None = None,
     incremental_save_run_id: str | None = None,
     runtime_observations: list[dict[str, Any]] | None = None,
+    cancellation_check: Callable[[], bool] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     import threading
 
@@ -418,6 +418,7 @@ def _enrich_jobs_with_reuse(
     ]
     fresh_rows: list[dict[str, Any]] = []
     incrementally_saved_fresh_urls: set[str] = set()
+    persistence_buffer: list[dict[str, Any]] = []
 
     def _run_enrich_call_with_polling(
         fn: Callable[[], list[dict[str, Any]]],
@@ -461,144 +462,83 @@ def _enrich_jobs_with_reuse(
             "yes",
             "on",
         }
-        emit_job_events_enabled = str(os.environ.get("FITCV_ENRICH_EMIT_JOB_EVENTS", "") or "").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }
-        per_job_timeout_raw = str(os.environ.get("FITCV_ENRICH_JOB_TIMEOUT_SECS", "180") or "180").strip()
-        try:
-            per_job_timeout_secs = max(10, int(float(per_job_timeout_raw)))
-        except ValueError:
-            per_job_timeout_secs = 180
+        emit_job_events_enabled = debug_heartbeat_enabled or str(
+            os.environ.get("FITCV_ENRICH_EMIT_JOB_EVENTS", "") or ""
+        ).strip().lower() in {"1", "true", "yes", "on"}
         heartbeat_interval_raw = str(os.environ.get("FITCV_ENRICH_HEARTBEAT_SECS", "15") or "15").strip()
         try:
             heartbeat_interval_secs = max(5, int(float(heartbeat_interval_raw)))
         except ValueError:
             heartbeat_interval_secs = 15
 
-        def _persist_incremental_fresh_rows(rows: list[dict[str, Any]]) -> None:
-            if not incremental_save_run_id or not rows:
+        def _check_cancellation() -> None:
+            if cancellation_check is not None and cancellation_check():
+                raise PipelineCancelled("Cancelled during enrichment")
+
+        enrich_cancellation_callback = _check_cancellation if cancellation_check is not None else None
+
+        def _flush_persistence_buffer() -> None:
+            if not persistence_buffer:
                 return
-            finalized_rows = _finalize_fresh_enriched_rows(
-                rows,
-                raw_job_fingerprints=raw_job_fingerprints,
-                enrich_contract_fingerprint=enrich_contract_fingerprint,
-            )
-            pipeline_store.load_structured_jobs(finalized_rows, config)
-            pipeline_store.load_run_structured_jobs(finalized_rows, incremental_save_run_id, config)
-            for row in finalized_rows:
+            rows = list(persistence_buffer)
+            try:
+                pipeline_store.load_structured_jobs(rows, config)
+                if incremental_save_run_id:
+                    pipeline_store.load_run_structured_jobs(rows, incremental_save_run_id, config)
+            except Exception:  # noqa: BLE001
+                logger.warning("Incremental enrichment persistence failed", exc_info=True)
+                return
+            persistence_buffer.clear()
+            for row in rows:
                 job_url = extract_job_url(row)
                 if job_url:
                     incrementally_saved_fresh_urls.add(job_url)
 
-        if debug_heartbeat_enabled:
-            total = len(fresh_jobs)
-            for idx, job in enumerate(fresh_jobs, start=1):
-                job_url = extract_job_url(job) or f"job_{idx}"
-                if heartbeat_callback:
-                    heartbeat_callback(
-                        {
-                            "phase": "job_start",
-                            "index": idx,
-                            "total": total,
-                            "job_url": job_url,
-                            "timeout_secs": per_job_timeout_secs,
-                        }
-                    )
-                try:
-                    batch_rows = _run_enrich_call_with_polling(
-                        lambda: enrich_batch(
-                            [job],
-                            config,
-                            runtime_observation_callback=(
-                                runtime_observations.append if runtime_observations is not None else None
-                            ),
-                        ),
-                        timeout_secs=per_job_timeout_secs,
-                    )
-                except TimeoutError as exc:
-                    if heartbeat_callback:
-                        heartbeat_callback(
-                            {
-                                "phase": "job_timeout",
-                                "index": idx,
-                                "total": total,
-                                "job_url": job_url,
-                                "timeout_secs": per_job_timeout_secs,
-                            }
-                        )
-                    raise TimeoutError(
-                        f"Enrich timeout for {job_url} after {per_job_timeout_secs}s (job {idx}/{total})"
-                    ) from exc
-                if batch_rows:
-                    fresh_rows.extend(batch_rows)
-                    _persist_incremental_fresh_rows(batch_rows)
-                if heartbeat_callback:
-                    heartbeat_callback(
-                        {
-                            "phase": "job_done",
-                            "index": idx,
-                            "total": total,
-                            "job_url": job_url,
-                            "rows": len(batch_rows or []),
-                        }
-                    )
-        else:
-            job_index_by_url: dict[str, int] = {}
-            job_index_lock = threading.Lock()
-            next_job_index = 0
+        def _on_item_complete(row: dict[str, Any]) -> None:
+            finalized_row = _finalize_fresh_enriched_rows(
+                [row],
+                raw_job_fingerprints=raw_job_fingerprints,
+                enrich_contract_fingerprint=enrich_contract_fingerprint,
+            )[0]
+            persistence_buffer.append(finalized_row)
+            if len(persistence_buffer) >= _ENRICH_PERSISTENCE_BUFFER_SIZE:
+                _flush_persistence_buffer()
 
-            def _job_event_callback(evt: dict[str, Any]) -> None:
-                nonlocal next_job_index
-                if not emit_job_events_enabled or heartbeat_callback is None:
-                    return
-                phase = str(evt.get("phase") or "").strip()
-                job_url = str(evt.get("job_url") or "").strip()
-                if not phase or not job_url:
-                    return
-                if phase == "job_start":
-                    with job_index_lock:
+        job_index_by_url: dict[str, int] = {}
+        job_index_lock = threading.Lock()
+        next_job_index = 0
+
+        def _job_event_callback(evt: dict[str, Any]) -> None:
+            nonlocal next_job_index
+            if not emit_job_events_enabled or heartbeat_callback is None:
+                return
+            phase = str(evt.get("phase") or "").strip()
+            job_url = str(evt.get("job_url") or "").strip()
+            if not phase or not job_url:
+                return
+            if phase == "job_start":
+                with job_index_lock:
+                    if job_url not in job_index_by_url:
                         next_job_index += 1
                         job_index_by_url[job_url] = next_job_index
-                    heartbeat_callback(
-                        {
-                            "phase": "job_start",
-                            "index": job_index_by_url.get(job_url),
-                            "total": len(fresh_jobs),
-                            "job_url": job_url,
-                            "timeout_secs": per_job_timeout_secs,
-                        }
-                    )
-                    return
-                if phase == "job_done":
-                    heartbeat_callback(
-                        {
-                            "phase": "job_done",
-                            "index": job_index_by_url.get(job_url),
-                            "total": len(fresh_jobs),
-                            "job_url": job_url,
-                            "elapsed_secs": evt.get("elapsed_secs"),
-                        }
-                    )
-                    return
+            heartbeat_callback(
+                {
+                    **evt,
+                    "index": job_index_by_url.get(job_url),
+                    "total": len(fresh_jobs),
+                }
+            )
 
-            if heartbeat_callback:
-                heartbeat_callback(
-                    {
-                        "phase": "batch_start",
-                        "fresh_jobs_total": len(fresh_jobs),
-                        "reused_jobs_total": len(reused_rows_by_url),
-                        "heartbeat_interval_secs": heartbeat_interval_secs,
-                    }
-                )
-            def _on_chunk_complete(chunk_rows: list[dict[str, Any]]) -> None:
-                try:
-                    _persist_incremental_fresh_rows(chunk_rows)
-                except Exception:
-                    logger.warning("Incremental save failed for chunk", exc_info=True)
-
+        if heartbeat_callback:
+            heartbeat_callback(
+                {
+                    "phase": "work_start",
+                    "fresh_jobs_total": len(fresh_jobs),
+                    "reused_jobs_total": len(reused_rows_by_url),
+                    "heartbeat_interval_secs": heartbeat_interval_secs,
+                }
+            )
+        try:
             fresh_rows = _run_enrich_call_with_polling(
                 lambda: enrich_batch(
                     fresh_jobs,
@@ -607,13 +547,14 @@ def _enrich_jobs_with_reuse(
                     runtime_observation_callback=(
                         runtime_observations.append if runtime_observations is not None else None
                     ),
-                    on_chunk_complete=_on_chunk_complete if incremental_save_run_id else None,
+                    on_item_complete=_on_item_complete,
+                    cancellation_callback=enrich_cancellation_callback,
                 ),
                 heartbeat_interval_secs=heartbeat_interval_secs,
                 on_progress=(
                     lambda heartbeat_count, elapsed_secs: heartbeat_callback(
                         {
-                            "phase": "batch_progress",
+                            "phase": "work_progress",
                             "fresh_jobs_total": len(fresh_jobs),
                             "reused_jobs_total": len(reused_rows_by_url),
                             "heartbeat_count": heartbeat_count,
@@ -623,15 +564,19 @@ def _enrich_jobs_with_reuse(
                     ) if heartbeat_callback else None
                 ),
             )
-            if heartbeat_callback:
-                heartbeat_callback(
-                    {
-                        "phase": "batch_done",
-                        "fresh_jobs_total": len(fresh_jobs),
-                        "reused_jobs_total": len(reused_rows_by_url),
-                        "fresh_rows_total": len(fresh_rows),
-                    }
-                )
+        except BaseException:
+            _flush_persistence_buffer()
+            raise
+        _flush_persistence_buffer()
+        if heartbeat_callback:
+            heartbeat_callback(
+                {
+                    "phase": "work_done",
+                    "fresh_jobs_total": len(fresh_jobs),
+                    "reused_jobs_total": len(reused_rows_by_url),
+                    "fresh_rows_total": len(fresh_rows),
+                }
+            )
         _finalize_fresh_enriched_rows(
             fresh_rows,
             raw_job_fingerprints=raw_job_fingerprints,
@@ -682,18 +627,6 @@ def _enrich_jobs_with_reuse(
             config,
         )
     return enriched_rows, fresh_rows
-
-def _enrich_runtime_projection(config: dict[str, Any]) -> dict[str, Any]:
-    projected = dict(config)
-    stage_runtime = dict(projected.get("stage_runtime") or {})
-    enrich_runtime = dict(stage_runtime.get("enrich") or {})
-    if "sleep_secs" in enrich_runtime:
-        projected["enrichment_sleep_secs"] = enrich_runtime["sleep_secs"]
-    if "batch_size" in enrich_runtime:
-        projected["enrichment_batch_size"] = enrich_runtime["batch_size"]
-    if "concurrency" in enrich_runtime:
-        projected["enrichment_concurrency"] = enrich_runtime["concurrency"]
-    return projected
 
 def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
     return bool(resolve_reuse_stage_policy(config, stage).enabled)
@@ -1733,12 +1666,7 @@ def _cv_analysis_stage_concurrency(config: dict[str, Any]) -> int:
     return get_stage_runtime_concurrency(config, stage="cv_analysis", default=1)
 
 def _enrich_stage_concurrency(config: dict[str, Any]) -> int:
-    return get_stage_runtime_concurrency(
-        config,
-        stage="enrich",
-        default=1,
-        compatibility_fallback_key="enrichment_concurrency",
-    )
+    return get_stage_runtime_concurrency(config, stage="enrich", default=8)
 
 def _ranking_stage_concurrency(config: dict[str, Any]) -> int:
     return get_stage_runtime_concurrency(config, stage="ranking", default=1)
@@ -3305,12 +3233,7 @@ def run_pipeline(
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("enrich"):
             with observe_span("pipeline.enrich", attributes={"run_id": run_id}):
-                enrich_runtime_config = _enrich_runtime_projection(config)
                 enrich_concurrency = _enrich_stage_concurrency(config)
-                enrich_batch_size = max(
-                    int(enrich_runtime_config.get("enrichment_batch_size", 10)),
-                    1,
-                )
                 raw_global = config.get("global_job_filters", {})
                 global_settings = (
                     {f"global_job_filters.{k}": v for k, v in raw_global.items()}
@@ -3334,10 +3257,11 @@ def run_pipeline(
                     raise PipelineCancelled("Cancelled before enrichment")
                 enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
                     surviving_normalized,
-                    enrich_runtime_config,
+                    config,
                     pipeline_store=pipeline_store,
                     incremental_save_run_id=run_id,
                     runtime_observations=enrich_llm_runtime_observations,
+                    cancellation_check=cancellation_check,
                     heartbeat_callback=(
                         (lambda payload: reporter.emit(  # type: ignore[union-attr]
                             "enrich_heartbeat",
@@ -3348,12 +3272,7 @@ def run_pipeline(
                                 "configured_concurrency": int(enrich_concurrency),
                                 "enrich_concurrency_effective": _effective_stage_concurrency(
                                     enrich_concurrency,
-                                    (
-                                        int((payload or {}).get("fresh_jobs_total") or 0)
-                                        + enrich_batch_size
-                                        - 1
-                                    )
-                                    // enrich_batch_size,
+                                    int((payload or {}).get("fresh_jobs_total") or 0),
                                 ),
                             },
                         ))
@@ -3780,11 +3699,6 @@ def run_pipeline(
         cv_prompt_template_path_value = cv_generation_prompt_runtime["template_path"]
         cv_prompt_version_value = get_cv_generation_prompt_version(config)
         enabled_cv_sections = _cv_generation_enabled_sections(config)
-        cv_analysis_batch_size = get_stage_runtime_batch_size(
-            config,
-            stage="cv_analysis",
-            default=1,
-        )
         cv_analysis_concurrency = _cv_analysis_stage_concurrency(config)
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
             with observe_span(
@@ -3794,8 +3708,7 @@ def run_pipeline(
                 cv_analysis_started_monotonic = time.monotonic()
                 cv_analysis_effective_concurrency = _effective_stage_concurrency(
                     cv_analysis_concurrency,
-                    (len(ranked_jobs_for_cv) + cv_analysis_batch_size - 1)
-                    // cv_analysis_batch_size,
+                    len(ranked_jobs_for_cv),
                 )
                 if reporter is not None:
                     reporter.emit(
@@ -3855,29 +3768,11 @@ def run_pipeline(
                         )
                     )
 
-                analysis_batches = [
-                    analysis_inputs[index:index + cv_analysis_batch_size]
-                    for index in range(0, len(analysis_inputs), cv_analysis_batch_size)
-                ]
-
-                def _analyze_cv_batch(
-                    batch: list[tuple[dict[str, Any], dict[str, Any] | None]],
-                ) -> list[dict[str, Any]]:
-                    return [_analyze_cv_job(item) for item in batch]
-
                 if cv_analysis_effective_concurrency > 1:
                     with ThreadPoolExecutor(max_workers=cv_analysis_effective_concurrency) as executor:
-                        analyzed_records = [
-                            record
-                            for batch_records in executor.map(_analyze_cv_batch, analysis_batches)
-                            for record in batch_records
-                        ]
+                        analyzed_records = list(executor.map(_analyze_cv_job, analysis_inputs))
                 else:
-                    analyzed_records = [
-                        record
-                        for batch in analysis_batches
-                        for record in _analyze_cv_batch(batch)
-                    ]
+                    analyzed_records = [_analyze_cv_job(item) for item in analysis_inputs]
 
                 for (job, reusable_record), analysis_record in zip(analysis_inputs, analyzed_records):
                     cv_analysis_results.append(analysis_record)
@@ -4110,21 +4005,10 @@ def run_pipeline(
             stage="cv_generation",
             default=1,
         )
-        cv_generation_batch_size = get_stage_runtime_batch_size(
-            config,
-            stage="cv_generation",
-            default=1,
-        )
-        cv_generation_sleep_secs = get_stage_runtime_sleep_secs(
-            config,
-            stage="cv_generation",
-            default=0.0,
-        )
         generation_total = len(indexed_generation_ready_records)
         cv_generation_effective_concurrency = _effective_stage_concurrency(
             configured_cv_generation_concurrency,
-            (generation_total + cv_generation_batch_size - 1)
-            // cv_generation_batch_size,
+            generation_total,
         )
         cv_generation_reuse_enabled = _reuse_stage_enabled(config, "cv_generation")
         cv_generation_fingerprint_by_index: dict[int, str] = {}
@@ -4828,29 +4712,11 @@ def run_pipeline(
         if generation_runtime_by_index:
             with ThreadPoolExecutor(max_workers=cv_generation_effective_concurrency) as executor:
                 generation_indexes = sorted(generation_runtime_by_index)
-                generation_batches = [
-                    generation_indexes[index:index + cv_generation_batch_size]
-                    for index in range(0, len(generation_indexes), cv_generation_batch_size)
-                ]
-
-                def _compute_batch(
-                    batch: list[int],
-                ) -> list[tuple[int, dict[str, Any]]]:
-                    outcomes: list[tuple[int, dict[str, Any]]] = []
-                    for generation_index in batch:
-                        try:
-                            outcome = _compute_for_index(generation_index)
-                        except Exception as exc:
-                            outcome = {"_compute_exception": exc}
-                        outcomes.append((generation_index, outcome))
-                    return outcomes
-
-                future_to_generation_indexes: dict[Future[list[tuple[int, dict[str, Any]]]], list[int]] = {}
-                for position, batch in enumerate(generation_batches):
-                    future_to_generation_indexes[executor.submit(_compute_batch, batch)] = batch
-                    if position < len(generation_batches) - 1 and cv_generation_sleep_secs > 0:
-                        time.sleep(cv_generation_sleep_secs)
-                pending_futures = set(future_to_generation_indexes)
+                future_to_generation_index: dict[Future[dict[str, Any]], int] = {
+                    executor.submit(_compute_for_index, generation_index): generation_index
+                    for generation_index in generation_indexes
+                }
+                pending_futures = set(future_to_generation_index)
                 heartbeat_count = 0
                 heartbeat_started_monotonic = time.monotonic()
                 while pending_futures:
@@ -4867,13 +4733,10 @@ def run_pipeline(
                                 "info",
                                 "CV generation in progress",
                                 {
-                                    "phase": "batch_progress",
+                                    "phase": "item_progress",
                                     "generation_total": generation_total,
                                     "completed_items": len(compute_outcomes_by_index),
-                                    "pending_items": sum(
-                                        len(future_to_generation_indexes[future])
-                                        for future in pending_futures
-                                    ),
+                                    "pending_items": len(pending_futures),
                                     "heartbeat_count": heartbeat_count,
                                     "elapsed_secs": int(
                                         time.monotonic() - heartbeat_started_monotonic
@@ -4889,11 +4752,11 @@ def run_pipeline(
                             )
                         continue
                     for future in completed_futures:
+                        generation_index = future_to_generation_index[future]
                         try:
-                            compute_outcomes_by_index.update(future.result())
+                            compute_outcomes_by_index[generation_index] = future.result()
                         except Exception as exc:
-                            for generation_index in future_to_generation_indexes[future]:
-                                compute_outcomes_by_index[generation_index] = {"_compute_exception": exc}
+                            compute_outcomes_by_index[generation_index] = {"_compute_exception": exc}
 
         for generation_index in sorted(generation_work_items_by_index):
             runtime = generation_runtime_by_index[generation_index]

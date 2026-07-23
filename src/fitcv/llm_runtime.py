@@ -19,6 +19,7 @@ lifecycle:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import threading
 import time
 from typing import Any, Callable, Literal, TypeAlias
 
@@ -38,6 +39,11 @@ from fitcv.runtime_routing import (
 ResponseMode: TypeAlias = Literal["text", "json_object", "json_schema"]
 RuntimeStatus: TypeAlias = Literal["succeeded", "failed"]
 FailureStage: TypeAlias = Literal["routing", "adapter", "parse", "validate"]
+
+_REQUEST_START_LOCK = threading.Lock()
+_NEXT_REQUEST_START_BY_PROVIDER: dict[str, float] = {}
+_REQUEST_START_MONOTONIC = time.monotonic
+_REQUEST_START_SLEEP = time.sleep
 
 
 @dataclass(frozen=True)
@@ -174,6 +180,19 @@ class LlmAdapterError(RuntimeError):
         self.adapter = adapter
         self.runtime_path = runtime_path
 
+def _wait_for_provider_request_start(route: LlmRouting) -> None:
+    interval = route.request_start_interval_secs
+    if interval <= 0.0:
+        return
+    provider = route.provider.strip().lower()
+    with _REQUEST_START_LOCK:
+        now = _REQUEST_START_MONOTONIC()
+        reserved_start = max(now, _NEXT_REQUEST_START_BY_PROVIDER.get(provider, now))
+        _NEXT_REQUEST_START_BY_PROVIDER[provider] = reserved_start + interval
+    wait_seconds = reserved_start - now
+    if wait_seconds > 0.0:
+        _REQUEST_START_SLEEP(wait_seconds)
+
 
 LlmAdapter: TypeAlias = Callable[[LlmTaskRequest, LlmRouting, str], LlmAdapterResponse]
 LlmParser: TypeAlias = Callable[[LlmAdapterResponse], Any]
@@ -296,6 +315,7 @@ def execute_llm_task(
         else "fitcv_llm_openai_compatible" if default_adapter else "fitcv_llm_custom"
     )
     try:
+        _wait_for_provider_request_start(route)
         response = selected_adapter(request, route, api_key)
     except LlmAdapterError as exc:
         return _failed(

@@ -11,7 +11,7 @@
 # role: config
 # canonical: true
 
-# Pipeline behaviour — limits, model names, batch sizes, rate limits.
+# Pipeline behaviour — limits, model names, concurrency, request pacing.
 # Consumed by: enrich.py, embeddings.py, vector_search.py, ai_score.py.
 # Override any value in .env.yaml; pipeline.yaml defaults apply otherwise.
 
@@ -22,9 +22,6 @@ embedding_model: text-embedding-005
 
 # ── Enrichment (Task 4) ────────────────────────────────────────────────────────
 enrichment_version: v1
-enrichment_sleep_secs: 0.0             # default: no enforced delay between enrichment calls
-enrichment_batch_size: 10              # default enrichment batch size
-enrichment_concurrency: 8              # default enrichment parallel workers
 
 # ── Embeddings (Task 6) ────────────────────────────────────────────────────────
 embedding_batch_size: 100
@@ -47,15 +44,14 @@ vector_top_n: 50                       # top-N returned by VECTOR_SEARCH
 vector_max_candidate_skills: 15        # max skills included in candidate query text
 # ── AI reranking (Task 9) ──────────────────────────────────────────────────────
 rerank_top_n: 50                       # max shortlisted jobs sent to AI reranking
-rerank_sleep_secs: 0.0                 # default: no enforced delay between ranking calls
+
+llm_runtime:
+  request_start_interval_secs: 0.0     # minimum interval between request starts for one provider connection
 
 stage_runtime:
   enrich:
-    sleep_secs: 0.0
-    batch_size: 10
     concurrency: 8
   ranking:
-    sleep_secs: 0.0
     concurrency: 4
   cv_analysis:
     concurrency: 4
