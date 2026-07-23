@@ -139,8 +139,16 @@ class RunStore(Protocol):
     def persist_inverse_training_result(self, row: dict[str, Any]) -> dict[str, Any]: ...
     def insert_ranking_policy_candidate(self, row: dict[str, Any]) -> dict[str, Any]: ...
     def persist_candidate_attempt(
-        self, training: dict[str, Any], snapshot: dict[str, Any] | None = None
+        self,
+        training: dict[str, Any],
+        snapshot: dict[str, Any] | None = None,
+        projection: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
+    def list_preference_optimization_runs(self, *, limit: int = 100) -> list[dict[str, Any]]: ...
+    def get_preference_optimization_run(self, run_id: str) -> dict[str, Any]: ...
+    def hide_preference_optimization_run(self, run_id: str) -> dict[str, Any]: ...
+    def activate_preference_optimization_run(self, run_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def inactivate_preference_optimization_run(self, run_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def get_decision_evidence_head(self, domain_id: str) -> dict[str, Any]: ...
     def load_inverse_optimization_request(self, domain_id: str) -> InverseOptimizationRequest: ...
     def activate_ranking_policy_candidate(self, snapshot_id: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -148,7 +156,11 @@ class RunStore(Protocol):
     def rollback_ranking_policy(self, domain_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def resolve_active_ranking_policy(self, domain_id: str, runtime_fingerprint: str) -> dict[str, Any] | None: ...
     def inspect_ranking_policy_lifecycle(
-        self, domain_id: str, *, limit: int | None = None
+        self,
+        domain_id: str,
+        *,
+        limit: int | None = None,
+        runtime_contract_fingerprint: str | None = None,
     ) -> dict[str, Any]: ...
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]: ...
 
@@ -230,6 +242,11 @@ class ControlPlaneStore:
     persist_inverse_training_result_fn: Any | None = None
     insert_ranking_policy_candidate_fn: Any | None = None
     persist_candidate_attempt_fn: Any | None = None
+    list_preference_optimization_runs_fn: Any | None = None
+    get_preference_optimization_run_fn: Any | None = None
+    hide_preference_optimization_run_fn: Any | None = None
+    activate_preference_optimization_run_fn: Any | None = None
+    inactivate_preference_optimization_run_fn: Any | None = None
     get_decision_evidence_head_fn: Any | None = None
     load_inverse_optimization_request_fn: Any | None = None
     activate_ranking_policy_candidate_fn: Any | None = None
@@ -1031,12 +1048,57 @@ class ControlPlaneStore:
         self,
         training: dict[str, Any],
         snapshot: dict[str, Any] | None = None,
+        projection: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return self._call_dict(
             self.persist_candidate_attempt_fn,
             sqlite_store.persist_candidate_attempt,
             training,
             snapshot,
+            projection,
+        )
+
+    def list_preference_optimization_runs(
+        self, *, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        return self._call_list(
+            self.list_preference_optimization_runs_fn,
+            sqlite_store.list_preference_optimization_runs,
+            limit=limit,
+        )
+
+    def get_preference_optimization_run(self, run_id: str) -> dict[str, Any]:
+        return self._call_dict(
+            self.get_preference_optimization_run_fn,
+            sqlite_store.get_preference_optimization_run,
+            run_id,
+        )
+
+    def hide_preference_optimization_run(self, run_id: str) -> dict[str, Any]:
+        return self._call_dict(
+            self.hide_preference_optimization_run_fn,
+            sqlite_store.hide_preference_optimization_run,
+            run_id,
+        )
+
+    def activate_preference_optimization_run(
+        self, run_id: str, **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._call_dict(
+            self.activate_preference_optimization_run_fn,
+            sqlite_store.activate_preference_optimization_run,
+            run_id,
+            **kwargs,
+        )
+
+    def inactivate_preference_optimization_run(
+        self, run_id: str, **kwargs: Any
+    ) -> dict[str, Any]:
+        return self._call_dict(
+            self.inactivate_preference_optimization_run_fn,
+            sqlite_store.inactivate_preference_optimization_run,
+            run_id,
+            **kwargs,
         )
 
     def get_decision_evidence_head(self, domain_id: str) -> dict[str, Any]:
@@ -1098,19 +1160,22 @@ class ControlPlaneStore:
         )
 
     def inspect_ranking_policy_lifecycle(
-        self, domain_id: str, *, limit: int | None = None
+        self,
+        domain_id: str,
+        *,
+        limit: int | None = None,
+        runtime_contract_fingerprint: str | None = None,
     ) -> dict[str, Any]:
-        if limit is None:
-            return self._call_dict(
-                self.inspect_ranking_policy_lifecycle_fn,
-                sqlite_store.inspect_ranking_policy_lifecycle,
-                domain_id,
-            )
+        kwargs: dict[str, Any] = {}
+        if limit is not None:
+            kwargs["limit"] = limit
+        if runtime_contract_fingerprint is not None:
+            kwargs["runtime_contract_fingerprint"] = runtime_contract_fingerprint
         return self._call_dict(
             self.inspect_ranking_policy_lifecycle_fn,
             sqlite_store.inspect_ranking_policy_lifecycle,
             domain_id,
-            limit=limit,
+            **kwargs,
         )
 
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]:

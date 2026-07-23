@@ -25,6 +25,7 @@ from fitcv.decision_feedback import validate_decision_learning_policy
 from fitcv.preference_policy import (
     PromotionDecision,
     PreferenceRuntimeContract,
+    build_preference_optimization_run_id,
     build_policy_snapshot_identity,
     build_training_run_identity,
     evaluate_promotion_gate,
@@ -66,6 +67,18 @@ def test_content_addressed_identities_ignore_envelope_fields() -> None:
     assert build_training_run_identity({"result": payload, "created_at": "first"}) == (
         build_training_run_identity({"result": payload, "created_at": "second"})
     )
+
+
+def test_public_optimization_run_identity_is_stable_and_distinct() -> None:
+    training_run_id = build_training_run_identity({"result": {"status": "no_op"}})
+
+    public_id = build_preference_optimization_run_id(training_run_id)
+
+    assert public_id == build_preference_optimization_run_id(training_run_id)
+    assert public_id == f"por_{training_run_id.removeprefix('itr_')}"
+    assert training_run_id not in public_id
+    with pytest.raises(ValueError, match="training_run_id"):
+        build_preference_optimization_run_id("run-1")
 
 
 def test_projection_uses_raw_score_for_order_and_clips_display_only() -> None:
@@ -226,3 +239,126 @@ def test_empty_ranking_resolves_invalid_zero_residual_policy() -> None:
     assert resolved.diagnostic_code == "missing_ranking_rows"
     assert resolved.preference_vector == (0.0,)
     assert resolved.runtime_contract.embedding_dimension == 1
+
+
+def _resolution_config(*, ranking_mode: str, strength: float) -> dict:
+    return {
+        "decision_learning_policy": {
+            "domain_id": "ranking_v1",
+            "inverse_optimization": {
+                "learned_alpha": 0.05,
+                "preference_vector_norm_bound": 1.0,
+            },
+        },
+        "ranking_policy": {"version": 1},
+        "shortlist_embedding_model": "model",
+        "preference_optimization": {
+            "ranking_mode": ranking_mode,
+            "personalization_strength": strength,
+        },
+    }
+
+
+def test_baseline_mode_bypasses_active_policy_resolver() -> None:
+    resolved = resolve_run_preference_policy(
+        ranking_rows=[
+            {
+                "normalized_embedding": [1.0, 0.0],
+                "ranking_contract_fingerprint": "ranking",
+                "embedding_contract_fingerprint": "embedding",
+            }
+        ],
+        config=_resolution_config(ranking_mode="baseline", strength=0.08),
+        resolver=lambda _runtime: (_ for _ in ()).throw(
+            AssertionError("resolver called")
+        ),
+    )
+
+    assert resolved.resolution_status == "zero_residual_no_active"
+    assert resolved.diagnostic_code == "baseline_ranking_selected"
+    assert resolved.preference_vector == (0.0, 0.0)
+    assert resolved.runtime_contract.learned_alpha == pytest.approx(0.08)
+
+
+def test_personalized_mode_uses_persisted_strength_for_compatible_policy() -> None:
+    captured: dict[str, PreferenceRuntimeContract] = {}
+
+    def resolver(runtime: PreferenceRuntimeContract):
+        captured["runtime"] = runtime
+        vector = (0.2, -0.2)
+        return resolved_preference_policy_from_snapshot(
+            runtime,
+            {
+                "status": "active",
+                "runtime_contract_fingerprint": runtime.runtime_contract_fingerprint,
+                "policy_snapshot_id": "snapshot",
+                "preference_vector_json": list(vector),
+                "preference_vector_fingerprint": preference_vector_fingerprint(vector),
+                "payload_fingerprint": "payload",
+            },
+        )
+
+    resolved = resolve_run_preference_policy(
+        ranking_rows=[
+            {
+                "normalized_embedding": [1.0, 0.0],
+                "ranking_contract_fingerprint": "ranking",
+                "embedding_contract_fingerprint": "embedding",
+            }
+        ],
+        config=_resolution_config(ranking_mode="personalized", strength=0.08),
+        resolver=resolver,
+    )
+
+    assert resolved.resolution_status == "active"
+    assert captured["runtime"].learned_alpha == pytest.approx(0.08)
+    projection = project_personalized_score(
+        runtime_contract=resolved.runtime_contract,
+        baseline_fit=0.5,
+        preference_vector=resolved.preference_vector,
+        normalized_embedding=(1.0, 0.0),
+    )
+    assert projection.personalized_rank_score == pytest.approx(0.516)
+
+
+def test_personalized_mode_without_compatible_policy_uses_baseline_fallback() -> None:
+    resolved = resolve_run_preference_policy(
+        ranking_rows=[
+            {
+                "normalized_embedding": [1.0, 0.0],
+                "ranking_contract_fingerprint": "ranking",
+                "embedding_contract_fingerprint": "embedding",
+            }
+        ],
+        config=_resolution_config(ranking_mode="personalized", strength=0.08),
+        resolver=lambda _runtime: resolve_zero_residual_policy(
+            _runtime,
+            status="zero_residual_incompatible",
+            diagnostic_code="no_compatible_active_policy",
+        ),
+    )
+
+    assert resolved.resolution_status == "zero_residual_incompatible"
+    assert resolved.diagnostic_code == "no_compatible_active_policy"
+    assert resolved.preference_vector == (0.0, 0.0)
+
+
+def test_existing_policy_replay_ignores_later_ranking_mode_and_strength() -> None:
+    existing = resolved_preference_policy_to_dict(
+        resolve_zero_residual_policy(
+            _runtime(),
+            status="zero_residual_no_active",
+            diagnostic_code="captured",
+        )
+    )
+
+    resolved = resolve_run_preference_policy(
+        ranking_rows=[{"normalized_embedding": [1.0, 0.0]}],
+        config=_resolution_config(ranking_mode="personalized", strength=0.08),
+        existing_payload=existing,
+        resolver=lambda _runtime: (_ for _ in ()).throw(
+            AssertionError("resolver called")
+        ),
+    )
+
+    assert resolved_preference_policy_to_dict(resolved) == existing

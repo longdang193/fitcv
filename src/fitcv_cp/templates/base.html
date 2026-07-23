@@ -18,7 +18,7 @@ canonical: true
   <!-- Apply saved theme before CSS renders — prevents flash -->
   <script>
     (function() {
-      var t = localStorage.getItem('fitcv-theme') || 'dark';
+      var t = localStorage.getItem('fitcv-theme') || 'light';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
@@ -601,52 +601,71 @@ canonical: true
       .global-header { min-height: 3.25rem; padding-block: 0.35rem; }
       table { display: block; overflow-x: auto; }
     }
+
+    /* Approved prototype visual contract. */
+    :root[data-theme="light"]{color-scheme:light;--accent:#b94d36;--accent-hover:#a64027;--accent-soft:#fdf1ed;--bg:#fdfaf6;--surface:#fff;--surface-1:var(--surface);--surface-2:#f4f4f5;--sidebar:#fff;--border:#e5e7eb;--border-soft:#f1f1f3;--text:#111827;--text-primary:var(--text);--text-secondary:#4b5563;--text-muted:#6b7280;--muted:#6b7280;--subtle:#6b7280;--accent-text:var(--accent);--accent-dim:var(--accent-soft);--table-header-bg:var(--surface-2);--table-row-hover:var(--surface-2);--input-bg:var(--surface);--sidebar-w:288px;--header-h:72px;--shadow:0 1px 2px rgba(0,0,0,.04);--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--font-sans:var(--font);--display-font:var(--font)}
+    :root[data-theme="dark"]{color-scheme:dark;--accent:#ee8d6a;--accent-hover:#f3a181;--accent-soft:#3b2119;--bg:#1a1a1a;--surface:#262626;--surface-1:var(--surface);--surface-2:#303030;--sidebar:#202020;--border:#3a3a3a;--border-soft:#303030;--text:#f3f4f6;--text-primary:var(--text);--text-secondary:#cbd5e1;--text-muted:#cbd5e1;--muted:#cbd5e1;--subtle:#94a3b8;--accent-text:var(--accent);--accent-dim:var(--accent-soft);--table-header-bg:var(--surface-2);--table-row-hover:var(--surface-2);--input-bg:var(--surface-2);--shadow:0 1px 2px rgba(0,0,0,.28)}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased}
+    .shell{display:flex;min-height:100vh;background:var(--bg)}
+    .sidebar{width:var(--sidebar-w);flex:0 0 auto;overflow-y:auto;border-right:1px solid var(--border-soft);background:var(--sidebar);padding:0;transition:transform .2s ease}
+    .sidebar .brand{display:flex;align-items:center;gap:12px;padding:24px 24px 22px;color:var(--text);text-decoration:none}
+    .brand-mark{display:grid;width:38px;height:38px;flex:0 0 38px;place-items:center;border-radius:10px;background:var(--accent);color:#fff}.brand-mark svg{width:21px}.sidebar .brand strong{display:block;font-family:var(--display-font);font-size:17px;letter-spacing:-.015em}.sidebar .brand small{display:block;color:var(--muted);font-size:12px}
+    .sidebar nav{display:block;min-height:0;padding:0 16px 24px;border:0;background:transparent}.sidebar .nav-group{margin:4px 0 12px}.sidebar .nav-group summary{display:flex;min-height:40px;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;color:var(--subtle);cursor:pointer;font-size:11px;font-weight:750;letter-spacing:.1em;list-style:none;text-transform:uppercase}.sidebar .nav-group summary::-webkit-details-marker{display:none}.sidebar .nav-group summary:hover{background:var(--surface-2);color:var(--text)}.sidebar .nav-group summary::after{width:16px;margin-left:auto;content:"›";font-size:18px;transform:rotate(0);transition:transform .15s}.sidebar .nav-group[open] summary::after{transform:rotate(90deg)}.sidebar .nav-group svg{width:17px;height:17px}.sidebar .nav-children{padding:2px 0 0 12px}
+    .sidebar .nav-link{display:flex;align-items:center;gap:10px;min-height:36px;margin:2px 0;padding:7px 12px;border-radius:9px;color:var(--muted);font-size:13px;font-weight:550;text-decoration:none}.sidebar .nav-link:hover{background:var(--surface-2);color:var(--text);text-decoration:none}.sidebar .nav-link[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}.sidebar .nav-link svg{width:17px;height:17px;flex:0 0 auto}.sidebar .nav-link.child{padding-left:14px}
+    .main{display:flex;min-width:0;flex:1;flex-direction:column}.global-header{min-height:var(--header-h);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 32px;border-bottom:1px solid var(--border-soft);background:var(--surface)}.title{display:flex;min-width:0;align-items:center;gap:10px}.title-icon{width:23px;height:23px;flex:0 0 23px;color:var(--accent)}.title h1{margin:0;font-family:var(--display-font);font-size:22px;letter-spacing:-.025em}.title p{margin:2px 0 0;color:var(--muted);font-size:13px}.actions{display:flex;flex:0 0 auto;gap:6px}.icon-button,.menu-btn{display:grid;width:38px;height:38px;place-items:center;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer}.icon-button:hover,.menu-btn:hover{border-color:var(--border);background:var(--surface-2);color:var(--text)}.icon-button svg,.menu-btn svg{width:18px;height:18px}.menu-btn{display:none}
+    .scroll{flex:1;overflow-y:auto;padding:40px}.content{width:min(960px,100%);margin:auto}.content.container{padding:0}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin:0 0 22px;flex-wrap:wrap}.page-head>div:first-child{min-width:min(320px,100%);flex:1 1 420px}.eyebrow{margin:0 0 6px;color:var(--accent);font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase}.page-head h1,.page-head h2{margin:0;font-family:var(--display-font);font-size:27px;letter-spacing:-.035em;color:var(--text)}.page-head p{max-width:560px;margin:6px 0 0;color:var(--muted)}
+    .btn,.btn-primary,.btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 14px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);cursor:pointer;font:650 14px/1 var(--font);text-decoration:none}.btn:hover,.btn-primary:hover,.btn-secondary:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);text-decoration:none}.btn.primary,.btn-primary{border-color:var(--accent);background:var(--accent);color:#fff}.btn.primary:hover,.btn-primary:hover{background:var(--accent-hover);color:#fff}.btn:disabled,.btn-primary:disabled,.btn-secondary:disabled{border-color:var(--border);background:var(--surface-2);color:var(--subtle);cursor:not-allowed;opacity:1;pointer-events:none}
+    .stack,.workspace-stack{display:grid;gap:14px}.section-card{overflow:hidden;border:1px solid var(--border-soft);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}.collapsible-section{padding:0}.collapsible-section summary{display:flex;align-items:center;gap:10px;padding:18px 22px;cursor:pointer;list-style:none}.collapsible-section summary::-webkit-details-marker{display:none}.collapsible-section summary::before{width:10px;content:"›";font-size:19px;transform:rotate(0);transition:transform .15s}.collapsible-section[open] summary::before{transform:rotate(90deg)}.section-heading{min-width:0;flex:1}.section-heading strong{display:block;font-family:var(--display-font);font-size:16px;letter-spacing:-.01em}.section-heading span{display:block;margin-top:2px;color:var(--muted);font-size:13px}.section-content{overflow:hidden;border-top:1px solid var(--border-soft)}.settings-card{padding:0}.row,.settings-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:20px;min-height:82px;padding:16px 22px;border-top:1px solid var(--border)}.row:first-child,.settings-row:first-child{border-top:0}.row strong,.settings-row strong{display:block;font-weight:650}.row p,.settings-row p{margin:3px 0 0;color:var(--muted);font-size:13px}.row.is-disabled,.row.is-mirror{background:var(--surface-2)}.supporting-text{margin-top:6px!important;color:var(--muted);font-size:12px!important}.control{display:flex;align-items:center;justify-content:flex-end;gap:10px}.field{min-height:38px;padding:0 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)}
+    .small-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;padding:0 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;line-height:1;white-space:nowrap}.small-action:disabled{opacity:.45;cursor:not-allowed}.small-action:not(:disabled):hover{border-color:var(--accent);color:var(--accent)}.job-action-row{display:flex;flex-wrap:wrap;gap:6px}
+    .table-scroll{overflow-x:auto}.run-table{min-width:760px}.run-table th{background:var(--surface-2);color:var(--muted);padding:12px 14px}.run-table td{padding:13px 14px}.notice{border-radius:12px;background:var(--surface)}
+    .scrim{display:none}
+    @media(max-width:760px){.sidebar{position:fixed;inset:0 auto 0 0;z-index:30;transform:translateX(-100%)}.sidebar.open{transform:none}.menu-btn{display:grid}.global-header{padding:0 14px}.title p{display:none}.scroll{padding:24px 16px}.page-head{align-items:stretch;flex-direction:column;gap:14px}.page-head .btn{width:100%}.row,.settings-row{grid-template-columns:1fr;gap:11px}.control{justify-content:flex-start}.field{width:100%}.nav-link,.btn,.btn-primary,.btn-secondary,.icon-button,.menu-btn{min-height:44px}.icon-button,.menu-btn{width:44px}.scrim{position:fixed;inset:0;z-index:20;display:block;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:.18s}.scrim.show{opacity:1;pointer-events:auto}}
   </style>
 </head>
 <body>
   {% set current_path = request.url.path %}
-  <div class="app-shell">
-    <aside class="app-sidebar" aria-label="Application navigation">
-      <span class="brand">FitCV</span>
-      <nav>
-        <span class="meta">Workspace</span>
-        <a href="/admin/runs" aria-current="{{ 'page' if current_path.startswith('/admin/runs') else 'false' }}"><span class="nav-icon" aria-hidden="true">R</span>Runs</a>
-        <a href="/admin/candidate-profiles" aria-current="{{ 'page' if current_path.startswith('/admin/candidate-profiles') else 'false' }}"><span class="nav-icon" aria-hidden="true">C</span>Candidate Profiles</a>
-        <a href="/admin/bookmarks" aria-current="{{ 'page' if current_path.startswith('/admin/bookmarks') else 'false' }}"><span class="nav-icon" aria-hidden="true">B</span>Bookmarks</a>
-        <a href="/admin/synonyms" aria-current="{{ 'page' if current_path.startswith('/admin/synonyms') else 'false' }}"><span class="nav-icon" aria-hidden="true">S</span>Synonyms</a>
+  <div class="shell app-shell">
+    <aside class="sidebar app-sidebar" id="sidebar" aria-label="Primary navigation">
+      <a class="brand" href="/admin/settings"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12a2 2 0 0 1 2 2v14H4V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h6M8 17h4"/></svg></span><span><strong>FitCV Control Plane</strong><small>Local workspace</small></span></a>
+      <nav aria-label="Workspace">
+        <a class="nav-link" href="/admin/runs" aria-current="{{ 'page' if current_path.startswith('/admin/runs') else 'false' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
+        <a class="nav-link" href="/admin/candidate-profiles" aria-current="{{ 'page' if current_path.startswith('/admin/candidate-profiles') else 'false' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Candidate Profiles</a>
+        <a class="nav-link" href="/admin/bookmarks" aria-current="{{ 'page' if current_path.startswith('/admin/bookmarks') else 'false' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
+        <a class="nav-link" href="/admin/synonyms" aria-current="{{ 'page' if current_path.startswith('/admin/synonyms') else 'false' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/></svg>Synonyms</a>
         {% if local_mode %}
-        <span class="meta">Pipeline</span>
-        <a href="/admin/settings" aria-current="{{ 'page' if current_path == '/admin/settings' else 'false' }}"><span class="nav-icon" aria-hidden="true">O</span>Overview</a>
-        <a href="/admin/settings/enrichment" aria-current="{{ 'page' if current_path == '/admin/settings/enrichment' else 'false' }}"><span class="nav-icon" aria-hidden="true">E</span>Enrichment</a>
-        <a href="/admin/settings/screening" aria-current="{{ 'page' if current_path == '/admin/settings/screening' else 'false' }}"><span class="nav-icon" aria-hidden="true">S</span>Screening</a>
-        <a href="/admin/settings/shortlisting" aria-current="{{ 'page' if current_path == '/admin/settings/shortlisting' else 'false' }}"><span class="nav-icon" aria-hidden="true">H</span>Shortlisting</a>
-        <a href="/admin/settings/ranking" aria-current="{{ 'page' if current_path == '/admin/settings/ranking' else 'false' }}"><span class="nav-icon" aria-hidden="true">R</span>Ranking</a>
-        <a href="/admin/settings/cv-analysis" aria-current="{{ 'page' if current_path == '/admin/settings/cv-analysis' else 'false' }}"><span class="nav-icon" aria-hidden="true">A</span>CV Analysis</a>
-        <a href="/admin/settings/cv-generation" aria-current="{{ 'page' if current_path == '/admin/settings/cv-generation' else 'false' }}"><span class="nav-icon" aria-hidden="true">G</span>CV Generation</a>
-        <a href="/admin/settings/runtime-limits" aria-current="{{ 'page' if current_path == '/admin/settings/runtime-limits' else 'false' }}"><span class="nav-icon" aria-hidden="true">T</span>Runtime &amp; Limits</a>
-        <a href="/admin/settings/automation-reuse" aria-current="{{ 'page' if current_path == '/admin/settings/automation-reuse' else 'false' }}"><span class="nav-icon" aria-hidden="true">U</span>Automation &amp; Reuse</a>
-        <a href="/admin/settings/prompt-management" aria-current="{{ 'page' if current_path == '/admin/settings/prompt-management' else 'false' }}"><span class="nav-icon" aria-hidden="true">M</span>Prompt Management</a>
-        <span class="meta">Application</span>
-        <a href="/admin/api-providers" aria-current="{{ 'page' if current_path.startswith('/admin/api-providers') else 'false' }}"><span class="nav-icon" aria-hidden="true">A</span>API Providers</a>
-        <a href="/admin/llm-configuration" aria-current="{{ 'page' if current_path == '/admin/llm-configuration' else 'false' }}"><span class="nav-icon" aria-hidden="true">L</span>LLM Configuration</a>
-        <a href="/admin/system" aria-current="{{ 'page' if current_path == '/admin/system' else 'false' }}"><span class="nav-icon" aria-hidden="true">Y</span>System</a>
-        <a href="/admin/lifecycle" aria-current="{{ 'page' if current_path == '/admin/lifecycle' else 'false' }}"><span class="nav-icon" aria-hidden="true">F</span>Lifecycle</a>
+        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children">
+          <a class="nav-link child" href="/admin/settings" aria-current="{{ 'page' if current_path == '/admin/settings' else 'false' }}">Overview</a>
+          <a class="nav-link child" href="/admin/settings/enrichment" aria-current="{{ 'page' if current_path == '/admin/settings/enrichment' else 'false' }}">Enrichment</a>
+          <a class="nav-link child" href="/admin/settings/screening" aria-current="{{ 'page' if current_path == '/admin/settings/screening' else 'false' }}">Screening</a>
+          <a class="nav-link child" href="/admin/settings/shortlisting" aria-current="{{ 'page' if current_path == '/admin/settings/shortlisting' else 'false' }}">Shortlisting</a>
+          <a class="nav-link child" href="/admin/settings/ranking" aria-current="{{ 'page' if current_path == '/admin/settings/ranking' else 'false' }}">Ranking</a>
+          <a class="nav-link child" href="/admin/optimization" aria-current="{{ 'page' if current_path.startswith('/admin/optimization') else 'false' }}">Preference Optimization</a>
+          <a class="nav-link child" href="/admin/settings/cv-analysis" aria-current="{{ 'page' if current_path == '/admin/settings/cv-analysis' else 'false' }}">CV Analysis</a>
+          <a class="nav-link child" href="/admin/settings/cv-generation" aria-current="{{ 'page' if current_path == '/admin/settings/cv-generation' else 'false' }}">CV Generation</a>
+          <a class="nav-link child" href="/admin/settings/runtime-limits" aria-current="{{ 'page' if current_path == '/admin/settings/runtime-limits' else 'false' }}">Runtime &amp; Limits</a>
+          <a class="nav-link child" href="/admin/settings/automation-reuse" aria-current="{{ 'page' if current_path == '/admin/settings/automation-reuse' else 'false' }}">Automation &amp; Reuse</a>
+          <a class="nav-link child" href="/admin/settings/prompt-management" aria-current="{{ 'page' if current_path == '/admin/settings/prompt-management' else 'false' }}">Prompt Management</a>
+        </div></details>
+        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children">
+          <a class="nav-link child" href="/admin/api-providers" aria-current="{{ 'page' if current_path.startswith('/admin/api-providers') else 'false' }}">API Providers</a>
+          <a class="nav-link child" href="/admin/llm-configuration" aria-current="{{ 'page' if current_path == '/admin/llm-configuration' else 'false' }}">LLM Configuration</a>
+          <a class="nav-link child" href="/admin/system" aria-current="{{ 'page' if current_path == '/admin/system' else 'false' }}">System</a>
+          <a class="nav-link child" href="/admin/lifecycle" aria-current="{{ 'page' if current_path == '/admin/lifecycle' else 'false' }}">Lifecycle</a>
+        </div></details>
         {% else %}
-        <a href="/admin/settings" aria-current="{{ 'page' if current_path == '/admin/settings' else 'false' }}"><span class="nav-icon" aria-hidden="true">P</span>Pipeline</a>
+        <a class="nav-link" href="/admin/settings" aria-current="{{ 'page' if current_path == '/admin/settings' else 'false' }}">Pipeline</a>
         {% endif %}
       </nav>
     </aside>
-    <div class="app-frame">
+    <div class="scrim" id="scrim"></div>
+    <div class="main app-frame">
       <header class="global-header">
-        <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme" onclick="toggleTheme()">
-          <span id="theme-icon" aria-hidden="true">☀</span><span class="sr-only" id="theme-label">Light</span>
-        </button>
-        {% if local_mode %}
-        <button class="icon-button danger" id="open-shutdown-dialog" type="button" aria-label="Shutdown FitCV" title="Shutdown FitCV">⏻</button>
-        {% endif %}
+        <div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1 id="header-title">FitCV</h1><p id="header-description">Local workspace</p></div></div>
+        <div class="actions"><button class="icon-button" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme" onclick="toggleTheme()"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg><span class="sr-only" id="theme-label">Light</span></button>{% if local_mode %}<button class="icon-button danger" id="open-shutdown-dialog" type="button" aria-label="Shutdown FitCV" title="Shutdown FitCV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></button>{% endif %}</div>
       </header>
-      <div class="container" id="page-content" tabindex="-1">
-        {% block content %}{% endblock %}
+      <div class="scroll"><div class="content container" id="page-content" tabindex="-1">
+          {% block content %}{% endblock %}
+        </div>
       </div>
     </div>
   </div>
@@ -671,7 +690,11 @@ canonical: true
     var label = document.getElementById('theme-label');
     var toggle = document.getElementById('theme-toggle');
     if (icon && label && toggle) {
-      icon.textContent  = t === 'dark' ? '☀' : '☾';
+      var iconLabel = t === 'dark' ? '☀' : '☾';
+      icon.innerHTML = t === 'dark'
+        ? '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path>'
+        : '<path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"></path>';
+      icon.setAttribute('aria-label', iconLabel);
       label.textContent = t === 'dark' ? 'Light' : 'Dark';
       toggle.setAttribute('aria-label', t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
     }
@@ -682,7 +705,7 @@ canonical: true
     );
   }
   // Sync toggle label on every page load
-  applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+  applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
   function syncActiveNavigation(pathname) {
     document.querySelectorAll('.app-sidebar nav a').forEach(function(link) {
       var target = new URL(link.href, location.href).pathname;
@@ -691,6 +714,14 @@ canonical: true
         : pathname === target;
       link.setAttribute('aria-current', active ? 'page' : 'false');
     });
+  }
+  function syncHeaderFromContent(root) {
+    var heading = root.querySelector('[data-header-title], .page-head h1, .page-head h2, .page-header h1, main h1');
+    var description = root.querySelector('[data-header-description], .page-head p:not(.eyebrow), .page-header p, main > .meta');
+    var headerTitle = document.getElementById('header-title');
+    var headerDescription = document.getElementById('header-description');
+    if (heading && headerTitle) headerTitle.textContent = heading.dataset.headerTitle || heading.textContent.trim();
+    if (description && headerDescription) headerDescription.textContent = description.dataset.headerDescription || description.textContent.trim();
   }
   function activatePageScripts(root) {
     root.querySelectorAll('script').forEach(function(script) {
@@ -717,7 +748,8 @@ canonical: true
     else if (location.href !== finalUrl.href) history.replaceState({}, '', finalUrl.href);
     initializePageForms(currentContent);
     activatePageScripts(currentContent);
-    var heading = currentContent.querySelector('h1');
+    syncHeaderFromContent(currentContent);
+    var heading = currentContent.querySelector('h1, h2');
     if (heading) { heading.tabIndex = -1; heading.focus({preventScroll: true}); }
     scrollTo({top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
   }
@@ -732,6 +764,24 @@ canonical: true
   addEventListener('popstate', function() {
     navigateFitCV(location.href, {push: false}).catch(function() { location.reload(); });
   });
+  var sidebar = document.getElementById('sidebar');
+  var menu = document.getElementById('menu');
+  var scrim = document.getElementById('scrim');
+  function setSidebarOpen(open) {
+    if (!sidebar || !menu || !scrim) return;
+    sidebar.classList.toggle('open', open);
+    scrim.classList.toggle('show', open);
+    menu.setAttribute('aria-expanded', String(open));
+  }
+  if (menu && scrim) {
+    menu.addEventListener('click', function() { setSidebarOpen(!sidebar.classList.contains('open')); });
+    scrim.addEventListener('click', function() { setSidebarOpen(false); });
+    addEventListener('keydown', function(event) {
+      if (event.key !== 'Escape' || !sidebar.classList.contains('open')) return;
+      setSidebarOpen(false);
+      menu.focus();
+    });
+  }
   var shutdownDialog = document.getElementById('shutdown-dialog');
   var openShutdown = document.getElementById('open-shutdown-dialog');
   var cancelShutdown = document.getElementById('cancel-shutdown');
@@ -753,6 +803,7 @@ canonical: true
     });
   }
   initializePageForms(document);
+  syncHeaderFromContent(document);
   (function() {
     var token = document.querySelector('meta[name="fitcv-csrf-token"]').content;
     if (!token) return;

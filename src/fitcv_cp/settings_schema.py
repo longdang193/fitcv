@@ -85,7 +85,14 @@ _EXCLUDED_AGENTIC_KEYS: frozenset[str] = frozenset(
     }
 )
 
-_RANKING_POLICY_DEFAULTS = dict(load_config().get("ranking_policy") or {})
+_DEFAULT_CONFIG = load_config()
+_RANKING_POLICY_DEFAULTS = dict(_DEFAULT_CONFIG.get("ranking_policy") or {})
+_INVERSE_OPTIMIZATION_DEFAULTS = dict(
+    (_DEFAULT_CONFIG.get("decision_learning_policy") or {}).get("inverse_optimization") or {}
+)
+_LEARNED_ALPHA_BOUNDS = dict(
+    _INVERSE_OPTIMIZATION_DEFAULTS.get("learned_alpha_bounds") or {}
+)
 
 def _ranking_policy_setting(
     section: str,
@@ -413,6 +420,29 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Safety guard for unfinished runs. Lower values fail or cancel stuck runs sooner; higher values allow longer recovery windows.",
         "group": "run_lifecycle",
         "config_path": ["run_lifecycle", "max_runtime_minutes"],
+    },
+    # ── Preference Optimization ───────────────────────────────────────────────
+    {
+        "key": "preference_optimization.ranking_mode",
+        "type": "str",
+        "default": "baseline",
+        "label": "Ranking Mode",
+        "description": "Choose Baseline Ranking or apply an active compatible personalized policy.",
+        "options": ["baseline", "personalized"],
+        "group": "ranking",
+        "config_path": ["preference_optimization", "ranking_mode"],
+    },
+    {
+        "key": "preference_optimization.personalization_strength",
+        "type": "float",
+        "default": float(_INVERSE_OPTIMIZATION_DEFAULTS["learned_alpha"]),
+        "min": float(_LEARNED_ALPHA_BOUNDS["minimum"]),
+        "max": float(_LEARNED_ALPHA_BOUNDS["maximum"]),
+        "step": float(_LEARNED_ALPHA_BOUNDS["step"]),
+        "label": "Personalization Strength",
+        "description": "Higher values let saved ratings move results further from Baseline Ranking.",
+        "group": "ranking",
+        "config_path": ["preference_optimization", "personalization_strength"],
     },
     # ── Ranking Policy ────────────────────────────────────────────────────────
     *[
@@ -1644,6 +1674,14 @@ def settings_native_input_attrs(key: str) -> dict[str, str]:
         return {"min": "1", "step": "1"}
     if entry_type != "float":
         return {}
+    if any(name in entry for name in ("min", "max", "step")):
+        attrs = {
+            name: str(entry[name])
+            for name in ("min", "max", "step")
+            if name in entry
+        }
+        attrs.setdefault("step", "any")
+        return attrs
     if _is_nonnegative_float_entry(entry):
         return {"min": "0", "step": "any"}
     return {"min": "0", "max": "1", "step": "any"}
@@ -1697,7 +1735,25 @@ def validate_settings(settings: dict[str, Any]) -> None:
             fval = float(value)
             if not math.isfinite(fval):
                 raise ValidationError(f"{key} must be finite, got {fval}")
-            if _is_nonnegative_float_entry(entry):
+            minimum = entry.get("min")
+            maximum = entry.get("max")
+            if minimum is not None or maximum is not None:
+                if minimum is not None and fval < float(minimum):
+                    raise ValidationError(
+                        f"{key} must be in range [{minimum}, {maximum}], got {fval}"
+                    )
+                if maximum is not None and fval > float(maximum):
+                    raise ValidationError(
+                        f"{key} must be in range [{minimum}, {maximum}], got {fval}"
+                    )
+                step = entry.get("step")
+                if step is not None and minimum is not None:
+                    offset = (fval - float(minimum)) / float(step)
+                    if not math.isclose(offset, round(offset), abs_tol=1.0e-9):
+                        raise ValidationError(
+                            f"{key} must use step {step} from {minimum}, got {fval}"
+                        )
+            elif _is_nonnegative_float_entry(entry):
                 if fval < 0.0:
                     raise ValidationError(f"{key} must be >= 0.0, got {fval}")
             else:
@@ -1781,6 +1837,13 @@ def merge_and_validate_settings(
                 raise ValidationError(str(exc)) from exc
 
     changed_keys = {canonical_settings_key(key) for key in changes}
+    if (
+        "preference_optimization.personalization_strength" in changed_keys
+        and effective["preference_optimization.ranking_mode"] != "personalized"
+    ):
+        raise ValidationError(
+            "Select Personalized Ranking before changing Personalization Strength."
+        )
     if changed_keys & _AGENTIC_ADVANCED_QUALITY_TARGET_KEYS and not effective[
         "cv_analysis.semantic_alignment.enabled"
     ]:

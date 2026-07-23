@@ -266,7 +266,67 @@ def test_settings_native_input_attrs_follow_existing_schema_conventions() -> Non
     assert settings_native_input_attrs("cv_max_pages") == {"min": "1", "step": "1"}
     assert settings_native_input_attrs("ranking_policy.structured_factor_weights.must_have_match") == {"min": "0", "max": "1", "step": "any"}
     assert settings_native_input_attrs("llm_runtime.request_start_interval_secs") == {"min": "0", "step": "any"}
+    assert settings_native_input_attrs("preference_optimization.personalization_strength") == {
+        "min": "0.01",
+        "max": "0.1",
+        "step": "0.01",
+    }
     assert settings_native_input_attrs("cv_generation_model") == {}
+
+
+def test_preference_optimization_settings_use_policy_defaults_and_validation() -> None:
+    schema = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+
+    assert schema["preference_optimization.ranking_mode"]["default"] == "baseline"
+    assert schema["preference_optimization.ranking_mode"]["options"] == [
+        "baseline",
+        "personalized",
+    ]
+    assert schema["preference_optimization.personalization_strength"]["default"] == 0.05
+
+    effective = merge_and_validate_settings(
+        {
+            "preference_optimization.ranking_mode": "personalized",
+            "preference_optimization.personalization_strength": 0.08,
+        }
+    )
+    assert effective["preference_optimization.personalization_strength"] == 0.08
+
+    with pytest.raises(ValidationError, match="Personalized Ranking"):
+        merge_and_validate_settings(
+            {"preference_optimization.personalization_strength": 0.08}
+        )
+    with pytest.raises(ValidationError, match="range"):
+        merge_and_validate_settings(
+            {
+                "preference_optimization.ranking_mode": "personalized",
+                "preference_optimization.personalization_strength": 0.11,
+            }
+        )
+    with pytest.raises(ValidationError, match="step"):
+        merge_and_validate_settings(
+            {
+                "preference_optimization.ranking_mode": "personalized",
+                "preference_optimization.personalization_strength": 0.055,
+            }
+        )
+
+
+def test_apply_settings_to_config_writes_preference_optimization_contract() -> None:
+    config: dict[str, object] = {}
+
+    apply_settings_to_config(
+        config,
+        {
+            "preference_optimization.ranking_mode": "personalized",
+            "preference_optimization.personalization_strength": 0.08,
+        },
+    )
+
+    assert config["preference_optimization"] == {
+        "ranking_mode": "personalized",
+        "personalization_strength": 0.08,
+    }
 
 
 def test_settings_native_input_attrs_derive_nonnegative_float_from_schema_metadata(

@@ -45,6 +45,7 @@ def _policy() -> dict:
         "inverse_optimization": {
             "optimizer_version": "latent-residual-v1",
             "learned_alpha": 0.05,
+            "learned_alpha_bounds": {"minimum": 0.01, "maximum": 0.10, "step": 0.01},
             "preference_margin": 0.02,
             "preference_regularization": 1.0,
             "preference_vector_norm_bound": 1.0,
@@ -139,6 +140,26 @@ def test_policy_validation_is_exact_and_fingerprinted() -> None:
     assert len(fingerprint) == 64
     with pytest.raises(ValueError, match="unknown keys"):
         validate_decision_learning_policy({**_policy(), "future": True})
+
+
+@pytest.mark.parametrize(
+    ("bounds", "message"),
+    [
+        ({"minimum": 0.0, "maximum": 0.10, "step": 0.01}, "minimum"),
+        ({"minimum": 0.01, "maximum": 0.30, "step": 0.01}, "maximum"),
+        ({"minimum": 0.06, "maximum": 0.10, "step": 0.01}, "learned_alpha"),
+        ({"minimum": 0.01, "maximum": 0.10, "step": 0.0}, "step"),
+    ],
+)
+def test_policy_validation_rejects_invalid_learned_alpha_bounds(
+    bounds: dict[str, float],
+    message: str,
+) -> None:
+    policy = _policy()
+    policy["inverse_optimization"]["learned_alpha_bounds"] = bounds
+
+    with pytest.raises(ValueError, match=message):
+        validate_decision_learning_policy(policy)
 
 
 @pytest.mark.parametrize(

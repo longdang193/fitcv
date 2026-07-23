@@ -160,6 +160,7 @@ _COMPILER_KEYS = {"compiler_version", "minimum_rating_gap", "gap_evidence_weight
 _INVERSE_OPTIMIZATION_KEYS = {
     "optimizer_version",
     "learned_alpha",
+    "learned_alpha_bounds",
     "preference_margin",
     "preference_regularization",
     "preference_vector_norm_bound",
@@ -168,6 +169,7 @@ _INVERSE_OPTIMIZATION_KEYS = {
     "evaluation",
     "activation",
 }
+_LEARNED_ALPHA_BOUND_KEYS = {"minimum", "maximum", "step"}
 _SOLVER_KEYS = {"name", "max_iter"}
 _NUMERIC_TOLERANCE_KEYS = {"feasibility_absolute", "numeric_equivalence_absolute"}
 _EVALUATION_KEYS = {
@@ -232,11 +234,34 @@ def _validate_inverse_optimization_policy(payload: Any) -> dict[str, Any]:
     if optimizer_version != _EXPECTED_OPTIMIZER_VERSION:
         raise ValueError(f"optimizer_version must be {_EXPECTED_OPTIMIZER_VERSION}")
     learned_alpha = _finite_float(payload["learned_alpha"], "learned_alpha")
+    learned_alpha_bounds = payload["learned_alpha_bounds"]
+    if not isinstance(learned_alpha_bounds, dict):
+        raise ValueError("learned_alpha_bounds must be a mapping")
+    _exact_keys(
+        learned_alpha_bounds,
+        _LEARNED_ALPHA_BOUND_KEYS,
+        "learned_alpha_bounds",
+    )
+    learned_alpha_minimum = _finite_float(
+        learned_alpha_bounds["minimum"], "learned_alpha_bounds.minimum"
+    )
+    learned_alpha_maximum = _finite_float(
+        learned_alpha_bounds["maximum"], "learned_alpha_bounds.maximum"
+    )
+    learned_alpha_step = _finite_float(
+        learned_alpha_bounds["step"], "learned_alpha_bounds.step"
+    )
     preference_margin = _finite_float(payload["preference_margin"], "preference_margin")
     regularization = _finite_float(payload["preference_regularization"], "preference_regularization")
     norm_bound = _finite_float(payload["preference_vector_norm_bound"], "preference_vector_norm_bound")
     if not 0.0 < learned_alpha <= 0.25:
         raise ValueError("learned_alpha must be within (0, 0.25]")
+    if not 0.0 < learned_alpha_minimum <= learned_alpha <= learned_alpha_maximum <= 0.25:
+        raise ValueError(
+            "learned_alpha_bounds must satisfy 0 < minimum <= learned_alpha <= maximum <= 0.25"
+        )
+    if learned_alpha_step <= 0.0:
+        raise ValueError("learned_alpha_bounds.step must be positive")
     if not 0.0 <= preference_margin <= 0.25:
         raise ValueError("preference_margin must be within [0, 0.25]")
     if regularization <= 0.0:
@@ -289,6 +314,11 @@ def _validate_inverse_optimization_policy(payload: Any) -> dict[str, Any]:
     return {
         "optimizer_version": optimizer_version,
         "learned_alpha": learned_alpha,
+        "learned_alpha_bounds": {
+            "minimum": learned_alpha_minimum,
+            "maximum": learned_alpha_maximum,
+            "step": learned_alpha_step,
+        },
         "preference_margin": preference_margin,
         "preference_regularization": regularization,
         "preference_vector_norm_bound": norm_bound,

@@ -77,6 +77,13 @@ def build_training_run_identity(payload: dict[str, Any]) -> str:
     return f"itr_{fingerprint}"
 
 
+def build_preference_optimization_run_id(training_run_id: str) -> str:
+    internal_id = _text(training_run_id, "training_run_id")
+    if not internal_id.startswith("itr_") or len(internal_id) == len("itr_"):
+        raise ValueError("training_run_id must be an itr_ identity")
+    return f"por_{internal_id.removeprefix('itr_')}"
+
+
 def preference_vector_fingerprint(vector: tuple[float, ...]) -> str:
     return str(build_contract_fingerprint({"preference_vector": list(vector)}))
 
@@ -319,6 +326,17 @@ def resolve_run_preference_policy(
     embedding_values = embedding if isinstance(embedding, list) else []
     embedding_available = bool(embedding_values)
     policy = config["decision_learning_policy"]["inverse_optimization"]
+    preference_optimization = config.get("preference_optimization")
+    preference_settings = (
+        preference_optimization if isinstance(preference_optimization, dict) else {}
+    )
+    ranking_mode = str(
+        preference_settings.get("ranking_mode", "personalized")
+    ).strip().lower()
+    personalization_strength = preference_settings.get(
+        "personalization_strength",
+        policy["learned_alpha"],
+    )
     runtime = PreferenceRuntimeContract.build(
         domain_id=config["decision_learning_policy"]["domain_id"],
         baseline_policy_fingerprint=build_contract_fingerprint(config["ranking_policy"]),
@@ -335,9 +353,21 @@ def resolve_run_preference_policy(
         embedding_contract_fingerprint=str(
             first.get("embedding_contract_fingerprint") or "unavailable"
         ),
-        learned_alpha=policy["learned_alpha"],
+        learned_alpha=personalization_strength,
         preference_vector_norm_bound=policy["preference_vector_norm_bound"],
     )
+    if ranking_mode not in {"baseline", "personalized"}:
+        return resolve_zero_residual_policy(
+            runtime,
+            status="zero_residual_invalid",
+            diagnostic_code="invalid_ranking_mode",
+        )
+    if ranking_mode == "baseline":
+        return resolve_zero_residual_policy(
+            runtime,
+            status="zero_residual_no_active",
+            diagnostic_code="baseline_ranking_selected",
+        )
     if not ranking_rows:
         return resolve_zero_residual_policy(
             runtime,
@@ -351,7 +381,11 @@ def resolve_run_preference_policy(
             diagnostic_code="missing_embedding_contract",
         )
     if resolver is None:
-        return resolve_zero_residual_policy(runtime, status="zero_residual_no_active")
+        return resolve_zero_residual_policy(
+            runtime,
+            status="zero_residual_no_active",
+            diagnostic_code="no_compatible_active_policy",
+        )
     try:
         resolved = resolver(runtime)
     except Exception:

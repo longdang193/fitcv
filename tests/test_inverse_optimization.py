@@ -632,6 +632,52 @@ def test_cli_exit_code_mapping() -> None:
     assert inverse_cli._exit_code("evaluation_rejected") == 4
     assert inverse_cli._exit_code("conflict") == 4
 
+
+def test_candidate_operation_uses_workspace_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = InverseOptimizationRequest(
+        schema_version="inverse_optimization_request_v1",
+        domain_id="ranking_v1",
+        event_watermark=0,
+        episodes=(),
+    )
+    active_settings = {
+        "preference_optimization.ranking_mode": "personalized",
+        "preference_optimization.personalization_strength": 0.08,
+    }
+    captured: dict[str, object] = {}
+
+    class Store:
+        def get_decision_evidence_head(self, domain_id: str) -> dict[str, object]:
+            captured["initialized_domain_id"] = domain_id
+            return {"domain_id": domain_id}
+
+    store = Store()
+
+    def create_candidate(
+        request_value: InverseOptimizationRequest,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        captured["request"] = request_value
+        captured.update(kwargs)
+        return {"status": "insufficient_evidence"}
+
+    monkeypatch.setattr(inverse_cli, "ControlPlaneStore", lambda: store)
+    monkeypatch.setattr(inverse_cli, "load_active_settings", lambda: active_settings)
+    monkeypatch.setattr(inverse_cli, "settings_revision", lambda _active: "revision-1")
+    monkeypatch.setattr(inverse_cli, "create_ranking_policy_candidate", create_candidate)
+
+    result = inverse_cli._candidate_operation(request)
+
+    assert result == {"status": "insufficient_evidence"}
+    assert captured["initialized_domain_id"] == "ranking_v1"
+    assert captured["request"] == request
+    assert captured["store"] is store
+    assert captured["ranking_mode"] == "personalized"
+    assert captured["personalization_strength"] == 0.08
+    assert captured["settings_revision"] == "revision-1"
+
 def test_cli_rollback_cas_conflict_returns_typed_exit_code(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

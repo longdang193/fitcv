@@ -6172,6 +6172,10 @@ _OPTIMIZATION_NOTICE_MESSAGES = {
     "activation_completed": ("success", "Candidate activated."),
     "rejection_completed": ("success", "Candidate rejected."),
     "rollback_completed": ("success", "Policy rollback completed."),
+    "ranking_mode_saved": ("success", "Ranking Mode saved."),
+    "personalization_strength_saved": ("success", "Personalization Strength saved."),
+    "inactivation_completed": ("success", "Policy inactivated. Baseline Ranking is used until another policy becomes active."),
+    "optimization_run_removed": ("success", "Optimization Run removed from the default view."),
     "insufficient_evidence": ("warning", "More clearly different 1-5-star ratings are required."),
     "no_op": ("info", "Current evidence produced no meaningful preference change."),
     "evaluation_rejected": ("warning", "Candidate failed promotion checks and was not activated."),
@@ -6190,6 +6194,15 @@ _OPTIMIZATION_NOTICE_MESSAGES = {
     "actor_required": ("error", "Operator label is required."),
     "reason_required": ("error", "Rejection reason is required."),
     "confirmation_required": ("error", "Rollback confirmation is required."),
+    "inactivation_confirmation_required": ("error", "Confirm policy inactivation."),
+    "personalized_ranking_required": ("warning", "Choose Personalized Ranking to use this action."),
+    "active_policy_must_be_inactivated": ("warning", "Inactivate Policy before changing Personalization Strength."),
+    "settings_revision_conflict": ("warning", "Settings changed. Review current values and retry."),
+    "invalid_ranking_mode": ("error", "Choose Baseline Ranking or Personalized Ranking."),
+    "invalid_personalization_strength": ("error", "Personalization Strength is outside the allowed range."),
+    "optimization_run_not_found": ("error", "Optimization Run was not found."),
+    "optimization_run_hidden": ("warning", "Removed Optimization Run cannot be changed."),
+    "optimization_run_has_no_policy": ("warning", "This Optimization Run did not create a policy."),
     "invalid_domain": ("error", "Optimization domain is invalid."),
     "invalid_target": ("error", "Rollback target is invalid."),
     "operation_failed": ("error", "Optimization action failed. Review current state and retry."),
@@ -6216,7 +6229,43 @@ def _optimization_error_notice(exc: BaseException) -> str:
         "candidate decision learning policy changed": "candidate_decision_learning_policy_changed",
         "rollback target is incompatible": "rollback_target_incompatible",
         "snapshot is not candidate": "snapshot_not_candidate",
+        "active_policy_must_be_inactivated": "active_policy_must_be_inactivated",
+        "optimization_run_hidden": "optimization_run_hidden",
+        "optimization_run_has_no_policy": "optimization_run_has_no_policy",
     }.get(str(exc), "operation_failed")
+
+def _optimization_display_status(status: str) -> str:
+    if status == "candidate_created":
+        return "Succeeded"
+    if status == "no_op":
+        return "No Change"
+    if status in {"evaluation_rejected", "insufficient_evidence"}:
+        return "Not Created"
+    return "Failed"
+
+def _optimization_console_for_run(
+    process_console: dict[str, Any],
+    optimization_run: dict[str, Any],
+) -> dict[str, Any]:
+    target_refs = {
+        str(value)
+        for value in (
+            optimization_run.get("preference_optimization_run_id"),
+            optimization_run.get("policy_snapshot_id"),
+        )
+        if value
+    }
+
+    def _matches(event: Any) -> bool:
+        refs = getattr(event, "diagnostic_refs", None) or getattr(
+            event, "diagnostic_refs_json", None
+        )
+        if refs is None and isinstance(event, dict):
+            refs = event.get("diagnostic_refs") or event.get("diagnostic_refs_json")
+        return any(target in str(refs or "") for target in target_refs)
+
+    events = [event for event in process_console.get("events", []) if _matches(event)]
+    return {**process_console, "events": events, "total_count": len(events)}
 
 
 def _optimization_rating_evidence(
@@ -6260,13 +6309,27 @@ def _optimization_page_context(
     domain_id = str(policy["domain_id"])
     if domain_id != _OPTIMIZATION_DOMAIN_ID:
         raise ValueError("invalid optimization domain configuration")
-    evidence = store.get_decision_evidence_head(domain_id)
-    optimization_request = store.load_inverse_optimization_request(domain_id)
     lifecycle = store.inspect_ranking_policy_lifecycle(
         domain_id,
         limit=_OPTIMIZATION_HISTORY_LIMIT,
     )
-    provenance = current_activation_provenance({"domain_id": domain_id}, config)
+    active_settings = load_active_settings()
+    ranking_mode = str(
+        active_settings.get("preference_optimization.ranking_mode", "baseline")
+    )
+    personalization_strength = float(
+        active_settings.get(
+            "preference_optimization.personalization_strength",
+            config["decision_learning_policy"]["inverse_optimization"]["learned_alpha"],
+        )
+    )
+    evidence = store.get_decision_evidence_head(domain_id)
+    optimization_request = store.load_inverse_optimization_request(domain_id)
+    provenance = current_activation_provenance(
+        {"domain_id": domain_id},
+        config,
+        personalization_strength=personalization_strength,
+    )
     compatible_active = store.resolve_active_ranking_policy(
         domain_id,
         provenance["current_runtime_contract_fingerprint"],
@@ -6288,6 +6351,31 @@ def _optimization_page_context(
         if active_any is not None
         else "zero residual"
     )
+    active_snapshot_id = (
+        str(active_any.get("policy_snapshot_id")) if active_any is not None else None
+    )
+    compatible_snapshot_id = (
+        str(compatible_active.get("policy_snapshot_id"))
+        if compatible_active is not None
+        else None
+    )
+    optimization_runs = [
+        {
+            **row,
+            "display_status": _optimization_display_status(str(row.get("status") or "")),
+            "is_active": bool(
+                row.get("policy_snapshot_id")
+                and row.get("policy_snapshot_id") == active_snapshot_id
+            ),
+            "is_compatible_active": bool(
+                row.get("policy_snapshot_id")
+                and row.get("policy_snapshot_id") == compatible_snapshot_id
+            ),
+        }
+        for row in store.list_preference_optimization_runs(
+            limit=_OPTIMIZATION_HISTORY_LIMIT
+        )
+    ]
     training_by_id = {
         str(row.get("training_run_id")): row for row in lifecycle["training_runs"]
     }
@@ -6325,12 +6413,23 @@ def _optimization_page_context(
     return {
         "domain_id": domain_id,
         "notice": _optimization_notice_projection(notice_code),
+        "settings_revision": settings_revision(active_settings),
+        "ranking_mode": ranking_mode,
+        "personalization_strength": personalization_strength,
+        "personalization_strength_meta": next(
+            entry
+            for entry in SETTINGS_SCHEMA
+            if entry["key"] == "preference_optimization.personalization_strength"
+        ),
         "evidence": evidence,
         "rating_evidence": _optimization_rating_evidence(optimization_request),
         "episode_count": episode_count,
         "rating_event_count": rating_event_count,
         "evidence_ready": episode_count > 0 and rating_event_count > 0,
         "current_mode": current_mode,
+        "personalized_enabled": ranking_mode == "personalized",
+        "baseline_fallback": ranking_mode == "personalized" and compatible_active is None,
+        "active_not_in_use": active_any is not None and compatible_active is None,
         "current_parent_ref": current_parent_ref,
         "compatible_active": compatible_active,
         "active_any": active_any,
@@ -6350,17 +6449,67 @@ def _optimization_page_context(
             row for row in lifecycle["snapshots"] if row.get("rollback_eligible")
         ],
         "history": lifecycle,
+        "optimization_runs": optimization_runs,
         "process_console": store.get_process_events("optimization", domain_id, limit=200),
     }
 
+def _optimization_detail_context(
+    store: ControlPlaneStore,
+    preference_optimization_run_id: str,
+    *,
+    notice_code: str | None = None,
+) -> dict[str, Any]:
+    if not preference_optimization_run_id.startswith("por_"):
+        raise HTTPException(status_code=404, detail="Optimization Run not found")
+    try:
+        optimization_run = store.get_preference_optimization_run(
+            preference_optimization_run_id
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Optimization Run not found") from exc
+    context = _optimization_page_context(store, notice_code=notice_code)
+    policy_snapshot_id = optimization_run.get("policy_snapshot_id")
+    return {
+        **context,
+        "detail_view": True,
+        "optimization_run": optimization_run,
+        "rating_evidence": list(
+            optimization_run.get("rating_evidence_rows_json") or []
+        ),
+        "display_status": _optimization_display_status(
+            str(optimization_run.get("status") or "")
+        ),
+        "is_active": bool(
+            context["active_any"] is not None
+            and policy_snapshot_id
+            == context["active_any"].get("policy_snapshot_id")
+        ),
+        "is_compatible_active": bool(
+            context["compatible_active"] is not None
+            and policy_snapshot_id
+            == context["compatible_active"].get("policy_snapshot_id")
+        ),
+        "removed": optimization_run.get("hidden_at") is not None,
+        "process_console": _optimization_console_for_run(
+            context["process_console"], optimization_run
+        ),
+    }
 
-def _optimization_redirect(notice_code: str) -> RedirectResponse:
+
+def _optimization_redirect(
+    notice_code: str,
+    preference_optimization_run_id: str | None = None,
+) -> RedirectResponse:
     bounded_code = (
         notice_code if notice_code in _OPTIMIZATION_NOTICE_MESSAGES else "operation_failed"
     )
+    path = (
+        f"/admin/optimization/runs/{preference_optimization_run_id}"
+        if preference_optimization_run_id is not None
+        else "/admin/optimization"
+    )
     return RedirectResponse(
-        url=f"/admin/optimization?{urlencode({'notice': bounded_code})}",
-        status_code=303,
+        url=f"{path}?{urlencode({'notice': bounded_code})}", status_code=303
     )
 
 
@@ -10305,7 +10454,6 @@ def create_app(
 
         return _Redirect("/admin/settings", status_code=303)
 
-    @app.get("/admin/optimization", response_class=HTMLResponse)
     def admin_optimization(request: Request) -> HTMLResponse:
         context = _optimization_page_context(
             _resolve_run_store(),
@@ -10317,23 +10465,29 @@ def create_app(
             context=context,
         )
 
-    @app.post("/admin/optimization/candidate")
     async def admin_optimization_candidate(request: Request) -> RedirectResponse:
         form = await request.form()
         domain_id = str(form.get("domain_id") or "").strip()
         if domain_id != _OPTIMIZATION_DOMAIN_ID:
             return _optimization_redirect("invalid_domain")
         store = _resolve_run_store()
-        evidence = store.get_decision_evidence_head(domain_id)
-        if not evidence["episodes"] or not any(
-            row.get("events") for row in evidence["episodes"]
-        ):
-            return _optimization_redirect("insufficient_evidence")
+        active_settings = load_active_settings()
+        if active_settings.get("preference_optimization.ranking_mode") != "personalized":
+            return _optimization_redirect("personalized_ranking_required")
         try:
             result = create_ranking_policy_candidate(
                 store.load_inverse_optimization_request(domain_id),
                 store=store,
                 config=load_config(),
+                ranking_mode=str(
+                    active_settings["preference_optimization.ranking_mode"]
+                ),
+                personalization_strength=float(
+                    active_settings[
+                        "preference_optimization.personalization_strength"
+                    ]
+                ),
+                settings_revision=settings_revision(active_settings),
                 expected_evidence_head_fingerprint=str(
                     form.get("evidence_head_fingerprint") or ""
                 ),
@@ -10341,10 +10495,9 @@ def create_app(
             )
         except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             return _optimization_redirect(_optimization_error_notice(exc))
-        notice_code = str(result.get("error_code") or result.get("status") or "")
+        notice_code = str(result.get("status") or result.get("error_code") or "")
         return _optimization_redirect(notice_code)
 
-    @app.post("/admin/optimization/candidates/{snapshot_id}/activate")
     async def admin_optimization_activate(
         request: Request,
         snapshot_id: str,
@@ -10382,7 +10535,6 @@ def create_app(
             return _optimization_redirect(_optimization_error_notice(exc))
         return _optimization_redirect("activation_completed")
 
-    @app.post("/admin/optimization/candidates/{snapshot_id}/reject")
     async def admin_optimization_reject(
         request: Request,
         snapshot_id: str,
@@ -10423,7 +10575,6 @@ def create_app(
             return _optimization_redirect(_optimization_error_notice(exc))
         return _optimization_redirect("rejection_completed")
 
-    @app.post("/admin/optimization/rollback")
     async def admin_optimization_rollback(request: Request) -> RedirectResponse:
         form = await request.form()
         actor = str(form.get("actor") or "").strip()
@@ -10450,6 +10601,200 @@ def create_app(
         except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             return _optimization_redirect(_optimization_error_notice(exc))
         return _optimization_redirect("rollback_completed")
+
+    def admin_optimization_detail(
+        request: Request,
+        preference_optimization_run_id: str,
+    ) -> HTMLResponse:
+        context = _optimization_detail_context(
+            _resolve_run_store(),
+            preference_optimization_run_id,
+            notice_code=request.query_params.get("notice"),
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="optimization.html",
+            context=context,
+        )
+
+    async def admin_optimization_ranking_mode(request: Request) -> RedirectResponse:
+        form = await request.form()
+        ranking_mode = str(form.get("ranking_mode") or "").strip().lower()
+        if ranking_mode not in {"baseline", "personalized"}:
+            return _optimization_redirect("invalid_ranking_mode")
+        try:
+            mutate_settings_atomically(
+                changes={"preference_optimization.ranking_mode": ranking_mode},
+                updated_by="local_workspace",
+                expected_revision=str(form.get("settings_revision") or ""),
+            )
+        except SettingsRevisionConflict:
+            return _optimization_redirect("settings_revision_conflict")
+        except (RuntimeError, ValidationError, ValueError):
+            return _optimization_redirect("operation_failed")
+        return _optimization_redirect("ranking_mode_saved")
+
+    async def admin_optimization_personalization_strength(
+        request: Request,
+    ) -> RedirectResponse:
+        form = await request.form()
+        active_settings = load_active_settings()
+        if active_settings.get("preference_optimization.ranking_mode") != "personalized":
+            return _optimization_redirect("personalized_ranking_required")
+        lifecycle = _resolve_run_store().inspect_ranking_policy_lifecycle(
+            _OPTIMIZATION_DOMAIN_ID,
+            limit=_OPTIMIZATION_HISTORY_LIMIT,
+        )
+        if lifecycle.get("active_snapshot") or any(
+            row.get("status") == "active" for row in lifecycle.get("snapshots", [])
+        ):
+            return _optimization_redirect("active_policy_must_be_inactivated")
+        try:
+            strength = _coerce_and_validate_single_setting(
+                "preference_optimization.personalization_strength",
+                form.get("value"),
+            )
+            mutate_settings_atomically(
+                changes={
+                    "preference_optimization.personalization_strength": strength
+                },
+                updated_by="local_workspace",
+                expected_revision=str(form.get("settings_revision") or ""),
+            )
+        except SettingsRevisionConflict:
+            return _optimization_redirect("settings_revision_conflict")
+        except (HTTPException, RuntimeError, ValidationError, ValueError):
+            return _optimization_redirect("invalid_personalization_strength")
+        return _optimization_redirect("personalization_strength_saved")
+
+    async def admin_optimization_run_activate(
+        request: Request,
+        preference_optimization_run_id: str,
+    ) -> RedirectResponse:
+        form = await request.form()
+        active_settings = load_active_settings()
+        if active_settings.get("preference_optimization.ranking_mode") != "personalized":
+            return _optimization_redirect(
+                "personalized_ranking_required", preference_optimization_run_id
+            )
+        store = _resolve_run_store()
+        try:
+            optimization_run = store.get_preference_optimization_run(
+                preference_optimization_run_id
+            )
+            store.activate_preference_optimization_run(
+                preference_optimization_run_id,
+                expected_parent_ref=str(form.get("expected_parent_ref") or ""),
+                evidence_head_fingerprint=str(
+                    form.get("evidence_head_fingerprint") or ""
+                ),
+                **current_activation_provenance(
+                    {"domain_id": optimization_run["domain_id"]},
+                    load_config(),
+                    personalization_strength=float(
+                        active_settings[
+                            "preference_optimization.personalization_strength"
+                        ]
+                    ),
+                ),
+            )
+        except KeyError:
+            return _optimization_redirect(
+                "optimization_run_not_found", preference_optimization_run_id
+            )
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            return _optimization_redirect(
+                _optimization_error_notice(exc), preference_optimization_run_id
+            )
+        return _optimization_redirect(
+            "activation_completed", preference_optimization_run_id
+        )
+
+    async def admin_optimization_run_inactivate(
+        request: Request,
+        preference_optimization_run_id: str,
+    ) -> RedirectResponse:
+        form = await request.form()
+        active_settings = load_active_settings()
+        if active_settings.get("preference_optimization.ranking_mode") != "personalized":
+            return _optimization_redirect(
+                "personalized_ranking_required", preference_optimization_run_id
+            )
+        if str(form.get("confirm") or "") != "on":
+            return _optimization_redirect(
+                "inactivation_confirmation_required",
+                preference_optimization_run_id,
+            )
+        try:
+            _resolve_run_store().inactivate_preference_optimization_run(
+                preference_optimization_run_id,
+                expected_active_snapshot_id=str(
+                    form.get("expected_active_snapshot_id") or ""
+                ),
+            )
+        except KeyError:
+            return _optimization_redirect(
+                "optimization_run_not_found", preference_optimization_run_id
+            )
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            return _optimization_redirect(
+                _optimization_error_notice(exc), preference_optimization_run_id
+            )
+        return _optimization_redirect(
+            "inactivation_completed", preference_optimization_run_id
+        )
+
+    async def admin_optimization_run_remove(
+        preference_optimization_run_id: str,
+    ) -> RedirectResponse:
+        active_settings = load_active_settings()
+        if active_settings.get("preference_optimization.ranking_mode") != "personalized":
+            return _optimization_redirect(
+                "personalized_ranking_required", preference_optimization_run_id
+            )
+        try:
+            _resolve_run_store().hide_preference_optimization_run(
+                preference_optimization_run_id
+            )
+        except KeyError:
+            return _optimization_redirect(
+                "optimization_run_not_found", preference_optimization_run_id
+            )
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            return _optimization_redirect(
+                _optimization_error_notice(exc), preference_optimization_run_id
+            )
+        return _optimization_redirect("optimization_run_removed")
+
+    if local_mode:
+        app.get("/admin/optimization", response_class=HTMLResponse)(admin_optimization)
+        app.post("/admin/optimization/candidate")(admin_optimization_candidate)
+        app.get(
+            "/admin/optimization/runs/{preference_optimization_run_id}",
+            response_class=HTMLResponse,
+        )(admin_optimization_detail)
+        app.post("/admin/optimization/ranking-mode")(
+            admin_optimization_ranking_mode
+        )
+        app.post("/admin/optimization/personalization-strength")(
+            admin_optimization_personalization_strength
+        )
+        app.post(
+            "/admin/optimization/runs/{preference_optimization_run_id}/activate"
+        )(admin_optimization_run_activate)
+        app.post(
+            "/admin/optimization/runs/{preference_optimization_run_id}/inactivate"
+        )(admin_optimization_run_inactivate)
+        app.post(
+            "/admin/optimization/runs/{preference_optimization_run_id}/remove"
+        )(admin_optimization_run_remove)
+        app.post("/admin/optimization/candidates/{snapshot_id}/activate")(
+            admin_optimization_activate
+        )
+        app.post("/admin/optimization/candidates/{snapshot_id}/reject")(
+            admin_optimization_reject
+        )
+        app.post("/admin/optimization/rollback")(admin_optimization_rollback)
 
     @app.get("/admin/runs", response_class=HTMLResponse)
     def admin_runs(request: Request) -> HTMLResponse:

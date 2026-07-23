@@ -156,11 +156,6 @@ def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
         ("/admin/cvs/{version_id}/download", ("GET",), "download_cv", "DefaultPlaceholder"),
         ("/admin/diagnostics/orchestration-schema", ("GET",), "admin_orchestration_schema_diagnostics", "DefaultPlaceholder"),
         ("/admin/mapping-suggestions.json", ("GET",), "download_aggregate_mapping_suggestions_json", "DefaultPlaceholder"),
-        ("/admin/optimization", ("GET",), "admin_optimization", "HTMLResponse"),
-        ("/admin/optimization/candidate", ("POST",), "admin_optimization_candidate", "DefaultPlaceholder"),
-        ("/admin/optimization/candidates/{snapshot_id}/activate", ("POST",), "admin_optimization_activate", "DefaultPlaceholder"),
-        ("/admin/optimization/candidates/{snapshot_id}/reject", ("POST",), "admin_optimization_reject", "DefaultPlaceholder"),
-        ("/admin/optimization/rollback", ("POST",), "admin_optimization_rollback", "DefaultPlaceholder"),
         ("/admin/process-events.json", ("GET",), "get_process_event_export", "DefaultPlaceholder"),
         ("/admin/reconciler/run-attempts", ("POST",), "admin_reconcile_run_attempts", "DefaultPlaceholder"),
         ("/admin/runs", ("GET",), "admin_runs", "HTMLResponse"),
@@ -11715,7 +11710,7 @@ def test_base_template_bootstraps_saved_theme_before_styles():
     style_pos = html.index("<style>")
 
     assert script_pos < style_pos
-    assert "localStorage.getItem('fitcv-theme') || 'dark'" in html
+    assert "localStorage.getItem('fitcv-theme') || 'light'" in html
     assert "document.documentElement.setAttribute('data-theme', t);" in html
 
 
@@ -12588,8 +12583,19 @@ def test_admin_settings_uses_approved_prototype_visual_contract() -> None:
     template = Path("src/fitcv_cp/templates/settings.html").read_text(encoding="utf-8")
 
     assert "--accent:#b94d36" in prototype
-    assert 'class="app-shell"' in base
-    assert 'class="app-sidebar"' in base
+    assert ':root[data-theme="light"]{color-scheme:light;--accent:#b94d36' in base
+    assert "--bg:#fdfaf6" in base
+    assert '--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif' in base
+    assert "--sidebar-w:288px" in base
+    assert "localStorage.getItem('fitcv-theme') || 'light'" in base
+    assert "event.key !== 'Escape' || !sidebar.classList.contains('open')" in base
+    assert 'class="shell app-shell"' in base
+    assert 'class="sidebar app-sidebar"' in base
+    assert 'class="brand-mark"' in base
+    assert 'class="nav-group"' in base
+    assert 'class="main app-frame"' in base
+    assert ".content{width:min(960px,100%);margin:auto}" in base
+    assert ".section-card{overflow:hidden;border:1px solid var(--border-soft);border-radius:12px" in base
     assert 'id="page-content"' in base
     assert ".settings-row" in base
     assert "history.pushState" in base
@@ -12691,6 +12697,11 @@ def _decision_feedback_fixture():
             "inverse_optimization": {
                 "optimizer_version": "latent-residual-v1",
                 "learned_alpha": 0.05,
+                "learned_alpha_bounds": {
+                    "minimum": 0.01,
+                    "maximum": 0.10,
+                    "step": 0.01,
+                },
                 "preference_margin": 0.02,
                 "preference_regularization": 1.0,
                 "preference_vector_norm_bound": 1.0,

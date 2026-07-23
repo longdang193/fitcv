@@ -317,9 +317,10 @@ def test_control_plane_store_preference_policy_adapters() -> None:
 
 def test_control_plane_store_candidate_attempt_and_evidence_head_adapters() -> None:
     store = ControlPlaneStore(
-        persist_candidate_attempt_fn=lambda training, snapshot=None: {
+        persist_candidate_attempt_fn=lambda training, snapshot=None, projection=None: {
             "training_run": training,
             "snapshot": snapshot,
+            "optimization_run": projection,
         },
         get_decision_evidence_head_fn=lambda domain: {
             "domain_id": domain,
@@ -328,10 +329,53 @@ def test_control_plane_store_candidate_attempt_and_evidence_head_adapters() -> N
     )
 
     result = store.persist_candidate_attempt(
-        {"training_run_id": "training"}, {"policy_snapshot_id": "snapshot"}
+        {"training_run_id": "training"},
+        {"policy_snapshot_id": "snapshot"},
+        {"preference_optimization_run_id": "por_1"},
     )
     assert result["snapshot"] == {"policy_snapshot_id": "snapshot"}
+    assert result["optimization_run"] == {"preference_optimization_run_id": "por_1"}
     assert store.get_decision_evidence_head("ranking_v1")["evidence_head_fingerprint"] == "head"
+
+
+def test_control_plane_store_public_preference_optimization_adapters() -> None:
+    captured: dict[str, object] = {}
+    store = ControlPlaneStore(
+        list_preference_optimization_runs_fn=lambda **kwargs: [kwargs],
+        get_preference_optimization_run_fn=lambda run_id: {
+            "preference_optimization_run_id": run_id
+        },
+        hide_preference_optimization_run_fn=lambda run_id: {
+            "preference_optimization_run_id": run_id,
+            "hidden_at": "now",
+        },
+        activate_preference_optimization_run_fn=lambda run_id, **kwargs: captured.update(
+            {"activation_run_id": run_id, **kwargs}
+        )
+        or {"policy_status": "active"},
+        inactivate_preference_optimization_run_fn=lambda run_id, **kwargs: captured.update(
+            {"inactivation_run_id": run_id, **kwargs}
+        )
+        or {"policy_status": "retired"},
+    )
+
+    assert store.list_preference_optimization_runs(limit=25) == [{"limit": 25}]
+    assert store.get_preference_optimization_run("por_1")[
+        "preference_optimization_run_id"
+    ] == "por_1"
+    assert store.hide_preference_optimization_run("por_1")["hidden_at"] == "now"
+    assert store.activate_preference_optimization_run(
+        "por_1", expected_parent_ref="zero_residual:baseline"
+    )["policy_status"] == "active"
+    assert store.inactivate_preference_optimization_run(
+        "por_1", expected_active_snapshot_id="rps_1"
+    )["policy_status"] == "retired"
+    assert captured == {
+        "activation_run_id": "por_1",
+        "expected_parent_ref": "zero_residual:baseline",
+        "inactivation_run_id": "por_1",
+        "expected_active_snapshot_id": "rps_1",
+    }
 
 def test_control_plane_store_delegates_inverse_optimization_request_and_lifecycle_limit() -> None:
     request = object()
@@ -341,9 +385,15 @@ def test_control_plane_store_delegates_inverse_optimization_request_and_lifecycl
         captured["domain_id"] = domain_id
         return request
 
-    def inspect(domain_id: str, *, limit: int | None = None):
+    def inspect(
+        domain_id: str,
+        *,
+        limit: int | None = None,
+        runtime_contract_fingerprint: str | None = None,
+    ):
         captured["inspect_domain_id"] = domain_id
         captured["limit"] = limit
+        captured["runtime_contract_fingerprint"] = runtime_contract_fingerprint
         return {"training_runs": [], "snapshots": [], "events": []}
 
     store = ControlPlaneStore(
@@ -352,11 +402,14 @@ def test_control_plane_store_delegates_inverse_optimization_request_and_lifecycl
     )
 
     assert store.load_inverse_optimization_request("ranking_v1") is request
-    assert store.inspect_ranking_policy_lifecycle("ranking_v1", limit=25)["events"] == []
+    assert store.inspect_ranking_policy_lifecycle(
+        "ranking_v1", limit=25, runtime_contract_fingerprint="runtime"
+    )["events"] == []
     assert captured == {
         "domain_id": "ranking_v1",
         "inspect_domain_id": "ranking_v1",
         "limit": 25,
+        "runtime_contract_fingerprint": "runtime",
     }
 
 def test_control_plane_store_delegates_prototype_resources_and_actions() -> None:

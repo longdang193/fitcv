@@ -17,165 +17,300 @@ role: template
 canonical: true
 #}
 {% block title %}Preference Optimization — FitCV Admin{% endblock %}
+{% macro evidence_table(rows) -%}
+<div class="table-scroll optimization-table-wrap">
+  <table class="run-table">
+    <thead>
+      <tr><th>Rated</th><th>Run</th><th>Job</th><th>Saved Rank</th><th>Baseline Fit</th><th>User Rating</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="meta">{{ row.rated_at }}</td>
+        <td><a class="run-id" href="/admin/runs/{{ row.run_id }}">{{ row.run_id }}</a></td>
+        <td><a class="run-job" href="{{ row.source_job_url }}">{{ row.job_label or row.alternative_id }}</a></td>
+        <td>{{ row.displayed_rank }}</td>
+        <td>{{ '%.3f'|format(row.baseline_fit) }}</td>
+        <td>{{ row.rating }} / 5</td>
+      </tr>
+      {% else %}
+      <tr class="empty-row"><td colspan="6">No saved rating evidence yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{%- endmacro %}
+{% macro run_status_badge(label) -%}
+<span class="optimization-status" data-status="{{ label }}">{{ label }}</span>
+{%- endmacro %}
 {% block content %}
 <style>
-  .optimization-grid { display: grid; gap: 1rem; }
-  .optimization-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; }
-  .optimization-form { display: grid; gap: 0.75rem; }
-  .optimization-form label { display: grid; gap: 0.3rem; color: var(--text-secondary); font-size: 0.85rem; }
-  .optimization-form input, .optimization-form select { min-width: 16rem; }
-  .optimization-code { display: inline-block; max-width: 34rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
-  .optimization-history { overflow-x: auto; }
-  .optimization-notice { border-left: 4px solid var(--accent); }
-  .optimization-notice[data-level="success"] { border-left-color: var(--success-fg); }
-  .optimization-notice[data-level="warning"] { border-left-color: var(--badge-warning-fg); }
-  .optimization-notice[data-level="error"] { border-left-color: var(--badge-error-fg); }
-  fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
-  legend { padding: 0 0.4rem; font-weight: 700; }
+  .optimization-stack { display:grid; gap:14px; min-width:0; }
+  .optimization-stack > .section-card, .optimization-stack > .card { margin-bottom:0; min-width:0; }
+  .optimization-section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .optimization-section-head h2 { margin-bottom:0; }
+  .optimization-section-head p { margin-top:0.25rem; }
+  .optimization-setting-form, .optimization-actions { display:flex; align-items:center; justify-content:flex-end; gap:0.5rem; flex-wrap:wrap; }
+  .optimization-setting-form select { min-width:min(18rem, 100%); }
+  .optimization-table-wrap { overflow-x:auto; }
+  .optimization-actions form { display:inline-flex; }
+  .optimization-disabled-reason { flex-basis:100%; margin:0; color:var(--text-muted); font-size:0.78rem; text-align:right; }
+  .optimization-notice[data-level="success"] { border-color:var(--badge-success-fg); }
+  .optimization-notice[data-level="warning"] { border-color:var(--badge-warning-fg); }
+  .optimization-notice[data-level="error"] { border-color:var(--badge-error-fg); }
+  .details-page-layout { display:grid; gap:18px; }
+  .details-page-head { display:grid; gap:16px; margin-bottom:0; }
+  .details-page-head .page-head { margin-bottom:0; }
+  .details-page-back { display:inline-flex; width:max-content; align-items:center; gap:7px; color:var(--muted); font-size:14px; font-weight:600; text-decoration:none; }
+  .details-page-back:hover { color:var(--accent); text-decoration:underline; text-underline-offset:3px; }
+  .details-page-back:focus-visible { border-radius:6px; outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent); outline-offset:4px; }
+  .details-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:0; }
+  .detail-item { min-width:0; }
+  .detail-item dt { color:var(--muted); font-size:11px; font-weight:750; letter-spacing:.06em; text-transform:uppercase; }
+  .detail-item dd { margin:5px 0 0; font-size:14px; font-weight:400; line-height:1.4; overflow-wrap:anywhere; }
+  .optimization-dialog-form { display:grid; gap:1rem; }
+  .optimization-dialog-form label { display:grid; gap:0.4rem; }
+  .optimization-dialog-form input { width:100%; }
+  .optimization-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .preference-mode-field { width:190px; }
+  .drawer-section-content { padding:20px 22px; }
+  .drawer-status { margin-left:auto; }
+  .run-selection-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .optimization-policy-controls { display:grid; gap:6px; justify-items:end; }
+  .optimization-policy-controls .supporting-text { max-width:240px; margin:0!important; text-align:right; }
+  .optimization-id-link { color:var(--accent); font-weight:650; text-underline-offset:3px; }
+  .run-id { color:var(--text); font:650 12px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace; text-decoration:none; }
+  .run-job { color:var(--text); text-decoration:none; }
+  .run-id:hover, .run-job:hover { color:var(--accent); text-decoration:underline; text-underline-offset:3px; }
+  .optimization-status { display:inline-flex; min-height:26px; align-items:center; padding:0 8px; border:1px solid var(--border); border-radius:999px; background:var(--surface-2); font-size:12px; font-weight:700; }
+  .optimization-status[data-status="Succeeded"] { border-color:color-mix(in srgb,#15803d 30%,var(--border)); background:color-mix(in srgb,#15803d 10%,var(--surface)); color:#15803d; }
+  .optimization-status[data-status="Failed"] { border-color:color-mix(in srgb,#b91c1c 30%,var(--border)); background:color-mix(in srgb,#b91c1c 8%,var(--surface)); color:#b91c1c; }
+  .optimization-status[data-status="Not Created"] { border-color:color-mix(in srgb,#b45309 30%,var(--border)); background:color-mix(in srgb,#b45309 10%,var(--surface)); color:#8a5d00; }
+  [data-theme="dark"] .optimization-status[data-status="Succeeded"] { color:#86efac; }
+  [data-theme="dark"] .optimization-status[data-status="Failed"] { color:#fca5a5; }
+  [data-theme="dark"] .optimization-status[data-status="Not Created"] { color:#f5cf78; }
+  @media (max-width:720px) {
+    .optimization-setting-form, .optimization-actions { width:100%; justify-content:flex-start; }
+    .optimization-setting-form select { width:100%; }
+    .optimization-disabled-reason { text-align:left; }
+    .details-grid { grid-template-columns:1fr 1fr; }
+    .optimization-policy-controls { justify-items:start; }
+    .optimization-policy-controls .supporting-text { text-align:left; }
+  }
 </style>
 
-<div class="page-header">
-  <div>
-    <h1>Preference Optimization</h1>
-    <p class="muted">Train, inspect, and manually activate learned ranking preference.</p>
-  </div>
-</div>
-
-<div class="optimization-grid">
-  {% if notice %}
-  <section class="card optimization-notice" data-level="{{ notice.level }}" role="status">
-    <strong>{{ notice.message }}</strong>
-  </section>
-  {% endif %}
-
-  <section class="card">
-    <h2>Current Status</h2>
-    <div class="kv">
-      <span class="k">Domain</span><span class="v"><code>{{ domain_id }}</code></span>
-      <span class="k">Policy mode</span><span class="v">{{ current_mode }}</span>
-      <span class="k">Active snapshot</span><span class="v"><code class="optimization-code" title="{{ compatible_active.policy_snapshot_id if compatible_active else '' }}">{{ compatible_active.policy_snapshot_id if compatible_active else 'none' }}</code></span>
-      <span class="k">Evidence episodes</span><span class="v">{{ episode_count }}</span>
-      <span class="k">Rating events</span><span class="v">{{ rating_event_count }}</span>
-      <span class="k">Event watermark</span><span class="v">{{ evidence.event_watermark }}</span>
-      <span class="k">Decision policy</span><span class="v"><code class="optimization-code" title="{{ decision_learning_policy_fingerprint }}">{{ decision_learning_policy_fingerprint }}</code></span>
-      <span class="k">Optimizer policy</span><span class="v"><code class="optimization-code" title="{{ optimizer_policy_fingerprint }}">{{ optimizer_policy_fingerprint }}</code></span>
-      <span class="k">Runtime contract</span><span class="v"><code class="optimization-code" title="{{ provenance.current_runtime_contract_fingerprint }}">{{ provenance.current_runtime_contract_fingerprint }}</code></span>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Optimize Current Evidence</h2>
-    <p class="muted">Uses saved 1-5-star application-interest ratings. Creates a candidate only; it never activates automatically.</p>
-    {% if not evidence_ready %}<p><strong>No saved rating evidence yet.</strong> Rate jobs before optimizing.</p>{% endif %}
-    <form method="post" action="/admin/optimization/candidate" class="optimization-form">
-      <input type="hidden" name="domain_id" value="{{ domain_id }}">
-      <input type="hidden" name="evidence_head_fingerprint" value="{{ evidence.evidence_head_fingerprint }}">
-      <input type="hidden" name="expected_parent_ref" value="{{ current_parent_ref }}">
-      <div><button class="btn-primary" type="submit" {% if not evidence_ready %}disabled{% endif %}>Optimize Current Evidence</button></div>
-    </form>
-  </section>
-
-  <section class="card optimization-history">
-    <h2>Rating Evidence</h2>
-    <p class="muted">Read-only saved application-interest ratings currently available to optimization.</p>
-    <table>
-      <thead><tr><th>Rated</th><th>Run</th><th>Job</th><th>Saved rank</th><th>Baseline fit</th><th>User rating</th></tr></thead>
-      <tbody>
-        {% for row in rating_evidence %}
-        <tr>
-          <td>{{ row.rated_at }}</td>
-          <td><a href="/admin/runs/{{ row.run_id }}"><code>{{ row.run_id }}</code></a></td>
-          <td><a href="{{ row.source_job_url }}" title="{{ row.alternative_id }}">Open job</a></td>
-          <td>{{ row.displayed_rank }}</td>
-          <td>{{ row.baseline_fit_label }} ({{ '%.3f'|format(row.baseline_fit) }})</td>
-          <td>{{ row.rating }} stars</td>
-        </tr>
-        {% else %}
-        <tr class="empty-row"><td colspan="6">No effective saved ratings.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-
-  <section class="card">
-    <h2>Latest Candidate</h2>
-    {% if latest_candidate %}
-    <div class="kv">
-      <span class="k">Status</span><span class="v"><span class="badge badge-{{ 'warning' if latest_candidate.status in ['stale', 'rejected'] else 'info' }}">{{ latest_candidate.status }}</span></span>
-      <span class="k">Snapshot ID</span><span class="v"><code class="optimization-code" title="{{ latest_candidate.policy_snapshot_id }}">{{ latest_candidate.policy_snapshot_id }}</code></span>
-      <span class="k">Parent</span><span class="v"><code class="optimization-code" title="{{ latest_candidate.parent_policy_ref }}">{{ latest_candidate.parent_policy_ref }}</code></span>
-      <span class="k">Evidence watermark</span><span class="v">{{ latest_candidate.event_watermark }}</span>
-      <span class="k">Evidence fingerprint</span><span class="v"><code class="optimization-code" title="{{ candidate_evidence_head }}">{{ candidate_evidence_head or 'unknown' }}</code></span>
-      <span class="k">Solver</span><span class="v">{{ candidate_result.solver_result.solver_name if candidate_result.solver_result else 'not available' }} / {{ candidate_result.solver_result.status if candidate_result.solver_result else 'unknown' }}</span>
-      <span class="k">Episodes</span><span class="v">{{ candidate_result.solver_result.episode_count if candidate_result.solver_result else 'unknown' }}</span>
-      <span class="k">Compiled edges</span><span class="v">{{ candidate_result.solver_result.compiled_edge_count if candidate_result.solver_result else 'unknown' }}</span>
-      <span class="k">Vector norm / bound</span><span class="v">{{ candidate_result.solver_result.preference_vector_norm if candidate_result.solver_result else 'unknown' }} / {{ latest_candidate.preference_vector_norm_bound }}</span>
-      <span class="k">Coverage</span><span class="v">{{ candidate_result.evaluation_result.aggregate_metrics.coverage if candidate_result.evaluation_result and candidate_result.evaluation_result.aggregate_metrics else 'unknown' }}</span>
-      <span class="k">Retrieval audit</span><span class="v">{{ 'available' if candidate_result.evaluation_result and candidate_result.evaluation_result.retrieval_audit_available else 'not available' }}</span>
-      <span class="k">Activation</span><span class="v">{{ 'eligible' if candidate_activation_eligible else 'blocked by current evidence, parent, state, or policy' }}</span>
-    </div>
-    {% if latest_candidate.status == 'candidate' %}
-    <div class="optimization-actions">
-      {% if candidate_activation_eligible %}
-      <form method="post" action="/admin/optimization/candidates/{{ latest_candidate.policy_snapshot_id }}/activate" class="optimization-form">
+{% if detail_view %}
+<main class="details-page-layout" data-page="preference-optimization-detail" data-header-title="Preference Optimization" data-header-description="Review one optimization run.">
+  <div class="details-page-head">
+  <a class="details-page-back" href="/admin/optimization">← Back to Preference Optimization</a>
+  <div class="page-head">
+    <div><p class="eyebrow">Preference Optimization</p><h2>Optimization {{ optimization_run.preference_optimization_run_id }}</h2><p>Review saved inputs, rating evidence, and lifecycle events.</p></div>
+    {% if not removed and optimization_run.policy_snapshot_id %}
+    <div class="run-selection-actions">
+      <div class="optimization-policy-controls">
+      {% if is_active %}
+      <form method="post" action="/admin/optimization/runs/{{ optimization_run.preference_optimization_run_id }}/inactivate" data-confirm-inactivation>
+        <input type="hidden" name="expected_active_snapshot_id" value="{{ optimization_run.policy_snapshot_id }}">
+        <button class="btn primary" type="submit" {% if not personalized_enabled %}disabled aria-describedby="detail-policy-disabled"{% endif %}>Inactivate Policy</button>
+      </form>
+      {% elif optimization_run.policy_status == 'candidate' %}
+      <form method="post" action="/admin/optimization/runs/{{ optimization_run.preference_optimization_run_id }}/activate">
         <input type="hidden" name="expected_parent_ref" value="{{ current_parent_ref }}">
-        <input type="hidden" name="evidence_head_fingerprint" value="{{ evidence.evidence_head_fingerprint }}">
-        <label>Operator <input name="actor" required maxlength="120" autocomplete="name"></label>
-        <button class="btn-primary" type="submit">Activate Candidate</button>
+        <input type="hidden" name="evidence_head_fingerprint" value="{{ optimization_run.evidence_head_fingerprint }}">
+        <button class="btn primary" type="submit" {% if not personalized_enabled %}disabled aria-describedby="detail-policy-disabled"{% endif %}>Activate Policy</button>
       </form>
       {% endif %}
-      <form method="post" action="/admin/optimization/candidates/{{ latest_candidate.policy_snapshot_id }}/reject" class="optimization-form">
-        <input type="hidden" name="expected_parent_ref" value="{{ current_parent_ref }}">
-        <input type="hidden" name="evidence_head_fingerprint" value="{{ evidence.evidence_head_fingerprint }}">
-        <label>Operator <input name="actor" required maxlength="120" autocomplete="name"></label>
-        <label>Reason <input name="reason" required maxlength="200"></label>
-        <button class="btn-secondary" type="submit">Reject Candidate</button>
-      </form>
+      {% if not personalized_enabled %}<p class="supporting-text" id="detail-policy-disabled">Choose Personalized Ranking to use this action.</p>{% endif %}
+      </div>
     </div>
     {% endif %}
-    {% else %}<p class="muted">No candidate snapshot exists.</p>{% endif %}
-  </section>
+  </div>
+  </div>
 
-  <section class="card">
-    <h2>Active Policy and Rollback</h2>
-    <p>Current mode: <strong>{{ current_mode }}</strong></p>
-    {% if compatible_active %}
-    <form method="post" action="/admin/optimization/rollback" class="optimization-form">
-      <fieldset>
-        <legend>Rollback Policy</legend>
-        <input type="hidden" name="expected_active" value="{{ compatible_active.policy_snapshot_id }}">
-        <label>Operator <input name="actor" required maxlength="120" autocomplete="name"></label>
-        <label>Target
-          <select name="target" required>
-            <option value="zero_residual">zero_residual</option>
-            {% for snapshot in rollback_targets %}<option value="{{ snapshot.policy_snapshot_id }}">{{ snapshot.policy_snapshot_id }}</option>{% endfor %}
+  {% if notice %}<div class="notice optimization-notice" data-level="{{ notice.level }}" role="status">{{ notice.message }}</div>{% endif %}
+  {% if removed %}<div class="notice" role="status"><strong>Removed from Optimization Runs</strong><br><span class="meta">Historical details remain available.</span></div>{% endif %}
+  {% if baseline_fallback %}<div class="notice" role="status">Baseline Ranking is being used until a policy is activated.</div>{% endif %}
+
+  <div class="optimization-stack">
+    <details class="section-card collapsible-section drawer-section" open>
+      <summary><span class="section-heading"><strong id="optimization-overview-title">Overview</strong><span>Saved result and inputs for this optimization.</span></span><span class="drawer-status">{{ run_status_badge(display_status) }}</span></summary>
+      <div class="section-content drawer-section-content"><dl class="details-grid">
+        <div class="detail-item"><dt>Optimization ID</dt><dd>{{ optimization_run.preference_optimization_run_id }}</dd></div>
+        <div class="detail-item"><dt>Status</dt><dd>{{ display_status }}</dd></div>
+        <div class="detail-item"><dt>Created</dt><dd>{{ optimization_run.created_at }}</dd></div>
+        <div class="detail-item"><dt>Personalization Strength</dt><dd>{{ '%.2f'|format(optimization_run.personalization_strength) }}</dd></div>
+        <div class="detail-item"><dt>Ratings Included</dt><dd>{{ optimization_run.rating_evidence_rows_json|length }}</dd></div>
+        <div class="detail-item"><dt>Policy</dt><dd>{% if is_active and is_compatible_active %}Active{% elif is_active %}Active · Not in use{% elif optimization_run.policy_status == 'candidate' %}Ready to activate{% elif optimization_run.policy_status %}{{ optimization_run.policy_status|capitalize }}{% else %}Not created{% endif %}</dd></div>
+      </dl></div>
+    </details>
+
+    <details class="section-card collapsible-section drawer-section" open>
+      <summary><span class="section-heading"><strong id="detail-rating-evidence-title">Rating Evidence</strong><span>Historical ratings saved when this optimization ran.</span></span></summary>
+      <div class="section-content">{{ evidence_table(rating_evidence) }}</div>
+    </details>
+
+    {% set process_type = 'optimization' %}
+    {% set process_id = optimization_run.preference_optimization_run_id %}
+    {% set process_console_title = 'Console Log' %}
+    {% set process_console_description = 'Optimization lifecycle events.' %}
+    {% set process_console_simple = true %}
+    {% set process_console_ephemeral_clear = true %}
+    {% include "_process_console.html" %}
+  </div>
+</main>
+{% else %}
+<main data-page="preference-optimization" data-header-description="Configure ranking mode, rating evidence, and optimization runs.">
+  <div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>Preference Optimization</h2><p>Choose ranking behavior, review saved ratings, and manage learned policies.</p></div></div>
+
+  {% if notice %}<div class="notice optimization-notice" data-level="{{ notice.level }}" role="status">{{ notice.message }}</div>{% endif %}
+  {% if baseline_fallback %}<div class="notice" role="status">Baseline Ranking is being used until a policy is activated.</div>{% endif %}
+
+  <div class="optimization-stack">
+    <details class="section-card collapsible-section setting-section" open>
+      <summary><span class="section-heading"><strong id="ranking-mode-title">Ranking Mode</strong><span>Choose standard ranking or ranking adjusted by your saved ratings.</span></span></summary>
+      <div class="section-content settings-card"><div class="row settings-row">
+        <span><strong>Ranking Mode</strong><span class="meta">Applies to future ranking runs across this workspace.</span></span>
+        <form class="optimization-setting-form" method="post" action="/admin/optimization/ranking-mode">
+          <input type="hidden" name="settings_revision" value="{{ settings_revision }}">
+          <label class="optimization-sr-only" for="ranking-mode-select">Ranking Mode</label>
+          <select class="field preference-mode-field" id="ranking-mode-select" name="ranking_mode" data-auto-submit>
+            <option value="baseline" {% if ranking_mode == 'baseline' %}selected{% endif %}>Baseline Ranking</option>
+            <option value="personalized" {% if ranking_mode == 'personalized' %}selected{% endif %}>Personalized Ranking</option>
           </select>
-        </label>
-        <label><span><input type="checkbox" name="confirm" required> Confirm rollback</span></label>
-        <button class="btn-secondary" type="submit">Rollback Policy</button>
-      </fieldset>
+          <noscript><button class="btn primary" type="submit">Save</button></noscript>
+        </form>
+      </div></div>
+    </details>
+
+    <details class="section-card collapsible-section setting-section" open>
+      <summary><span class="section-heading"><strong id="personalization-strength-title">Personalization Strength</strong><span>Controls how strongly saved ratings adjust job order.</span></span></summary>
+      {% set strength_disabled = not personalized_enabled or active_any %}
+      <div class="section-content settings-card"><div class="row settings-row{% if strength_disabled %} is-disabled{% endif %}">
+        <span><strong>Personalization Strength</strong><p>Higher values allow larger changes from Baseline Ranking.</p><p class="supporting-text">Current value: {{ '%.2f'|format(personalization_strength) }}</p>{% if strength_disabled %}<p class="supporting-text" id="strength-disabled-reason">{% if not personalized_enabled %}Choose Personalized Ranking to manage this setting.{% else %}Inactivate Policy before changing Personalization Strength.{% endif %}</p>{% endif %}</span>
+        <span class="control">
+          <button class="btn" id="open-strength-dialog" type="button" {% if strength_disabled %}disabled aria-describedby="strength-disabled-reason"{% endif %}>Manage</button>
+        </span>
+      </div></div>
+    </details>
+
+    <details class="section-card collapsible-section setting-section" open>
+      <summary><span class="section-heading"><strong id="rating-evidence-title">Rating Evidence</strong><span>Saved job ratings currently available for a new optimization.</span></span></summary>
+      <div class="section-content"><div class="settings-card"><div class="row settings-row"><span><strong>Saved Ratings</strong><p>{{ rating_evidence|length }} saved ratings across completed runs.</p>{% if not personalized_enabled %}<p class="supporting-text" id="optimize-disabled-reason">Choose Personalized Ranking to optimize ratings.</p>{% endif %}</span><span class="control">
+        <form method="post" action="/admin/optimization/candidate" data-optimize-form>
+          <input type="hidden" name="domain_id" value="{{ domain_id }}">
+          <input type="hidden" name="evidence_head_fingerprint" value="{{ evidence.evidence_head_fingerprint }}">
+          <input type="hidden" name="expected_parent_ref" value="{{ current_parent_ref }}">
+          <button class="btn primary" type="submit" {% if not personalized_enabled %}disabled aria-describedby="optimize-disabled-reason"{% endif %}>Optimize Current Ratings</button>
+        </form>
+      </span></div></div>{{ evidence_table(rating_evidence) }}</div>
+    </details>
+
+    <details class="section-card collapsible-section setting-section" open>
+      <summary><span class="section-heading"><strong id="optimization-runs-title">Optimization Runs</strong><span>Review results and manage the policy created by each run.</span></span></summary>
+      <div class="section-content"><div class="table-scroll optimization-table-wrap">
+        <table class="run-table optimization-runs">
+          <thead><tr><th>Optimization ID</th><th>Created</th><th>Strength</th><th>Status</th><th>Policy</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for row in optimization_runs %}
+            <tr>
+              <td><a class="optimization-id-link run-id" href="/admin/optimization/runs/{{ row.preference_optimization_run_id }}">{{ row.preference_optimization_run_id }}</a></td>
+              <td class="meta">{{ row.created_at }}</td>
+              <td>{{ '%.2f'|format(row.personalization_strength) }}</td>
+              <td>{{ run_status_badge(row.display_status) }}</td>
+              <td>{% if row.is_active and row.is_compatible_active %}Active{% elif row.is_active %}Active · Not in use{% elif row.policy_status == 'candidate' %}Ready to activate{% elif row.policy_status %}{{ row.policy_status|capitalize }}{% else %}Not created{% endif %}</td>
+              <td>
+                <div class="job-action-row">
+                  {% if row.is_active %}
+                  <form method="post" action="/admin/optimization/runs/{{ row.preference_optimization_run_id }}/inactivate" data-confirm-inactivation>
+                    <input type="hidden" name="expected_active_snapshot_id" value="{{ row.policy_snapshot_id }}">
+                    <button class="small-action" type="submit" {% if not personalized_enabled %}disabled{% endif %}>Inactivate Policy</button>
+                  </form>
+                  {% elif row.policy_status == 'candidate' %}
+                  <form method="post" action="/admin/optimization/runs/{{ row.preference_optimization_run_id }}/activate">
+                    <input type="hidden" name="expected_parent_ref" value="{{ current_parent_ref }}">
+                    <input type="hidden" name="evidence_head_fingerprint" value="{{ row.evidence_head_fingerprint }}">
+                    <button class="small-action" type="submit" {% if not personalized_enabled %}disabled{% endif %}>Activate Policy</button>
+                  </form>
+                  {% endif %}
+                  <form method="post" action="/admin/optimization/runs/{{ row.preference_optimization_run_id }}/remove" data-confirm-remove>
+                    <button class="small-action" type="submit" {% if not personalized_enabled or row.is_active %}disabled{% endif %}>Remove</button>
+                  </form>
+                </div>
+                {% if not personalized_enabled %}<p class="supporting-text">Choose Personalized Ranking to use these actions.</p>{% elif row.is_active %}<p class="supporting-text">Inactivate Policy before removing this run.</p>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row"><td colspan="6">No optimization runs yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div></div>
+    </details>
+  </div>
+
+  <dialog class="workspace-dialog" id="strength-dialog" aria-labelledby="strength-dialog-title">
+    <form class="optimization-dialog-form" method="post" action="/admin/optimization/personalization-strength">
+      <div class="dialog-head"><div><h2 id="strength-dialog-title">Personalization Strength</h2><p>Set how strongly saved ratings can influence future personalized rankings.</p></div><button class="dialog-close" id="cancel-strength-dialog" type="button" aria-label="Close Personalization Strength dialog">×</button></div>
+      <input type="hidden" name="settings_revision" value="{{ settings_revision }}">
+      <label for="personalization-strength-input">Personalization Strength
+        <input class="field" id="personalization-strength-input" name="value" type="number" value="{{ personalization_strength }}" min="{{ personalization_strength_meta.min }}" max="{{ personalization_strength_meta.max }}" step="{{ personalization_strength_meta.step }}" required aria-describedby="personalization-strength-help">
+      </label>
+      <p class="meta" id="personalization-strength-help">Choose a value from {{ personalization_strength_meta.min }} to {{ personalization_strength_meta.max }}.</p>
+      <div class="dialog-actions"><button class="btn" type="button" data-cancel-strength>Cancel</button><button class="btn primary" type="submit">Save</button></div>
     </form>
-    {% else %}<p class="muted">No compatible learned policy is active.</p>{% endif %}
-  </section>
+  </dialog>
+</main>
+{% endif %}
 
-  {% set process_type = "optimization" %}
-  {% set process_id = domain_id %}
-  {% include "_process_console.html" %}
+<script>
+(function() {
+  var strengthDialog = document.getElementById('strength-dialog');
+  var openStrength = document.getElementById('open-strength-dialog');
+  var cancelStrength = document.querySelectorAll('#cancel-strength-dialog, [data-cancel-strength]');
+  if (strengthDialog && openStrength && cancelStrength.length) {
+    openStrength.addEventListener('click', function() {
+      strengthDialog.showModal();
+      document.getElementById('personalization-strength-input').focus();
+    });
+    cancelStrength.forEach(function(button) {
+      button.addEventListener('click', function() {
+        strengthDialog.close();
+        openStrength.focus();
+      });
+    });
+  }
 
-  <section class="card optimization-history">
-    <h2>Legacy Optimization History</h2>
-    <h3>Training Runs</h3>
-    <table><thead><tr><th>Created</th><th>Status</th><th>Training Run</th><th>Watermark</th></tr></thead><tbody>
-      {% for row in history.training_runs %}<tr><td>{{ row.created_at }}</td><td>{{ row.status }}</td><td><code>{{ row.training_run_id }}</code></td><td>{{ row.event_watermark }}</td></tr>{% else %}<tr class="empty-row"><td colspan="4">No training runs.</td></tr>{% endfor %}
-    </tbody></table>
-    <h3>Policy Snapshots</h3>
-    <table><thead><tr><th>Created</th><th>Status</th><th>Snapshot</th><th>Parent</th></tr></thead><tbody>
-      {% for row in history.snapshots %}<tr><td>{{ row.created_at }}</td><td>{{ row.status }}</td><td><code>{{ row.policy_snapshot_id }}</code></td><td><code>{{ row.parent_policy_ref }}</code></td></tr>{% else %}<tr class="empty-row"><td colspan="4">No policy snapshots.</td></tr>{% endfor %}
-    </tbody></table>
-    <h3>Activation Events</h3>
-    <table><thead><tr><th>Created</th><th>Action</th><th>Target</th><th>Operator</th></tr></thead><tbody>
-      {% for row in history.events %}<tr><td>{{ row.created_at }}</td><td>{{ row.action }}</td><td><code>{{ row.target_snapshot_id or 'zero_residual' }}</code></td><td>{{ row.acted_by }}</td></tr>{% else %}<tr class="empty-row"><td colspan="4">No activation events.</td></tr>{% endfor %}
-    </tbody></table>
-  </section>
-</div>
+  document.querySelectorAll('[data-auto-submit]').forEach(function(control) {
+    control.addEventListener('change', function() { control.form.requestSubmit(); });
+  });
+
+  document.querySelectorAll('[data-optimize-form]').forEach(function(form) {
+    form.addEventListener('submit', function() {
+      var button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      button.textContent = 'Optimizing…';
+    });
+  });
+
+  document.querySelectorAll('[data-confirm-inactivation]').forEach(function(form) {
+    form.addEventListener('submit', function(event) {
+      if (!window.confirm('Inactivate this policy? Baseline Ranking will be used until another policy is activated.')) {
+        event.preventDefault();
+        return;
+      }
+      var confirmation = document.createElement('input');
+      confirmation.type = 'hidden';
+      confirmation.name = 'confirm';
+      confirmation.value = 'on';
+      form.appendChild(confirmation);
+    });
+  });
+
+  document.querySelectorAll('[data-confirm-remove]').forEach(function(form) {
+    form.addEventListener('submit', function(event) {
+      if (!window.confirm('Remove this run from Optimization Runs? Historical data will be retained.')) event.preventDefault();
+    });
+  });
+})();
+</script>
 {% endblock %}

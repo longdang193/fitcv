@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-preference-optimization-implementation
 parent_spec: docs/superpowers/specs/2026-07-23-12-31-fitcv-preference-optimization-frontend-backend-integration-spec.md
@@ -45,7 +45,7 @@ Activation enforces one active policy per domain, inactivation performs audited 
 
 ### Consistent Local UI And Proof
 
-Main and direct-detail pages use existing Pipeline setting, dialog, table, button, status, and Console patterns; backend guards every disabled UI action; focused persistence, runtime, route, template, security, prototype, browser, accessibility, and regression checks pass before temporary integration sidecar removal.
+Main and direct-detail pages use the prototype's exact visual tokens, shared shell, collapsible setting/dialog/table/button/status/Console structure, and responsive behavior. Existing production patterns are reused only when visually identical; otherwise the shared production owner is aligned. Backend guards every disabled UI action; focused persistence, runtime, route, template, security, prototype, browser, accessibility, and regression checks pass before completion.
 
 ## Execution Approach
 
@@ -78,6 +78,7 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Modify: `src/fitcv_cp/settings_schema.py:coerce_value`
 - Modify: `src/fitcv_cp/settings_schema.py:validate_settings`
 - Modify: `src/fitcv_cp/settings_schema.py:merge_and_validate_settings`
+- Modify: `src/fitcv_cp/settings_schema.py:settings_native_input_attrs`
 - Modify: `src/fitcv_cp/settings_schema.py:apply_settings_to_config`
 - Reuse: `src/fitcv_cp/settings_store.py:mutate_settings_atomically`
 - Verify: `tests/test_config.py`
@@ -91,14 +92,14 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Existing `pipeline_settings` and `settings_revision()` remain canonical mutable workspace owner.
 
 **Steps:**
-- [ ] Step 1: Add `inverse_optimization.learned_alpha_bounds` with exact `minimum: 0.01`, `maximum: 0.10`, and `step: 0.01`; keep `learned_alpha: 0.05` as recommended/default and retain hard runtime safety `(0, 0.25]`.
-- [ ] Step 2: Validate exact bounds keys, finite decimal values, `0 < minimum <= learned_alpha <= maximum <= 0.25`, and positive step that can represent all allowed values without widening runtime safety.
-- [ ] Step 3: Add editable schema entries `preference_optimization.ranking_mode` (`baseline|personalized`, default `baseline`) and `preference_optimization.personalization_strength` (default from `learned_alpha`, bounds from policy metadata).
-- [ ] Step 4: Keep both values in existing atomic settings transaction; reject direct strength mutation under baseline with `personalized_ranking_required` and preserve stale-revision rollback. Keep active-policy lookup outside generic settings schema/store.
-- [ ] Step 5: Project current/minimum/maximum/step/recommended values without copying policy metadata into browser storage or another config owner.
+- [x] Step 1: Add `inverse_optimization.learned_alpha_bounds` with exact `minimum: 0.01`, `maximum: 0.10`, and `step: 0.01`; keep `learned_alpha: 0.05` as recommended/default and retain hard runtime safety `(0, 0.25]`.
+- [x] Step 2: Validate exact bounds keys, finite decimal values, `0 < minimum <= learned_alpha <= maximum <= 0.25`, and positive step that can represent all allowed values without widening runtime safety.
+- [x] Step 3: Add editable schema entries `preference_optimization.ranking_mode` (`baseline|personalized`, default `baseline`) and `preference_optimization.personalization_strength` (default from `learned_alpha`, bounds from policy metadata).
+- [x] Step 4: Keep both values in existing atomic settings transaction; reject direct strength mutation under baseline with `personalized_ranking_required` and preserve stale-revision rollback. Keep active-policy lookup outside generic settings schema/store.
+- [x] Step 5: Project current/minimum/maximum/step/recommended values without copying policy metadata into browser storage or another config owner.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_config.py tests/test_decision_feedback.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_settings_store.py tests/test_fitcv_cp/test_settings_store_sqlite.py -q`
+- [x] `python -m pytest tests/test_config.py tests/test_decision_feedback.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_settings_store.py tests/test_fitcv_cp/test_settings_store_sqlite.py -q`
 - Expected: policy metadata rejects malformed bounds; defaults are baseline/0.05; valid settings round-trip; invalid, active-policy, and stale-revision writes change no rows.
 
 **Exit Criteria:**
@@ -119,8 +120,6 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 **Files And Symbols:**
 - Modify: `src/fitcv/preference_policy.py:build_training_run_identity`
 - Add: `src/fitcv/preference_policy.py:build_preference_optimization_run_id`
-- Modify: `src/fitcv_cp/sqlite_store.py:CONTROL_PLANE_SCHEMA_VERSION`
-- Modify: `src/fitcv_cp/sqlite_store.py:_ensure_control_plane_schema`
 - Modify: `src/fitcv_cp/sqlite_store.py:_ensure_local_preference_policy_tables`
 - Modify: `src/fitcv_cp/sqlite_store.py:persist_candidate_attempt`
 - Add: `src/fitcv_cp/sqlite_store.py:get_preference_optimization_run`
@@ -134,20 +133,20 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Internal `inverse_training_runs` remains immutable and authoritative for solver result.
 
 **Steps:**
-- [ ] Step 1: Build one atomic version-4-to-version-5 migration while retaining version-3 upgrade behavior; write `PRAGMA user_version = 5` only after projection, lifecycle cleanup, uniqueness, and settings initialization all succeed.
-- [ ] Step 2: Create `preference_optimization_runs` keyed by deterministic `por_` ID with unique restricted foreign key to `inverse_training_runs(training_run_id)`, immutable settings/evidence payload, `created_at`, nullable `hidden_at`, and nullable `hidden_by`. Require complete settings/evidence fields for new rows; permit explicit null/unavailable markers only for legacy backfill.
-- [ ] Step 3: Store ordered unique effective `set_rating` event IDs and minimal immutable display rows (`source_rating_event_id`, run ID, job identity/label, source URL, saved rank, baseline fit/label, rating, rated time) as validated JSON owned by projection row.
-- [ ] Step 4: Add update/delete triggers that protect identity and evidence fields while allowing only reversible `hidden_at`/`hidden_by` changes; retain no-delete triggers on training, snapshot, and audit tables.
-- [ ] Step 5: Generate public ID from internal content identity deterministically, abort mapping collision/mismatch, and make duplicate candidate persistence return same projection.
-- [ ] Step 6: Backfill projection rows for existing training attempts with public identity and available immutable metadata only; mark unavailable settings/evidence explicitly rather than fabricating current state.
-- [ ] Step 7: Inspect all active snapshots per domain; retain current-runtime-compatible winner by latest `activated_at` then `policy_snapshot_id`, retire every other active row with one `domain_single_active_migration` event, and abort the migration on any cleanup failure.
-- [ ] Step 8: Drop the per-runtime active index and add the domain-wide partial unique index only after active cleanup completes in the same transaction.
-- [ ] Step 9: Initialize both workspace keys together: selected compatible active policy becomes `personalized` with its in-bounds strength; no compatible active becomes `baseline` with recommended strength. Do not overwrite already-present Preference Optimization settings.
-- [ ] Step 10: Implement visible-list query, direct-detail query including hidden rows, and idempotent hide that blocks active policy owners and appends one `optimization_run_hidden` process event only on first hide.
+- [x] Step 1: Reuse existing `integration_migrations` table with one `preference_optimization_projection_v1` key; run projection, lifecycle cleanup, uniqueness, and settings initialization in one transaction, and insert migration record only after all steps succeed. Keep `CONTROL_PLANE_SCHEMA_VERSION` unchanged.
+- [x] Step 2: Create `preference_optimization_runs` keyed by deterministic `por_` ID with unique restricted foreign key to `inverse_training_runs(training_run_id)`, immutable settings/evidence payload, `created_at`, nullable `hidden_at`, and nullable `hidden_by`. Require complete settings/evidence fields for new rows; permit explicit null/unavailable markers only for legacy backfill.
+- [x] Step 3: Store ordered unique effective `set_rating` event IDs and minimal immutable display rows (`source_rating_event_id`, run ID, job identity/label, source URL, saved rank, baseline fit/label, rating, rated time) as validated JSON owned by projection row.
+- [x] Step 4: Add update/delete triggers that protect identity and evidence fields while allowing only reversible `hidden_at`/`hidden_by` changes; retain no-delete triggers on training, snapshot, and audit tables.
+- [x] Step 5: Generate public ID from internal content identity deterministically, abort mapping collision/mismatch, and make duplicate candidate persistence return same projection.
+- [x] Step 6: Backfill projection rows for existing training attempts with public identity and available immutable metadata only; mark unavailable settings/evidence explicitly rather than fabricating current state.
+- [x] Step 7: Inspect all active snapshots per domain; retain current-runtime-compatible winner by latest `activated_at` then `policy_snapshot_id`, retire every other active row with one `domain_single_active_migration` event, and abort the integration migration on any cleanup failure.
+- [x] Step 8: Drop the per-runtime active index and add the domain-wide partial unique index only after active cleanup completes in the same transaction.
+- [x] Step 9: Initialize both workspace keys together: selected compatible active policy becomes `personalized` with its in-bounds strength; no compatible active becomes `baseline` with recommended strength. Do not overwrite already-present Preference Optimization settings.
+- [x] Step 10: Implement visible-list query, direct-detail query including hidden rows, and idempotent hide that blocks active policy owners and appends one `optimization_run_hidden` process event only on first hide.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_sqlite_store.py tests/test_preference_policy.py -q`
-- Expected: version-4 fixture upgrades atomically without data loss or multiple active domain policies; failed migration leaves version/data unchanged; public IDs are stable and one-to-one; immutable fields reject mutation/deletion; hide is reversible in storage, idempotent, and never deletes history.
+- [x] `python -m pytest tests/test_fitcv_cp/test_sqlite_store.py tests/test_preference_policy.py -q` — `105 passed` on July 23, 2026; unrelated Windows pytest cleanup warning remains.
+- Expected: existing database migrates atomically without global schema-version churn, data loss, or multiple active domain policies; failed migration leaves migration record/data unchanged; public IDs are stable and one-to-one; immutable fields reject mutation/deletion; hide is reversible in storage, idempotent, and never deletes history.
 
 **Exit Criteria:**
 - Every persisted attempt has one durable public projection or explicit legacy-unavailable projection, and default listing can exclude hidden rows without losing direct traceability.
@@ -181,13 +180,13 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Task 2 projection resolves public run to internal training/snapshot identity and has already migrated domain-wide active uniqueness.
 
 **Steps:**
-- [ ] Step 1: Keep existing snapshot-ID lifecycle functions as internal compatibility operations. Add public-run activation wrapper that resolves projection and performs hidden/non-candidate/stale/incompatible checks in same transaction before retiring any active domain snapshot, activating target, and appending audit events.
-- [ ] Step 2: Add public-run inactivation operation that accepts expected active snapshot, fixes target to `zero_residual`, derives `acted_by=local_workspace`, retires active row, and appends manual-inactivation rollback event without changing Ranking Mode.
-- [ ] Step 3: Keep runtime lookup compatibility-aware while lifecycle inspection returns both domain-active and compatible-active projections needed for `Active · Not in use`.
-- [ ] Step 4: Extend `RunStore` protocol and `ControlPlaneStore` delegation only with required list/detail/hide/activate/inactivate operations; remove no existing lifecycle safeguards.
+- [x] Step 1: Keep existing snapshot-ID lifecycle functions as internal compatibility operations. Add public-run activation wrapper that resolves projection and performs hidden/non-candidate/stale/incompatible checks in same transaction before retiring any active domain snapshot, activating target, and appending audit events.
+- [x] Step 2: Add public-run inactivation operation that accepts expected active snapshot, fixes target to `zero_residual`, derives `acted_by=local_workspace`, retires active row, and appends manual-inactivation rollback event without changing Ranking Mode.
+- [x] Step 3: Keep runtime lookup compatibility-aware while lifecycle inspection returns both domain-active and compatible-active projections needed for `Active · Not in use`.
+- [x] Step 4: Extend `RunStore` protocol and `ControlPlaneStore` delegation only with required list/detail/hide/activate/inactivate operations; remove no existing lifecycle safeguards.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_store.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_store.py -q` — `115 passed` on July 23, 2026; unrelated Windows pytest cleanup warning remains.
 - Expected: concurrent activation cannot leave two active domain policies; inactivation is audited and fixed-target; hidden active owners are impossible; incompatible active remains visible as lifecycle-active but unusable by runtime.
 
 **Exit Criteria:**
@@ -219,14 +218,14 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Tasks 1-3 provide settings, projection persistence, and lifecycle lookup.
 
 **Steps:**
-- [ ] Step 1: Have route layer load Ranking Mode, Strength, and settings revision from persisted workspace settings, then pass those authoritative values into `create_ranking_policy_candidate`; reject baseline before solver/persistence and ignore or reject submitted numeric strength.
-- [ ] Step 2: Build runtime/optimizer input with current persisted strength while preserving policy fingerprints, norm bound, parent, evidence, and provenance compare tokens.
-- [ ] Step 3: Extract effective source rating events in canonical sequence, capture minimal historical rows and job-label fallback from canonical run-job projection, and include settings revision/evidence metadata in projection payload.
-- [ ] Step 4: Preserve no-run behavior for stale preconditions; persist terminal rows for candidate, no-op, evaluation rejection, insufficient evidence, invalid input, infeasible policy, and solver error handled after request acceptance.
-- [ ] Step 5: Return public run ID and deterministic status projection; uncertain retry resolves existing identical run instead of creating duplicate training/projection/audit rows.
+- [x] Step 1: Have route layer load Ranking Mode, Strength, and settings revision from persisted workspace settings, then pass those authoritative values into `create_ranking_policy_candidate`; reject baseline before solver/persistence and ignore or reject submitted numeric strength.
+- [x] Step 2: Build runtime/optimizer input with current persisted strength while preserving policy fingerprints, norm bound, parent, evidence, and provenance compare tokens.
+- [x] Step 3: Extract effective source rating events in canonical sequence, capture minimal historical rows and job-label fallback from canonical run-job projection, and include settings revision/evidence metadata in projection payload.
+- [x] Step 4: Preserve no-run behavior for stale preconditions; persist terminal rows for candidate, no-op, evaluation rejection, insufficient evidence, invalid input, infeasible policy, and solver error handled after request acceptance.
+- [x] Step 5: Return public run ID and deterministic status projection; uncertain retry resolves existing identical run instead of creating duplicate training/projection/audit rows.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_optimization_service.py tests/test_fitcv_cp/test_sqlite_store.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_optimization_service.py tests/test_fitcv_cp/test_sqlite_store.py -q`
 - Expected: baseline creates no run; accepted submission creates one terminal run; duplicate request reuses identity; historical evidence remains unchanged after later ratings; technical status maps deterministically.
 
 **Exit Criteria:**
@@ -260,18 +259,21 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Task 3 compatibility-aware active resolution is available.
 
 **Steps:**
-- [ ] Step 1: Extend runtime resolution input with normalized ranking mode and persisted strength; do not mutate policy YAML or active snapshot during resolution.
-- [ ] Step 2: Resolve baseline mode directly to zero residual with stable baseline diagnostic even when compatible or incompatible active policies exist.
-- [ ] Step 3: In personalized mode, require active policy compatibility across baseline, ranking, embedding, dimension, strength, and norm-bound contract; otherwise return stable zero-residual fallback.
-- [ ] Step 4: Preserve existing `existing_payload` fast path so completed and resumed runs use captured policy payload rather than current workspace settings.
-- [ ] Step 5: Confirm scoring remains `baseline_fit + personalization_strength × dot(preference_vector, job_embedding)` with unchanged clipping/validation behavior.
+- [x] Step 1: Extend runtime resolution input with normalized ranking mode and persisted strength; do not mutate policy YAML or active snapshot during resolution.
+- [x] Step 2: Resolve baseline mode directly to zero residual with stable baseline diagnostic even when compatible or incompatible active policies exist.
+- [x] Step 3: In personalized mode, require active policy compatibility across baseline, ranking, embedding, dimension, strength, and norm-bound contract; otherwise return stable zero-residual fallback.
+- [x] Step 4: Preserve existing `existing_payload` fast path so completed and resumed runs use captured policy payload rather than current workspace settings.
+- [x] Step 5: Confirm scoring remains `baseline_fit + personalization_strength × dot(preference_vector, job_embedding)` with unchanged clipping/validation behavior.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_preference_policy.py tests/test_ranking.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q`
+- [x] `python -m pytest tests/test_preference_policy.py tests/test_ranking.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py -q`
 - Expected: baseline always ranks with zero residual; personalized compatible active uses captured strength; incompatible/missing/store-failure states fall back; completed/resumed output remains stable after later settings changes.
 
 **Exit Criteria:**
 - Runtime and page can derive same effective state from canonical settings and lifecycle records.
+
+**Execution Note:**
+- No pipeline call-site edit was needed: both pipeline paths already pass the captured effective run config into the shared resolver, so changing that shared owner preserves resumed-run permanence with less duplication.
 
 ### Task 6: Add Local Server-Rendered Routes And Page Context
 
@@ -309,16 +311,16 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Tasks 1-5 expose canonical settings, run, lifecycle, status, and runtime projections.
 
 **Steps:**
-- [ ] Step 1: Confirm route consumers/middleware through GitNexus impact or source fallback; keep existing local Host/Origin/CSRF/onboarding middleware unchanged.
-- [ ] Step 2: Register all Preference Optimization routes only in packaged-local mode so non-local requests return 404 by absence, not weaker handler checks.
-- [ ] Step 3: Build main context with settings revision, mode, strength metadata, fallback reason, current Rating Evidence, visible run list, domain-active/compatible-active states, disabled reasons, and bounded notices.
-- [ ] Step 4: Build detail context by public run ID, including immutable evidence snapshot, status projection, lifecycle action, removed banner, and bounded Console events; return 404 for unknown/internal IDs.
-- [ ] Step 5: Implement native form PRG handlers with hidden settings/evidence/parent/provenance tokens, server-derived `local_workspace` actor, explicit confirmation for inactivation, stable notices, `303` redirects, and no fetch/JSON fallback. Reject direct Strength, Optimize, Activate, Inactivate, and Remove mutations under baseline; reject Strength while any policy is active.
-- [ ] Step 6: Retain existing snapshot activation/rejection/rollback backend functions only for compatibility; remove old Reject/generic rollback forms from rendered UI and never accept operator actor from new forms.
-- [ ] Step 7: Keep Console Clear browser-only by rendering a clear control with no backend mutation route.
+- [x] Step 1: Confirm route consumers/middleware through GitNexus impact or source fallback; keep existing local Host/Origin/CSRF/onboarding middleware unchanged.
+- [x] Step 2: Register all Preference Optimization routes only in packaged-local mode so non-local requests return 404 by absence, not weaker handler checks.
+- [x] Step 3: Build main context with settings revision, mode, strength metadata, fallback reason, current Rating Evidence, visible run list, domain-active/compatible-active states, disabled reasons, and bounded notices.
+- [x] Step 4: Build detail context by public run ID, including immutable evidence snapshot, status projection, lifecycle action, removed banner, and bounded Console events; return 404 for unknown/internal IDs.
+- [x] Step 5: Implement native form PRG handlers with hidden settings/evidence/parent/provenance tokens, server-derived `local_workspace` actor, explicit confirmation for inactivation, stable notices, `303` redirects, and no fetch/JSON fallback. Reject direct Strength, Optimize, Activate, Inactivate, and Remove mutations under baseline; reject Strength while any policy is active.
+- [x] Step 6: Retain existing snapshot activation/rejection/rollback backend functions only for compatibility; remove old Reject/generic rollback forms from rendered UI and never accept operator actor from new forms.
+- [x] Step 7: Keep Console Clear browser-only by rendering a clear control with no backend mutation route.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_optimization_page.py tests/test_fitcv_cp/test_app.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_optimization_page.py tests/test_fitcv_cp/test_app.py -q`
 - Expected: main/detail and all PRG success/conflict/error paths use public IDs; local mode works; non-local returns 404; Host/Origin/CSRF remain 403; onboarding unsafe mutations remain 409; actor spoof and numeric strength payloads cannot affect state.
 
 **Exit Criteria:**
@@ -350,16 +352,16 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Task 6 page contexts and routes are stable.
 
 **Steps:**
-- [ ] Step 1: Replace technical production layout with Section 1 Ranking Mode, Section 2 Personalization Strength with Manage, Section 3 Rating Evidence with Optimize Current Ratings, and Section 4 Optimization Runs.
-- [ ] Step 2: Render direct detail in same template contract with top-right Activate/Inactivate, Overview, historical Rating Evidence, and Console Log only; omit Policy Version, Results Summary, Technical Details, Reject, and generic rollback UI.
-- [ ] Step 3: Use native select/dialog/form/table/details controls, shared classes/tokens, adjacent disabled reasons, visible focus, screen-reader descriptions, button pending text `Optimizing…`, and one client-side duplicate-submit guard that does not replace backend validation.
-- [ ] Step 4: Under baseline, disable Manage, Optimize, Activate, Inactivate, and Remove actions consistently; under personalized fallback, show baseline-use message; show incompatible active as `Active · Not in use` with Inactivate available.
-- [ ] Step 5: Render terminal labels `Succeeded`, `No Change`, `Not Created`, and `Failed`; render hidden detail as `Removed from Optimization Runs` with no lifecycle action; expose no Restore UI.
-- [ ] Step 6: Keep Rating Evidence columns identical on main/detail and implement Console Clear as current-DOM removal only; reload restores server events.
-- [ ] Step 7: Align prototype local-state behavior and self-check wording with final server contract, including blocked Strength save while active, baseline-disabled actions, manual inactivation fallback, and reversible hidden metadata without Restore UI.
+- [x] Step 1: Replace technical production layout with Section 1 Ranking Mode, Section 2 Personalization Strength with Manage, Section 3 Rating Evidence with Optimize Current Ratings, and Section 4 Optimization Runs.
+- [x] Step 2: Render direct detail in same template contract with top-right Activate/Inactivate, Overview, historical Rating Evidence, and Console Log only; omit Policy Version, Results Summary, Technical Details, Reject, and generic rollback UI.
+- [x] Step 3: Use native select/dialog/form/table/details controls, shared classes/tokens, adjacent disabled reasons, visible focus, screen-reader descriptions, button pending text `Optimizing…`, and one client-side duplicate-submit guard that does not replace backend validation.
+- [x] Step 4: Under baseline, disable Manage, Optimize, Activate, Inactivate, and Remove actions consistently; under personalized fallback, show baseline-use message; show incompatible active as `Active · Not in use` with Inactivate available.
+- [x] Step 5: Render terminal labels `Succeeded`, `No Change`, `Not Created`, and `Failed`; render hidden detail as `Removed from Optimization Runs` with no lifecycle action; expose no Restore UI.
+- [x] Step 6: Keep Rating Evidence columns identical on main/detail and implement Console Clear as current-DOM removal only; reload restores server events.
+- [x] Step 7: Align prototype local-state behavior and self-check wording with final server contract, including blocked Strength save while active, baseline-disabled actions, manual inactivation fallback, and reversible hidden metadata without Restore UI.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_optimization_page.py tests/test_fitcv_pipeline_prototype.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_optimization_page.py tests/test_fitcv_pipeline_prototype.py -q`
 - Expected: template assertions cover all sections/actions/statuses/disabled reasons; prototype contract matches approved wording and no removed technical UI remains.
 
 **Exit Criteria:**
@@ -386,30 +388,66 @@ Main and direct-detail pages use existing Pipeline setting, dialog, table, butto
 - Tasks 1-7 complete with task-local checks passing.
 
 **Steps:**
-- [ ] Step 1: Run focused backend and runtime suites, then affected prototype suite and `git diff --check`; fix only regressions caused by this implementation.
-- [ ] Step 2: Start isolated local app against fresh data with `py -3 -m uvicorn fitcv_cp.main:app --host 127.0.0.1 --port 8877` and exercise baseline, personalized fallback, optimize, activate, incompatible active, inactivate, strength save, remove, hidden direct detail, refresh, Back, Forward, and Console Clear.
-- [ ] Step 3: Use Playwright MCP for repeatable forms, keyboard/focus flow, direct URLs, narrow viewport, 200% zoom, light/dark theme, reduced motion, screenshots, and accessibility snapshot.
-- [ ] Step 4: Use Chrome DevTools MCP only for console/network diagnosis and confirmation that forms submit expected tokens with no JSON client/polling; do not duplicate Playwright checks.
-- [ ] Step 5: Verify security matrix: non-local 404, invalid Host/Origin/CSRF 403, onboarding unsafe 409, server-derived actor, no public internal IDs, bounded logs, no free-text rating leakage, and no delete path.
-- [ ] Step 6: Verify SQLite directly or through store tests: one active domain policy, immutable training/evidence payload, idempotent public identity, one hide event, retained hidden details, and rollback audit.
-- [ ] Step 7: Reconcile plan checkboxes/deviations, remove `docs/fitcv-settings-ui-prototype.integration.md` only when every required evidence item passes, and run final documentation validators.
+- [x] Step 1: Run focused backend and runtime suites, then affected prototype suite and `git diff --check`; fix only regressions caused by this implementation.
+- [x] Step 2: Start isolated local app against fresh data with `py -3 -m uvicorn fitcv_cp.main:app --host 127.0.0.1 --port 8877` and exercise baseline, personalized fallback, optimize, activate, incompatible active, inactivate, strength save, remove, hidden direct detail, refresh, Back, Forward, and Console Clear.
+- [x] Step 3: Use Playwright MCP for repeatable forms, keyboard/focus flow, direct URLs, narrow viewport, 200% zoom, light/dark theme, reduced motion, screenshots, and accessibility snapshot.
+- [x] Step 4: Use Chrome DevTools MCP only for console/network diagnosis and confirmation that forms submit expected tokens with no JSON client/polling; do not duplicate Playwright checks.
+- [x] Step 5: Verify security matrix: non-local 404, invalid Host/Origin/CSRF 403, onboarding unsafe 409, server-derived actor, no public internal IDs, bounded logs, no free-text rating leakage, and no delete path.
+- [x] Step 6: Verify SQLite directly or through store tests: one active domain policy, immutable training/evidence payload, idempotent public identity, one hide event, retained hidden details, and rollback audit.
+- [x] Step 7: Reconcile plan checkboxes/deviations, remove `docs/fitcv-settings-ui-prototype.integration.md` only when every required evidence item passes, and run final documentation validators.
 
 **Verification:**
-- [ ] Complete every command and evidence item in final `## Verification` section.
+- [x] Complete every command and evidence item in final `## Verification` section, with recorded environment substitutions and unrelated validator findings below.
 - Expected: affected suites and browser/security evidence pass; changed planning artifacts validate in isolation; unrelated repository-wide findings are recorded separately and do not mask changed-artifact validation.
 
 **Exit Criteria:**
 - Fresh evidence satisfies parent specification; no unresolved contract conflict remains; integration sidecar is removed or reduced to exact unresolved blocker only.
 
+### Task 9: Restore Exact Prototype Visual Contract
+
+**Purpose:**
+- Resolve misleading visual ownership instructions and make production render the approved prototype system instead of the legacy production design.
+
+**Steps:**
+- [x] Make prototype tokens and shared shell canonical in `base.html`.
+- [x] Convert Preference Optimization main/detail sections to prototype collapsible component structure.
+- [x] Add contract tests that fail when tokens, shell classes, or section structure drift.
+- [x] Verify desktop, narrow, light, dark, keyboard, focus, and console behavior in browser.
+
+**Exit Criteria:**
+- Production Preference Optimization and shared shell match the prototype visual contract; affected tests and browser checks pass.
+
 ## Verification
 
 - `python -m pytest tests/test_config.py tests/test_decision_feedback.py tests/test_preference_policy.py tests/test_ranking.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_settings_store.py tests/test_fitcv_cp/test_settings_store_sqlite.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_optimization_service.py tests/test_fitcv_cp/test_optimization_page.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_pipeline_prototype.py -q`
 - Directly call `scripts/validate_planning_lifecycle.py:validate_artifact` for corrected spec and this plan; both return no findings.
-- Load `scripts/validate_template_required_sections.py` rules and validate corrected spec and this plan only; both return no findings.
+- Load `scripts/validate_template_required_sections.py` rules and validate corrected spec and this plan only; spec returns no findings. Plan returns one expected lifecycle/template mismatch because template metadata requires static `status: proposed` while execution lifecycle requires `status: active` and then `status: completed`.
 - Run repo-wide planning/template validators as informational diagnostics; record exact pre-existing unrelated findings without treating them as changed-artifact failures.
 - `git diff --check`
 - Browser evidence from isolated `127.0.0.1:8877` local app covers required main/detail states, keyboard/focus, narrow layout, 200% zoom, light/dark, reduced motion, direct navigation, Console Clear, and clean console/network.
 - Security evidence covers local-only mounting, Host/Origin/CSRF/onboarding guards, server-derived actor, internal-ID non-disclosure, bounded logs, immutable records, and hide-not-delete behavior.
+
+## Execution Evidence And Deviations
+
+- Verification date: 2026-07-23.
+- Affected backend/runtime suite passed: `1139 passed, 1 skipped`.
+- Focused UI/store/prototype suite passed: `121 passed`.
+- Focused security matrix passed: `8 passed`; fresh full local-route/security suite passed: `26 passed`.
+- `git diff --check` passed; Git emitted only line-ending conversion warnings for existing Windows working-copy behavior.
+- Playwright browser evidence passed on `http://127.0.0.1:8877/admin/optimization` and direct run details: baseline disablement, personalized fallback, strength save, candidate activation, active-strength lock, manual inactivation, retained personalized selection, baseline fallback, remove/hide, hidden direct detail, refresh, Back, Forward, Console Clear, reload restoration, keyboard focus, 375px narrow layout, 640px 200%-zoom equivalent, light/dark themes, and reduced motion.
+- Chrome DevTools evidence showed no console errors and only server-rendered document/form traffic; no JSON client, typed client, or polling exists.
+- Fresh completion refresh on 2026-07-23 returned `200`, an accessible Preference Optimization document, zero console warnings/errors, and one document request with no XHR, fetch, WebSocket, JSON client, or polling traffic.
+- Prototype evidence passed at `http://127.0.0.1:8878/fitcv-settings-ui-prototype.html#preference-optimization` with no console errors or warnings.
+- Exact visual-contract refresh matched prototype tokens and geometry: light accent `#b94d36`, dark accent `#ee8d6a`, Inter font, `288px` sidebar, `960px` content, `12px` cards, `32px` desktop header padding, main first-card top `221.4px`, and detail first-card top `253.7px`. Disabled primary controls, detail grid, evidence cells, and Console Log matched prototype components.
+- Fresh Task 9 browser proof passed at `1440x900` and `375x900`: no horizontal page overflow, mobile drawer and scrim worked, `Escape` closed drawer and returned focus, native summaries toggled from keyboard with visible focus, light/dark persisted, Console Clear hid current events and reload restored them, and Chrome DevTools reported one `200` document request with zero console warnings/errors.
+- Fresh UI regressions passed: `440 passed` for `tests/test_fitcv_cp/test_optimization_page.py` plus `tests/test_fitcv_cp/test_app.py`; the preceding combined run also passed `tests/test_fitcv_pipeline_prototype.py` and `tests/test_fitcv_cp/test_local_routes.py` aside from two corrected stale prototype-copy/default-theme assertions. `git diff --check` passed.
+- SQLite evidence confirmed zero active policy after inactivation, one retained hidden run, historical evidence retention, one audited `rollback/manual_inactivation`, one hide event, and no duplicate public Optimization Run IDs.
+- Security evidence passed for non-local 404, Host/Origin/CSRF 403, onboarding unsafe 409, server-derived actor, public-ID-only rendering, bounded logs, no free-text rating leakage, immutable retained records, and no delete route.
+- Environment substitution: optional `cvxpy` solver extra was unavailable. Real synchronous POST persisted expected typed `solver_error`; a valid compatible candidate was inserted through isolated verification fixture only to exercise activation, inactivation, fallback, hide, and historical-detail lifecycle. No dependency was installed or product behavior bypassed.
+- Environment warning: pytest completed successfully but emitted unrelated Windows cleanup `PermissionError` for `C:\tmp\pytest-of-HOANG PHI LONG DANG\pytest-current`.
+- Targeted planning lifecycle validation returned zero findings for spec and plan. Targeted template validation returned zero findings for spec and one expected plan status mismatch described above.
+- Informational repository-wide planning validation returned 31 unrelated pre-existing metadata findings. Informational repository-wide template validation returned 384 unrelated/pre-existing findings: 149 document-type mismatches, 140 missing template selections, and 95 missing sections.
+- Implementation deviations fixed during verification: loaded episodes now use global evidence watermark for multi-episode optimization; Console Log now resolves `ProcessEvent.diagnostic_refs_json` and policy snapshot references; narrow grid/card children use `min-width: 0` to prevent horizontal overflow.
 
 ## Completion Criteria
 

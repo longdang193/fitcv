@@ -1,21 +1,46 @@
 {% set loaded_count = process_console.events|length %}
-<section class="card process-console" id="process-console" data-process-type="{{ process_type }}" data-process-id="{{ process_id }}" aria-labelledby="process-console-title">
+{% set console_title = process_console_title|default('Process Console') %}
+{% set console_description = process_console_description|default('Exact canonical events. Clear stores a browser-local cursor; backend evidence remains immutable.') %}
+{% set console_simple = process_console_simple|default(false) %}
+{% set console_ephemeral_clear = process_console_ephemeral_clear|default(false) %}
+<details class="section-card collapsible-section drawer-section process-console" id="process-console" data-process-type="{{ process_type }}" data-process-id="{{ process_id }}" data-ephemeral-clear="{{ 'true' if console_ephemeral_clear else 'false' }}" aria-labelledby="process-console-title" open>
   <style>
     .process-console-controls { display:flex; flex-wrap:wrap; gap:0.65rem; align-items:end; margin:0.75rem 0; }
     .process-console-controls label { display:grid; gap:0.25rem; min-width:10rem; }
     .process-console details pre { max-width:44rem; white-space:pre-wrap; overflow-wrap:anywhere; }
     .process-console :focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+    .console-toolbar { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+    .console-actions { display:flex; align-items:center; gap:8px; margin-left:auto; flex-wrap:wrap; }
+    .console-log { min-height:220px; max-height:360px; padding:14px 16px; overflow:auto; border:1px solid #1f2937; border-radius:10px; background:#080b10; color:#d6deeb; font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace; overscroll-behavior:contain; }
+    .console-line { display:grid; grid-template-columns:max-content max-content minmax(220px,1fr); gap:12px; min-width:640px; }
+    .console-time { color:#7f8ea3; font-variant-numeric:tabular-nums; }
+    .console-level { color:#9ccfd8; font-weight:700; text-transform:uppercase; }
+    .console-level[data-level="error"] { color:#ff7b72; }
+    .console-message { white-space:pre-wrap; overflow-wrap:anywhere; }
+    .console-empty { color:#7f8ea3; }
   </style>
+  <summary><span class="section-heading"><strong id="process-console-title">{{ console_title }}</strong><span>{{ console_description }}</span></span></summary>
+  <div class="section-content drawer-section-content">
+  {% if console_simple %}
+  <div class="console-toolbar"><span></span><div class="console-actions"><button type="button" class="small-action" data-console-clear>Clear</button></div></div>
+  <div class="console-log" data-console-rows role="log" aria-live="polite" aria-label="Console log for {{ process_id }}">
+    {% for event in process_console.events %}
+    <div class="console-line" data-recorded-at="{{ event.recorded_at.isoformat() }}" data-event-id="{{ event.event_id }}" data-level="{{ event.level }}" data-operation="{{ event.operation }}">
+      <span class="console-time">{{ event.recorded_at.isoformat() }}</span><span class="console-level" data-level="{{ event.level }}">{{ event.level }}</span><span class="console-message">{{ event.message }}</span>
+    </div>
+    {% else %}
+    <div class="console-empty" data-console-empty>No console events in current view.</div>
+    {% endfor %}
+  </div>
+  {% else %}
   <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">
     <div>
-      <h2 id="process-console-title" style="margin:0">Process Console</h2>
-      <p class="muted">Exact canonical events. Clear stores a browser-local cursor; backend evidence remains immutable.</p>
       <p class="meta" role="status" aria-live="polite" data-console-count>
         Showing <strong data-console-visible-count>{{ loaded_count }}</strong> visible of {{ loaded_count }} loaded / {{ process_console.total_count }} total canonical events.
       </p>
     </div>
     <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-      <button type="button" class="btn-secondary" data-console-clear>Clear view</button>
+      <button type="button" class="btn-secondary" data-console-clear>Clear</button>
       <button type="button" class="btn-secondary" data-console-reset>Show history</button>
       <a href="/admin/process-events.json?process_type={{ process_type|urlencode }}&process_id={{ process_id|urlencode }}&limit=500">Raw JSON</a>
       {% if loaded_count < process_console.total_count and timeline_next_limit is defined %}
@@ -73,24 +98,28 @@
           </td>
         </tr>
       {% else %}
-        <tr class="empty-row"><td colspan="7">No events yet.</td></tr>
+        <tr class="empty-row"><td colspan="7">No console events in current view.</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
-</section>
+  {% endif %}
+</div>
+</details>
 <script>
 (function(section) {
-  const rows = Array.from(section.querySelectorAll('[data-console-rows] tr[data-event-id]'));
+  const rows = Array.from(section.querySelectorAll('[data-console-rows] [data-event-id]'));
   const filter = section.querySelector('[data-console-filter]');
   const level = section.querySelector('[data-console-level]');
   const operation = section.querySelector('[data-console-operation]');
   const visibleCount = section.querySelector('[data-console-visible-count]');
   const empty = section.querySelector('[data-console-empty]');
+  const ephemeralClear = section.dataset.ephemeralClear === 'true';
   const storageKey = 'fitcv.process-console.clear:' + encodeURIComponent(section.dataset.processType) + ':' + encodeURIComponent(section.dataset.processId);
   let volatileCursor = null;
 
   Array.from(new Set(rows.map(row => row.dataset.operation))).sort().forEach(value => {
+    if (!operation) return;
     const option = document.createElement('option');
     option.value = value;
     option.textContent = value;
@@ -98,6 +127,7 @@
   });
 
   function readCursor() {
+    if (ephemeralClear) return volatileCursor;
     try {
       const parsed = JSON.parse(localStorage.getItem(storageKey));
       if (Array.isArray(parsed) && parsed.length === 2 && parsed.every(value => typeof value === 'string')) return parsed;
@@ -107,11 +137,13 @@
 
   function writeCursor(cursor) {
     volatileCursor = cursor;
+    if (ephemeralClear) return;
     try { localStorage.setItem(storageKey, JSON.stringify(cursor)); } catch (_) {}
   }
 
   function resetCursor() {
     volatileCursor = null;
+    if (ephemeralClear) return;
     try { localStorage.removeItem(storageKey); } catch (_) {}
   }
 
@@ -124,32 +156,32 @@
 
   function applyView() {
     const cursor = readCursor();
-    const query = filter.value.trim().toLowerCase();
+    const query = filter ? filter.value.trim().toLowerCase() : '';
     let count = 0;
     rows.forEach(row => {
       const matches = !atOrBeforeCursor(row, cursor)
         && (!query || row.textContent.toLowerCase().includes(query))
-        && (!level.value || row.dataset.level === level.value)
-        && (!operation.value || row.dataset.operation === operation.value);
+        && (!level || !level.value || row.dataset.level === level.value)
+        && (!operation || !operation.value || row.dataset.operation === operation.value);
       row.hidden = !matches;
       if (matches) count += 1;
     });
-    visibleCount.textContent = String(count);
-    empty.hidden = count !== 0 || rows.length === 0;
+    if (visibleCount) visibleCount.textContent = String(count);
+    if (empty) empty.hidden = count !== 0;
   }
 
-  section.querySelector('[data-console-clear]').addEventListener('click', function() {
+  section.querySelector('[data-console-clear]')?.addEventListener('click', function() {
     const last = rows[rows.length - 1];
     if (last) writeCursor([last.dataset.recordedAt, last.dataset.eventId]);
     applyView();
   });
-  section.querySelector('[data-console-reset]').addEventListener('click', function() {
+  section.querySelector('[data-console-reset]')?.addEventListener('click', function() {
     resetCursor();
     applyView();
   });
-  filter.addEventListener('input', applyView);
-  level.addEventListener('change', applyView);
-  operation.addEventListener('change', applyView);
+  filter?.addEventListener('input', applyView);
+  level?.addEventListener('change', applyView);
+  operation?.addEventListener('change', applyView);
   applyView();
 })(document.currentScript.previousElementSibling);
 </script>

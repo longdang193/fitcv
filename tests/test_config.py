@@ -1845,6 +1845,10 @@ def _write_decision_learning_policy(root: Path) -> None:
         "  inverse_optimization:\n"
         "    optimizer_version: latent-residual-v1\n"
         "    learned_alpha: 0.05\n"
+        "    learned_alpha_bounds:\n"
+        "      minimum: 0.01\n"
+        "      maximum: 0.10\n"
+        "      step: 0.01\n"
         "    preference_margin: 0.02\n"
         "    preference_regularization: 1.0\n"
         "    preference_vector_norm_bound: 1.0\n"
@@ -1874,6 +1878,11 @@ def test_load_config_loads_decision_learning_policy_and_fingerprint(tmp_path: Pa
     assert cfg["decision_learning_policy"]["rating_scale"]["version"] == "application-interest-v1"
     assert cfg["decision_learning_policy"]["preference_compiler"]["minimum_rating_gap"] == 2
     assert cfg["decision_learning_policy"]["inverse_optimization"]["solver"]["name"] == "CLARABEL"
+    assert cfg["decision_learning_policy"]["inverse_optimization"]["learned_alpha_bounds"] == {
+        "minimum": 0.01,
+        "maximum": 0.10,
+        "step": 0.01,
+    }
     assert len(cfg["decision_learning_policy_fingerprint"]) == 64
 
 

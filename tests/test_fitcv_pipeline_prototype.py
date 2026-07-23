@@ -73,7 +73,7 @@ def test_run_page_prototype_contract() -> None:
     assert "data-profile-run-details" not in profile_details
     assert "const relatedRuns=" not in profile_details
     assert ".details-page-layout{display:grid;gap:18px}" in html
-    assert "form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage())" in html
+    assert "form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage()||isOptimizationDetailsPage())" in html
     assert "Console Log" in html
     assert "Clear View" in html
     assert "Download Debug Bundle" in html
@@ -163,6 +163,52 @@ def test_candidate_profile_theme_and_data_backup_ui_contract() -> None:
     assert "M20.5 14.3A8.5 8.5" in html
     assert "theme.querySelector('svg').innerHTML=dark?'<circle" in html
     assert "</path>':'<path d=\"M20.5 14.3A8.5 8.5" in html
+
+def test_preference_optimization_prototype_contract() -> None:
+    html = PROTOTYPE.read_text(encoding="utf-8")
+    main = html[
+        html.index("function renderPreferenceOptimizationPage()"):
+        html.index("function startPreferenceOptimization()")
+    ]
+    start = html[
+        html.index("function startPreferenceOptimization()"):
+        html.index("function toggleOptimizationPolicy")
+    ]
+    details = html[
+        html.index("function renderOptimizationDetailsPage()"):
+        html.index("function isSynonymsPage()")
+    ]
+
+    assert main.count('class="section-card collapsible-section setting-section"') == 4
+    assert "Baseline Ranking" in main
+    assert "Personalized Ranking" in main
+    assert "Restore Defaults" not in main
+    assert "Higher values allow larger changes from Baseline Ranking." in main
+    assert "Inactivate Policy before changing Personalization Strength." in main
+    assert "Baseline Ranking is being used until a policy is activated." in main
+    assert "Optimize Current Ratings" in main
+    assert "Eligible Comparisons" not in main
+    assert "Optimization ID" in main
+    assert "Policy" in main
+    assert "Actions" in main
+    assert "Active · Not in use" in html
+    assert "Optimizing…" in start
+    assert "status:'Running'" not in start
+    assert "item.hiddenAt=Date.now()" in html
+    assert "optimizationState.history=optimizationState.history.filter" not in html
+    assert "filter(item=>!item.hiddenAt)" in html
+    assert "por_${date}_${sequence}" in html
+    assert details.count('class="section-card collapsible-section drawer-section"') == 3
+    assert "Overview" in details
+    assert "Rating Evidence" in details
+    assert "Console Log" in details
+    assert "Removed from Optimization Runs" in details
+    assert "Results Summary" not in details
+    assert "Technical Details" not in details
+    assert "Policy Version" not in details
+    assert "Reject Version" not in details
+    assert "optimizationConsoleMarkup(item)" in details
+    assert "data-optimization-console-clear" in html
 
 
 def test_api_provider_and_llm_configuration_ui_contract() -> None:

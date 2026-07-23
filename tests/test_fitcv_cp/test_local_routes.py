@@ -137,6 +137,8 @@ def test_packaged_local_admin_pages_are_not_registered_in_server_mode(
         "/admin/settings/prompt-management",
         "/admin/system",
         "/admin/lifecycle",
+        "/admin/optimization",
+        "/admin/optimization/runs/por_missing",
     ):
         assert client.get(path).status_code in {404, 405}
     openapi_paths = client.get("/openapi.json").json()["paths"]

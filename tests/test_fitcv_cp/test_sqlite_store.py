@@ -9,7 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from fitcv.preference_policy import build_policy_snapshot_identity, build_training_run_identity
+from fitcv.preference_policy import (
+    build_policy_snapshot_identity,
+    build_preference_optimization_run_id,
+    build_training_run_identity,
+)
 from fitcv_cp import sqlite_store
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
@@ -1296,6 +1300,76 @@ def _snapshot_row(training_run_id: str, *, vector: list[float], suffix: str = ""
     return row
 
 
+def _snapshot_row_for_runtime(
+    training: dict[str, object],
+    *,
+    runtime_contract_fingerprint: str,
+    vector: list[float],
+    suffix: str,
+) -> dict[str, object]:
+    row = _snapshot_row(str(training["training_run_id"]), vector=vector, suffix=suffix)
+    row["runtime_contract_fingerprint"] = runtime_contract_fingerprint
+    row["event_watermark"] = training["event_watermark"]
+    row.pop("payload_fingerprint")
+    row.pop("policy_snapshot_id")
+    fingerprint, snapshot_id = build_policy_snapshot_identity(row)
+    row["payload_fingerprint"] = fingerprint
+    row["policy_snapshot_id"] = snapshot_id
+    return row
+
+
+def _optimization_projection_row(training: dict[str, object]) -> dict[str, object]:
+    return {
+        "settings_revision": "settings-revision-1",
+        "ranking_mode": "personalized",
+        "personalization_strength": 0.05,
+        "evidence_head_fingerprint": "evidence-head-1",
+        "event_watermark": int(training["event_watermark"]),
+        "source_rating_event_ids": ["rating-event-1"],
+        "rating_evidence_rows": [
+            {
+                "source_rating_event_id": "rating-event-1",
+                "run_id": "run-1",
+                "alternative_id": "alternative-1",
+                "job_label": "Data Analyst at Example",
+                "source_job_url": "https://example.com/job-1",
+                "displayed_rank": 1,
+                "baseline_fit": 0.8,
+                "baseline_fit_label": "Strong",
+                "rating": 5,
+                "rated_at": "2026-07-23T08:00:00+00:00",
+            }
+        ],
+    }
+
+
+def _persist_candidate_attempt(
+    training: dict[str, object], snapshot: dict[str, object] | None
+) -> dict[str, object]:
+    return sqlite_store.persist_candidate_attempt(
+        training,
+        snapshot,
+        _optimization_projection_row(training),
+    )
+
+
+def _reset_preference_projection_migration(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        "DELETE FROM integration_migrations WHERE migration_key = ?",
+        (sqlite_store._PREFERENCE_OPTIMIZATION_PROJECTION_MIGRATION,),
+    )
+    conn.execute(
+        "DELETE FROM pipeline_settings WHERE setting_key IN (?, ?)",
+        (
+            "preference_optimization.ranking_mode",
+            "preference_optimization.personalization_strength",
+        ),
+    )
+    conn.execute("DROP INDEX IF EXISTS one_active_ranking_policy_per_domain")
+    conn.execute("DROP TABLE IF EXISTS preference_optimization_runs")
+    conn.commit()
+
+
 def _activation_provenance(**overrides: str) -> dict[str, str]:
     return {
         "current_runtime_contract_fingerprint": "runtime",
@@ -1305,6 +1379,174 @@ def _activation_provenance(**overrides: str) -> dict[str, str]:
         "current_activation_policy_fingerprint": "activation",
         **overrides,
     }
+
+
+def test_preference_projection_migration_backfills_legacy_run_and_defaults() -> None:
+    db_path = Path(sqlite_store._local_sqlite_path())
+    training = _training_row()
+    training["created_at"] = "2026-07-23T08:00:00+00:00"
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        sqlite_store._ensure_local_preference_policy_tables(conn)
+        original_user_version = conn.execute("PRAGMA user_version").fetchone()[0]
+        _reset_preference_projection_migration(conn)
+        sqlite_store._insert_policy_row(
+            conn,
+            "inverse_training_runs",
+            sqlite_store._TRAINING_COLUMNS,
+            training,
+        )
+        sqlite_store._apply_preference_optimization_projection_migration(conn)
+
+        public_id = build_preference_optimization_run_id(str(training["training_run_id"]))
+        row = conn.execute(
+            "SELECT historical_snapshot_status, settings_revision, "
+            "source_rating_event_ids_json, rating_evidence_rows_json "
+            "FROM preference_optimization_runs WHERE preference_optimization_run_id = ?",
+            (public_id,),
+        ).fetchone()
+        settings = dict(
+            conn.execute(
+                "SELECT setting_key, setting_value_json FROM pipeline_settings "
+                "WHERE setting_key LIKE 'preference_optimization.%'"
+            ).fetchall()
+        )
+
+        assert row == ("legacy_unavailable", None, "[]", "[]")
+        assert json.loads(settings["preference_optimization.ranking_mode"]) == "baseline"
+        assert json.loads(
+            settings["preference_optimization.personalization_strength"]
+        ) == pytest.approx(0.05)
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == original_user_version
+        assert conn.execute(
+            "SELECT 1 FROM integration_migrations WHERE migration_key = ?",
+            (sqlite_store._PREFERENCE_OPTIMIZATION_PROJECTION_MIGRATION,),
+        ).fetchone() is not None
+
+
+def test_preference_projection_migration_keeps_compatible_active_and_retires_others(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = Path(sqlite_store._local_sqlite_path())
+    training = _training_row()
+    training["created_at"] = "2026-07-23T08:00:00+00:00"
+    compatible = _snapshot_row(
+        str(training["training_run_id"]), vector=[0.1, -0.1], suffix="-compatible"
+    )
+    compatible.update(
+        status="active",
+        runtime_contract_fingerprint="runtime-compatible",
+        created_at="2026-07-23T08:00:00+00:00",
+        activated_at="2026-07-23T08:01:00+00:00",
+    )
+    incompatible = _snapshot_row(
+        str(training["training_run_id"]), vector=[-0.1, 0.1], suffix="-incompatible"
+    )
+    incompatible.update(
+        status="active",
+        runtime_contract_fingerprint="runtime-incompatible",
+        created_at="2026-07-23T08:00:30+00:00",
+        activated_at="2026-07-23T08:02:00+00:00",
+    )
+    monkeypatch.setattr(
+        sqlite_store,
+        "_snapshot_matches_current_preference_runtime",
+        lambda snapshot, context: snapshot["runtime_contract_fingerprint"]
+        == "runtime-compatible",
+    )
+
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        sqlite_store._ensure_local_preference_policy_tables(conn)
+        _reset_preference_projection_migration(conn)
+        sqlite_store._insert_policy_row(
+            conn,
+            "inverse_training_runs",
+            sqlite_store._TRAINING_COLUMNS,
+            training,
+        )
+        sqlite_store._insert_policy_row(
+            conn,
+            "ranking_policy_snapshots",
+            sqlite_store._SNAPSHOT_COLUMNS,
+            compatible,
+        )
+        sqlite_store._insert_policy_row(
+            conn,
+            "ranking_policy_snapshots",
+            sqlite_store._SNAPSHOT_COLUMNS,
+            incompatible,
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX one_active_ranking_policy "
+            "ON ranking_policy_snapshots (domain_id, runtime_contract_fingerprint) "
+            "WHERE status = 'active'"
+        )
+        conn.commit()
+
+        sqlite_store._apply_preference_optimization_projection_migration(conn)
+
+        statuses = dict(
+            conn.execute(
+                "SELECT policy_snapshot_id, status FROM ranking_policy_snapshots"
+            ).fetchall()
+        )
+        settings = dict(
+            conn.execute(
+                "SELECT setting_key, setting_value_json FROM pipeline_settings "
+                "WHERE setting_key LIKE 'preference_optimization.%'"
+            ).fetchall()
+        )
+        assert statuses[str(compatible["policy_snapshot_id"])] == "active"
+        assert statuses[str(incompatible["policy_snapshot_id"])] == "retired"
+        assert json.loads(settings["preference_optimization.ranking_mode"]) == "personalized"
+        assert json.loads(
+            settings["preference_optimization.personalization_strength"]
+        ) == pytest.approx(0.05)
+        assert conn.execute(
+            "SELECT COUNT(*) FROM policy_activation_events "
+            "WHERE reason_code = 'domain_single_active_migration'"
+        ).fetchone()[0] == 1
+        indexes = {
+            row[1] for row in conn.execute("PRAGMA index_list(ranking_policy_snapshots)")
+        }
+        assert "one_active_ranking_policy" not in indexes
+        assert "one_active_ranking_policy_per_domain" in indexes
+
+
+def test_preference_projection_migration_failure_is_atomic() -> None:
+    db_path = Path(sqlite_store._local_sqlite_path())
+    malformed = _training_row()
+    malformed["training_run_id"] = "bad-training-id"
+    malformed["created_at"] = "2026-07-23T08:00:00+00:00"
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        sqlite_store._ensure_local_preference_policy_tables(conn)
+        _reset_preference_projection_migration(conn)
+        sqlite_store._insert_policy_row(
+            conn,
+            "inverse_training_runs",
+            sqlite_store._TRAINING_COLUMNS,
+            malformed,
+        )
+        conn.commit()
+
+        with pytest.raises(ValueError, match="training_run_id"):
+            sqlite_store._apply_preference_optimization_projection_migration(conn)
+
+        assert conn.execute(
+            "SELECT 1 FROM integration_migrations WHERE migration_key = ?",
+            (sqlite_store._PREFERENCE_OPTIMIZATION_PROJECTION_MIGRATION,),
+        ).fetchone() is None
+        assert conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'preference_optimization_runs'"
+        ).fetchone() is None
+        assert conn.execute(
+            "SELECT COUNT(*) FROM pipeline_settings "
+            "WHERE setting_key LIKE 'preference_optimization.%'"
+        ).fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT status FROM inverse_training_runs WHERE training_run_id = ?",
+            (malformed["training_run_id"],),
+        ).fetchone()[0] == "candidate_created"
 
 
 def test_preference_policy_schema_enforces_immutable_payload_and_one_active() -> None:
@@ -1375,7 +1617,7 @@ def test_activation_marks_candidate_stale_when_evidence_head_changed() -> None:
     }
     training["training_run_id"] = build_training_run_identity(training)
     snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
-    sqlite_store.persist_candidate_attempt(training, snapshot)
+    _persist_candidate_attempt(training, snapshot)
 
     with pytest.raises(ValueError, match="candidate evidence changed"):
         sqlite_store.activate_ranking_policy_candidate(
@@ -1429,7 +1671,7 @@ def test_activation_marks_candidate_stale_when_current_provenance_changed(
 ) -> None:
     training = _training_row()
     snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
-    sqlite_store.persist_candidate_attempt(training, snapshot)
+    _persist_candidate_attempt(training, snapshot)
 
     with pytest.raises(ValueError, match=message):
         sqlite_store.activate_ranking_policy_candidate(
@@ -1482,7 +1724,7 @@ def test_activation_event_failure_rolls_back_candidate_status(
 ) -> None:
     training = _training_row()
     snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
-    sqlite_store.persist_candidate_attempt(training, snapshot)
+    _persist_candidate_attempt(training, snapshot)
     monkeypatch.setattr(
         sqlite_store,
         "_append_policy_event",
@@ -1551,8 +1793,8 @@ def test_training_and_candidate_insert_is_atomic_and_idempotent() -> None:
     training = _training_row()
     snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
 
-    first = sqlite_store.persist_candidate_attempt(training, snapshot)
-    second = sqlite_store.persist_candidate_attempt(training, snapshot)
+    first = _persist_candidate_attempt(training, snapshot)
+    second = _persist_candidate_attempt(training, snapshot)
 
     assert first == second
     lifecycle = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")
@@ -1560,10 +1802,227 @@ def test_training_and_candidate_insert_is_atomic_and_idempotent() -> None:
     assert len(lifecycle["snapshots"]) == 1
 
 
+def test_preference_optimization_projection_is_persisted_and_immutable() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+
+    persisted = _persist_candidate_attempt(training, snapshot)
+    public_id = build_preference_optimization_run_id(str(training["training_run_id"]))
+
+    assert persisted["optimization_run"]["preference_optimization_run_id"] == public_id
+    assert sqlite_store.list_preference_optimization_runs()[0][
+        "preference_optimization_run_id"
+    ] == public_id
+    assert sqlite_store.get_preference_optimization_run(public_id)[
+        "policy_snapshot_id"
+    ] == snapshot["policy_snapshot_id"]
+
+    db_path = Path(sqlite_store._local_sqlite_path())
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        with pytest.raises(sqlite3.IntegrityError, match="immutable optimization run"):
+            conn.execute(
+                "UPDATE preference_optimization_runs SET settings_revision = 'changed' "
+                "WHERE preference_optimization_run_id = ?",
+                (public_id,),
+            )
+        with pytest.raises(sqlite3.IntegrityError, match="optimization run history"):
+            conn.execute(
+                "DELETE FROM preference_optimization_runs "
+                "WHERE preference_optimization_run_id = ?",
+                (public_id,),
+            )
+
+
+def test_preference_optimization_projection_rejects_duplicate_source_events_atomically() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+    projection = _optimization_projection_row(training)
+    projection["source_rating_event_ids"] = ["rating-event-1", "rating-event-1"]
+
+    with pytest.raises(ValueError, match="ordered unique"):
+        sqlite_store.persist_candidate_attempt(training, snapshot, projection)
+
+    assert sqlite_store.list_preference_optimization_runs() == []
+    assert sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")["training_runs"] == []
+
+
+def test_preference_optimization_hide_is_idempotent_and_directly_traceable() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+    persisted = _persist_candidate_attempt(training, snapshot)
+    public_id = str(persisted["optimization_run"]["preference_optimization_run_id"])
+
+    first = sqlite_store.hide_preference_optimization_run(public_id)
+    second = sqlite_store.hide_preference_optimization_run(public_id)
+
+    assert first == second
+    assert first["hidden_at"] is not None
+    assert first["hidden_by"] == "local_workspace"
+    assert sqlite_store.list_preference_optimization_runs() == []
+    assert sqlite_store.get_preference_optimization_run(public_id)["hidden_at"] == first["hidden_at"]
+    events = sqlite_store.get_process_events("optimization", "ranking_v1")["events"]
+    assert [event.operation for event in events].count("optimization_run_hidden") == 1
+
+
+def test_preference_optimization_hide_blocks_active_policy_owner() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+    persisted = _persist_candidate_attempt(training, snapshot)
+    sqlite_store.activate_ranking_policy_candidate(
+        str(snapshot["policy_snapshot_id"]),
+        expected_parent_ref="zero_residual:baseline",
+        acted_by="operator",
+        **_activation_provenance(),
+    )
+
+    with pytest.raises(ValueError, match="active_policy_must_be_inactivated"):
+        sqlite_store.hide_preference_optimization_run(
+            str(persisted["optimization_run"]["preference_optimization_run_id"])
+        )
+
+    assert len(sqlite_store.list_preference_optimization_runs()) == 1
+
+
+def test_public_run_activation_replaces_incompatible_domain_active_policy() -> None:
+    first_training = _training_row()
+    first_snapshot = _snapshot_row_for_runtime(
+        first_training,
+        runtime_contract_fingerprint="runtime-old",
+        vector=[0.1, -0.1],
+        suffix="-old",
+    )
+    first = _persist_candidate_attempt(first_training, first_snapshot)["optimization_run"]
+    sqlite_store.activate_preference_optimization_run(
+        str(first["preference_optimization_run_id"]),
+        expected_parent_ref="zero_residual:baseline",
+        **_activation_provenance(current_runtime_contract_fingerprint="runtime-old"),
+    )
+
+    second_training = _training_row()
+    second_training["event_watermark"] = 3
+    second_training.pop("training_run_id")
+    second_training["training_run_id"] = build_training_run_identity(second_training)
+    second_snapshot = _snapshot_row_for_runtime(
+        second_training,
+        runtime_contract_fingerprint="runtime-new",
+        vector=[-0.1, 0.1],
+        suffix="-new",
+    )
+    second = _persist_candidate_attempt(second_training, second_snapshot)["optimization_run"]
+
+    activated = sqlite_store.activate_preference_optimization_run(
+        str(second["preference_optimization_run_id"]),
+        expected_parent_ref="zero_residual:baseline",
+        **_activation_provenance(current_runtime_contract_fingerprint="runtime-new"),
+    )
+
+    lifecycle = sqlite_store.inspect_ranking_policy_lifecycle(
+        "ranking_v1", runtime_contract_fingerprint="runtime-new"
+    )
+    assert activated["policy_status"] == "active"
+    assert lifecycle["domain_active_snapshot"]["policy_snapshot_id"] == second_snapshot[
+        "policy_snapshot_id"
+    ]
+    assert lifecycle["compatible_active_snapshot"]["policy_snapshot_id"] == second_snapshot[
+        "policy_snapshot_id"
+    ]
+    assert sqlite_store.resolve_active_ranking_policy("ranking_v1", "runtime-old") is None
+    assert sqlite_store.resolve_active_ranking_policy("ranking_v1", "runtime-new") is not None
+    assert sqlite_store.get_preference_optimization_run(
+        str(first["preference_optimization_run_id"])
+    )["policy_status"] == "retired"
+    assert {event["acted_by"] for event in lifecycle["events"]} == {"local_workspace"}
+
+
+def test_public_run_activation_rejects_hidden_run_without_mutation() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+    run = _persist_candidate_attempt(training, snapshot)["optimization_run"]
+    public_id = str(run["preference_optimization_run_id"])
+    sqlite_store.hide_preference_optimization_run(public_id)
+
+    with pytest.raises(ValueError, match="optimization_run_hidden"):
+        sqlite_store.activate_preference_optimization_run(
+            public_id,
+            expected_parent_ref="zero_residual:baseline",
+            **_activation_provenance(),
+        )
+
+    assert sqlite_store.get_preference_optimization_run(public_id)["policy_status"] == "candidate"
+
+
+def test_public_run_inactivation_is_fixed_target_and_preserves_ranking_mode() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
+    run = _persist_candidate_attempt(training, snapshot)["optimization_run"]
+    public_id = str(run["preference_optimization_run_id"])
+    sqlite_store.activate_preference_optimization_run(
+        public_id,
+        expected_parent_ref="zero_residual:baseline",
+        **_activation_provenance(),
+    )
+    db_path = Path(sqlite_store._local_sqlite_path())
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        conn.execute(
+            "INSERT INTO pipeline_settings "
+            "(setting_key, setting_value_json, updated_by, updated_at) VALUES (?, ?, ?, ?)",
+            (
+                "preference_optimization.ranking_mode",
+                json.dumps("personalized"),
+                "test",
+                "2026-07-23T08:00:00+00:00",
+            ),
+        )
+        conn.commit()
+
+    result = sqlite_store.inactivate_preference_optimization_run(
+        public_id,
+        expected_active_snapshot_id=str(snapshot["policy_snapshot_id"]),
+    )
+
+    assert result["policy_status"] == "retired"
+    assert sqlite_store.resolve_active_ranking_policy("ranking_v1", "runtime") is None
+    lifecycle = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")
+    assert lifecycle["events"][-1]["reason_code"] == "manual_inactivation"
+    assert lifecycle["events"][-1]["acted_by"] == "local_workspace"
+    with sqlite_store._sqlite_connection(db_path) as conn:
+        mode = conn.execute(
+            "SELECT setting_value_json FROM pipeline_settings "
+            "WHERE setting_key = 'preference_optimization.ranking_mode' ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()[0]
+    assert json.loads(mode) == "personalized"
+
+
+def test_lifecycle_distinguishes_domain_active_from_compatible_active() -> None:
+    training = _training_row()
+    snapshot = _snapshot_row_for_runtime(
+        training,
+        runtime_contract_fingerprint="runtime-old",
+        vector=[0.1, -0.1],
+        suffix="-old",
+    )
+    run = _persist_candidate_attempt(training, snapshot)["optimization_run"]
+    sqlite_store.activate_preference_optimization_run(
+        str(run["preference_optimization_run_id"]),
+        expected_parent_ref="zero_residual:baseline",
+        **_activation_provenance(current_runtime_contract_fingerprint="runtime-old"),
+    )
+
+    lifecycle = sqlite_store.inspect_ranking_policy_lifecycle(
+        "ranking_v1", runtime_contract_fingerprint="runtime-new"
+    )
+
+    assert lifecycle["domain_active_snapshot"]["policy_snapshot_id"] == snapshot[
+        "policy_snapshot_id"
+    ]
+    assert lifecycle["compatible_active_snapshot"] is None
+    assert sqlite_store.resolve_active_ranking_policy("ranking_v1", "runtime-new") is None
+
+
 def test_reject_exact_retry_does_not_append_second_event_and_reason_conflicts() -> None:
     training = _training_row()
     snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
-    sqlite_store.persist_candidate_attempt(training, snapshot)
+    _persist_candidate_attempt(training, snapshot)
 
     sqlite_store.reject_ranking_policy_candidate(
         str(snapshot["policy_snapshot_id"]), acted_by="operator", reason="bad_metrics"
@@ -1981,10 +2440,44 @@ def test_decision_evidence_head_characterization_and_request_loading() -> None:
     assert training_episode.evaluation_context is None
 
 
+def test_inverse_request_marks_every_episode_loaded_through_global_watermark() -> None:
+    from dataclasses import replace
+
+    first_episode, first_alternatives, first_event = _decision_records()
+    sqlite_store.materialize_episode_and_append_rating(
+        first_episode, first_alternatives, first_event
+    )
+
+    second_episode = replace(
+        first_episode,
+        episode_id="episode-2",
+        run_id="run-feedback-2",
+    )
+    second_alternatives = tuple(
+        replace(alternative, episode_id=second_episode.episode_id)
+        for alternative in first_alternatives
+    )
+    second_event = replace(
+        first_event,
+        event_id=str(uuid.uuid4()),
+        episode_id=second_episode.episode_id,
+    )
+    sqlite_store.materialize_episode_and_append_rating(
+        second_episode, second_alternatives, second_event
+    )
+
+    request = sqlite_store.load_inverse_optimization_request("ranking_v1")
+
+    assert request.event_watermark == 2
+    assert {
+        item.events_loaded_through_sequence for item in request.episodes
+    } == {request.event_watermark}
+
+
 def test_policy_lifecycle_inspection_limits_in_sql_and_marks_rollback_eligibility() -> None:
     first_training = _training_row()
     first_snapshot = _snapshot_row(str(first_training["training_run_id"]), vector=[0.1, -0.1])
-    first = sqlite_store.persist_candidate_attempt(first_training, first_snapshot)["snapshot"]
+    first = _persist_candidate_attempt(first_training, first_snapshot)["snapshot"]
     sqlite_store.activate_ranking_policy_candidate(
         str(first["policy_snapshot_id"]),
         expected_parent_ref=str(first["parent_policy_ref"]),
@@ -2003,7 +2496,7 @@ def test_policy_lifecycle_inspection_limits_in_sql_and_marks_rollback_eligibilit
     second_snapshot["payload_fingerprint"], second_snapshot["policy_snapshot_id"] = (
         build_policy_snapshot_identity(second_snapshot)
     )
-    second = sqlite_store.persist_candidate_attempt(second_training, second_snapshot)["snapshot"]
+    second = _persist_candidate_attempt(second_training, second_snapshot)["snapshot"]
     sqlite_store.activate_ranking_policy_candidate(
         str(second["policy_snapshot_id"]),
         expected_parent_ref=str(second["parent_policy_ref"]),
@@ -2105,7 +2598,7 @@ def test_candidate_attempt_process_event_is_atomic(monkeypatch: pytest.MonkeyPat
     training = _training_row()
     snapshot = _snapshot_row(str(training["training_run_id"]), vector=[0.1, -0.1])
 
-    persisted = sqlite_store.persist_candidate_attempt(training, snapshot)
+    persisted = _persist_candidate_attempt(training, snapshot)
     page = sqlite_store.get_process_events("optimization", "ranking_v1")
 
     assert persisted["snapshot"] is not None
@@ -2123,7 +2616,7 @@ def test_candidate_attempt_process_event_is_atomic(monkeypatch: pytest.MonkeyPat
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("event failed")),
     )
     with pytest.raises(RuntimeError, match="event failed"):
-        sqlite_store.persist_candidate_attempt(failing_training, failing_snapshot)
+        _persist_candidate_attempt(failing_training, failing_snapshot)
     monkeypatch.setattr(sqlite_store, "_insert_process_event", original_insert)
 
     lifecycle = sqlite_store.inspect_ranking_policy_lifecycle("ranking_v1")

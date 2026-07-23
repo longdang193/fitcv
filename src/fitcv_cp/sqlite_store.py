@@ -21,6 +21,7 @@ import base64
 import hashlib
 import json
 import logging
+import math
 import os
 import shutil
 import sqlite3
@@ -40,7 +41,12 @@ from fitcv.decision_feedback import (
 )
 from fitcv.inverse_optimization import InverseOptimizationRequest, InverseTrainingEpisode
 from fitcv.persistence import get_local_sqlite_path
-from fitcv.preference_policy import build_policy_snapshot_identity, build_training_run_identity
+from fitcv.preference_policy import (
+    PreferenceRuntimeContract,
+    build_policy_snapshot_identity,
+    build_preference_optimization_run_id,
+    build_training_run_identity,
+)
 from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.candidate_profile_seeds import build_candidate_profile_seeds
@@ -2652,8 +2658,49 @@ _SNAPSHOT_COLUMNS = (
     "evaluation_version", "evaluation_fingerprint", "evaluation_json", "created_at",
     "activated_at",
 )
+_PREFERENCE_OPTIMIZATION_RUN_COLUMNS = (
+    "preference_optimization_run_id",
+    "training_run_id",
+    "policy_snapshot_id",
+    "schema_version",
+    "domain_id",
+    "historical_snapshot_status",
+    "settings_revision",
+    "ranking_mode",
+    "personalization_strength",
+    "evidence_head_fingerprint",
+    "event_watermark",
+    "source_rating_event_ids_json",
+    "rating_evidence_rows_json",
+    "created_at",
+    "hidden_at",
+    "hidden_by",
+)
 _JSON_COLUMNS = frozenset(
-    {"result_json", "preference_vector_json", "solver_metadata_json", "evaluation_json"}
+    {
+        "result_json",
+        "preference_vector_json",
+        "solver_metadata_json",
+        "evaluation_json",
+        "source_rating_event_ids_json",
+        "rating_evidence_rows_json",
+    }
+)
+
+_PREFERENCE_OPTIMIZATION_PROJECTION_MIGRATION = "preference_optimization_projection_v1"
+_RATING_EVIDENCE_ROW_FIELDS = frozenset(
+    {
+        "source_rating_event_id",
+        "run_id",
+        "alternative_id",
+        "job_label",
+        "source_job_url",
+        "displayed_rank",
+        "baseline_fit",
+        "baseline_fit_label",
+        "rating",
+        "rated_at",
+    }
 )
 
 
@@ -2726,9 +2773,6 @@ def _ensure_local_preference_policy_tables(conn: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL,
             activated_at TEXT
         );
-        CREATE UNIQUE INDEX IF NOT EXISTS one_active_ranking_policy
-            ON ranking_policy_snapshots (domain_id, runtime_contract_fingerprint)
-            WHERE status = 'active';
         CREATE TABLE IF NOT EXISTS policy_activation_events (
             activation_event_id TEXT PRIMARY KEY,
             domain_id TEXT NOT NULL,
@@ -2741,6 +2785,17 @@ def _ensure_local_preference_policy_tables(conn: sqlite3.Connection) -> None:
             evidence_head_fingerprint TEXT,
             acted_by TEXT NOT NULL,
             created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS integration_migrations (
+            migration_key TEXT PRIMARY KEY,
+            details_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(details_json)),
+            completed_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pipeline_settings (
+            setting_key TEXT NOT NULL,
+            setting_value_json TEXT NOT NULL,
+            updated_by TEXT,
+            updated_at TEXT NOT NULL
         );
         CREATE TRIGGER IF NOT EXISTS inverse_training_runs_immutable_update
         BEFORE UPDATE ON inverse_training_runs BEGIN
@@ -2778,6 +2833,330 @@ def _ensure_local_preference_policy_tables(conn: sqlite3.Connection) -> None:
         END;
         """
     )
+    _ensure_process_event_tables(conn)
+    _apply_preference_optimization_projection_migration(conn)
+
+
+def _preference_optimization_migration_context() -> dict[str, Any]:
+    from fitcv.config import load_config
+    from fitcv.embeddings import build_embedding_contract_fingerprint
+
+    config = load_config()
+    decision_policy = config["decision_learning_policy"]
+    optimizer = decision_policy["inverse_optimization"]
+    bounds = optimizer["learned_alpha_bounds"]
+    embedding_contract = build_embedding_contract_fingerprint(config)
+    embedding_payload = embedding_contract["payload"]
+    return {
+        "domain_id": str(decision_policy["domain_id"]),
+        "baseline_policy_fingerprint": str(build_contract_fingerprint(config["ranking_policy"])),
+        "ranking_contract_fingerprint": str(
+            config["ranking_contract"]["ranking_contract_fingerprint"]
+        ),
+        "embedding_model": str(embedding_payload["embedding_model"]),
+        "embedding_dimension": int(embedding_payload["embedding_dimension"]),
+        "embedding_contract_fingerprint": str(embedding_contract["fingerprint"]),
+        "preference_vector_norm_bound": float(optimizer["preference_vector_norm_bound"]),
+        "recommended_strength": float(optimizer["learned_alpha"]),
+        "minimum_strength": float(bounds["minimum"]),
+        "maximum_strength": float(bounds["maximum"]),
+    }
+
+
+def _snapshot_matches_current_preference_runtime(
+    snapshot: dict[str, Any], context: dict[str, Any]
+) -> bool:
+    strength = float(snapshot["learned_alpha"])
+    if not context["minimum_strength"] <= strength <= context["maximum_strength"]:
+        return False
+    if str(snapshot["domain_id"]) != context["domain_id"]:
+        return False
+    runtime = PreferenceRuntimeContract.build(
+        domain_id=context["domain_id"],
+        baseline_policy_fingerprint=context["baseline_policy_fingerprint"],
+        ranking_contract_fingerprint=context["ranking_contract_fingerprint"],
+        embedding_model=context["embedding_model"],
+        embedding_dimension=context["embedding_dimension"],
+        embedding_contract_fingerprint=context["embedding_contract_fingerprint"],
+        learned_alpha=strength,
+        preference_vector_norm_bound=context["preference_vector_norm_bound"],
+    )
+    return runtime.runtime_contract_fingerprint == snapshot["runtime_contract_fingerprint"]
+
+
+def _create_preference_optimization_projection_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS preference_optimization_runs (
+            preference_optimization_run_id TEXT PRIMARY KEY
+                CHECK (preference_optimization_run_id GLOB 'por_*'),
+            training_run_id TEXT NOT NULL UNIQUE
+                REFERENCES inverse_training_runs(training_run_id) ON DELETE RESTRICT,
+            policy_snapshot_id TEXT
+                REFERENCES ranking_policy_snapshots(policy_snapshot_id) ON DELETE RESTRICT,
+            schema_version TEXT NOT NULL CHECK (schema_version = 'preference_optimization_run_v1'),
+            domain_id TEXT NOT NULL CHECK (length(trim(domain_id)) > 0),
+            historical_snapshot_status TEXT NOT NULL
+                CHECK (historical_snapshot_status IN ('complete', 'legacy_unavailable')),
+            settings_revision TEXT,
+            ranking_mode TEXT CHECK (ranking_mode IS NULL OR ranking_mode = 'personalized'),
+            personalization_strength REAL
+                CHECK (personalization_strength IS NULL OR (
+                    personalization_strength > 0.0 AND personalization_strength <= 0.25
+                )),
+            evidence_head_fingerprint TEXT,
+            event_watermark INTEGER CHECK (event_watermark IS NULL OR event_watermark >= 0),
+            source_rating_event_ids_json TEXT NOT NULL
+                CHECK (json_valid(source_rating_event_ids_json))
+                CHECK (json_type(source_rating_event_ids_json) = 'array'),
+            rating_evidence_rows_json TEXT NOT NULL
+                CHECK (json_valid(rating_evidence_rows_json))
+                CHECK (json_type(rating_evidence_rows_json) = 'array'),
+            created_at TEXT NOT NULL,
+            hidden_at TEXT,
+            hidden_by TEXT,
+            CHECK (
+                (
+                    historical_snapshot_status = 'complete'
+                    AND settings_revision IS NOT NULL
+                    AND ranking_mode = 'personalized'
+                    AND personalization_strength IS NOT NULL
+                    AND evidence_head_fingerprint IS NOT NULL
+                    AND event_watermark IS NOT NULL
+                )
+                OR
+                (
+                    historical_snapshot_status = 'legacy_unavailable'
+                    AND settings_revision IS NULL
+                    AND ranking_mode IS NULL
+                    AND personalization_strength IS NULL
+                    AND evidence_head_fingerprint IS NULL
+                    AND event_watermark IS NULL
+                    AND json_array_length(source_rating_event_ids_json) = 0
+                    AND json_array_length(rating_evidence_rows_json) = 0
+                )
+            ),
+            CHECK (
+                (hidden_at IS NULL AND hidden_by IS NULL)
+                OR (hidden_at IS NOT NULL AND length(trim(hidden_by)) > 0)
+            )
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS preference_optimization_runs_immutable_payload
+        BEFORE UPDATE OF preference_optimization_run_id, training_run_id, policy_snapshot_id,
+            schema_version, domain_id, historical_snapshot_status, settings_revision,
+            ranking_mode, personalization_strength, evidence_head_fingerprint,
+            event_watermark, source_rating_event_ids_json, rating_evidence_rows_json,
+            created_at
+        ON preference_optimization_runs BEGIN
+            SELECT RAISE(ABORT, 'immutable optimization run payload');
+        END
+        """
+    )
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS preference_optimization_runs_no_delete
+        BEFORE DELETE ON preference_optimization_runs BEGIN
+            SELECT RAISE(ABORT, 'optimization run history is append-only');
+        END
+        """
+    )
+
+
+def _backfill_preference_optimization_runs(conn: sqlite3.Connection) -> int:
+    count = 0
+    training_cursor = conn.execute(
+        "SELECT training_run_id, domain_id, created_at FROM inverse_training_runs "
+        "ORDER BY created_at, training_run_id"
+    )
+    for training_run_id, domain_id, created_at in training_cursor.fetchall():
+        internal_id = str(training_run_id)
+        public_id = build_preference_optimization_run_id(internal_id)
+        existing_public = conn.execute(
+            "SELECT training_run_id FROM preference_optimization_runs "
+            "WHERE preference_optimization_run_id = ?",
+            (public_id,),
+        ).fetchone()
+        existing_internal = conn.execute(
+            "SELECT preference_optimization_run_id FROM preference_optimization_runs "
+            "WHERE training_run_id = ?",
+            (internal_id,),
+        ).fetchone()
+        if existing_public is not None or existing_internal is not None:
+            if (
+                existing_public is None
+                or str(existing_public[0]) != internal_id
+                or existing_internal is None
+                or str(existing_internal[0]) != public_id
+            ):
+                raise ValueError("preference optimization run identity mapping conflict")
+            continue
+        snapshot_ids = conn.execute(
+            "SELECT policy_snapshot_id FROM ranking_policy_snapshots "
+            "WHERE training_run_id = ? ORDER BY created_at, policy_snapshot_id",
+            (internal_id,),
+        ).fetchall()
+        policy_snapshot_id = str(snapshot_ids[0][0]) if len(snapshot_ids) == 1 else None
+        _insert_policy_row(
+            conn,
+            "preference_optimization_runs",
+            _PREFERENCE_OPTIMIZATION_RUN_COLUMNS,
+            {
+                "preference_optimization_run_id": public_id,
+                "training_run_id": internal_id,
+                "policy_snapshot_id": policy_snapshot_id,
+                "schema_version": "preference_optimization_run_v1",
+                "domain_id": str(domain_id),
+                "historical_snapshot_status": "legacy_unavailable",
+                "settings_revision": None,
+                "ranking_mode": None,
+                "personalization_strength": None,
+                "evidence_head_fingerprint": None,
+                "event_watermark": None,
+                "source_rating_event_ids_json": [],
+                "rating_evidence_rows_json": [],
+                "created_at": str(created_at),
+                "hidden_at": None,
+                "hidden_by": None,
+            },
+        )
+        count += 1
+    return count
+
+
+def _collapse_active_preference_policies(
+    conn: sqlite3.Connection, context: dict[str, Any]
+) -> tuple[dict[str, dict[str, Any]], set[str], int]:
+    cursor = conn.execute(
+        "SELECT * FROM ranking_policy_snapshots WHERE status = 'active' "
+        "ORDER BY domain_id, activated_at DESC, policy_snapshot_id DESC"
+    )
+    active_rows = [_row_dict(cursor, row) for row in cursor.fetchall()]
+    by_domain: dict[str, list[dict[str, Any]]] = {}
+    for row in active_rows:
+        if row is not None:
+            by_domain.setdefault(str(row["domain_id"]), []).append(row)
+    winners: dict[str, dict[str, Any]] = {}
+    compatible_ids: set[str] = set()
+    retired_count = 0
+    for domain_id, rows in by_domain.items():
+        compatible = [
+            row for row in rows if _snapshot_matches_current_preference_runtime(row, context)
+        ]
+        winner = (compatible or rows)[0]
+        winners[domain_id] = winner
+        if compatible:
+            compatible_ids.add(str(winner["policy_snapshot_id"]))
+        for row in rows:
+            if row["policy_snapshot_id"] == winner["policy_snapshot_id"]:
+                continue
+            conn.execute(
+                "UPDATE ranking_policy_snapshots SET status = 'retired' "
+                "WHERE policy_snapshot_id = ?",
+                (row["policy_snapshot_id"],),
+            )
+            _append_policy_event(
+                conn,
+                domain_id=domain_id,
+                runtime_contract_fingerprint=str(row["runtime_contract_fingerprint"]),
+                previous_snapshot_id=str(row["policy_snapshot_id"]),
+                target_snapshot_id=str(winner["policy_snapshot_id"]),
+                action="retire",
+                reason_code="domain_single_active_migration",
+                expected_parent_ref=None,
+                evidence_head_fingerprint=None,
+                acted_by="system_migration",
+            )
+            retired_count += 1
+    return winners, compatible_ids, retired_count
+
+
+def _initialize_preference_optimization_settings(
+    conn: sqlite3.Connection,
+    context: dict[str, Any],
+    winners: dict[str, dict[str, Any]],
+    compatible_ids: set[str],
+) -> None:
+    winner = winners.get(context["domain_id"])
+    compatible_winner = (
+        winner
+        if winner is not None and str(winner["policy_snapshot_id"]) in compatible_ids
+        else None
+    )
+    defaults = {
+        "preference_optimization.ranking_mode": (
+            "personalized" if compatible_winner is not None else "baseline"
+        ),
+        "preference_optimization.personalization_strength": (
+            float(compatible_winner["learned_alpha"])
+            if compatible_winner is not None
+            else context["recommended_strength"]
+        ),
+    }
+    existing = {
+        str(row[0])
+        for row in conn.execute(
+            "SELECT DISTINCT setting_key FROM pipeline_settings "
+            "WHERE setting_key IN (?, ?)",
+            tuple(defaults),
+        ).fetchall()
+    }
+    now = _policy_now()
+    for key, value in defaults.items():
+        if key not in existing:
+            conn.execute(
+                "INSERT INTO pipeline_settings "
+                "(setting_key, setting_value_json, updated_by, updated_at) VALUES (?, ?, ?, ?)",
+                (key, json.dumps(value), "system_migration", now),
+            )
+
+
+def _apply_preference_optimization_projection_migration(conn: sqlite3.Connection) -> None:
+    if conn.execute(
+        "SELECT 1 FROM integration_migrations WHERE migration_key = ?",
+        (_PREFERENCE_OPTIMIZATION_PROJECTION_MIGRATION,),
+    ).fetchone() is not None:
+        return
+    conn.commit()
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        context = _preference_optimization_migration_context()
+        _create_preference_optimization_projection_schema(conn)
+        backfilled_count = _backfill_preference_optimization_runs(conn)
+        winners, compatible_ids, retired_count = _collapse_active_preference_policies(
+            conn, context
+        )
+        conn.execute("DROP INDEX IF EXISTS one_active_ranking_policy")
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS one_active_ranking_policy_per_domain "
+            "ON ranking_policy_snapshots (domain_id) WHERE status = 'active'"
+        )
+        _initialize_preference_optimization_settings(
+            conn, context, winners, compatible_ids
+        )
+        conn.execute(
+            "INSERT INTO integration_migrations "
+            "(migration_key, details_json, completed_at) VALUES (?, ?, ?)",
+            (
+                _PREFERENCE_OPTIMIZATION_PROJECTION_MIGRATION,
+                json.dumps(
+                    {
+                        "backfilled_run_count": backfilled_count,
+                        "retired_active_policy_count": retired_count,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                _policy_now(),
+            ),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 
 def _policy_now() -> str:
@@ -2814,6 +3193,138 @@ def _insert_policy_row(
     conn.execute(
         f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})",
         tuple(_policy_value(column, payload.get(column)) for column in columns),
+    )
+
+
+def _required_projection_text(value: Any, field: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        raise ValueError(f"{field} must be nonempty")
+    return text
+
+
+def _prepare_preference_optimization_run(
+    training: dict[str, Any],
+    snapshot: dict[str, Any] | None,
+    projection_payload: dict[str, Any],
+) -> dict[str, Any]:
+    settings_revision_value = _required_projection_text(
+        projection_payload.get("settings_revision"), "settings_revision"
+    )
+    if projection_payload.get("ranking_mode") != "personalized":
+        raise ValueError("ranking_mode must be personalized")
+    raw_strength = projection_payload.get("personalization_strength")
+    if raw_strength is None:
+        raise ValueError("personalization_strength must be finite")
+    try:
+        strength = float(raw_strength)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("personalization_strength must be finite") from exc
+    if not math.isfinite(strength) or not 0.0 < strength <= 0.25:
+        raise ValueError("personalization_strength must be within (0, 0.25]")
+    evidence_head_fingerprint = _required_projection_text(
+        projection_payload.get("evidence_head_fingerprint"),
+        "evidence_head_fingerprint",
+    )
+    event_watermark = projection_payload.get("event_watermark")
+    if isinstance(event_watermark, bool) or not isinstance(event_watermark, int):
+        raise ValueError("event_watermark must be a nonnegative integer")
+    if event_watermark < 0 or event_watermark != int(training["event_watermark"]):
+        raise ValueError("event_watermark must match training run")
+    raw_event_ids = projection_payload.get("source_rating_event_ids")
+    if not isinstance(raw_event_ids, list):
+        raise ValueError("source_rating_event_ids must be a list")
+    source_event_ids = [
+        _required_projection_text(value, "source_rating_event_ids") for value in raw_event_ids
+    ]
+    if len(source_event_ids) != len(set(source_event_ids)):
+        raise ValueError("source_rating_event_ids must be ordered unique")
+    raw_rows = projection_payload.get("rating_evidence_rows")
+    if not isinstance(raw_rows, list):
+        raise ValueError("rating_evidence_rows must be a list")
+    rows: list[dict[str, Any]] = []
+    seen_row_event_ids: set[str] = set()
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, dict) or frozenset(raw_row) != _RATING_EVIDENCE_ROW_FIELDS:
+            raise ValueError("rating_evidence_rows must use the canonical fields")
+        source_event_id = _required_projection_text(
+            raw_row["source_rating_event_id"], "source_rating_event_id"
+        )
+        if source_event_id not in source_event_ids:
+            raise ValueError("rating evidence row references unknown source event")
+        if source_event_id in seen_row_event_ids:
+            raise ValueError("rating evidence rows must reference unique source events")
+        seen_row_event_ids.add(source_event_id)
+        displayed_rank = raw_row["displayed_rank"]
+        if isinstance(displayed_rank, bool) or not isinstance(displayed_rank, int) or displayed_rank <= 0:
+            raise ValueError("displayed_rank must be positive")
+        rating = raw_row["rating"]
+        if isinstance(rating, bool) or not isinstance(rating, int) or not 1 <= rating <= 5:
+            raise ValueError("rating must be within [1, 5]")
+        try:
+            baseline_fit = float(raw_row["baseline_fit"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError("baseline_fit must be finite") from exc
+        if not math.isfinite(baseline_fit):
+            raise ValueError("baseline_fit must be finite")
+        rated_at = _required_projection_text(raw_row["rated_at"], "rated_at")
+        try:
+            datetime.datetime.fromisoformat(rated_at)
+        except ValueError as exc:
+            raise ValueError("rated_at must be ISO-8601") from exc
+        rows.append(
+            {
+                "source_rating_event_id": source_event_id,
+                "run_id": _required_projection_text(raw_row["run_id"], "run_id"),
+                "alternative_id": _required_projection_text(
+                    raw_row["alternative_id"], "alternative_id"
+                ),
+                "job_label": _required_projection_text(raw_row["job_label"], "job_label"),
+                "source_job_url": _required_projection_text(
+                    raw_row["source_job_url"], "source_job_url"
+                ),
+                "displayed_rank": displayed_rank,
+                "baseline_fit": baseline_fit,
+                "baseline_fit_label": _required_projection_text(
+                    raw_row["baseline_fit_label"], "baseline_fit_label"
+                ),
+                "rating": rating,
+                "rated_at": rated_at,
+            }
+        )
+    training_run_id = str(training["training_run_id"])
+    return {
+        "preference_optimization_run_id": build_preference_optimization_run_id(
+            training_run_id
+        ),
+        "training_run_id": training_run_id,
+        "policy_snapshot_id": (
+            str(snapshot["policy_snapshot_id"]) if snapshot is not None else None
+        ),
+        "schema_version": "preference_optimization_run_v1",
+        "domain_id": str(training["domain_id"]),
+        "historical_snapshot_status": "complete",
+        "settings_revision": settings_revision_value,
+        "ranking_mode": "personalized",
+        "personalization_strength": strength,
+        "evidence_head_fingerprint": evidence_head_fingerprint,
+        "event_watermark": event_watermark,
+        "source_rating_event_ids_json": source_event_ids,
+        "rating_evidence_rows_json": rows,
+        "created_at": str(training["created_at"]),
+        "hidden_at": None,
+        "hidden_by": None,
+    }
+
+
+def _same_preference_optimization_run(
+    existing: dict[str, Any], expected: dict[str, Any]
+) -> bool:
+    envelope_columns = {"created_at", "hidden_at", "hidden_by"}
+    return all(
+        existing.get(column) == expected.get(column)
+        for column in _PREFERENCE_OPTIMIZATION_RUN_COLUMNS
+        if column not in envelope_columns
     )
 
 
@@ -2869,12 +3380,18 @@ def _optimization_process_state(status: str) -> str:
 
 
 def _build_optimization_attempt_event(
-    training: dict[str, Any], snapshot: dict[str, Any] | None
+    training: dict[str, Any],
+    snapshot: dict[str, Any] | None,
+    optimization_run: dict[str, Any],
 ) -> ProcessEvent:
     status = str(training["status"])
     training_id = str(training["training_run_id"])
     snapshot_id = str(snapshot["policy_snapshot_id"]) if snapshot is not None else None
-    refs = [{"kind": "inverse_training_run", "id": training_id}]
+    public_id = str(optimization_run["preference_optimization_run_id"])
+    refs = [
+        {"kind": "preference_optimization_run", "id": public_id},
+        {"kind": "inverse_training_run", "id": training_id},
+    ]
     if snapshot_id is not None:
         refs.append({"kind": "ranking_policy_snapshot", "id": snapshot_id})
     return build_process_event(
@@ -2886,7 +3403,12 @@ def _build_optimization_attempt_event(
             "warning" if _optimization_process_state(status) == "rejected" else "info"
         ),
         message=f"Optimization attempt {status}",
-        payload={"status": status, "training_run_id": training_id, "policy_snapshot_id": snapshot_id},
+        payload={
+            "status": status,
+            "preference_optimization_run_id": public_id,
+            "training_run_id": training_id,
+            "policy_snapshot_id": snapshot_id,
+        },
         diagnostic_refs=refs,
         event_id=f"optimization:{training_id}",
         recorded_at=datetime.datetime.fromisoformat(str(training["created_at"])),
@@ -2896,6 +3418,7 @@ def _build_optimization_attempt_event(
 def persist_candidate_attempt(
     training_payload: dict[str, Any],
     snapshot_payload: dict[str, Any] | None = None,
+    projection_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     training = dict(training_payload)
     training.setdefault("created_at", _policy_now())
@@ -2918,6 +3441,13 @@ def persist_candidate_attempt(
             raise ValueError("new snapshot status must be candidate")
         if snapshot["payload_fingerprint"] != fingerprint or snapshot["policy_snapshot_id"] != snapshot_id:
             raise ValueError("snapshot fingerprint mismatch")
+    if projection_payload is None:
+        raise ValueError("preference optimization projection is required")
+    optimization_run = _prepare_preference_optimization_run(
+        training,
+        snapshot,
+        dict(projection_payload),
+    )
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
         _ensure_local_preference_policy_tables(conn)
@@ -2943,10 +3473,37 @@ def persist_candidate_attempt(
                 _insert_policy_row(conn, "ranking_policy_snapshots", _SNAPSHOT_COLUMNS, snapshot)
             elif existing_snapshot["payload_fingerprint"] != snapshot["payload_fingerprint"]:
                 raise ValueError("existing snapshot conflicts with payload")
+        existing_optimization_run = _fetch_policy_row(
+            conn,
+            "preference_optimization_runs",
+            "preference_optimization_run_id",
+            str(optimization_run["preference_optimization_run_id"]),
+        )
+        if existing_optimization_run is None:
+            mapped_run = _fetch_policy_row(
+                conn,
+                "preference_optimization_runs",
+                "training_run_id",
+                expected_training_id,
+            )
+            if mapped_run is not None:
+                raise ValueError("preference optimization run identity mapping conflict")
+            _insert_policy_row(
+                conn,
+                "preference_optimization_runs",
+                _PREFERENCE_OPTIMIZATION_RUN_COLUMNS,
+                optimization_run,
+            )
+        elif not _same_preference_optimization_run(
+            existing_optimization_run, optimization_run
+        ):
+            raise ValueError("existing preference optimization run conflicts with payload")
         _insert_process_event(
             conn,
             _build_optimization_attempt_event(
-                existing_training or training, existing_snapshot or snapshot
+                existing_training or training,
+                existing_snapshot or snapshot,
+                existing_optimization_run or optimization_run,
             ),
             delivery_sinks=("langfuse",),
             raise_on_conflict=True,
@@ -2966,7 +3523,154 @@ def persist_candidate_attempt(
                 if snapshot is not None
                 else None
             ),
+            "optimization_run": _fetch_policy_row(
+                conn,
+                "preference_optimization_runs",
+                "preference_optimization_run_id",
+                str(optimization_run["preference_optimization_run_id"]),
+            ),
         }
+
+
+def _preference_optimization_run_view(
+    conn: sqlite3.Connection, projection: dict[str, Any]
+) -> dict[str, Any]:
+    training = _fetch_policy_row(
+        conn,
+        "inverse_training_runs",
+        "training_run_id",
+        str(projection["training_run_id"]),
+    )
+    if training is None:
+        raise ValueError("preference optimization run has no training record")
+    policy_snapshot = None
+    if projection.get("policy_snapshot_id") is not None:
+        policy_snapshot = _fetch_policy_row(
+            conn,
+            "ranking_policy_snapshots",
+            "policy_snapshot_id",
+            str(projection["policy_snapshot_id"]),
+        )
+        if policy_snapshot is None:
+            raise ValueError("preference optimization run has no policy snapshot")
+    return {
+        **projection,
+        "status": training["status"],
+        "result_json": training["result_json"],
+        "policy_status": (
+            policy_snapshot["status"] if policy_snapshot is not None else None
+        ),
+        "activated_at": (
+            policy_snapshot["activated_at"] if policy_snapshot is not None else None
+        ),
+    }
+
+
+def get_preference_optimization_run(
+    preference_optimization_run_id: str,
+) -> dict[str, Any]:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
+        projection = _fetch_policy_row(
+            conn,
+            "preference_optimization_runs",
+            "preference_optimization_run_id",
+            preference_optimization_run_id,
+        )
+        if projection is None:
+            raise KeyError(preference_optimization_run_id)
+        return _preference_optimization_run_view(conn, projection)
+
+
+def list_preference_optimization_runs(*, limit: int = 100) -> list[dict[str, Any]]:
+    if limit <= 0:
+        raise ValueError("limit must be positive")
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
+        cursor = conn.execute(
+            "SELECT * FROM preference_optimization_runs WHERE hidden_at IS NULL "
+            "ORDER BY created_at DESC, preference_optimization_run_id DESC LIMIT ?",
+            (limit,),
+        )
+        projections = [_row_dict(cursor, row) for row in cursor.fetchall()]
+        return [
+            _preference_optimization_run_view(conn, projection)
+            for projection in projections
+            if projection is not None
+        ]
+
+
+def hide_preference_optimization_run(
+    preference_optimization_run_id: str,
+) -> dict[str, Any]:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        projection = _fetch_policy_row(
+            conn,
+            "preference_optimization_runs",
+            "preference_optimization_run_id",
+            preference_optimization_run_id,
+        )
+        if projection is None:
+            raise KeyError(preference_optimization_run_id)
+        if projection["hidden_at"] is not None:
+            conn.commit()
+            return _preference_optimization_run_view(conn, projection)
+        active_owner = conn.execute(
+            "SELECT 1 FROM ranking_policy_snapshots "
+            "WHERE training_run_id = ? AND status = 'active' LIMIT 1",
+            (projection["training_run_id"],),
+        ).fetchone()
+        if active_owner is not None:
+            raise ValueError("active_policy_must_be_inactivated")
+        hidden_at = _policy_now()
+        conn.execute(
+            "UPDATE preference_optimization_runs SET hidden_at = ?, hidden_by = ? "
+            "WHERE preference_optimization_run_id = ?",
+            (hidden_at, "local_workspace", preference_optimization_run_id),
+        )
+        event = build_process_event(
+            process_type="optimization",
+            process_id=str(projection["domain_id"]),
+            operation="optimization_run_hidden",
+            state="succeeded",
+            level="info",
+            message=f"Optimization run removed: {preference_optimization_run_id}",
+            payload={
+                "preference_optimization_run_id": preference_optimization_run_id,
+                "hidden_at": hidden_at,
+                "hidden_by": "local_workspace",
+            },
+            diagnostic_refs=[
+                {
+                    "kind": "preference_optimization_run",
+                    "id": preference_optimization_run_id,
+                }
+            ],
+            event_id=f"optimization:hidden:{preference_optimization_run_id}",
+            recorded_at=datetime.datetime.fromisoformat(hidden_at),
+        )
+        _insert_process_event(
+            conn,
+            event,
+            delivery_sinks=("langfuse",),
+            raise_on_conflict=True,
+        )
+        conn.commit()
+        hidden = _fetch_policy_row(
+            conn,
+            "preference_optimization_runs",
+            "preference_optimization_run_id",
+            preference_optimization_run_id,
+        )
+        if hidden is None:
+            raise RuntimeError("hidden preference optimization run disappeared")
+        return _preference_optimization_run_view(conn, hidden)
 
 
 def _load_decision_training_rows(
@@ -3180,10 +3884,7 @@ def load_inverse_optimization_request(domain_id: str) -> InverseOptimizationRequ
                     )
                     for event in row["events"]
                 ),
-                events_loaded_through_sequence=max(
-                    (int(event["event_sequence"]) for event in row["events"]),
-                    default=0,
-                ),
+                events_loaded_through_sequence=event_watermark,
                 evaluation_context=None,
             )
             for row in episode_rows
@@ -3252,6 +3953,182 @@ def _append_policy_event(
     return payload
 
 
+def _activate_ranking_policy_candidate_in_connection(
+    conn: sqlite3.Connection,
+    policy_snapshot_id: str,
+    *,
+    expected_parent_ref: str,
+    acted_by: str,
+    evidence_head_fingerprint: str | None,
+    current_runtime_contract_fingerprint: str,
+    current_compiler_policy_fingerprint: str,
+    current_decision_learning_policy_fingerprint: str,
+    current_optimizer_policy_fingerprint: str,
+    current_activation_policy_fingerprint: str,
+    mark_stale_on_conflict: bool,
+) -> dict[str, Any]:
+    candidate = _fetch_policy_row(
+        conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id
+    )
+    if candidate is None:
+        raise KeyError(policy_snapshot_id)
+    if candidate["status"] == "active":
+        return candidate
+    if candidate["status"] != "candidate":
+        raise ValueError("snapshot is not candidate")
+    training = _fetch_policy_row(
+        conn,
+        "inverse_training_runs",
+        "training_run_id",
+        str(candidate["training_run_id"]),
+    )
+    candidate_evidence_head = (
+        (training.get("result_json") or {}).get("evidence_head_fingerprint")
+        if training is not None
+        else None
+    )
+    active_cursor = conn.execute(
+        "SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? AND status = 'active'",
+        (candidate["domain_id"],),
+    )
+    active_rows = active_cursor.fetchall()
+    if len(active_rows) > 1:
+        raise ValueError("multiple active ranking policies")
+    domain_active = _row_dict(active_cursor, active_rows[0]) if active_rows else None
+    compatible_active = (
+        domain_active
+        if domain_active is not None
+        and domain_active["runtime_contract_fingerprint"]
+        == candidate["runtime_contract_fingerprint"]
+        else None
+    )
+    current_parent = (
+        f"learned:{compatible_active['policy_snapshot_id']}"
+        if compatible_active is not None
+        else f"zero_residual:{candidate['baseline_policy_fingerprint']}"
+    )
+    stale_reason = None
+    if (
+        evidence_head_fingerprint is not None
+        and candidate_evidence_head is not None
+        and evidence_head_fingerprint != candidate_evidence_head
+    ):
+        stale_reason = ("evidence_changed", "candidate evidence changed")
+    elif expected_parent_ref != current_parent or candidate["parent_policy_ref"] != current_parent:
+        stale_reason = ("parent_changed", "candidate parent changed")
+    else:
+        provenance_checks = (
+            (
+                "runtime_contract_fingerprint",
+                current_runtime_contract_fingerprint,
+                "runtime_contract_changed",
+                "candidate runtime contract changed",
+            ),
+            (
+                "compiler_policy_fingerprint",
+                current_compiler_policy_fingerprint,
+                "compiler_policy_changed",
+                "candidate compiler policy changed",
+            ),
+            (
+                "activation_policy_fingerprint",
+                current_activation_policy_fingerprint,
+                "activation_policy_changed",
+                "candidate activation policy changed",
+            ),
+            (
+                "optimizer_policy_fingerprint",
+                current_optimizer_policy_fingerprint,
+                "optimizer_policy_changed",
+                "candidate optimizer policy changed",
+            ),
+            (
+                "decision_learning_policy_fingerprint",
+                current_decision_learning_policy_fingerprint,
+                "decision_learning_policy_changed",
+                "candidate decision learning policy changed",
+            ),
+        )
+        stale_reason = next(
+            (
+                (reason_code, message)
+                for field, current_value, reason_code, message in provenance_checks
+                if candidate[field] != current_value
+            ),
+            None,
+        )
+    if stale_reason is not None:
+        if mark_stale_on_conflict:
+            conn.execute(
+                "UPDATE ranking_policy_snapshots SET status = 'stale' "
+                "WHERE policy_snapshot_id = ?",
+                (policy_snapshot_id,),
+            )
+            _append_policy_event(
+                conn,
+                domain_id=str(candidate["domain_id"]),
+                runtime_contract_fingerprint=str(
+                    candidate["runtime_contract_fingerprint"]
+                ),
+                previous_snapshot_id=(
+                    str(domain_active["policy_snapshot_id"])
+                    if domain_active is not None
+                    else None
+                ),
+                target_snapshot_id=policy_snapshot_id,
+                action="stale",
+                reason_code=stale_reason[0],
+                expected_parent_ref=expected_parent_ref,
+                evidence_head_fingerprint=evidence_head_fingerprint,
+                acted_by=acted_by,
+            )
+        raise ValueError(stale_reason[1])
+    if domain_active is not None:
+        conn.execute(
+            "UPDATE ranking_policy_snapshots SET status = 'retired' "
+            "WHERE policy_snapshot_id = ?",
+            (domain_active["policy_snapshot_id"],),
+        )
+        _append_policy_event(
+            conn,
+            domain_id=str(candidate["domain_id"]),
+            runtime_contract_fingerprint=str(
+                domain_active["runtime_contract_fingerprint"]
+            ),
+            previous_snapshot_id=str(domain_active["policy_snapshot_id"]),
+            target_snapshot_id=policy_snapshot_id,
+            action="retire",
+            reason_code="superseded",
+            expected_parent_ref=expected_parent_ref,
+            evidence_head_fingerprint=evidence_head_fingerprint,
+            acted_by=acted_by,
+        )
+    conn.execute(
+        "UPDATE ranking_policy_snapshots SET status = 'active', activated_at = ? "
+        "WHERE policy_snapshot_id = ?",
+        (_policy_now(), policy_snapshot_id),
+    )
+    _append_policy_event(
+        conn,
+        domain_id=str(candidate["domain_id"]),
+        runtime_contract_fingerprint=str(candidate["runtime_contract_fingerprint"]),
+        previous_snapshot_id=(
+            str(domain_active["policy_snapshot_id"])
+            if domain_active is not None
+            else None
+        ),
+        target_snapshot_id=policy_snapshot_id,
+        action="activate",
+        reason_code="manual_activation",
+        expected_parent_ref=expected_parent_ref,
+        evidence_head_fingerprint=evidence_head_fingerprint,
+        acted_by=acted_by,
+    )
+    return _fetch_policy_row(
+        conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id
+    ) or candidate
+
+
 def activate_ranking_policy_candidate(
     policy_snapshot_id: str,
     *,
@@ -3270,139 +4147,180 @@ def activate_ranking_policy_candidate(
         _ensure_process_event_tables(conn)
         conn.commit()
         conn.execute("BEGIN IMMEDIATE")
-        candidate = _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id)
-        if candidate is None:
-            raise KeyError(policy_snapshot_id)
-        if candidate["status"] == "active":
-            conn.commit()
-            return candidate
-        if candidate["status"] != "candidate":
-            raise ValueError("snapshot is not candidate")
-        training = _fetch_policy_row(
-            conn,
-            "inverse_training_runs",
-            "training_run_id",
-            str(candidate["training_run_id"]),
-        )
-        candidate_evidence_head = (
-            (training.get("result_json") or {}).get("evidence_head_fingerprint")
-            if training is not None
-            else None
-        )
-        cursor = conn.execute(
-            "SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? AND runtime_contract_fingerprint = ? AND status = 'active'",
-            (candidate["domain_id"], candidate["runtime_contract_fingerprint"]),
-        )
-        active = _row_dict(cursor, cursor.fetchone())
-        current_parent = (
-            f"learned:{active['policy_snapshot_id']}"
-            if active is not None
-            else f"zero_residual:{candidate['baseline_policy_fingerprint']}"
-        )
-        stale_reason = None
-        if (
-            evidence_head_fingerprint is not None
-            and candidate_evidence_head is not None
-            and evidence_head_fingerprint != candidate_evidence_head
-        ):
-            stale_reason = ("evidence_changed", "candidate evidence changed")
-        elif expected_parent_ref != current_parent or candidate["parent_policy_ref"] != current_parent:
-            stale_reason = ("parent_changed", "candidate parent changed")
-        else:
-            provenance_checks = (
-                (
-                    "runtime_contract_fingerprint",
-                    current_runtime_contract_fingerprint,
-                    "runtime_contract_changed",
-                    "candidate runtime contract changed",
-                ),
-                (
-                    "compiler_policy_fingerprint",
-                    current_compiler_policy_fingerprint,
-                    "compiler_policy_changed",
-                    "candidate compiler policy changed",
-                ),
-                (
-                    "activation_policy_fingerprint",
-                    current_activation_policy_fingerprint,
-                    "activation_policy_changed",
-                    "candidate activation policy changed",
-                ),
-                (
-                    "optimizer_policy_fingerprint",
-                    current_optimizer_policy_fingerprint,
-                    "optimizer_policy_changed",
-                    "candidate optimizer policy changed",
-                ),
-                (
-                    "decision_learning_policy_fingerprint",
-                    current_decision_learning_policy_fingerprint,
-                    "decision_learning_policy_changed",
-                    "candidate decision learning policy changed",
-                ),
-            )
-            stale_reason = next(
-                (
-                    (reason_code, message)
-                    for field, current_value, reason_code, message in provenance_checks
-                    if candidate[field] != current_value
-                ),
-                None,
-            )
-        if stale_reason is not None:
-            conn.execute(
-                "UPDATE ranking_policy_snapshots SET status = 'stale' WHERE policy_snapshot_id = ?",
-                (policy_snapshot_id,),
-            )
-            _append_policy_event(
+        try:
+            result = _activate_ranking_policy_candidate_in_connection(
                 conn,
-                domain_id=candidate["domain_id"],
-                runtime_contract_fingerprint=candidate["runtime_contract_fingerprint"],
-                previous_snapshot_id=active["policy_snapshot_id"] if active else None,
-                target_snapshot_id=policy_snapshot_id,
-                action="stale",
-                reason_code=stale_reason[0],
+                policy_snapshot_id,
                 expected_parent_ref=expected_parent_ref,
-                evidence_head_fingerprint=evidence_head_fingerprint,
                 acted_by=acted_by,
+                evidence_head_fingerprint=evidence_head_fingerprint,
+                current_runtime_contract_fingerprint=current_runtime_contract_fingerprint,
+                current_compiler_policy_fingerprint=current_compiler_policy_fingerprint,
+                current_decision_learning_policy_fingerprint=(
+                    current_decision_learning_policy_fingerprint
+                ),
+                current_optimizer_policy_fingerprint=current_optimizer_policy_fingerprint,
+                current_activation_policy_fingerprint=current_activation_policy_fingerprint,
+                mark_stale_on_conflict=True,
             )
             conn.commit()
-            raise ValueError(stale_reason[1])
-        if active is not None:
-            conn.execute(
-                "UPDATE ranking_policy_snapshots SET status = 'retired' WHERE policy_snapshot_id = ?",
-                (active["policy_snapshot_id"],),
-            )
-            _append_policy_event(
+            return result
+        except ValueError:
+            candidate = _fetch_policy_row(
                 conn,
-                domain_id=candidate["domain_id"],
-                runtime_contract_fingerprint=candidate["runtime_contract_fingerprint"],
-                previous_snapshot_id=active["policy_snapshot_id"],
-                target_snapshot_id=policy_snapshot_id,
-                action="retire",
-                reason_code="superseded",
-                expected_parent_ref=expected_parent_ref,
-                evidence_head_fingerprint=evidence_head_fingerprint,
-                acted_by=acted_by,
+                "ranking_policy_snapshots",
+                "policy_snapshot_id",
+                policy_snapshot_id,
             )
-        conn.execute(
-            "UPDATE ranking_policy_snapshots SET status = 'active', activated_at = ? WHERE policy_snapshot_id = ?",
-            (_policy_now(), policy_snapshot_id),
-        )
-        _append_policy_event(
-            conn,
-            domain_id=candidate["domain_id"],
-            runtime_contract_fingerprint=candidate["runtime_contract_fingerprint"],
-            previous_snapshot_id=active["policy_snapshot_id"] if active else None,
-            target_snapshot_id=policy_snapshot_id,
-            action="activate",
-            reason_code="manual_activation",
-            expected_parent_ref=expected_parent_ref,
-            evidence_head_fingerprint=evidence_head_fingerprint,
-            acted_by=acted_by,
-        )
+            if candidate is not None and candidate["status"] == "stale":
+                conn.commit()
+            else:
+                conn.rollback()
+            raise
+
+
+def activate_preference_optimization_run(
+    preference_optimization_run_id: str,
+    *,
+    expected_parent_ref: str,
+    evidence_head_fingerprint: str | None = None,
+    current_runtime_contract_fingerprint: str,
+    current_compiler_policy_fingerprint: str,
+    current_decision_learning_policy_fingerprint: str,
+    current_optimizer_policy_fingerprint: str,
+    current_activation_policy_fingerprint: str,
+) -> dict[str, Any]:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
         conn.commit()
-        return _fetch_policy_row(conn, "ranking_policy_snapshots", "policy_snapshot_id", policy_snapshot_id) or candidate
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            projection = _fetch_policy_row(
+                conn,
+                "preference_optimization_runs",
+                "preference_optimization_run_id",
+                preference_optimization_run_id,
+            )
+            if projection is None:
+                raise KeyError(preference_optimization_run_id)
+            if projection["hidden_at"] is not None:
+                raise ValueError("optimization_run_hidden")
+            policy_snapshot_id = projection.get("policy_snapshot_id")
+            if policy_snapshot_id is None:
+                raise ValueError("optimization_run_has_no_policy")
+            _activate_ranking_policy_candidate_in_connection(
+                conn,
+                str(policy_snapshot_id),
+                expected_parent_ref=expected_parent_ref,
+                acted_by="local_workspace",
+                evidence_head_fingerprint=evidence_head_fingerprint,
+                current_runtime_contract_fingerprint=(
+                    current_runtime_contract_fingerprint
+                ),
+                current_compiler_policy_fingerprint=(
+                    current_compiler_policy_fingerprint
+                ),
+                current_decision_learning_policy_fingerprint=(
+                    current_decision_learning_policy_fingerprint
+                ),
+                current_optimizer_policy_fingerprint=(
+                    current_optimizer_policy_fingerprint
+                ),
+                current_activation_policy_fingerprint=(
+                    current_activation_policy_fingerprint
+                ),
+                mark_stale_on_conflict=False,
+            )
+            conn.commit()
+            current_projection = _fetch_policy_row(
+                conn,
+                "preference_optimization_runs",
+                "preference_optimization_run_id",
+                preference_optimization_run_id,
+            )
+            if current_projection is None:
+                raise RuntimeError("activated preference optimization run disappeared")
+            return _preference_optimization_run_view(conn, current_projection)
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def inactivate_preference_optimization_run(
+    preference_optimization_run_id: str,
+    *,
+    expected_active_snapshot_id: str,
+) -> dict[str, Any]:
+    db_path = Path(_local_sqlite_path())
+    with _sqlite_connection(db_path) as conn:
+        _ensure_local_preference_policy_tables(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            projection = _fetch_policy_row(
+                conn,
+                "preference_optimization_runs",
+                "preference_optimization_run_id",
+                preference_optimization_run_id,
+            )
+            if projection is None:
+                raise KeyError(preference_optimization_run_id)
+            if projection["hidden_at"] is not None:
+                raise ValueError("optimization_run_hidden")
+            policy_snapshot_id = projection.get("policy_snapshot_id")
+            if (
+                policy_snapshot_id is None
+                or str(policy_snapshot_id) != expected_active_snapshot_id
+            ):
+                raise ValueError("active snapshot changed")
+            active = _fetch_policy_row(
+                conn,
+                "ranking_policy_snapshots",
+                "policy_snapshot_id",
+                expected_active_snapshot_id,
+            )
+            if active is None or active["status"] != "active":
+                raise ValueError("active snapshot changed")
+            domain_active = conn.execute(
+                "SELECT policy_snapshot_id FROM ranking_policy_snapshots "
+                "WHERE domain_id = ? AND status = 'active'",
+                (active["domain_id"],),
+            ).fetchall()
+            if domain_active != [(expected_active_snapshot_id,)]:
+                raise ValueError("active snapshot changed")
+            conn.execute(
+                "UPDATE ranking_policy_snapshots SET status = 'retired' "
+                "WHERE policy_snapshot_id = ?",
+                (expected_active_snapshot_id,),
+            )
+            _append_policy_event(
+                conn,
+                domain_id=str(active["domain_id"]),
+                runtime_contract_fingerprint=str(
+                    active["runtime_contract_fingerprint"]
+                ),
+                previous_snapshot_id=expected_active_snapshot_id,
+                target_snapshot_id=None,
+                action="rollback",
+                reason_code="manual_inactivation",
+                expected_parent_ref=f"learned:{expected_active_snapshot_id}",
+                evidence_head_fingerprint=None,
+                acted_by="local_workspace",
+            )
+            conn.commit()
+            current_projection = _fetch_policy_row(
+                conn,
+                "preference_optimization_runs",
+                "preference_optimization_run_id",
+                preference_optimization_run_id,
+            )
+            if current_projection is None:
+                raise RuntimeError("inactivated preference optimization run disappeared")
+            return _preference_optimization_run_view(conn, current_projection)
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def reject_ranking_policy_candidate(
@@ -3522,6 +4440,7 @@ def inspect_ranking_policy_lifecycle(
     domain_id: str,
     *,
     limit: int | None = None,
+    runtime_contract_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     if limit is not None and limit <= 0:
         raise ValueError("limit must be positive")
@@ -3535,37 +4454,63 @@ def inspect_ranking_policy_lifecycle(
             f"SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? ORDER BY created_at {order}, policy_snapshot_id {order}{limit_sql}",
             parameters,
         )
-        snapshots = [_row_dict(snapshots_cursor, row) for row in snapshots_cursor.fetchall()]
+        snapshots = [
+            payload
+            for row in snapshots_cursor.fetchall()
+            if (payload := _row_dict(snapshots_cursor, row)) is not None
+        ]
         events_cursor = conn.execute(
             f"SELECT * FROM policy_activation_events WHERE domain_id = ? ORDER BY created_at {order}, activation_event_id {order}{limit_sql}",
             parameters,
         )
-        events = [_row_dict(events_cursor, row) for row in events_cursor.fetchall()]
+        events = [
+            payload
+            for row in events_cursor.fetchall()
+            if (payload := _row_dict(events_cursor, row)) is not None
+        ]
         training_cursor = conn.execute(
             f"SELECT * FROM inverse_training_runs WHERE domain_id = ? ORDER BY created_at {order}, training_run_id {order}{limit_sql}",
             parameters,
         )
-        training_runs = [_row_dict(training_cursor, row) for row in training_cursor.fetchall()]
-        active = next((row for row in snapshots if row["status"] == "active"), None)
-        if active is None and limit is not None:
+        training_runs = [
+            payload
+            for row in training_cursor.fetchall()
+            if (payload := _row_dict(training_cursor, row)) is not None
+        ]
+        domain_active = next(
+            (row for row in snapshots if row["status"] == "active"), None
+        )
+        if domain_active is None and limit is not None:
             active_cursor = conn.execute(
                 "SELECT * FROM ranking_policy_snapshots WHERE domain_id = ? AND status = 'active'",
                 (domain_id,),
             )
             active_row = active_cursor.fetchone()
-            active = _row_dict(active_cursor, active_row) if active_row is not None else None
+            domain_active = (
+                _row_dict(active_cursor, active_row) if active_row is not None else None
+            )
+        compatible_active = (
+            domain_active
+            if domain_active is not None
+            and runtime_contract_fingerprint is not None
+            and domain_active["runtime_contract_fingerprint"]
+            == runtime_contract_fingerprint
+            else None
+        )
         for snapshot in snapshots:
             snapshot["rollback_eligible"] = bool(
-                active is not None
+                domain_active is not None
                 and snapshot["status"] == "retired"
                 and snapshot["runtime_contract_fingerprint"]
-                == active["runtime_contract_fingerprint"]
+                == domain_active["runtime_contract_fingerprint"]
             )
         return {
             "snapshots": snapshots,
             "events": events,
             "training_runs": training_runs,
-            "active_snapshot": active,
+            "active_snapshot": domain_active,
+            "domain_active_snapshot": domain_active,
+            "compatible_active_snapshot": compatible_active,
         }
 
 def _episode_values(episode: DecisionEpisode) -> tuple[Any, ...]:

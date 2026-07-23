@@ -29,7 +29,7 @@ related_stages:
 ## Authority
 
 - This specification owns target Preference Optimization integration behavior for packaged-local FitCV.
-- `docs/fitcv-settings-ui-prototype.html` remains visual and wording reference. This specification owns persistence, runtime behavior, identifiers, lifecycle rules, validation, and failure behavior.
+- `docs/fitcv-settings-ui-prototype.html` owns exact visual tokens, shell appearance, component structure, responsive behavior, and wording. Production may reuse an existing component only when its rendered contract is visually identical; otherwise the shared production component must be aligned to the prototype.
 - `docs/fitcv-settings-ui-prototype.integration.md` remains temporary acceptance intent and must not duplicate transport schemas.
 - This specification narrows the packaged-local integration and prototype-backend compatibility specifications for Preference Optimization only.
 - Existing inverse-optimization specifications remain authoritative for solver math, internal content identities, policy provenance, CAS checks, and retained audit history unless explicitly changed here.
@@ -361,7 +361,7 @@ related_stages:
 - trigger or actor: keyboard, pointer, screen reader, narrow container, 200% zoom, reduced motion, light, or dark theme.
 - preconditions: any main/detail state.
 - required behavior:
-  - reuse existing section card, setting row, Manage dialog, table, status, button, and Console patterns;
+  - use the prototype section card, setting row, Manage dialog, table, status, button, and Console structure exactly; reuse production patterns only when rendered output is visually identical;
   - use semantic headings/tables/labels, native controls, focus management, disabled attributes, and visible focus;
   - place disabled reason adjacent to control and expose it to assistive technology;
   - prevent duplicate submission;
@@ -581,7 +581,7 @@ related_stages:
 
 - setup or precondition: baseline, fallback, active, all terminal statuses, hidden, empty, validation, and console fixtures.
 - action: navigate main/detail URLs, submit forms, refresh, Back/Forward, clear console, and use keyboard only.
-- expected result: four-section main and three-section detail render; controls follow rules; shared patterns remain consistent; Clear is view-only.
+- expected result: four-section main and three-section detail match prototype tokens, spacing, collapsible structure, controls, and responsive behavior; Clear is view-only.
 - failure condition: hash production route, old technical sections/actions, missing disabled reason, focus loss, current evidence on details, or backend Clear deletion.
 - proof method: Jinja tests, Playwright flows/accessibility/screenshots, and targeted DevTools console/network checks.
 - expected evidence: desktop/narrow/200%-zoom/light/dark captures, keyboard sequence, clean console/network, stable URLs.

@@ -58,6 +58,7 @@ from fitcv_cp.optimization_service import (  # noqa: E402
     create_ranking_policy_candidate,
     current_activation_provenance,
 )
+from fitcv_cp.settings_store import load_active_settings, settings_revision  # noqa: E402
 from fitcv_cp.store import ControlPlaneStore  # noqa: E402
 
 _BUNDLE_KEYS = {"schema_version", "domain_id", "event_watermark", "episodes"}
@@ -358,10 +359,18 @@ def _current_activation_provenance(
 
 
 def _candidate_operation(request: InverseOptimizationRequest) -> dict[str, Any]:
+    store = ControlPlaneStore()
+    store.get_decision_evidence_head(request.domain_id)
+    active_settings = load_active_settings()
     return create_ranking_policy_candidate(
         request,
-        store=ControlPlaneStore(),
+        store=store,
         config=load_config(),
+        ranking_mode=str(active_settings["preference_optimization.ranking_mode"]),
+        personalization_strength=float(
+            active_settings["preference_optimization.personalization_strength"]
+        ),
+        settings_revision=settings_revision(active_settings),
     )
 
 def main(argv: list[str] | None = None) -> int:
