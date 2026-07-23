@@ -65,6 +65,9 @@
   <style>
     .llm-stage-list{display:grid;gap:14px}.llm-stage-list .collapsible-section summary{justify-content:flex-start}.llm-stage-summary{margin-left:auto;color:var(--muted);font-size:12px}.llm-setting-control{display:grid;justify-items:end;gap:5px}.llm-setting-control .field{width:min(360px,100%)}.llm-setting-control small{max-width:360px;color:var(--muted);text-align:right}.llm-required-state{margin:10px 0 0;color:var(--accent);font-size:13px}.llm-prompt-dialog{width:min(720px,calc(100vw - 32px))}.stage-prompt-editor{width:100%;min-height:260px;padding:13px;resize:vertical;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}.stage-prompt-editor[readonly]{background:var(--surface-2);color:var(--muted);cursor:default}.stage-prompt-editor:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}.prompt-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px}.prompt-message{min-height:18px;margin:0}.prompt-message.warning{color:#8a5d00}.prompt-message.error{color:var(--accent)}[data-theme="dark"] .prompt-message.warning{color:#f5cf78}.system-stack{display:grid;gap:16px}@media(max-width:760px){.llm-setting-control{justify-items:stretch}.llm-setting-control .field{width:100%}.llm-setting-control small{text-align:left}.llm-stage-summary{display:none}.prompt-meta{flex-direction:column-reverse}.llm-prompt-dialog .dialog-actions{grid-template-columns:1fr 1fr}}
   </style>
+  <style>
+    .optimization-actions{display:flex;gap:8px;flex-wrap:wrap}.optimization-id-link{color:var(--accent);font-weight:650;text-underline-offset:3px}.optimization-status{display:inline-flex;min-height:26px;align-items:center;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:12px;font-weight:700}.optimization-status[data-status="Succeeded"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.optimization-status[data-status="Failed"]{border-color:color-mix(in srgb,#b91c1c 30%,var(--border));background:color-mix(in srgb,#b91c1c 8%,var(--surface));color:#b91c1c}.optimization-status[data-status="Running"]{border-color:color-mix(in srgb,#b45309 30%,var(--border));background:color-mix(in srgb,#b45309 10%,var(--surface));color:#8a5d00}[data-theme="dark"] .optimization-status[data-status="Succeeded"]{color:#86efac}[data-theme="dark"] .optimization-status[data-status="Failed"]{color:#fca5a5}[data-theme="dark"] .optimization-status[data-status="Running"]{color:#f5cf78}.optimization-fallback{margin:0;padding:14px 18px;border-top:1px solid var(--border-soft);background:#fff7df;color:#7a4d00}[data-theme="dark"] .optimization-fallback{background:#3b2e13;color:#f5cf78}.optimization-runs{min-width:820px}.preference-mode-field{width:190px}.optimization-policy-controls{display:grid;gap:6px;justify-items:end}.optimization-policy-controls .supporting-text{max-width:240px;margin:0;text-align:right}@media(max-width:760px){.optimization-actions{display:grid;grid-template-columns:1fr}.optimization-actions .btn,.preference-mode-field{width:100%}.optimization-policy-controls{justify-items:start}.optimization-policy-controls .supporting-text{text-align:left}}
+  </style>
 </head>
 <body>
   <div class="shell">
@@ -75,7 +78,7 @@
         <a class="nav-link" id="candidateProfilesNav" href="#candidate-profiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Candidate Profiles</a>
         <a class="nav-link" id="bookmarksNav" href="#bookmarks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
         <a class="nav-link" id="synonymsNav" href="#synonyms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/></svg>Synonyms</a>
-        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a><a class="nav-link child" id="promptManagementNav" href="#prompt-management">Prompt Management</a></div></details>
+        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#preference-optimization">Preference Optimization</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a><a class="nav-link child" id="promptManagementNav" href="#prompt-management">Prompt Management</a></div></details>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" id="apiProvidersNav" href="#api-providers">API Providers</a><a class="nav-link child" id="llmConfigurationNav" href="#llm-configuration">LLM Configuration</a><a class="nav-link child" id="systemNav" href="#system">System</a></div></details>
       </nav>
     </aside>
@@ -92,6 +95,7 @@
   <dialog class="run-dialog" id="taskLlmDialog" aria-labelledby="taskLlmTitle" aria-describedby="taskLlmDescription"><div class="dialog-head"><div><h2 id="taskLlmTitle">Task Configuration</h2><p id="taskLlmDescription">Configure runtime model behavior for one AI-powered task.</p></div><button class="dialog-close" id="closeTaskLlmDialog" type="button" aria-label="Close Task Configuration dialog">×</button></div><form class="run-form" id="taskLlmForm"><div class="run-field"><label for="taskLlmModel">Model</label><select class="field" id="taskLlmModel"></select><small>Default follows the application Default Route.</small></div><div class="run-field"><label for="taskLlmTimeout">Timeout (seconds)</label><input class="field" id="taskLlmTimeout" type="number" min="1" max="3600" step="1" required></div><div class="run-field"><label for="taskLlmTemperature">Temperature</label><input class="field" id="taskLlmTemperature" type="number" min="0" max="2" step="0.1" required><small>UI intent only until task temperature is configurable in the backend runtime.</small></div></form><div class="dialog-actions"><button class="btn" id="cancelTaskLlmDialog" type="button">Cancel</button><button class="btn primary" id="saveTaskLlm" type="button">Save</button></div></dialog>
   <dialog class="run-dialog llm-prompt-dialog" id="stagePromptDialog" aria-labelledby="stagePromptTitle" aria-describedby="stagePromptDescription"><div class="dialog-head"><div><h2 id="stagePromptTitle">Manage Prompt</h2><p id="stagePromptDescription">Configure prompt behavior for one AI-powered task.</p></div><button class="dialog-close" id="closeStagePromptDialog" type="button" aria-label="Close Manage Prompt dialog">×</button></div><form class="run-form" id="stagePromptForm"><div class="run-field"><label for="stagePromptType">Prompt Type</label><select class="field" id="stagePromptType"><option value="default">Default</option><option value="custom">Custom</option></select></div><div class="run-field"><label for="stagePromptEditor">Prompt</label><textarea class="stage-prompt-editor" id="stagePromptEditor" maxlength="4000" aria-describedby="stagePromptMessage stagePromptCount"></textarea><div class="prompt-meta"><p class="prompt-message" id="stagePromptMessage" role="status" aria-live="polite"></p><span id="stagePromptCount">0 / 4000 characters</span></div></div></form><div class="dialog-actions"><button class="btn" id="cancelStagePromptDialog" type="button">Cancel</button><button class="btn primary" id="saveStagePrompt" type="button">Save</button></div></dialog>
   <dialog class="run-dialog" id="shutdownDialog" aria-labelledby="shutdownTitle" aria-describedby="shutdownDescription"><div class="dialog-head"><div><h2 id="shutdownTitle">Shutdown FitCV?</h2><p id="shutdownDescription">Stops the local FitCV service and prevents new runs until relaunch.</p></div><button class="dialog-close" id="closeShutdownDialog" type="button" aria-label="Close Shutdown dialog">×</button></div><div class="run-form"><div class="provider-helper"><strong>Active work is protected.</strong> Shutdown is unavailable while work is active.</div></div><div class="dialog-actions"><button class="btn" id="cancelShutdown" type="button">Cancel</button><button class="btn danger" id="confirmShutdown" type="button">Shutdown FitCV</button></div></dialog>
+  <dialog id="personalizationStrengthDialog" aria-labelledby="personalizationStrengthTitle" aria-describedby="personalizationStrengthDescription"><div class="dialog-head"><div><h2 id="personalizationStrengthTitle">Personalization Strength</h2><p id="personalizationStrengthDescription">Set how strongly saved ratings can influence future personalized rankings.</p></div><button class="dialog-close" id="closePersonalizationStrength" type="button" aria-label="Close Personalization Strength dialog">×</button></div><form class="weight-form" id="personalizationStrengthForm"><div class="weight-row"><div><label for="personalizationStrengthInput">Strength<span>Higher values let saved ratings move results further from Baseline Ranking.</span></label></div><input class="field" id="personalizationStrengthInput" type="number" required></div></form><p class="weight-status" id="personalizationStrengthStatus">Bounds load from policy.</p><div class="dialog-actions"><button class="btn" id="cancelPersonalizationStrength" type="button">Cancel</button><button class="btn primary" type="submit" form="personalizationStrengthForm">Save</button></div></dialog>
   <dialog class="details-drawer" id="synonymDetailsDrawer" aria-labelledby="synonymDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Synonym Review</p><h2 id="synonymDetailsTitle">Suggestion Details</h2><p>Review suggestion evidence before deciding.</p></div><button class="dialog-close" id="closeSynonymDetails" type="button" aria-label="Close Synonym Suggestion Details">×</button></div><div class="drawer-body" id="synonymDetailsBody"></div></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
@@ -101,6 +105,9 @@
   const RUN_STORAGE_KEY='fitcv-run-prototype-v1';
   const SYNONYM_STORAGE_KEY='fitcv-synonym-prototype-v1';
   const PROVIDER_STORAGE_KEY='fitcv-provider-prototype-v1';
+  const OPTIMIZATION_STORAGE_KEY='fitcv-preference-optimization-prototype-v1';
+  const PERSONALIZATION_STRENGTH_LIMITS=Object.freeze({minimum:.01,maximum:.10,recommended:.05,step:.01});
+  const OPTIMIZATION_EVIDENCE_SUMMARY=Object.freeze({savedRatings:24,episodes:6,eligibleComparisons:148,ready:true});
   const RUN_STATUSES=new Set(['Running','Succeeded','Failed']);
   const PROFILE_STATUSES=new Set(['Succeeded','Failed']);
   const SYNONYM_TYPES=['skill','domain','role_family'];
@@ -127,6 +134,23 @@
     {id:'groq',name:'Groq',type:'shared',protocol:'openai-compatible',baseUrl:'https://api.groq.com/openai/v1',apiStyle:'chat-completions',credentialConfigured:false,connectionStatus:'not-configured',models:[]}
   ],routing:{defaultModel:'openai::gpt-4.1-mini',tasks:DEFAULT_LLM_TASK_SETTINGS,retry:DEFAULT_RETRY_SETTINGS}};
   const prototypeNow=Date.now();
+  const DEFAULT_OPTIMIZATION_EVIDENCE=[
+    {ratedAt:prototypeNow-7200000,runId:'RUN-3B18D6F4',job:'AI Product Manager',savedRank:3,baselineFit:.884,rating:5},
+    {ratedAt:prototypeNow-10800000,runId:'RUN-3B18D6F4',job:'Technical Program Manager, Data',savedRank:5,baselineFit:.842,rating:4},
+    {ratedAt:prototypeNow-14400000,runId:'RUN-54C0E83D',job:'Data Operations Manager',savedRank:2,baselineFit:.901,rating:1},
+    {ratedAt:prototypeNow-18000000,runId:'RUN-54C0E83D',job:'Analytics Engineering Lead',savedRank:4,baselineFit:.856,rating:5}
+  ];
+  const DEFAULT_OPTIMIZATION_STATE={rankingMode:'baseline',strength:PERSONALIZATION_STRENGTH_LIMITS.recommended,activePolicyVersionId:null,history:[
+    {id:'OPT-20260722-01',policyVersionId:'RP-20260722-01',createdAt:prototypeNow-86400000,startedAt:prototypeNow-86397000,completedAt:prototypeNow-86318000,strength:.05,status:'Succeeded',comparisons:148,usage:'Inactive',coverage:.83,stability:.91,evidence:DEFAULT_OPTIMIZATION_EVIDENCE,logs:[
+      {recordedAt:prototypeNow-86397000,level:'info',operation:'validation',message:'Validated 148 eligible rating comparisons.'},
+      {recordedAt:prototypeNow-86393000,level:'info',operation:'optimization',message:'Started preference optimization with personalization strength 0.05.'},
+      {recordedAt:prototypeNow-86318000,level:'info',operation:'complete',message:'Optimization completed and created ranking policy version RP-20260722-01.'}
+    ]},
+    {id:'OPT-20260720-02',policyVersionId:null,createdAt:prototypeNow-259200000,startedAt:prototypeNow-259197000,completedAt:prototypeNow-259170000,strength:.04,status:'Failed',comparisons:126,usage:null,coverage:null,stability:null,evidence:DEFAULT_OPTIMIZATION_EVIDENCE.slice(0,2),logs:[
+      {recordedAt:prototypeNow-259197000,level:'info',operation:'validation',message:'Validated 126 eligible rating comparisons.'},
+      {recordedAt:prototypeNow-259170000,level:'error',operation:'solver',message:'Optimization stopped before a ranking policy version was created.'}
+    ]}
+  ]};
   const DEFAULT_CANDIDATE_PROFILES=[
     {id:'candidate-product-data',status:'Succeeded',name:'Product Data Specialist',inputFileName:'product-data-specialist.yaml',createdAt:prototypeNow-5400000,archived:false},
     {id:'candidate-analytics',status:'Succeeded',name:'Analytics & Operations',inputFileName:'analytics-operations.yaml',createdAt:prototypeNow-97200000,archived:false},
@@ -292,6 +316,7 @@
         n('ranking.stretchThreshold','Stretch Fit Threshold','Minimum score needed before a listing is labeled Stretch Fit. Raise this to keep fewer stretch matches.',.40,0,1,.01)
       ]}
     ]},
+    {id:'preference-optimization',title:'Preference Optimization',description:'Create and activate personalized ranking policy versions from saved application-interest ratings.',sections:[]},
     {id:'cv-analysis',title:'CV Analysis',description:'Control how CV evidence is compared with each job.',sections:[
       {title:'Evidence Scope',open:true,rows:[
         mirror('pipeline.evidenceItems')
@@ -430,6 +455,10 @@
   const saveStagePromptButton=document.querySelector('#saveStagePrompt');
   const shutdownDialog=document.querySelector('#shutdownDialog');
   const shutdownButton=document.querySelector('#openShutdownDialog');
+  const personalizationStrengthDialog=document.querySelector('#personalizationStrengthDialog');
+  const personalizationStrengthForm=document.querySelector('#personalizationStrengthForm');
+  const personalizationStrengthInput=document.querySelector('#personalizationStrengthInput');
+  const personalizationStrengthStatus=document.querySelector('#personalizationStrengthStatus');
   const runDetailsBody=form;
   const defaults={};
   const directRows=new Map();
@@ -455,6 +484,15 @@
       return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
     }catch{
       localStorage.removeItem(PROVIDER_STORAGE_KEY);
+      return {};
+    }
+  }
+  function readOptimizationStored(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(OPTIMIZATION_STORAGE_KEY)||'{}');
+      return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
+    }catch{
+      localStorage.removeItem(OPTIMIZATION_STORAGE_KEY);
       return {};
     }
   }
@@ -565,6 +603,33 @@
     const processingLog=(Array.isArray(stored.processingLog)?stored.processingLog:DEFAULT_SYNONYM_PROCESSING_LOG).filter(item=>item&&Number.isFinite(item.processedAt)&&['total','approved','declined','pending','added'].every(key=>Number.isFinite(item[key]))).slice(-50);
     return {activeTab:SYNONYM_TYPES.includes(stored.activeTab)?stored.activeTab:'skill',reviewActiveTab:SYNONYM_REVIEW_STATUSES.includes(stored.reviewActiveTab)?stored.reviewActiveTab:'pending',database,reviewQueue:clone(reviewQueue),processingLog:clone(processingLog)};
   }
+  function normaliseOptimizationState(stored){
+    const limits=PERSONALIZATION_STRENGTH_LIMITS;
+    const requestedStrength=Number(stored.strength);
+    const strength=Number.isFinite(requestedStrength)&&requestedStrength>=limits.minimum&&requestedStrength<=limits.maximum?Math.round(requestedStrength/limits.step)*limits.step:limits.recommended;
+    const source=Array.isArray(stored.history)?stored.history:DEFAULT_OPTIMIZATION_STATE.history;
+    const history=source.filter(item=>item&&typeof item.id==='string'&&Number.isFinite(item.createdAt)&&['Running','Succeeded','Failed'].includes(item.status)&&Number.isFinite(item.strength)&&item.strength>=limits.minimum&&item.strength<=limits.maximum&&Number.isFinite(item.comparisons)).map(item=>({
+      id:item.id,
+      policyVersionId:typeof item.policyVersionId==='string'?item.policyVersionId:null,
+      createdAt:item.createdAt,
+      startedAt:Number.isFinite(item.startedAt)?item.startedAt:item.createdAt,
+      completedAt:Number.isFinite(item.completedAt)?item.completedAt:null,
+      strength:item.strength,
+      status:item.status,
+      comparisons:item.comparisons,
+      usage:item.status==='Succeeded'?'Inactive':null,
+      coverage:Number.isFinite(item.coverage)?item.coverage:null,
+      stability:Number.isFinite(item.stability)?item.stability:null,
+      rejectionReason:typeof item.rejectionReason==='string'?item.rejectionReason:'',
+      evidence:(Array.isArray(item.evidence)?item.evidence:[]).filter(row=>row&&Number.isFinite(row.ratedAt)&&typeof row.runId==='string'&&typeof row.job==='string'&&Number.isFinite(row.savedRank)&&Number.isFinite(row.baselineFit)&&Number.isFinite(row.rating)),
+      logs:(Array.isArray(item.logs)?item.logs:[]).filter(row=>row&&Number.isFinite(row.recordedAt)&&['info','warning','error'].includes(row.level)&&typeof row.operation==='string'&&typeof row.message==='string')
+    }));
+    const cleanHistory=history.length?history:clone(DEFAULT_OPTIMIZATION_STATE.history);
+    const activePolicyVersionId=typeof stored.activePolicyVersionId==='string'&&cleanHistory.some(item=>item.status==='Succeeded'&&item.policyVersionId===stored.activePolicyVersionId)?stored.activePolicyVersionId:null;
+    for(const item of cleanHistory)if(item.status==='Succeeded')item.usage=item.policyVersionId===activePolicyVersionId?'Active':'Inactive';
+    const rankingMode=stored.rankingMode==='personalized'||(!('rankingMode' in stored)&&activePolicyVersionId)?'personalized':'baseline';
+    return {rankingMode,strength,activePolicyVersionId,history:cleanHistory};
+  }
   function normaliseRunState(stored){
     const profiles=(Array.isArray(stored.candidateProfiles)?stored.candidateProfiles:DEFAULT_CANDIDATE_PROFILES)
       .filter(profile=>profile&&typeof profile.id==='string'&&typeof profile.name==='string')
@@ -586,6 +651,7 @@
   let runState=normaliseRunState(readRunStored());
   let synonymState=normaliseSynonymState(readSynonymStored());
   let providerState=normaliseProviderState(readProviderStored());
+  let optimizationState=normaliseOptimizationState(readOptimizationStored());
   const selectedSynonymReviewIds=new Set();
   let synonymEditorEditing=false;
   let synonymEditorDraft='';
@@ -621,6 +687,7 @@
   function writeRunState(){localStorage.setItem(RUN_STORAGE_KEY,JSON.stringify(runState))}
   function writeBookmarks(){runState.bookmarks=[...bookmarkedJobs];writeRunState()}
   function writeSynonymState(){localStorage.setItem(SYNONYM_STORAGE_KEY,JSON.stringify(synonymState))}
+  function writeOptimizationState(){localStorage.setItem(OPTIMIZATION_STORAGE_KEY,JSON.stringify(optimizationState))}
   function providerModelKey(providerId,modelId){return `${providerId}::${modelId}`}
   function providerConnected(provider){return Boolean(provider?.credentialConfigured&&provider.connectionStatus==='verified')}
   function enabledProviderModels(){return providerState.providers.flatMap(provider=>providerConnected(provider)?provider.models.filter(model=>model.verified).map(model=>({provider,model,key:providerModelKey(provider.id,model.id)})):[])}
@@ -633,6 +700,7 @@
   writeRunState();
   writeSynonymState();
   writeProviderState();
+  writeOptimizationState();
   function notify(message){
     toast.textContent=message;
     toast.classList.add('show');
@@ -1737,6 +1805,98 @@
     if(row.type==='select')return `<label class="row" data-row>${copy}${status}</span><span class="control"><select class="field" data-key="${row.key}" aria-label="${row.label}">${row.options.map(option=>`<option value="${option}" ${option===current?'selected':''}>${option}</option>`).join('')}</select></span></label>`;
     return `<label class="row" data-row>${copy}${status}</span><span class="control"><input class="field" type="number" data-key="${row.key}" value="${current}" min="${row.min}" max="${row.max}" step="${row.step}" aria-label="${row.label}"></span></label>`;
   }
+  function optimizationById(id){return optimizationState.history.find(item=>item.id===id)}
+  function activeOptimization(){return optimizationState.activePolicyVersionId?optimizationState.history.find(item=>item.status==='Succeeded'&&item.policyVersionId===optimizationState.activePolicyVersionId)||null:null}
+  function optimizationActionsDisabled(mode=optimizationState.rankingMode){return mode==='baseline'}
+  function optimizationStatusMarkup(item){return `<span class="optimization-status" data-status="${item.status}">${item.status}</span>`}
+  function optimizationIdParts(){
+    const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('');
+    const sequence=String(optimizationState.history.filter(item=>item.id.startsWith(`OPT-${date}-`)).length+1).padStart(2,'0');
+    return {optimizationId:`OPT-${date}-${sequence}`,policyVersionId:`RP-${date}-${sequence}`};
+  }
+  function optimizationPolicyActionMarkup(item,classes='small-action'){
+    if(item.status!=='Succeeded'||!item.policyVersionId)return '';
+    const active=item.policyVersionId===optimizationState.activePolicyVersionId;
+    return `<button class="${classes}" type="button" data-optimization-policy="${item.id}" ${optimizationActionsDisabled()?'disabled':''}>${active?'Inactivate Policy':'Activate Policy'}</button>`;
+  }
+  function optimizationEvidenceTableMarkup(rows){
+    const body=rows.map(row=>`<tr><td>${formatCreated(row.ratedAt)}</td><td><span class="run-id">${escapeHtml(row.runId)}</span></td><td><span class="run-job">${escapeHtml(row.job)}</span></td><td>${row.savedRank}</td><td>${row.baselineFit.toFixed(3)}</td><td>${row.rating} / 5</td></tr>`).join('');
+    return `<div class="table-scroll"><table class="run-table"><thead><tr><th>Rated</th><th>Run ID</th><th>Job</th><th>Saved Rank</th><th>Baseline Fit</th><th>User Rating</th></tr></thead><tbody>${body||'<tr><td colspan="6"><div class="empty-state"><h3>No saved ratings</h3><p>Ratings from completed runs will appear here.</p></div></td></tr>'}</tbody></table></div>`;
+  }
+  function optimizationRunsRows(){
+    return optimizationState.history.map(item=>`<tr><td><a class="optimization-id-link run-id" href="#preference-optimization/${encodeURIComponent(item.id)}">${escapeHtml(item.id)}</a></td><td class="run-created">${formatCreated(item.createdAt)}</td><td>${item.strength.toFixed(2)}</td><td>${optimizationStatusMarkup(item)}</td><td>${item.comparisons}</td><td><div class="job-action-row">${optimizationPolicyActionMarkup(item)}<button class="small-action" type="button" data-optimization-remove="${item.id}" ${optimizationActionsDisabled()?'disabled':''}>Remove</button></div></td></tr>`).join('');
+  }
+  function openPersonalizationStrengthDialog(){
+    if(optimizationState.rankingMode!=='personalized')return;
+    const limits=PERSONALIZATION_STRENGTH_LIMITS;
+    personalizationStrengthInput.min=limits.minimum;personalizationStrengthInput.max=limits.maximum;personalizationStrengthInput.step=limits.step;personalizationStrengthInput.value=optimizationState.strength;personalizationStrengthStatus.textContent=`Allowed ${limits.minimum.toFixed(2)}–${limits.maximum.toFixed(2)} · Recommended ${limits.recommended.toFixed(2)}`;
+    personalizationStrengthDialog.showModal();personalizationStrengthInput.focus();
+  }
+  function savePersonalizationStrength(event){
+    event.preventDefault();
+    if(!personalizationStrengthForm.reportValidity())return;
+    const limits=PERSONALIZATION_STRENGTH_LIMITS,value=Number(personalizationStrengthInput.value);
+    if(!Number.isFinite(value)||value<limits.minimum||value>limits.maximum)return;
+    optimizationState.strength=Math.round(value/limits.step)*limits.step;writeOptimizationState();personalizationStrengthDialog.close();renderPreferenceOptimizationPage();notify('Personalization Strength saved');
+  }
+  function restorePreferenceDefaults(){
+    optimizationState.rankingMode='baseline';optimizationState.strength=PERSONALIZATION_STRENGTH_LIMITS.recommended;writeOptimizationState();renderPreferenceOptimizationPage();notify('Preference Optimization defaults restored');
+  }
+  function renderPreferenceOptimizationPage(){
+    const personalized=optimizationState.rankingMode==='personalized',active=activeOptimization(),evidence=OPTIMIZATION_EVIDENCE_SUMMARY;
+    const fallback=personalized&&!active?'<p class="optimization-fallback"><strong>Baseline Ranking will be used.</strong> Activate a successful optimization policy to use Personalized Ranking.</p>':'';
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>Preference Optimization</h2><p>Control how saved ratings influence future rankings. Changes apply to future runs.</p></div><div class="run-selection-actions"><button class="btn" id="restorePreferenceDefaults" type="button">Restore Defaults</button></div></div><div class="stack"><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Ranking Mode</strong></span></summary><div class="section-content"><div class="settings-card"><label class="row"><span><strong>Ranking Mode</strong><p>Choose baseline ordering or ranking personalized by an active optimization policy.</p></span><span class="control"><select class="field preference-mode-field" id="preferenceRankingMode" aria-label="Ranking Mode"><option value="baseline" ${personalized?'':'selected'}>Baseline Ranking</option><option value="personalized" ${personalized?'selected':''}>Personalized Ranking</option></select></span></label></div>${fallback}</div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Personalization Strength</strong></span></summary><div class="section-content settings-card"><div class="row${personalized?'':' is-disabled'}"><span><strong>Personalization Strength</strong><p>Controls how strongly saved ratings can move jobs in future personalized rankings.</p><p class="supporting-text">Current value: ${optimizationState.strength.toFixed(2)}</p></span><span class="control"><button class="btn" id="managePersonalizationStrength" type="button" ${personalized?'':'disabled'}>Manage</button></span></div></div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Rating Evidence</strong></span></summary><div class="section-content"><div class="settings-card"><div class="row"><span><strong>Saved Ratings</strong><p>${evidence.savedRatings} ratings across ${evidence.episodes} completed runs.</p></span><span class="control"><button class="btn primary" id="optimizeCurrentRatings" type="button" ${optimizationActionsDisabled()?'disabled':''}>Optimize Current Ratings</button></span></div></div>${optimizationEvidenceTableMarkup(DEFAULT_OPTIMIZATION_EVIDENCE)}</div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Optimization Runs</strong></span></summary><div class="section-content"><div class="table-scroll"><table class="run-table optimization-runs"><thead><tr><th>Optimization Run</th><th>Created</th><th>Strength</th><th>Status</th><th>Eligible Comparisons</th><th>Action</th></tr></thead><tbody>${optimizationRunsRows()||'<tr><td colspan="6"><div class="empty-state"><h3>No optimization runs</h3><p>Use Optimize Current Ratings to create one.</p></div></td></tr>'}</tbody></table></div></div></details></div>`;
+    form.querySelector('#preferenceRankingMode')?.addEventListener('change',event=>{optimizationState.rankingMode=event.target.value;writeOptimizationState();renderPreferenceOptimizationPage();form.querySelector('#preferenceRankingMode')?.focus()});
+    form.querySelector('#managePersonalizationStrength')?.addEventListener('click',openPersonalizationStrengthDialog);
+    form.querySelector('#optimizeCurrentRatings')?.addEventListener('click',startPreferenceOptimization);
+    form.querySelector('#restorePreferenceDefaults')?.addEventListener('click',restorePreferenceDefaults);
+    bindOptimizationActions(form);
+  }
+  function startPreferenceOptimization(){
+    if(optimizationActionsDisabled())return;
+    const capturedStrength=optimizationState.strength,{optimizationId,policyVersionId}=optimizationIdParts(),createdAt=Date.now();
+    const item={id:optimizationId,policyVersionId:null,createdAt,startedAt:createdAt,completedAt:null,strength:capturedStrength,status:'Running',comparisons:OPTIMIZATION_EVIDENCE_SUMMARY.eligibleComparisons,usage:null,coverage:null,stability:null,rejectionReason:'',evidence:clone(DEFAULT_OPTIMIZATION_EVIDENCE),logs:[{recordedAt:createdAt,level:'info',operation:'optimization',message:`Started preference optimization with personalization strength ${capturedStrength.toFixed(2)}.`}]};
+    optimizationState.history.unshift(item);writeOptimizationState();renderPreferenceOptimizationPage();notify(`${optimizationId} started`);
+    setTimeout(()=>{
+      const current=optimizationById(optimizationId);if(!current)return;
+      current.policyVersionId=policyVersionId;current.completedAt=Date.now();current.status='Succeeded';current.usage='Inactive';current.coverage=.86;current.stability=.93;current.logs.push({recordedAt:current.completedAt,level:'info',operation:'complete',message:'Optimization completed successfully.'});
+      writeOptimizationState();if(isPreferenceOptimizationPage())renderPreferenceOptimizationPage();else if(optimizationDetailsId()===optimizationId)renderOptimizationDetailsPage();notify(`${optimizationId} succeeded`);
+    },900);
+  }
+  function toggleOptimizationPolicy(id){
+    const item=optimizationById(id);if(optimizationActionsDisabled()||!item||item.status!=='Succeeded'||!item.policyVersionId)return;
+    const active=item.policyVersionId===optimizationState.activePolicyVersionId;
+    optimizationState.activePolicyVersionId=active?null:item.policyVersionId;
+    for(const historyItem of optimizationState.history)if(historyItem.status==='Succeeded')historyItem.usage=historyItem.policyVersionId===optimizationState.activePolicyVersionId?'Active':'Inactive';
+    if(!active)optimizationState.rankingMode='personalized';
+    item.logs.push({recordedAt:Date.now(),level:'info',operation:'policy',message:active?'Optimization policy inactivated.':'Optimization policy activated.'});
+    writeOptimizationState();renderPage();notify(active?'Policy inactivated':'Policy activated');
+  }
+  function removeOptimizationRun(id){
+    const item=optimizationById(id);if(optimizationActionsDisabled()||!item||!confirm(`Remove ${item.id}?\n\nThis removes the prototype optimization run and its console log.`))return;
+    if(item.policyVersionId===optimizationState.activePolicyVersionId)optimizationState.activePolicyVersionId=null;
+    optimizationState.history=optimizationState.history.filter(historyItem=>historyItem.id!==id);writeOptimizationState();renderPreferenceOptimizationPage();notify(`${item.id} removed`);
+  }
+  function bindOptimizationActions(root){
+    root.querySelectorAll('[data-optimization-policy]').forEach(button=>button.addEventListener('click',()=>toggleOptimizationPolicy(button.dataset.optimizationPolicy)));
+    root.querySelectorAll('[data-optimization-remove]').forEach(button=>button.addEventListener('click',()=>removeOptimizationRun(button.dataset.optimizationRemove)));
+    root.querySelectorAll('[data-optimization-console-clear]').forEach(button=>button.addEventListener('click',()=>clearOptimizationConsole(button.dataset.optimizationConsoleClear)));
+  }
+  function clearOptimizationConsole(id){
+    if(!optimizationById(id))return;
+    clearedConsoleRuns.add(id);renderOptimizationDetailsPage();notify('Console log cleared from current view');
+  }
+  function optimizationConsoleMarkup(item){
+    const cleared=clearedConsoleRuns.has(item.id),lines=(cleared?[]:item.logs).map(event=>`<div class="console-line" data-level="${event.level}"><span class="console-time">${new Date(event.recordedAt).toISOString()}</span><span class="console-level" data-level="${event.level}">${event.level.toUpperCase()}</span><span class="console-operation">${escapeHtml(event.operation)}</span><span class="console-message">${escapeHtml(event.message)}</span></div>`).join('');
+    return `<div class="console-toolbar"><span></span><div class="console-actions"><button class="small-action" type="button" data-optimization-console-clear="${item.id}" ${cleared||!item.logs.length?'disabled':''}>Clear</button></div></div><div class="console-log" role="log" aria-live="polite" aria-label="Console log for ${escapeHtml(item.id)}">${lines||'<div class="console-empty">No console events in current view.</div>'}</div>`;
+  }
+  function renderOptimizationDetailsPage(){
+    const item=optimizationById(optimizationDetailsId());if(!item)return;
+    const policyAction=optimizationPolicyActionMarkup(item,item.policyVersionId===optimizationState.activePolicyVersionId?'btn':'btn primary');
+    const policyControls=policyAction?`<div class="optimization-policy-controls">${policyAction}${optimizationActionsDisabled()?'<p class="supporting-text">Select Personalized Ranking to manage optimization policies.</p>':''}</div>`:'';
+    form.innerHTML=`<div class="details-page-head"><a class="details-page-back" href="#preference-optimization">← Back to Preference Optimization</a><div class="page-head"><div><p class="eyebrow">Preference Optimization</p><h2>Optimization ${escapeHtml(item.id)}</h2><p>Review optimization status, rating evidence, and console output.</p></div><div class="run-selection-actions">${policyControls}</div></div></div><div class="stack"><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Overview</strong><span>Lifecycle and input values for this optimization.</span></span><span class="drawer-status">${optimizationStatusMarkup(item)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Optimization ID',item.id],['Status',item.status],['Created',formatCreated(item.createdAt)],['Started',formatCreated(item.startedAt)],['Completed',item.completedAt?formatCreated(item.completedAt):'—'],['Personalization Strength',item.strength.toFixed(2)],['Eligible Comparisons',item.comparisons]].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Rating Evidence</strong><span>Saved ratings used by this optimization.</span></span></summary><div class="section-content">${optimizationEvidenceTableMarkup(item.evidence)}</div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Console Log</strong><span>Optimization lifecycle events.</span></span></summary><div class="section-content drawer-section-content">${optimizationConsoleMarkup(item)}</div></details></div>`;
+    bindOptimizationActions(form);
+  }
   function isSynonymsPage(){return location.hash==='#synonyms'}
   function isCandidateProfilesPage(){return location.hash==='#candidate-profiles'}
   function profileDetailsId(){const prefix='#candidate-profiles/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
@@ -1751,14 +1911,38 @@
   function isProviderDetailsPage(){return Boolean(providerDetailsId())}
   function isLlmConfigurationPage(){return location.hash==='#llm-configuration'}
   function isPromptManagementPage(){return location.hash==='#prompt-management'}
+  function isPreferenceOptimizationPage(){return location.hash==='#preference-optimization'}
+  function optimizationDetailsId(){const prefix='#preference-optimization/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
+  function isOptimizationDetailsPage(){return Boolean(optimizationDetailsId())}
   function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
   function clearPrimaryNavigation(){
     [synonymsNav,candidateProfilesNav,runsNav,bookmarksNav,systemNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
     pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
   }
   function renderPage(){
-    form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage());
+    form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage()||isOptimizationDetailsPage());
     [apiProvidersNav,llmConfigurationNav,systemNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+    if(isOptimizationDetailsPage()){
+      if(!optimizationById(optimizationDetailsId())){location.hash='preference-optimization';return}
+      headerTitle.textContent='Preference Optimization';
+      headerDescription.textContent='Review one optimization run.';
+      titleIcon.innerHTML='<path d="M4 18V9m5 9V5m5 13v-7m5 7V3"/><path d="m3 13 5-4 5 2 7-6"/>';
+      searchBox.hidden=true;
+      clearPrimaryNavigation();
+      const link=pipelineNav.querySelector('[href="#preference-optimization"]');link?.classList.add('active');link?.setAttribute('aria-current','page');
+      renderOptimizationDetailsPage();
+      return;
+    }
+    if(isPreferenceOptimizationPage()){
+      headerTitle.textContent='Preference Optimization';
+      headerDescription.textContent='Configure ranking mode, rating evidence, and optimization runs.';
+      titleIcon.innerHTML='<path d="M4 18V9m5 9V5m5 13v-7m5 7V3"/><path d="m3 13 5-4 5 2 7-6"/>';
+      searchBox.hidden=true;
+      clearPrimaryNavigation();
+      const link=pipelineNav.querySelector('[href="#preference-optimization"]');link?.classList.add('active');link?.setAttribute('aria-current','page');
+      renderPreferenceOptimizationPage();
+      return;
+    }
     if(isProviderDetailsPage()){
       if(!providerById(providerDetailsId())){location.hash='api-providers';return}
       headerTitle.textContent='API Provider';
@@ -2093,7 +2277,7 @@
     form.querySelectorAll('[data-section]').forEach(section=>section.hidden=Boolean(query)&&!section.querySelector('[data-row]:not([hidden])'));
   }
   function selfCheck(){
-    if(pages.length!==9)throw new Error('Expected nine Pipeline pages');
+    if(pages.length!==10)throw new Error('Expected ten Pipeline pages');
     const workspaceNavOrder=[runsNav,candidateProfilesNav,bookmarksNav,synonymsNav];
     if([...runsNav.parentElement.children].filter(element=>workspaceNavOrder.includes(element)).some((element,index)=>element!==workspaceNavOrder[index]))throw new Error('Workspace navigation must follow Runs, Candidate Profiles, Bookmarks, Synonyms');
     if(SYNONYM_TYPES.join(',')!=='skill,domain,role_family')throw new Error('Synonym types must match global taxonomy owners');
@@ -2157,6 +2341,16 @@
     if(profileFile.accept!=='.yaml'||profileFile.multiple||!isYamlProfileFile({name:'profile.yaml'})||isYamlProfileFile({name:'profile.yml'})||isYamlProfileFile({name:'profile.pdf'}))throw new Error('Candidate Profile dialog must accept one .yaml file');
     if(paginationItems(1,10).join(',')!=='1,2,3,4,5,…,10')throw new Error('Pagination must compact trailing pages');
     if(paginationItems(5,10).join(',')!=='1,…,4,5,6,…,10')throw new Error('Pagination must compact pages around current page');
+    if(!pages.some(page=>page.id==='preference-optimization'))throw new Error('Pipeline navigation must include Preference Optimization');
+    if(PERSONALIZATION_STRENGTH_LIMITS.minimum>=PERSONALIZATION_STRENGTH_LIMITS.recommended||PERSONALIZATION_STRENGTH_LIMITS.recommended>=PERSONALIZATION_STRENGTH_LIMITS.maximum)throw new Error('Personalization Strength bounds must contain the recommended value');
+    if(normaliseOptimizationState({strength:99}).strength!==PERSONALIZATION_STRENGTH_LIMITS.recommended)throw new Error('Invalid Personalization Strength must restore the recommended prototype value');
+    if(!['baseline','personalized'].includes(optimizationState.rankingMode))throw new Error('Preference Optimization must use one valid Ranking Mode');
+    if(!optimizationActionsDisabled('baseline')||optimizationActionsDisabled('personalized'))throw new Error('Optimization mutations must be disabled only for Baseline Ranking');
+    if(!optimizationConsoleMarkup({id:'SELF-CHECK',logs:[]}).includes('data-optimization-console-clear'))throw new Error('Optimization details must expose a Console Log Clear action');
+    if(!optimizationState.activePolicyVersionId&&activeOptimization())throw new Error('Missing active policy ID must not resolve an optimization as active');
+    if(new Set(optimizationState.history.map(item=>item.id)).size!==optimizationState.history.length||optimizationState.history.filter(item=>item.usage==='Active').length>1)throw new Error('Optimization runs must keep unique IDs and at most one active policy version');
+    if(optimizationState.history.some(item=>!['Running','Succeeded','Failed'].includes(item.status)))throw new Error('Optimization runs must use supported statuses');
+    if(optimizationState.history.some(item=>item.status==='Succeeded'&&!item.policyVersionId))throw new Error('Successful optimization runs must create a ranking policy version');
     return true;
   }
 
@@ -2173,6 +2367,9 @@
   document.querySelector('#cancelTaskLlmDialog').addEventListener('click',()=>taskLlmDialog.close());
   document.querySelector('#closeStagePromptDialog').addEventListener('click',closeStagePromptDialog);
   document.querySelector('#cancelStagePromptDialog').addEventListener('click',closeStagePromptDialog);
+  document.querySelector('#closePersonalizationStrength').addEventListener('click',()=>personalizationStrengthDialog.close());
+  document.querySelector('#cancelPersonalizationStrength').addEventListener('click',()=>personalizationStrengthDialog.close());
+  personalizationStrengthForm.addEventListener('submit',savePersonalizationStrength);
   document.querySelector('#closeShutdownDialog').addEventListener('click',()=>shutdownDialog.close());
   document.querySelector('#cancelShutdown').addEventListener('click',()=>shutdownDialog.close());
   shutdownButton.addEventListener('click',()=>shutdownDialog.showModal());
@@ -2245,7 +2442,7 @@
     if(changed&&isRunDetailsPage())renderRunDetails();
   },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
-  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,providerState,bookmarkedJobs,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,LLM_TASKS,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,renderApiProvidersPage,renderProviderDetailsPage,renderLlmConfigurationPage,renderPromptManagementPage,renderSystemPage,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
+  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,providerState,optimizationState,PERSONALIZATION_STRENGTH_LIMITS,bookmarkedJobs,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,LLM_TASKS,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,renderApiProvidersPage,renderProviderDetailsPage,renderLlmConfigurationPage,renderPromptManagementPage,renderPreferenceOptimizationPage,renderOptimizationDetailsPage,renderSystemPage,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
   })();
