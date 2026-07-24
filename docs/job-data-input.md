@@ -3,85 +3,22 @@ doc_id: job-data-input
 doc_type: data-contract
 explains:
   components:
+    - src/fitcv/contracts.py
     - src/fitcv/ingest.py
-    - src/fitcv/normalize.py
+    - src/fitcv/job_sources.py
     - src/fitcv_cp/app.py
+    - src/fitcv_cp/worker_job.py
 ---
 
-# Job-Data Input Pipeline (LinkedIn via Apify)
+# Job-Data Input
 
-This doc explains where FitCV job-post input data comes from, which shapes are
-accepted, what fields are expected, and what normalization/cleaning happens
-before downstream stages run.
+FitCV accepts four run sources: path, upload, paste, and company-portal scanner. Source choice changes acquisition and provenance only. Every source becomes one canonical UTF-8 JSON array before run creation.
 
-## Data source and scraping setup
+## Canonical artifact
 
-FitCV job inputs come from scraped LinkedIn job posts produced via Apify actor:
+`src/fitcv/contracts.py` owns required scraper fields. `src/fitcv/ingest.py` owns validation, deterministic serialization, SHA-256 calculation, and atomic writes.
 
-- `bebity/linkedin-jobs-scraper`
-
-FitCV does **not** scrape LinkedIn directly. It consumes exported actor output.
-
-Recommended scraping workflow (reproducible):
-
-1. Configure and run actor in Apify (search terms, location, max items, etc.).
-2. Treat resulting Apify dataset as snapshot for one pipeline run.
-3. Export dataset items as JSON (top-level array).
-4. Store exported JSON file (and actor input JSON) alongside run metadata.
-
-## Input formats (what FitCV accepts)
-
-### 1) File input (`jobs_path`, recommended)
-
-Control-plane run trigger accepts `jobs_path` pointing to a JSON file with:
-
-- UTF-8 JSON
-- top-level value **must be a JSON array**
-- each element **must be an object** representing one job
-
-Example (scraper/camelCase keys):
-
-```json
-[
-  {
-    "jobUrl": "https://de.linkedin.com/jobs/view/...",
-    "title": "Data Engineer",
-    "companyName": "ACME",
-    "description": "...",
-    "contractType": "Full-time",
-    "experienceLevel": "Mid-Senior level"
-  }
-]
-```
-
-### 2) Apify dataset fetch (engineering helper)
-
-`src/fitcv/ingest.py` includes `fetch_from_apify(config)` which loads dataset
-items via Apify REST API:
-
-- required config keys: `apify_dataset_id`, `apify_token`
-- request uses `format=json&clean=true`
-- returns list of job dicts in same shape as file input
-
-Note: control-plane `POST /runs` currently does not expose a first-class “Apify
-dataset input mode”. For repeatable runs, prefer exporting dataset to a file and
-triggering via `jobs_path`.
-
-## Output formats (what FitCV produces from input)
-
-FitCV preserves two parallel representations:
-
-1. **Raw provenance** (ingest persistence)
-   - `raw_json` stores original job object as JSON string
-2. **Normalized working shape** (normalize stage)
-   - stable snake_case keys
-   - derived parse fields for downstream logic
-
-## Key fields collected
-
-### Required fields (scraper contract)
-
-Per job object, FitCV expects these scraper keys to exist:
+Each job requires:
 
 - `jobUrl`
 - `title`
@@ -90,92 +27,50 @@ Per job object, FitCV expects these scraper keys to exist:
 - `contractType`
 - `experienceLevel`
 
-### Common optional fields (when present)
+Optional fields remain unchanged. Job order remains unchanged. Standalone scanner export may write `[]`; run creation rejects an empty array with `empty_job_input`.
 
-Common scraper fields FitCV consumes/persists when present:
+## Run sources
 
-- `location`
-- `postedTime` (human-relative text; not a reliable timestamp)
-- `publishedAt` (date-like string; timezone may be missing)
-- `companyUrl`, `companyId`
-- `applicationsCount` (localized text; parsed best-effort)
-- `contractType`, `experienceLevel`, `workType`, `sector`
-- `salary` (string; parsed best-effort)
-- `applyUrl`, `applyType`
-- `posterFullName`, `posterProfileUrl` (often empty)
+### Path
 
-Unknown keys remain preserved inside `raw_json`.
+JSON file path resolves at trigger time. Original file is acquisition input only; worker never executes it directly.
 
-## Cleaning and transformation steps
+### Upload
 
-### Field mapping: camelCase → snake_case
+Public run UI accepts one JSON or JSONL file. Legacy admin route may merge multiple files in submitted order.
 
-Selected scraper keys map to internal snake_case keys:
+### Paste
 
-- `jobUrl` → `job_url`
-- `postedTime` → `posted_time`
-- `publishedAt` → `published_at`
-- `companyName` → `company_name`
-- `companyUrl` → `company_url`
-- `companyId` → `company_id`
-- `applicationsCount` → `applications_count`
-- `contractType` → `contract_type`
-- `experienceLevel` → `experience_level`
-- `workType` → `work_type`
-- `applyUrl` → `apply_url`
-- `applyType` → `apply_type`
-- `posterFullName` → `poster_full_name`
-- `posterProfileUrl` → `poster_profile_url`
+Legacy admin route accepts a pasted JSON array.
 
-Keys not in mapping are preserved under their original name.
+### Scanner
 
-### Normalize stage transformations
+Run UI accepts provider selection, company name, canonical HTTPS careers URL, title keywords, maximum jobs, and total timeout. `Auto detect` requires exactly one matching provider. Provider choices come from `src/fitcv/job_sources.py`; UI and API do not copy provider routing rules.
 
-Per job, normalize stage applies:
+Scanner errors use stable codes:
 
-- description whitespace normalization (collapse repeated whitespace/newlines)
-- `applicationsCount` best-effort parsing → `applications_count_int: int | None`
-  - supports localized forms like “61 applicants”, “Mehr als 200 Bewerber”
-  - treats “Be among the first N …” (and localized variants) as `0`
-- `salary` best-effort parsing → `salary_structured: {min,max,currency,period} | None`
-  - supports ranges like `€50,000.00/yr - €70,000.00/yr`
+- input: `invalid_scanner_request`, `unknown_provider`, `unsupported_provider_url`, `ambiguous_provider_url`, `empty_job_input`
+- upstream: `provider_timeout`, `provider_http_error`, `provider_payload_error`, `provider_detail_error`
 
-### Deduplication
+## Snapshot and projection
 
-Normalize stage removes duplicates to avoid repeated downstream cost:
+Successful run creation stores:
 
-- exact dedupe by `job_url`
-- near-dedupe by `(company_id, title, sha256(description))`
-  - keeps first occurrence, excludes later near-duplicates
+- `jobs_input_json`: immutable canonical job truth
+- `jobs_input_source`: acquisition mode
+- `jobs_input_manifest_json`: provenance and canonical SHA-256 only
+- `jobs_path`: run-owned file written from exact `jobs_input_json` bytes
 
-## How data is used in this project
+Worker verifies queued path, persisted path, manifest digest, snapshot digest, and projection bytes before pipeline execution. Historical runs without `jobs_input_json` retain legacy path behavior.
 
-The pipeline is staged narrowing and grounding:
+## Downstream behavior
 
-- `normalize` stabilizes and deduplicates raw scraped input
-- `enrich` derives structured fields primarily from `title` and `description`
-- `rule_filter` applies deterministic exclusion rules
-- `shortlist` / `ranking` compute fit signals and select best jobs for deeper work
-- `cv_analysis` / `cv_generation` run only on jobs that pass upstream gates
+Normalize stage still owns snake-case mapping, description cleanup, date parsing, and deduplication. Scanner provider identity does not affect normalization, filtering, ranking, enrichment, or CV generation.
 
-Practical implication: input quality (especially `description`) strongly affects
-downstream quality and cost.
+## Apify helper
 
-## Limitations and reproducibility notes
+`fetch_from_apify` in `src/fitcv/ingest.py` remains an engineering helper. It is not a control-plane source mode and is not wired into scanner registry.
 
-### Limitations
+## Adding a provider
 
-- Scraped data can be incomplete, localized, or inconsistent across runs.
-- Job posts churn; identical “roles” may appear under new URLs or edited text.
-- `postedTime` is often relative text (e.g., “6 days ago”), not an absolute timestamp.
-- Applicant count and salary parsing are best-effort; unrecognized formats yield `None`.
-- Dedupe can intentionally drop “same JD, different URL” variants; use artifacts to inspect exclusions.
-
-### Reproducibility checklist
-
-For a repeatable run:
-
-- record Apify actor input JSON + run timestamp
-- record Apify dataset ID and/or keep exported JSON file unchanged (checksum recommended)
-- trigger pipeline via `jobs_path` pointing to that exported JSON file
-- keep run exports (especially `settings-used.json` and `export.json`) as the replay surface
+Add provider-owned detection and acquisition behavior, then one registry entry in `src/fitcv/job_sources.py`. Provider output must pass canonicalization, `prepare_raw_rows`, and normalization tests. No control-plane or pipeline routing branch should be required.

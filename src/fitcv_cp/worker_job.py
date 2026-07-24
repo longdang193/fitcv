@@ -583,6 +583,41 @@ def _append_degraded_snapshot_persistence_warning(
     )
 
 
+class JobsInputIntegrityError(RuntimeError):
+    pass
+
+
+def _verify_jobs_input_projection(run_record: Any, jobs_path: str) -> None:
+    snapshot_value = getattr(run_record, "jobs_input_json", None)
+    if not isinstance(snapshot_value, str) or not snapshot_value:
+        return
+
+    persisted_path_value = getattr(run_record, "jobs_path", None)
+    if not isinstance(persisted_path_value, str) or not persisted_path_value.strip():
+        raise JobsInputIntegrityError("persisted run projection path is missing")
+    persisted_path = persisted_path_value.strip()
+    if Path(persisted_path).resolve() != Path(jobs_path).resolve():
+        raise JobsInputIntegrityError("queued jobs_path does not match persisted run projection")
+
+    snapshot_bytes = snapshot_value.encode("utf-8")
+    snapshot_digest = hashlib.sha256(snapshot_bytes).hexdigest()
+    manifest_value = getattr(run_record, "jobs_input_manifest_json", None)
+    if not isinstance(manifest_value, str):
+        raise JobsInputIntegrityError("jobs input manifest is missing")
+    try:
+        manifest = json.loads(manifest_value)
+    except json.JSONDecodeError as exc:
+        raise JobsInputIntegrityError("jobs input manifest is invalid JSON") from exc
+    if not isinstance(manifest, dict) or manifest.get("canonical_sha256") != snapshot_digest:
+        raise JobsInputIntegrityError("jobs input manifest digest does not match snapshot")
+    try:
+        projection_bytes = Path(persisted_path).read_bytes()
+    except OSError as exc:
+        raise JobsInputIntegrityError("jobs input projection is missing or unreadable") from exc
+    if projection_bytes != snapshot_bytes:
+        raise JobsInputIntegrityError("jobs input projection bytes do not match snapshot")
+
+
 def _estimate_jobs_count_from_input(jobs_path: str) -> int:
     try:
         payload = json.loads(Path(jobs_path).read_text(encoding="utf-8"))
@@ -1787,6 +1822,8 @@ def execute_pipeline_run(
                             inner,
                         )
 
+            _verify_jobs_input_projection(run_record, jobs_path)
+
             with observe_span(
                 "run.execute_pipeline",
                 attributes={
@@ -2506,6 +2543,11 @@ def execute_pipeline_run(
                 finished_at=failed_at,
                 summary=summary if isinstance(summary, dict) else None,
                 error_message=str(exc),
+                error_stage=(
+                    "jobs_input_integrity"
+                    if isinstance(exc, JobsInputIntegrityError)
+                    else None
+                ),
             )
             try:
                 classification = classify_exception_for_retry(exc)

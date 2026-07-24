@@ -33,6 +33,19 @@ from fitcv_cp import sqlite_store
 
 _TEST_DATABASE_ROOT = tempfile.TemporaryDirectory(prefix="fitcv-cp-app-tests-")
 
+def _valid_fitcv_job(**overrides: str) -> dict[str, str]:
+    job = {
+        "title": "Data Engineer",
+        "jobUrl": "https://example.com/jobs/1",
+        "companyName": "ACME GmbH",
+        "description": "Build data pipelines.",
+        "contractType": "Full-time",
+        "experienceLevel": "Senior",
+    }
+    job.update(overrides)
+    return job
+
+
 def _app():
     os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
     database_path = Path(_TEST_DATABASE_ROOT.name) / f"{uuid.uuid4()}.sqlite3"
@@ -539,7 +552,7 @@ def test_post_runs_inserts_before_enqueue(tmp_path):
     """
     call_order = []
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -576,7 +589,7 @@ def test_post_runs_does_not_warn_for_whole_synonym_map_changes(tmp_path) -> None
 
     captured: dict[str, Any] = {}
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
     prior_run = SimpleNamespace(
@@ -625,7 +638,7 @@ def test_post_runs_does_not_warn_for_whole_synonym_map_changes(tmp_path) -> None
 
 def test_post_runs_persists_backend_binding_from_submission(tmp_path):
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -999,7 +1012,7 @@ def test_post_runs_multipart_uses_profile_run_name_and_idempotency() -> None:
             files={
                 "jobs_file": (
                     "jobs.json",
-                    '[{"title":"Analyst","job_url":"https://example.com/job"}]',
+                    json.dumps([_valid_fitcv_job(title="Analyst", jobUrl="https://example.com/job", job_url="https://example.com/job")]),
                     "application/json",
                 )
             },
@@ -1019,12 +1032,12 @@ def test_post_runs_multipart_uses_profile_run_name_and_idempotency() -> None:
 @pytest.mark.parametrize(
     ("filename", "content", "profile", "expected_status", "expected_code"),
     [
-        ("jobs.txt", '[{"title":"Analyst"}]', None, 422, "validation_failed"),
+        ("jobs.txt", json.dumps([_valid_fitcv_job(title="Analyst")]), None, 422, "validation_failed"),
         ("jobs.json", b"", None, 422, "validation_failed"),
         ("jobs.json", "{", None, 422, "validation_failed"),
         (
             "jobs.json",
-            '[{"title":"Analyst"}]',
+            json.dumps([_valid_fitcv_job(title="Analyst")]),
             {"candidate_profile_id": "candidate-1", "is_active": False},
             409,
             "candidate_profile_unavailable",
@@ -1071,7 +1084,7 @@ def test_post_runs_multipart_replays_original_resource_without_enqueue() -> None
         resp = TestClient(app).post(
             "/runs",
             headers={"Idempotency-Key": "trigger-1"},
-            files={"jobs_file": ("jobs.json", '[{"title":"Analyst"}]', "application/json")},
+            files={"jobs_file": ("jobs.json", json.dumps([_valid_fitcv_job(title="Analyst")]), "application/json")},
             data={"profile_id": "candidate-1"},
         )
 
@@ -1110,7 +1123,7 @@ def test_post_runs_multipart_enqueue_failure_returns_persisted_failed_run() -> N
         resp = TestClient(app).post(
             "/runs",
             headers={"Idempotency-Key": "trigger-1"},
-            files={"jobs_file": ("jobs.json", '[{"title":"Analyst"}]', "application/json")},
+            files={"jobs_file": ("jobs.json", json.dumps([_valid_fitcv_job(title="Analyst")]), "application/json")},
             data={"profile_id": "candidate-1"},
         )
 
@@ -1130,7 +1143,7 @@ def test_post_runs_persists_manual_staged_mode(tmp_path) -> None:
     """@proves trigger_run_management.execution-mode-selection"""
     captured = {}
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -1160,7 +1173,7 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     captured = {}
 
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -1180,7 +1193,9 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
 
     assert resp.status_code == 201, resp.text
     assert captured["run"].jobs_input_source == "path"
-    assert json.loads(captured["run"].jobs_input_json) == [{"job_url": "http://a.com"}]
+    assert json.loads(captured["run"].jobs_input_json) == [
+        _valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")
+    ]
     assert captured["run"].candidate_profile_source == "default_config"
     profile_snapshot = json.loads(captured["run"].candidate_profile_json)
     assert profile_snapshot["preferences"]["domains"] == ["fintech"]
@@ -1270,7 +1285,7 @@ def test_trigger_runtime_envelope_snapshots_system_retry_resource(
 
 def test_post_runs_queue_failure_terminalizes_existing_run(tmp_path) -> None:
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -1294,7 +1309,7 @@ def test_post_runs_queue_failure_terminalizes_existing_run(tmp_path) -> None:
 def test_post_runs_path_trigger_captures_cv_generation_runtime_expectation(tmp_path) -> None:
     captured = {}
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -1334,7 +1349,7 @@ def test_post_runs_path_trigger_captures_cv_generation_runtime_expectation(tmp_p
 
 def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tmp_path) -> None:
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -2625,7 +2640,7 @@ def test_post_runs_with_config_overrides(tmp_path):
     POST /runs with per-run overrides snapshot effective settings.
     """
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -2661,7 +2676,7 @@ def test_post_runs_rejects_invalid_config_overrides():
 
 def test_post_runs_accepts_nested_stage_runtime_overrides(tmp_path):
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -2695,7 +2710,7 @@ def test_post_runs_accepts_nested_stage_runtime_overrides(tmp_path):
 
 def test_post_runs_accepts_mixed_nested_and_flat_same_value(tmp_path):
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -2718,7 +2733,7 @@ def test_post_runs_accepts_mixed_nested_and_flat_same_value(tmp_path):
 
 def test_post_runs_rejects_mixed_nested_and_flat_conflict(tmp_path):
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -2739,7 +2754,7 @@ def test_post_runs_rejects_mixed_nested_and_flat_conflict(tmp_path):
 
 def test_post_runs_rejects_unknown_nested_override_key(tmp_path):
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -2789,7 +2804,7 @@ def test_admin_upload_trigger_success(tmp_path):
              "paths": {"candidate_profile": "data/candidate_profile.yaml"},
          }):
 
-        file_content = b'[{"title": "Engineer", "job_url": "http://x.com"}]'
+        file_content = json.dumps([_valid_fitcv_job(title="Engineer", jobUrl="http://x.com", job_url="http://x.com")]).encode("utf-8")
         files = {"jobs_file": ("custom_jobs.json", file_content, "application/json")}
         data = {
             "config_path": ".env.yaml",
@@ -2831,7 +2846,7 @@ def test_admin_upload_trigger_cannot_apply_retired_run_scoped_synonym_overlay() 
                 "synonym_overlay_mode": "upload",
             },
             files={
-                "jobs_file": ("custom_jobs.json", b'[{"title":"Engineer","job_url":"http://x.com"}]', "application/json"),
+                "jobs_file": ("custom_jobs.json", json.dumps([_valid_fitcv_job(title="Engineer", jobUrl="http://x.com", job_url="http://x.com")]).encode("utf-8"), "application/json"),
                 "synonym_overlay_file": ("custom_overlay.yaml", b"skill_synonyms:\n  ga4: google analytics\n", "application/x-yaml"),
             },
         )
@@ -4590,8 +4605,8 @@ def test_admin_upload_trigger_merges_multiple_job_files():
 
     Two valid JSON files → 201, merged snapshot contains both jobs.
     """
-    file1 = b'[{"title": "Engineer", "job_url": "http://a.com"}]'
-    file2 = b'[{"title": "Analyst", "job_url": "http://b.com"}]'
+    file1 = json.dumps([_valid_fitcv_job(title="Engineer", jobUrl="http://a.com", job_url="http://a.com")]).encode("utf-8")
+    file2 = json.dumps([_valid_fitcv_job(title="Analyst", jobUrl="http://b.com", job_url="http://b.com")]).encode("utf-8")
     captured = {}
 
     p = _upload_patches()
@@ -4620,8 +4635,8 @@ def test_admin_upload_trigger_multi_file_preserves_order():
 
     Merged snapshot preserves file order (file1 rows first, then file2).
     """
-    file1 = b'[{"job_url": "http://first.com"}]'
-    file2 = b'[{"job_url": "http://second.com"}]'
+    file1 = json.dumps([_valid_fitcv_job(jobUrl="http://first.com", job_url="http://first.com")]).encode("utf-8")
+    file2 = json.dumps([_valid_fitcv_job(jobUrl="http://second.com", job_url="http://second.com")]).encode("utf-8")
     captured = {}
 
     p = _upload_patches()
@@ -4646,7 +4661,7 @@ def test_admin_upload_trigger_one_invalid_file_rejects_entire_request():
 
     One file with invalid JSON → 422; run must NOT be created.
     """
-    file1 = b'[{"job_url": "http://good.com"}]'
+    file1 = json.dumps([_valid_fitcv_job(jobUrl="http://good.com", job_url="http://good.com")]).encode("utf-8")
     file2 = b'THIS IS NOT JSON'
     p = _upload_patches()
     with p[0], p[1], p[2], p[3], p[4]:
@@ -4727,7 +4742,7 @@ def test_admin_upload_trigger_effective_settings_includes_runtime_contract():
     p = _upload_patches()
     with p[0], p[1], p[2], p[3], p[4]:
         with patch("fitcv_cp.app.load_active_settings", return_value=active):
-            file1 = b'[{"job_url": "http://e.com"}]'
+            file1 = json.dumps([_valid_fitcv_job(jobUrl="http://e.com", job_url="http://e.com")]).encode("utf-8")
             resp = TestClient(_app_with_captured_run(captured)).post(
                 "/admin/upload-trigger",
                 data={"jobs_input_mode": "upload", "candidate_profile_id": "profile-1"},
@@ -11523,8 +11538,8 @@ def test_admin_upload_trigger_accepts_jsonl_rerun_input():
 
     jsonl_payload = "\n".join(
         [
-            _json.dumps({"schema_version": "rerun_input.v1", "raw_job": {"jobUrl": "https://a.com", "title": "A"}}),
-            _json.dumps({"schema_version": "rerun_input.v1", "raw_job": {"jobUrl": "https://b.com", "title": "B"}}),
+            _json.dumps({"schema_version": "rerun_input.v1", "raw_job": _valid_fitcv_job(jobUrl="https://a.com", title="A")}),
+            _json.dumps({"schema_version": "rerun_input.v1", "raw_job": _valid_fitcv_job(jobUrl="https://b.com", title="B")}),
         ]
     )
 
@@ -11786,7 +11801,7 @@ def test_admin_upload_trigger_path_mode_stores_jobs_snapshot(tmp_path):
     path mode: trigger must read the file and store its JSON in jobs_input_json.
     """
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     captured = {}
 
     p = _path_mode_patches(profile_path=str(tmp_path / "unused-profile.yaml"))
@@ -11803,7 +11818,9 @@ def test_admin_upload_trigger_path_mode_stores_jobs_snapshot(tmp_path):
     assert resp.status_code == 201, resp.text
     assert "run_id" in resp.json()
     assert captured["run"].jobs_input_source == "path"
-    assert json.loads(captured["run"].jobs_input_json) == [{"job_url": "http://a.com"}]
+    assert json.loads(captured["run"].jobs_input_json) == [
+        _valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")
+    ]
 
 
 def test_admin_upload_trigger_path_mode_missing_file_returns_422(tmp_path):
@@ -11894,7 +11911,7 @@ preferences:
 
 def test_admin_upload_trigger_stores_selected_profile_snapshot(tmp_path):
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     captured = {}
     app = _app_with_captured_run(captured)
     app.state.run_store.get_candidate_profile_fn = lambda profile_id: {
@@ -11931,7 +11948,7 @@ def test_admin_upload_trigger_stores_selected_profile_snapshot(tmp_path):
 def test_admin_upload_trigger_default_config_missing_profile_returns_422(tmp_path):
     """default_config mode: missing profile file must fail the trigger with 422."""
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
 
     config = {
         "gcp_project": "p","pipeline": {"final_top_n": 10},
@@ -11960,7 +11977,7 @@ def test_admin_upload_trigger_default_config_missing_profile_returns_422(tmp_pat
 
 def test_admin_upload_trigger_requires_central_candidate_profile_id(tmp_path):
     jobs_file = tmp_path / "jobs.json"
-    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={"gcp_project": "p", "pipeline": {"final_top_n": 10}}):
         response = TestClient(_app()).post(
@@ -11988,7 +12005,7 @@ def test_run_detail_tab2_shows_snapshot_for_path_source():
     run = PipelineRun(
         run_id="snap-test-1", status=RunStatus.SUCCEEDED,
         jobs_path="data/sample_jobs.json", jobs_input_source="path",
-        jobs_input_json='[{"job_url": "http://a.com"}]',
+        jobs_input_json=json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]),
         triggered_by="admin", trigger_source="web", config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
     )
@@ -12961,3 +12978,149 @@ def test_call_synonym_triage_provider_routes_through_llm_runtime(
     assert "now_iso" not in captured["prompt_payload"]
     assert result["recommended_action"] == "approve"
     assert result["llm_runtime_evidence"]["provenance"]["response_id"] == "resp-triage"
+
+
+
+
+def test_post_runs_path_queues_run_owned_canonical_projection(tmp_path, monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+    monkeypatch.chdir(tmp_path)
+    jobs_file = tmp_path / "source-jobs.json"
+    jobs_file.write_text(json.dumps([_valid_fitcv_job()]), encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    def capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    def capture_submit(**kwargs):
+        captured["queued_jobs_path"] = kwargs["jobs_path"]
+        return RunSubmission(
+            run_id=kwargs["run_id"],
+            queue_job_id="rq-job-1",
+            backend_run_id=kwargs["run_id"],
+            backend="default_queue",
+        )
+
+    with patch("fitcv_cp.app.insert_run", side_effect=capture_insert), patch(
+        "fitcv_cp.app.submit_run", side_effect=capture_submit
+    ), patch("fitcv_cp.app.update_run_queue_job_id"), patch(
+        "fitcv_cp.app.load_active_settings", return_value={}
+    ), patch(
+        "fitcv_cp.app.load_config",
+        return_value={
+            "pipeline": {"final_top_n": 10},
+            "paths": {"candidate_profile": str(profile_path)},
+        },
+    ):
+        response = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
+
+    assert response.status_code == 201, response.text
+    run = captured["run"]
+    queued_path = Path(captured["queued_jobs_path"])
+    assert queued_path != jobs_file
+    assert queued_path.name == f"{run.run_id}_jobs.json"
+    assert queued_path.read_text(encoding="utf-8") == run.jobs_input_json
+    import hashlib
+
+    manifest = json.loads(run.jobs_input_manifest_json)
+    assert manifest["canonical_sha256"] == hashlib.sha256(
+        run.jobs_input_json.encode("utf-8")
+    ).hexdigest()
+
+
+def test_post_runs_path_rejects_empty_canonical_jobs(tmp_path) -> None:
+    jobs_file = tmp_path / "empty.json"
+    jobs_file.write_text("[]", encoding="utf-8")
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ):
+        response = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "empty_job_input"
+
+
+def test_post_runs_scanner_mode_needs_no_file_and_persists_provenance(tmp_path, monkeypatch) -> None:
+    from fitcv.job_sources import AcquisitionResult
+    from fitcv.ingest import canonicalize_jobs
+
+    monkeypatch.chdir(tmp_path)
+    captured: dict[str, Any] = {}
+    with patch("fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}):
+        app = _app()
+    app.state.run_store.get_candidate_profile_fn = lambda profile_id: {
+        "candidate_profile_id": profile_id,
+        "name": "Candidate",
+        "profile": {"name": "Candidate"},
+        "revision": 3,
+        "is_active": True,
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "action-1",
+        "replayed": False,
+        "response": None,
+    }
+    app.state.run_store.complete_idempotent_action_fn = lambda *_args: None
+
+    def capture_bundle(run, **_kwargs):
+        captured["run"] = run
+        return {"run_id": run.run_id}
+
+    app.state.run_store.create_run_bundle_fn = capture_bundle
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch(
+        "fitcv_cp.app.acquire_scanner_jobs",
+        return_value=AcquisitionResult(
+            provider_id="greenhouse",
+            selection_mode="auto",
+            artifact=canonicalize_jobs([_valid_fitcv_job()]),
+        ),
+    ), patch(
+        "fitcv_cp.app.submit_run",
+        side_effect=lambda **kwargs: RunSubmission(
+            run_id=kwargs["run_id"],
+            queue_job_id="rq-job-1",
+            backend_run_id=kwargs["run_id"],
+            backend="default_queue",
+        ),
+    ):
+        response = TestClient(app).post(
+            "/runs",
+            headers={"Idempotency-Key": "scanner-1"},
+            data={
+                "source_mode": "scanner",
+                "provider": "auto",
+                "company_name": "ACME GmbH",
+                "careers_url": "https://job-boards.eu.greenhouse.io/acme",
+                "keywords": "Data Engineer\nAnalytics",
+                "max_jobs": "10",
+                "timeout_seconds": "30",
+                "profile_id": "candidate-1",
+            },
+        )
+
+    assert response.status_code == 201, response.text
+    run = captured["run"]
+    assert run.jobs_input_source == "scanner"
+    manifest = json.loads(run.jobs_input_manifest_json)
+    assert manifest["provider_id"] == "greenhouse"
+    assert manifest["selection_mode"] == "auto"
+    assert manifest["keywords"] == ["Data Engineer", "Analytics"]
+    assert manifest["canonical_sha256"]
+
+
+def test_runs_list_renders_registry_driven_scanner_fields() -> None:
+    with patch("fitcv_cp.app.list_runs", return_value=[]):
+        response = TestClient(_app()).get("/admin/runs")
+
+    assert response.status_code == 200
+    assert 'id="source_mode"' in response.text
+    assert 'id="scanner_provider"' in response.text
+    assert '<option value="personio">Personio</option>' in response.text
+    assert '<option value="greenhouse">Greenhouse</option>' in response.text
+    assert '<option value="workday">Workday</option>' in response.text

@@ -72,6 +72,13 @@ from fitcv.decision_feedback import (
     reduce_rating_events,
 )
 from fitcv.enrich import derive_required_skills_display
+from fitcv.ingest import CanonicalJobs, canonicalize_jobs, write_canonical_jobs
+from fitcv.job_sources import (
+    JobSourceError,
+    acquire_scanner_jobs,
+    build_scanner_request,
+    list_provider_options,
+)
 from fitcv.inverse_optimization import InverseOptimizationRequest
 from fitcv.llm_runtime import (
     LlmAdapterResponse,
@@ -811,34 +818,66 @@ def _apply_trigger_runtime_envelope(
     return effective_config
 
 
-def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, str]:
+def _materialize_run_jobs_projection(run_id: str, artifact: CanonicalJobs) -> str:
+    path = Path("data/uploads") / f"{run_id}_jobs.json"
+    write_canonical_jobs(path, artifact)
+    return str(path)
+
+
+def _job_source_api_error(exc: JobSourceError) -> "ApiError":
+    status_code = 422 if exc.code in {
+        "invalid_scanner_request",
+        "unknown_provider",
+        "unsupported_provider_url",
+        "ambiguous_provider_url",
+        "empty_job_input",
+    } else 502
+    return ApiError(
+        status_code,
+        exc.code,
+        str(exc),
+        retryable=status_code == 502,
+        action="Check scanner fields and retry." if status_code == 422 else "Retry later or check the provider portal.",
+    )
+
+
+def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, CanonicalJobs]:
     normalized_jobs_path = str(jobs_path or "").strip()
     if not normalized_jobs_path:
-        raise HTTPException(status_code=422, detail="jobs_path required for path mode")
+        raise ApiError(422, "validation_failed", "jobs_path is required for path mode.")
     path_file = Path(normalized_jobs_path)
     if not path_file.exists():
-        raise HTTPException(
-            status_code=422,
-            detail=(
+        raise ApiError(
+            422,
+            "validation_failed",
+            (
                 f"Jobs file not found: {normalized_jobs_path}. "
                 "In Docker use container-visible paths (for example: data/<file>.json), "
                 "not host-absolute paths."
             ),
         )
     try:
-        raw_text = path_file.read_text(encoding="utf-8")
+        parsed_jobs = _json.loads(path_file.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise HTTPException(status_code=422, detail=f"Cannot read jobs file {normalized_jobs_path}: {exc}")
-    try:
-        parsed_jobs = _json.loads(raw_text)
+        raise ApiError(
+            422,
+            "validation_failed",
+            f"Cannot read jobs file {normalized_jobs_path}: {exc}",
+        ) from exc
     except _json.JSONDecodeError as exc:
-        raise HTTPException(status_code=422, detail=f"Invalid jobs JSON at {normalized_jobs_path}: {exc}")
-    if not isinstance(parsed_jobs, list):
-        raise HTTPException(
-            status_code=422,
-            detail=f"Invalid jobs JSON at {normalized_jobs_path}: top-level value must be a JSON array",
-        )
-    return normalized_jobs_path, _json.dumps(parsed_jobs, ensure_ascii=False, indent=2)
+        raise ApiError(
+            422,
+            "validation_failed",
+            f"Invalid jobs JSON at {normalized_jobs_path}: {exc}",
+        ) from exc
+    try:
+        return normalized_jobs_path, canonicalize_jobs(parsed_jobs)
+    except ValueError as exc:
+        raise ApiError(
+            422,
+            "validation_failed",
+            f"Invalid jobs JSON at {normalized_jobs_path}: {exc}",
+        ) from exc
 
 
 def _resolve_default_candidate_profile_snapshot(config_path: str) -> str:
@@ -5454,7 +5493,14 @@ def _dedupe_timeline_semantic_overlaps(
 
 
 class TriggerRequest(BaseModel):
+    source_mode: Literal["path", "scanner"] = "path"
     jobs_path: str = "data/sample_jobs.json"
+    provider: str = "auto"
+    company_name: str = ""
+    careers_url: str = ""
+    keywords: tuple[str, ...] = ()
+    max_jobs: int = 50
+    timeout_seconds: int = 60
     config_path: str = ".env.yaml"
     triggered_by: str = "admin"
     config_overrides: dict[str, Any] = {}
@@ -8098,151 +8144,32 @@ def create_app(
         *,
         run_mode: str = "run_all",
     ) -> dict:
-        # Build effective config: YAML → BQ settings → per-run overrides
+        source_path, artifact = _resolve_jobs_path_snapshot(jobs_path)
+        if not artifact.jobs:
+            raise ApiError(
+                422,
+                "empty_job_input",
+                "At least one job is required to create a Run.",
+                action="Provide one or more jobs and retry.",
+            )
         try:
-            base_config = load_config(config_path)
+            candidate_profile_json = _resolve_default_candidate_profile_snapshot(config_path)
         except FileNotFoundError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        active_settings = load_active_settings()
-
-        def _normalize_trigger_overrides(raw_overrides: dict[str, Any]) -> dict[str, Any]:
-            """Accept flat or nested trigger overrides and normalize to dot-path leaves.
-
-            Supports canonical flat keys (`stage_runtime.enrich.concurrency`) and
-            nested payloads (`{"stage_runtime": {"enrich": {"concurrency": 2}}}`).
-            Raises 422-style ValueError when conflicting duplicate paths are provided.
-            """
-            normalized: dict[str, Any] = {}
-
-            def _flatten(prefix: str, value: Any) -> None:
-                if isinstance(value, dict):
-                    for child_key, child_value in value.items():
-                        child_name = str(child_key or "").strip()
-                        if not child_name:
-                            continue
-                        next_prefix = f"{prefix}.{child_name}" if prefix else child_name
-                        _flatten(next_prefix, child_value)
-                    return
-                existing = normalized.get(prefix, None)
-                if prefix in normalized and existing != value:
-                    raise ValueError(
-                        "Conflicting config_overrides for key "
-                        f"{prefix!r}: got both {existing!r} and {value!r}"
-                    )
-                normalized[prefix] = value
-
-            for raw_key, raw_value in dict(raw_overrides or {}).items():
-                key = str(raw_key or "").strip()
-                if not key:
-                    continue
-                if "." in key:
-                    if key in normalized and normalized[key] != raw_value:
-                        raise ValueError(
-                            "Conflicting config_overrides for key "
-                            f"{key!r}: got both {normalized[key]!r} and {raw_value!r}"
-                        )
-                    normalized[key] = raw_value
-                    continue
-                if isinstance(raw_value, dict):
-                    _flatten(key, raw_value)
-                    continue
-                if key in normalized and normalized[key] != raw_value:
-                    raise ValueError(
-                        "Conflicting config_overrides for key "
-                        f"{key!r}: got both {normalized[key]!r} and {raw_value!r}"
-                    )
-                normalized[key] = raw_value
-            return normalized
-
-        # Coerce and validate per-run overrides using the same schema
-        coerced_overrides: dict[str, Any] = {}
-        try:
-            normalized_overrides = _normalize_trigger_overrides(config_overrides)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
-        for k, v in normalized_overrides.items():
-            try:
-                coerced_overrides[k] = coerce_value(k, v)
-            except KeyError:
-                raise HTTPException(status_code=422, detail=f"Unknown setting key: {k!r}")
-            except (ValueError, TypeError) as exc:
-                raise HTTPException(status_code=422, detail=str(exc))
-        try:
-            validate_settings(coerced_overrides)
-        except ValidationError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
-
-        # Merge: YAML < BQ settings < per-run overrides
-        effective_config = dict(base_config)
-        apply_settings_to_config(effective_config, active_settings)
-        apply_settings_to_config(effective_config, coerced_overrides)
-        # Recompute derived fields (required_cv_sections, etc.) from effective composition
-        effective_config = apply_cv_compatibility_projection(effective_config)
-        actual_jobs_path, jobs_input_json_snapshot = _resolve_jobs_path_snapshot(jobs_path)
-        candidate_json_snapshot = _resolve_default_candidate_profile_snapshot(config_path)
-        effective_config = _apply_trigger_runtime_envelope(
-            effective_config,
-            jobs_input_source="path",
-            jobs_input_json=jobs_input_json_snapshot,
-            jobs_input_manifest_json=None,
-            candidate_profile_source="default_config",
-            candidate_profile_json=candidate_json_snapshot,
-            run_mode=run_mode,
-        )
-
-        run_id = str(uuid.uuid4())
-        # Insert FIRST — then enqueue. DB is the source of truth.
-        run = PipelineRun(
-            run_id=run_id,
-            status=RunStatus.QUEUED,
-            triggered_by=triggered_by,
-            trigger_source="ui",
-            jobs_path=actual_jobs_path,
+        return _execute_trigger_with_inputs(
+            jobs_path=source_path,
             config_path=config_path,
-            created_at=datetime.datetime.now(datetime.timezone.utc),
-            effective_settings_json=_json.dumps(effective_config),
+            triggered_by=triggered_by,
+            config_overrides=config_overrides,
+            canonical_jobs=artifact,
             jobs_input_source="path",
-            jobs_input_json=jobs_input_json_snapshot,
+            jobs_input_manifest_json=_json.dumps(
+                {"source_path": source_path}, ensure_ascii=False, sort_keys=True
+            ),
             candidate_profile_source="default_config",
-            candidate_profile_json=candidate_json_snapshot,
+            candidate_profile_json=candidate_profile_json,
             run_mode=run_mode,
-            checkpoint_status="pending_first_stage" if run_mode == "manual_staged" else None,
-            next_stage="normalize" if run_mode == "manual_staged" else None,
-            completed_stages=[],
         )
-        _persist_run_initial(run, client=client)
-        try:
-            submission = submit_run(
-                jobs_path=actual_jobs_path,
-                config_path=config_path,
-                triggered_by=triggered_by,
-                redis_url=redis_url,
-                run_id=run_id,
-            )
-        except Exception as exc:
-            update_run_status(
-                run_id,
-                RunStatus.FAILED,
-                client=client,
-                finished_at=datetime.datetime.now(datetime.timezone.utc),
-                error_message=str(exc),
-                error_stage="orchestration_enqueue",
-            )
-            raise HTTPException(
-                status_code=503,
-                detail={
-                    "message": "Run was persisted but could not be queued. Retry from Runs.",
-                    "run_id": run_id,
-                },
-            ) from exc
-        _persist_run_queue_job_id(
-            run_id,
-            submission.queue_job_id,
-            orchestration_backend=submission.backend,
-            orchestration_run_id=submission.backend_run_id,
-            client=client,
-        )
-        return {"run_id": run_id, "warnings": []}
 
     def _execute_trigger_with_inputs(
         jobs_path: str,
@@ -8251,6 +8178,7 @@ def create_app(
         config_overrides: dict[str, Any],
         *,
         run_name: str | None = None,
+        canonical_jobs: CanonicalJobs | None = None,
         jobs_input_source: str | None = None,
         jobs_input_json: str | None = None,
         jobs_input_manifest_json: str | None = None,
@@ -8333,6 +8261,42 @@ def create_app(
         apply_settings_to_config(effective_config, coerced_overrides)
         # Recompute derived fields (required_cv_sections, etc.) from effective composition
         effective_config = apply_cv_compatibility_projection(effective_config)
+
+        artifact = canonical_jobs
+        if artifact is None:
+            try:
+                artifact = canonicalize_jobs(_json.loads(jobs_input_json or "null"))
+            except (_json.JSONDecodeError, ValueError) as exc:
+                raise ApiError(422, "validation_failed", f"Invalid jobs input: {exc}") from exc
+        if not artifact.jobs:
+            raise ApiError(
+                422,
+                "empty_job_input",
+                "At least one job is required to create a Run.",
+                action="Provide one or more jobs and retry.",
+            )
+        run_id = str(uuid.uuid4())
+        try:
+            jobs_path = _materialize_run_jobs_projection(run_id, artifact)
+        except OSError as exc:
+            raise ApiError(
+                500,
+                "jobs_projection_write_failed",
+                "Run jobs projection could not be written.",
+                retryable=True,
+                action="Check local storage and retry.",
+            ) from exc
+        try:
+            manifest = _json.loads(jobs_input_manifest_json or "{}")
+        except _json.JSONDecodeError:
+            manifest = {}
+        if not isinstance(manifest, dict):
+            manifest = {}
+        manifest["canonical_sha256"] = artifact.sha256
+        manifest["job_count"] = len(artifact.jobs)
+        jobs_input_json = artifact.json_text
+        jobs_input_manifest_json = _json.dumps(manifest, ensure_ascii=False, sort_keys=True)
+
         effective_config = _apply_trigger_runtime_envelope(
             effective_config,
             jobs_input_source=jobs_input_source,
@@ -8353,7 +8317,6 @@ def create_app(
                 raw_yaml=str(run_synonym_overlay_raw_yaml or ""),
             )
 
-        run_id = str(uuid.uuid4())
         run = PipelineRun(
             run_id=run_id,
             status=RunStatus.QUEUED,
@@ -8374,7 +8337,12 @@ def create_app(
             next_stage="normalize" if run_mode == "manual_staged" else None,
             completed_stages=[],
         )
-        if _CP_STORE is not None and jobs_input_json and candidate_profile_source:
+        if (
+            _CP_STORE is not None
+            and jobs_input_json
+            and candidate_profile_source
+            and candidate_profile_source != "default_config"
+        ):
             try:
                 parsed_run_jobs = _json.loads(jobs_input_json)
                 if not isinstance(parsed_run_jobs, list):
@@ -8452,6 +8420,48 @@ def create_app(
                     ],
                     action="Fix highlighted fields and retry.",
                 ) from exc
+            if req.source_mode == "scanner":
+                try:
+                    scanner_request = build_scanner_request(
+                        provider=req.provider,
+                        company_name=req.company_name,
+                        careers_url=req.careers_url,
+                        keywords=req.keywords,
+                        max_jobs=req.max_jobs,
+                        timeout_seconds=req.timeout_seconds,
+                    )
+                    acquisition = acquire_scanner_jobs(scanner_request)
+                    if not acquisition.artifact.jobs:
+                        raise JobSourceError(
+                            "empty_job_input", "Scanner returned no matching jobs"
+                        )
+                except JobSourceError as exc:
+                    raise _job_source_api_error(exc) from exc
+                return _execute_trigger_with_inputs(
+                    jobs_path=scanner_request.careers_url,
+                    config_path=req.config_path,
+                    triggered_by=req.triggered_by,
+                    config_overrides=req.config_overrides,
+                    canonical_jobs=acquisition.artifact,
+                    jobs_input_source="scanner",
+                    jobs_input_manifest_json=_json.dumps(
+                        {
+                            "provider_id": acquisition.provider_id,
+                            "selection_mode": acquisition.selection_mode,
+                            "company_name": scanner_request.company_name,
+                            "careers_url": scanner_request.careers_url,
+                            "keywords": list(scanner_request.keywords),
+                            "max_jobs": scanner_request.max_jobs,
+                            "timeout_seconds": scanner_request.timeout_seconds,
+                            "retrieved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                    candidate_profile_source="default_config",
+                    candidate_profile_json=_resolve_default_candidate_profile_snapshot(req.config_path),
+                    run_mode=req.run_mode,
+                )
             return _execute_trigger(
                 jobs_path=req.jobs_path,
                 config_path=req.config_path,
@@ -8462,6 +8472,149 @@ def create_app(
 
         key = _required_idempotency_key(request)
         form = await request.form()
+        source_mode = str(form.get("source_mode") or "upload").strip().lower()
+        if source_mode == "scanner":
+            candidate_profile_id = str(form.get("profile_id") or "").strip()
+            if not candidate_profile_id:
+                raise ApiError(
+                    422,
+                    "validation_failed",
+                    "Candidate Profile is required.",
+                    field_errors=[
+                        {"field": "profile_id", "code": "required", "message": "Select a Candidate Profile."}
+                    ],
+                    action="Select a Candidate Profile and retry.",
+                )
+            profile = _resolve_run_store().get_candidate_profile(candidate_profile_id)
+            if profile is None or not bool(profile.get("is_active")):
+                raise ApiError(
+                    409,
+                    "candidate_profile_unavailable",
+                    "Candidate Profile is not available for Runs.",
+                    action="Refresh Candidate Profiles and select an Active, Succeeded profile.",
+                )
+            try:
+                max_jobs = int(str(form.get("max_jobs") or "50"))
+                timeout_seconds = int(str(form.get("timeout_seconds") or "60"))
+            except ValueError as exc:
+                raise ApiError(
+                    422,
+                    "invalid_scanner_request",
+                    "max_jobs and timeout_seconds must be integers.",
+                    action="Fix scanner fields and retry.",
+                ) from exc
+            keyword_values = [
+                line
+                for value in form.getlist("keywords")
+                for line in str(value or "").splitlines()
+            ]
+            try:
+                scanner_request = build_scanner_request(
+                    provider=str(form.get("provider") or "auto"),
+                    company_name=str(form.get("company_name") or ""),
+                    careers_url=str(form.get("careers_url") or ""),
+                    keywords=keyword_values,
+                    max_jobs=max_jobs,
+                    timeout_seconds=timeout_seconds,
+                )
+                acquisition = acquire_scanner_jobs(scanner_request)
+            except JobSourceError as exc:
+                raise _job_source_api_error(exc) from exc
+            run_name = str(form.get("run_name") or "").strip() or scanner_request.company_name
+            if len(run_name) > 120:
+                raise ApiError(
+                    422,
+                    "validation_failed",
+                    "Run Name is too long.",
+                    field_errors=[
+                        {"field": "run_name", "code": "max_length", "message": "Use 120 characters or fewer."}
+                    ],
+                    action="Shorten Run Name and retry.",
+                )
+            profile_snapshot = dict(profile.get("profile") or {})
+            profile_snapshot.setdefault("name", profile.get("name"))
+            profile_snapshot["revision"] = profile.get("revision")
+            profile_snapshot["candidate_profile_id"] = candidate_profile_id
+            fingerprint_payload = {
+                "jobs_sha256": acquisition.artifact.sha256,
+                "candidate_profile_id": candidate_profile_id,
+                "candidate_profile_revision": profile.get("revision"),
+                "run_name": run_name,
+                "provider_id": acquisition.provider_id,
+                "selection_mode": acquisition.selection_mode,
+                "company_name": scanner_request.company_name,
+                "careers_url": scanner_request.careers_url,
+                "keywords": list(scanner_request.keywords),
+                "max_jobs": scanner_request.max_jobs,
+                "timeout_seconds": scanner_request.timeout_seconds,
+            }
+            try:
+                action = _resolve_run_store().reserve_idempotent_action(
+                    "runs.trigger", key, _request_fingerprint(fingerprint_payload)
+                )
+            except ValueError as exc:
+                raise ApiError(
+                    409,
+                    "idempotency_conflict",
+                    "Idempotency key was already used for a different request.",
+                    action="Retry with a new Idempotency-Key.",
+                ) from exc
+            if action.get("replayed") and action.get("response") is not None:
+                replay = dict(action["response"])
+                if replay.get("backend_status") == "failed" and replay.get("error_code") == "orchestration_enqueue":
+                    return JSONResponse(status_code=503, content=_run_enqueue_failure_response(replay))
+                return _data_response(replay)
+            try:
+                result = _execute_trigger_with_inputs(
+                    jobs_path=scanner_request.careers_url,
+                    config_path=str(form.get("config_path") or ".env.yaml"),
+                    triggered_by=str(form.get("triggered_by") or "admin"),
+                    config_overrides={},
+                    run_name=run_name,
+                    canonical_jobs=acquisition.artifact,
+                    jobs_input_source="scanner",
+                    jobs_input_manifest_json=_json.dumps(
+                        {
+                            "provider_id": acquisition.provider_id,
+                            "selection_mode": acquisition.selection_mode,
+                            "company_name": scanner_request.company_name,
+                            "careers_url": scanner_request.careers_url,
+                            "keywords": list(scanner_request.keywords),
+                            "max_jobs": scanner_request.max_jobs,
+                            "timeout_seconds": scanner_request.timeout_seconds,
+                            "retrieved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                    candidate_profile_source=candidate_profile_id,
+                    candidate_profile_json=_json.dumps(profile_snapshot, ensure_ascii=False),
+                )
+            except HTTPException as exc:
+                detail = exc.detail if isinstance(exc.detail, dict) else {}
+                failed_run_id = str(detail.get("run_id") or "")
+                if exc.status_code != 503 or not failed_run_id:
+                    raise
+                resource = _resolve_run_store().get_run_detail(failed_run_id) or {
+                    "run_id": failed_run_id,
+                    "backend_status": "failed",
+                    "error_code": "orchestration_enqueue",
+                    "error_message": str(detail.get("message") or "Run could not be queued."),
+                }
+                response = {**resource, "action_id": action["action_id"]}
+                _resolve_run_store().complete_idempotent_action(str(action["action_id"]), response)
+                return JSONResponse(status_code=503, content=_run_enqueue_failure_response(response))
+            resource = _resolve_run_store().get_run_detail(str(result["run_id"])) or result
+            response = {**resource, "action_id": action["action_id"]}
+            _resolve_run_store().complete_idempotent_action(str(action["action_id"]), response)
+            return _data_response(response)
+        if source_mode != "upload":
+            raise ApiError(
+                422,
+                "validation_failed",
+                f"Unsupported source_mode: {source_mode}",
+                action="Choose upload or scanner.",
+            )
         uploads = [item for item in form.getlist("jobs_file") if getattr(item, "filename", None)]
         if len(uploads) != 1:
             raise ApiError(
@@ -8589,13 +8742,21 @@ def create_app(
                 ],
                 action="Shorten Run Name and retry.",
             )
-        canonical_jobs = _json.dumps(parsed_jobs, ensure_ascii=False, indent=2)
+        try:
+            artifact = canonicalize_jobs(parsed_jobs)
+        except ValueError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                f"Job file violates the FitCV input contract: {exc}",
+                action="Fix the file and retry.",
+            ) from exc
         profile_snapshot = dict(profile.get("profile") or {})
         profile_snapshot.setdefault("name", profile.get("name"))
         profile_snapshot["revision"] = profile.get("revision")
         profile_snapshot["candidate_profile_id"] = candidate_profile_id
         fingerprint_payload = {
-            "jobs_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+            "jobs_sha256": artifact.sha256,
             "candidate_profile_id": candidate_profile_id,
             "candidate_profile_revision": profile.get("revision"),
             "run_name": run_name,
@@ -8618,19 +8779,15 @@ def create_app(
             if replay.get("backend_status") == "failed" and replay.get("error_code") == "orchestration_enqueue":
                 return JSONResponse(status_code=503, content=_run_enqueue_failure_response(replay))
             return _data_response(replay)
-        upload_dir = Path("data/uploads")
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        jobs_path = upload_dir / f"{uuid.uuid4().hex}_jobs.json"
-        jobs_path.write_text(canonical_jobs, encoding="utf-8")
         try:
             result = _execute_trigger_with_inputs(
-                jobs_path=str(jobs_path),
+                jobs_path=filename,
                 config_path=str(form.get("config_path") or ".env.yaml"),
                 triggered_by=str(form.get("triggered_by") or "admin"),
                 config_overrides={},
                 run_name=run_name,
+                canonical_jobs=artifact,
                 jobs_input_source="upload",
-                jobs_input_json=canonical_jobs,
                 jobs_input_manifest_json=_json.dumps(
                     {
                         "source_filenames": [filename],
@@ -8667,160 +8824,133 @@ def create_app(
         jobs_files: list[UploadFile] = File(default_factory=list),
         jobs_file: UploadFile | None = File(None),
         jobs_path: str = Form("data/sample_jobs.json"),
-        jobs_input_mode: str = Form("path"),      # "path" | "upload" | "paste"
+        jobs_input_mode: str = Form("path"),
         jobs_text: str = Form(""),
+        provider: str = Form("auto"),
+        company_name: str = Form(""),
+        careers_url: str = Form(""),
+        keywords: str = Form(""),
+        max_jobs: int = Form(50),
+        timeout_seconds: int = Form(60),
         config_path: str = Form(".env.yaml"),
         run_mode: str = Form("run_all"),
         candidate_profile_id: str = Form(...),
     ) -> dict:
-        _MAX_FILES = 20
-        _MAX_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB
+        source_mode = str(jobs_input_mode or "").strip().lower()
+        source_path = str(jobs_path or "").strip()
+        manifest: dict[str, Any] = {}
 
-        upload_dir = Path("data/uploads")
-        upload_dir.mkdir(parents=True, exist_ok=True)
-
-        # ── Jobs input resolution ──────────────────────────────────────
-        jobs_input_json_snapshot: str | None = None
-        jobs_input_manifest_json: str | None = None
-        if jobs_input_mode == "path":
-            actual_jobs_path, jobs_input_json_snapshot = _resolve_jobs_path_snapshot(jobs_path)
-            jobs_input_source = "path"
-        elif jobs_input_mode == "upload":
-            # Normalize: accept multi-file (jobs_files) or legacy single-file (jobs_file)
-            effective_files: list[UploadFile] = []
-            valid_jobs_files = [f for f in (jobs_files or []) if f and f.filename]
-            if valid_jobs_files:
-                effective_files = valid_jobs_files
-            elif jobs_file and jobs_file.filename:
+        if source_mode == "path":
+            source_path, artifact = _resolve_jobs_path_snapshot(source_path)
+        elif source_mode == "upload":
+            effective_files = [upload for upload in jobs_files if upload and upload.filename]
+            if not effective_files and jobs_file and jobs_file.filename:
                 effective_files = [jobs_file]
-
             if not effective_files:
-                raise HTTPException(status_code=422, detail="jobs_file required for upload mode")
+                raise ApiError(422, "validation_failed", "jobs_file is required for upload mode.")
+            if len(effective_files) > 20:
+                raise ApiError(422, "validation_failed", "Upload at most 20 jobs files.")
 
-            if len(effective_files) > _MAX_FILES:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Too many files: {len(effective_files)} exceeds limit of {_MAX_FILES}",
-                )
-
-            # Read and validate each file individually before merging
-            validated_arrays: list[list] = []
+            merged_jobs: list[dict[str, Any]] = []
             total_bytes = 0
             for upload in effective_files:
                 raw_bytes = await upload.read()
                 total_bytes += len(raw_bytes)
-                if total_bytes > _MAX_TOTAL_BYTES:
-                    raise HTTPException(
-                        status_code=422,
-                        detail=f"Total upload size exceeds limit of {_MAX_TOTAL_BYTES // (1024 * 1024)} MB",
-                    )
-                filename = upload.filename or "<unknown>"
+                if total_bytes > 50 * 1024 * 1024:
+                    raise ApiError(422, "validation_failed", "Total upload size exceeds 50 MB.")
+                filename = str(upload.filename or "<unknown>")
                 try:
-                    decoded = raw_bytes.decode("utf-8")
+                    text = raw_bytes.decode("utf-8")
                 except UnicodeDecodeError as exc:
-                    raise HTTPException(
-                        status_code=422,
-                        detail=f"Invalid jobs JSON in {filename}: {exc}",
-                    )
-                parsed: Any = None
+                    raise ApiError(
+                        422, "validation_failed", f"Invalid UTF-8 in {filename}."
+                    ) from exc
                 try:
-                    parsed = _json.loads(decoded)
+                    parsed = _json.loads(text)
                 except _json.JSONDecodeError as exc:
                     if not filename.lower().endswith(".jsonl"):
-                        raise HTTPException(
-                            status_code=422,
-                            detail=f"Invalid jobs JSON in {filename}: {exc}",
-                        )
-                if isinstance(parsed, list):
-                    validated_arrays.append(parsed)
-                    continue
-
-                if filename.lower().endswith(".jsonl"):
-                    jsonl_rows: list[dict[str, Any]] = []
-                    for line_index, line in enumerate(decoded.splitlines(), start=1):
-                        stripped = line.strip()
-                        if not stripped:
+                        raise ApiError(
+                            422, "validation_failed", f"Invalid jobs JSON in {filename}: {exc}"
+                        ) from exc
+                    parsed = []
+                    for line_number, line in enumerate(text.splitlines(), start=1):
+                        if not line.strip():
                             continue
                         try:
-                            row = _json.loads(stripped)
-                        except _json.JSONDecodeError as exc:
-                            raise HTTPException(
-                                status_code=422,
-                                detail=f"Invalid jobs JSONL in {filename} at line {line_index}: {exc}",
-                            )
+                            row = _json.loads(line)
+                        except _json.JSONDecodeError as line_exc:
+                            raise ApiError(
+                                422,
+                                "validation_failed",
+                                f"Invalid jobs JSONL in {filename} at line {line_number}: {line_exc}",
+                            ) from line_exc
                         if not isinstance(row, dict):
-                            raise HTTPException(
-                                status_code=422,
-                                detail=f"Invalid jobs JSONL in {filename} at line {line_index}: each line must be JSON object",
+                            raise ApiError(
+                                422,
+                                "validation_failed",
+                                f"Invalid jobs JSONL in {filename} at line {line_number}: expected object",
                             )
-                        raw_job = row.get("raw_job")
-                        if not isinstance(raw_job, dict):
-                            raise HTTPException(
-                                status_code=422,
-                                detail=f"Invalid jobs JSONL in {filename} at line {line_index}: missing object field 'raw_job'",
-                            )
-                        jsonl_rows.append(raw_job)
-                    if not jsonl_rows:
-                        raise HTTPException(
-                            status_code=422,
-                            detail=f"Invalid jobs JSONL in {filename}: no valid rows found",
+                        parsed.append(
+                            row.get("raw_job") if isinstance(row.get("raw_job"), dict) else row
                         )
-                    validated_arrays.append(jsonl_rows)
-                    continue
-
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Invalid jobs JSON in {filename}: top-level value must be a JSON array",
-                )
-
-            # Merge in submitted file order, preserving row order within each file
-            merged_jobs: list = []
-            for arr in validated_arrays:
-                merged_jobs.extend(arr)
-
-            if not merged_jobs:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Merged upload is empty: all uploaded files contain empty arrays",
-                )
-
-            # Serialize once and write the canonical merged file
-            canonical_merged = _json.dumps(merged_jobs, ensure_ascii=False, indent=2)
-            merged_filename = f"{uuid.uuid4().hex}_merged_jobs.json"
-            save_path = upload_dir / merged_filename
-            save_path.write_text(canonical_merged, encoding="utf-8")
-            actual_jobs_path = str(save_path)
-            jobs_input_source = "upload"
-            jobs_input_json_snapshot = canonical_merged
-            jobs_input_manifest_json = _json.dumps(
-                {
-                    "source_filenames": [
-                        str(upload.filename or "").strip()
-                        for upload in effective_files
-                        if str(upload.filename or "").strip()
-                    ],
-                },
-                ensure_ascii=False,
-            )
-        elif jobs_input_mode == "paste":
-            if not jobs_text or not jobs_text.strip():
-                raise HTTPException(status_code=422, detail="jobs_text required for paste mode")
+                if not isinstance(parsed, list) or any(not isinstance(row, dict) for row in parsed):
+                    raise ApiError(
+                        422, "validation_failed", f"Jobs input in {filename} must be an array of objects."
+                    )
+                merged_jobs.extend(parsed)
             try:
-                parsed_jobs = _json.loads(jobs_text)
-            except _json.JSONDecodeError as exc:
-                raise HTTPException(status_code=422, detail=f"Invalid JSON in jobs_text: {exc}")
-            if not isinstance(parsed_jobs, list):
-                raise HTTPException(status_code=422, detail="jobs_text must be a JSON array of objects")
-            canonical = _json.dumps(parsed_jobs, ensure_ascii=False, indent=2)
-            paste_file = upload_dir / f"{uuid.uuid4().hex}_pasted_jobs.json"
-            paste_file.write_text(canonical, encoding="utf-8")
-            actual_jobs_path = str(paste_file)
-            jobs_input_source = "paste"
-            jobs_input_json_snapshot = canonical
+                artifact = canonicalize_jobs(merged_jobs)
+            except ValueError as exc:
+                raise ApiError(422, "validation_failed", f"Invalid jobs input: {exc}") from exc
+            source_path = str(effective_files[0].filename or "upload.json")
+            manifest = {
+                "source_filenames": [
+                    str(upload.filename or "").strip()
+                    for upload in effective_files
+                    if str(upload.filename or "").strip()
+                ]
+            }
+        elif source_mode == "paste":
+            if not jobs_text.strip():
+                raise ApiError(422, "validation_failed", "jobs_text is required for paste mode.")
+            try:
+                artifact = canonicalize_jobs(_json.loads(jobs_text))
+            except (_json.JSONDecodeError, ValueError) as exc:
+                raise ApiError(422, "validation_failed", f"Invalid jobs_text: {exc}") from exc
+            source_path = "pasted-jobs.json"
+        elif source_mode == "scanner":
+            try:
+                scanner_request = build_scanner_request(
+                    provider=provider,
+                    company_name=company_name,
+                    careers_url=careers_url,
+                    keywords=keywords.splitlines(),
+                    max_jobs=max_jobs,
+                    timeout_seconds=timeout_seconds,
+                )
+                acquisition = acquire_scanner_jobs(scanner_request)
+            except JobSourceError as exc:
+                raise _job_source_api_error(exc) from exc
+            artifact = acquisition.artifact
+            source_path = scanner_request.careers_url
+            manifest = {
+                "provider_id": acquisition.provider_id,
+                "selection_mode": acquisition.selection_mode,
+                "company_name": scanner_request.company_name,
+                "careers_url": scanner_request.careers_url,
+                "keywords": list(scanner_request.keywords),
+                "max_jobs": scanner_request.max_jobs,
+                "timeout_seconds": scanner_request.timeout_seconds,
+                "retrieved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
         else:
-            raise HTTPException(status_code=422, detail=f"Unknown jobs_input_mode: {jobs_input_mode!r}")
+            raise ApiError(
+                422,
+                "validation_failed",
+                f"Unsupported jobs_input_mode: {source_mode}",
+                action="Choose path, upload, paste, or scanner.",
+            )
 
-        # ── Candidate profile resolution ─────────────────────────────────
         profile = _resolve_run_store().get_candidate_profile(candidate_profile_id)
         if profile is None or not bool(profile.get("is_active")):
             raise ApiError(
@@ -8829,23 +8959,21 @@ def create_app(
                 "Candidate Profile is not available for Runs.",
                 action="Refresh Candidate Profiles and select an Active, Succeeded profile.",
             )
-        candidate_profile_source = candidate_profile_id
         candidate_snapshot = dict(profile.get("profile") or {})
         candidate_snapshot.setdefault("name", profile.get("name"))
         candidate_snapshot["revision"] = profile.get("revision")
         candidate_snapshot["candidate_profile_id"] = candidate_profile_id
-        candidate_json_snapshot = _json.dumps(candidate_snapshot, ensure_ascii=False)
 
         return _execute_trigger_with_inputs(
-            jobs_path=actual_jobs_path,
+            jobs_path=source_path,
             config_path=config_path,
             triggered_by="admin",
             config_overrides={},
-            jobs_input_source=jobs_input_source,
-            jobs_input_json=jobs_input_json_snapshot,
-            jobs_input_manifest_json=jobs_input_manifest_json,
-            candidate_profile_source=candidate_profile_source,
-            candidate_profile_json=candidate_json_snapshot,
+            canonical_jobs=artifact,
+            jobs_input_source=source_mode,
+            jobs_input_manifest_json=_json.dumps(manifest, ensure_ascii=False, sort_keys=True),
+            candidate_profile_source=candidate_profile_id,
+            candidate_profile_json=_json.dumps(candidate_snapshot, ensure_ascii=False),
             run_mode=run_mode,
         )
 
@@ -10855,6 +10983,7 @@ def create_app(
                 "total_pages": total_pages,
                 "current_url": current_url,
                 "run_status_projection": run_status_projection_by_id,
+                "job_source_providers": list_provider_options(),
             }
         )
 

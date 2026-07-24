@@ -3473,3 +3473,49 @@ def test_results_export_v4_freezes_decision_feedback_source() -> None:
     assert payload["schema_version"] == "results_job_ledger_v4"
     assert payload["decision_feedback_source"]["schema_version"] == "decision_feedback_source_v1"
     assert payload["decision_feedback_source"]["alternatives"][0]["alternative_id"] == "raw-1"
+
+
+def test_verify_jobs_input_projection_accepts_exact_snapshot(tmp_path) -> None:
+    from types import SimpleNamespace
+    from fitcv_cp.worker_job import _verify_jobs_input_projection
+
+    snapshot = '[{"title":"Data Engineer"}]'
+    path = tmp_path / "jobs.json"
+    path.write_text(snapshot, encoding="utf-8")
+    run = SimpleNamespace(
+        jobs_path=str(path),
+        jobs_input_json=snapshot,
+        jobs_input_manifest_json=json.dumps(
+            {"canonical_sha256": hashlib.sha256(snapshot.encode("utf-8")).hexdigest()}
+        ),
+    )
+
+    _verify_jobs_input_projection(run, str(path))
+
+
+def test_verify_jobs_input_projection_rejects_drift_and_wrong_path(tmp_path) -> None:
+    from types import SimpleNamespace
+    from fitcv_cp.worker_job import JobsInputIntegrityError, _verify_jobs_input_projection
+
+    snapshot = '[{"title":"Data Engineer"}]'
+    path = tmp_path / "jobs.json"
+    path.write_text("[]", encoding="utf-8")
+    run = SimpleNamespace(
+        jobs_path=str(path),
+        jobs_input_json=snapshot,
+        jobs_input_manifest_json=json.dumps(
+            {"canonical_sha256": hashlib.sha256(snapshot.encode("utf-8")).hexdigest()}
+        ),
+    )
+
+    with pytest.raises(JobsInputIntegrityError, match="projection bytes"):
+        _verify_jobs_input_projection(run, str(path))
+    with pytest.raises(JobsInputIntegrityError, match="queued jobs_path"):
+        _verify_jobs_input_projection(run, str(tmp_path / "other.json"))
+
+
+def test_verify_jobs_input_projection_preserves_legacy_runs() -> None:
+    from types import SimpleNamespace
+    from fitcv_cp.worker_job import _verify_jobs_input_projection
+
+    _verify_jobs_input_projection(SimpleNamespace(jobs_input_json=None), "missing.json")

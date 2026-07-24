@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import fitcv.ingest as ingest
 from fitcv.ingest import (
     load_raw_jobs,
     parse_jobs_file,
@@ -12,6 +13,90 @@ from fitcv.ingest import (
     snake_case_keys,
     validate_linkedin_schema,
 )
+
+
+def _canonical_job(**overrides: object) -> dict[str, object]:
+    job: dict[str, object] = {
+        "title": "Data Engineer",
+        "jobUrl": "https://example.com/jobs/1",
+        "companyName": "ACME GmbH",
+        "description": "Build Datenpipelines.",
+        "contractType": "Full-time",
+        "experienceLevel": "Senior",
+    }
+    job.update(overrides)
+    return job
+
+
+def test_canonicalize_jobs_rejects_non_list_and_non_object_rows() -> None:
+    with pytest.raises(ValueError, match="JSON array"):
+        ingest.canonicalize_jobs({"jobs": []})
+    with pytest.raises(ValueError, match="index 0 must be an object"):
+        ingest.canonicalize_jobs(["not-an-object"])
+
+
+def test_canonicalize_jobs_reuses_required_fields_and_preserves_optional_values() -> None:
+    invalid = _canonical_job()
+    del invalid["jobUrl"]
+    with pytest.raises(ValueError, match="jobUrl"):
+        ingest.canonicalize_jobs([invalid])
+
+    job = _canonical_job(location="München", metadata={"source": "scanner"})
+    artifact = ingest.canonicalize_jobs([job])
+
+    assert artifact.jobs == [job]
+    assert json.loads(artifact.json_text) == [job]
+    assert "München" in artifact.json_text
+    assert "\\u00fcnchen" not in artifact.json_text
+
+
+def test_canonicalize_jobs_is_deterministic_and_digest_matches_exact_utf8() -> None:
+    import hashlib
+
+    jobs = [_canonical_job(title="Développeur Data"), _canonical_job(jobUrl="https://example.com/jobs/2")]
+    first = ingest.canonicalize_jobs(jobs)
+    second = ingest.canonicalize_jobs(jobs)
+
+    assert first.json_text == second.json_text
+    assert first.sha256 == second.sha256
+    assert first.sha256 == hashlib.sha256(first.json_text.encode("utf-8")).hexdigest()
+    assert not first.json_text.endswith("\n")
+
+
+def test_canonicalize_jobs_allows_empty_list() -> None:
+    artifact = ingest.canonicalize_jobs([])
+
+    assert artifact.jobs == []
+    assert artifact.json_text == "[]"
+
+
+def test_write_canonical_jobs_atomically_replaces_exact_bytes(tmp_path: Path) -> None:
+    destination = tmp_path / "nested" / "jobs.json"
+    destination.parent.mkdir()
+    destination.write_text("old", encoding="utf-8")
+    artifact = ingest.canonicalize_jobs([_canonical_job(location="Köln")])
+
+    ingest.write_canonical_jobs(destination, artifact)
+
+    assert destination.read_bytes() == artifact.json_text.encode("utf-8")
+    assert list(destination.parent.iterdir()) == [destination]
+
+
+def test_write_canonical_jobs_cleans_temp_file_after_replace_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "jobs.json"
+    artifact = ingest.canonicalize_jobs([_canonical_job()])
+
+    def fail_replace(source: object, target: object) -> None:
+        raise OSError("replace failed")
+
+    monkeypatch.setattr(ingest.os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="replace failed"):
+        ingest.write_canonical_jobs(destination, artifact)
+
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_parse_jobs_file_returns_list(sample_jobs_path: Path) -> None:

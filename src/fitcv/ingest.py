@@ -16,8 +16,12 @@ lifecycle:
   - status: active
 """
 
+import hashlib
 import json
+import os
 import sqlite3
+import tempfile
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -33,6 +37,57 @@ _CAMEL_TO_SNAKE: dict[str, str] = SCRAPER_CAMEL_TO_SNAKE.copy()
 _REQUIRED_SCRAPER_FIELDS: tuple[str, ...] = REQUIRED_SCRAPER_FIELDS
 
 # ── parsing ──────────────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class CanonicalJobs:
+    jobs: list[dict[str, Any]]
+    json_text: str
+    sha256: str
+
+
+def canonicalize_jobs(value: Any) -> CanonicalJobs:
+    if not isinstance(value, list):
+        raise ValueError(
+            f"Jobs input must contain a JSON array, got {type(value).__name__}"
+        )
+
+    for index, job in enumerate(value):
+        if not isinstance(job, dict):
+            raise ValueError(f"Job at index {index} must be an object")
+        errors = validate_linkedin_schema(job)
+        if errors:
+            raise ValueError(f"Invalid job at index {index}: {'; '.join(errors)}")
+
+    json_text = json.dumps(value, ensure_ascii=False, indent=2)
+    jobs: list[dict[str, Any]] = json.loads(json_text)
+    return CanonicalJobs(
+        jobs=jobs,
+        json_text=json_text,
+        sha256=hashlib.sha256(json_text.encode("utf-8")).hexdigest(),
+    )
+
+
+def write_canonical_jobs(path: str | Path, artifact: CanonicalJobs) -> None:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(artifact.json_text)
+            temp_path = Path(temp_file.name)
+        os.replace(temp_path, destination)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
 
 def parse_jobs_file(path: str | Path) -> list[dict[str, Any]]:
     """Load a JSON array of job objects from *path*.

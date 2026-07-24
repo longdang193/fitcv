@@ -92,10 +92,17 @@
 <section class="section-card workspace-stack" aria-labelledby="trigger-run-title">
   <div>
     <h2 id="trigger-run-title">Trigger Run</h2>
-    <p class="meta">Upload one JSON or JSONL jobs file and select an Active, Succeeded Candidate Profile.</p>
+    <p class="meta">Upload a jobs file or scan a supported company careers portal, then select an Active, Succeeded Candidate Profile.</p>
   </div>
   <div class="filter-bar">
-    <label>Jobs file<input type="file" id="jobs_file" accept=".json,.jsonl,application/json,application/x-ndjson" required></label>
+    <label>Job source<select id="source_mode" onchange="syncJobSourceFields()"><option value="upload">Upload file</option><option value="scanner">Scan company portal</option></select></label>
+    <label id="upload-source-field">Jobs file<input type="file" id="jobs_file" accept=".json,.jsonl,application/json,application/x-ndjson" required></label>
+    <label class="scanner-source-field" hidden>Provider<select id="scanner_provider" disabled><option value="auto">Detect provider</option>{% for provider in job_source_providers %}<option value="{{ provider.id }}">{{ provider.label }}</option>{% endfor %}</select></label>
+    <label class="scanner-source-field" hidden>Company name<input type="text" id="scanner_company_name" maxlength="200" autocomplete="organization" disabled required></label>
+    <label class="scanner-source-field" hidden>Careers URL<input type="url" id="scanner_careers_url" placeholder="https://company.example/jobs" autocomplete="url" disabled required></label>
+    <label class="scanner-source-field" hidden>Keywords <span class="meta">One per line; blank means all titles</span><textarea id="scanner_keywords" rows="3" disabled></textarea></label>
+    <label class="scanner-source-field" hidden>Maximum jobs<input type="number" id="scanner_max_jobs" min="1" max="200" value="50" inputmode="numeric" disabled required></label>
+    <label class="scanner-source-field" hidden>Timeout seconds<input type="number" id="scanner_timeout_seconds" min="1" max="120" value="60" inputmode="numeric" disabled required></label>
     <label>Run Name <span class="meta">Optional</span><input type="text" id="run_name" maxlength="120" autocomplete="off"></label>
     <label>Candidate Profile<select id="candidate_profile_id" required aria-describedby="candidate-profile-status candidate-profile-empty-link"><option value="">Loading Candidate Profiles…</option></select></label>
     <label>Config path<input type="text" id="config_path" value=".env.yaml" autocomplete="off"></label>
@@ -228,6 +235,21 @@ async function refreshCandidateProfiles() {
   }
 }
 
+function syncJobSourceFields() {
+  const scannerMode = document.getElementById('source_mode').value === 'scanner';
+  const uploadField = document.getElementById('upload-source-field');
+  const jobsFile = document.getElementById('jobs_file');
+  uploadField.hidden = scannerMode;
+  jobsFile.disabled = scannerMode;
+  jobsFile.required = !scannerMode;
+  document.querySelectorAll('.scanner-source-field').forEach((field) => {
+    field.hidden = !scannerMode;
+    field.querySelectorAll('input, select, textarea').forEach((control) => {
+      control.disabled = !scannerMode;
+    });
+  });
+}
+
 async function triggerRun() {
   const btn = document.getElementById('trigger-btn');
   const status = document.getElementById('trigger-status');
@@ -235,14 +257,32 @@ async function triggerRun() {
 
   try {
     const fd = new FormData();
-    const jobsFile = document.getElementById('jobs_file').files[0];
-    if (!jobsFile) { status.textContent = 'Choose one JSON or JSONL jobs file.'; return; }
+    const sourceMode = document.getElementById('source_mode').value;
+    fd.append('source_mode', sourceMode);
+    if (sourceMode === 'upload') {
+      const jobsFile = document.getElementById('jobs_file').files[0];
+      if (!jobsFile) { document.getElementById('jobs_file').reportValidity(); return; }
+      fd.append('jobs_file', jobsFile);
+    } else {
+      const scannerFields = [
+        ['provider', 'scanner_provider'],
+        ['company_name', 'scanner_company_name'],
+        ['careers_url', 'scanner_careers_url'],
+        ['keywords', 'scanner_keywords'],
+        ['max_jobs', 'scanner_max_jobs'],
+        ['timeout_seconds', 'scanner_timeout_seconds'],
+      ];
+      for (const [name, id] of scannerFields) {
+        const control = document.getElementById(id);
+        if (!control.checkValidity()) { control.reportValidity(); return; }
+        fd.append(name, control.value);
+      }
+    }
     fd.append('config_path', document.getElementById('config_path').value);
-    fd.append('jobs_file', jobsFile);
     fd.append('run_name', document.getElementById('run_name').value);
-    const candidateProfileId = document.getElementById('candidate_profile_id').value;
-    if (!candidateProfileId) { status.textContent = 'Select an Active, Succeeded Candidate Profile.'; return; }
-    fd.append('profile_id', candidateProfileId);
+    const candidateProfile = document.getElementById('candidate_profile_id');
+    if (!candidateProfile.checkValidity()) { candidateProfile.reportValidity(); return; }
+    fd.append('profile_id', candidateProfile.value);
     await fitcvApiRequest('/runs', {
       method: 'POST',
       headers: {'Idempotency-Key': crypto.randomUUID()},
@@ -251,14 +291,17 @@ async function triggerRun() {
     status.textContent = 'Run queued.';
     setTimeout(() => location.reload(), 800);
   } catch (error) {
-    status.textContent = error.message;
+    status.textContent = error.code ? `${error.code}: ${error.message}` : error.message;
     if (error.code === 'candidate_profile_unavailable') await refreshCandidateProfiles();
   } finally {
     btn.disabled = false; btn.textContent = 'Trigger Run';
   }
 }
 
-document.addEventListener('DOMContentLoaded', refreshCandidateProfiles);
+document.addEventListener('DOMContentLoaded', () => {
+  syncJobSourceFields();
+  refreshCandidateProfiles();
+});
 
 function showLifecycleBanner(message, kind = 'info') {
   let banner = document.getElementById('lifecycle-error-banner');
