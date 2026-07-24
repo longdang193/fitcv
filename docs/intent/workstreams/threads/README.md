@@ -79,10 +79,6 @@ The parent workstream is derived from the folder path:
 
 - `docs/intent/workstreams/threads/<workstream-id>/`
 
-If you want to inspect what specs or plans came out of a thread, use
-`docs/generated/planning_lineage.yaml` rather than re-entering `linked_spec` or
-`linked_plan` into the thread file.
-
 In this first pass, the thread registry is product-workstream-focused. A
 parallel `operating_system` thread branch may be added later if the repo needs
 it.

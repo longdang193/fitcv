@@ -41,7 +41,7 @@ def valid_starter_kit_manifest() -> dict[str, object]:
     return {
         "outputRoot": "project-OS-starter-kit",
         "copyPaths": ["AGENTS.md"],
-        "requiredPaths": ["repo_config/planning_artifact_schema.yaml"],
+        "requiredPaths": ["AGENTS.md"],
         "forbiddenPaths": [".codex"],
     }
 
