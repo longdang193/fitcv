@@ -135,4 +135,3 @@ def parse_personio_jobs(
         jobs.append(job)
 
     return jobs
-

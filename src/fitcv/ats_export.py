@@ -306,4 +306,3 @@ def _fetch_json(
         raise RuntimeError(f"{url} returned non-object JSON")
     return payload
 
-
