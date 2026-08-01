@@ -48,7 +48,7 @@ The current isolated spike proves that Personio, Greenhouse, and Workday can pro
 
 ### Goal
 
-Define one source-agnostic job artifact contract and one provider-extension boundary so path, upload, paste, scanner, explicit-provider, and auto-detected-provider cases produce the same canonical runtime input and use the same downstream pipeline.
+Define one source-agnostic job artifact contract and one provider-extension boundary so path, upload, paste, managed Scan output, explicit-provider, and auto-detected-provider cases produce the same canonical runtime input and use the same downstream pipeline. Managed Scan API, persistence, errors, state transitions, and UI behavior are owned by `docs/superpowers/specs/2026-08-01-19-49-fitcv-managed-scan-lifecycle-spec.md`.
 
 - desired outcome: source selection changes acquisition and provenance only; provider selection changes boundary retrieval only
 - observable success:
@@ -67,7 +67,7 @@ Define one source-agnostic job artifact contract and one provider-extension boun
 
 ### Outcome: One Provider Registry
 
-- affected actor or system: control-plane scanner mode, optional standalone exporter, and provider maintainers
+- affected actor or system: managed Scan executor and provider maintainers
 - required result: provider identity, detection, and acquisition are defined once in a deterministic registry
 - success condition: no provider-specific routing branch exists outside the provider owner
 
@@ -85,9 +85,9 @@ Define one source-agnostic job artifact contract and one provider-extension boun
 
 ### Outcome: Non-Technical Scanner Input
 
-- affected actor or system: users creating runs through the existing control-plane UI
-- required result: scanner is a first-class source option with provider selection, company, careers URL, keywords, job limit, and acquisition deadline fields
-- success condition: a user can create a scanner-backed run without preparing or uploading an Apify-format file
+- affected actor or system: users creating managed Scans and later selecting Scan output for a Run
+- required result: users select tracked companies and retrieval filters without re-entering provider IDs or careers URLs
+- success condition: a user can create, inspect, download, and reuse a Scan output without preparing an Apify-format file
 
 ### Outcome: Safe and Permanent Provider Expansion
 
@@ -117,13 +117,13 @@ Define one source-agnostic job artifact contract and one provider-extension boun
 
 ### Target Pipeline
 
-1. caller selects one run source mode: path, upload, paste, or scanner acquisition
-2. source resolver acquires an in-memory job list; scanner mode first resolves exactly one provider, then that provider retrieves and adapts native data
+1. managed Scan resolves tracked-company snapshots to provider requests
+2. each provider retrieves and adapts native data to canonical FitCV job objects
 3. shared canonical artifact boundary validates top-level shape, item shape, and fields owned by `src/fitcv/contracts.py`
-4. shared serializer produces canonical JSON once while preserving job order
-5. control plane stores that exact JSON as immutable `jobs_input_json`, stores source/provider provenance separately in `jobs_input_manifest_json`, and records its SHA-256 digest
-6. run creation atomically writes the same canonical UTF-8 bytes to a run-owned `jobs_path` projection and never queues the original source path
-7. worker verifies the projection digest against the immutable snapshot before executing existing ingest, raw-row preparation, normalize, deduplication, ranking, and CV stages unchanged
+4. shared serializer produces one immutable Scan output while preserving job order
+5. Run creation selects upload or one-or-many usable Scan outputs and copies canonical bytes into immutable `jobs_input_json`
+6. control plane stores source provenance separately in `jobs_input_manifest_json` and writes the same bytes to a run-owned `jobs_path` projection
+7. worker verifies the projection digest against the immutable Run snapshot before executing existing ingest, raw-row preparation, normalize, deduplication, ranking, and CV stages unchanged
 
 Provider and source differences end at step 3. No later stage detects provider, reads provider-native data, or changes semantics from provenance.
 
@@ -134,8 +134,8 @@ Provider and source differences end at step 3. No later stage detects provider, 
   - one canonical job artifact validation and serialization path
   - explicit provider selection and automatic provider detection
   - Personio, Greenhouse, and Workday as initial admissible providers
-  - scanner use from the existing control-plane API and UI through one runtime function
-  - an optional standalone exporter using the same acquisition and canonicalization function without public CLI compatibility guarantees
+  - provider use through the managed Scan executor and one runtime function
+  - downloadable managed Scan output using the same acquisition and canonicalization function
   - provenance capture without alternate runtime truth
 - affected boundaries:
   - provider URL and request validation
@@ -145,8 +145,8 @@ Provider and source differences end at step 3. No later stage detects provider, 
   - run snapshot and manifest construction
 - admissible cases:
   - existing path, upload, and paste inputs accepted by current contracts
-  - scanner requests with a supported explicit provider
-  - scanner requests whose URL matches exactly one registered provider
+  - internal provider requests built from tracked-company snapshots with a supported explicit provider
+  - internal automatic provider resolution whose URL matches exactly one registered provider
   - provider responses that can be fully adapted to the current FitCV required-field contract
 - compatibility expectation:
   - existing accepted job files remain accepted
@@ -162,7 +162,7 @@ Provider and source differences end at step 3. No later stage detects provider, 
 - runtime-installed provider plugins
 - a separate scanner service, database, queue, scheduler, or Docker deployment
 - automatic cross-provider fallback
-- company-registry persistence or administration UI
+- company-registry persistence or administration UI, which remains a separate contract
 - wiring the existing `fetch_from_apify` helper into the control plane
 - changing downstream normalization or deduplication semantics
 - strengthening existing uploaded-file semantic requirements beyond the current canonical contract
@@ -193,19 +193,19 @@ Provider and source differences end at step 3. No later stage detects provider, 
   - source mode must then hand the resulting job list to the same canonicalization path
   - source mode must not define separate required fields, normalization, deduplication, or downstream defaults
 - output or state change: canonical jobs plus source provenance
-- failure behavior: source acquisition failure prevents run creation and leaves no runnable partial snapshot
+- failure behavior: source acquisition failure prevents successful Scan output and leaves no runnable partial snapshot
 - observable acceptance: downstream worker input and pipeline behavior are invariant for equivalent ordered records
 
 #### Requirement: Provider Registry SSOT
 
-- trigger or actor: control-plane scanner request or optional standalone exporter
+- trigger or actor: managed Scan executor or provider-focused internal tooling
 - preconditions: provider registry is loaded from the FitCV code version being executed
 - required behavior:
   - registry keys are unique provider IDs
   - each provider definition supplies one URL detector and one acquisition callable
   - registry insertion order must not decide ambiguous routing
   - provider-specific routing conditions may exist only inside the provider owner
-  - no provider ID is duplicated in UI choices, standalone exporter choices, validation lists, or control-plane branches; consumers derive choices from the registry
+  - no provider ID is duplicated in tracked-company provider choices, internal tooling, validation lists, or control-plane branches; consumers derive choices from the registry
 - output or state change: selected provider definition
 - failure behavior: duplicate provider IDs are impossible in the static registry; unknown explicit IDs fail validation
 - observable acceptance: adding a provider does not require modifying routing consumers
@@ -213,7 +213,7 @@ Provider and source differences end at step 3. No later stage detects provider, 
 #### Requirement: Provider Resolution Permanence
 
 - trigger or actor: explicit or automatic provider selection
-- preconditions: scanner request contains company name and HTTPS careers URL
+- preconditions: internal provider request contains company name and HTTPS careers URL from a tracked-company snapshot
 - required behavior:
   - explicit selection resolves exactly the named provider and still validates the URL through that provider
   - automatic selection evaluates every registered detector without fetching
@@ -225,38 +225,40 @@ Provider and source differences end at step 3. No later stage detects provider, 
 - failure behavior: no network request occurs after unsupported or ambiguous resolution
 - observable acceptance: registering a new overlapping detector cannot change existing successful routing into a different provider; it changes it into an explicit ambiguity failure
 
-#### Requirement: Scanner Request Contract
+#### Requirement: Provider Acquisition Request Contract
 
-- trigger or actor: user selects scanner mode in the existing run-creation UI or submits the equivalent control-plane request
-- preconditions: candidate profile and ordinary run settings satisfy existing trigger requirements
+- trigger or actor: managed Scan executor builds one provider request from an immutable tracked-company snapshot
+- preconditions: Scan request and company selection satisfy the managed Scan contract
 - required behavior:
-  - `source_mode` is `scanner`
   - `provider` defaults to `auto`; explicit values are registry provider IDs
-  - `company_name` is a trimmed non-empty string with a maximum length of 200 characters
+  - `company_name` and `careers_url` come from the tracked-company snapshot, not ordinary user input
   - `careers_url` is an absolute provider-approved HTTPS URL without credentials, custom port, query, or fragment
-  - `keywords` is an ordered list of trimmed non-empty strings; duplicates are removed while preserving order; an empty list means all titles
+  - `keywords` is an ordered list of trimmed non-empty title filters; duplicates are removed while preserving order; an empty list means all titles
   - keyword matching is case-insensitive Unicode substring OR matching against title; providers may use native search but must apply this rule before returning jobs
-  - `max_jobs` defaults to 50 and must be an integer from 1 through 200
-  - `timeout_seconds` is the total acquisition deadline, defaults to 60, and must be an integer from 1 through 120
+  - `locations` is an ordered list of trimmed non-empty location filters; duplicates are removed while preserving order; an empty list means all locations
+  - location matching is case-insensitive Unicode substring OR matching against canonical location
+  - `published_since` is an optional inclusive calendar date; jobs without a parseable publication date do not match when it is present
+  - `max_jobs` is the remaining managed Scan output allowance and must be an integer from 1 through 200
+  - `timeout_seconds` comes from central scanner configuration, not ordinary user input, and must remain within 1 through 120
   - each provider request uses no more than the smaller of 30 seconds or the remaining total deadline
-  - provider pagination is internal and stops when `max_jobs`, source exhaustion, or the total deadline is reached
-- output or state change: one validated scanner request independent of provider-native pagination
-- failure behavior: invalid fields fail before provider resolution or network access
-- observable acceptance: UI and API requests resolve to the same validated request and provider behavior
+  - provider pagination is internal and stops when `max_jobs`, source exhaustion, cancellation, or the total deadline is reached
+- output or state change: one validated internal provider request independent of provider-native pagination
+- failure behavior: invalid tracked-company or central configuration fails before provider network access
+- observable acceptance: every managed Scan company uses the same internal request builder and provider behavior
 
-#### Requirement: Scanner Control-Plane UI
+#### Requirement: Managed Scan Boundary
 
-- trigger or actor: non-technical user creates a run
-- preconditions: existing run-creation page is available
+- trigger or actor: non-technical user creates a Scan, then later creates a Run
+- preconditions: tracked-company registry and Scans workspace are available
 - required behavior:
-  - existing source selector includes scanner beside file upload
-  - scanner mode presents provider selection with `Auto` plus registry-derived providers, company name, careers URL, one-keyword-per-line input, maximum jobs, and acquisition timeout
-  - file-only controls are disabled and not required in scanner mode; scanner-only controls are disabled and not required in file mode
-  - submitted scanner fields use the Scanner Request Contract and existing candidate-profile/run creation flow
-  - validation uses existing accessible labels, field errors, error summary, keyboard behavior, focus behavior, and supported responsive layouts
-- output or state change: successful acquisition proceeds to canonicalization and run creation without user-provided job files
-- failure behavior: field, provider-resolution, acquisition, and empty-result errors return to the same form with actionable context and no run
-- observable acceptance: a keyboard-only user can create a scanner-backed run and recover from each validation category
+  - users select one, multiple, or all valid tracked companies and never re-enter careers URLs per Scan
+  - Scan output is one immutable canonical JSON array and may be `[]`
+  - Run creation offers Upload or Output from Scan and accepts one or more active successful non-empty Scan outputs
+  - provider choice, acquisition status, archive state, output download, Run references, UI actions, errors, and state transitions follow the managed Scan lifecycle specification
+  - accessibility behavior follows the existing control-plane UI contract
+- output or state change: successful acquisition creates an inspectable Scan artifact; later Run creation copies selected output into the existing Run snapshot
+- failure behavior: failed or cancelled Scan remains inspectable and creates no Run; empty successful Scan remains downloadable but unusable for Run creation
+- observable acceptance: a keyboard-only user can complete Scan creation, inspect progress, download output, and select usable Scan output for a Run
 
 #### Requirement: Uniform Provider Acquisition
 
@@ -268,7 +270,7 @@ Provider and source differences end at step 3. No later stage detects provider, 
   - provider-native list responses, detail responses, XML nodes, HTML metadata, relative dates, and URLs are adapted inside the provider
   - provider implementation may use multiple internal retrieval steps when required to produce its canonical result
   - provider implementation must not write files, mutate run state, filter against applications, or deduplicate against persistent history
-  - providers return at most `max_jobs` jobs and enforce the shared keyword semantics
+  - providers return at most `max_jobs` accepted jobs and enforce shared title, location, and publication-date semantics after canonical adaptation
 - output or state change: canonical job list
 - failure behavior:
   - list-level transport or payload failure fails the acquisition
@@ -311,30 +313,32 @@ Provider and source differences end at step 3. No later stage detects provider, 
 
 #### Requirement: Error Contract
 
-- trigger or actor: control-plane scanner request
-- preconditions: acquisition or validation fails
+- trigger or actor: internal provider acquisition during managed Scan execution
+- preconditions: provider acquisition or validation fails
 - required behavior:
-  - input errors use HTTP 422 with stable codes `invalid_scanner_request`, `unknown_provider`, `unsupported_provider_url`, `ambiguous_provider_url`, or `empty_job_input`
-  - upstream acquisition errors use HTTP 502 with stable codes `provider_timeout`, `provider_http_error`, `provider_payload_error`, or `provider_detail_error`
-  - UI presentation preserves the stable code and actionable message without exposing unsafe response bodies
-- output or state change: no run and no canonical snapshot
+  - internal request errors use stable codes `invalid_scanner_request`, `unknown_provider`, `unsupported_provider_url`, or `ambiguous_provider_url`
+  - upstream acquisition errors use stable codes `provider_timeout`, `provider_http_error`, `provider_payload_error`, or `provider_detail_error`
+  - managed Scan persists the stable code, safe message, retryability, and action; HTTP mapping is owned by the managed Scan API contract
+  - UI presentation preserves stable code and actionable message without exposing unsafe response bodies
+- output or state change: Scan becomes failed and stores no canonical output or Run
 - failure behavior: original exception cause is preserved; provider and safe URL context are included
-- observable acceptance: equivalent failures have the same status, code, and safe contextual message through API and UI presentation
+- observable acceptance: equivalent provider failures have the same stable code and safe contextual message independent of provider entry point
 
 #### Requirement: Snapshot and Provenance Separation
 
-- trigger or actor: successful run creation
-- preconditions: canonical job list exists
+- trigger or actor: successful managed Scan output and later Run creation
+- preconditions: canonical job list exists and satisfies the managed Scan output contract
 - required behavior:
+  - successful Scan stores one immutable canonical output and digest, including `[]`
   - `jobs_input_json` stores the complete canonical JSON array and remains the only run-time job truth
-  - `jobs_input_source` records the acquisition mode
+  - `jobs_input_source` records upload or Scan acquisition mode
   - `jobs_input_manifest_json` records provenance only
-  - scanner provenance contains provider ID, selection mode, company name, canonical careers URL, requested keywords, `max_jobs`, `timeout_seconds`, retrieval timestamp, job count, and canonical SHA-256 digest
+  - Scan provenance contains ordered Scan IDs, output digests, record counts, and selection order; provider and company provenance remains owned by Scan snapshots
   - provenance must not contain duplicate job payloads or secrets
   - every run source atomically writes a run-owned execution projection from the exact canonical JSON string stored in `jobs_input_json`
   - worker verifies the projection SHA-256 digest against the stored canonical digest before pipeline execution
-  - optional standalone export writes the same canonical bytes and may write `[]`; it is a developer utility without public CLI compatibility guarantees
-- output or state change: one immutable snapshot, one provenance manifest, and one verified run-owned execution projection
+  - Scan download returns the same canonical bytes and may return `[]`; mandatory public CLI parity is not required
+- output or state change: one immutable Scan output, one immutable Run snapshot when used, one provenance manifest, and one verified run-owned execution projection
 - failure behavior: projection persistence or digest mismatch prevents pipeline execution; no mismatched file and snapshot pair is accepted
 - observable acceptance: projection bytes equal `jobs_input_json` encoded as UTF-8; changing or deleting the original source after trigger does not change executed jobs
 
@@ -446,14 +450,14 @@ Provider and source differences end at step 3. No later stage detects provider, 
 - accepted trade-offs: each run stores one small derived JSON file beside the immutable snapshot
 - affected owners and boundaries: control-plane source resolution, run persistence, worker preflight, and existing pipeline path interface
 
-### Decision: Empty Artifact and Empty Run Are Different Contracts
+### Decision: Empty Scan Artifact and Empty Run Are Different Contracts
 
-- context: standalone acquisition can legitimately find zero jobs, but an empty pipeline run has no useful work and existing upload paths reject it
-- selected approach: canonical artifact and standalone export permit `[]`; every control-plane run source rejects zero jobs with HTTP 422 and code `empty_job_input`
-- rationale: keeps file export truthful while making run behavior uniform across path, upload, paste, and scanner modes
+- context: managed acquisition can legitimately find zero jobs, but an empty pipeline run has no useful work and existing upload paths reject it
+- selected approach: canonical artifact and successful managed Scan output permit `[]`; every control-plane Run source rejects zero jobs with HTTP 422 and code `empty_job_input`
+- rationale: keeps Scan output truthful while making Run behavior uniform across upload and Scan modes
 - alternatives considered: create empty runs or make empty validity depend on source mode
-- accepted trade-offs: standalone export and run creation have intentionally different empty-result policies
-- affected owners and boundaries: canonicalization, standalone export, control-plane validation, and run creation
+- accepted trade-offs: Scan completion and Run creation have intentionally different empty-result policies
+- affected owners and boundaries: canonicalization, managed Scan output, control-plane validation, and Run creation
 
 ### Decision: Existing Pipeline Owns Filtering and Deduplication
 
@@ -522,9 +526,9 @@ Provider and source differences end at step 3. No later stage detects provider, 
 
 - empty or minimal input:
   - a valid source containing no jobs produces `[]`
-  - standalone export may persist `[]`
+  - successful managed Scan output may persist and download `[]`
   - every run source rejects an empty canonical list before projection persistence or run creation with HTTP 422 and code `empty_job_input`
-  - missing company name, careers URL, or invalid provider parameters fail before provider resolution
+  - missing or invalid tracked-company snapshot fields fail before provider resolution
 - normal and large input:
   - provider retrieval is bounded by validated `max_jobs`, total deadline, per-request cap, and provider-internal pagination
   - canonicalization preserves acquisition order
@@ -538,19 +542,19 @@ Provider and source differences end at step 3. No later stage detects provider, 
 - retry, cancellation, timeout, partial failure, or concurrency:
   - requests use bounded timeouts
   - no automatic retry is required except provider-local bounded retry where the provider protocol demonstrates a transient status
-  - no partial run is created after provider failure
+  - no successful Scan output or Run is created after provider failure
   - concurrent scans share no mutable provider or scanner state
-  - cancellation before run creation leaves no runnable snapshot; queued-run cancellation remains existing control-plane behavior
+  - managed Scan cancellation and terminal state are owned by the managed Scan lifecycle contract
 - migration or mixed-version state:
   - historical runs without scanner provenance remain readable
   - a run snapshot remains executable without the provider that originally acquired it
   - provider registry changes affect new acquisition only
 - generated-source consistency:
-  - provider choices in UI or optional standalone tooling must be derived from the provider registry, not copied lists
+  - provider routing in tracked-company management or internal tooling must derive from the provider registry, not copied lists
   - job-input documentation references canonical code owners and does not become a parallel schema
 - security or accessibility boundary:
   - credentials in URLs, untrusted hosts, non-HTTPS provider URLs, custom ports, and unsafe redirects are rejected
-  - control-plane scanner form uses existing accessible labels, validation summaries, focus behavior, error presentation, keyboard behavior, and responsive layout in V1
+  - managed Scan and Run input UIs use existing accessible labels, validation summaries, focus behavior, error presentation, keyboard behavior, and responsive layout in V1
   - secrets and raw authorization data never enter run manifests or user-visible errors
 - provider-specific cases:
   - Personio feeds with empty description containers use the provider's public-page fallback or fail
@@ -597,41 +601,41 @@ Provider and source differences end at step 3. No later stage detects provider, 
 - proof method: opt-in bounded live smoke checks backed by committed fixtures for deterministic regression
 - expected evidence: successful pipeline reports for each admitted provider and recorded endpoint/commit context
 
-### Acceptance Criterion: Scanner API and UI Share One Request Contract
+### Acceptance Criterion: Managed Scan Uses One Provider Request Contract
 
-- setup or precondition: existing run-creation API and UI expose scanner mode and consume registry-derived provider choices
-- action: submit equivalent explicit-provider and auto-detected scanner requests through API and UI
-- expected result: both entry points resolve the same validated request, canonical jobs, provenance, stable error codes, and run behavior
-- failure condition: UI copies provider choices, applies separate validation, requires a file in scanner mode, or changes scanner semantics
-- proof method: control-plane route tests plus browser flow covering scanner success and each validation category
-- expected evidence: one shared runtime call, matching persisted run input, keyboard completion, correct focus, and responsive scanner controls
+- setup or precondition: managed Scan resolves tracked-company snapshots for explicit-provider and auto-detected cases
+- action: execute equivalent provider requests through the shared runtime function
+- expected result: both cases resolve the same validated internal request, canonical jobs, provenance, and stable provider errors
+- failure condition: Scan UI or lifecycle duplicates provider routing, accepts arbitrary URLs, or changes provider semantics
+- proof method: provider runtime tests plus managed Scan integration tests
+- expected evidence: one shared provider call, immutable company snapshot, and provider-local routing only
 
-### Acceptance Criterion: File Export and Run Snapshot Are Identical
+### Acceptance Criterion: Scan Output and Run Snapshot Are Identical
 
 - setup or precondition: one successful acquisition produces canonical ordered jobs
-- action: create a run-owned projection and optional standalone export from the same resolved artifact
-- expected result: both files equal `jobs_input_json` encoded as UTF-8, and worker digest verification succeeds
+- action: store managed Scan output, create a Run from it, and create the run-owned projection
+- expected result: Scan output, `jobs_input_json`, and projection contain the same ordered job values, and worker digest verification succeeds
 - failure condition: any output reserializes independently, changes ordering or values, or worker accepts a changed projection
 - proof method: byte-equality, digest-mismatch, and original-source-mutation tests
-- expected evidence: one serialization result reused by snapshot and files; worker rejects projection drift
+- expected evidence: one canonical serialization path reused by Scan and Run snapshots; worker rejects projection drift
 
-### Acceptance Criterion: Empty Export and Empty Run Policies Are Explicit
+### Acceptance Criterion: Empty Scan and Empty Run Policies Are Explicit
 
 - setup or precondition: provider or file acquisition resolves to an empty list
-- action: perform standalone export, then attempt run creation through path, upload, paste, and scanner modes
-- expected result: standalone export writes `[]`; every run attempt returns HTTP 422 with code `empty_job_input` and creates no projection or run
+- action: complete managed Scan output, then attempt Run creation through upload and Scan modes
+- expected result: managed Scan stores and downloads `[]`; every Run attempt returns HTTP 422 with code `empty_job_input` and creates no projection or Run
 - failure condition: empty behavior differs by run source or an empty run is persisted
-- proof method: parameterized source-mode tests plus standalone export test
+- proof method: parameterized Run source tests plus managed Scan output test
 - expected evidence: one artifact rule and one uniform run policy
 
 ### Acceptance Criterion: Acquisition Failure Is Atomic
 
 - setup or precondition: provider fixtures cover listing failure, required-detail failure, timeout, malformed payload, and invalid canonical output
-- action: attempt scanner acquisition and run creation for each failure
-- expected result: request fails with contextual error and no runnable snapshot or partial export is created
-- failure condition: failed jobs are silently skipped, partial jobs become a run, or prior provider state affects result
+- action: execute managed Scan acquisition for each failure, then inspect Scan and Run availability
+- expected result: Scan becomes failed with contextual error, no successful output exists, and no Run can select it
+- failure condition: failed jobs are silently skipped, partial jobs become successful output, or prior provider state affects result
 - proof method: failure-path tests with persistence assertions
-- expected evidence: zero new runs and zero output files for every failed acquisition case
+- expected evidence: one failed Scan record, zero successful output, and zero new Runs for every failed acquisition case
 
 ### Acceptance Criterion: Security Controls Are Mandatory
 
@@ -653,7 +657,7 @@ Provider and source differences end at step 3. No later stage detects provider, 
 
 ### Acceptance Criterion: Downstream Runtime Is Source-Agnostic
 
-- setup or precondition: canonical snapshots from existing file modes and scanner mode contain equivalent jobs
+- setup or precondition: canonical snapshots from existing file modes and managed Scan output contain equivalent jobs
 - action: execute existing worker and pipeline stages from each snapshot
 - expected result: stage inputs, normalized records, and source-independent outputs are equivalent
 - failure condition: worker or pipeline reads provider configuration, scanner state, source-mode fields, or provenance to interpret jobs
@@ -675,11 +679,11 @@ Specification is complete when:
 
 1. scanner is defined as an acquisition mode, not a second ingestion or pipeline contract
 2. canonical field ownership, provider ownership, artifact ownership, and provenance ownership each have one explicit boundary
-3. path, upload, paste, scanner, explicit-provider, and auto-detected cases converge before canonicalization
+3. path, upload, paste, managed Scan output, explicit-provider, and auto-detected cases converge before canonicalization
 4. Personio, Greenhouse, and Workday satisfy one provider contract and one downstream pipeline contract
 5. provider detection requires exactly one match and remains independent of registry order
-6. scanner API and V1 UI fields, defaults, bounds, keyword semantics, stable error codes, and accessibility behavior are unambiguous
-7. acquisition, canonicalization, serialization, projection verification, persistence, standalone export, replay, and empty-result semantics are unambiguous
+6. provider request fields, defaults, bounds, keyword semantics, stable error codes, and managed Scan ownership are unambiguous
+7. acquisition, canonicalization, serialization, projection verification, managed Scan output, replay, and empty-result semantics are unambiguous
 8. security controls, canonical URL handling, error mapping, atomicity, bounded retrieval, and useful-description requirements are explicit
 9. every required outcome has observable acceptance evidence in this validation plan
 10. no unresolved design decision is deferred to implementation without explicit approval

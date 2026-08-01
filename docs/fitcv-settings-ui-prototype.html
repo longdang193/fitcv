@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="data:,">
-  <title>FitCV Pipeline Prototype</title>
+  <title>FitCV Unified Prototype</title>
   <style>
     :root{color-scheme:light;--accent:#b94d36;--accent-hover:#a64027;--accent-soft:#fdf1ed;--bg:#fdfaf6;--surface:#fff;--surface-2:#f4f4f5;--sidebar:#fff;--border:#e5e7eb;--border-soft:#f1f1f3;--text:#111827;--muted:#6b7280;--subtle:#6b7280;--mirror-bg:#fafafa;--mirror-strong:#4b5563;--mirror-text:#6b7280;--sidebar-w:288px;--header-h:72px;--shadow:0 1px 2px rgba(0,0,0,.04);--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--display-font:var(--font)}
     [data-theme="dark"]{color-scheme:dark;--accent:#ee8d6a;--accent-hover:#f3a181;--accent-soft:#3b2119;--bg:#1a1a1a;--surface:#262626;--surface-2:#303030;--sidebar:#202020;--border:#3a3a3a;--border-soft:#303030;--text:#f3f4f6;--muted:#cbd5e1;--subtle:#94a3b8;--mirror-bg:#303030;--mirror-strong:#cbd5e1;--mirror-text:#94a3b8;--shadow:0 1px 2px rgba(0,0,0,.28)}
@@ -68,6 +68,13 @@
   <style>
     .optimization-actions{display:flex;gap:8px;flex-wrap:wrap}.optimization-id-link{color:var(--accent);font-weight:650;text-underline-offset:3px}.optimization-status{display:inline-flex;min-height:26px;align-items:center;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:12px;font-weight:700}.optimization-status[data-status="Succeeded"]{border-color:color-mix(in srgb,#15803d 30%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.optimization-status[data-status="Failed"]{border-color:color-mix(in srgb,#b91c1c 30%,var(--border));background:color-mix(in srgb,#b91c1c 8%,var(--surface));color:#b91c1c}.optimization-status[data-status="Not Created"]{border-color:color-mix(in srgb,#b45309 30%,var(--border));background:color-mix(in srgb,#b45309 10%,var(--surface));color:#8a5d00}.optimization-status[data-status="No Change"]{border-color:color-mix(in srgb,#2563eb 30%,var(--border));background:color-mix(in srgb,#2563eb 10%,var(--surface));color:#1d4ed8}[data-theme="dark"] .optimization-status[data-status="Succeeded"]{color:#86efac}[data-theme="dark"] .optimization-status[data-status="Failed"]{color:#fca5a5}[data-theme="dark"] .optimization-status[data-status="Not Created"]{color:#f5cf78}[data-theme="dark"] .optimization-status[data-status="No Change"]{color:#93c5fd}.optimization-fallback{margin:0;padding:14px 18px;border-top:1px solid var(--border-soft);background:#fff7df;color:#7a4d00}[data-theme="dark"] .optimization-fallback{background:#3b2e13;color:#f5cf78}.optimization-runs{min-width:820px}.preference-mode-field{width:190px}.optimization-policy-controls{display:grid;gap:6px;justify-items:end}.optimization-policy-controls .supporting-text{max-width:240px;margin:0;text-align:right}@media(max-width:760px){.optimization-actions{display:grid;grid-template-columns:1fr}.optimization-actions .btn,.preference-mode-field{width:100%}.optimization-policy-controls{justify-items:start}.optimization-policy-controls .supporting-text{text-align:left}}
   </style>
+  <style>
+    .details-page-layout .detail-item dd{font-weight:400}.scan-dialog{width:min(720px,calc(100vw - 32px))}.managed-selection-actions,.run-source-options,.managed-selection-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.scan-company-summary-card{overflow:hidden;border:1px solid var(--border);border-radius:12px}.scan-company-summary-card .row{min-height:76px}.managed-selection-dialog{width:min(760px,calc(100vw - 32px))}.managed-selection-toolbar{justify-content:space-between}.managed-selection-search{width:min(430px,100%)}.managed-selection-list{max-height:380px;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}.managed-selection-item{display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-top:1px solid var(--border-soft)}.managed-selection-item:first-child{border-top:0}.managed-selection-item input{width:17px;height:17px;margin-top:3px;accent-color:var(--accent)}.managed-selection-item-copy{display:block;min-width:0}.managed-selection-item-copy strong{display:block;font-weight:650}.managed-selection-item-copy small{display:block;margin-top:3px;color:var(--muted);overflow-wrap:anywhere}.managed-selection-summary{margin-left:auto;color:var(--muted)}.managed-selection-empty{padding:34px 18px;color:var(--muted);text-align:center}.scan-name{font-weight:400}.scan-output-head{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px}.scan-output-tabs{display:flex;gap:4px;padding:3px;border-radius:9px;background:var(--surface-2)}.scan-output-tabs .btn{min-height:34px;border-color:transparent;background:transparent}.scan-output-tabs .btn[aria-selected="true"]{border-color:var(--border);background:var(--surface);color:var(--text)}.scan-output-json{max-height:520px;margin:0;padding:16px;overflow:auto;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);color:var(--text);font:12px/1.55 ui-monospace,Consolas,monospace;white-space:pre}.scan-output-table{min-width:1320px}.scan-output-table td{max-width:260px;vertical-align:top}.scan-output-long{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:3}.scan-notice{padding:14px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);color:var(--muted)}.scan-notice.error{border-color:color-mix(in srgb,#b91c1c 30%,var(--border));color:#b91c1c}.run-source-panel{display:grid;gap:10px}.run-source-panel[hidden]{display:none}.run-source-empty{padding:12px;border:1px dashed var(--border);border-radius:9px;color:var(--muted)}@media(max-width:760px){.managed-selection-toolbar,.managed-selection-actions{align-items:stretch;flex-direction:column}.managed-selection-search{width:100%}.managed-selection-summary{margin-left:0}.scan-output-head{justify-content:stretch}.scan-output-tabs{width:100%}.scan-output-tabs .btn{flex:1}}
+  </style>
+  <style>
+    dialog::backdrop{backdrop-filter:none}
+    .run-field .managed-selection-field{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:76px;padding:12px 14px}.managed-selection-field-copy{min-width:0}.managed-selection-field-copy>span,.managed-selection-field-copy small{display:block}.managed-selection-field-copy small{margin-top:3px;overflow-wrap:anywhere}.managed-selection-field .btn{flex:none;margin-left:auto}@media(max-width:760px){.managed-selection-field{align-items:stretch;flex-direction:column}.managed-selection-field .btn{width:100%;margin-left:0}}
+  </style>
 </head>
 <body>
   <div class="shell">
@@ -75,6 +82,7 @@
       <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12a2 2 0 0 1 2 2v14H4V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h6M8 17h4"/></svg></div><div><strong>FitCV Control Plane</strong><small>Local workspace</small></div></div>
       <nav aria-label="Workspace">
         <a class="nav-link" id="runsNav" href="#runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
+        <a class="nav-link" id="scansNav" href="#scans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/></svg>Scans</a>
         <a class="nav-link" id="candidateProfilesNav" href="#candidate-profiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Candidate Profiles</a>
         <a class="nav-link" id="bookmarksNav" href="#bookmarks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
         <a class="nav-link" id="synonymsNav" href="#synonyms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/></svg>Synonyms</a>
@@ -90,7 +98,11 @@
   </div>
   <dialog id="weightsDialog" aria-labelledby="weightsTitle" aria-describedby="weightsDescription"><div class="dialog-head"><div><h2 id="weightsTitle"></h2><p id="weightsDescription"></p></div><button class="dialog-close" id="closeWeights" type="button" aria-label="Close weight configuration">×</button></div><form class="weight-form" id="weightForm"></form><p class="weight-status" id="weightStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelWeights" type="button">Cancel</button><button class="btn primary" id="saveWeights" type="button">Save weights</button></div></dialog>
   <dialog class="run-dialog" id="profileDialog" aria-labelledby="profileDialogTitle" aria-describedby="profileDialogDescription"><div class="dialog-head"><div><h2 id="profileDialogTitle">Create Profile</h2><p id="profileDialogDescription">Upload a candidate profile and optionally give it a name.</p></div><button class="dialog-close" id="closeProfileDialog" type="button" aria-label="Close Create Profile dialog">×</button></div><form class="run-form" id="profileForm"><div class="run-field"><label for="profileFile">Profile File</label><input class="field file-input" id="profileFile" type="file" accept=".yaml" aria-describedby="profileFileHelp" required><small id="profileFileHelp">Supported: YAML (.yaml). One file per profile.</small></div><div class="run-field"><label for="profileName">Profile Name <span class="supporting-text">Optional</span></label><input class="field" id="profileName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"></div></form><p class="run-dialog-status" id="profileDialogStatus" role="status" aria-live="polite">Choose a .yaml profile file to enable Create.</p><div class="dialog-actions"><button class="btn" id="cancelProfileDialog" type="button">Cancel</button><button class="btn primary" id="createProfile" type="submit" form="profileForm" disabled>Create</button></div></dialog>
-  <dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription"><div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Upload one job file and choose the Candidate Profile to use.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div><form class="run-form" id="runForm"><div class="run-field"><label for="jobFile">Job Input</label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" required><small>Supported: JSON and JSONL. One file per run.</small></div><div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" aria-describedby="candidateProfileHelp" required><option value="">Select a Candidate Profile</option></select><small id="candidateProfileHelp">Shows Active, Succeeded profiles from Candidate Profiles. <a class="support-link" href="#candidate-profiles" data-open-profile-page>Manage Candidate Profiles</a></small><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No available Candidate Profiles</strong>Create or restore an Active, Succeeded profile before triggering a run.</div></div><div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" placeholder="Uses uploaded file name when empty"><small>Shown as Job Name in the run table.</small></div></form><p class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Select a file and Candidate Profile to enable Trigger.</p><div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div></dialog>
+  <dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription"><div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Add a job data file, select eligible Scan outputs, or use both.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div><form class="run-form" id="runForm"><div class="run-source-panel" id="runUploadSource"><div class="run-field"><label for="jobFile">Job data file <span class="supporting-text">Optional</span></label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" aria-describedby="jobFileHelp runJobSourceRequirement"><small id="jobFileHelp">Supported: JSON and JSONL.</small></div></div><div class="run-source-panel" id="runScanSource"><div class="run-field"><label id="runScansLabel">Eligible Scan outputs <span class="supporting-text">Optional</span></label><div class="field managed-selection-field" role="group" aria-labelledby="runScansLabel" aria-describedby="runJobSourceRequirement"><span class="managed-selection-field-copy"><span id="runScanSummary">No Scan outputs selected.</span><small id="runScanPreview">Use Manage to search and select eligible Scans.</small></span><button class="btn" id="manageRunScans" type="button">Manage</button></div><div class="run-source-empty" id="runScanEmpty" hidden>No successful non-empty Scans available. You can still upload a job data file. <a class="support-link" href="#scans" data-open-scans-page>Manage Scans</a></div></div></div><div class="run-field"><small id="runJobSourceRequirement">At least one job source is required. Upload a job data file, select one or more eligible Scan outputs, or use both.</small></div><div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" aria-describedby="candidateProfileHelp" required><option value="">Select a Candidate Profile</option></select><small id="candidateProfileHelp">Shows Active, Succeeded profiles from Candidate Profiles. <a class="support-link" href="#candidate-profiles" data-open-profile-page>Manage Candidate Profiles</a></small><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No available Candidate Profiles</strong>Create or restore an Active, Succeeded profile before triggering a run.</div></div><div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" placeholder="Uses combined job input when empty"><small>Shown as Job Name in the run table.</small></div></form><p class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Choose job input and a Candidate Profile.</p><div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div></dialog>
+  <dialog class="run-dialog scan-dialog" id="scanDialog" aria-labelledby="scanDialogTitle" aria-describedby="scanDialogDescription"><div class="dialog-head"><div><h2 id="scanDialogTitle">New Scan</h2><p id="scanDialogDescription">Choose tracked companies and optional job filters.</p></div><button class="dialog-close" id="closeScanDialog" type="button" aria-label="Close New Scan dialog">×</button></div><form class="run-form" id="scanForm"><div class="run-field"><label for="scanName">Scan Name <span class="supporting-text">Optional</span></label><input class="field" id="scanName" type="text" maxlength="120" placeholder="Germany data engineering roles"></div><div class="run-field"><label id="scanCompaniesLabel">Tracked Companies</label><div class="field managed-selection-field" role="group" aria-labelledby="scanCompaniesLabel"><span class="managed-selection-field-copy"><span id="scanCompanySummary">No companies selected.</span><small id="scanCompanyPreview">Use Manage to search and select active companies.</small></span><button class="btn" id="manageScanCompanies" type="button">Manage</button></div></div><div class="run-field"><label for="scanJobTitles">Job Titles <span class="supporting-text">Optional</span></label><input class="field" id="scanJobTitles" type="text" placeholder="Data Engineer, Analytics Engineer"></div><div class="run-field"><label for="scanLocations">Job Locations <span class="supporting-text">Optional</span></label><input class="field" id="scanLocations" type="text" placeholder="Berlin, Germany"></div><div class="run-field"><label for="scanPublishedAt">Published At</label><select class="field" id="scanPublishedAt"></select><small>Rolling window resolved when the Scan starts.</small></div><div class="run-field"><label for="scanTotalRows">Total Rows</label><input class="field" id="scanTotalRows" type="number" min="1" max="1000" value="50" required></div></form><p class="run-dialog-status" id="scanDialogStatus" role="status" aria-live="polite">Select at least one tracked company.</p><div class="dialog-actions"><button class="btn" id="cancelScanDialog" type="button">Cancel</button><button class="btn primary" id="startScan" type="submit" form="scanForm" disabled>Start Scan</button></div></dialog>
+  <dialog class="run-dialog managed-selection-dialog" id="scanCompanyDialog" aria-labelledby="scanCompanyDialogTitle" aria-describedby="scanCompanyDialogDescription"><div class="dialog-head"><div><h2 id="scanCompanyDialogTitle">Manage Tracked Companies</h2><p id="scanCompanyDialogDescription">Search the registry and select companies for this Scan.</p></div><button class="dialog-close" id="closeScanCompanyDialog" type="button" aria-label="Close company selection dialog">×</button></div><div class="run-form"><div class="managed-selection-toolbar"><label class="search managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="scanCompanySearch" type="search" placeholder="Search company, provider, or domain" aria-label="Search tracked companies"></label><button class="btn" id="addTrackedCompany" type="button">Add Company</button></div><div class="managed-selection-actions"><button class="btn" id="selectFilteredScanCompanies" type="button">Select all filtered</button><button class="btn" id="clearManagedScanCompanies" type="button">Clear selection</button><span class="managed-selection-summary" id="scanCompanySelectionSummary">0 selected</span></div><div class="managed-selection-list" id="scanCompanyPickerList"></div></div><p class="run-dialog-status" id="scanCompanyDialogStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelScanCompanyDialog" type="button">Cancel</button><button class="btn primary" id="applyScanCompanies" type="button">Apply</button></div></dialog>
+  <dialog class="run-dialog managed-selection-dialog" id="runScanDialog" aria-labelledby="runScanDialogTitle" aria-describedby="runScanDialogDescription"><div class="dialog-head"><div><h2 id="runScanDialogTitle">Manage Eligible Scan Outputs</h2><p id="runScanDialogDescription">Search and select successful Scan outputs for this Run.</p></div><button class="dialog-close" id="closeRunScanDialog" type="button" aria-label="Close Scan output selection dialog">×</button></div><div class="run-form"><div class="managed-selection-toolbar"><label class="search managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="runScanSearch" type="search" placeholder="Search Scan ID, name, or company" aria-label="Search eligible Scan outputs"></label></div><div class="managed-selection-actions"><button class="btn" id="selectFilteredRunScans" type="button">Select all filtered</button><button class="btn" id="clearManagedRunScans" type="button">Clear selection</button><span class="managed-selection-summary" id="runScanSelectionSummary">0 selected</span></div><div class="managed-selection-list" id="runScanPickerList"></div></div><p class="run-dialog-status" id="runScanDialogStatus" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn" id="cancelRunScanDialog" type="button">Cancel</button><button class="btn primary" id="applyRunScans" type="button">Apply</button></div></dialog>
+  <dialog class="run-dialog" id="addCompanyDialog" aria-labelledby="addCompanyDialogTitle" aria-describedby="addCompanyDialogDescription"><div class="dialog-head"><div><h2 id="addCompanyDialogTitle">Add Company</h2><p id="addCompanyDialogDescription">Verify one supported careers portal before adding it.</p></div><button class="dialog-close" id="closeAddCompanyDialog" type="button" aria-label="Close Add Company dialog">×</button></div><form class="run-form" id="addCompanyForm"><div class="run-field"><label for="newCompanyName">Company Name</label><input class="field" id="newCompanyName" type="text" maxlength="120" autocomplete="organization" required></div><div class="run-field"><label for="newCompanyUrl">Careers URL</label><div class="model-test-row"><input class="field" id="newCompanyUrl" type="url" maxlength="500" autocomplete="url" placeholder="https://company.example/careers" required><button class="btn" id="testNewCompany" type="button">Test</button></div><small>Supported prototype portals: Personio, Greenhouse, and Workday.</small></div></form><p class="run-dialog-status provider-model-status" id="addCompanyStatus" role="status" aria-live="polite">Test the careers URL before adding the company.</p><div class="dialog-actions"><button class="btn" id="cancelAddCompanyDialog" type="button">Cancel</button><button class="btn primary" id="saveNewCompany" type="button" disabled>Add Company</button></div></dialog>
   <dialog class="run-dialog provider-model-dialog" id="providerModelDialog" aria-labelledby="providerModelDialogTitle" aria-describedby="providerModelDialogDescription"><div class="dialog-head"><div><h2 id="providerModelDialogTitle">Add Model</h2><p id="providerModelDialogDescription">Test one model identifier before adding it.</p></div><button class="dialog-close" id="closeProviderModelDialog" type="button" aria-label="Close Add Model dialog">×</button></div><form class="run-form" id="providerModelForm"><div class="run-field"><label for="providerModelIdentifier">Model ID</label><div class="model-test-row"><input class="field" id="providerModelIdentifier" type="text" maxlength="160" autocomplete="off" spellcheck="false" placeholder="model-id" required><button class="btn" id="testProviderModel" type="button">Test</button></div><small class="provider-model-preview">Sent to provider as: <code id="providerModelPreview">—</code></small></div></form><p class="run-dialog-status provider-model-status" id="providerModelStatus" role="status" aria-live="polite">Add Model saves only after a successful test.</p><div class="dialog-actions"><button class="btn" id="cancelProviderModelDialog" type="button">Cancel</button><button class="btn primary" id="saveProviderModel" type="button" disabled>Add Model</button></div></dialog>
   <dialog class="run-dialog" id="taskLlmDialog" aria-labelledby="taskLlmTitle" aria-describedby="taskLlmDescription"><div class="dialog-head"><div><h2 id="taskLlmTitle">Task Configuration</h2><p id="taskLlmDescription">Configure runtime model behavior for one AI-powered task.</p></div><button class="dialog-close" id="closeTaskLlmDialog" type="button" aria-label="Close Task Configuration dialog">×</button></div><form class="run-form" id="taskLlmForm"><div class="run-field"><label for="taskLlmModel">Model</label><select class="field" id="taskLlmModel"></select><small>Default follows the application Default Route.</small></div><div class="run-field"><label for="taskLlmTimeout">Timeout (seconds)</label><input class="field" id="taskLlmTimeout" type="number" min="1" max="3600" step="1" required></div><div class="run-field"><label for="taskLlmTemperature">Temperature</label><input class="field" id="taskLlmTemperature" type="number" min="0" max="2" step="0.1" required><small>UI intent only until task temperature is configurable in the backend runtime.</small></div></form><div class="dialog-actions"><button class="btn" id="cancelTaskLlmDialog" type="button">Cancel</button><button class="btn primary" id="saveTaskLlm" type="button">Save</button></div></dialog>
   <dialog class="run-dialog llm-prompt-dialog" id="stagePromptDialog" aria-labelledby="stagePromptTitle" aria-describedby="stagePromptDescription"><div class="dialog-head"><div><h2 id="stagePromptTitle">Manage Prompt</h2><p id="stagePromptDescription">Configure prompt behavior for one AI-powered task.</p></div><button class="dialog-close" id="closeStagePromptDialog" type="button" aria-label="Close Manage Prompt dialog">×</button></div><form class="run-form" id="stagePromptForm"><div class="run-field"><label for="stagePromptType">Prompt Type</label><select class="field" id="stagePromptType"><option value="default">Default</option><option value="custom">Custom</option></select></div><div class="run-field"><label for="stagePromptEditor">Prompt</label><textarea class="stage-prompt-editor" id="stagePromptEditor" maxlength="4000" aria-describedby="stagePromptMessage stagePromptCount"></textarea><div class="prompt-meta"><p class="prompt-message" id="stagePromptMessage" role="status" aria-live="polite"></p><span id="stagePromptCount">0 / 4000 characters</span></div></div></form><div class="dialog-actions"><button class="btn" id="cancelStagePromptDialog" type="button">Cancel</button><button class="btn primary" id="saveStagePrompt" type="button">Save</button></div></dialog>
@@ -103,12 +115,23 @@
   'use strict';
   const STORAGE_KEY='fitcv-pipeline-settings-prototype-v4';
   const RUN_STORAGE_KEY='fitcv-run-prototype-v1';
+  const SCAN_STORAGE_KEY='fitcv-scan-prototype-v1';
+  const COMPANY_STORAGE_KEY='fitcv-company-registry-prototype-v1';
   const SYNONYM_STORAGE_KEY='fitcv-synonym-prototype-v1';
   const PROVIDER_STORAGE_KEY='fitcv-provider-prototype-v1';
   const OPTIMIZATION_STORAGE_KEY='fitcv-preference-optimization-prototype-v1';
   const PERSONALIZATION_STRENGTH_LIMITS=Object.freeze({minimum:.01,maximum:.10,recommended:.05,step:.01});
   const OPTIMIZATION_EVIDENCE_SUMMARY=Object.freeze({savedRatings:24,episodes:6,eligibleComparisons:148,ready:true});
   const RUN_STATUSES=new Set(['Running','Succeeded','Failed']);
+  const SCAN_STATUSES=new Set(['Queued','Running','Succeeded','Failed','Cancelled']);
+  const PUBLISHED_WINDOWS=Object.freeze([
+    {id:'any',label:'Any time',milliseconds:null},
+    {id:'past_12_hours',label:'Past 12 hours',milliseconds:12*60*60*1000},
+    {id:'past_24_hours',label:'Past 24 hours',milliseconds:24*60*60*1000},
+    {id:'past_7_days',label:'Past week',milliseconds:7*24*60*60*1000},
+    {id:'past_30_days',label:'Past month',milliseconds:30*24*60*60*1000},
+    {id:'past_180_days',label:'Past 6 months',milliseconds:180*24*60*60*1000}
+  ]);
   const PROFILE_STATUSES=new Set(['Succeeded','Failed']);
   const SYNONYM_TYPES=['skill','domain','role_family'];
   const SYNONYM_REVIEW_STATUSES=['pending','approved','declined'];
@@ -134,6 +157,21 @@
     {id:'groq',name:'Groq',type:'shared',protocol:'openai-compatible',baseUrl:'https://api.groq.com/openai/v1',apiStyle:'chat-completions',credentialConfigured:false,connectionStatus:'not-configured',models:[]}
   ],routing:{defaultModel:'openai::gpt-4.1-mini',tasks:DEFAULT_LLM_TASK_SETTINGS,retry:DEFAULT_RETRY_SETTINGS}};
   const prototypeNow=Date.now();
+  const TRACKED_COMPANIES=[
+    {id:'acme',name:'Acme GmbH',provider:'Personio',careersUrl:'https://acme.jobs.personio.de',active:true,scannable:true},
+    {id:'northstar',name:'Northstar Labs',provider:'Greenhouse',careersUrl:'https://boards.greenhouse.io/northstar',active:true,scannable:true},
+    {id:'contoso',name:'Contoso Europe',provider:'Workday',careersUrl:'https://contoso.wd3.myworkdayjobs.com/careers',active:true,scannable:true},
+    {id:'berlin-data',name:'Berlin Data Works',provider:'Personio',careersUrl:'https://berlin-data.jobs.personio.de',active:true,scannable:true}
+  ];
+  function prototypeScanJob(index){return {jobUrl:`https://example.com/jobs/${index}`,title:index%2?'Data Engineer':'Senior Analytics Engineer',companyName:index%2?'Acme GmbH':'Northstar Labs',description:'Build reliable data products and pipelines.',contractType:'Full-time',experienceLevel:'Mid-Senior level',location:index%2?'Berlin, Germany':'Munich, Germany',publishedAt:'2026-07-29',companyUrl:'https://example.com',applyUrl:`https://example.com/jobs/${index}/apply`}}
+  const DEFAULT_SCANS=[
+    {id:'scan-1048',name:'Germany data roles',companyIds:['acme','northstar','contoso'],titles:['Data Engineer'],locations:['Germany'],publishedWindow:'past_30_days',limit:50,status:'Succeeded',createdAt:Date.parse('2026-08-01T08:42:00Z'),startedAt:Date.parse('2026-08-01T08:42:02Z'),endedAt:Date.parse('2026-08-01T08:43:18Z'),count:38,valid:true,archived:false,warnings:['Contoso Europe returned 403 after 2 pages; collected jobs were preserved.'],output:Array.from({length:38},(_,index)=>prototypeScanJob(index+1))},
+    {id:'scan-1047',name:'Berlin startup sweep',companyIds:['berlin-data','northstar'],titles:[],locations:['Berlin'],publishedWindow:'past_7_days',limit:25,status:'Running',createdAt:prototypeNow-48000,startedAt:prototypeNow-45000,endedAt:null,completeAt:prototypeNow+12000,count:0,valid:false,archived:false,progress:64,output:[]},
+    {id:'scan-1046',name:'Personio check',companyIds:['acme'],titles:['Data Engineer'],locations:[],publishedWindow:'past_7_days',limit:20,status:'Queued',createdAt:prototypeNow-12000,startedAt:null,endedAt:null,completeAt:prototypeNow+18000,count:0,valid:false,archived:false,progress:0,output:[]},
+    {id:'scan-1045',name:'No current matches',companyIds:['acme'],titles:['Chief Data Officer'],locations:['Hamburg'],publishedWindow:'past_24_hours',limit:10,status:'Succeeded',createdAt:Date.parse('2026-07-31T16:22:00Z'),startedAt:Date.parse('2026-07-31T16:22:02Z'),endedAt:Date.parse('2026-07-31T16:22:40Z'),count:0,valid:true,archived:false,output:[]},
+    {id:'scan-1044',name:'Workday portal test',companyIds:['contoso'],titles:[],locations:[],publishedWindow:'any',limit:50,status:'Failed',createdAt:Date.parse('2026-07-31T12:10:00Z'),startedAt:Date.parse('2026-07-31T12:10:02Z'),endedAt:Date.parse('2026-07-31T12:10:28Z'),count:0,valid:false,archived:false,error:'Portal response could not be normalized after retry.',output:[]},
+    {id:'scan-1043',name:'Cancelled broad scan',companyIds:['acme','northstar','contoso','berlin-data'],titles:[],locations:['Germany'],publishedWindow:'any',limit:200,status:'Cancelled',createdAt:Date.parse('2026-07-30T09:00:00Z'),startedAt:Date.parse('2026-07-30T09:00:02Z'),endedAt:Date.parse('2026-07-30T09:00:12Z'),count:0,valid:false,archived:true,output:[]}
+  ];
   const DEFAULT_OPTIMIZATION_EVIDENCE=[
     {ratedAt:prototypeNow-7200000,runId:'RUN-3B18D6F4',job:'AI Product Manager',savedRank:3,baselineFit:.884,rating:5},
     {ratedAt:prototypeNow-10800000,runId:'RUN-3B18D6F4',job:'Technical Program Manager, Data',savedRank:5,baselineFit:.842,rating:4},
@@ -406,6 +444,7 @@
   const synonymsNav=document.querySelector('#synonymsNav');
   const candidateProfilesNav=document.querySelector('#candidateProfilesNav');
   const runsNav=document.querySelector('#runsNav');
+  const scansNav=document.querySelector('#scansNav');
   const bookmarksNav=document.querySelector('#bookmarksNav');
   const apiProvidersNav=document.querySelector('#apiProvidersNav');
   const llmConfigurationNav=document.querySelector('#llmConfigurationNav');
@@ -428,11 +467,46 @@
   const runDialog=document.querySelector('#runDialog');
   const runForm=document.querySelector('#runForm');
   const jobFile=document.querySelector('#jobFile');
+  const runScanEmpty=document.querySelector('#runScanEmpty');
+  const runJobSourceRequirement=document.querySelector('#runJobSourceRequirement');
+  const runScanSummary=document.querySelector('#runScanSummary');
+  const runScanPreview=document.querySelector('#runScanPreview');
+  const manageRunScansButton=document.querySelector('#manageRunScans');
+  const runScanDialog=document.querySelector('#runScanDialog');
+  const runScanSearch=document.querySelector('#runScanSearch');
+  const runScanPickerList=document.querySelector('#runScanPickerList');
+  const runScanSelectionSummary=document.querySelector('#runScanSelectionSummary');
+  const runScanDialogStatus=document.querySelector('#runScanDialogStatus');
+  const applyRunScansButton=document.querySelector('#applyRunScans');
   const candidateProfile=document.querySelector('#candidateProfile');
   const candidateProfileEmpty=document.querySelector('#candidateProfileEmpty');
   const runName=document.querySelector('#runName');
   const runDialogStatus=document.querySelector('#runDialogStatus');
   const triggerRunButton=document.querySelector('#triggerRun');
+  const scanDialog=document.querySelector('#scanDialog');
+  const scanForm=document.querySelector('#scanForm');
+  const scanName=document.querySelector('#scanName');
+  const scanCompanySummary=document.querySelector('#scanCompanySummary');
+  const scanCompanyPreview=document.querySelector('#scanCompanyPreview');
+  const manageScanCompaniesButton=document.querySelector('#manageScanCompanies');
+  const scanJobTitles=document.querySelector('#scanJobTitles');
+  const scanLocations=document.querySelector('#scanLocations');
+  const scanPublishedAt=document.querySelector('#scanPublishedAt');
+  const scanTotalRows=document.querySelector('#scanTotalRows');
+  const scanDialogStatus=document.querySelector('#scanDialogStatus');
+  const startScanButton=document.querySelector('#startScan');
+  const scanCompanyDialog=document.querySelector('#scanCompanyDialog');
+  const scanCompanySearch=document.querySelector('#scanCompanySearch');
+  const scanCompanyPickerList=document.querySelector('#scanCompanyPickerList');
+  const scanCompanySelectionSummary=document.querySelector('#scanCompanySelectionSummary');
+  const scanCompanyDialogStatus=document.querySelector('#scanCompanyDialogStatus');
+  const applyScanCompaniesButton=document.querySelector('#applyScanCompanies');
+  const addCompanyDialog=document.querySelector('#addCompanyDialog');
+  const addCompanyForm=document.querySelector('#addCompanyForm');
+  const newCompanyName=document.querySelector('#newCompanyName');
+  const newCompanyUrl=document.querySelector('#newCompanyUrl');
+  const addCompanyStatus=document.querySelector('#addCompanyStatus');
+  const saveNewCompanyButton=document.querySelector('#saveNewCompany');
   const providerModelDialog=document.querySelector('#providerModelDialog');
   const providerModelForm=document.querySelector('#providerModelForm');
   const providerModelIdentifier=document.querySelector('#providerModelIdentifier');
@@ -650,7 +724,35 @@
     const bookmarks=[...new Set((Array.isArray(stored.bookmarks)?stored.bookmarks:DEFAULT_BOOKMARK_KEYS).filter(key=>typeof key==='string'&&validBookmarkKeys.has(key)))];
     return {candidateProfiles:clone(profiles),runs:clone(runs),bookmarks,runActiveTab:stored.runActiveTab==='archived'||stored.activeTab==='archived'?'archived':'active',profileActiveTab:stored.profileActiveTab==='archived'?'archived':'active'};
   }
+  function readCompanyStored(){try{return JSON.parse(localStorage.getItem(COMPANY_STORAGE_KEY)||'{}')}catch{return {}}}
+  function normaliseCompanyRegistry(stored){
+    const seen=new Set(),supportedProviders=new Set(['Personio','Greenhouse','Workday']);
+    return clone((Array.isArray(stored.companies)?stored.companies:TRACKED_COMPANIES).filter(company=>{
+      if(!company||typeof company.id!=='string'||typeof company.name!=='string'||typeof company.careersUrl!=='string'||seen.has(company.id)||!supportedProviders.has(company.provider))return false;
+      try{if(new URL(company.careersUrl).protocol!=='https:')return false}catch{return false}
+      seen.add(company.id);return company.active!==false&&company.scannable!==false;
+    }).map(company=>({...company,active:true,scannable:true})));
+  }
+  function normalisePublishedWindow(scan){
+    if(PUBLISHED_WINDOWS.some(window=>window.id===scan.publishedWindow))return scan.publishedWindow;
+    const publishedAt=Date.parse(scan.publishedAt);
+    if(!Number.isFinite(publishedAt))return 'any';
+    const age=Math.max(0,scan.createdAt-publishedAt);
+    return PUBLISHED_WINDOWS.slice(1).find(window=>age<=window.milliseconds)?.id||'any';
+  }
+  function readScanStored(){try{return JSON.parse(localStorage.getItem(SCAN_STORAGE_KEY)||'{}')}catch{return {}}}
+  function normaliseScanState(stored){
+    const seen=new Set();
+    const scans=(Array.isArray(stored.scans)?stored.scans:DEFAULT_SCANS).filter(scan=>{
+      if(!scan||typeof scan.id!=='string'||seen.has(scan.id)||!SCAN_STATUSES.has(scan.status))return false;
+      seen.add(scan.id);
+      return typeof scan.name==='string'&&Array.isArray(scan.companyIds)&&Number.isFinite(scan.createdAt)&&typeof scan.archived==='boolean';
+    }).map(scan=>{const {companySelectionMode,...rest}=scan;return {...rest,publishedWindow:normalisePublishedWindow(scan)}});
+    return {scans:clone(scans),activeTab:stored.activeTab==='archived'?'archived':'active'};
+  }
   let runState=normaliseRunState(readRunStored());
+  let companyRegistry=normaliseCompanyRegistry(readCompanyStored());
+  let scanState=normaliseScanState(readScanStored());
   let synonymState=normaliseSynonymState(readSynonymStored());
   let providerState=normaliseProviderState(readProviderStored());
   let optimizationState=normaliseOptimizationState(readOptimizationStored());
@@ -661,11 +763,27 @@
   let synonymProcessingLogStart=0;
   const selectedProfileIds=new Set();
   const selectedRunIds=new Set();
+  const selectedScanIds=new Set();
+  const scanSelectedCompanyIds=new Set();
+  const scanCompanyPickerDraft=new Set();
+  let runSelectedScanIds=[];
+  let runScanPickerDraftIds=[];
+  const clearedScanLogs=new Set();
   const selectedJobResultKeys=new Set();
   const selectedBookmarkKeys=new Set();
   const RUN_PAGE_SIZES=[10,20,50];
   let runPage=1;
   let runPageSize=20;
+  let scanPage=1;
+  let scanPageSize=20;
+  let selectedScanDetailId=null;
+  let activeScanOutputId=null;
+  let scanOutputView='table';
+  let scanOutputPage=1;
+  let scanOutputPageSize=10;
+  let scanCompanySearchValue='';
+  let runScanSearchValue='';
+  let testedTrackedCompany=null;
   let selectedProfileDetailId=null;
   let selectedRunDetailId=null;
   let activeModelProviderId=null;
@@ -1376,12 +1494,15 @@
     if(current>=total-3)return [1,'…',total-4,total-3,total-2,total-1,total];
     return [1,'…',current-1,current,current+1,'…',total];
   }
+  function needsPagination(total){return total>RUN_PAGE_SIZES[0]}
+  function tablePaginationMarkup({total,current,pageSize,sizeId,pageAttribute,ariaLabel}){
+    if(!needsPagination(total))return '';
+    const totalPages=Math.max(1,Math.ceil(total/pageSize)),start=(current-1)*pageSize+1,end=Math.min(total,current*pageSize);
+    const pages=paginationItems(current,totalPages).map(item=>item==='…'?'<span class="run-page-gap" aria-hidden="true">…</span>':`<button class="btn" type="button" data-${pageAttribute}="${item}" ${item===current?'aria-current="page"':''} aria-label="Page ${item}">${item}</button>`).join('');
+    return `<div class="run-pagination"><span>Showing <strong>${start}</strong> to <strong>${end}</strong> of <strong>${total}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size" for="${sizeId}">Rows:<select class="field" id="${sizeId}">${RUN_PAGE_SIZES.map(size=>`<option value="${size}" ${size===pageSize?'selected':''}>${size}</option>`).join('')}</select></label><div class="run-page-numbers" aria-label="${ariaLabel}"><button class="btn" type="button" data-${pageAttribute}="previous" aria-label="Previous page" ${current===1?'disabled':''}>‹</button>${pages}<button class="btn" type="button" data-${pageAttribute}="next" aria-label="Next page" ${current===totalPages?'disabled':''}>›</button></div></div></div>`;
+  }
   function paginationMarkup(total){
-    const totalPages=Math.max(1,Math.ceil(total/runPageSize));
-    const start=(runPage-1)*runPageSize+1;
-    const end=Math.min(total,runPage*runPageSize);
-    const pages=paginationItems(runPage,totalPages).map(item=>item==='…'?'<span class="run-page-gap" aria-hidden="true">…</span>':`<button class="btn" type="button" data-run-page="${item}" ${item===runPage?'aria-current="page"':''} aria-label="Page ${item}">${item}</button>`).join('');
-    return `<div class="run-pagination"><span>Showing <strong>${start}</strong> to <strong>${end}</strong> of <strong>${total}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size" for="runPageSize">Rows:<select class="field" id="runPageSize">${RUN_PAGE_SIZES.map(size=>`<option value="${size}" ${size===runPageSize?'selected':''}>${size}</option>`).join('')}</select></label><div class="run-page-numbers" aria-label="Run table pagination"><button class="btn" type="button" data-run-page="previous" aria-label="Previous page" ${runPage===1?'disabled':''}>‹</button>${pages}<button class="btn" type="button" data-run-page="next" aria-label="Next page" ${runPage===totalPages?'disabled':''}>›</button></div></div></div>`;
+    return tablePaginationMarkup({total,current:runPage,pageSize:runPageSize,sizeId:'runPageSize',pageAttribute:'run-page',ariaLabel:'Run table pagination'});
   }
   function runsTableMarkup(runs,total){
     if(!runs.length)return `<div class="section-card table-card">${emptyRunsMarkup()}</div>`;
@@ -1600,6 +1721,13 @@
     const allSelected=pageRows.every(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job))),someSelected=!allSelected&&pageRows.some(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job)));
     return `<div class="table-card"><div class="table-scroll"><table class="run-table jobs-table"><thead><tr><th><input id="selectAllJobResults" type="checkbox" aria-label="Select all visible job results" ${allSelected?'checked':''} data-indeterminate="${someSelected}"> Job &amp; Actions</th><th>Job Attributes</th><th>Required Skills</th><th>Pipeline Outcome</th></tr></thead><tbody>${pageRows.map(item=>jobRowMarkup(run,item)).join('')}</tbody></table></div>${jobPaginationMarkup(total)}</div>`;
   }
+  function runJobInputMarkup(run){
+    const scans=Array.isArray(run.sourceScans)?run.sourceScans:[],uploadFileName=run.uploadFileName||(run.inputMode!=='scan'&&!scans.length?run.inputFileName:'');
+    if(uploadFileName&&!scans.length)return `<div class="detail-item"><dt>Job Input</dt><dd>${escapeHtml(uploadFileName)}</dd></div>`;
+    const scanMarkup=scans.map(scan=>`<a class="run-id-link" href="#scan-details/${encodeURIComponent(scan.id)}">${escapeHtml(scan.id)} · ${escapeHtml(scan.name)}</a>`).join('<br>');
+    if(!uploadFileName)return `<div class="detail-item"><dt>Job Input</dt><dd>Output from Scan</dd></div><div class="detail-item"><dt>Source Scans</dt><dd>${scanMarkup}</dd></div>`;
+    return `<div class="detail-item"><dt>Job Input</dt><dd>Upload + Scan outputs</dd></div><div class="detail-item"><dt>Uploaded File</dt><dd>${escapeHtml(uploadFileName)}</dd></div><div class="detail-item"><dt>Source Scans</dt><dd>${scanMarkup}</dd></div>`;
+  }
   function renderRunDetails(){
     const run=runState.runs.find(item=>item.id===selectedRunDetailId);
     if(!run){location.hash='runs';return}
@@ -1609,7 +1737,7 @@
     selectedJobResultKeys.forEach(key=>{if(!filtered.some(({job})=>bookmarkKey(run,job)===key))selectedJobResultKeys.delete(key)});
     jobResultsPage=Math.min(jobResultsPage,totalPages);
     const pageRows=filtered.slice((jobResultsPage-1)*jobResultsPageSize,jobResultsPage*jobResultsPageSize),selectedCount=filtered.filter(({job})=>selectedJobResultKeys.has(bookmarkKey(run,job))).length;
-    runDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Overview</strong><span>Current lifecycle information for this run.</span></span><span class="drawer-status">${statusMarkup(run)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Run ID',run.id],['Run Name',run.runName||run.jobName],['Created',formatCreated(run.createdAt)],['Started',formatCreated(run.startedAt||run.createdAt)],['Finished',run.endedAt?formatCreated(run.endedAt):'—']].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Input</strong><span>Read-only inputs used when this run was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details"><div class="detail-item"><dt>Job Input</dt><dd>${escapeHtml(run.inputFileName||run.jobName)}</dd></div><div class="detail-item"><dt>Candidate Profile</dt><dd>${profile?`<button class="run-id run-id-link" type="button" data-run-profile-details="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</button>`:'Profile unavailable'}</dd></div><div class="detail-item"><dt>Profile ID</dt><dd>${profile?escapeHtml(profile.id):'—'}</dd></div><div class="detail-item"><dt>Profile State</dt><dd>${profile?(profile.archived?'Archived · historical reference':'Active'):'Unavailable'}</dd></div><div class="detail-item"><dt>Configuration Snapshot</dt><dd>Pipeline Settings and Synonyms captured when this run was triggered.</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Pipeline Results</strong><span>Includes passed and rejected jobs evaluated at the selected stage.</span></span></summary><div class="section-content drawer-section-content"><div class="results-filters"><div class="stage-filter"><div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-pipeline-stage="${stage.id}" aria-selected="${stage.id===pipelineStage}" tabindex="${stage.id===pipelineStage?'0':'-1'}">${stage.label}</button>`).join('')}</div></div></div><div class="results-toolbar"><input class="field results-search" id="jobResultsSearch" type="search" value="${escapeHtml(jobResultsSearch)}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results"><div class="results-toolbar-actions"><div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter"><button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="${pipelineResult==='all'}" tabindex="${pipelineResult==='all'?'0':'-1'}"><span>Total Evaluated</span><strong>${evaluated.length}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="${pipelineResult==='passed'}" tabindex="${pipelineResult==='passed'?'0':'-1'}"><span>Passed</span><strong>${passed}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="${pipelineResult==='rejected'}" tabindex="${pipelineResult==='rejected'?'0':'-1'}"><span>Rejected</span><strong>${rejected}</strong></button></div><button class="btn" id="exportRunResults" type="button" ${selectedCount?'':'disabled'}>Export</button></div></div><div class="run-panel">${jobResultSelectionMarkup(run,filtered)}${jobResultsTableMarkup(run,pageRows,filtered.length)}</div></div></details><details class="section-card collapsible-section drawer-section"><summary><span class="section-heading"><strong>Console Log</strong><span>Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.</span></span></summary><div class="section-content drawer-section-content">${consoleLogMarkup(run)}</div></details>`;
+    runDetailsBody.innerHTML=`<details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Overview</strong><span>Current lifecycle information for this run.</span></span><span class="drawer-status">${statusMarkup(run)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Run ID',run.id],['Run Name',run.runName||run.jobName],['Created',formatCreated(run.createdAt)],['Started',formatCreated(run.startedAt||run.createdAt)],['Finished',run.endedAt?formatCreated(run.endedAt):'—']].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Run Input</strong><span>Read-only inputs used when this run was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details">${runJobInputMarkup(run)}<div class="detail-item"><dt>Candidate Profile</dt><dd>${profile?`<button class="run-id run-id-link" type="button" data-run-profile-details="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</button>`:'Profile unavailable'}</dd></div><div class="detail-item"><dt>Profile ID</dt><dd>${profile?escapeHtml(profile.id):'—'}</dd></div><div class="detail-item"><dt>Profile State</dt><dd>${profile?(profile.archived?'Archived · historical reference':'Active'):'Unavailable'}</dd></div><div class="detail-item"><dt>Configuration Snapshot</dt><dd>Pipeline Settings and Synonyms captured when this run was triggered.</dd></div></dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Pipeline Results</strong><span>Includes passed and rejected jobs evaluated at the selected stage.</span></span></summary><div class="section-content drawer-section-content"><div class="results-filters"><div class="stage-filter"><div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">${PIPELINE_STAGES.map(stage=>`<button class="btn" type="button" role="tab" data-pipeline-stage="${stage.id}" aria-selected="${stage.id===pipelineStage}" tabindex="${stage.id===pipelineStage?'0':'-1'}">${stage.label}</button>`).join('')}</div></div></div><div class="results-toolbar"><input class="field results-search" id="jobResultsSearch" type="search" value="${escapeHtml(jobResultsSearch)}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results"><div class="results-toolbar-actions"><div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter"><button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="${pipelineResult==='all'}" tabindex="${pipelineResult==='all'?'0':'-1'}"><span>Total Evaluated</span><strong>${evaluated.length}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="${pipelineResult==='passed'}" tabindex="${pipelineResult==='passed'?'0':'-1'}"><span>Passed</span><strong>${passed}</strong></button><button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="${pipelineResult==='rejected'}" tabindex="${pipelineResult==='rejected'?'0':'-1'}"><span>Rejected</span><strong>${rejected}</strong></button></div><button class="btn" id="exportRunResults" type="button" ${selectedCount?'':'disabled'}>Export</button></div></div><div class="run-panel">${jobResultSelectionMarkup(run,filtered)}${jobResultsTableMarkup(run,pageRows,filtered.length)}</div></div></details><details class="section-card collapsible-section drawer-section"><summary><span class="section-heading"><strong>Console Log</strong><span>Canonical run events for troubleshooting. Clear View hides loaded events locally without deleting backend evidence.</span></span></summary><div class="section-content drawer-section-content">${consoleLogMarkup(run)}</div></details>`;
     runDetailsBody.insertAdjacentHTML('afterbegin',`<div class="details-page-head"><a class="details-page-back" href="#runs">← Back to Runs</a><div class="page-head"><div><p class="eyebrow">Run Details</p><h2>Run ${escapeHtml(run.id)}</h2><p>Review run inputs and pipeline results.</p></div></div></div>`);
     bindRunDetails(run);
   }
@@ -1678,26 +1806,51 @@
     candidateProfile.disabled=empty;
     candidateProfileEmpty.hidden=!empty;
   }
+  function eligibleRunScans(){return scanState.scans.filter(scanEligible)}
+  function scansInSelectionOrder(ids){const byId=new Map(eligibleRunScans().map(scan=>[scan.id,scan]));return ids.filter((id,index)=>ids.indexOf(id)===index&&byId.has(id)).map(id=>byId.get(id))}
+  function selectedRunScans(){return scansInSelectionOrder(runSelectedScanIds)}
+  function updateRunScanSummary(){
+    runSelectedScanIds=selectedRunScans().map(scan=>scan.id);
+    const selected=selectedRunScans(),eligible=eligibleRunScans();
+    runScanSummary.textContent=selected.length?`${selected.length} Scan output${selected.length===1?'':'s'} selected`:'No Scan outputs selected.';
+    runScanPreview.textContent=selected.length?`${selected.slice(0,3).map(scan=>scan.id).join(', ')}${selected.length>3?` +${selected.length-3} more`:''}`:'Use Manage to search and select eligible Scans.';
+    runScanEmpty.hidden=Boolean(eligible.length);
+    manageRunScansButton.disabled=!eligible.length;
+  }
+  function populateRunScans(){runSelectedScanIds=[];updateRunScanSummary()}
+  function filteredEligibleRunScans(){const query=runScanSearchValue.trim().toLowerCase();return eligibleRunScans().filter(scan=>!query||`${scan.id} ${scanLabel(scan)} ${scan.companyIds.map(trackedCompanyName).join(' ')}`.toLowerCase().includes(query))}
+  function renderRunScanPicker(){
+    const scans=filteredEligibleRunScans();
+    runScanPickerList.innerHTML=scans.length?scans.map(scan=>`<label class="managed-selection-item"><input type="checkbox" data-run-scan-picker-id="${escapeHtml(scan.id)}" ${runScanPickerDraftIds.includes(scan.id)?'checked':''}><span class="managed-selection-item-copy"><strong>${escapeHtml(scan.id)}</strong><small>${escapeHtml(scanLabel(scan))} · ${scan.companyIds.length} companies · ${scan.count} jobs · ${formatCreated(scan.endedAt)}</small></span></label>`).join(''):'<div class="managed-selection-empty">No eligible Scan outputs match this search.</div>';
+    runScanSelectionSummary.textContent=`${runScanPickerDraftIds.length} selected`;
+    runScanDialogStatus.textContent=scans.length?`${scans.length} Scan output${scans.length===1?'':'s'} shown.`:'Change the search or create a successful non-empty Scan.';
+  }
+  function openRunScanDialog(){runScanPickerDraftIds=[...runSelectedScanIds];runScanSearchValue='';runScanSearch.value='';renderRunScanPicker();showExclusiveDialog(runScanDialog,runScanSearch)}
+  function returnToRunDialog(){showExclusiveDialog(runDialog,manageRunScansButton)}
+  function applyManagedRunScans(){runSelectedScanIds=scansInSelectionOrder(runScanPickerDraftIds).map(scan=>scan.id);updateRunScanSummary();validateRunDialog();returnToRunDialog()}
   function validateRunDialog(){
-    const hasFile=Boolean(jobFile.files?.[0]);
+    const file=jobFile.files?.[0],scans=selectedRunScans(),hasInput=Boolean(file)||scans.length>0;
     const available=availableCandidateProfiles();
     const hasProfile=available.some(profile=>profile.id===candidateProfile.value);
-    triggerRunButton.disabled=!(hasFile&&hasProfile);
-    runDialogStatus.textContent=hasFile&&hasProfile?'Ready to trigger. Current Pipeline Settings and Synonyms will be captured.':!available.length?'Create or restore an Active, Succeeded Candidate Profile before triggering a run.':'Select a file and available Candidate Profile to enable Trigger.';
+    triggerRunButton.disabled=!(hasInput&&hasProfile);
+    const sourceCount=(file?1:0)+scans.length;
+    runDialogStatus.textContent=hasInput&&hasProfile?`Ready to trigger with ${sourceCount} job source${sourceCount===1?'':'s'}. Current Pipeline Settings and Synonyms will be captured.`:!available.length?'Create or restore an Active, Succeeded Candidate Profile before triggering a run.':!hasInput?runJobSourceRequirement.textContent:'Select an available Candidate Profile to enable Trigger.';
   }
   function openRunDialog(){
     runForm.reset();
     populateCandidateProfiles();
+    populateRunScans();
     validateRunDialog();
-    runDialog.showModal();
-    jobFile.focus();
+    showExclusiveDialog(runDialog,jobFile);
   }
   function triggerPrototypeRun(){
     const file=jobFile.files?.[0];
+    const scans=selectedRunScans();
     const profile=availableCandidateProfiles().find(item=>item.id===candidateProfile.value);
-    if(!file||!profile)return validateRunDialog();
+    if((!file&&!scans.length)||!profile)return validateRunDialog();
     const now=Date.now();
-    runState.runs.unshift({id:uniqueRunId(),status:'Running',runName:runName.value.trim()||file.name,jobName:runName.value.trim()||file.name,inputFileName:file.name,profileId:profile.id,createdAt:now,startedAt:now+1000,completeAt:now+8000,endedAt:null,archived:false,statusDetail:''});
+    const defaultName=[file?.name,scans.length?`${scans.length} Scan output${scans.length===1?'':'s'}`:''].filter(Boolean).join(' + '),inputMode=file&&scans.length?'combined':file?'upload':'scan';
+    runState.runs.unshift({id:uniqueRunId(),status:'Running',runName:runName.value.trim()||defaultName,jobName:runName.value.trim()||defaultName,inputFileName:defaultName,inputMode,uploadFileName:file?.name||null,sourceScans:scans.map(scan=>({id:scan.id,name:scanLabel(scan)})),profileId:profile.id,createdAt:now,startedAt:now+1000,completeAt:now+8000,endedAt:null,archived:false,statusDetail:''});
     runState.runActiveTab='active';
     runPage=1;
     selectedRunIds.clear();
@@ -1898,11 +2051,185 @@
     form.innerHTML=`<div class="details-page-head"><a class="details-page-back" href="#preference-optimization">← Back to Preference Optimization</a><div class="page-head"><div><p class="eyebrow">Preference Optimization</p><h2>Optimization ${escapeHtml(item.id)}</h2><p>Review saved inputs, rating evidence, and lifecycle events.</p></div><div class="run-selection-actions">${policyControls}</div></div>${removed}${fallback}</div><div class="stack"><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Overview</strong><span>Saved result and inputs for this optimization.</span></span><span class="drawer-status">${optimizationStatusMarkup(item)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${[['Optimization ID',item.id],['Status',item.status],['Created',formatCreated(item.createdAt)],['Personalization Strength',item.strength.toFixed(2)],['Ratings Included',item.evidence.length],['Policy',policy]].map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Rating Evidence</strong><span>Historical ratings saved when this optimization ran.</span></span></summary><div class="section-content">${optimizationEvidenceTableMarkup(item.evidence)}</div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Console Log</strong><span>Optimization lifecycle events.</span></span></summary><div class="section-content drawer-section-content">${optimizationConsoleMarkup(item)}</div></details></div>`;
     bindOptimizationActions(form);
   }
+  function writeScanState(){localStorage.setItem(SCAN_STORAGE_KEY,JSON.stringify(scanState))}
+  function writeCompanyRegistry(){localStorage.setItem(COMPANY_STORAGE_KEY,JSON.stringify({companies:companyRegistry}))}
+  function activeScannableCompanies(){return companyRegistry.filter(company=>company.active&&company.scannable)}
+  function trackedCompanyName(id){return companyRegistry.find(company=>company.id===id)?.name||id}
+  function publicationWindowLabel(id){return PUBLISHED_WINDOWS.find(window=>window.id===id)?.label||'Any time'}
+  function companyHost(company){try{return new URL(company.careersUrl).hostname}catch{return 'Invalid URL'}}
+  function scanLabel(scan){return scan.name||scan.id}
+  function scanEligible(scan){return scan.status==='Succeeded'&&!scan.archived&&scan.valid===true&&scan.count>0}
+  function visibleScans(){return scanState.scans.filter(scan=>scan.archived===(scanState.activeTab==='archived'))}
+  function scanDuration(scan){return formatDuration(((scan.endedAt||Date.now())-(scan.startedAt||scan.createdAt)))}
+  function scanRowMarkup(scan){
+    return `<tr class="${selectedScanIds.has(scan.id)?'is-selected':''}"><td><input type="checkbox" data-scan-select="${escapeHtml(scan.id)}" aria-label="Select ${escapeHtml(scan.id)}" ${selectedScanIds.has(scan.id)?'checked':''}></td><td><button class="run-id run-id-link" type="button" data-scan-details="${escapeHtml(scan.id)}">${escapeHtml(scan.id)}</button></td><td>${statusMarkup(scan)}</td><td><span class="scan-name">${escapeHtml(scanLabel(scan))}</span></td><td class="run-created">${formatCreated(scan.createdAt)}</td><td class="run-duration" data-scan-duration="${escapeHtml(scan.id)}">${scanDuration(scan)}</td></tr>`;
+  }
+  function scanSelectionMarkup(scans){
+    const selected=scans.filter(scan=>selectedScanIds.has(scan.id));
+    if(!selected.length)return '';
+    const label=`${selected.length} Scan${selected.length===1?'':'s'} selected`;
+    if(scanState.activeTab==='archived')return `<div class="run-selection"><div class="run-selection-copy"><strong>${label}</strong><span>Restore selected Scans or delete them permanently.</span></div><div class="run-selection-actions"><button class="btn" id="unarchiveSelectedScans" type="button">Unarchive</button><button class="btn danger" id="deleteSelectedScans" type="button">Delete</button></div></div>`;
+    return `<div class="run-selection"><div class="run-selection-copy"><strong>${label}</strong><span>Successful Scans remain valid Run inputs until archived.</span></div><div class="run-selection-actions"><button class="btn" id="archiveSelectedScans" type="button">Archive</button></div></div>`;
+  }
+  function scanPaginationMarkup(total){
+    return tablePaginationMarkup({total,current:scanPage,pageSize:scanPageSize,sizeId:'scanPageSize',pageAttribute:'scan-page',ariaLabel:'Scan table pagination'});
+  }
+  function scansTableMarkup(scans,total){
+    if(!scans.length)return `<div class="section-card table-card"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/></svg><h3>${scanState.activeTab==='archived'?'No archived Scans':'No active Scans yet'}</h3><p>${scanState.activeTab==='archived'?'Archived Scans will appear here.':'Create a Scan to produce reusable FitCV job input.'}</p></div></div>`;
+    const allSelected=scans.every(scan=>selectedScanIds.has(scan.id)),someSelected=!allSelected&&scans.some(scan=>selectedScanIds.has(scan.id));
+    return `<div class="section-card table-card"><div class="table-scroll"><table class="run-table"><thead><tr><th><input id="selectAllScans" type="checkbox" aria-label="Select all visible Scans" ${allSelected?'checked':''} data-indeterminate="${someSelected}"></th><th>Scan ID</th><th>Status</th><th>Scan Name</th><th>Created Time</th><th>Duration</th></tr></thead><tbody>${scans.map(scanRowMarkup).join('')}</tbody></table></div>${scanPaginationMarkup(total)}</div>`;
+  }
+  function renderScansPage(){
+    refreshScanStatuses();
+    const scans=visibleScans();
+    selectedScanIds.forEach(id=>{if(!scans.some(scan=>scan.id===id))selectedScanIds.delete(id)});
+    const totalPages=Math.max(1,Math.ceil(scans.length/scanPageSize));
+    scanPage=Math.min(scanPage,totalPages);
+    const pageScans=scans.slice((scanPage-1)*scanPageSize,scanPage*scanPageSize);
+    const activeCount=scanState.scans.filter(scan=>!scan.archived).length,archivedCount=scanState.scans.filter(scan=>scan.archived).length;
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Scans</h2><p>Create reusable FitCV job input from tracked companies.</p></div><button class="btn" type="button" data-open-scan-dialog>New Scan</button></div><div class="run-panel"><div class="run-tabs" role="tablist" aria-label="Scan views"><button class="btn" type="button" role="tab" data-scan-tab="active" aria-selected="${scanState.activeTab==='active'}" tabindex="${scanState.activeTab==='active'?'0':'-1'}">Active<span class="run-tab-count">${activeCount}</span></button><button class="btn" type="button" role="tab" data-scan-tab="archived" aria-selected="${scanState.activeTab==='archived'}" tabindex="${scanState.activeTab==='archived'?'0':'-1'}">Archived<span class="run-tab-count">${archivedCount}</span></button></div><div role="tabpanel">${scanSelectionMarkup(scans)}${scansTableMarkup(pageScans,scans.length)}</div></div>`;
+    bindScansPage(pageScans);
+  }
+  function setScanTab(tab){scanState.activeTab=tab==='archived'?'archived':'active';scanPage=1;selectedScanIds.clear();writeScanState();renderScansPage()}
+  function mutateSelectedScans(action){
+    const selected=scanState.scans.filter(scan=>selectedScanIds.has(scan.id));
+    if(action==='delete'){
+      if(!selected.length||!confirm(`Delete ${selected.length} archived Scan${selected.length===1?'':'s'} permanently?`))return;
+      scanState.scans=scanState.scans.filter(scan=>!selectedScanIds.has(scan.id));
+    }else for(const scan of selected)scan.archived=action==='archive';
+    selectedScanIds.clear();writeScanState();renderScansPage();notify(action==='delete'?'Selected Scans deleted':action==='archive'?'Selected Scans archived':'Selected Scans unarchived');
+  }
+  function bindScansPage(scans){
+    form.querySelector('[data-open-scan-dialog]')?.addEventListener('click',openScanDialog);
+    form.querySelectorAll('[data-scan-details]').forEach(button=>button.addEventListener('click',()=>openScanDetails(button.dataset.scanDetails)));
+    form.querySelectorAll('[data-scan-tab]').forEach(button=>{button.addEventListener('click',()=>setScanTab(button.dataset.scanTab));button.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();setScanTab(button.dataset.scanTab==='active'?'archived':'active')})});
+    form.querySelectorAll('[data-scan-select]').forEach(checkbox=>checkbox.addEventListener('change',()=>{checkbox.checked?selectedScanIds.add(checkbox.dataset.scanSelect):selectedScanIds.delete(checkbox.dataset.scanSelect);renderScansPage()}));
+    const selectAll=form.querySelector('#selectAllScans');
+    if(selectAll){selectAll.indeterminate=selectAll.dataset.indeterminate==='true';selectAll.addEventListener('change',()=>{for(const scan of scans)selectAll.checked?selectedScanIds.add(scan.id):selectedScanIds.delete(scan.id);renderScansPage()})}
+    form.querySelector('#scanPageSize')?.addEventListener('change',event=>{scanPageSize=Number(event.currentTarget.value);scanPage=1;renderScansPage()});
+    form.querySelectorAll('[data-scan-page]').forEach(button=>button.addEventListener('click',()=>{const totalPages=Math.max(1,Math.ceil(visibleScans().length/scanPageSize));scanPage=button.dataset.scanPage==='previous'?scanPage-1:button.dataset.scanPage==='next'?scanPage+1:Number(button.dataset.scanPage);scanPage=Math.max(1,Math.min(scanPage,totalPages));renderScansPage()}));
+    form.querySelector('#archiveSelectedScans')?.addEventListener('click',()=>mutateSelectedScans('archive'));
+    form.querySelector('#unarchiveSelectedScans')?.addEventListener('click',()=>mutateSelectedScans('unarchive'));
+    form.querySelector('#deleteSelectedScans')?.addEventListener('click',()=>mutateSelectedScans('delete'));
+  }
+  function populatePublishedWindows(){scanPublishedAt.innerHTML=PUBLISHED_WINDOWS.map(window=>`<option value="${window.id}">${window.label}</option>`).join('')}
+  function selectedActiveCompanies(ids=scanSelectedCompanyIds){const selected=new Set(ids);return activeScannableCompanies().filter(company=>selected.has(company.id))}
+  function updateScanCompanySummary(){
+    const selected=selectedActiveCompanies();
+    scanCompanySummary.textContent=selected.length?`${selected.length} compan${selected.length===1?'y':'ies'} selected`:'No companies selected.';
+    scanCompanyPreview.textContent=selected.length?`${selected.slice(0,3).map(company=>company.name).join(', ')}${selected.length>3?` +${selected.length-3} more`:''}`:'Use Manage to search and select active companies.';
+    validateScanDialog();
+  }
+  function validateScanDialog(){
+    const hasCompany=selectedActiveCompanies().length>0,rows=Number(scanTotalRows.value),validRows=Number.isInteger(rows)&&rows>=1&&rows<=1000,validWindow=PUBLISHED_WINDOWS.some(window=>window.id===scanPublishedAt.value);
+    startScanButton.disabled=!(hasCompany&&validRows&&validWindow);
+    scanDialogStatus.textContent=hasCompany&&validRows&&validWindow?'Ready to start. Registry, company selection, and filters will be captured.':!hasCompany?'Select at least one tracked company.':!validRows?'Total Rows must be between 1 and 1000.':'Choose a valid Published At window.';
+  }
+  function showExclusiveDialog(nextDialog,focusTarget){document.querySelectorAll('dialog[open]').forEach(openDialog=>{if(openDialog!==nextDialog)openDialog.close()});if(!nextDialog.open)nextDialog.showModal();focusTarget?.focus()}
+  function openScanDialog(){scanForm.reset();scanSelectedCompanyIds.clear();scanTotalRows.value='50';populatePublishedWindows();scanPublishedAt.value='any';updateScanCompanySummary();showExclusiveDialog(scanDialog,scanName)}
+  function filteredRegistryCompanies(){const query=scanCompanySearchValue.trim().toLowerCase();return activeScannableCompanies().filter(company=>!query||`${company.name} ${company.provider} ${companyHost(company)}`.toLowerCase().includes(query))}
+  function renderScanCompanyPicker(){
+    const companies=filteredRegistryCompanies();
+    scanCompanyPickerList.innerHTML=companies.length?companies.map(company=>`<label class="managed-selection-item"><input type="checkbox" data-company-picker-id="${escapeHtml(company.id)}" ${scanCompanyPickerDraft.has(company.id)?'checked':''}><span class="managed-selection-item-copy"><strong>${escapeHtml(company.name)}</strong><small>${escapeHtml(company.provider)} · ${escapeHtml(companyHost(company))}</small></span></label>`).join(''):'<div class="managed-selection-empty">No tracked companies match this search.</div>';
+    scanCompanySelectionSummary.textContent=`${scanCompanyPickerDraft.size} selected`;
+    scanCompanyDialogStatus.textContent=companies.length?`${companies.length} compan${companies.length===1?'y':'ies'} shown.`:'Change the search or add a verified company.';
+  }
+  function openScanCompanyDialog(){scanCompanyPickerDraft.clear();scanSelectedCompanyIds.forEach(id=>scanCompanyPickerDraft.add(id));scanCompanySearchValue='';scanCompanySearch.value='';renderScanCompanyPicker();showExclusiveDialog(scanCompanyDialog,scanCompanySearch)}
+  function returnToScanDialog(){showExclusiveDialog(scanDialog,manageScanCompaniesButton)}
+  function applyManagedScanCompanies(){scanSelectedCompanyIds.clear();scanCompanyPickerDraft.forEach(id=>scanSelectedCompanyIds.add(id));updateScanCompanySummary();returnToScanDialog()}
+  function normaliseCareersUrl(value){const url=new URL(value);if(url.protocol!=='https:')throw new Error('Use an HTTPS careers URL.');url.hash='';return url.href.replace(/\/$/,'')}
+  function providerFromCareersUrl(value){const host=new URL(value).hostname.toLowerCase();if(host.includes('personio'))return 'Personio';if(host.includes('greenhouse'))return 'Greenhouse';if(host.includes('myworkdayjobs')||host.includes('workday'))return 'Workday';return ''}
+  function resetAddCompanyVerification(){testedTrackedCompany=null;saveNewCompanyButton.disabled=true;addCompanyStatus.className='run-dialog-status provider-model-status';addCompanyStatus.textContent='Test the careers URL before adding the company.'}
+  function openAddCompanyDialog(){addCompanyForm.reset();resetAddCompanyVerification();showExclusiveDialog(addCompanyDialog,newCompanyName)}
+  function returnToScanCompanyDialog(){showExclusiveDialog(scanCompanyDialog,document.querySelector('#addTrackedCompany'))}
+  function testTrackedCompany(){
+    const name=newCompanyName.value.trim();if(!name){addCompanyStatus.classList.add('error');addCompanyStatus.textContent='Enter a company name.';return}
+    try{
+      const careersUrl=normaliseCareersUrl(newCompanyUrl.value.trim()),provider=providerFromCareersUrl(careersUrl);
+      if(!provider)throw new Error('Careers URL is not a supported Personio, Greenhouse, or Workday portal.');
+      if(companyRegistry.some(company=>normaliseCareersUrl(company.careersUrl)===careersUrl))throw new Error('This careers portal already exists in the registry.');
+      testedTrackedCompany={name,careersUrl,provider};saveNewCompanyButton.disabled=false;addCompanyStatus.classList.add('valid');addCompanyStatus.textContent=`Verified ${provider} portal: ${new URL(careersUrl).hostname}`;
+    }catch(error){testedTrackedCompany=null;saveNewCompanyButton.disabled=true;addCompanyStatus.classList.add('error');addCompanyStatus.textContent=error.message||'Careers URL could not be verified.'}
+  }
+  function uniqueCompanyId(name){const base=name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'company';let id=base,index=2;while(companyRegistry.some(company=>company.id===id))id=`${base}-${index++}`;return id}
+  function saveTrackedCompany(){if(!testedTrackedCompany)return;const company={id:uniqueCompanyId(testedTrackedCompany.name),...testedTrackedCompany,active:true,scannable:true};companyRegistry.push(company);writeCompanyRegistry();scanCompanyPickerDraft.add(company.id);renderScanCompanyPicker();scanCompanyDialogStatus.textContent=`${company.name} added and selected.`;returnToScanCompanyDialog()}
+  function uniqueScanId(){let id;do{id=`scan-${Math.floor(1000+Math.random()*9000)}`}while(scanState.scans.some(scan=>scan.id===id));return id}
+  function splitScanFilter(value){return value.split(',').map(item=>item.trim()).filter(Boolean)}
+  function submitPrototypeScan(event){
+    event.preventDefault();if(startScanButton.disabled)return;
+    const companyIds=selectedActiveCompanies().map(company=>company.id),now=Date.now(),id=uniqueScanId();
+    scanState.scans.unshift({id,name:scanName.value.trim()||`Scan ${id}`,companyIds,titles:splitScanFilter(scanJobTitles.value),locations:splitScanFilter(scanLocations.value),publishedWindow:scanPublishedAt.value,limit:Number(scanTotalRows.value),status:'Queued',createdAt:now,startedAt:null,endedAt:null,completeAt:now+9000,count:0,valid:false,archived:false,progress:0,output:[]});
+    scanState.activeTab='active';selectedScanIds.clear();writeScanState();scanDialog.close();openScanDetails(id);notify('Scan started in prototype');
+  }
+  function refreshScanStatuses(){
+    const now=Date.now();let changed=false;
+    for(const scan of scanState.scans){
+      if(scan.status==='Queued'&&now-scan.createdAt>=2000){scan.status='Running';scan.startedAt=scan.createdAt+2000;scan.progress=20;changed=true}
+      if(scan.status==='Running'&&scan.completeAt){scan.progress=Math.min(95,Math.max(scan.progress||0,Math.round(((now-(scan.startedAt||scan.createdAt))/(scan.completeAt-(scan.startedAt||scan.createdAt)))*100)));if(now>=scan.completeAt){scan.status='Succeeded';scan.endedAt=now;scan.progress=100;scan.output=Array.from({length:Math.min(scan.limit,12)},(_,index)=>prototypeScanJob(index+101));scan.count=scan.output.length;scan.valid=true;delete scan.completeAt}changed=true}
+    }
+    if(changed)writeScanState();return changed;
+  }
+  function openScanDetails(id){if(!scanState.scans.some(scan=>scan.id===id))return;selectedScanDetailId=id;const nextHash=`#scan-details/${encodeURIComponent(id)}`;if(location.hash===nextHash)renderPage();else location.hash=nextHash}
+  function scanConsoleEntries(scan){
+    const entries=[{time:scan.createdAt,level:'info',operation:'scan.create',message:`Captured ${scan.companyIds.length} tracked company${scan.companyIds.length===1?'':'ies'} and filters.`}];
+    if(scan.startedAt)entries.push({time:scan.startedAt,level:'info',operation:'scan.start',message:'Started portal retrieval and normalization.'});
+    if(scan.status==='Running')entries.push({time:Date.now(),level:'info',operation:'scan.progress',message:`Processed ${scan.progress||0}% of configured portal work.`});
+    if(scan.status==='Succeeded')entries.push({time:scan.endedAt,level:'info',operation:'scan.output',message:`Wrote ${scan.count} canonical FitCV job row${scan.count===1?'':'s'}.`});
+    if(scan.status==='Failed')entries.push({time:scan.endedAt,level:'error',operation:'scan.failed',message:scan.error||'Scan failed.'});
+    if(scan.status==='Cancelled')entries.push({time:scan.endedAt,level:'info',operation:'scan.cancelled',message:'Scan cancelled before output creation.'});
+    return entries;
+  }
+  function scanConsoleMarkup(scan){
+    const entries=clearedScanLogs.has(scan.id)?[]:scanConsoleEntries(scan);
+    return `<div class="console-toolbar"><p>Portal retrieval, normalization, and output lifecycle events.</p><div class="console-actions"><button class="btn" type="button" data-scan-log-download>Download</button><button class="btn" type="button" data-scan-log-clear ${entries.length?'':'disabled'}>Clear</button></div></div><div class="console-log">${entries.length?entries.map(entry=>`<div class="console-line"><span class="console-time">${new Date(entry.time).toLocaleTimeString()}</span><span class="console-level" data-level="${entry.level}">${entry.level.toUpperCase()}</span><span class="console-operation">${escapeHtml(entry.operation)}</span><span class="console-message">${escapeHtml(entry.message)}</span></div>`).join(''):'<div class="console-empty">No Scan events in current view.</div>'}</div>`;
+  }
+  function scanOutputState(scan){if(['Queued','Running'].includes(scan.status))return {kind:'pending',message:'Scan output is not ready.'};if(scan.status!=='Succeeded')return {kind:'error',message:scan.status==='Cancelled'?'Cancelled Scan has no output.':scan.error||'Failed Scan has no output.'};if(!scan.valid)return {kind:'error',message:scan.error||'Stored output failed integrity validation.'};return {kind:'ready',jobs:Array.isArray(scan.output)?scan.output:[]}}
+  function scanOutputPaginationMarkup(total){
+    return tablePaginationMarkup({total,current:scanOutputPage,pageSize:scanOutputPageSize,sizeId:'scanOutputPageSize',pageAttribute:'scan-output-page',ariaLabel:'Scan output pagination'});
+  }
+  function scanOutputLink(value){try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)?`<a class="run-id-link" href="${escapeHtml(url.href)}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`:'—'}catch{return '—'}}
+  function scanOutputTableMarkup(jobs){
+    const start=(scanOutputPage-1)*scanOutputPageSize,rows=jobs.slice(start,start+scanOutputPageSize);
+    return `<div class="table-card"><div class="table-scroll"><table class="run-table scan-output-table"><thead><tr><th>#</th><th>Title</th><th>Company</th><th>Location</th><th>Contract Type</th><th>Experience Level</th><th>Published At</th><th>Job URL</th><th>Apply URL</th><th>Description</th></tr></thead><tbody>${rows.length?rows.map((job,index)=>`<tr><td>${start+index+1}</td><td>${escapeHtml(job.title||'—')}</td><td>${escapeHtml(job.companyName||'—')}</td><td>${escapeHtml(job.location||'—')}</td><td>${escapeHtml(job.contractType||'—')}</td><td>${escapeHtml(job.experienceLevel||'—')}</td><td>${escapeHtml(job.publishedAt||'—')}</td><td>${scanOutputLink(job.jobUrl)}</td><td>${scanOutputLink(job.applyUrl)}</td><td><span class="scan-output-long">${escapeHtml(job.description||'—')}</span></td></tr>`).join(''):'<tr><td colspan="10">No jobs in this Scan output.</td></tr>'}</tbody></table></div>${scanOutputPaginationMarkup(jobs.length)}</div>`;
+  }
+  function scanOutputMarkup(scan){
+    const output=scanOutputState(scan);
+    if(output.kind!=='ready')return `<div class="scan-notice ${output.kind==='error'?'error':''}">${escapeHtml(output.message)}</div>`;
+    return `<div class="scan-output-head"><div class="scan-output-tabs" role="tablist" aria-label="Scan output views"><button class="btn" type="button" role="tab" data-scan-output-view="table" aria-selected="${scanOutputView==='table'}" tabindex="${scanOutputView==='table'?'0':'-1'}">Table</button><button class="btn" type="button" role="tab" data-scan-output-view="json" aria-selected="${scanOutputView==='json'}" tabindex="${scanOutputView==='json'?'0':'-1'}">JSON</button></div></div>${scanOutputView==='table'?scanOutputTableMarkup(output.jobs):`<pre class="scan-output-json" aria-label="Scan output JSON"><code>${escapeHtml(JSON.stringify(output.jobs,null,2))}</code></pre>`}`;
+  }
+  function downloadScanJson(scan){const output=scanOutputState(scan);if(output.kind!=='ready')return;const url=URL.createObjectURL(new Blob([JSON.stringify(output.jobs,null,2)],{type:'application/json;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`${scan.id}.json`;link.click();URL.revokeObjectURL(url)}
+  function downloadScanLog(scan){const url=URL.createObjectURL(new Blob([JSON.stringify(scanConsoleEntries(scan),null,2)],{type:'application/json;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`${scan.id}-events.json`;link.click();URL.revokeObjectURL(url)}
+  function runScanAgain(scan){const now=Date.now(),id=uniqueScanId(),copy={...clone(scan),id,name:`${scanLabel(scan)} copy`,status:'Queued',createdAt:now,startedAt:null,endedAt:null,completeAt:now+9000,count:0,valid:false,archived:false,progress:0,output:[],warnings:[]};delete copy.error;scanState.scans.unshift(copy);writeScanState();openScanDetails(id);notify('Scan started again')}
+  function actOnScan(action,scan){
+    if(action==='cancel'&&['Queued','Running'].includes(scan.status)){scan.status='Cancelled';scan.endedAt=Date.now();scan.valid=false;delete scan.completeAt}
+    if(action==='archive')scan.archived=!scan.archived;
+    if(action==='again')return runScanAgain(scan);
+    if(action==='download')return downloadScanJson(scan);
+    writeScanState();renderScanDetails();notify(action==='cancel'?'Scan cancelled':scan.archived?'Scan archived':'Scan unarchived');
+  }
+  function bindScanOutput(scan){
+    form.querySelectorAll('[data-scan-output-view]').forEach(button=>button.addEventListener('click',()=>{scanOutputView=button.dataset.scanOutputView;renderScanDetails()}));
+    form.querySelectorAll('[data-scan-output-page]').forEach(button=>button.addEventListener('click',()=>{const totalPages=Math.max(1,Math.ceil(scan.output.length/scanOutputPageSize));scanOutputPage=button.dataset.scanOutputPage==='previous'?scanOutputPage-1:button.dataset.scanOutputPage==='next'?scanOutputPage+1:Number(button.dataset.scanOutputPage);scanOutputPage=Math.max(1,Math.min(scanOutputPage,totalPages));renderScanDetails()}));
+    form.querySelector('#scanOutputPageSize')?.addEventListener('change',event=>{scanOutputPageSize=Number(event.currentTarget.value);scanOutputPage=1;renderScanDetails()});
+  }
+  function renderScanDetails(){
+    const scan=scanState.scans.find(item=>item.id===selectedScanDetailId);if(!scan){location.hash='scans';return}
+    if(activeScanOutputId!==scan.id){activeScanOutputId=scan.id;scanOutputView='table';scanOutputPage=1;scanOutputPageSize=10}
+    const active=['Queued','Running'].includes(scan.status),output=scanOutputState(scan),overview=[['Scan ID',scan.id],['Scan Name',scanLabel(scan)],['Created',formatCreated(scan.createdAt)],['Started',scan.startedAt?formatCreated(scan.startedAt):'—'],['Finished',scan.endedAt?formatCreated(scan.endedAt):'—']],input=[['Tracked Companies',scan.companyIds.map(trackedCompanyName).join(', ')],['Job Titles',scan.titles.length?scan.titles.join(', '):'Any'],['Job Locations',scan.locations.length?scan.locations.join(', '):'Any'],['Published At',publicationWindowLabel(scan.publishedWindow)],['Total Rows',scan.limit],['Registry Snapshot',`${scan.companyIds.length} tracked ${scan.companyIds.length===1?'company':'companies'} captured at scan start`]];
+    form.innerHTML=`<div class="details-page-head"><a class="details-page-back" href="#scans">← Back to Scans</a><div class="page-head"><div><p class="eyebrow">Scan Details</p><h2>Scan ${escapeHtml(scan.id)}</h2><p>${escapeHtml(scanLabel(scan))} · Review scan inputs, lifecycle events, and Scan output.</p></div><div class="run-selection-actions">${active?'<button class="btn danger" type="button" data-scan-action="cancel">Cancel Scan</button>':`<button class="btn" type="button" data-scan-action="again">Run Again</button>${output.kind==='ready'?'<button class="btn" type="button" data-scan-action="download">Download JSON</button>':''}<button class="btn" type="button" data-scan-action="archive">${scan.archived?'Unarchive':'Archive'}</button>`}</div></div>${scan.error?`<div class="scan-notice error">${escapeHtml(scan.error)}</div>`:''}</div><div class="stack"><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Scan Overview</strong><span>Current lifecycle information for this Scan.</span></span><span class="drawer-status">${statusMarkup(scan)}</span></summary><div class="section-content drawer-section-content"><dl class="details-grid">${overview.map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Scan Input</strong><span>Read-only inputs used when this Scan was triggered.</span></span></summary><div class="section-content drawer-section-content"><dl class="details-grid run-input-details">${input.map(([label,value])=>`<div class="detail-item"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Console Log</strong><span>Scan lifecycle events.</span></span></summary><div class="section-content drawer-section-content">${scanConsoleMarkup(scan)}</div></details><details class="section-card collapsible-section drawer-section" open><summary><span class="section-heading"><strong>Scan Output</strong><span>FitCV job input file produced by this Scan.</span></span></summary><div class="section-content drawer-section-content">${scanOutputMarkup(scan)}</div></details></div>`;
+    form.querySelectorAll('[data-scan-action]').forEach(button=>button.addEventListener('click',()=>actOnScan(button.dataset.scanAction,scan)));
+    form.querySelector('[data-scan-log-clear]')?.addEventListener('click',()=>{clearedScanLogs.has(scan.id)?clearedScanLogs.delete(scan.id):clearedScanLogs.add(scan.id);renderScanDetails()});
+    form.querySelector('[data-scan-log-download]')?.addEventListener('click',()=>downloadScanLog(scan));
+    if(output.kind==='ready')bindScanOutput(scan);
+  }
   function isSynonymsPage(){return location.hash==='#synonyms'}
   function isCandidateProfilesPage(){return location.hash==='#candidate-profiles'}
   function profileDetailsId(){const prefix='#candidate-profiles/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
   function isProfileDetailsPage(){return Boolean(profileDetailsId())}
   function isRunsPage(){return location.hash==='#runs'}
+  function isScansPage(){return location.hash==='#scans'}
+  function scanDetailsId(){const prefix='#scan-details/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
+  function isScanDetailsPage(){return Boolean(scanDetailsId())}
   function runDetailsId(){const prefix='#run-details/';return location.hash.startsWith(prefix)?decodeURIComponent(location.hash.slice(prefix.length)):null}
   function isRunDetailsPage(){return Boolean(runDetailsId())}
   function isBookmarksPage(){return location.hash==='#bookmarks'}
@@ -1917,12 +2244,14 @@
   function isOptimizationDetailsPage(){return Boolean(optimizationDetailsId())}
   function currentPage(){return pages.find(page=>page.id===location.hash.slice(1))||pages[0]}
   function clearPrimaryNavigation(){
-    [synonymsNav,candidateProfilesNav,runsNav,bookmarksNav,systemNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+    [synonymsNav,candidateProfilesNav,runsNav,scansNav,bookmarksNav,systemNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
     pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
   }
   function renderPage(){
-    form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage()||isOptimizationDetailsPage());
+    form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage()||isScanDetailsPage()||isOptimizationDetailsPage());
     [apiProvidersNav,llmConfigurationNav,systemNav].forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
+    scansNav.classList.remove('active');
+    scansNav.removeAttribute('aria-current');
     if(isOptimizationDetailsPage()){
       if(!optimizationById(optimizationDetailsId())){location.hash='preference-optimization';return}
       headerTitle.textContent='Preference Optimization';
@@ -2012,6 +2341,20 @@
       document.querySelector('.scroll').scrollTop=0;
       return;
     }
+    if(isScanDetailsPage()){
+      selectedScanDetailId=scanDetailsId();
+      if(!scanState.scans.some(scan=>scan.id===selectedScanDetailId)){location.hash='scans';return}
+      headerTitle.textContent='Scan Details';
+      headerDescription.textContent='Review Scan inputs, progress, and output.';
+      titleIcon.innerHTML='<path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/>';
+      searchBox.hidden=true;
+      clearPrimaryNavigation();
+      scansNav.classList.add('active');
+      scansNav.setAttribute('aria-current','page');
+      renderScanDetails();
+      document.querySelector('.scroll').scrollTop=0;
+      return;
+    }
     if(isRunDetailsPage()){
       selectedRunDetailId=runDetailsId();
       if(!runState.runs.some(run=>run.id===selectedRunDetailId)){location.hash='runs';return}
@@ -2032,6 +2375,17 @@
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderRunDetails();
       document.querySelector('.scroll').scrollTop=0;
+      return;
+    }
+    if(isScansPage()){
+      headerTitle.textContent='Scans';
+      headerDescription.textContent='Create reusable job input from tracked companies.';
+      titleIcon.innerHTML='<path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/>';
+      searchBox.hidden=true;
+      clearPrimaryNavigation();
+      scansNav.classList.add('active');
+      scansNav.setAttribute('aria-current','page');
+      renderScansPage();
       return;
     }
     if(isSystemPage()){
@@ -2279,8 +2633,8 @@
   }
   function selfCheck(){
     if(pages.length!==10)throw new Error('Expected ten Pipeline pages');
-    const workspaceNavOrder=[runsNav,candidateProfilesNav,bookmarksNav,synonymsNav];
-    if([...runsNav.parentElement.children].filter(element=>workspaceNavOrder.includes(element)).some((element,index)=>element!==workspaceNavOrder[index]))throw new Error('Workspace navigation must follow Runs, Candidate Profiles, Bookmarks, Synonyms');
+    const workspaceNavOrder=[runsNav,scansNav,candidateProfilesNav,bookmarksNav,synonymsNav];
+    if([...runsNav.parentElement.children].filter(element=>workspaceNavOrder.includes(element)).some((element,index)=>element!==workspaceNavOrder[index]))throw new Error('Workspace navigation must follow Runs, Scans, Candidate Profiles, Bookmarks, Synonyms');
     if(SYNONYM_TYPES.join(',')!=='skill,domain,role_family')throw new Error('Synonym types must match global taxonomy owners');
     if(SYNONYM_REVIEW_STATUSES.join(',')!=='pending,approved,declined')throw new Error('Synonym review statuses must have one canonical lifecycle');
     if(synonymReviewMarkup(synonymState.reviewQueue).includes('>Conflict<')||!synonymProcessingLogMarkup().includes('id="clearSynonymProcessingLog"'))throw new Error('Synonym review table and processing log controls must match approved UI intent');
@@ -2339,9 +2693,24 @@
     if(!PIPELINE_STAGES.some(stage=>stage.id==='shortlisting'))throw new Error('Run Details must support Shortlisting');
     if(!jobResultsTableMarkup(DEFAULT_RUNS[0],[evaluatedJobResults(DEFAULT_RUNS[0])[0]],1).includes('selectAllJobResults')||!bookmarkTableMarkup([],0).includes('No bookmarks match this view')||!bookmarkTableMarkup.toString().includes('No bookmarked jobs yet'))throw new Error('Run Details and Bookmarks must expose shared selection and distinct empty states');
     if(jobFile.multiple)throw new Error('Run dialog must accept one Job Input file');
+    if(!companyRegistry.length||new Set(companyRegistry.map(company=>company.id)).size!==companyRegistry.length||companyRegistry.some(company=>!company.active||!company.scannable))throw new Error('Tracked-company registry must contain unique active scannable entries');
+    if(PUBLISHED_WINDOWS.map(window=>window.id).join(',')!=='any,past_12_hours,past_24_hours,past_7_days,past_30_days,past_180_days'||scanPublishedAt.tagName!=='SELECT')throw new Error('Published At must use one predefined rolling-window enum');
+    if(providerFromCareersUrl('https://boards.greenhouse.io/example')!=='Greenhouse'||providerFromCareersUrl('https://example.com/careers')!=='')throw new Error('Company verification must accept supported portal URLs only');
+    if(!manageScanCompaniesButton||!scanCompanyDialog||!addCompanyDialog||scanForm.querySelector('[name="scanCompanyMode"]')||!manageScanCompaniesButton.closest('.managed-selection-field')||manageScanCompaniesButton.closest('.settings-card'))throw new Error('Tracked Companies must use the shared managed-selection field layout');
+    if(getComputedStyle(scanDialog,'::backdrop').backdropFilter!=='none')throw new Error('Dialogs must not use backdrop blur');
+    if(!DEFAULT_SCANS.some(scan=>scanEligible(scan))||!scanOutputMarkup(DEFAULT_SCANS[0]).includes('Table')||!scanOutputMarkup(DEFAULT_SCANS[0]).includes('JSON'))throw new Error('Scans must expose eligible output and symmetric Table/JSON views');
+    if(!scanOutputLink('https://example.com/job').includes('https://example.com/job')||scanOutputLink('javascript:alert(1)')!=='—')throw new Error('Scan output links must preserve safe HTTP URLs only');
+    const uploadPanel=runForm.querySelector('#runUploadSource'),scanPanel=runForm.querySelector('#runScanSource'),scanPickerField=scanPanel?.querySelector('.managed-selection-field');
+    if(runForm.querySelector('input[name="runInputMode"]')||!uploadPanel||!scanPanel||uploadPanel.hidden||scanPanel.hidden||jobFile.required)throw new Error('Run dialog must allow additive Upload and Scan inputs');
+    if(!runJobSourceRequirement||!jobFile.getAttribute('aria-describedby')?.split(/\s+/).includes(runJobSourceRequirement.id)||scanPickerField?.getAttribute('aria-describedby')!==runJobSourceRequirement.id)throw new Error('Run job sources must share one accessible requirement');
+    if(!manageRunScansButton||!runScanDialog||!scanPickerField||scanPanel.querySelector('input[name="runScan"]')||manageRunScansButton.closest('.managed-selection-field')!==scanPickerField)throw new Error('Eligible Scan outputs must reuse the managed multi-select field pattern');
+    const orderScans=eligibleRunScans().slice(0,2);if(orderScans.length===2&&scansInSelectionOrder([orderScans[1].id,orderScans[0].id,orderScans[1].id]).map(scan=>scan.id).join(',')!==`${orderScans[1].id},${orderScans[0].id}`)throw new Error('Run Scan selection must preserve explicit unique order');
     if(profileFile.accept!=='.yaml'||profileFile.multiple||!isYamlProfileFile({name:'profile.yaml'})||isYamlProfileFile({name:'profile.yml'})||isYamlProfileFile({name:'profile.pdf'}))throw new Error('Candidate Profile dialog must accept one .yaml file');
     if(paginationItems(1,10).join(',')!=='1,2,3,4,5,…,10')throw new Error('Pagination must compact trailing pages');
     if(paginationItems(5,10).join(',')!=='1,…,4,5,6,…,10')throw new Error('Pagination must compact pages around current page');
+    if(needsPagination(10)||!needsPagination(11))throw new Error('Pagination must appear only when more than ten rows exist');
+    const sharedPagination=tablePaginationMarkup({total:38,current:1,pageSize:10,sizeId:'selfCheckPageSize',pageAttribute:'self-check-page',ariaLabel:'Self-check pagination'});
+    if(!sharedPagination.includes('Showing <strong>1</strong> to <strong>10</strong> of <strong>38</strong> results')||!sharedPagination.includes('data-self-check-page="next"')||!sharedPagination.includes('Rows:'))throw new Error('All paginated tables must use one shared pagination contract');
     if(!pages.some(page=>page.id==='preference-optimization'))throw new Error('Pipeline navigation must include Preference Optimization');
     if(PERSONALIZATION_STRENGTH_LIMITS.minimum>=PERSONALIZATION_STRENGTH_LIMITS.recommended||PERSONALIZATION_STRENGTH_LIMITS.recommended>=PERSONALIZATION_STRENGTH_LIMITS.maximum)throw new Error('Personalization Strength bounds must contain the recommended value');
     if(normaliseOptimizationState({strength:99}).strength!==PERSONALIZATION_STRENGTH_LIMITS.recommended)throw new Error('Invalid Personalization Strength must restore the recommended prototype value');
@@ -2364,6 +2733,17 @@
   document.querySelector('#closeSynonymDetails').addEventListener('click',()=>synonymDetailsDrawer.close());
   document.querySelector('#closeRunDialog').addEventListener('click',()=>runDialog.close());
   document.querySelector('#cancelRunDialog').addEventListener('click',()=>runDialog.close());
+  document.querySelector('#closeRunScanDialog').addEventListener('click',returnToRunDialog);
+  document.querySelector('#cancelRunScanDialog').addEventListener('click',returnToRunDialog);
+  runScanDialog.addEventListener('cancel',event=>{event.preventDefault();returnToRunDialog()});
+  document.querySelector('#closeScanDialog').addEventListener('click',()=>scanDialog.close());
+  document.querySelector('#cancelScanDialog').addEventListener('click',()=>scanDialog.close());
+  document.querySelector('#closeScanCompanyDialog').addEventListener('click',returnToScanDialog);
+  document.querySelector('#cancelScanCompanyDialog').addEventListener('click',returnToScanDialog);
+  scanCompanyDialog.addEventListener('cancel',event=>{event.preventDefault();returnToScanDialog()});
+  document.querySelector('#closeAddCompanyDialog').addEventListener('click',returnToScanCompanyDialog);
+  document.querySelector('#cancelAddCompanyDialog').addEventListener('click',returnToScanCompanyDialog);
+  addCompanyDialog.addEventListener('cancel',event=>{event.preventDefault();returnToScanCompanyDialog()});
   document.querySelector('#closeProviderModelDialog').addEventListener('click',()=>providerModelDialog.close());
   document.querySelector('#cancelProviderModelDialog').addEventListener('click',()=>providerModelDialog.close());
   document.querySelector('#closeTaskLlmDialog').addEventListener('click',()=>taskLlmDialog.close());
@@ -2382,9 +2762,31 @@
   profileForm.addEventListener('submit',createPrototypeProfile);
   jobFile.addEventListener('change',validateRunDialog);
   candidateProfile.addEventListener('change',validateRunDialog);
+  manageRunScansButton.addEventListener('click',openRunScanDialog);
+  runScanSearch.addEventListener('input',()=>{runScanSearchValue=runScanSearch.value;renderRunScanPicker()});
+  runScanPickerList.addEventListener('change',event=>{const id=event.target.dataset.runScanPickerId;if(!id)return;if(event.target.checked&&!runScanPickerDraftIds.includes(id))runScanPickerDraftIds.push(id);if(!event.target.checked)runScanPickerDraftIds=runScanPickerDraftIds.filter(selectedId=>selectedId!==id);renderRunScanPicker()});
+  document.querySelector('#selectFilteredRunScans').addEventListener('click',()=>{filteredEligibleRunScans().forEach(scan=>{if(!runScanPickerDraftIds.includes(scan.id))runScanPickerDraftIds.push(scan.id)});renderRunScanPicker()});
+  document.querySelector('#clearManagedRunScans').addEventListener('click',()=>{runScanPickerDraftIds=[];renderRunScanPicker()});
+  applyRunScansButton.addEventListener('click',applyManagedRunScans);
   document.querySelector('[data-open-profile-page]').addEventListener('click',()=>runDialog.close());
+  document.querySelector('[data-open-scans-page]').addEventListener('click',()=>runDialog.close());
   runForm.addEventListener('submit',event=>{event.preventDefault();if(!triggerRunButton.disabled)triggerPrototypeRun()});
   triggerRunButton.addEventListener('click',triggerPrototypeRun);
+  manageScanCompaniesButton.addEventListener('click',openScanCompanyDialog);
+  scanTotalRows.addEventListener('input',validateScanDialog);
+  scanPublishedAt.addEventListener('change',validateScanDialog);
+  scanCompanySearch.addEventListener('input',()=>{scanCompanySearchValue=scanCompanySearch.value;renderScanCompanyPicker()});
+  scanCompanyPickerList.addEventListener('change',event=>{const id=event.target.dataset.companyPickerId;if(!id)return;event.target.checked?scanCompanyPickerDraft.add(id):scanCompanyPickerDraft.delete(id);renderScanCompanyPicker()});
+  document.querySelector('#selectFilteredScanCompanies').addEventListener('click',()=>{filteredRegistryCompanies().forEach(company=>scanCompanyPickerDraft.add(company.id));renderScanCompanyPicker()});
+  document.querySelector('#clearManagedScanCompanies').addEventListener('click',()=>{scanCompanyPickerDraft.clear();renderScanCompanyPicker()});
+  applyScanCompaniesButton.addEventListener('click',applyManagedScanCompanies);
+  document.querySelector('#addTrackedCompany').addEventListener('click',openAddCompanyDialog);
+  addCompanyForm.addEventListener('submit',event=>{event.preventDefault();testTrackedCompany()});
+  newCompanyName.addEventListener('input',resetAddCompanyVerification);
+  newCompanyUrl.addEventListener('input',resetAddCompanyVerification);
+  document.querySelector('#testNewCompany').addEventListener('click',testTrackedCompany);
+  saveNewCompanyButton.addEventListener('click',saveTrackedCompany);
+  scanForm.addEventListener('submit',submitPrototypeScan);
   providerModelForm.addEventListener('submit',event=>{event.preventDefault();testProviderModel()});
   providerModelIdentifier.addEventListener('input',()=>resetProviderModelTest());
   testProviderModelButton.addEventListener('click',testProviderModel);
@@ -2428,6 +2830,7 @@
   synonymsNav.addEventListener('click',()=>openNav(false));
   candidateProfilesNav.addEventListener('click',()=>openNav(false));
   runsNav.addEventListener('click',()=>openNav(false));
+  scansNav.addEventListener('click',()=>openNav(false));
   bookmarksNav.addEventListener('click',()=>openNav(false));
   apiProvidersNav.addEventListener('click',()=>openNav(false));
   llmConfigurationNav.addEventListener('click',()=>openNav(false));
@@ -2443,9 +2846,12 @@
     else if(isRunsPage())updateRunningDurations();
     if(changed&&isBookmarksPage())renderBookmarksPage();
     if(changed&&isRunDetailsPage())renderRunDetails();
+    const scansChanged=refreshScanStatuses();
+    if(scansChanged&&isScansPage())renderScansPage();
+    if(scansChanged&&isScanDetailsPage())renderScanDetails();
   },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
-  window.fitcvPipelineContract={pages,transactions,defaults,runState,synonymState,providerState,optimizationState,PERSONALIZATION_STRENGTH_LIMITS,bookmarkedJobs,RUN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,LLM_TASKS,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,openProfileDetails,openSynonymDetails,openRunDetails,renderApiProvidersPage,renderProviderDetailsPage,renderLlmConfigurationPage,renderPromptManagementPage,renderPreferenceOptimizationPage,renderOptimizationDetailsPage,renderSystemPage,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
+  window.fitcvPipelineContract={pages,transactions,defaults,runState,scanState,companyRegistry,synonymState,providerState,optimizationState,PERSONALIZATION_STRENGTH_LIMITS,bookmarkedJobs,RUN_STATUSES,SCAN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,LLM_TASKS,PUBLISHED_WINDOWS,TRACKED_COMPANIES,selfCheck,validateTransaction,parseSynonymEditor,createPrototypeProfile,triggerPrototypeRun,submitPrototypeScan,openProfileDetails,openSynonymDetails,openRunDetails,openScanDetails,renderScansPage,renderScanDetails,renderApiProvidersPage,renderProviderDetailsPage,renderLlmConfigurationPage,renderPromptManagementPage,renderPreferenceOptimizationPage,renderOptimizationDetailsPage,renderSystemPage,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
   })();

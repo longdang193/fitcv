@@ -1,0 +1,233 @@
+# Public-safe example for proposed CanonicalCandidateProfile v2.
+# This schema is not accepted by current candidate-profile.v1 loader yet.
+# Parser generates IDs, preserves them in YAML, and links derived skills to evidence.
+
+schema_version: "candidate-profile.v2"
+
+source_documents:
+  - id: "doc_cv_1"
+    filename: "candidate-cv.pdf"
+    media_type: "application/pdf"
+    sha256: "<sha256>"
+    parser:
+      name: "fitcv-cv-parser"
+      version: "v1"
+
+name: "Alex Example"
+
+contact:
+  email: "alex@example.com"
+  phone: "+49 000 000000"
+  location: "Germany"
+  linkedin: "https://www.linkedin.com/in/alex-example"
+
+# Facts stay in their natural sections. Every evidence-bearing statement has
+# a stable ID and source location. Runtime projects all evidence entries into
+# one CandidateEvidenceItem contract before scoring.
+experiences:
+  - id: "exp_reporting_assistant"
+    role: "Reporting Assistant"
+    company: "Example Retail Company"
+    location: "Germany"
+    start: "2023-04"
+    end: "2024-03"
+    source_refs:
+      - document_id: "doc_cv_1"
+        page: 1
+
+    evidence:
+      - id: "ev_exp_reporting_automation"
+        kind: "work_achievement"
+        title: "Reporting Automation"
+        text: >-
+          Automated recurring sales reports with SQL and Python, reducing manual
+          preparation and improving consistency across reporting periods.
+        source_refs:
+          - document_id: "doc_cv_1"
+            page: 1
+
+      - id: "ev_exp_reporting_stakeholders"
+        kind: "work_responsibility"
+        title: "Stakeholder Reporting"
+        text: >-
+          Prepared performance summaries and explained commercial findings to
+          sales and operations stakeholders.
+        source_refs:
+          - document_id: "doc_cv_1"
+            page: 1
+
+education:
+  - id: "edu_analytics_msc"
+    degree: "Master of Science"
+    field: "Business Analytics"
+    institution: "Example University"
+    location: "Germany"
+    start: "2024-10"
+    end: "present"
+    source_refs:
+      - document_id: "doc_cv_1"
+        page: 1
+
+    evidence:
+      - id: "ev_edu_analytics_thesis"
+        kind: "thesis"
+        title: "Customer Churn Prediction"
+        text: >-
+          Built and evaluated classification models for customer churn,
+          compared model performance, and explained important prediction
+          factors to non-technical stakeholders.
+        source_refs:
+          - document_id: "doc_cv_1"
+            page: 1
+
+      - id: "ev_edu_analytics_project_dashboard"
+        kind: "academic_project"
+        title: "Retail Performance Dashboard"
+        text: >-
+          Cleaned transactional data, defined business KPIs, created a Power BI
+          dashboard, and presented findings about revenue and product performance.
+        source_refs:
+          - document_id: "doc_cv_1"
+            page: 1
+
+      - id: "ev_edu_analytics_seminar_ethics"
+        kind: "seminar"
+        title: "Responsible Data Analysis"
+        text: >-
+          Evaluated bias, privacy, and explainability risks in analytical models
+          and presented mitigation recommendations.
+        date: "2025-06"
+        source_refs:
+          - document_id: "doc_cv_1"
+            page: 2
+
+      - id: "ev_edu_analytics_course_statistics"
+        kind: "course"
+        title: "Applied Statistics"
+        text: >-
+          Applied hypothesis testing, regression analysis, experimental design,
+          and statistical interpretation to business datasets.
+        source_refs:
+          - document_id: "doc_cv_1"
+            page: 2
+
+projects:
+  - id: "proj_portfolio_sales_analysis"
+    name: "Sales Analysis Portfolio Project"
+    url: "https://github.com/example/sales-analysis"
+    start: "2025-01"
+    end: "2025-02"
+    source_refs:
+      - document_id: "doc_cv_1"
+        page: 2
+
+    evidence:
+      - id: "ev_proj_sales_analysis_pipeline"
+        kind: "project_highlight"
+        title: "Analysis Pipeline"
+        text: >-
+          Used SQL and Python to validate, transform, and analyze sales data,
+          then documented repeatable analysis steps.
+        source_refs:
+          - document_id: "doc_cv_1"
+            page: 2
+
+      - id: "ev_proj_sales_analysis_findings"
+        kind: "project_highlight"
+        title: "Business Findings"
+        text: >-
+          Identified product and regional performance patterns and summarized
+          actionable findings in a stakeholder-ready report.
+        source_refs:
+          - document_id: "doc_cv_1"
+            page: 2
+
+achievements: []
+certifications: []
+languages:
+  - name: "English"
+    level: "C1"
+  - name: "German"
+    level: "B1"
+
+# Skills are normalized derived claims. evidence_refs are the SSOT relationship
+# between a skill and supporting candidate evidence.
+skills:
+  - id: "skill_python"
+    name: "Python"
+    origin: "extracted_explicit"
+    confidence: 0.99
+    evidence_refs:
+      - "ev_exp_reporting_automation"
+      - "ev_edu_analytics_thesis"
+      - "ev_proj_sales_analysis_pipeline"
+
+  - id: "skill_sql"
+    name: "SQL"
+    origin: "extracted_explicit"
+    confidence: 0.99
+    evidence_refs:
+      - "ev_exp_reporting_automation"
+      - "ev_proj_sales_analysis_pipeline"
+
+  - id: "skill_power_bi"
+    name: "Power BI"
+    origin: "extracted_explicit"
+    confidence: 0.99
+    evidence_refs:
+      - "ev_edu_analytics_project_dashboard"
+
+  - id: "skill_machine_learning"
+    name: "Machine learning"
+    origin: "inferred"
+    confidence: 0.94
+    evidence_refs:
+      - "ev_edu_analytics_thesis"
+
+  - id: "skill_statistical_analysis"
+    name: "Statistical analysis"
+    origin: "inferred"
+    confidence: 0.96
+    evidence_refs:
+      - "ev_edu_analytics_thesis"
+      - "ev_edu_analytics_course_statistics"
+
+  - id: "skill_data_visualization"
+    name: "Data visualization"
+    origin: "inferred"
+    confidence: 0.95
+    evidence_refs:
+      - "ev_edu_analytics_project_dashboard"
+
+  - id: "skill_data_ethics"
+    name: "Responsible data analysis"
+    origin: "inferred"
+    confidence: 0.90
+    evidence_refs:
+      - "ev_edu_analytics_seminar_ethics"
+
+  - id: "skill_stakeholder_communication"
+    name: "Stakeholder communication"
+    origin: "inferred"
+    confidence: 0.88
+    evidence_refs:
+      - "ev_exp_reporting_stakeholders"
+      - "ev_edu_analytics_thesis"
+      - "ev_proj_sales_analysis_findings"
+
+# Search preferences are user intent, not facts derived from the uploaded CV.
+search_preferences:
+  target_role: "data analyst"
+  role_families:
+    - "data analytics"
+    - "business intelligence"
+  location_types:
+    - "remote"
+    - "hybrid"
+    - "onsite"
+  locations:
+    - "Germany"
+  domains: []
+  seniority_target: "entry"
+  exclude_contract_types: []
+  exclude_experience_levels: []
