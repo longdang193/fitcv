@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import io
+import re
 import zipfile
 import types
 from pathlib import Path
@@ -160,10 +161,47 @@ def test_pipeline_section_urls_render_server_owned_settings(local_client: TestCl
     for section, title in sections.items():
         response = local_client.get(f"/admin/settings/{section}")
         assert response.status_code == 200
-        assert f"<h1>{title}</h1>" in response.text
+        assert f"<h2>{title}</h2>" in response.text
+        assert 'data-header-title="Pipeline"' in response.text
+        sidebar = response.text[response.text.index('<aside class="sidebar'):response.text.index('</aside>')]
+        assert sidebar.count('aria-current="page"') == 1
+        assert re.search(
+            rf'href="/admin/settings/{re.escape(section)}" aria-current="page"',
+            response.text,
+        )
+        main = response.text[response.text.index('<main'):response.text.index('</main>')]
+        assert "workspace-tabs" not in main
+        assert 'aria-label="Pipeline settings sections"' not in main
         assert 'data-setting-row=' in response.text
 
     assert local_client.get("/admin/settings/unknown").status_code == 404
+
+
+def test_pipeline_settings_render_prototype_component_contract(local_client: TestClient) -> None:
+    _complete_onboarding()
+
+    overview = local_client.get("/admin/settings").text
+    cv_analysis = local_client.get("/admin/settings/cv-analysis").text
+    ranking = local_client.get("/admin/settings/ranking").text
+
+    assert '<main class="workspace-stack" id="pipeline-settings-app" data-header-title="Pipeline"' in cv_analysis
+    assert '<h1>CV Analysis</h1>' not in cv_analysis
+    assert re.search(
+        r'<label class="switch">\s*<input[^>]+data-setting-key="cv_analysis\.semantic_alignment\.enabled"[^>]+type="checkbox"[^>]*>\s*<span class="track"',
+        cv_analysis,
+    )
+    assert "<code>Enabled</code>" not in cv_analysis
+    assert re.search(
+        r'<input[^>]+data-setting-key="pipeline\.vector_search_top_n"[^>]+type="number"[^>]+min="1"[^>]+step="1"',
+        overview,
+    )
+    assert 'class="transaction-summary"' in ranking
+    assert 'class="mirror-value"' in cv_analysis
+    assert 'class="dialog-head"' in cv_analysis
+    assert 'class="weight-form"' in cv_analysis
+    assert 'class="weight-status"' in cv_analysis
+    assert 'class="dialog-actions"' in cv_analysis
+    assert 'aria-describedby="pipeline-manage-description"' in cv_analysis
 
 
 def test_runtime_limits_route_renders_shared_pacing_and_concurrency_only(local_client: TestClient) -> None:
