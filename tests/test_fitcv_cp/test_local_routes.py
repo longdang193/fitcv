@@ -29,10 +29,28 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from fitcv_cp import local_routes
 from fitcv_cp.app import create_app
 from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp.local_storage import _paths, migrate_packaged_local_integration_state
 from fitcv_cp.sqlite_store import initialize_control_plane_database
+
+
+def test_local_paths_derive_from_data_root_not_path_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_root = tmp_path / "data"
+    appdata = tmp_path / "roaming"
+    monkeypatch.setenv("FITCV_LOCAL_DATA_ROOT", str(data_root))
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "wrong.sqlite3"))
+    monkeypatch.setenv("FITCV_LOCAL_BACKUPS_PATH", str(tmp_path / "wrong-backups"))
+    monkeypatch.setenv("APPDATA", str(appdata))
+
+    assert local_routes._local_paths() == _paths(
+        appdata / "FitCV" / "bootstrap.json",
+        data_root,
+    )
 
 
 @pytest.fixture

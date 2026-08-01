@@ -67,6 +67,7 @@ from fitcv_cp.local_storage import (
     create_backup_archive,
     default_pending_operation_path,
     inspect_local_storage,
+    local_storage_paths,
     restore_backup_archive,
     sqlite_schema_version,
     validate_data_root_destination,
@@ -110,29 +111,9 @@ def _state_path() -> Path:
     return _data_root() / "onboarding.json"
 
 def _local_paths() -> LocalStoragePaths:
-    data_root = _data_root()
-    return LocalStoragePaths(
-        bootstrap_path=Path(os.environ["APPDATA"]) / "FitCV" / "bootstrap.json",
-        data_root=data_root,
-        sqlite_path=Path(os.environ["FITCV_CP_SQLITE_PATH"]),
-        candidate_profile_path=Path(os.environ["FITCV_LOCAL_CANDIDATE_PROFILE_PATH"]),
-        controller_overlay_path=Path(
-            os.environ["FITCV_LOCAL_CONTROLLER_OVERLAY_PATH"]
-        ),
-        legacy_routing_overlay_path=(
-            data_root / "config" / "local_routing_overlay.yaml"
-        ),
-        migrated_routing_overlay_path=(
-            data_root / "config" / "local_routing_overlay.yaml.migrated.bak"
-        ),
-        onboarding_state_path=data_root / "onboarding.json",
-        integration_migration_error_path=data_root / "integration-migration-error.json",
-        artifacts_path=Path(os.environ["FITCV_LOCAL_ARTIFACTS_PATH"]),
-        exports_path=Path(os.environ["FITCV_LOCAL_EXPORTS_PATH"]),
-        logs_path=Path(os.environ["FITCV_LOCAL_LOGS_PATH"]),
-        backups_path=Path(os.environ["FITCV_LOCAL_BACKUPS_PATH"]),
-        uploads_path=Path(os.environ["FITCV_LOCAL_UPLOADS_PATH"]),
-        temporary_path=Path(os.environ["FITCV_LOCAL_TEMP_PATH"]),
+    return local_storage_paths(
+        Path(os.environ["APPDATA"]) / "FitCV" / "bootstrap.json",
+        _data_root(),
     )
 
 def local_data_status_resource(request: Request) -> dict[str, Any]:
