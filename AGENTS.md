@@ -88,7 +88,7 @@ Detailed policy: `docs/operating_system/rules/agent-memory-rule.md`.
 
 For material UI, UX, accessibility, responsive-layout, or visual-design work, use `ui-ux-pro-max` when available. Reuse existing components and design tokens, prefer semantic native controls, and verify affected states, keyboard access, focus, contrast, responsive behavior, reduced motion, and supported themes.
 
-When a matching `*.integration.md` exists, use `skill-full-stack-integration`. Integration notes own temporary UI intent and acceptance evidence, not transport schemas; canonical schemas, generated clients, backend routes, and tests remain authoritative.
+When a matching `*.integration.md` exists, use `skill-full-stack-integration`. Integration notes own temporary UI intent and acceptance evidence, not transport schemas; canonical schemas, generated clients, backend routes, and tests establish current behavior. Report any conflict and affected owners, then ask the user to decide before implementation.
 
 When browser MCPs are available, use Playwright MCP for repeatable user flows, accessibility snapshots, viewport checks, and screenshots; use Chrome DevTools MCP for console, network, computed layout and styles, Lighthouse, and performance diagnosis. Use both only when their roles differ. Browser evidence does not replace committed regression tests.
 
