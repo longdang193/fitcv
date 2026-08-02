@@ -2,207 +2,58 @@
 {% block title %}Pipeline Runs — FitCV Admin{% endblock %}
 {% block content %}
 
-<div class="page-header">
-  <h1>Pipeline Runs</h1>
-  <div style="display:flex;gap:0.5rem;align-items:center">
-    <a href="/admin/runs?view=active"   class="btn-secondary" aria-pressed="{{ 'true' if view == 'active' else 'false' }}">Active</a>
-    <a href="/admin/runs?view=all"      class="btn-secondary" aria-pressed="{{ 'true' if view == 'all' else 'false' }}">All</a>
-    <a href="/admin/runs?view=archived" class="btn-secondary" aria-pressed="{{ 'true' if view == 'archived' else 'false' }}">Archived</a>
-    <a href="/admin/runs" class="btn-secondary">⟳ Refresh</a>
+<main data-page="runs" data-header-title="Runs" data-header-description="Trigger and monitor FitCV pipeline runs.">
+  <div class="page-head">
+    <div><p class="eyebrow">Workspace</p><h2>Runs</h2><p>Trigger and monitor FitCV pipeline runs.</p></div>
+    <button id="open-trigger-run" class="btn" type="button">Trigger Run</button>
   </div>
-</div>
-
-<form class="filter-bar section-card" method="get" action="/admin/runs">
-  <input type="hidden" name="view" value="{{ view }}">
-  <label>Search<input name="search" type="search" value="{{ search }}" autocomplete="off"></label>
-  <label>Status<input name="status" value="{{ status }}" placeholder="Any status" autocomplete="off"></label>
-  <button class="btn-secondary" type="submit">Apply</button>
-</form>
-
-<style>
-  .runs-table {
-    width: 100%;
-    table-layout: fixed;
-  }
-
-  .runs-table th,
-  .runs-table td {
-    vertical-align: top;
-    overflow: hidden;
-  }
-
-  .runs-table .col-select { width: 2.25rem; }
-  .runs-table .col-run-id { width: 5.5rem; }
-  .runs-table .col-status { width: 4.5rem; }
-  .runs-table .col-mode { width: 6.75rem; }
-  .runs-table .col-created-at { width: 6.5rem; }
-  .runs-table .col-duration { width: 4.5rem; }
-
-  .run-jobs-path {
-    display: block;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    white-space: normal;
-    vertical-align: top;
-  }
-
-  .runs-table td.jobs-path-cell {
-    overflow: visible;
-  }
-
-  .run-created-at {
-    display: inline-flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    line-height: 1.15;
-    white-space: nowrap;
-  }
-
-  .run-status-text,
-  .run-mode-text {
-    display: inline-block;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    line-height: 1.2;
-  }
-
-  .run-status-text[data-status="succeeded"] { color: var(--badge-success-fg); }
-  .run-status-text[data-status="failed"] { color: var(--badge-error-fg); }
-  .run-status-text[data-status="queued"],
-  .run-status-text[data-status="running"],
-  .run-status-text[data-status="awaiting_continue"],
-  .run-status-text[data-status="cancelling"] { color: var(--badge-info-fg); }
-  .run-status-text[data-status="cancelled"] { color: var(--text-muted); }
-
-  .run-mode-text {
-    color: var(--badge-info-fg);
-  }
-
-  .run-next-stage {
-    display: inline-block;
-    margin-top: 0.2rem;
-    font-size: 0.68rem;
-    white-space: nowrap;
-  }
-</style>
-
-<section class="section-card workspace-stack" aria-labelledby="trigger-run-title">
-  <div>
-    <h2 id="trigger-run-title">Trigger Run</h2>
-    <p class="meta">Upload a jobs file or scan a supported company careers portal, then select an Active, Succeeded Candidate Profile.</p>
-  </div>
-  <div class="filter-bar">
-    <label>Job source<select id="source_mode" onchange="syncJobSourceFields()"><option value="upload">Upload file</option><option value="scanner">Scan company portal</option></select></label>
-    <label id="upload-source-field">Jobs file<input type="file" id="jobs_file" accept=".json,.jsonl,application/json,application/x-ndjson" required></label>
-    <label class="scanner-source-field" hidden>Provider<select id="scanner_provider" disabled><option value="auto">Detect provider</option>{% for provider in job_source_providers %}<option value="{{ provider.id }}">{{ provider.label }}</option>{% endfor %}</select></label>
-    <label class="scanner-source-field" hidden>Company name<input type="text" id="scanner_company_name" maxlength="200" autocomplete="organization" disabled required></label>
-    <label class="scanner-source-field" hidden>Careers URL<input type="url" id="scanner_careers_url" placeholder="https://company.example/jobs" autocomplete="url" disabled required></label>
-    <label class="scanner-source-field" hidden>Keywords <span class="meta">One per line; blank means all titles</span><textarea id="scanner_keywords" rows="3" disabled></textarea></label>
-    <label class="scanner-source-field" hidden>Maximum jobs<input type="number" id="scanner_max_jobs" min="1" max="200" value="50" inputmode="numeric" disabled required></label>
-    <label class="scanner-source-field" hidden>Timeout seconds<input type="number" id="scanner_timeout_seconds" min="1" max="120" value="60" inputmode="numeric" disabled required></label>
-    <label>Run Name <span class="meta">Optional</span><input type="text" id="run_name" maxlength="120" autocomplete="off"></label>
-    <label>Candidate Profile<select id="candidate_profile_id" required aria-describedby="candidate-profile-status candidate-profile-empty-link"><option value="">Loading Candidate Profiles…</option></select></label>
-    <label>Config path<input type="text" id="config_path" value=".env.yaml" autocomplete="off"></label>
-  </div>
-  <div>
-    <span id="candidate-profile-status" class="meta" aria-live="polite"></span>
-    <a id="candidate-profile-empty-link" href="/admin/candidate-profiles" class="meta" hidden>Create a Candidate Profile before triggering a Run.</a>
-  </div>
-  <div class="selection-toolbar">
-    <button type="button" id="trigger-btn" class="btn-primary" onclick="triggerRun()">Trigger Run</button>
-    <span id="trigger-status" class="meta" role="status" aria-live="polite"></span>
-  </div>
-</section>
-
-<!-- ── Runs Table ─────────────────────────────────────────────────────────── -->
-<div class="section-card" style="padding:0;overflow:hidden">
-  {% if view == 'archived' %}
-  <div id="delete-archived-controls" style="padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
-    <div>
-      <div style="font-weight:700">Delete archived runs</div>
-      <div class="meta">Select archived Runs in the table before deleting. Related bookmarks are deleted too.</div>
+  <div class="run-panel">
+    <div class="run-tabs" role="tablist" aria-label="Run views">
+      <a class="btn" role="tab" tabindex="{{ '0' if view == 'active' else '-1' }}" href="/admin/runs?view=active&page_size={{ page_size }}" aria-selected="{{ 'true' if view == 'active' else 'false' }}">Active <span class="run-tab-count">{{ active_count }}</span></a>
+      <a class="btn" role="tab" tabindex="{{ '0' if view == 'archived' else '-1' }}" href="/admin/runs?view=archived&page_size={{ page_size }}" aria-selected="{{ 'true' if view == 'archived' else 'false' }}">Archived <span class="run-tab-count">{{ archived_count }}</span></a>
     </div>
-    <button type="button" id="delete-archived-runs-btn" class="btn-secondary" onclick="bulkDeleteArchivedRuns(this)">Delete selected</button>
-  </div>
-  {% endif %}
-  <div id="bulk-action-bar" style="display:none;padding:0.75rem 1rem;border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
-    <div class="meta"><strong id="selected-run-count">0 selected</strong></div>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-      <button type="button" class="btn-secondary" onclick="bulkLifecycleAction('cancel', this)">Cancel selected</button>
-      <button type="button" class="btn-secondary" onclick="bulkLifecycleAction('archive', this)">Archive selected</button>
-      <button type="button" class="btn-secondary" onclick="bulkLifecycleAction('unarchive', this)">Unarchive selected</button>
+    <div id="runTablePanel" role="tabpanel">
+      <div id="bulk-action-bar" class="run-selection" hidden>
+        <div class="run-selection-copy"><strong id="selected-run-count">0 selected</strong><span>Changes apply to selected Runs on this page.</span></div>
+        <div class="run-selection-actions">
+          {% if view == 'active' %}<button type="button" class="btn" onclick="bulkLifecycleAction('cancel', this)">Cancel Run</button><button type="button" class="btn" onclick="bulkLifecycleAction('archive', this)">Archive Run</button>{% else %}<button type="button" class="btn" onclick="bulkLifecycleAction('unarchive', this)">Unarchive Run</button><button type="button" class="btn danger" onclick="bulkDeleteArchivedRuns(this)">Delete Run</button>{% endif %}
+        </div>
+      </div>
+      {% if runs %}
+      <div class="section-card table-card">
+        <div class="table-scroll">
+          <table class="run-table runs-table">
+            <thead><tr><th><input type="checkbox" id="select-all-runs" aria-label="Select visible Runs" onchange="toggleSelectAllRuns(this)"></th><th>Run ID</th><th>Status</th><th>Job Name</th><th>Created Time</th><th>Duration</th></tr></thead>
+            <tbody>{% for run in runs %}{% set status_projection = run_status_projection.get(run.run_id, {}) %}<tr><td><input type="checkbox" name="selected_run_ids" value="{{ run.run_id }}" data-archived-at="{{ run.archived_at.isoformat() if run.archived_at else '' }}" aria-label="Select {{ run.run_id }}" onchange="updateBulkActionBar()"></td><td><a class="run-id run-id-link" href="/admin/runs/{{ run.run_id }}?return_to={{ current_url|urlencode }}">{{ run.run_id }}</a></td><td><span class="badge run-status" data-status="{{ run.status.value|replace('_',' ')|title }}">{{ run.status.value|replace('_',' ')|title }}</span>{% if status_projection.is_archived %} <span class="badge run-status">Archived</span>{% endif %}</td><td><span class="run-job">{{ run.run_name or run.jobs_path_display or run.jobs_path }}</span></td><td><span class="run-created">{{ run_created_display.get(run.run_id, '—') }}</span></td><td><span class="run-duration">{{ run_duration_display.get(run.run_id, '—') }}</span></td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+        {% if total_items > 10 %}<div class="run-pagination"><span>Showing <strong>{{ (page - 1) * page_size + 1 }}</strong> to <strong>{{ [page * page_size, total_items]|min }}</strong> of <strong>{{ total_items }}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size">Rows:<select class="field" onchange="location.href='/admin/runs?view={{ view }}&page_size='+this.value+'&page=1'">{% for size in [10,20,50] %}<option value="{{ size }}" {{ 'selected' if page_size == size else '' }}>{{ size }}</option>{% endfor %}</select></label><div class="run-page-numbers" aria-label="Run table pagination">{% if page > 1 %}<a class="btn" href="/admin/runs?{{ page_query }}&page={{ page - 1 }}" aria-label="Previous page">‹</a>{% endif %}<span class="btn" aria-current="page">{{ page }}</span>{% if page < total_pages %}<a class="btn" href="/admin/runs?{{ page_query }}&page={{ page + 1 }}" aria-label="Next page">›</a>{% endif %}</div></div></div>{% endif %}
+      </div>
+      {% else %}<div class="section-card table-card"><div class="empty-state"><h3>No {{ 'Archived' if view == 'archived' else 'Active' }} Runs</h3><p>{{ 'Archived Runs appear here.' if view == 'archived' else 'Trigger a Run to process job input.' }}</p></div></div>{% endif %}
     </div>
   </div>
-  <table class="runs-table">
-    <thead>
-      <tr>
-        <th class="col-select" style="white-space:nowrap">
-          <input type="checkbox" id="select-all-runs" aria-label="Select visible runs" onchange="toggleSelectAllRuns(this)">
-        </th>
-        <th class="col-run-id">Run ID</th>
-        <th class="col-status">Status</th>
-        <th class="col-mode">Mode</th>
-        <th>Jobs Path</th>
-        <th class="col-created-at">Created</th>
-        <th class="col-duration">Duration</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for run in runs %}
-      {% set status_projection = run_status_projection.get(run.run_id, {}) %}
-      <tr>
-        <td>
-          <input
-            type="checkbox"
-            name="selected_run_ids"
-            value="{{ run.run_id }}"
-            data-archived-at="{{ run.archived_at.isoformat() if run.archived_at else '' }}"
-            aria-label="Select run {{ run.run_id }}"
-            onchange="updateBulkActionBar()"
-          >
-        </td>
-        <td><a href="/admin/runs/{{ run.run_id }}?return_to={{ current_url|urlencode }}"><code>{{ run.run_id[:8] }}…</code></a></td>
-        <td>
-          <span class="run-status-text" data-status="{{ run.status.value }}">{{ run.status.value }}</span>
-          {% if status_projection.is_archived %}<div class="meta" style="margin-top:0.15rem">archived</div>{% endif %}
-        </td>
-        <td class="meta">
-          <span class="run-mode-text">{{ 'Stage by Stage' if run.run_mode == 'manual_staged' else 'Run All' }}</span>
-          {% if status_projection.is_awaiting_continue and run.next_stage %}
-          <div class="run-next-stage"><code>next: {{ run.next_stage }}</code></div>
-          {% endif %}
-        </td>
-        <td class="jobs-path-cell"><code class="run-jobs-path" title="{{ run.jobs_path_display or run.jobs_path }}">{{ run.jobs_path_display or run.jobs_path }}</code></td>
-        <td class="meta">
-          {% if run.created_at %}
-          <span class="run-created-at">
-            <span>{{ run.created_at.strftime('%Y-%m-%d') }}</span>
-            <span>{{ run.created_at.strftime('%H:%M:%S') }}</span>
-          </span>
-          {% else %}
-          —
-          {% endif %}
-        </td>
-        <td class="meta">
-          {% if run.started_at and run.finished_at %}
-            {{ ((run.finished_at - run.started_at).total_seconds() | int) }}s
-          {% else %}—{% endif %}
-        </td>
-      </tr>
-      {% else %}
-      <tr class="empty-row"><td colspan="7">No runs yet</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-<nav class="selection-toolbar" aria-label="Run pages" style="margin-top:0.75rem">
-  {% if page > 1 %}<a class="btn-secondary" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page - 1)) }}">Previous</a>{% endif %}
-  <span class="meta">Page {{ page }} of {{ total_pages }}</span>
-  {% if page < total_pages %}<a class="btn-secondary" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page + 1)) }}">Next</a>{% endif %}
-</nav>
+</main>
+
+<dialog class="workspace-dialog run-dialog" id="trigger-run-dialog" aria-labelledby="trigger-run-title" aria-describedby="trigger-run-description">
+  <div class="dialog-head"><div><h2 id="trigger-run-title">Trigger Run</h2><p id="trigger-run-description">Add a job data file, select eligible Scan outputs, or use both.</p></div><button class="dialog-close" id="close-trigger-run" type="button" aria-label="Close Trigger Run dialog">×</button></div>
+  <form class="run-form" id="trigger-run-form">
+    <div class="run-field"><label for="jobs_file">Job data file <span class="supporting-text">Optional</span></label><input class="field file-input" type="file" id="jobs_file" accept=".json,.jsonl,application/json,application/x-ndjson" aria-describedby="job-source-requirement"><small>Supported: JSON and JSONL.</small></div>
+    <div class="run-field"><label id="eligible-scans-label">Eligible Scan outputs <span class="supporting-text">Optional</span></label><div class="field managed-selection-field" role="group" aria-labelledby="eligible-scans-label" aria-describedby="job-source-requirement"><span class="managed-selection-copy managed-selection-field-copy"><span id="selected-run-scans-summary">No Scan outputs selected.</span><small id="selected-run-scans-preview">Use Manage to search and select successful non-empty Scans.</small></span><button class="btn" id="manage-run-scans" type="button">Manage</button></div></div>
+    <div class="run-field"><small id="job-source-requirement">At least one job source is required. Upload a file, select one or more eligible Scan outputs, or use both.</small></div>
+    <div class="run-field"><label for="candidate_profile_id">Candidate Profile</label><select class="field" id="candidate_profile_id" required aria-describedby="candidate-profile-status candidate-profile-empty-link"><option value="">Loading Candidate Profiles…</option></select><small id="candidate-profile-status" aria-live="polite"></small><a id="candidate-profile-empty-link" href="/admin/candidate-profiles" class="support-link" hidden>Create a Candidate Profile before triggering a Run.</a></div>
+    <div class="run-field"><label for="run_name">Run Name <span class="supporting-text">Optional</span></label><input class="field" type="text" id="run_name" maxlength="120" autocomplete="off" placeholder="Uses combined job input when empty"><small>Shown as Job Name in the run table.</small></div>
+    <input type="hidden" id="config_path" value=".env.yaml">
+  </form>
+  <p id="trigger-status" class="run-dialog-status" role="status" aria-live="polite">Choose job input and a Candidate Profile.</p>
+  <div class="dialog-actions"><button class="btn" id="cancel-trigger-run" type="button">Cancel</button><button type="button" id="trigger-btn" class="btn primary" onclick="triggerRun()">Trigger</button></div>
+</dialog>
+
+<dialog class="workspace-dialog run-dialog managed-selection-dialog" id="run-scan-picker-dialog" aria-labelledby="run-scan-picker-title" aria-describedby="run-scan-picker-description">
+  <div class="dialog-head"><div><h2 id="run-scan-picker-title">Manage Eligible Scan Outputs</h2><p id="run-scan-picker-description">Search and select successful Scan outputs for this Run.</p></div><button class="dialog-close" id="close-run-scan-picker" type="button" aria-label="Close Scan output selection dialog">×</button></div>
+  <div class="run-form"><div class="managed-selection-toolbar"><label class="managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="run-scan-picker-search" type="search" autocomplete="off" placeholder="Search Scan ID, name, or company" aria-label="Search eligible Scan outputs"></label></div><div class="managed-selection-actions"><button class="btn" id="select-filtered-run-scans" type="button">Select all filtered</button><button class="btn" id="clear-run-scan-selection" type="button">Clear selection</button><span class="managed-selection-summary" id="run-scan-picker-count">0 selected</span></div><div class="managed-selection-list" id="run-scan-picker-list" aria-live="polite"><p class="empty-state">Loading eligible Scans…</p></div></div>
+  <p id="run-scan-picker-status" class="run-dialog-status" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button class="btn" id="cancel-run-scan-selection" type="button">Cancel</button><button class="btn primary" id="apply-run-scan-selection" type="button">Apply</button></div>
+</dialog>
 
 <script>
 async function refreshCandidateProfiles() {
@@ -235,19 +86,60 @@ async function refreshCandidateProfiles() {
   }
 }
 
-function syncJobSourceFields() {
-  const scannerMode = document.getElementById('source_mode').value === 'scanner';
-  const uploadField = document.getElementById('upload-source-field');
-  const jobsFile = document.getElementById('jobs_file');
-  uploadField.hidden = scannerMode;
-  jobsFile.disabled = scannerMode;
-  jobsFile.required = !scannerMode;
-  document.querySelectorAll('.scanner-source-field').forEach((field) => {
-    field.hidden = !scannerMode;
-    field.querySelectorAll('input, select, textarea').forEach((control) => {
-      control.disabled = !scannerMode;
-    });
-  });
+var eligibleRunScans = [];
+var selectedRunScanIds = [];
+var draftRunScanIds = [];
+var runScanTimeFormatter = new Intl.DateTimeFormat(undefined, {dateStyle:'medium', timeStyle:'short'});
+
+function escapeRunScanText(value) {
+  return String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+}
+
+function formatRunScanTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : runScanTimeFormatter.format(date);
+}
+
+function updateRunScanSummary() {
+  const selected = selectedRunScanIds.map(id => eligibleRunScans.find(scan => scan.scan_id === id) || {scan_id:id, scan_name:'Unavailable selected Scan'});
+  document.getElementById('selected-run-scans-summary').textContent = selected.length ? `${selected.length} selected` : 'No Scan outputs selected.';
+  document.getElementById('selected-run-scans-preview').textContent = selected.length ? selected.slice(0, 3).map(scan => `${scan.scan_id} · ${scan.scan_name}`).join(', ') : 'Use Manage to search and select successful non-empty Scans.';
+}
+
+function renderRunScanPicker() {
+  const query = document.getElementById('run-scan-picker-search').value.trim().toLowerCase();
+  const filtered = eligibleRunScans.filter(scan => !query || `${scan.scan_id} ${scan.scan_name} ${(scan.company_snapshots || []).map(company => company.company_name).join(' ')}`.toLowerCase().includes(query));
+  const unavailable = draftRunScanIds.filter(id => !eligibleRunScans.some(scan => scan.scan_id === id));
+  const list = document.getElementById('run-scan-picker-list');
+  const unavailableRows = unavailable.map(id => `<label class="managed-selection-item"><input type="checkbox" value="${escapeRunScanText(id)}" checked><span class="managed-selection-item-copy"><strong>${escapeRunScanText(id)}</strong><small>Unavailable selected Scan · remove before retrying</small></span></label>`).join('');
+  const eligibleRows = filtered.map(scan => `<label class="managed-selection-item"><input type="checkbox" value="${escapeRunScanText(scan.scan_id)}" ${draftRunScanIds.includes(scan.scan_id) ? 'checked' : ''}><span class="managed-selection-item-copy"><strong>${escapeRunScanText(scan.scan_id)}</strong><small>${escapeRunScanText(scan.scan_name)} · ${(scan.company_snapshots || []).length} companies · ${Number(scan.output_record_count || 0)} jobs · ${escapeRunScanText(formatRunScanTime(scan.finished_at || scan.created_at))}</small></span></label>`).join('');
+  list.innerHTML = unavailableRows + eligibleRows || '<p class="empty-state">No successful non-empty Scans available. Upload remains available. <a href="/admin/scans">Manage Scans</a></p>';
+  list.querySelectorAll('input[type="checkbox"]').forEach(input => input.addEventListener('change', () => {
+    draftRunScanIds = input.checked ? [...draftRunScanIds, input.value] : draftRunScanIds.filter(id => id !== input.value);
+    document.getElementById('run-scan-picker-count').textContent = `${draftRunScanIds.length} selected`;
+  }));
+  document.getElementById('run-scan-picker-count').textContent = `${draftRunScanIds.length} selected`;
+  document.getElementById('run-scan-picker-status').textContent = `${filtered.length} eligible ${filtered.length === 1 ? 'Scan' : 'Scans'} shown.`;
+}
+
+async function refreshEligibleRunScans() {
+  const payload = await fitcvApiRequest('/scans?lifecycle=active&usable_for_run=true&page=1&page_size=50');
+  eligibleRunScans = payload.data || [];
+  updateRunScanSummary();
+}
+
+async function openRunScanPicker() {
+  const dialog = document.getElementById('run-scan-picker-dialog');
+  draftRunScanIds = [...selectedRunScanIds];
+  document.getElementById('trigger-run-dialog').close();
+  dialog.showModal();
+  document.getElementById('run-scan-picker-list').innerHTML = '<p class="empty-state">Loading eligible Scans…</p>';
+  try {
+    await refreshEligibleRunScans();
+    renderRunScanPicker();
+  } catch (error) {
+    document.getElementById('run-scan-picker-list').innerHTML = `<p class="empty-state">${escapeRunScanText(error.message)}</p>`;
+  }
 }
 
 async function triggerRun() {
@@ -257,27 +149,14 @@ async function triggerRun() {
 
   try {
     const fd = new FormData();
-    const sourceMode = document.getElementById('source_mode').value;
-    fd.append('source_mode', sourceMode);
-    if (sourceMode === 'upload') {
-      const jobsFile = document.getElementById('jobs_file').files[0];
-      if (!jobsFile) { document.getElementById('jobs_file').reportValidity(); return; }
-      fd.append('jobs_file', jobsFile);
-    } else {
-      const scannerFields = [
-        ['provider', 'scanner_provider'],
-        ['company_name', 'scanner_company_name'],
-        ['careers_url', 'scanner_careers_url'],
-        ['keywords', 'scanner_keywords'],
-        ['max_jobs', 'scanner_max_jobs'],
-        ['timeout_seconds', 'scanner_timeout_seconds'],
-      ];
-      for (const [name, id] of scannerFields) {
-        const control = document.getElementById(id);
-        if (!control.checkValidity()) { control.reportValidity(); return; }
-        fd.append(name, control.value);
-      }
+    const jobsFile = document.getElementById('jobs_file').files[0];
+    if (!jobsFile && !selectedRunScanIds.length) {
+      status.textContent = 'At least one job source is required.';
+      document.getElementById('jobs_file').focus();
+      return;
     }
+    if (jobsFile) fd.append('jobs_file', jobsFile);
+    selectedRunScanIds.forEach(scanId => fd.append('scan_ids', scanId));
     fd.append('config_path', document.getElementById('config_path').value);
     fd.append('run_name', document.getElementById('run_name').value);
     const candidateProfile = document.getElementById('candidate_profile_id');
@@ -293,14 +172,40 @@ async function triggerRun() {
   } catch (error) {
     status.textContent = error.code ? `${error.code}: ${error.message}` : error.message;
     if (error.code === 'candidate_profile_unavailable') await refreshCandidateProfiles();
+    if (error.code === 'scan_not_usable' || error.code === 'scan_output_integrity_failed') {
+      try { await refreshEligibleRunScans(); } catch (_refreshError) {}
+    }
   } finally {
     btn.disabled = false; btn.textContent = 'Trigger Run';
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  syncJobSourceFields();
+initializeFitCVPage(() => {
   refreshCandidateProfiles();
+  const triggerDialog = document.getElementById('trigger-run-dialog');
+  const runScanPicker = document.getElementById('run-scan-picker-dialog');
+  const returnToTriggerRun = () => { runScanPicker.close(); triggerDialog.showModal(); document.getElementById('manage-run-scans').focus(); };
+  document.getElementById('open-trigger-run').addEventListener('click', () => triggerDialog.showModal());
+  document.getElementById('close-trigger-run').addEventListener('click', () => triggerDialog.close());
+  document.getElementById('cancel-trigger-run').addEventListener('click', () => triggerDialog.close());
+  document.getElementById('manage-run-scans').addEventListener('click', openRunScanPicker);
+  document.getElementById('close-run-scan-picker').addEventListener('click', returnToTriggerRun);
+  runScanPicker.addEventListener('cancel', event => { event.preventDefault(); returnToTriggerRun(); });
+  document.getElementById('run-scan-picker-search').addEventListener('input', renderRunScanPicker);
+  document.getElementById('select-filtered-run-scans').addEventListener('click', () => {
+    const query = document.getElementById('run-scan-picker-search').value.trim().toLowerCase();
+    eligibleRunScans.filter(scan => !query || `${scan.scan_id} ${scan.scan_name} ${(scan.company_snapshots || []).map(company => company.company_name).join(' ')}`.toLowerCase().includes(query)).forEach(scan => { if (!draftRunScanIds.includes(scan.scan_id)) draftRunScanIds.push(scan.scan_id); });
+    renderRunScanPicker();
+  });
+  document.getElementById('clear-run-scan-selection').addEventListener('click', () => { draftRunScanIds = []; renderRunScanPicker(); });
+  document.getElementById('apply-run-scan-selection').addEventListener('click', () => {
+    selectedRunScanIds = [...draftRunScanIds];
+    runScanPicker.close();
+    triggerDialog.showModal();
+    updateRunScanSummary();
+    document.getElementById('manage-run-scans').focus();
+  });
+  document.getElementById('cancel-run-scan-selection').addEventListener('click', returnToTriggerRun);
 });
 
 function showLifecycleBanner(message, kind = 'info') {
@@ -380,7 +285,7 @@ function updateBulkActionBar() {
     count.textContent = selected.length === 1 ? '1 selected' : `${selected.length} selected`;
   }
   if (bar) {
-    bar.style.display = selected.length ? 'flex' : 'none';
+    bar.hidden = selected.length === 0;
   }
   if (selectAll) {
     selectAll.checked = checkboxes.length > 0 && selected.length === checkboxes.length;

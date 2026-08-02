@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Scans — FitCV Admin{% endblock %}
+{% block content %}
+<main data-page="scans">
+  <div class="page-head">
+    <div><p class="eyebrow">Workspace</p><h2>Scans</h2><p>Create reusable FitCV job input from tracked companies.</p></div>
+    <button id="open-new-scan" class="btn" type="button">New Scan</button>
+  </div>
+
+  <div class="run-panel">
+  <div class="run-tabs" role="tablist" aria-label="Scan lifecycle">
+    <a class="btn" role="tab" tabindex="{{ '0' if lifecycle == 'active' else '-1' }}" href="/admin/scans?lifecycle=active&page_size={{ page_size }}" aria-selected="{{ 'true' if lifecycle == 'active' else 'false' }}">Active <span class="run-tab-count">{{ active_count }}</span></a>
+    <a class="btn" role="tab" tabindex="{{ '0' if lifecycle == 'archived' else '-1' }}" href="/admin/scans?lifecycle=archived&page_size={{ page_size }}" aria-selected="{{ 'true' if lifecycle == 'archived' else 'false' }}">Archived <span class="run-tab-count">{{ archived_count }}</span></a>
+  </div>
+
+  <div id="scan-notice" role="status" aria-live="polite"></div>
+  {% if load_error %}<div class="notice error" role="alert">{{ load_error }} <a href="{{ current_url }}">Retry</a></div>{% endif %}
+  <div id="scan-bulk-actions" class="run-selection" hidden>
+      <span class="meta" id="selected-scan-count">0 selected</span>
+      {% if lifecycle == 'active' %}
+      <button class="btn" type="button" data-bulk-scan-action="archive">Archive</button>
+      {% else %}
+      <button class="btn" type="button" data-bulk-scan-action="unarchive">Unarchive</button>
+      <button class="btn danger" type="button" id="delete-selected-scans">Delete</button>
+      {% endif %}
+  </div>
+  <div class="section-card table-card">
+    <div class="table-scroll">
+      <table class="run-table">
+        <thead><tr><th><input id="select-all-scans" type="checkbox" aria-label="Select visible Scans"></th><th>Scan ID</th><th>Status</th><th>Scan Name</th><th>Created Time</th><th>Duration</th></tr></thead>
+        <tbody>
+        {% for scan in scans %}
+          <tr>
+            <td><input name="selected_scan_ids" type="checkbox" value="{{ scan.scan_id }}" data-revision="{{ scan.row_revision }}" aria-label="Select {{ scan.scan_id }}"></td>
+            <td><a class="run-id run-id-link" href="/admin/scans/{{ scan.scan_id }}?return_to={{ current_url|urlencode }}">{{ scan.scan_id }}</a></td>
+            <td><span class="badge run-status" data-status="{{ scan.execution_status|replace('_',' ')|title }}">{{ scan.execution_status|replace('_',' ')|title }}</span>{% if scan.lifecycle == 'archived' %} <span class="badge run-status">Archived</span>{% endif %}</td>
+            <td><span class="scan-name">{{ scan.scan_name }}</span></td>
+            <td><span class="run-created">{{ scan.created_at_display }}</span></td>
+            <td><span class="run-duration">{{ scan.duration_display }}</span></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6"><div class="empty-state">{% if lifecycle == 'active' %}No Active Scans. Create a Scan to produce reusable job input.{% else %}No Archived Scans.{% endif %}</div></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if total_items > 10 %}
+    <nav class="run-pagination" aria-label="Scan pages">
+      <span>Showing {{ (page - 1) * page_size + 1 }} to {{ [page * page_size, total_items]|min }} of {{ total_items }} results</span>
+      <div class="run-pagination-controls">
+        <label class="run-page-size">Rows <select class="field" onchange="location.href='/admin/scans?lifecycle={{ lifecycle }}&page_size='+this.value+'&page=1'">{% for size in [10,20,50] %}<option value="{{ size }}" {{ 'selected' if page_size == size else '' }}>{{ size }}</option>{% endfor %}</select></label>
+        <div class="run-page-numbers">
+          {% if page > 1 %}<a class="btn" href="/admin/scans?{{ page_query }}&page={{ page - 1 }}" aria-label="Previous page">‹</a>{% endif %}
+          <span class="btn" aria-current="page">{{ page }}</span>
+          {% if page < total_pages %}<a class="btn" href="/admin/scans?{{ page_query }}&page={{ page + 1 }}" aria-label="Next page">›</a>{% endif %}
+        </div>
+      </div>
+    </nav>
+    {% endif %}
+  </div>
+  </div>
+</main>
+
+<dialog class="workspace-dialog run-dialog scan-dialog" id="new-scan-dialog" aria-labelledby="new-scan-title" aria-describedby="new-scan-description">
+  <div class="dialog-head"><div><h2 id="new-scan-title">New Scan</h2><p id="new-scan-description">Choose tracked companies and optional job filters.</p></div><button class="dialog-close" id="close-new-scan" type="button" aria-label="Close New Scan dialog">×</button></div>
+  <form class="run-form" id="new-scan-form">
+    <div class="run-field"><label for="scan-name">Scan Name <span class="supporting-text">Optional</span></label><input class="field" id="scan-name" name="scan_name" maxlength="120" autocomplete="off" placeholder="Germany data engineering roles"></div>
+    <div class="run-field">
+      <label id="tracked-companies-label">Tracked Companies</label>
+      <div class="field managed-selection-field" role="group" aria-labelledby="tracked-companies-label">
+        <span class="managed-selection-copy managed-selection-field-copy"><span id="selected-company-summary">No companies selected.</span><small id="selected-company-preview">Use Manage to search and select active companies.</small></span>
+        <button class="btn" id="manage-scan-companies" type="button">Manage</button>
+      </div>
+    </div>
+    <div class="run-field"><label for="scan-job-titles">Job Titles <span class="supporting-text">Optional</span></label><input class="field" id="scan-job-titles" name="job_titles" type="text" placeholder="Data Engineer, Analytics Engineer"></div>
+    <div class="run-field"><label for="scan-locations">Job Locations <span class="supporting-text">Optional</span></label><input class="field" id="scan-locations" name="locations" type="text" placeholder="Berlin, Germany"></div>
+    <div class="run-field"><label for="scan-published-window">Published At</label><select class="field" id="scan-published-window" name="published_window"><option value="any">Any time</option><option value="past_12_hours">Past 12 hours</option><option value="past_24_hours">Past 24 hours</option><option value="past_7_days">Past week</option><option value="past_30_days">Past month</option><option value="past_180_days">Past 6 months</option></select><small>Rolling window resolved when the Scan starts.</small></div>
+    <div class="run-field"><label for="scan-total-rows">Total Rows</label><input class="field" id="scan-total-rows" name="total_rows" type="number" min="1" max="200" value="50" required></div>
+  </form>
+  <p id="new-scan-status" class="run-dialog-status" role="status" aria-live="polite">Select at least one tracked company.</p>
+  <div class="dialog-actions"><button class="btn" id="cancel-new-scan" type="button">Cancel</button><button class="btn primary" id="start-scan" type="submit" form="new-scan-form" disabled>Start Scan</button></div>
+</dialog>
+
+<dialog class="workspace-dialog run-dialog managed-selection-dialog" id="company-picker-dialog" aria-labelledby="company-picker-title" aria-describedby="company-picker-description">
+  <div class="dialog-head"><div><h2 id="company-picker-title">Manage Tracked Companies</h2><p id="company-picker-description">Search the registry and select companies for this Scan.</p></div><button class="dialog-close" id="close-company-selection" type="button" aria-label="Close company selection dialog">×</button></div>
+  <div class="run-form">
+    <div class="managed-selection-toolbar"><label class="managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="company-picker-search" type="search" autocomplete="off" placeholder="Search company, provider, or domain" aria-label="Search tracked companies"></label><button class="btn" id="open-add-company" type="button">Add Company</button></div>
+    <div class="managed-selection-actions"><button class="btn" id="select-filtered-companies" type="button">Select all filtered</button><button class="btn" id="clear-company-selection" type="button">Clear selection</button><span class="managed-selection-summary" id="company-picker-count">0 selected</span></div>
+    <div class="managed-selection-list" id="company-picker-list" aria-live="polite"><p class="empty-state">Loading tracked companies…</p></div>
+  </div>
+  <p class="run-dialog-status" id="company-picker-status" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button class="btn" id="cancel-company-selection" type="button">Cancel</button><button class="btn primary" id="apply-company-selection" type="button">Apply</button></div>
+</dialog>
+
+<dialog class="workspace-dialog run-dialog" id="add-company-dialog" aria-labelledby="add-company-title" aria-describedby="add-company-description">
+  <div class="dialog-head"><div><h2 id="add-company-title">Add Company</h2><p id="add-company-description">Verify one supported careers portal before adding it.</p></div><button class="dialog-close" id="close-add-company" type="button" aria-label="Close Add Company dialog">×</button></div>
+  <form class="run-form" id="add-company-form">
+    <div class="run-field"><label for="add-company-name">Company Name</label><input class="field" id="add-company-name" name="company_name" type="text" maxlength="120" required autocomplete="organization"></div>
+    <div class="run-field"><label for="add-company-url">Careers URL</label><div class="model-test-row"><input class="field" id="add-company-url" name="careers_url" type="url" maxlength="500" required pattern="https://.*" placeholder="https://company.example/careers" autocomplete="url"><button class="btn" id="test-add-company" type="submit">Test</button></div><small>Supported portals: Personio, Greenhouse, and Workday.</small></div>
+  </form>
+  <p id="add-company-status" class="run-dialog-status" role="status" aria-live="polite">Test the careers URL before adding the company.</p>
+  <div class="dialog-actions"><button class="btn" id="cancel-add-company" type="button">Cancel</button><button class="btn primary" id="save-add-company" type="button" disabled>Add Company</button></div>
+</dialog>
+
+<script>
+(function() {
+  const newDialog = document.getElementById('new-scan-dialog');
+  const picker = document.getElementById('company-picker-dialog');
+  const addDialog = document.getElementById('add-company-dialog');
+  const newForm = document.getElementById('new-scan-form');
+  let companies = [];
+  let selectedCompanyIds = [];
+  let draftCompanyIds = [];
+  let verifiedCompanyInput = null;
+
+  const splitLines = value => [...new Set(value.split(/[,\r\n]+/).map(item => item.trim()).filter(Boolean))];
+  const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+
+  function syncNewScanState() {
+    const totalRows = document.getElementById('scan-total-rows');
+    const hasCompany = selectedCompanyIds.length > 0;
+    const validRows = totalRows.checkValidity();
+    const validWindow = document.getElementById('scan-published-window').value.length > 0;
+    document.getElementById('start-scan').disabled = !(hasCompany && validRows && validWindow);
+    document.getElementById('new-scan-status').textContent = hasCompany && validRows && validWindow ? 'Ready to start. Registry, company selection, and filters will be captured.' : !hasCompany ? 'Select at least one tracked company.' : !validRows ? 'Total Rows must be between 1 and 200.' : 'Choose a valid Published At window.';
+  }
+
+  function updateCompanySummary() {
+    const selected = selectedCompanyIds.map(id => companies.find(company => company.company_id === id)).filter(Boolean);
+    document.getElementById('selected-company-summary').textContent = selected.length ? `${selected.length} selected` : 'No companies selected.';
+    document.getElementById('selected-company-preview').textContent = selected.length ? `${selected.slice(0, 3).map(company => company.company_name).join(', ')}${selected.length > 3 ? ` +${selected.length - 3} more` : ''}` : 'Use Manage to search and select active companies.';
+    syncNewScanState();
+  }
+
+  function renderCompanies() {
+    const query = document.getElementById('company-picker-search').value.trim().toLowerCase();
+    const filtered = companies.filter(company => !query || `${company.company_name} ${company.provider_id} ${company.careers_url}`.toLowerCase().includes(query));
+    const list = document.getElementById('company-picker-list');
+    list.innerHTML = filtered.length ? filtered.map(company => `<label class="managed-selection-item"><input type="checkbox" value="${escapeHtml(company.company_id)}" ${draftCompanyIds.includes(company.company_id) ? 'checked' : ''}><span class="managed-selection-item-copy"><strong>${escapeHtml(company.company_name)}</strong><small>${escapeHtml(company.provider_label || company.provider_id)} · ${escapeHtml(company.careers_url)}</small></span></label>`).join('') : '<p class="empty-state">No tracked companies match this search.</p>';
+    list.querySelectorAll('input[type="checkbox"]').forEach(input => input.addEventListener('change', () => {
+      draftCompanyIds = input.checked ? [...draftCompanyIds, input.value] : draftCompanyIds.filter(id => id !== input.value);
+      document.getElementById('company-picker-count').textContent = `${draftCompanyIds.length} selected`;
+    }));
+    document.getElementById('company-picker-count').textContent = `${draftCompanyIds.length} selected`;
+    document.getElementById('company-picker-status').textContent = `${filtered.length} ${filtered.length === 1 ? 'company' : 'companies'} shown.`;
+  }
+
+  async function loadCompanies() {
+    document.getElementById('apply-company-selection').disabled = true;
+    const payload = await fitcvApiRequest('/tracked-companies?page=1&page_size=50');
+    companies = payload.data || [];
+    renderCompanies();
+    document.getElementById('apply-company-selection').disabled = false;
+  }
+
+  document.getElementById('open-new-scan').addEventListener('click', () => { syncNewScanState(); newDialog.showModal(); });
+  document.getElementById('close-new-scan').addEventListener('click', () => newDialog.close());
+  document.getElementById('cancel-new-scan').addEventListener('click', () => newDialog.close());
+  newForm.addEventListener('input', syncNewScanState);
+  newForm.addEventListener('change', syncNewScanState);
+  document.getElementById('manage-scan-companies').addEventListener('click', async () => {
+    draftCompanyIds = [...selectedCompanyIds];
+    newDialog.close();
+    picker.showModal();
+    try { await loadCompanies(); } catch (error) { document.getElementById('company-picker-list').innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`; }
+  });
+  document.getElementById('company-picker-search').addEventListener('input', renderCompanies);
+  document.getElementById('select-filtered-companies').addEventListener('click', () => {
+    const query = document.getElementById('company-picker-search').value.trim().toLowerCase();
+    companies.filter(company => !query || `${company.company_name} ${company.provider_id} ${company.careers_url}`.toLowerCase().includes(query)).forEach(company => { if (!draftCompanyIds.includes(company.company_id)) draftCompanyIds.push(company.company_id); });
+    renderCompanies();
+  });
+  document.getElementById('clear-company-selection').addEventListener('click', () => { draftCompanyIds = []; renderCompanies(); });
+  document.getElementById('apply-company-selection').addEventListener('click', () => { selectedCompanyIds = [...draftCompanyIds]; picker.close(); newDialog.showModal(); updateCompanySummary(); document.getElementById('manage-scan-companies').focus(); });
+  const returnToNewScan = () => { picker.close(); newDialog.showModal(); document.getElementById('manage-scan-companies').focus(); };
+  document.getElementById('close-company-selection').addEventListener('click', returnToNewScan);
+  document.getElementById('cancel-company-selection').addEventListener('click', returnToNewScan);
+  picker.addEventListener('cancel', event => { event.preventDefault(); returnToNewScan(); });
+  document.getElementById('open-add-company').addEventListener('click', () => { picker.close(); addDialog.showModal(); });
+  const returnToCompanyPicker = () => { addDialog.close(); picker.showModal(); document.getElementById('open-add-company').focus(); };
+  document.getElementById('close-add-company').addEventListener('click', returnToCompanyPicker);
+  document.getElementById('cancel-add-company').addEventListener('click', returnToCompanyPicker);
+  addDialog.addEventListener('cancel', event => { event.preventDefault(); returnToCompanyPicker(); });
+  document.getElementById('add-company-form').addEventListener('input', () => {
+    verifiedCompanyInput = null;
+    document.getElementById('save-add-company').disabled = true;
+    document.getElementById('add-company-status').textContent = 'Test the careers URL before adding the company.';
+  });
+  document.getElementById('add-company-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const status = document.getElementById('add-company-status');
+    const body = Object.fromEntries(new FormData(event.currentTarget));
+    status.textContent = 'Verifying company…';
+    try {
+      const payload = await fitcvApiRequest('/tracked-companies/actions/verify', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      verifiedCompanyInput = body;
+      status.textContent = `${payload.data.provider_label || payload.data.provider_id} portal verified.`;
+      document.getElementById('save-add-company').disabled = false;
+    } catch (error) { verifiedCompanyInput = null; document.getElementById('save-add-company').disabled = true; status.textContent = error.message; }
+  });
+  document.getElementById('save-add-company').addEventListener('click', async () => {
+    if (!verifiedCompanyInput) return;
+    const status = document.getElementById('add-company-status');
+    status.textContent = 'Adding company…';
+    try {
+      const payload = await fitcvApiRequest('/tracked-companies', {method:'POST', headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()}, body:JSON.stringify(verifiedCompanyInput)});
+      companies.push(payload.data); draftCompanyIds.push(payload.data.company_id); verifiedCompanyInput = null; document.getElementById('add-company-form').reset(); document.getElementById('save-add-company').disabled = true; addDialog.close(); picker.showModal(); renderCompanies();
+    } catch (error) { status.textContent = error.message; }
+  });
+  newForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const status = document.getElementById('new-scan-status');
+    if (!selectedCompanyIds.length) { status.textContent = 'Select at least one tracked company.'; document.getElementById('manage-scan-companies').focus(); return; }
+    const data = new FormData(newForm);
+    const body = {scan_name:data.get('scan_name'), company_ids:selectedCompanyIds, job_titles:splitLines(String(data.get('job_titles') || '')), locations:splitLines(String(data.get('locations') || '')), published_window:data.get('published_window'), total_rows:Number(data.get('total_rows'))};
+    const startButton = document.getElementById('start-scan');
+    startButton.disabled = true;
+    status.textContent = 'Starting Scan…';
+    try {
+      const payload = await fitcvApiRequest('/scans', {method:'POST', headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()}, body:JSON.stringify(body)});
+      location.assign('/admin/scans/' + encodeURIComponent(payload.data.scan_id));
+    } catch (error) { status.textContent = error.message; startButton.disabled = selectedCompanyIds.length === 0; }
+  });
+
+  const selectedInputs = () => Array.from(document.querySelectorAll('input[name="selected_scan_ids"]:checked'));
+  function updateBulk() {
+    const selected = selectedInputs();
+    document.getElementById('scan-bulk-actions').hidden = !selected.length;
+    document.getElementById('selected-scan-count').textContent = `${selected.length} selected`;
+    const all = document.getElementById('select-all-scans');
+    const visible = Array.from(document.querySelectorAll('input[name="selected_scan_ids"]'));
+    all.checked = visible.length > 0 && selected.length === visible.length;
+    all.indeterminate = selected.length > 0 && selected.length < visible.length;
+  }
+  document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => input.addEventListener('change', updateBulk));
+  document.getElementById('select-all-scans').addEventListener('change', event => { document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => { input.checked = event.target.checked; }); updateBulk(); });
+  document.querySelectorAll('[data-bulk-scan-action]').forEach(button => button.addEventListener('click', async () => {
+    const items = selectedInputs().map(input => ({scan_id:input.value, expected_revision:Number(input.dataset.revision)}));
+    try { await fitcvApiRequest(`/scans/actions/${button.dataset.bulkScanAction}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({items})}); location.reload(); } catch (error) { document.getElementById('scan-notice').textContent = error.message; }
+  }));
+  document.getElementById('delete-selected-scans')?.addEventListener('click', async () => {
+    const scan_ids = selectedInputs().map(input => input.value);
+    try {
+      const preview = await fitcvApiRequest('/scans/actions/delete-archived/preview', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scan_ids})});
+      if (!preview.data.eligible_scan_ids.length || !confirm(`Delete ${preview.data.eligible_scan_ids.length} archived Scan(s)? This cannot be undone.`)) return;
+      await fitcvApiRequest('/scans/actions/delete-archived', {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({scan_ids,preview_revision:preview.data.preview_revision})});
+      location.reload();
+    } catch (error) { document.getElementById('scan-notice').textContent = error.message; }
+  });
+})();
+</script>
+{% endblock %}

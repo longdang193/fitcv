@@ -72,6 +72,7 @@ from fitcv_cp.run_lifecycle import (
     run_display_status,
     run_stage_status_from_pipeline,
 )
+from fitcv_cp.scan_contracts import derive_scan_capabilities, resolve_publication_cutoff
 from fitcv_cp.synonym_policy_io import (
     compile_global_synonym_map,
     load_global_synonym_map,
@@ -322,6 +323,69 @@ def _ensure_control_plane_schema(
             synonym_policy_bundle_snapshot_json IS NULL OR json_valid(synonym_policy_bundle_snapshot_json)
         ),
         created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS tracked_companies (
+        company_id TEXT PRIMARY KEY,
+        company_name TEXT NOT NULL COLLATE NOCASE CHECK (length(trim(company_name)) BETWEEN 1 AND 120),
+        careers_url TEXT NOT NULL COLLATE NOCASE UNIQUE,
+        provider_id TEXT NOT NULL,
+        provider_label TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+        is_scannable INTEGER NOT NULL DEFAULT 1 CHECK (is_scannable IN (0, 1)),
+        row_revision INTEGER NOT NULL DEFAULT 1 CHECK (row_revision > 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS ix_tracked_companies_active_name
+        ON tracked_companies(is_active, is_scannable, company_name COLLATE NOCASE, company_id);
+
+    CREATE TABLE IF NOT EXISTS scans (
+        scan_id TEXT PRIMARY KEY,
+        scan_name TEXT NOT NULL CHECK (length(scan_name) <= 120),
+        execution_status TEXT NOT NULL CHECK (execution_status IN ('queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled')),
+        lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'archived')),
+        row_revision INTEGER NOT NULL DEFAULT 1 CHECK (row_revision > 0),
+        created_at TEXT NOT NULL,
+        started_at TEXT,
+        finished_at TEXT,
+        archived_at TEXT,
+        cancel_requested_at TEXT,
+        rerun_of_scan_id TEXT REFERENCES scans(scan_id) ON DELETE SET NULL,
+        failure_code TEXT,
+        failure_message TEXT,
+        progress_completed INTEGER NOT NULL DEFAULT 0 CHECK (progress_completed >= 0),
+        progress_total INTEGER NOT NULL DEFAULT 0 CHECK (progress_total >= 0),
+        CHECK ((lifecycle = 'active' AND archived_at IS NULL) OR (lifecycle = 'archived' AND archived_at IS NOT NULL)),
+        CHECK (archived_at IS NULL OR execution_status IN ('succeeded', 'failed', 'cancelled'))
+    );
+    CREATE INDEX IF NOT EXISTS ix_scans_lifecycle_created
+        ON scans(lifecycle, created_at DESC, scan_id DESC);
+
+    CREATE TABLE IF NOT EXISTS scan_inputs (
+        scan_id TEXT PRIMARY KEY REFERENCES scans(scan_id) ON DELETE CASCADE,
+        input_json TEXT NOT NULL CHECK (json_valid(input_json)),
+        company_snapshots_json TEXT NOT NULL CHECK (json_valid(company_snapshots_json)),
+        publication_cutoff TEXT,
+        created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS scan_outputs (
+        scan_id TEXT PRIMARY KEY REFERENCES scans(scan_id) ON DELETE CASCADE,
+        output_json TEXT NOT NULL CHECK (json_valid(output_json) AND json_type(output_json) = 'array'),
+        sha256 TEXT NOT NULL,
+        byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
+        record_count INTEGER NOT NULL CHECK (record_count >= 0),
+        created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS run_scan_inputs (
+        run_id TEXT NOT NULL REFERENCES pipeline_runs(run_id) ON DELETE CASCADE,
+        scan_id TEXT NOT NULL REFERENCES scans(scan_id) ON DELETE RESTRICT,
+        source_ordinal INTEGER NOT NULL CHECK (source_ordinal >= 0),
+        scan_output_sha256 TEXT NOT NULL,
+        PRIMARY KEY (run_id, scan_id),
+        UNIQUE (run_id, source_ordinal)
     );
 
     CREATE TABLE IF NOT EXISTS run_stage_executions (
@@ -2087,6 +2151,341 @@ def _provider_store_connection(database_path: Path | None = None) -> Iterator[sq
         _ensure_control_plane_schema(conn)
         conn.row_factory = sqlite3.Row
         yield conn
+
+@contextmanager
+def _scan_store_connection(database_path: Path | None = None) -> Iterator[sqlite3.Connection]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        yield conn
+
+def _scan_resource(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
+    input_row = conn.execute("SELECT * FROM scan_inputs WHERE scan_id = ?", (row["scan_id"],)).fetchone()
+    output_row = conn.execute("SELECT * FROM scan_outputs WHERE scan_id = ?", (row["scan_id"],)).fetchone()
+    referenced_count = int(conn.execute("SELECT COUNT(*) FROM run_scan_inputs WHERE scan_id = ?", (row["scan_id"],)).fetchone()[0])
+    integrity_valid = False
+    output_manifest = None
+    if output_row is not None:
+        raw = str(output_row["output_json"]).encode("utf-8")
+        digest = hashlib.sha256(raw).hexdigest()
+        integrity_valid = digest == str(output_row["sha256"]) and len(raw) == int(output_row["byte_length"])
+        output_manifest = {
+            "sha256": str(output_row["sha256"]),
+            "byte_length": int(output_row["byte_length"]),
+            "record_count": int(output_row["record_count"]),
+        }
+    capabilities = derive_scan_capabilities(
+        execution_status=str(row["execution_status"]),
+        lifecycle=str(row["lifecycle"]),
+        output_manifest_exists=output_row is not None,
+        output_integrity_valid=integrity_valid,
+        output_record_count=int(output_row["record_count"]) if output_row is not None else None,
+        cancellation_requested=row["cancel_requested_at"] is not None,
+        referenced_by_run=referenced_count > 0,
+    ).model_dump()
+    logical_input = json.loads(str(input_row["input_json"])) if input_row is not None else {}
+    companies = json.loads(str(input_row["company_snapshots_json"])) if input_row is not None else []
+    return {
+        "scan_id": str(row["scan_id"]),
+        "scan_name": str(row["scan_name"]),
+        "execution_status": str(row["execution_status"]),
+        "lifecycle": str(row["lifecycle"]),
+        "row_revision": int(row["row_revision"]),
+        "created_at": str(row["created_at"]),
+        "started_at": row["started_at"],
+        "finished_at": row["finished_at"],
+        "archived_at": row["archived_at"],
+        "cancel_requested_at": row["cancel_requested_at"],
+        "rerun_of_scan_id": row["rerun_of_scan_id"],
+        "failure_code": row["failure_code"],
+        "failure_message": row["failure_message"],
+        "progress_completed": int(row["progress_completed"]),
+        "progress_total": int(row["progress_total"]),
+        "company_count": len(companies),
+        "company_snapshots": companies,
+        "input": logical_input,
+        "publication_cutoff": input_row["publication_cutoff"] if input_row is not None else None,
+        "output_record_count": int(output_row["record_count"]) if output_row is not None else None,
+        "output_integrity_valid": integrity_valid,
+        "output_manifest": output_manifest,
+        "referenced_by_run": referenced_count > 0,
+        "warnings": [],
+        "capabilities": capabilities,
+    }
+
+def query_tracked_companies(
+    *, search: str = "", page: int = 1, page_size: int = 20, database_path: Path | None = None
+) -> dict[str, Any]:
+    if page_size not in {10, 20, 50, 100}:
+        raise ValueError("page_size_invalid")
+    needle = f"%{search.strip()}%"
+    where = "WHERE is_active = 1 AND is_scannable = 1"
+    params: list[Any] = []
+    if search.strip():
+        where += " AND (company_name LIKE ? COLLATE NOCASE OR provider_id LIKE ? COLLATE NOCASE OR careers_url LIKE ? COLLATE NOCASE)"
+        params.extend([needle, needle, needle])
+    with _scan_store_connection(database_path) as conn:
+        total = int(conn.execute(f"SELECT COUNT(*) FROM tracked_companies {where}", params).fetchone()[0])
+        rows = conn.execute(
+            f"SELECT * FROM tracked_companies {where} ORDER BY company_name COLLATE NOCASE, company_id LIMIT ? OFFSET ?",
+            (*params, page_size, (max(1, page) - 1) * page_size),
+        ).fetchall()
+    return {"items": [dict(row) for row in rows], "total": total}
+
+def create_tracked_company(
+    *, company_name: str, careers_url: str, provider_id: str, provider_label: str | None = None,
+    database_path: Path | None = None, **_extra: Any,
+) -> dict[str, Any]:
+    company_id = f"company-{uuid.uuid4().hex[:12]}"
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    try:
+        with _scan_store_connection(database_path) as conn:
+            conn.execute(
+                "INSERT INTO tracked_companies VALUES (?, ?, ?, ?, ?, 1, 1, 1, ?, ?)",
+                (company_id, company_name.strip(), careers_url.strip(), provider_id.strip(), provider_label, now, now),
+            )
+            conn.commit()
+            row = conn.execute("SELECT * FROM tracked_companies WHERE company_id = ?", (company_id,)).fetchone()
+    except sqlite3.IntegrityError as exc:
+        if "careers_url" in str(exc).lower() or "unique" in str(exc).lower():
+            raise ValueError("tracked_company_url_conflict") from exc
+        raise
+    return dict(row)
+
+def create_scan(
+    *, request: dict[str, Any], rerun_of_scan_id: str | None = None,
+    idempotency_action_id: str | None = None, database_path: Path | None = None,
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            if idempotency_action_id:
+                action = conn.execute("SELECT * FROM idempotent_actions WHERE action_id = ?", (idempotency_action_id,)).fetchone()
+                if action is None:
+                    raise ValueError("idempotency_action_not_found")
+                response = json.loads(action["response_json"]) if action["response_json"] else None
+                if isinstance(response, dict) and response.get("scan_id"):
+                    existing = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (response["scan_id"],)).fetchone()
+                    if existing is not None:
+                        conn.rollback()
+                        return _scan_resource(conn, existing)
+            company_ids = list(request.get("company_ids") or [])
+            placeholders = ",".join("?" for _ in company_ids)
+            rows = conn.execute(
+                f"SELECT * FROM tracked_companies WHERE company_id IN ({placeholders}) AND is_active = 1 AND is_scannable = 1",
+                company_ids,
+            ).fetchall() if company_ids else []
+            by_id = {str(row["company_id"]): row for row in rows}
+            if len(by_id) != len(company_ids):
+                raise ValueError("tracked_company_unavailable")
+            companies = [dict(by_id[company_id]) for company_id in company_ids]
+            now_dt = datetime.datetime.now(datetime.timezone.utc)
+            now = now_dt.isoformat()
+            scan_id = f"scan-{uuid.uuid4().hex[:12]}"
+            scan_name = str(request.get("scan_name") or f"Scan {scan_id[5:]}")
+            cutoff = resolve_publication_cutoff(str(request.get("published_window") or "any"), now_dt)
+            conn.execute(
+                "INSERT INTO scans (scan_id, scan_name, execution_status, lifecycle, created_at, rerun_of_scan_id) VALUES (?, ?, 'queued', 'active', ?, ?)",
+                (scan_id, scan_name, now, rerun_of_scan_id),
+            )
+            conn.execute(
+                "INSERT INTO scan_inputs VALUES (?, ?, ?, ?, ?)",
+                (scan_id, json.dumps(request, ensure_ascii=False, separators=(",", ":")), json.dumps(companies, ensure_ascii=False, separators=(",", ":")), cutoff.isoformat() if cutoff else None, now),
+            )
+            if idempotency_action_id:
+                conn.execute(
+                    "UPDATE idempotent_actions SET response_json = ?, updated_at = ? WHERE action_id = ?",
+                    (json.dumps({"scan_id": scan_id}, separators=(",", ":")), now, idempotency_action_id),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    detail = get_scan_detail(scan_id, database_path=path)
+    if detail is None:
+        raise RuntimeError("scan_persistence_failed")
+    return detail
+
+def get_scan_detail(scan_id: str, *, database_path: Path | None = None) -> dict[str, Any] | None:
+    with _scan_store_connection(database_path) as conn:
+        row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
+        return _scan_resource(conn, row) if row is not None else None
+
+def query_scans(
+    *, lifecycle: str = "active", execution_status: str | None = None, usable_for_run: bool | None = None,
+    search: str = "", page: int = 1, page_size: int = 20, database_path: Path | None = None,
+) -> dict[str, Any]:
+    with _scan_store_connection(database_path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM scans WHERE lifecycle = ? ORDER BY created_at DESC, scan_id DESC",
+            (lifecycle,),
+        ).fetchall()
+        resources = [_scan_resource(conn, row) for row in rows]
+    needle = search.strip().casefold()
+    resources = [row for row in resources if (not execution_status or row["execution_status"] == execution_status) and (usable_for_run is None or row["capabilities"]["use_for_run"] is usable_for_run) and (not needle or needle in row["scan_id"].casefold() or needle in row["scan_name"].casefold())]
+    return {"items": resources[(max(1, page) - 1) * page_size : max(1, page) * page_size], "total": len(resources)}
+
+def request_scan_cancel(
+    scan_id: str, *, expected_revision: int | None = None, database_path: Path | None = None
+) -> dict[str, Any]:
+    with _scan_store_connection(database_path) as conn:
+        row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
+        if row is None:
+            raise ValueError("scan_not_found")
+        resource = _scan_resource(conn, row)
+        if expected_revision is not None and expected_revision != resource["row_revision"]:
+            raise ValueError("scan_revision_conflict")
+        if not resource["capabilities"]["cancel"]:
+            raise ValueError("scan_not_cancellable")
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        conn.execute("UPDATE scans SET execution_status='cancelling', cancel_requested_at=?, row_revision=row_revision+1 WHERE scan_id=?", (now, scan_id))
+        conn.commit()
+    return get_scan_detail(scan_id, database_path=database_path) or {}
+
+def claim_scan_execution(scan_id: str, *, database_path: Path | None = None) -> bool:
+    with _scan_store_connection(database_path) as conn:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        cursor = conn.execute(
+            "UPDATE scans SET execution_status='running', started_at=?, row_revision=row_revision+1 WHERE scan_id=? AND execution_status='queued' AND lifecycle='active'",
+            (now, scan_id),
+        )
+        conn.commit()
+        return cursor.rowcount == 1
+
+def fail_scan_execution(
+    scan_id: str, *, error_code: str, error_message: str, database_path: Path | None = None
+) -> dict[str, Any]:
+    with _scan_store_connection(database_path) as conn:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE scans SET execution_status='failed', failure_code=?, failure_message=?, finished_at=?, row_revision=row_revision+1 WHERE scan_id=? AND execution_status IN ('queued','running','cancelling')",
+            (error_code[:120], error_message[:1000], now, scan_id),
+        )
+        conn.commit()
+    return get_scan_detail(scan_id, database_path=database_path) or {}
+
+def cancel_scan_execution(scan_id: str, *, database_path: Path | None = None) -> dict[str, Any]:
+    with _scan_store_connection(database_path) as conn:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE scans SET execution_status='cancelled', finished_at=?, row_revision=row_revision+1 WHERE scan_id=? AND execution_status='cancelling'",
+            (now, scan_id),
+        )
+        conn.commit()
+    return get_scan_detail(scan_id, database_path=database_path) or {}
+
+def commit_scan_output(scan_id: str, *, output_json: str, database_path: Path | None = None) -> dict[str, Any]:
+    try:
+        jobs = json.loads(output_json)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("scan_output_invalid") from exc
+    if not isinstance(jobs, list):
+        raise ValueError("scan_output_invalid")
+    raw = output_json.encode("utf-8")
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _scan_store_connection(database_path) as conn:
+        row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
+        if row is None:
+            raise ValueError("scan_not_found")
+        if conn.execute("SELECT 1 FROM scan_outputs WHERE scan_id = ?", (scan_id,)).fetchone():
+            raise ValueError("scan_output_immutable")
+        if str(row["execution_status"]) in {"succeeded", "failed", "cancelled"}:
+            raise ValueError("scan_terminal")
+        conn.execute("INSERT INTO scan_outputs VALUES (?, ?, ?, ?, ?, ?)", (scan_id, output_json, hashlib.sha256(raw).hexdigest(), len(raw), len(jobs), now))
+        conn.execute("UPDATE scans SET execution_status='succeeded', finished_at=?, row_revision=row_revision+1 WHERE scan_id=?", (now, scan_id))
+        conn.commit()
+    return get_scan_detail(scan_id, database_path=database_path) or {}
+
+def get_scan_output(scan_id: str, *, database_path: Path | None = None) -> dict[str, Any] | None:
+    with _scan_store_connection(database_path) as conn:
+        scan = conn.execute("SELECT execution_status FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
+        if scan is None:
+            return None
+        output = conn.execute("SELECT * FROM scan_outputs WHERE scan_id = ?", (scan_id,)).fetchone()
+        if output is None:
+            raise ValueError("scan_output_not_ready" if scan["execution_status"] in {"queued", "running", "cancelling"} else "scan_output_unavailable")
+        raw = str(output["output_json"]).encode("utf-8")
+        if hashlib.sha256(raw).hexdigest() != str(output["sha256"]) or len(raw) != int(output["byte_length"]):
+            raise ValueError("scan_output_integrity_failed")
+        return {"output_json": str(output["output_json"]), "sha256": str(output["sha256"]), "byte_length": int(output["byte_length"]), "record_count": int(output["record_count"])}
+
+def query_scan_jobs(
+    scan_id: str, *, page: int = 1, page_size: int = 20, database_path: Path | None = None
+) -> dict[str, Any]:
+    output = get_scan_output(scan_id, database_path=database_path)
+    if output is None:
+        raise ValueError("scan_not_found")
+    jobs = json.loads(output["output_json"])
+    return {"items": jobs[(max(1, page) - 1) * page_size : max(1, page) * page_size], "total": len(jobs)}
+
+def transition_scan_lifecycle(
+    items: list[dict[str, Any]], *, target: str, database_path: Path | None = None
+) -> dict[str, Any]:
+    if target not in {"active", "archived"}:
+        raise ValueError("scan_lifecycle_invalid")
+    with _scan_store_connection(database_path) as conn:
+        resources: list[dict[str, Any]] = []
+        for item in items:
+            row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (item["scan_id"],)).fetchone()
+            if row is None:
+                raise ValueError("scan_not_found")
+            resource = _scan_resource(conn, row)
+            if resource["row_revision"] != int(item["expected_revision"]):
+                raise ValueError("scan_revision_conflict")
+            capability = "archive" if target == "archived" else "unarchive"
+            if not resource["capabilities"][capability]:
+                raise ValueError(f"scan_not_{capability}able")
+            resources.append(resource)
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        for resource in resources:
+            conn.execute(
+                "UPDATE scans SET lifecycle=?, archived_at=?, row_revision=row_revision+1 WHERE scan_id=?",
+                (target, now if target == "archived" else None, resource["scan_id"]),
+            )
+        conn.commit()
+    return {"items": [get_scan_detail(resource["scan_id"], database_path=database_path) for resource in resources]}
+
+def _scan_delete_preview(conn: sqlite3.Connection, scan_ids: list[str]) -> dict[str, Any]:
+    eligible: list[str] = []
+    referenced: list[dict[str, Any]] = []
+    blocked: list[str] = []
+    missing: list[str] = []
+    revisions: list[tuple[str, int]] = []
+    for scan_id in scan_ids:
+        row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
+        if row is None:
+            missing.append(scan_id)
+            continue
+        resource = _scan_resource(conn, row)
+        revisions.append((scan_id, resource["row_revision"]))
+        count = int(conn.execute("SELECT COUNT(*) FROM run_scan_inputs WHERE scan_id = ?", (scan_id,)).fetchone()[0])
+        if count:
+            referenced.append({"scan_id": scan_id, "run_count": count})
+        elif resource["capabilities"]["delete"]:
+            eligible.append(scan_id)
+        else:
+            blocked.append(scan_id)
+    fingerprint = hashlib.sha256(json.dumps({"scan_ids": scan_ids, "revisions": revisions, "eligible": eligible, "referenced": referenced, "blocked": blocked, "missing": missing}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return {"requested_scan_ids": list(scan_ids), "eligible_scan_ids": eligible, "referenced_scan_ids": referenced, "blocked_scan_ids": blocked, "missing_scan_ids": missing, "preview_revision": fingerprint}
+
+def preview_delete_archived_scans(scan_ids: list[str], *, database_path: Path | None = None) -> dict[str, Any]:
+    with _scan_store_connection(database_path) as conn:
+        return _scan_delete_preview(conn, scan_ids)
+
+def delete_archived_scans(
+    scan_ids: list[str], *, preview_revision: str, database_path: Path | None = None
+) -> dict[str, Any]:
+    with _scan_store_connection(database_path) as conn:
+        preview = _scan_delete_preview(conn, scan_ids)
+        if preview["preview_revision"] != preview_revision or preview["referenced_scan_ids"] or preview["blocked_scan_ids"] or preview["missing_scan_ids"]:
+            raise ValueError("delete_preview_stale")
+        conn.executemany("DELETE FROM scans WHERE scan_id = ?", [(scan_id,) for scan_id in preview["eligible_scan_ids"]])
+        conn.commit()
+    return {"deleted_count": len(preview["eligible_scan_ids"]), "deleted_scan_ids": preview["eligible_scan_ids"]}
 
 
 def _ensure_provider_state(conn: sqlite3.Connection, provider_id: str) -> int:
@@ -6915,6 +7314,13 @@ def create_run_bundle(
                     run.created_at.isoformat(),
                 ),
             )
+            manifest = json.loads(str(input_resource.get("jobs_manifest_json") or "{}"))
+            scan_sources = [source for source in manifest.get("sources", []) if isinstance(source, dict) and source.get("type") == "scan"]
+            for ordinal, source in enumerate(scan_sources):
+                conn.execute(
+                    "INSERT INTO run_scan_inputs (run_id, scan_id, source_ordinal, scan_output_sha256) VALUES (?, ?, ?, ?)",
+                    (run.run_id, str(source["scan_id"]), ordinal, str(source.get("sha256") or "")),
+                )
             conn.executemany(
                 "INSERT INTO run_stage_executions (run_id, stage_id, ordinal, status) VALUES (?, ?, ?, 'pending')",
                 [(run.run_id, stage.stage_id, stage.ordinal) for stage in PROTOTYPE_STAGES],

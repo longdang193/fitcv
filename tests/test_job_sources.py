@@ -210,3 +210,14 @@ def test_parse_workday_jobs_uses_public_page_description() -> None:
     assert validate_linkedin_schema(jobs[0]) == []
     assert jobs[0]["publishedAt"] == "2026-07-21"
     assert jobs[0]["description"] == "Build Databricks pipelines."
+
+
+def test_verify_scanner_portal_reuses_provider_detection() -> None:
+    verified = job_sources.verify_scanner_portal(
+        company_name="Acme",
+        careers_url="https://acme.jobs.personio.de/",
+    )
+
+    assert verified["provider_id"] == "personio"
+    assert verified["provider_label"] == "Personio"
+    assert verified["careers_url"] == "https://acme.jobs.personio.de"

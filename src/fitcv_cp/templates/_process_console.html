@@ -26,7 +26,7 @@
   <div class="console-log" data-console-rows role="log" aria-live="polite" aria-label="Console log for {{ process_id }}">
     {% for event in process_console.events %}
     <div class="console-line" data-recorded-at="{{ event.recorded_at.isoformat() }}" data-event-id="{{ event.event_id }}" data-level="{{ event.level }}" data-operation="{{ event.operation }}">
-      <span class="console-time">{{ event.recorded_at.isoformat() }}</span><span class="console-level" data-level="{{ event.level }}">{{ event.level }}</span><span class="console-message">{{ event.message }}</span>
+      <span class="console-time">{{ event.recorded_at_display|default(event.recorded_at.isoformat()) }}</span><span class="console-level" data-level="{{ event.level }}">{{ event.level }}</span><span class="console-message">{{ event.message }}</span>
     </div>
     {% else %}
     <div class="console-empty" data-console-empty>No console events in current view.</div>

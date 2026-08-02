@@ -20,6 +20,7 @@ import zipfile
 import datetime
 import os
 import re
+import sqlite3
 import tempfile
 import uuid
 from pathlib import Path
@@ -55,6 +56,39 @@ def _app():
         Path(_TEST_DATABASE_ROOT.name) / "missing-candidate-profile.yaml",
     )
     return create_app(redis_url="redis://localhost:6379/0")
+
+def _seed_active_profile() -> str:
+    resource = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=b"name: Test Candidate\nskills: []\nexperiences: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Test Profile",
+    )
+    return str(resource["profile_id"])
+
+def _seed_succeeded_scan(*, name: str, jobs: list[dict[str, str]]) -> dict[str, object]:
+    company = sqlite_store.create_tracked_company(
+        company_name=f"{name} Company",
+        careers_url=f"https://{uuid.uuid4().hex}.jobs.personio.de/",
+        provider_id="personio",
+        provider_label="Personio",
+    )
+    reservation = sqlite_store.reserve_idempotent_action(
+        "scans:create", f"{name}-{uuid.uuid4().hex}", f"{name}-fingerprint"
+    )
+    scan = sqlite_store.create_scan(
+        request={
+            "scan_name": name,
+            "company_ids": [company["company_id"]],
+            "job_titles": [],
+            "locations": [],
+            "published_window": "any",
+            "total_rows": 50,
+        },
+        idempotency_action_id=reservation["action_id"],
+    )
+    return sqlite_store.commit_scan_output(
+        str(scan["scan_id"]), output_json=json.dumps(jobs)
+    )
 
 
 def test_provider_api_is_not_mounted_outside_packaged_local_mode() -> None:
@@ -103,6 +137,504 @@ def test_process_console_clear_view_uses_scoped_cursor_and_reset() -> None:
     assert "data-console-reset" in template
     assert "recorded_at" in template
     assert "event_id" in template
+
+
+def test_scan_routes_are_in_normal_openapi_without_mock_controls() -> None:
+    paths = TestClient(_app()).get("/openapi.json").json()["paths"]
+
+    assert "/scans" in paths
+    assert "/tracked-companies" in paths
+    assert "/scans/{scan_id}/output" in paths
+    assert "/__mock__/scenario" not in paths
+
+
+def test_mock_scan_api_lists_resources_and_exact_output() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    client = TestClient(create_mock_app())
+    listing = client.get("/scans", params={"lifecycle": "active", "page_size": 10})
+    detail = client.get("/scans/scan-1048")
+    output = client.get("/scans/scan-1048/output")
+
+    assert listing.status_code == 200
+    assert listing.json()["data"][0]["scan_id"] == "scan-1048"
+    assert detail.json()["data"]["capabilities"]["use_for_run"] is True
+    assert output.status_code == 200
+    assert output.content.startswith(b"[")
+    assert output.headers["etag"] == f'"{detail.json()["data"]["output_manifest"]["sha256"]}"'
+
+
+def test_mock_scan_creation_replays_same_scan_for_same_idempotency_key() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    client = TestClient(create_mock_app())
+    body = {"company_ids": ["company-personio"], "published_window": "past_7_days"}
+    first = client.post("/scans", json=body, headers={"Idempotency-Key": "scan-create-1"})
+    second = client.post("/scans", json=body, headers={"Idempotency-Key": "scan-create-1"})
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["data"]["scan_id"] == second.json()["data"]["scan_id"]
+
+
+def test_mock_scan_lifecycle_rejects_stale_revision() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    client = TestClient(create_mock_app())
+    response = client.post(
+        "/scans/actions/archive",
+        json={"items": [{"scan_id": "scan-1048", "expected_revision": 999}]},
+        headers={"Idempotency-Key": "archive-1"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "scan_revision_conflict"
+
+
+def test_mock_scenario_route_is_test_only_and_hidden_from_openapi() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    client = TestClient(create_mock_app())
+    assert client.post("/__mock__/scenario", json={"scenario": "empty"}).status_code == 200
+    assert client.get("/scans").json()["data"] == []
+    assert "/__mock__/scenario" not in client.get("/openapi.json").json()["paths"]
+
+
+def test_managed_run_requires_upload_or_scan_and_accepts_scan_only() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    client = TestClient(create_mock_app())
+    missing = client.post("/runs", data={"profile_id": "profile-1"}, headers={"Idempotency-Key": "run-1"})
+    accepted = client.post(
+        "/runs",
+        data={"profile_id": "profile-1", "scan_ids": "scan-1048"},
+        headers={"Idempotency-Key": "run-2"},
+    )
+
+    assert missing.status_code == 422
+    assert missing.json()["error"]["code"] == "validation_failed"
+    assert accepted.status_code == 201
+    assert accepted.json()["data"]["jobs_input_manifest"]["sources"][0]["scan_id"] == "scan-1048"
+
+
+def test_admin_scans_workspace_matches_managed_scan_intent() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    response = TestClient(create_mock_app()).get("/admin/scans")
+
+    assert response.status_code == 200
+    assert "Scan ID" in response.text
+    assert "Active" in response.text and "Archived" in response.text
+    assert response.text.count('class="run-tab-count"') == 2
+    assert 'name="search"' not in response.text
+    assert 'name="execution_status"' not in response.text
+    assert "Rows per page" not in response.text
+    assert "New Scan" in response.text
+    assert "Tracked Companies" in response.text
+    assert "Published At" in response.text
+    assert "Past 12 hours" in response.text and "Past 6 months" in response.text
+    assert "Action</th>" not in response.text
+
+
+def test_admin_runs_workspace_matches_prototype_structure() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    response = TestClient(create_mock_app()).get("/admin/runs")
+
+    assert response.status_code == 200
+    assert 'data-page="runs"' in response.text
+    assert 'data-header-title="Runs"' in response.text
+    assert '<p class="eyebrow">Workspace</p><h2>Runs</h2>' in response.text
+    assert 'id="open-trigger-run" class="btn"' in response.text
+    assert response.text.count('class="run-tab-count"') == 2
+    assert '>All<' not in response.text
+    assert '⟳ Refresh' not in response.text
+    assert 'name="search"' not in response.text
+    assert 'name="status"' not in response.text
+    assert '<dialog class="workspace-dialog run-dialog" id="trigger-run-dialog"' in response.text
+    assert '<form class="run-form" id="trigger-run-form">' in response.text
+
+
+def test_new_scan_dialog_uses_shared_run_dialog_structure() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    response = TestClient(create_mock_app()).get("/admin/scans")
+
+    assert response.status_code == 200
+    assert '<dialog class="workspace-dialog run-dialog scan-dialog" id="new-scan-dialog"' in response.text
+    assert '<div class="dialog-head">' in response.text
+    assert '<form class="run-form" id="new-scan-form">' in response.text
+    assert response.text.count('class="run-field"') >= 6
+    assert '.run-dialog{width:min(620px,calc(100vw - 32px));' in response.text
+    assert '.scan-dialog{width:min(720px,calc(100vw - 32px))}' in response.text
+    assert 'dialog.workspace-dialog { width:' not in response.text
+    assert 'dialog.workspace-dialog.run-dialog{width:' not in response.text
+    assert 'id="scan-job-titles" name="job_titles" type="text"' in response.text
+    assert 'placeholder="Data Engineer, Analytics Engineer"' in response.text
+    assert 'id="scan-locations" name="locations" type="text"' in response.text
+    assert 'placeholder="Berlin, Germany"' in response.text
+    assert '>Start Scan</button>' in response.text
+    assert 'form="new-scan-form" disabled>Start Scan</button>' in response.text
+    assert 'Ready to start. Registry, company selection, and filters will be captured.' in response.text
+
+
+def test_scan_managed_selection_dialogs_match_prototype_structure() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    scans = TestClient(create_mock_app()).get("/admin/scans")
+    runs = TestClient(create_mock_app()).get("/admin/runs")
+
+    assert scans.status_code == 200
+    assert runs.status_code == 200
+    assert 'class="workspace-dialog run-dialog managed-selection-dialog" id="company-picker-dialog"' in scans.text
+    assert "Search the registry and select companies for this Scan." in scans.text
+    assert 'aria-label="Search tracked companies"' in scans.text
+    assert 'id="select-filtered-companies"' in scans.text
+    assert 'id="clear-company-selection"' in scans.text
+    assert 'class="workspace-dialog run-dialog" id="add-company-dialog"' in scans.text
+    assert "Verify one supported careers portal before adding it." in scans.text
+    assert 'id="test-add-company"' in scans.text
+    assert 'id="save-add-company" type="button" disabled>Add Company</button>' in scans.text
+    assert "picker.addEventListener('cancel'" in scans.text
+    assert "addDialog.addEventListener('cancel'" in scans.text
+    assert 'class="workspace-dialog run-dialog managed-selection-dialog" id="run-scan-picker-dialog"' in runs.text
+    assert "Search and select successful Scan outputs for this Run." in runs.text
+    assert 'id="select-filtered-run-scans"' in runs.text
+    assert 'id="clear-run-scan-selection"' in runs.text
+    assert '<strong>${escapeRunScanText(scan.scan_id)}</strong>' in runs.text
+    assert 'Intl.DateTimeFormat' in runs.text
+
+
+def test_admin_scans_workspace_uses_prototype_visual_components() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    response = TestClient(create_mock_app()).get("/admin/scans")
+
+    assert response.status_code == 200
+    assert 'class="page-head"' in response.text
+    assert '<p class="eyebrow">Workspace</p>' in response.text
+    assert 'class="run-panel"' in response.text
+    assert 'class="run-tabs"' in response.text
+    assert 'class="section-card table-card"' in response.text
+    assert 'class="run-table"' in response.text
+    assert 'id="open-new-scan" class="btn"' in response.text
+    assert 'class="run-id run-id-link"' in response.text
+    assert 'class="workspace-tabs"' not in response.text
+    assert 'class="run-selection filter-bar"' not in response.text
+    assert '<th>Jobs</th>' not in response.text
+    assert 'aria-label="Scan pages"' not in response.text
+    assert "2026-08-02T09:45:00+00:00" not in response.text
+    assert "02.08.2026 11:45 CEST" in response.text
+    assert '<span class="run-duration">0s</span>' in response.text
+
+
+def test_admin_scan_detail_reuses_detail_structure_and_output_views() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    response = TestClient(create_mock_app()).get("/admin/scans/scan-1048")
+
+    assert response.status_code == 200
+    assert "Scan Overview" in response.text
+    assert "Scan Input" in response.text
+    assert "Console" in response.text
+    assert "Scan Output" in response.text
+    assert "Console Log" in response.text
+    assert 'role="tab"' in response.text
+    assert ">Table<" in response.text and ">JSON<" in response.text
+    assert "Run Again" in response.text
+    assert "Download JSON" in response.text
+    assert "Use in run" not in response.text
+    assert "<dt>Created</dt><dd>02.08.2026 11:45 CEST</dd>" in response.text
+    assert '<span class="console-time">02.08.2026 11:45 CEST</span>' in response.text
+    assert 'aria-label="Scan output pagination"' in response.text
+    assert 'class="run-page-size"' in response.text
+    assert '<button class="btn" type="button" aria-label="Previous page" disabled>‹</button>' in response.text
+    assert 'aria-label="Page 2"' in response.text
+    assert 'output_page=2&output_page_size=10#scan-output-title' in response.text
+
+
+def test_admin_scan_detail_uses_prototype_visual_components() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    response = TestClient(create_mock_app()).get("/admin/scans/scan-1048")
+
+    assert response.status_code == 200
+    assert 'class="details-page-layout"' in response.text
+    assert 'data-header-title="Scan Details"' in response.text
+    assert 'data-header-description="Review Scan inputs, progress, and output."' in response.text
+    assert 'class="details-page-head"' in response.text
+    assert '<p class="eyebrow">Scan Details</p>' in response.text
+    assert response.text.count('class="section-card collapsible-section drawer-section') >= 4
+    assert 'class="details-grid"' in response.text
+    assert 'class="detail-item"' in response.text
+    assert '<section class="card"' not in response.text
+    assert 'aria-label="Scan Output pages"' not in response.text
+
+
+def test_base_exposes_prototype_scan_component_styles() -> None:
+    template = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
+
+    assert ".run-panel{display:grid;gap:14px}" in template
+    assert ".run-tabs{display:flex;gap:8px}" in template
+    assert '.run-tabs .btn[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}' in template
+    assert ".table-card{overflow:hidden;padding:0;margin:0}" in template
+    assert ".run-table{width:100%;min-width:720px;border-collapse:collapse}" in template
+    assert ".run-table th{background:transparent" in template
+    assert ".run-id-link{display:inline-block" in template
+    assert ".badge,.mirror-value{display:inline-flex" in template
+    assert "[hidden]{display:none!important}" in template
+    assert "button:not(.btn):not(.btn-primary)" in template
+    assert ".details-page-head{" in template
+    assert ".details-grid{" in template
+    assert ".detail-item dt{" in template
+    assert ".run-pagination{" in template
+    assert ".btn.danger{" in template
+
+
+def test_run_trigger_uses_additive_upload_and_scan_sources() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    response = TestClient(create_mock_app()).get("/admin/runs")
+
+    assert response.status_code == 200
+    assert "Eligible Scan outputs" in response.text
+    assert "At least one job source is required" in response.text
+    assert 'id="manage-run-scans"' in response.text
+    assert 'id="source_mode"' not in response.text
+    assert "scanner_careers_url" not in response.text
+
+def test_run_trigger_reconciles_stale_scan_selection_without_losing_upload() -> None:
+    template = Path("src/fitcv_cp/templates/runs_list.html").read_text(encoding="utf-8")
+
+    assert "async function refreshEligibleRunScans()" in template
+    assert "error.code === 'scan_not_usable' || error.code === 'scan_output_integrity_failed'" in template
+    assert "Unavailable selected Scan" in template
+    assert "document.getElementById('jobs_file').value" not in template
+
+
+def test_client_navigated_page_scripts_use_shared_ready_initializer() -> None:
+    base = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
+
+    assert "function initializeFitCVPage(initializer)" in base
+    assert "document.readyState === 'loading'" in base
+
+    for template_name in ("runs_list.html", "run_detail.html"):
+        template = Path(f"src/fitcv_cp/templates/{template_name}").read_text(encoding="utf-8")
+        assert "initializeFitCVPage(" in template
+        assert "document.addEventListener('DOMContentLoaded'" not in template
+
+    runs_template = Path("src/fitcv_cp/templates/runs_list.html").read_text(encoding="utf-8")
+    assert "var eligibleRunScans = [];" in runs_template
+    assert "var selectedRunScanIds = [];" in runs_template
+    assert "var draftRunScanIds = [];" in runs_template
+    assert "var runScanTimeFormatter = new Intl.DateTimeFormat" in runs_template
+
+def test_direct_page_load_defines_shared_initializer_before_page_scripts() -> None:
+    response = TestClient(_app()).get("/admin/runs")
+
+    assert response.status_code == 200
+    assert response.text.index("function initializeFitCVPage(initializer)") < response.text.index(
+        "initializeFitCVPage(() => {"
+    )
+
+
+def test_mock_scan_ui_covers_error_pending_and_integrity_states() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    client = TestClient(create_mock_app())
+    assert client.post("/__mock__/scenario", json={"scenario": "list_error"}).status_code == 200
+    error_page = client.get("/admin/scans")
+    pending_page = client.get("/admin/scans/scan-1047")
+    client.post("/__mock__/scenario", json={"scenario": "integrity"})
+    integrity_page = client.get("/admin/scans/scan-1048")
+
+    assert error_page.status_code == 200 and "Retry" in error_page.text
+    assert "Scan output is not ready yet" in pending_page.text
+    assert "Output integrity check failed" in integrity_page.text
+
+
+def test_managed_run_combined_manifest_orders_upload_before_scans() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    response = TestClient(create_mock_app()).post(
+        "/runs",
+        data={"profile_id": "profile-1", "scan_ids": "scan-1048"},
+        files={"jobs_file": ("jobs.json", b"[]", "application/json")},
+        headers={"Idempotency-Key": "combined-run-1"},
+    )
+
+    assert response.status_code == 201, response.text
+    assert [source["type"] for source in response.json()["data"]["jobs_input_manifest"]["sources"]] == ["upload", "scan"]
+
+def test_managed_run_removes_projection_when_bundle_persistence_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv_cp import app as app_module
+
+    projection = tmp_path / "managed-run-jobs.json"
+    app = _app()
+    app.state.run_store.get_candidate_profile_fn = lambda profile_id: {
+        "candidate_profile_id": profile_id,
+        "name": "Test Profile",
+        "revision": 1,
+        "is_active": True,
+        "profile": {"skills": []},
+    }
+    app.state.run_store.get_scan_detail_fn = lambda scan_id: {
+        "scan_id": scan_id,
+        "scan_name": "Germany Data Jobs",
+        "output_record_count": 1,
+        "capabilities": {"use_for_run": True},
+    }
+    app.state.run_store.get_scan_output_fn = lambda _scan_id: {
+        "output_json": json.dumps([_valid_fitcv_job()]),
+        "sha256": "scan-sha",
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "managed-run-action",
+        "replayed": False,
+        "response": None,
+    }
+    app.state.run_store.create_run_bundle_fn = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        RuntimeError("bundle persistence failed")
+    )
+
+    def materialize(_run_id: str, artifact: object) -> str:
+        projection.write_text(getattr(artifact, "json_text"), encoding="utf-8")
+        return str(projection)
+
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    monkeypatch.setattr(app_module, "_materialize_run_jobs_projection", materialize)
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch("fitcv_cp.app.submit_run") as submit:
+        response = TestClient(app, raise_server_exceptions=False).post(
+            "/runs",
+            data={"profile_id": "profile-1", "scan_ids": "scan-1048"},
+            headers={"Idempotency-Key": "managed-run-persistence-failure"},
+        )
+
+    assert response.status_code == 500
+    assert not projection.exists()
+    submit.assert_not_called()
+
+def test_real_run_route_accepts_upload_only_and_scan_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    app = _app()
+    profile_id = _seed_active_profile()
+    scan = _seed_succeeded_scan(name="scan-only", jobs=[_valid_fitcv_job(title="Scan Job")])
+    submission = RunSubmission(
+        run_id="ignored",
+        queue_job_id="queue-1",
+        backend_run_id="queue-1",
+        backend="default_queue",
+    )
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch("fitcv_cp.app.submit_run", return_value=submission):
+        client = TestClient(app)
+        upload = client.post(
+            "/runs",
+            data={"profile_id": profile_id},
+            files={"jobs_file": ("jobs.json", json.dumps([_valid_fitcv_job(title="Upload Job")]), "application/json")},
+            headers={"Idempotency-Key": "real-upload-only"},
+        )
+        scan_only = client.post(
+            "/runs",
+            data={"profile_id": profile_id, "scan_ids": scan["scan_id"]},
+            headers={"Idempotency-Key": "real-scan-only"},
+        )
+
+    assert upload.status_code == 201, upload.text
+    assert scan_only.status_code == 201, scan_only.text
+    assert sqlite_store.get_run(upload.json()["data"]["run_id"]).jobs_input_source == "upload"
+    scan_run = sqlite_store.get_run(scan_only.json()["data"]["run_id"])
+    assert scan_run.jobs_input_source == "scan"
+    assert sqlite_store.query_run_jobs(scan_run.run_id)["items"][0]["title"] == "Scan Job"
+
+def test_real_managed_run_preserves_upload_then_selected_scan_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    app = _app()
+    profile_id = _seed_active_profile()
+    second = _seed_succeeded_scan(name="second", jobs=[_valid_fitcv_job(title="Second Scan")])
+    first = _seed_succeeded_scan(name="first", jobs=[_valid_fitcv_job(title="First Scan")])
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch(
+        "fitcv_cp.app.submit_run",
+        return_value=RunSubmission(
+            run_id="ignored",
+            queue_job_id="queue-1",
+            backend_run_id="queue-1",
+            backend="default_queue",
+        ),
+    ):
+        response = TestClient(app).post(
+            "/runs",
+            data={"profile_id": profile_id, "scan_ids": [second["scan_id"], first["scan_id"]]},
+            files={"jobs_file": ("jobs.json", json.dumps([_valid_fitcv_job(title="Upload Job")]), "application/json")},
+            headers={"Idempotency-Key": "real-combined"},
+        )
+
+    assert response.status_code == 201, response.text
+    run_id = response.json()["data"]["run_id"]
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite3.connect(database_path) as connection:
+        jobs = connection.execute(
+            "SELECT title FROM run_jobs WHERE run_id = ? ORDER BY source_index",
+            (run_id,),
+        ).fetchall()
+        provenance = connection.execute(
+            "SELECT scan_id FROM run_scan_inputs WHERE run_id = ? ORDER BY source_ordinal",
+            (run_id,),
+        ).fetchall()
+    assert jobs == [("Upload Job",), ("Second Scan",), ("First Scan",)]
+    assert provenance == [(second["scan_id"],), (first["scan_id"],)]
+
+def test_real_managed_run_rejects_missing_archived_empty_and_integrity_invalid_sources() -> None:
+    app = _app()
+    profile_id = _seed_active_profile()
+    archived = _seed_succeeded_scan(name="archived", jobs=[_valid_fitcv_job()])
+    archived = sqlite_store.transition_scan_lifecycle(
+        [{"scan_id": archived["scan_id"], "expected_revision": archived["row_revision"]}],
+        target="archived",
+    )["items"][0]
+    empty = _seed_succeeded_scan(name="empty", jobs=[])
+    invalid = _seed_succeeded_scan(name="invalid", jobs=[_valid_fitcv_job()])
+    with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+        connection.execute(
+            "UPDATE scan_outputs SET output_json = ? WHERE scan_id = ?",
+            ('[{"title":"tampered"}]', invalid["scan_id"]),
+        )
+        connection.commit()
+
+    client = TestClient(app)
+    missing = client.post(
+        "/runs", data={"profile_id": profile_id}, headers={"Idempotency-Key": "missing-sources"}
+    )
+    responses = [
+        client.post(
+            "/runs",
+            data={"profile_id": profile_id, "scan_ids": scan["scan_id"]},
+            headers={"Idempotency-Key": f"reject-{index}"},
+        )
+        for index, scan in enumerate((archived, empty, invalid), start=1)
+    ]
+
+    assert missing.status_code == 422
+    assert missing.json()["error"]["code"] == "validation_failed"
+    assert [(response.status_code, response.json()["error"]["code"]) for response in responses] == [
+        (409, "scan_not_usable"),
+        (409, "scan_not_usable"),
+        (409, "scan_not_usable"),
+    ]
 
 
 def test_process_console_discloses_window_and_exact_canonical_details() -> None:
@@ -206,6 +738,8 @@ def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
         ("/admin/runs/{run_id}/tabs/jobs-input", ("GET",), "admin_run_detail_tab_jobs_input", "HTMLResponse"),
         ("/admin/runs/{run_id}/tabs/profile", ("GET",), "admin_run_detail_tab_profile", "HTMLResponse"),
         ("/admin/runs/{run_id}/unarchive", ("POST",), "admin_unarchive_run", "DefaultPlaceholder"),
+        ("/admin/scans", ("GET",), "admin_scans", "HTMLResponse"),
+        ("/admin/scans/{scan_id}", ("GET",), "admin_scan_detail", "HTMLResponse"),
         ("/admin/settings", ("GET",), "admin_settings_view", "HTMLResponse"),
         ("/admin/settings/group/{group_name}", ("POST",), "admin_settings_update_group", "HTMLResponse"),
         ("/admin/settings/section/{section_name}", ("POST",), "admin_settings_section_save", "HTMLResponse"),
@@ -5228,6 +5762,47 @@ def test_run_detail_upload_jobs_path_shows_merged_from_filenames():
     ) in resp.text
 
 
+def test_run_detail_projects_ordered_upload_and_scan_sources():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-detail-combined-sources",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/uploads/run-detail-combined-sources_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        jobs_input_source="combined",
+        jobs_input_json="[]",
+        jobs_input_manifest_json=json.dumps(
+            {
+                "sources": [
+                    {"type": "upload", "filename": "uploaded-jobs.json"},
+                    {"type": "scan", "scan_id": "scan-1048", "scan_name": "Germany Data Jobs"},
+                    {"type": "scan", "scan_id": "scan-1049", "scan_name": "Berlin Platform Jobs"},
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        client = TestClient(_app())
+        detail = client.get(f"/admin/runs/{run.run_id}")
+        jobs_input = client.get(f"/admin/runs/{run.run_id}/tabs/jobs-input")
+
+    for response in (detail, jobs_input):
+        assert response.status_code == 200
+        assert response.text.index("uploaded-jobs.json") < response.text.index("scan-1048")
+        assert response.text.index("scan-1048") < response.text.index("scan-1049")
+        assert "Germany Data Jobs" in response.text
+        assert "Berlin Platform Jobs" in response.text
+
+
 def _obsolete_test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
@@ -9124,17 +9699,17 @@ def test_admin_runs_active_view_passes_archive_filter():
     with patch("fitcv_cp.app.list_runs", return_value=[]) as mock_list:
         resp = TestClient(_app()).get("/admin/runs?view=active")
     assert resp.status_code == 200
-    call_kwargs = mock_list.call_args[1]
-    assert call_kwargs.get("include_archived") is False
-    assert call_kwargs.get("archived_only", False) is False
+    calls = [call.kwargs for call in mock_list.call_args_list]
+    assert any(call.get("include_archived") is False for call in calls)
+    assert any(call.get("archived_only") is True for call in calls)
 
 
 def test_admin_runs_archived_view_passes_archived_only():
     with patch("fitcv_cp.app.list_runs", return_value=[]) as mock_list:
         resp = TestClient(_app()).get("/admin/runs?view=archived")
     assert resp.status_code == 200
-    call_kwargs = mock_list.call_args[1]
-    assert call_kwargs.get("archived_only") is True
+    calls = [call.kwargs for call in mock_list.call_args_list]
+    assert any(call.get("archived_only") is True for call in calls)
 
 
 # ── Task 5: Admin UI lifecycle controls ─────────────────────────────────────
@@ -9155,7 +9730,7 @@ def _make_full_run_mock(status="queued", archived_at=None, run_id="run-ui-1"):
     )
 
 
-def test_runs_list_shows_active_all_archived_filter_tabs():
+def test_runs_list_shows_active_and_archived_filter_tabs():
     """@proves admin_control_plane_core.jinja2-admin-pages"""
     with patch("fitcv_cp.app.list_runs", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs")
@@ -9163,7 +9738,7 @@ def test_runs_list_shows_active_all_archived_filter_tabs():
     body = resp.text
     assert "Active" in body
     assert "Archived" in body
-    assert "All" in body
+    assert ">All<" not in body
 
 
 def test_runs_list_is_selection_first_without_row_action_controls():
@@ -9198,12 +9773,12 @@ def test_runs_list_renders_bulk_action_bar_hooks():
     assert resp.status_code == 200
     html = resp.text
     assert 'id="bulk-action-bar"' in html
-    assert "Cancel selected" in html
-    assert "Archive selected" in html
-    assert "Unarchive selected" in html
+    assert "Cancel Run" in html
+    assert "Archive Run" in html
+    assert "Unarchive Run" not in html
 
 
-def test_runs_list_shows_delete_archived_controls_only_in_archived_view() -> None:
+def test_runs_list_shows_archived_selection_actions_only_in_archived_view() -> None:
     archived_run = _make_full_run_mock(
         status="succeeded",
         archived_at=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=45),
@@ -9213,15 +9788,14 @@ def test_runs_list_shows_delete_archived_controls_only_in_archived_view() -> Non
         archived_resp = TestClient(_app()).get("/admin/runs?view=archived")
     assert archived_resp.status_code == 200
     archived_html = archived_resp.text
-    assert 'id="delete-archived-controls"' in archived_html
-    assert 'id="delete-archived-threshold"' not in archived_html
-    assert 'Delete archived runs' in archived_html
-    assert 'Select archived Runs in the table before deleting.' in archived_html
+    assert "Unarchive Run" in archived_html
+    assert "Delete Run" in archived_html
+    assert "Cancel Run" not in archived_html
 
     with patch("fitcv_cp.app.list_runs", return_value=[archived_run]):
         active_resp = TestClient(_app()).get("/admin/runs?view=active")
     assert active_resp.status_code == 200
-    assert 'id="delete-archived-controls"' not in active_resp.text
+    assert "Delete Run" not in active_resp.text
 
 
 def test_runs_list_archived_delete_controls_use_preview_and_explicit_selection() -> None:
@@ -9249,15 +9823,16 @@ def test_runs_list_shows_core_operational_columns_only():
     html = resp.text
     assert "Run ID" in html
     assert "Status" in html
-    assert "Mode" in html
-    assert "Jobs Path" in html
-    assert "Created" in html
+    assert "Job Name" in html
+    assert "Created Time" in html
     assert "Duration" in html
+    assert "Mode" not in html
+    assert "Jobs Path" not in html
     assert "Orchestration" not in html
     assert "Triggered By" not in html
     assert "Actions" not in html
 
-def test_runs_list_uses_canonical_run_mode_labels():
+def test_runs_list_keeps_run_mode_out_of_workspace_table():
     run_all = _make_full_run_mock(status="queued", run_id="run-all-label")
     staged = _make_full_run_mock(status="awaiting_continue", run_id="run-staged-label")
     staged.run_mode = "manual_staged"
@@ -9265,21 +9840,19 @@ def test_runs_list_uses_canonical_run_mode_labels():
     with patch("fitcv_cp.app.list_runs", return_value=[run_all, staged]):
         resp = TestClient(_app()).get("/admin/runs")
     html = resp.text
-    assert "Run All" in html
-    assert "Stage by Stage" in html
-    assert "Auto" not in html
-    assert "Manual staged" not in html
+    assert "<th>Mode</th>" not in html
+    assert "next: ranking" not in html
 
 
-def test_runs_list_jobs_path_is_truncated_with_full_title():
+def test_runs_list_uses_jobs_path_as_fallback_job_name():
     run = _make_full_run_mock(status="queued", run_id="run-jobs-path")
     run.jobs_path = "data/uploads/very_long_nested_folder_name/another_folder/really_long_jobs_snapshot_name.json"
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
     html = resp.text
-    assert 'class="run-jobs-path"' in html
-    assert 'title="data/uploads/very_long_nested_folder_name/another_folder/really_long_jobs_snapshot_name.json"' in html
+    assert "<th>Job Name</th>" in html
+    assert "data/uploads/very_long_nested_folder_name/another_folder/really_long_jobs_snapshot_name.json" in html
 
 def test_runs_list_upload_jobs_path_shows_merged_from_filenames():
     run = _make_full_run_mock(status="queued", run_id="run-jobs-merged-from")
@@ -9491,7 +10064,7 @@ def test_run_detail_started_stale_cancelling_shows_repair_status() -> None:
 
 
 
-def test_runs_list_projection_shows_awaiting_next_stage_and_archived_marker() -> None:
+def test_runs_list_projection_separates_active_and_archived_resources() -> None:
     """@proves admin_control_plane_core.jinja2-admin-pages"""
     import datetime
 
@@ -9504,11 +10077,18 @@ def test_runs_list_projection_shows_awaiting_next_stage_and_archived_marker() ->
         archived_at=datetime.datetime(2026, 3, 26, 13, 0, 0, tzinfo=datetime.timezone.utc),
     )
 
-    with patch("fitcv_cp.app.list_runs", return_value=[awaiting, archived]):
-        resp = TestClient(_app()).get("/admin/runs")
-    assert resp.status_code == 200
-    assert "next: ranking" in resp.text
-    assert "archived" in resp.text
+    def list_for_view(*_args, archived_only=False, **_kwargs):
+        return [archived] if archived_only else [awaiting]
+
+    with patch("fitcv_cp.app.list_runs", side_effect=list_for_view):
+        active_resp = TestClient(_app()).get("/admin/runs")
+        archived_resp = TestClient(_app()).get("/admin/runs?view=archived")
+    assert active_resp.status_code == 200
+    assert "Awaiting Continue" in active_resp.text
+    assert "run-archived-marker" not in active_resp.text
+    assert archived_resp.status_code == 200
+    assert "run-archived-marker" in archived_resp.text
+    assert ">Archived<" in archived_resp.text
 
 
 
@@ -13114,13 +13694,13 @@ def test_post_runs_scanner_mode_needs_no_file_and_persists_provenance(tmp_path, 
     assert manifest["canonical_sha256"]
 
 
-def test_runs_list_renders_registry_driven_scanner_fields() -> None:
+def test_runs_list_renders_managed_scan_picker_instead_of_direct_scanner_fields() -> None:
     with patch("fitcv_cp.app.list_runs", return_value=[]):
         response = TestClient(_app()).get("/admin/runs")
 
     assert response.status_code == 200
-    assert 'id="source_mode"' in response.text
-    assert 'id="scanner_provider"' in response.text
-    assert '<option value="personio">Personio</option>' in response.text
-    assert '<option value="greenhouse">Greenhouse</option>' in response.text
-    assert '<option value="workday">Workday</option>' in response.text
+    assert 'id="manage-run-scans"' in response.text
+    assert "Eligible Scan outputs" in response.text
+    assert 'id="source_mode"' not in response.text
+    assert 'id="scanner_provider"' not in response.text
+    assert "scanner_careers_url" not in response.text

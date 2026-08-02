@@ -69,6 +69,17 @@ def test_enqueue_run_with_job_id_returns_tuple():
     assert job_id == "rq-job-abc"
 
 
+def test_enqueue_scan_uses_stable_queue_job_id() -> None:
+    mock_q = MagicMock()
+    mock_q.enqueue.return_value.id = "scan:scan-123"
+    with patch("fitcv_cp.queue.get_queue", return_value=mock_q):
+        with patch.dict("os.environ", {"FITCV_CP_INLINE_EXECUTION": "0"}):
+            from fitcv_cp.queue import enqueue_scan_with_job_id
+
+            assert enqueue_scan_with_job_id("scan-123") == "scan:scan-123"
+    assert mock_q.enqueue.call_args.kwargs["job_id"] == "scan:scan-123"
+
+
 def test_enqueue_run_with_job_id_wires_fixed_rq_retry_when_attempts_exceed_one() -> None:
     from rq.job import Retry
 

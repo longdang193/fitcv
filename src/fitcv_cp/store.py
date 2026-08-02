@@ -62,6 +62,18 @@ class RunStore(Protocol):
     def get_synonym_suggestion(self, suggestion_id: str) -> dict[str, Any] | None: ...
     def apply_synonym_suggestion_action(self, suggestion_ids: list[str], **kwargs: Any) -> dict[str, Any]: ...
     def query_synonym_processing_runs(self, **kwargs: Any) -> dict[str, Any]: ...
+    def query_tracked_companies(self, **kwargs: Any) -> dict[str, Any]: ...
+    def create_tracked_company(self, **kwargs: Any) -> dict[str, Any]: ...
+    def create_scan(self, **kwargs: Any) -> dict[str, Any]: ...
+    def query_scans(self, **kwargs: Any) -> dict[str, Any]: ...
+    def get_scan_detail(self, scan_id: str) -> dict[str, Any] | None: ...
+    def request_scan_cancel(self, scan_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def commit_scan_output(self, scan_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def get_scan_output(self, scan_id: str) -> dict[str, Any] | None: ...
+    def query_scan_jobs(self, scan_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def transition_scan_lifecycle(self, items: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]: ...
+    def preview_delete_archived_scans(self, scan_ids: list[str], **kwargs: Any) -> dict[str, Any]: ...
+    def delete_archived_scans(self, scan_ids: list[str], **kwargs: Any) -> dict[str, Any]: ...
     def insert_run(self, run: PipelineRun) -> None: ...
     def create_run_bundle(self, run: PipelineRun, *, input_resource: dict[str, Any], jobs: list[dict[str, Any]]) -> dict[str, Any]: ...
     def query_runs(self, **kwargs: Any) -> dict[str, Any]: ...
@@ -203,6 +215,18 @@ class ControlPlaneStore:
     get_synonym_suggestion_fn: Any | None = None
     apply_synonym_suggestion_action_fn: Any | None = None
     query_synonym_processing_runs_fn: Any | None = None
+    query_tracked_companies_fn: Any | None = None
+    create_tracked_company_fn: Any | None = None
+    create_scan_fn: Any | None = None
+    query_scans_fn: Any | None = None
+    get_scan_detail_fn: Any | None = None
+    request_scan_cancel_fn: Any | None = None
+    commit_scan_output_fn: Any | None = None
+    get_scan_output_fn: Any | None = None
+    query_scan_jobs_fn: Any | None = None
+    transition_scan_lifecycle_fn: Any | None = None
+    preview_delete_archived_scans_fn: Any | None = None
+    delete_archived_scans_fn: Any | None = None
     insert_run_fn: Any | None = None
     update_run_queue_job_id_fn: Any | None = None
     update_run_orchestration_binding_fn: Any | None = None
@@ -295,6 +319,46 @@ class ControlPlaneStore:
         if value is None:
             return {}
         return dict(value)
+
+    @staticmethod
+    def _scan_backend_unavailable(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("managed Scan backend is unavailable")
+
+    def query_tracked_companies(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.query_tracked_companies_fn, sqlite_store.query_tracked_companies, **kwargs)
+
+    def create_tracked_company(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.create_tracked_company_fn, sqlite_store.create_tracked_company, **kwargs)
+
+    def create_scan(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.create_scan_fn, sqlite_store.create_scan, **kwargs)
+
+    def query_scans(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.query_scans_fn, sqlite_store.query_scans, **kwargs)
+
+    def get_scan_detail(self, scan_id: str) -> dict[str, Any] | None:
+        return cast(dict[str, Any] | None, self._call(self.get_scan_detail_fn, sqlite_store.get_scan_detail, scan_id))
+
+    def request_scan_cancel(self, scan_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.request_scan_cancel_fn, sqlite_store.request_scan_cancel, scan_id, **kwargs)
+
+    def commit_scan_output(self, scan_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.commit_scan_output_fn, sqlite_store.commit_scan_output, scan_id, **kwargs)
+
+    def get_scan_output(self, scan_id: str) -> dict[str, Any] | None:
+        return cast(dict[str, Any] | None, self._call(self.get_scan_output_fn, sqlite_store.get_scan_output, scan_id))
+
+    def query_scan_jobs(self, scan_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.query_scan_jobs_fn, sqlite_store.query_scan_jobs, scan_id, **kwargs)
+
+    def transition_scan_lifecycle(self, items: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.transition_scan_lifecycle_fn, sqlite_store.transition_scan_lifecycle, items, **kwargs)
+
+    def preview_delete_archived_scans(self, scan_ids: list[str], **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.preview_delete_archived_scans_fn, sqlite_store.preview_delete_archived_scans, scan_ids, **kwargs)
+
+    def delete_archived_scans(self, scan_ids: list[str], **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.delete_archived_scans_fn, sqlite_store.delete_archived_scans, scan_ids, **kwargs)
 
     def get_api_provider_revision(self, provider_id: str) -> int:
         return int(

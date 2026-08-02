@@ -1,5 +1,8 @@
 import datetime
 
+import pytest
+
+from fitcv_cp import sqlite_store
 from fitcv_cp.models import PipelineRun, RunStatus
 from fitcv_cp.models import RunEvent
 from fitcv_cp.store import ControlPlaneStore
@@ -26,6 +29,49 @@ def test_control_plane_store_uses_injected_insert_fn() -> None:
     store = ControlPlaneStore(insert_run_fn=_insert)
     store.insert_run(_run())
     assert isinstance(captured["run"], PipelineRun)
+
+
+@pytest.mark.parametrize(
+    ("method_name", "field_name", "args", "kwargs", "expected"),
+    [
+        ("query_tracked_companies", "query_tracked_companies_fn", (), {"page": 1}, {"data": []}),
+        ("create_tracked_company", "create_tracked_company_fn", (), {"company_name": "Acme"}, {"company_id": "company-1"}),
+        ("create_scan", "create_scan_fn", (), {"request": {"company_ids": ["company-1"]}}, {"scan_id": "scan-1"}),
+        ("query_scans", "query_scans_fn", (), {"page": 1}, {"data": []}),
+        ("get_scan_detail", "get_scan_detail_fn", ("scan-1",), {}, {"scan_id": "scan-1"}),
+        ("request_scan_cancel", "request_scan_cancel_fn", ("scan-1",), {"expected_revision": 1}, {"scan_id": "scan-1"}),
+        ("commit_scan_output", "commit_scan_output_fn", ("scan-1",), {"output_json": "[]"}, {"scan_id": "scan-1"}),
+        ("get_scan_output", "get_scan_output_fn", ("scan-1",), {}, {"output_json": "[]"}),
+        ("query_scan_jobs", "query_scan_jobs_fn", ("scan-1",), {"page": 1}, {"data": []}),
+        ("transition_scan_lifecycle", "transition_scan_lifecycle_fn", ([{"scan_id": "scan-1"}],), {"target": "archived"}, {"data": []}),
+        ("preview_delete_archived_scans", "preview_delete_archived_scans_fn", (["scan-1"],), {}, {"eligible_scan_ids": ["scan-1"]}),
+        ("delete_archived_scans", "delete_archived_scans_fn", (["scan-1"],), {"preview_revision": "rev"}, {"deleted_count": 1}),
+    ],
+)
+def test_control_plane_store_dispatches_scan_overrides(
+    method_name: str,
+    field_name: str,
+    args: tuple[object, ...],
+    kwargs: dict[str, object],
+    expected: dict[str, object],
+) -> None:
+    captured: dict[str, object] = {}
+
+    def override(*call_args: object, **call_kwargs: object) -> dict[str, object]:
+        captured["args"] = call_args
+        captured["kwargs"] = call_kwargs
+        return expected
+
+    store = ControlPlaneStore(**{field_name: override})
+
+    assert getattr(store, method_name)(*args, **kwargs) == expected
+    assert captured == {"args": args, "kwargs": kwargs}
+
+
+def test_control_plane_store_scan_default_uses_sqlite_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sqlite_store, "query_scans", lambda **kwargs: {"items": [], **kwargs})
+
+    assert ControlPlaneStore().query_scans(page=1) == {"items": [], "page": 1}
 
 
 def test_control_plane_store_uses_injected_provider_registry_fn() -> None:

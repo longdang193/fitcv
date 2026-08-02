@@ -72,6 +72,11 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             "synonym_suggestions",
             "synonym_suggestion_sources",
             "synonym_processing_runs",
+            "tracked_companies",
+            "scans",
+            "scan_inputs",
+            "scan_outputs",
+            "run_scan_inputs",
         } <= tables
         assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 4
         assert conn.execute("PRAGMA user_version").fetchone()[0] == sqlite_store.CONTROL_PLANE_SCHEMA_VERSION
@@ -79,6 +84,8 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
         assert any(row[2] == "candidate_profiles" and row[6] == "RESTRICT" for row in conn.execute("PRAGMA foreign_key_list(candidate_profile_revisions)"))
         assert any(row[2] == "run_jobs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(bookmarks)"))
         assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(bookmarks)"))
+        assert any(row[2] == "scans" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(scan_inputs)"))
+        assert any(row[2] == "scans" and row[6] == "RESTRICT" for row in conn.execute("PRAGMA foreign_key_list(run_scan_inputs)"))
         assert any(row[2] == "synonym_suggestions" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(synonym_suggestion_sources)"))
         assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(synonym_suggestion_sources)"))
 
@@ -110,6 +117,88 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
 
         for table in ("pipeline_runs", "bookmarks", "synonym_suggestions", "synonym_processing_runs"):
             assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+
+
+def test_tracked_company_and_scan_persist_with_immutable_output() -> None:
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    company = sqlite_store.create_tracked_company(
+        company_name="Acme Analytics",
+        careers_url="https://acme.jobs.personio.de/",
+        provider_id="personio",
+        provider_label="Personio",
+        database_path=database_path,
+    )
+
+def _make_succeeded_scan(database_path: Path, *, name: str) -> dict[str, object]:
+    company = sqlite_store.create_tracked_company(
+        company_name=f"{name} Company",
+        careers_url=f"https://{name}.jobs.personio.de/",
+        provider_id="personio",
+        provider_label="Personio",
+        database_path=database_path,
+    )
+    reservation = sqlite_store.reserve_idempotent_action(
+        "scans:create", f"{name}-key", f"{name}-fingerprint"
+    )
+    scan = sqlite_store.create_scan(
+        request={
+            "scan_name": name,
+            "company_ids": [company["company_id"]],
+            "job_titles": [],
+            "locations": [],
+            "published_window": "any",
+            "total_rows": 50,
+        },
+        idempotency_action_id=reservation["action_id"],
+        database_path=database_path,
+    )
+    sqlite_store.commit_scan_output(
+        str(scan["scan_id"]),
+        output_json=json.dumps([{"title": name}]),
+        database_path=database_path,
+    )
+    detail = sqlite_store.get_scan_detail(str(scan["scan_id"]), database_path=database_path)
+    output = sqlite_store.get_scan_output(str(scan["scan_id"]), database_path=database_path)
+    return {**detail, "output_sha256": output["sha256"]}
+    reservation = sqlite_store.reserve_idempotent_action(
+        "scans:create", "scan-key", "scan-fingerprint"
+    )
+    scan = sqlite_store.create_scan(
+        request={
+            "scan_name": "Germany data roles",
+            "company_ids": [company["company_id"]],
+            "job_titles": ["Data Engineer"],
+            "locations": ["Germany"],
+            "published_window": "past_7_days",
+            "total_rows": 50,
+        },
+        idempotency_action_id=reservation["action_id"],
+        database_path=database_path,
+    )
+
+    assert sqlite_store.query_tracked_companies(database_path=database_path)["items"] == [company]
+    assert sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)["input"]["company_ids"] == [company["company_id"]]
+
+    sqlite_store.commit_scan_output(
+        scan["scan_id"], output_json='[{"title":"Data Engineer"}]', database_path=database_path
+    )
+    with pytest.raises(ValueError, match="scan_output_immutable"):
+        sqlite_store.commit_scan_output(scan["scan_id"], output_json="[]", database_path=database_path)
+
+    detail = sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)
+    archived = sqlite_store.transition_scan_lifecycle(
+        [{"scan_id": scan["scan_id"], "expected_revision": detail["row_revision"]}],
+        target="archived",
+        database_path=database_path,
+    )["items"][0]
+    preview = sqlite_store.preview_delete_archived_scans([scan["scan_id"]], database_path=database_path)
+    deleted = sqlite_store.delete_archived_scans(
+        [scan["scan_id"]], preview_revision=preview["preview_revision"], database_path=database_path
+    )
+
+    assert archived["lifecycle"] == "archived"
+    assert deleted == {"deleted_count": 1, "deleted_scan_ids": [scan["scan_id"]]}
+    assert sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path) is None
 
 
 def test_control_plane_schema_upgrades_version_3_without_losing_settings() -> None:
@@ -737,6 +826,84 @@ def test_create_run_bundle_rejects_archived_profile_without_run_row(tmp_path: Pa
         assert connection.execute(
             "SELECT COUNT(*) FROM pipeline_runs WHERE run_id = 'run-stale-profile'"
         ).fetchone()[0] == 0
+
+def test_create_run_bundle_persists_ordered_scan_provenance_and_blocks_scan_delete() -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    first = _make_succeeded_scan(database_path, name="first")
+    second = _make_succeeded_scan(database_path, name="second")
+    run = _make_run("run-scan-provenance")
+    manifest = {
+        "sources": [
+            {"type": "upload", "filename": "jobs.json"},
+            {"type": "scan", "scan_id": second["scan_id"], "sha256": second["output_sha256"]},
+            {"type": "scan", "scan_id": first["scan_id"], "sha256": first["output_sha256"]},
+        ]
+    }
+
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "jobs_snapshot_json": '[{"title":"Upload"}]',
+            "jobs_manifest_json": json.dumps(manifest),
+        },
+        jobs=[{"title": "Upload"}],
+    )
+
+    with sqlite3.connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT scan_id, source_ordinal, scan_output_sha256 FROM run_scan_inputs WHERE run_id = ? ORDER BY source_ordinal",
+            (run.run_id,),
+        ).fetchall()
+    assert rows == [
+        (second["scan_id"], 0, second["output_sha256"]),
+        (first["scan_id"], 1, first["output_sha256"]),
+    ]
+
+    for scan in (first, second):
+        archived = sqlite_store.transition_scan_lifecycle(
+            [{"scan_id": scan["scan_id"], "expected_revision": scan["row_revision"]}],
+            target="archived",
+            database_path=database_path,
+        )["items"][0]
+        preview = sqlite_store.preview_delete_archived_scans([scan["scan_id"]], database_path=database_path)
+        assert preview["referenced_scan_ids"] == [{"scan_id": scan["scan_id"], "run_count": 1}]
+        with pytest.raises(ValueError, match="delete_preview_stale"):
+            sqlite_store.delete_archived_scans(
+                [scan["scan_id"]],
+                preview_revision=preview["preview_revision"],
+                database_path=database_path,
+            )
+        assert archived["lifecycle"] == "archived"
+
+def test_create_run_bundle_rolls_back_scan_provenance_and_run_rows_on_job_insert_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    scan = _make_succeeded_scan(database_path, name="rollback")
+    run = _make_run("run-scan-rollback")
+    monkeypatch.setattr(
+        sqlite_store.uuid,
+        "uuid5",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("job insert failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="job insert failed"):
+        sqlite_store.create_run_bundle(
+            run,
+            input_resource={
+                "jobs_snapshot_json": '[{"title":"Analyst"}]',
+                "jobs_manifest_json": json.dumps(
+                    {"sources": [{"type": "scan", "scan_id": scan["scan_id"], "sha256": scan["output_sha256"]}]}
+                ),
+            },
+            jobs=[{"title": "Analyst"}],
+        )
+
+    with sqlite3.connect(database_path) as connection:
+        for table in ("pipeline_runs", "run_inputs", "run_scan_inputs", "run_jobs"):
+            assert connection.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE run_id = ?", (run.run_id,)
+            ).fetchone()[0] == 0
 
 
 def test_synonym_suggestions_aggregate_across_runs_and_preserve_approved_decision() -> None:

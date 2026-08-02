@@ -2,6 +2,7 @@
 {% block title %}Run {{ run.run_id[:8] }} — FitCV Admin{% endblock %}
 {% block content %}
 {% import "_icons.html" as icons %}
+{% import "_jobs_input_sources.html" as job_sources %}
 
 <a class="page-back-link" href="{{ back_url }}">← Back to Runs</a>
 <div class="page-header">
@@ -46,6 +47,9 @@
     <span class="k">Jobs Path</span><span class="v"><code>{{ run.jobs_path_display or run.jobs_path }}</code></span>
     {% if run.jobs_input_source %}
     <span class="k">Jobs Source</span><span class="v"><span class="badge badge-info">{{ run.jobs_input_source }}</span></span>
+    {% endif %}
+    {% if jobs_input_sources %}
+    <span class="k">Job Inputs</span><span class="v">{{ job_sources.render_jobs_input_sources(jobs_input_sources) }}</span>
     {% endif %}
     <span class="k">Config</span><span class="v"><code>{{ run.config_path }}</code></span>
     {% if run.candidate_profile_source %}
@@ -941,7 +945,7 @@ async function lifecycleAction(runId, action, btn) {
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+initializeFitCVPage(() => {
   {% if output_availability.state == 'available' %}
   const pipelineResultsCard = document.getElementById('generated-outputs');
   const runOverviewCard = document.getElementById('run-overview-core');

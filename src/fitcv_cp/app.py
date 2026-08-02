@@ -78,6 +78,7 @@ from fitcv.job_sources import (
     acquire_scanner_jobs,
     build_scanner_request,
     list_provider_options,
+    verify_scanner_portal,
 )
 from fitcv.inverse_optimization import InverseOptimizationRequest
 from fitcv.llm_runtime import (
@@ -146,6 +147,14 @@ from fitcv_cp.run_artifact_contracts import (
     pretty_json_string,
     pretty_json_string_or_fallback,
     run_mode_label,
+)
+from fitcv_cp.scan_contracts import (
+    ScanCreateRequest,
+    ScanDeletePreviewRequest,
+    ScanDeleteRequest,
+    ScanLifecycleRequest,
+    ScanRunAgainRequest,
+    TrackedCompanyWriteRequest,
 )
 from fitcv.runtime_routing import LlmRouting, build_packaged_llm_configuration_snapshot, build_runtime_routing_snapshot, resolve_openai_compatible_api_key
 from fitcv.shortlist_runtime import build_contract_fingerprint
@@ -915,6 +924,39 @@ def _load_jobs_input_manifest(raw_manifest_json: str | None) -> dict[str, Any]:
     if not raw_manifest_json:
         return {}
     return decode_json_object_or_none(raw_manifest_json) or {}
+
+
+def _project_jobs_input_sources(raw_manifest_json: str | None) -> list[dict[str, Any]]:
+    manifest = _load_jobs_input_manifest(raw_manifest_json)
+    raw_sources = manifest.get("sources")
+    if not isinstance(raw_sources, list):
+        raw_sources = [
+            {"type": "upload", "filename": filename}
+            for filename in manifest.get("source_filenames", [])
+            if isinstance(filename, str) and filename.strip()
+        ] if isinstance(manifest.get("source_filenames"), list) else []
+
+    sources: list[dict[str, Any]] = []
+    for raw_source in raw_sources:
+        if not isinstance(raw_source, dict):
+            continue
+        source_type = str(raw_source.get("type") or "").strip().lower()
+        if source_type == "upload":
+            filename = str(raw_source.get("filename") or "").strip()
+            if filename:
+                sources.append({"type": "upload", "filename": filename})
+        elif source_type == "scan":
+            scan_id = str(raw_source.get("scan_id") or "").strip()
+            if scan_id:
+                sources.append(
+                    {
+                        "type": "scan",
+                        "scan_id": scan_id,
+                        "scan_name": str(raw_source.get("scan_name") or "").strip(),
+                    }
+                )
+    return sources
+
 
 def _format_jobs_path_display(run: PipelineRun) -> str:
     raw_jobs_path = str(getattr(run, "jobs_path", "") or "").strip()
@@ -6132,6 +6174,54 @@ def _validated_page(page: int, page_size: int) -> tuple[int, int]:
     return page, page_size
 
 
+def _format_elapsed_duration(started_value: Any, finished_value: Any) -> str:
+    if not started_value or not finished_value:
+        return "—"
+    try:
+        started_at = (
+            started_value
+            if isinstance(started_value, datetime.datetime)
+            else datetime.datetime.fromisoformat(str(started_value))
+        )
+        finished_at = (
+            finished_value
+            if isinstance(finished_value, datetime.datetime)
+            else datetime.datetime.fromisoformat(str(finished_value))
+        )
+        elapsed_seconds = max(0, int((finished_at - started_at).total_seconds()))
+    except (TypeError, ValueError):
+        return "—"
+    minutes, seconds = divmod(elapsed_seconds, 60)
+    return f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
+
+
+def _format_scan_duration(scan: dict[str, Any]) -> str:
+    if scan.get("execution_status") not in {"succeeded", "failed", "cancelled"}:
+        return "—"
+    return _format_elapsed_duration(scan.get("started_at"), scan.get("finished_at"))
+
+
+def _ordered_unique_strings(values: list[Any]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        value = str(raw or "").strip()
+        if value and value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
+
+
+def _verify_tracked_company_input(body: TrackedCompanyWriteRequest) -> dict[str, Any]:
+    try:
+        return verify_scanner_portal(
+            company_name=body.company_name,
+            careers_url=body.careers_url,
+        )
+    except JobSourceError as exc:
+        raise _job_source_api_error(exc) from exc
+
+
 def _required_idempotency_key(request: Request) -> str:
     key = str(request.headers.get("Idempotency-Key") or "").strip()
     if not key:
@@ -6600,6 +6690,9 @@ def create_app(
     )
     app = FastAPI(title="FitCV Admin Control Plane")
     app.state.run_store = _CP_STORE
+    from fitcv_cp.queue import enqueue_scan_with_job_id
+
+    app.state.enqueue_scan = lambda scan_id: enqueue_scan_with_job_id(scan_id, redis_url=redis_url)
 
     @app.exception_handler(ApiError)
     async def api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
@@ -8357,13 +8450,19 @@ def create_app(
                     },
                     jobs=[dict(job) for job in parsed_run_jobs if isinstance(job, dict)],
                 )
-            except sqlite_store_module.CandidateProfileUnavailableError as exc:
-                raise ApiError(
-                    409,
-                    "candidate_profile_unavailable",
-                    "Candidate Profile is no longer available for Runs.",
-                    action="Refresh Candidate Profiles and select an Active, Succeeded profile.",
-                ) from exc
+            except Exception as exc:
+                try:
+                    Path(jobs_path).unlink(missing_ok=True)
+                except OSError:
+                    logger.warning("failed to remove uncommitted Run jobs projection: %s", jobs_path)
+                if isinstance(exc, sqlite_store_module.CandidateProfileUnavailableError):
+                    raise ApiError(
+                        409,
+                        "candidate_profile_unavailable",
+                        "Candidate Profile is no longer available for Runs.",
+                        action="Refresh Candidate Profiles and select an Active, Succeeded profile.",
+                    ) from exc
+                raise
         else:
             _persist_run_initial(run, client=client)
         try:
@@ -8398,6 +8497,308 @@ def create_app(
             client=client,
         )
         return {"run_id": run_id, "warnings": []}
+
+    def _scan_store_call(callback: Callable[[], Any]) -> Any:
+        try:
+            return callback()
+        except ApiError:
+            raise
+        except RuntimeError as exc:
+            if str(exc) == "managed Scan backend is unavailable":
+                raise ApiError(
+                    503,
+                    "scan_backend_unavailable",
+                    "Managed Scan backend is not available.",
+                    retryable=True,
+                    action="Start the Scan service and retry.",
+                ) from exc
+            raise
+        except ValueError as exc:
+            code = str(exc)
+            status = 409 if code in {
+                "idempotency_conflict",
+                "scan_revision_conflict",
+                "delete_preview_stale",
+                "scan_not_usable",
+                "scan_output_integrity_failed",
+            } else 422
+            raise ApiError(
+                status,
+                code if code else "scan_request_invalid",
+                code.replace("_", " ").capitalize() if code else "Scan request is invalid.",
+                retryable=False,
+                action="Refresh Scan data and retry." if status == 409 else "Fix the request and retry.",
+            ) from exc
+
+    def _reserve_scan_action(
+        request: Request,
+        scope: str,
+        payload: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        key = _required_idempotency_key(request)
+        reservation = _scan_store_call(
+            lambda: request.app.state.run_store.reserve_idempotent_action(
+                scope,
+                key,
+                _request_fingerprint(payload),
+            )
+        )
+        replay = reservation.get("response") if reservation.get("replayed") else None
+        return reservation, dict(replay) if isinstance(replay, dict) else None
+
+    def _complete_scan_action(request: Request, reservation: dict[str, Any], response: dict[str, Any]) -> None:
+        _scan_store_call(
+            lambda: request.app.state.run_store.complete_idempotent_action(
+                str(reservation["action_id"]),
+                response,
+            )
+        )
+
+    @app.get("/tracked-companies")
+    def get_tracked_companies(
+        request: Request,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        result = _scan_store_call(
+            lambda: request.app.state.run_store.query_tracked_companies(
+                search=search.strip(), page=page, page_size=page_size
+            )
+        )
+        return _collection_response(
+            list(result.get("items") or result.get("data") or []),
+            page=page,
+            page_size=page_size,
+            total_items=int(result.get("total") or 0),
+            meta=dict(result.get("meta") or {}),
+        )
+
+    @app.post("/tracked-companies/actions/verify")
+    def verify_tracked_company(body: TrackedCompanyWriteRequest) -> dict[str, Any]:
+        return _data_response(_verify_tracked_company_input(body))
+
+    @app.post("/tracked-companies", status_code=201)
+    def post_tracked_company(
+        request: Request,
+        body: TrackedCompanyWriteRequest,
+    ) -> dict[str, Any]:
+        verified = _verify_tracked_company_input(body)
+        reservation, replay = _reserve_scan_action(request, "tracked-companies:create", verified)
+        if replay is not None:
+            return _data_response(replay)
+        resource = _scan_store_call(
+            lambda: request.app.state.run_store.create_tracked_company(**verified)
+        )
+        _complete_scan_action(request, reservation, resource)
+        return _data_response(resource)
+
+    @app.get("/scans")
+    def get_scans(
+        request: Request,
+        lifecycle: str = "active",
+        execution_status: str | None = None,
+        usable_for_run: bool | None = None,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        if lifecycle not in {"active", "archived"}:
+            raise ApiError(422, "validation_failed", "Lifecycle must be active or archived.")
+        result = _scan_store_call(
+            lambda: request.app.state.run_store.query_scans(
+                lifecycle=lifecycle,
+                execution_status=execution_status,
+                usable_for_run=usable_for_run,
+                search=search.strip(),
+                page=page,
+                page_size=page_size,
+            )
+        )
+        return _collection_response(
+            list(result.get("items") or result.get("data") or []),
+            page=page,
+            page_size=page_size,
+            total_items=int(result.get("total") or 0),
+            meta=dict(result.get("meta") or {}),
+        )
+
+    @app.post("/scans", status_code=201)
+    def post_scan(request: Request, body: ScanCreateRequest) -> dict[str, Any]:
+        payload = body.model_dump(mode="json")
+        reservation, replay = _reserve_scan_action(request, "scans:create", payload)
+        if replay is not None:
+            return _data_response(replay)
+        resource = _scan_store_call(
+            lambda: request.app.state.run_store.create_scan(
+                request=payload,
+                idempotency_action_id=str(reservation["action_id"]),
+            )
+        )
+        try:
+            request.app.state.enqueue_scan(str(resource["scan_id"]))
+        except Exception as exc:
+            from fitcv_cp import sqlite_store
+
+            resource = sqlite_store.fail_scan_execution(
+                str(resource["scan_id"]),
+                error_code="scan_enqueue_failed",
+                error_message=str(exc),
+            )
+        _complete_scan_action(request, reservation, resource)
+        return _data_response(resource)
+
+    @app.get("/scans/{scan_id}")
+    def get_scan(request: Request, scan_id: str) -> dict[str, Any]:
+        resource = _scan_store_call(lambda: request.app.state.run_store.get_scan_detail(scan_id))
+        if resource is None:
+            raise ApiError(404, "scan_not_found", "Scan was not found.")
+        return _data_response(resource)
+
+    @app.get("/scans/{scan_id}/events")
+    def get_scan_events(
+        request: Request,
+        scan_id: str,
+        cursor: str | None = None,
+        limit: int = 200,
+    ) -> dict[str, Any]:
+        if _scan_store_call(lambda: request.app.state.run_store.get_scan_detail(scan_id)) is None:
+            raise ApiError(404, "scan_not_found", "Scan was not found.")
+        page = _scan_store_call(
+            lambda: request.app.state.run_store.get_process_events(
+                "scan", scan_id, limit=limit, cursor=cursor
+            )
+        )
+        return _data_response(page)
+
+    @app.get("/scans/{scan_id}/jobs")
+    def get_scan_jobs(
+        request: Request,
+        scan_id: str,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        result = _scan_store_call(
+            lambda: request.app.state.run_store.query_scan_jobs(
+                scan_id, page=page, page_size=page_size
+            )
+        )
+        return _collection_response(
+            list(result.get("items") or result.get("data") or []),
+            page=page,
+            page_size=page_size,
+            total_items=int(result.get("total") or 0),
+            meta=dict(result.get("meta") or {}),
+        )
+
+    @app.get("/scans/{scan_id}/output")
+    def get_scan_output(request: Request, scan_id: str, download: bool = False) -> Response:
+        output = _scan_store_call(lambda: request.app.state.run_store.get_scan_output(scan_id))
+        if output is None:
+            raise ApiError(404, "scan_not_found", "Scan was not found.")
+        content = str(output["output_json"]).encode("utf-8")
+        safe_scan_id = re.sub(r"[^A-Za-z0-9._-]+", "-", scan_id).strip("-") or "scan"
+        headers = {
+            "ETag": f'"{output["sha256"]}"',
+            "X-Content-Type-Options": "nosniff",
+            "Content-Length": str(len(content)),
+        }
+        if download:
+            headers["Content-Disposition"] = f'attachment; filename="{safe_scan_id}.json"'
+        return Response(content=content, media_type="application/json; charset=utf-8", headers=headers)
+
+    @app.post("/scans/{scan_id}/actions/cancel", status_code=202)
+    def cancel_scan(request: Request, scan_id: str, body: ScanRunAgainRequest) -> dict[str, Any]:
+        payload = {"scan_id": scan_id, **body.model_dump(mode="json")}
+        reservation, replay = _reserve_scan_action(request, f"scans:{scan_id}:cancel", payload)
+        if replay is not None:
+            return _data_response(replay)
+        resource = _scan_store_call(
+            lambda: request.app.state.run_store.request_scan_cancel(
+                scan_id, expected_revision=body.expected_revision
+            )
+        )
+        _complete_scan_action(request, reservation, resource)
+        return _data_response(resource)
+
+    @app.post("/scans/{scan_id}/actions/run-again", status_code=201)
+    def run_scan_again(request: Request, scan_id: str, body: ScanRunAgainRequest) -> dict[str, Any]:
+        original = _scan_store_call(lambda: request.app.state.run_store.get_scan_detail(scan_id))
+        if original is None:
+            raise ApiError(404, "scan_not_found", "Scan was not found.")
+        payload = {"scan_id": scan_id, **body.model_dump(mode="json")}
+        reservation, replay = _reserve_scan_action(request, f"scans:{scan_id}:run-again", payload)
+        if replay is not None:
+            return _data_response(replay)
+        logical_input = dict(original.get("input") or {})
+        if body.scan_name:
+            logical_input["scan_name"] = body.scan_name
+        resource = _scan_store_call(
+            lambda: request.app.state.run_store.create_scan(
+                request=logical_input,
+                rerun_of_scan_id=scan_id,
+                idempotency_action_id=str(reservation["action_id"]),
+            )
+        )
+        try:
+            request.app.state.enqueue_scan(str(resource["scan_id"]))
+        except Exception as exc:
+            from fitcv_cp import sqlite_store
+
+            resource = sqlite_store.fail_scan_execution(
+                str(resource["scan_id"]), error_code="scan_enqueue_failed", error_message=str(exc)
+            )
+        _complete_scan_action(request, reservation, resource)
+        return _data_response(resource)
+
+    def _transition_scans(
+        request: Request,
+        body: ScanLifecycleRequest,
+        target: str,
+    ) -> dict[str, Any]:
+        payload = body.model_dump(mode="json")
+        reservation, replay = _reserve_scan_action(request, f"scans:{target}", payload)
+        if replay is not None:
+            return _data_response(replay)
+        result = _scan_store_call(
+            lambda: request.app.state.run_store.transition_scan_lifecycle(
+                payload["items"], target=target
+            )
+        )
+        _complete_scan_action(request, reservation, result)
+        return _data_response(result)
+
+    @app.post("/scans/actions/archive")
+    def archive_scans(request: Request, body: ScanLifecycleRequest) -> dict[str, Any]:
+        return _transition_scans(request, body, "archived")
+
+    @app.post("/scans/actions/unarchive")
+    def unarchive_scans(request: Request, body: ScanLifecycleRequest) -> dict[str, Any]:
+        return _transition_scans(request, body, "active")
+
+    @app.post("/scans/actions/delete-archived/preview")
+    def preview_delete_scans(request: Request, body: ScanDeletePreviewRequest) -> dict[str, Any]:
+        result = _scan_store_call(
+            lambda: request.app.state.run_store.preview_delete_archived_scans(body.scan_ids)
+        )
+        return _data_response(result)
+
+    @app.post("/scans/actions/delete-archived")
+    def delete_scans(request: Request, body: ScanDeleteRequest) -> dict[str, Any]:
+        payload = body.model_dump(mode="json")
+        reservation, replay = _reserve_scan_action(request, "scans:delete", payload)
+        if replay is not None:
+            return _data_response(replay)
+        result = _scan_store_call(
+            lambda: request.app.state.run_store.delete_archived_scans(
+                body.scan_ids, preview_revision=body.preview_revision
+            )
+        )
+        _complete_scan_action(request, reservation, result)
+        return _data_response(result)
 
     @app.post("/runs", status_code=201)
     async def trigger_run(request: Request) -> dict[str, Any]:
@@ -8472,6 +8873,117 @@ def create_app(
 
         key = _required_idempotency_key(request)
         form = await request.form()
+        scan_ids = _ordered_unique_strings(list(form.getlist("scan_ids")))
+        if scan_ids:
+            upload = form.get("jobs_file")
+            upload_name = str(getattr(upload, "filename", "") or "").strip()
+            merged_jobs: list[dict[str, Any]] = []
+            profile_id = str(form.get("profile_id") or "").strip()
+            if not profile_id:
+                raise ApiError(
+                    422,
+                    "validation_failed",
+                    "Candidate Profile is required.",
+                    field_errors=[
+                        {"field": "profile_id", "code": "required", "message": "Select a Candidate Profile."}
+                    ],
+                )
+            profile = _scan_store_call(
+                lambda: request.app.state.run_store.get_candidate_profile(profile_id)
+            )
+            if profile is None or not bool(profile.get("is_active")):
+                raise ApiError(
+                    409,
+                    "candidate_profile_unavailable",
+                    "Candidate Profile is not available for Runs.",
+                )
+            sources: list[dict[str, Any]] = []
+            if upload_name:
+                upload_bytes = await upload.read()
+                try:
+                    decoded_upload = _json.loads(upload_bytes.decode("utf-8"))
+                except (UnicodeDecodeError, _json.JSONDecodeError) as exc:
+                    raise ApiError(
+                        422,
+                        "validation_failed",
+                        "Uploaded job data must be UTF-8 JSON.",
+                        field_errors=[
+                            {"field": "jobs_file", "code": "invalid_json", "message": "Choose a valid UTF-8 JSON file."}
+                        ],
+                    ) from exc
+                if not isinstance(decoded_upload, list):
+                    raise ApiError(422, "validation_failed", "Uploaded job data must be a JSON array.")
+                merged_jobs.extend(decoded_upload)
+                sources.append({"type": "upload", "filename": upload_name, "record_count": len(decoded_upload)})
+            for scan_id in scan_ids:
+                scan = _scan_store_call(
+                    lambda scan_id=scan_id: request.app.state.run_store.get_scan_detail(scan_id)
+                )
+                if scan is None or not bool(dict(scan.get("capabilities") or {}).get("use_for_run")):
+                    raise ApiError(
+                        409,
+                        "scan_not_usable",
+                        f"Scan {scan_id} is not usable for a Run.",
+                        data={"scan_id": scan_id},
+                        action="Refresh eligible Scan outputs and reselect.",
+                    )
+                output = _scan_store_call(
+                    lambda scan_id=scan_id: request.app.state.run_store.get_scan_output(scan_id)
+                )
+                if output is None:
+                    raise ApiError(409, "scan_output_integrity_failed", f"Scan {scan_id} output is unavailable.")
+                merged_jobs.extend(_json.loads(str(output["output_json"])))
+                sources.append(
+                    {
+                        "type": "scan",
+                        "scan_id": scan_id,
+                        "scan_name": scan.get("scan_name"),
+                        "record_count": scan.get("output_record_count"),
+                        "sha256": output.get("sha256"),
+                    }
+                )
+            fingerprint_payload = {
+                "profile_id": profile_id,
+                "run_name": str(form.get("run_name") or "").strip(),
+                "sources": sources,
+            }
+            try:
+                action = request.app.state.run_store.reserve_idempotent_action(
+                    "runs.trigger.managed",
+                    key,
+                    _request_fingerprint(fingerprint_payload),
+                )
+            except ValueError as exc:
+                raise ApiError(409, "idempotency_conflict", "Idempotency-Key was already used for a different Run request.") from exc
+            if action.get("replayed") and action.get("response") is not None:
+                return _data_response(dict(action["response"]))
+            mock_executor = getattr(request.app.state, "managed_run_result_fn", None)
+            if mock_executor is not None:
+                result = mock_executor(sources)
+            else:
+                try:
+                    artifact = canonicalize_jobs(merged_jobs)
+                except ValueError as exc:
+                    raise ApiError(422, "validation_failed", str(exc)) from exc
+                profile_snapshot = dict(profile.get("profile") or {})
+                profile_snapshot.setdefault("name", profile.get("name"))
+                profile_snapshot["revision"] = profile.get("revision")
+                profile_snapshot["candidate_profile_id"] = profile_id
+                source_kind = "combined" if upload_name else "scan"
+                result = _execute_trigger_with_inputs(
+                    jobs_path=upload_name or scan_ids[0],
+                    config_path=str(form.get("config_path") or ".env.yaml"),
+                    triggered_by="admin",
+                    config_overrides={},
+                    run_name=str(form.get("run_name") or "").strip() or None,
+                    canonical_jobs=artifact,
+                    jobs_input_source=source_kind,
+                    jobs_input_manifest_json=_json.dumps({"sources": sources}, ensure_ascii=False, sort_keys=True),
+                    candidate_profile_source=profile_id,
+                    candidate_profile_json=_json.dumps(profile_snapshot, ensure_ascii=False, sort_keys=True),
+                )
+            request.app.state.run_store.complete_idempotent_action(str(action["action_id"]), result)
+            return _data_response(result)
         source_mode = str(form.get("source_mode") or "upload").strip().lower()
         if source_mode == "scanner":
             candidate_profile_id = str(form.get("profile_id") or "").strip()
@@ -10924,65 +11436,220 @@ def create_app(
         )
         app.post("/admin/optimization/rollback")(admin_optimization_rollback)
 
+    @app.get("/admin/scans", response_class=HTMLResponse)
+    def admin_scans(request: Request) -> HTMLResponse:
+        lifecycle = str(request.query_params.get("lifecycle") or "active").strip().lower()
+        if lifecycle not in {"active", "archived"}:
+            lifecycle = "active"
+        try:
+            page = int(request.query_params.get("page") or 1)
+            page_size = int(request.query_params.get("page_size") or 20)
+        except ValueError:
+            page, page_size = 1, 20
+        page, page_size = _validated_page(page, page_size)
+        load_error: str | None = None
+        try:
+            result = _scan_store_call(
+                lambda: request.app.state.run_store.query_scans(
+                    lifecycle=lifecycle,
+                    execution_status=None,
+                    usable_for_run=None,
+                    search="",
+                    page=page,
+                    page_size=page_size,
+                )
+            )
+        except RuntimeError:
+            result = {"items": [], "total": 0}
+            load_error = "Scans could not be loaded. Current page was preserved."
+        total_items = int(result.get("total") or 0)
+        total_pages = max(1, (total_items + page_size - 1) // page_size)
+        page = min(page, total_pages)
+        opposite_lifecycle = "archived" if lifecycle == "active" else "active"
+        try:
+            opposite_total = int(
+                _scan_store_call(
+                    lambda: request.app.state.run_store.query_scans(
+                        lifecycle=opposite_lifecycle,
+                        execution_status=None,
+                        usable_for_run=None,
+                        search="",
+                        page=1,
+                        page_size=10,
+                    )
+                ).get("total")
+                or 0
+            )
+        except RuntimeError:
+            opposite_total = 0
+        active_count = total_items if lifecycle == "active" else opposite_total
+        archived_count = total_items if lifecycle == "archived" else opposite_total
+        scans = []
+        for raw_scan in result.get("items") or []:
+            scan = dict(raw_scan)
+            scan["created_at_display"] = _format_compact_utc_timestamp(scan.get("created_at")) or "—"
+            scan["duration_display"] = _format_scan_duration(scan)
+            scans.append(scan)
+        query = {"lifecycle": lifecycle, "page_size": page_size}
+        return templates.TemplateResponse(
+            request=request,
+            name="scans_list.html",
+            context={
+                "scans": scans,
+                "lifecycle": lifecycle,
+                "active_count": active_count,
+                "archived_count": archived_count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "total_items": total_items,
+                "page_query": urlencode(query),
+                "current_url": "/admin/scans?" + urlencode({**query, "page": page}),
+                "load_error": load_error,
+            },
+        )
+
+    @app.get("/admin/scans/{scan_id}", response_class=HTMLResponse)
+    def admin_scan_detail(request: Request, scan_id: str) -> HTMLResponse:
+        scan = _scan_store_call(lambda: request.app.state.run_store.get_scan_detail(scan_id))
+        if scan is None:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        scan = dict(scan)
+        for timestamp_name in ("created_at", "started_at", "finished_at"):
+            scan[f"{timestamp_name}_display"] = (
+                _format_compact_utc_timestamp(scan.get(timestamp_name)) or "—"
+            )
+        raw_return = str(request.query_params.get("return_to") or "")
+        parsed_return = urlparse(raw_return)
+        back_url = (
+            raw_return
+            if not parsed_return.scheme and not parsed_return.netloc and parsed_return.path == "/admin/scans"
+            else "/admin/scans"
+        )
+        try:
+            output_page = max(1, int(request.query_params.get("output_page") or 1))
+            output_page_size = int(request.query_params.get("output_page_size") or 10)
+        except ValueError:
+            output_page, output_page_size = 1, 10
+        output_page, output_page_size = _validated_page(output_page, output_page_size)
+        jobs: list[dict[str, Any]] = []
+        output_total = int(scan.get("output_record_count") or 0)
+        output_json: str | None = None
+        if bool(dict(scan.get("capabilities") or {}).get("download")) and bool(scan.get("output_integrity_valid", True)):
+            jobs_result = _scan_store_call(
+                lambda: request.app.state.run_store.query_scan_jobs(
+                    scan_id, page=output_page, page_size=output_page_size
+                )
+            )
+            jobs = list(jobs_result.get("items") or [])
+            output_total = int(jobs_result.get("total") or output_total)
+            output = _scan_store_call(lambda: request.app.state.run_store.get_scan_output(scan_id))
+            output_json = str(output["output_json"]) if output else None
+        raw_console = _scan_store_call(
+            lambda: request.app.state.run_store.get_process_events("scan", scan_id, limit=200)
+        )
+        events: list[dict[str, Any]] = []
+        for raw_event in list(raw_console.get("events") or []):
+            event = dict(raw_event)
+            recorded_at = event.get("recorded_at")
+            if isinstance(recorded_at, str):
+                event["recorded_at"] = datetime.datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
+            event["recorded_at_display"] = (
+                _format_compact_utc_timestamp(event.get("recorded_at")) or "—"
+            )
+            event.setdefault("schema_version", "process_event_v1")
+            event.setdefault("event_fingerprint", event.get("event_id", ""))
+            event.setdefault("payload_json", None)
+            event.setdefault("diagnostic_refs_json", None)
+            event.setdefault("trace_context_json", None)
+            events.append(event)
+        process_console = {**raw_console, "events": events}
+        output_total_pages = max(1, (output_total + output_page_size - 1) // output_page_size)
+        return templates.TemplateResponse(
+            request=request,
+            name="scan_detail.html",
+            context={
+                "scan": scan,
+                "back_url": back_url,
+                "process_type": "scan",
+                "process_id": scan_id,
+                "process_console": process_console,
+                "process_console_title": "Console Log",
+                "process_console_description": "Scan lifecycle events.",
+                "process_console_simple": True,
+                "jobs": jobs,
+                "output_json": output_json,
+                "output_page": output_page,
+                "output_page_size": output_page_size,
+                "output_total": output_total,
+                "output_total_pages": output_total_pages,
+            },
+        )
+
     @app.get("/admin/runs", response_class=HTMLResponse)
     def admin_runs(request: Request) -> HTMLResponse:
         view = request.query_params.get("view", "active")
-        if view not in {"active", "all", "archived"}:
+        if view not in {"active", "archived"}:
             view = "active"
-        status = str(request.query_params.get("status") or "").strip().lower()
-        search = str(request.query_params.get("search") or "").strip()
         try:
-            page = max(1, int(request.query_params.get("page") or 1))
+            page = int(request.query_params.get("page") or 1)
+            page_size = int(request.query_params.get("page_size") or 20)
         except ValueError:
-            page = 1
-        if view == "archived":
-            runs = list_runs(client=client, archived_only=True)
-        elif view == "all":
-            runs = list_runs(client=client, include_archived=True)
-        else:  # default: active
-            runs = list_runs(client=client, include_archived=False)
-        runs = [_reconcile_orphaned_run(run) for run in runs]
-        runs = [_attach_jobs_path_display(run) for run in runs]
+            page, page_size = 1, 20
+        page, page_size = _validated_page(page, page_size)
         max_runtime_minutes = _run_max_runtime_minutes()
-        runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
-        if status:
-            runs = [run for run in runs if str(run.status.value).lower() == status]
-        if search:
-            needle = search.casefold()
-            runs = [
-                run
-                for run in runs
-                if needle in " ".join(
-                    (
-                        str(run.run_id),
-                        str(getattr(run, "run_name", "") or ""),
-                        str(getattr(run, "jobs_path_display", "") or run.jobs_path),
-                    )
-                ).casefold()
+
+        def project_runs(items: list[PipelineRun]) -> list[PipelineRun]:
+            projected = [_reconcile_orphaned_run(run) for run in items]
+            projected = [_attach_jobs_path_display(run) for run in projected]
+            return [
+                _enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes)
+                for run in projected
             ]
-        page_size = 20
+
+        active_runs = [
+            run
+            for run in project_runs(list_runs(client=client, include_archived=False))
+            if run.archived_at is None
+        ]
+        archived_runs = [
+            run
+            for run in project_runs(list_runs(client=client, archived_only=True))
+            if run.archived_at is not None
+        ]
+        runs = archived_runs if view == "archived" else active_runs
+        active_count = len(active_runs)
+        archived_count = len(archived_runs)
         total_items = len(runs)
         total_pages = max(1, (total_items + page_size - 1) // page_size)
         page = min(page, total_pages)
         runs = runs[(page - 1) * page_size : page * page_size]
         run_status_projection_by_id = {run.run_id: run_status_projection(run) for run in runs}
-        query = {"view": view, "page": page}
-        if status:
-            query["status"] = status
-        if search:
-            query["search"] = search
-        current_url = "/admin/runs?" + urlencode(query)
+        run_created_display = {
+            run.run_id: _format_compact_utc_timestamp(run.created_at) or "—" for run in runs
+        }
+        run_duration_display = {
+            run.run_id: _format_elapsed_duration(run.started_at, run.finished_at)
+            for run in runs
+        }
+        query = {"view": view, "page_size": page_size}
+        current_url = "/admin/runs?" + urlencode({**query, "page": page})
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
             context={
                 "runs": runs,
                 "view": view,
-                "status": status,
-                "search": search,
+                "active_count": active_count,
+                "archived_count": archived_count,
                 "page": page,
+                "page_size": page_size,
                 "total_pages": total_pages,
+                "total_items": total_items,
+                "page_query": urlencode(query),
                 "current_url": current_url,
                 "run_status_projection": run_status_projection_by_id,
+                "run_created_display": run_created_display,
+                "run_duration_display": run_duration_display,
                 "job_source_providers": list_provider_options(),
             }
         )
@@ -11655,6 +12322,7 @@ def create_app(
         hitl_review_pending_count = int(hitl_review_queue.get("pending_count") or 0)
         show_inline_review_queue = hitl_review_pending_count <= HITL_REVIEW_QUEUE_INLINE_THRESHOLD
         show_review_queue_cta = hitl_review_pending_count > HITL_REVIEW_QUEUE_INLINE_THRESHOLD
+        jobs_input_sources = _project_jobs_input_sources(run.jobs_input_manifest_json)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -11662,6 +12330,7 @@ def create_app(
                 "back_url": back_url,
                 "run_status_projection": run_status_projection(run),
                 "run_mode_label": run_mode_label(run.run_mode),
+                "jobs_input_sources": jobs_input_sources,
                 "events": timeline_events,
                 "process_console": process_console,
                 "timeline_has_more": len(events) > timeline_limit,
@@ -12624,7 +13293,10 @@ def create_app(
         return templates.TemplateResponse(
             request=request,
             name="run_detail_tab_jobs_input.html",
-            context={"run": run},
+            context={
+                "run": run,
+                "jobs_input_sources": _project_jobs_input_sources(run.jobs_input_manifest_json),
+            },
         )
 
     @app.get("/admin/runs/{run_id}/tabs/profile", response_class=HTMLResponse)

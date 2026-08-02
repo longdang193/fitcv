@@ -308,6 +308,34 @@ def enqueue_run(
     )
     return run_id
 
+def _run_inline_scan(job_id: str, scan_id: str) -> None:
+    try:
+        from fitcv_cp.scan_worker import execute_scan
+
+        execute_scan(scan_id)
+        _INLINE_JOB_STATUS[job_id] = "finished"
+    except Exception:
+        _INLINE_JOB_STATUS[job_id] = "failed"
+        raise
+
+def enqueue_scan_with_job_id(
+    scan_id: str, redis_url: str = "redis://redis:6379/0"
+) -> str:
+    job_id = f"scan:{scan_id}"
+    if _inline_execution_enabled():
+        _INLINE_JOB_STATUS[job_id] = "queued"
+        get_local_job_executor().submit(_run_inline_scan, job_id, scan_id)
+        return job_id
+    from fitcv_cp import scan_worker
+
+    job = get_queue(redis_url).enqueue(
+        scan_worker.execute_scan,
+        scan_id=scan_id,
+        job_id=job_id,
+        job_timeout=3600,
+    )
+    return str(job.id)
+
 def enqueue_cv_regenerate_once_with_job_id(
     *,
     run_id: str,

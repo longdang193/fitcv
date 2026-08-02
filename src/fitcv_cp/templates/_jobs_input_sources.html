@@ -1,0 +1,13 @@
+{% macro render_jobs_input_sources(sources) -%}
+<ol style="margin:0;padding-left:1.25rem">
+  {% for source in sources %}
+  <li>
+    {% if source.type == 'upload' %}
+      Upload: <code>{{ source.filename }}</code>
+    {% else %}
+      Scan: <a href="/admin/scans/{{ source.scan_id }}"><code>{{ source.scan_id }}</code></a>{% if source.scan_name %} · {{ source.scan_name }}{% endif %}
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{%- endmacro %}

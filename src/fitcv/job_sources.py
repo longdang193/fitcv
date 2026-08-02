@@ -153,6 +153,21 @@ def list_provider_options(providers: ProviderMap | None = None) -> list[dict[str
         for definition in _provider_map(providers).values()
     ]
 
+def verify_scanner_portal(
+    *, company_name: str, careers_url: str, providers: ProviderMap | None = None
+) -> dict[str, str]:
+    request = build_scanner_request(
+        provider="auto", company_name=company_name, careers_url=careers_url,
+        keywords=(), max_jobs=1, timeout_seconds=60, providers=providers,
+    )
+    definition = resolve_provider(request, providers=providers)
+    return {
+        "company_name": request.company_name,
+        "careers_url": request.careers_url,
+        "provider_id": definition.provider_id,
+        "provider_label": definition.label,
+    }
+
 
 def resolve_provider(
     request: ScannerRequest,
