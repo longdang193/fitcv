@@ -6,8 +6,8 @@ schema_version: "candidate-profile.v2"
 
 source_documents:
   - id: "doc_cv_1"
-    filename: "candidate-cv.pdf"
-    media_type: "application/pdf"
+    filename: "candidate-cv.md"
+    media_type: "text/markdown"
     sha256: "<sha256>"
     parser:
       name: "fitcv-cv-parser"
@@ -33,7 +33,10 @@ experiences:
     end: "2024-03"
     source_refs:
       - document_id: "doc_cv_1"
-        page: 1
+        locator:
+          kind: "markdown_lines"
+          start: 5
+          end: 12
 
     evidence:
       - id: "ev_exp_reporting_automation"
@@ -44,7 +47,10 @@ experiences:
           preparation and improving consistency across reporting periods.
         source_refs:
           - document_id: "doc_cv_1"
-            page: 1
+            locator:
+              kind: "markdown_lines"
+              start: 9
+              end: 10
 
       - id: "ev_exp_reporting_stakeholders"
         kind: "work_responsibility"
@@ -54,7 +60,10 @@ experiences:
           sales and operations stakeholders.
         source_refs:
           - document_id: "doc_cv_1"
-            page: 1
+            locator:
+              kind: "markdown_lines"
+              start: 11
+              end: 12
 
 education:
   - id: "edu_analytics_msc"
@@ -63,10 +72,13 @@ education:
     institution: "Example University"
     location: "Germany"
     start: "2024-10"
-    end: "present"
+    end: "Present"
     source_refs:
       - document_id: "doc_cv_1"
-        page: 1
+        locator:
+          kind: "markdown_lines"
+          start: 15
+          end: 26
 
     evidence:
       - id: "ev_edu_analytics_thesis"
@@ -78,7 +90,10 @@ education:
           factors to non-technical stakeholders.
         source_refs:
           - document_id: "doc_cv_1"
-            page: 1
+            locator:
+              kind: "markdown_lines"
+              start: 19
+              end: 20
 
       - id: "ev_edu_analytics_project_dashboard"
         kind: "academic_project"
@@ -88,18 +103,25 @@ education:
           dashboard, and presented findings about revenue and product performance.
         source_refs:
           - document_id: "doc_cv_1"
-            page: 1
+            locator:
+              kind: "markdown_lines"
+              start: 21
+              end: 22
 
       - id: "ev_edu_analytics_seminar_ethics"
         kind: "seminar"
         title: "Responsible Data Analysis"
+        start: "2025-06"
+        end: "2025-06"
         text: >-
           Evaluated bias, privacy, and explainability risks in analytical models
           and presented mitigation recommendations.
-        date: "2025-06"
         source_refs:
           - document_id: "doc_cv_1"
-            page: 2
+            locator:
+              kind: "markdown_lines"
+              start: 23
+              end: 24
 
       - id: "ev_edu_analytics_course_statistics"
         kind: "course"
@@ -109,7 +131,10 @@ education:
           and statistical interpretation to business datasets.
         source_refs:
           - document_id: "doc_cv_1"
-            page: 2
+            locator:
+              kind: "markdown_lines"
+              start: 25
+              end: 26
 
 projects:
   - id: "proj_portfolio_sales_analysis"
@@ -119,7 +144,10 @@ projects:
     end: "2025-02"
     source_refs:
       - document_id: "doc_cv_1"
-        page: 2
+        locator:
+          kind: "markdown_lines"
+          start: 29
+          end: 34
 
     evidence:
       - id: "ev_proj_sales_analysis_pipeline"
@@ -130,7 +158,10 @@ projects:
           then documented repeatable analysis steps.
         source_refs:
           - document_id: "doc_cv_1"
-            page: 2
+            locator:
+              kind: "markdown_lines"
+              start: 31
+              end: 32
 
       - id: "ev_proj_sales_analysis_findings"
         kind: "project_highlight"
@@ -140,7 +171,10 @@ projects:
           actionable findings in a stakeholder-ready report.
         source_refs:
           - document_id: "doc_cv_1"
-            page: 2
+            locator:
+              kind: "markdown_lines"
+              start: 33
+              end: 34
 
 achievements: []
 certifications: []
