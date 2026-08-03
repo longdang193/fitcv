@@ -385,19 +385,19 @@ Correction rules:
 - Existing `idempotent_actions`, Run input foreign keys, database backup policy, and reconciler loop remain shared owners
 
 **Steps:**
-- [ ] Add version-4 migration fixtures containing succeeded active/archived/default profiles, blank Profile Name, duplicate Profile Names, v1 revision JSON, related Run inputs, and failed direct uploads.
-- [ ] Implement one transactional migration that rebuilds incompatible Candidate Profile tables, creates `candidate_profile_creation_attempts`, `candidate_profile_source_documents`, `candidate_profile_source_blocks`, `candidate_profile_baseline_snapshots`, `candidate_profile_derived_snapshots`, and `candidate_profile_review_batches`, then validates counts, uniqueness, and `PRAGMA foreign_key_check` before setting `user_version = 5`.
-- [ ] Preserve succeeded profile IDs, lifecycle, catalog revision, default/sort metadata, timestamps, revision IDs, JSON, checksum, schema revision, and every Run foreign key; persist blank-name fallback once.
-- [ ] Convert failed direct uploads into non-retryable legacy attempt diagnostics with migration source ID, filename, media type, byte length, checksum, timestamps, and safe failure; create no bytes, blocks, or invented provenance.
-- [ ] Implement accepted-upload transaction, BLOB download with checksum ETag and `nosniff`, source-block reads, append-only snapshots/review batches, expected-revision CAS, idempotent action replay, processing claim/lease publication guard, approval pointers, and exact confirmation transaction.
-- [ ] Implement `candidate_profile_processing_abandoned` reconciliation that preserves last valid snapshots and records owning failed stage/resume state.
-- [ ] Implement 30-day purge transaction that records `candidate_profile_source_expired`, clears BLOB/source blocks/private snapshots, retains safe metadata/diagnostics, returns `410`, and never purges confirmed or archived source.
-- [ ] Enforce active succeeded profile at new Run creation while preserving historical Run inputs after archive.
-- [ ] Inject migration and confirmation failures to prove rollback leaves version 4 or pre-confirmation version 5 state readable and complete.
+- [x] Add version-4 migration fixtures containing succeeded active/archived/default profiles, blank Profile Name, duplicate Profile Names, v1 revision JSON, related Run inputs, and failed direct uploads.
+- [x] Implement one transactional migration that rebuilds incompatible Candidate Profile tables, creates `candidate_profile_creation_attempts`, `candidate_profile_source_documents`, `candidate_profile_source_blocks`, `candidate_profile_baseline_snapshots`, `candidate_profile_derived_snapshots`, and `candidate_profile_review_batches`, then validates counts, uniqueness, and `PRAGMA foreign_key_check` before setting `user_version = 5`.
+- [x] Preserve succeeded profile IDs, lifecycle, catalog revision, default/sort metadata, timestamps, revision IDs, JSON, checksum, schema revision, and every Run foreign key; persist blank-name fallback once.
+- [x] Convert failed direct uploads into non-retryable legacy attempt diagnostics with migration source ID, filename, media type, byte length, checksum, timestamps, and safe failure; create no bytes, blocks, or invented provenance.
+- [x] Implement accepted-upload transaction, BLOB download with checksum ETag and `nosniff`, source-block reads, append-only snapshots/review batches, expected-revision CAS, idempotent action replay, processing claim/lease publication guard, approval pointers, and exact confirmation transaction.
+- [x] Implement `candidate_profile_processing_abandoned` reconciliation that preserves last valid snapshots and records owning failed stage/resume state.
+- [x] Implement 30-day purge transaction that records `candidate_profile_source_expired`, clears BLOB/source blocks/private snapshots, retains safe metadata/diagnostics, returns `410`, and never purges confirmed or archived source.
+- [x] Enforce active succeeded profile at new Run creation while preserving historical Run inputs after archive.
+- [x] Inject migration and confirmation failures to prove rollback leaves version 4 or pre-confirmation version 5 state readable and complete.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_reconciler.py tests/test_fitcv_cp/test_reconcile_integration_sqlite.py -q`
-- [ ] `uv run python -m compileall -q src/fitcv_cp/store.py src/fitcv_cp/sqlite_store.py src/fitcv_cp/reconciler.py src/fitcv_cp/reconciler_service.py`
+- [x] `uv run pytest tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_reconciler.py tests/test_fitcv_cp/test_reconcile_integration_sqlite.py -q`
+- [x] `uv run python -m compileall -q src/fitcv_cp/store.py src/fitcv_cp/sqlite_store.py src/fitcv_cp/reconciler.py src/fitcv_cp/reconciler_service.py`
 - Expected: migration preserves counts/checksums/FKs, failure rolls back, one claim publishes, one confirmation creates one first revision, purge is atomic, and archived profiles remain historically resolvable.
 
 **Exit Criteria:**

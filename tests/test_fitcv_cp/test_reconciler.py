@@ -11,7 +11,7 @@ tags:
 
 import datetime
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from unittest.mock import MagicMock, patch
 
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
@@ -26,6 +26,7 @@ class _FakeStore:
     events_by_run_id: dict[str, list[RunEvent]]
     appended: list[RunEvent]
     status_updates: list[tuple[str, RunStatus]]
+    candidate_reconciliations: list[datetime.datetime] = field(default_factory=list)
 
     def list_runs(self, *, limit: int = 50, include_archived: bool = False, archived_only: bool = False):
         _ = (limit, include_archived, archived_only)
@@ -42,6 +43,21 @@ class _FakeStore:
         _ = kwargs
         self.status_updates.append((run_id, status))
         return {"persistence_status": "persisted", "degradation_reason": "none"}
+
+    def reconcile_candidate_profile_attempts(self, *, now: datetime.datetime):
+        self.candidate_reconciliations.append(now)
+        return {"abandoned": 2, "purged": 1}
+
+
+def test_reconcile_abandoned_attempts_includes_candidate_profile_recovery() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    store = _FakeStore(runs=[], events_by_run_id={}, appended=[], status_updates=[])
+
+    summary = reconcile_abandoned_attempts(store, now=now)
+
+    assert store.candidate_reconciliations == [now]
+    assert summary.candidate_profile_abandoned_attempts == 2
+    assert summary.candidate_profile_purged_sources == 1
 
 
 def test_reconcile_abandoned_attempts_marks_failed_when_retry_disabled() -> None:

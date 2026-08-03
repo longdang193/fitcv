@@ -92,6 +92,7 @@ _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
 CONTROL_PLANE_SCHEMA_VERSION = 5
 _CANDIDATE_PROFILE_MAX_BYTES = 1024 * 1024
+_CANDIDATE_PROFILE_LEASE_SECONDS = 15 * 60
 
 class DatabaseSchemaIncompatibleError(RuntimeError):
     code = "database_schema_incompatible"
@@ -111,6 +112,174 @@ class CandidateProfileUnavailableError(RuntimeError):
 
 class ProviderPersistenceRevisionConflict(RuntimeError):
     pass
+
+
+def _legacy_profile_name(profile_name: Any, original_filename: Any) -> str:
+    return str(profile_name or "").strip() or Path(str(original_filename or "")).stem.strip() or "Unnamed profile"
+
+
+def _migrate_candidate_profiles_v4_to_v5(conn: sqlite3.Connection) -> None:
+    profiles = conn.execute(
+        "SELECT * FROM candidate_profiles ORDER BY candidate_profile_id"
+    ).fetchall()
+    columns = [str(row[1]) for row in conn.execute("PRAGMA table_info(candidate_profiles)")]
+    records = [dict(zip(columns, row)) for row in profiles]
+    succeeded = [record for record in records if record["creation_status"] == "succeeded"]
+    failed = [record for record in records if record["creation_status"] == "failed"]
+    revision_count = int(
+        conn.execute(
+            "SELECT COUNT(*) FROM candidate_profile_revisions WHERE candidate_profile_id IN "
+            "(SELECT candidate_profile_id FROM candidate_profiles WHERE creation_status='succeeded')"
+        ).fetchone()[0]
+    )
+    run_links = (
+        conn.execute(
+            "SELECT run_id, candidate_profile_id, candidate_profile_revision_id FROM run_inputs ORDER BY run_id"
+        ).fetchall()
+        if "run_inputs" in {
+            str(row[0]) for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        else []
+    )
+    conn.execute(
+        """
+        CREATE TABLE candidate_profiles_v5 (
+            candidate_profile_id TEXT PRIMARY KEY,
+            profile_name TEXT COLLATE NOCASE CHECK (
+                profile_name IS NULL OR (length(trim(profile_name)) BETWEEN 1 AND 120)
+            ),
+            original_filename TEXT NOT NULL,
+            media_type TEXT NOT NULL,
+            byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
+            input_checksum TEXT NOT NULL,
+            creation_status TEXT NOT NULL CHECK (creation_status IN ('succeeded', 'failed')),
+            lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'archived')),
+            failure_code TEXT,
+            failure_message TEXT,
+            is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            seed_manifest_revision TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            archived_at TEXT,
+            revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+            CHECK (
+                (creation_status = 'succeeded' AND failure_code IS NULL AND failure_message IS NULL)
+                OR
+                (creation_status = 'failed' AND failure_code IS NOT NULL AND failure_message IS NOT NULL)
+            ),
+            CHECK (creation_status != 'failed' OR lifecycle = 'active'),
+            CHECK (
+                (lifecycle = 'active' AND archived_at IS NULL)
+                OR
+                (lifecycle = 'archived' AND archived_at IS NOT NULL)
+            ),
+            CHECK (is_default = 0 OR (creation_status = 'succeeded' AND lifecycle = 'active'))
+        )
+        """
+    )
+    for record in succeeded:
+        conn.execute(
+            """
+            INSERT INTO candidate_profiles_v5 (
+                candidate_profile_id, profile_name, original_filename, media_type, byte_length,
+                input_checksum, creation_status, lifecycle, failure_code, failure_message,
+                is_default, sort_order, seed_manifest_revision, created_at, updated_at,
+                archived_at, revision
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                record["candidate_profile_id"],
+                _legacy_profile_name(record["profile_name"], record["original_filename"]),
+                record["original_filename"],
+                record["media_type"],
+                record["byte_length"],
+                record["input_checksum"],
+                record["creation_status"],
+                record["lifecycle"],
+                record["failure_code"],
+                record["failure_message"],
+                record["is_default"],
+                record["sort_order"],
+                record["seed_manifest_revision"],
+                record["created_at"],
+                record["updated_at"],
+                record["archived_at"],
+                record["revision"],
+            ),
+        )
+    for record in failed:
+        profile_id = str(record["candidate_profile_id"])
+        attempt_id = f"legacy-attempt-{profile_id}"
+        source_document_id = f"legacy-source-{profile_id}"
+        failure = {
+            "code": str(record["failure_code"] or "candidate_profile_legacy_upload_failed"),
+            "message": str(record["failure_message"] or "Legacy Candidate Profile upload failed."),
+            "retryable": False,
+            "stage": "legacy_direct_upload",
+            "migration_source_id": profile_id,
+        }
+        conn.execute(
+            """
+            INSERT INTO candidate_profile_creation_attempts (
+                attempt_id, profile_name, creation_status, revision, source_document_id,
+                processing_attempt, failure_json, next_action, source_purge_after,
+                created_at, updated_at
+            ) VALUES (?, ?, 'failed', 1, ?, 0, ?, 'new_upload', ?, ?, ?)
+            """,
+            (
+                attempt_id,
+                _legacy_profile_name(record["profile_name"], record["original_filename"]),
+                source_document_id,
+                json.dumps(failure, sort_keys=True, separators=(",", ":")),
+                record["updated_at"],
+                record["created_at"],
+                record["updated_at"],
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO candidate_profile_source_documents (
+                source_document_id, attempt_id, original_filename, media_type, byte_length,
+                checksum, source_bytes, source_available, purged_at, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, NULL, 0, ?, ?)
+            """,
+            (
+                source_document_id,
+                attempt_id,
+                record["original_filename"],
+                record["media_type"],
+                record["byte_length"],
+                record["input_checksum"],
+                record["updated_at"],
+                record["created_at"],
+            ),
+        )
+        conn.execute(
+            "DELETE FROM candidate_profile_revisions WHERE candidate_profile_id = ?",
+            (profile_id,),
+        )
+    conn.execute("DROP TABLE candidate_profiles")
+    conn.execute("ALTER TABLE candidate_profiles_v5 RENAME TO candidate_profiles")
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX ux_candidate_profiles_active_default
+        ON candidate_profiles(is_default)
+        WHERE creation_status = 'succeeded' AND lifecycle = 'active' AND is_default = 1
+        """
+    )
+    if int(conn.execute("SELECT COUNT(*) FROM candidate_profiles").fetchone()[0]) != len(succeeded):
+        raise RuntimeError("candidate_profile_migration_count_mismatch")
+    if int(conn.execute("SELECT COUNT(*) FROM candidate_profile_revisions").fetchone()[0]) != revision_count:
+        raise RuntimeError("candidate_profile_migration_revision_count_mismatch")
+    if len({str(record["candidate_profile_id"]) for record in succeeded}) != len(succeeded):
+        raise RuntimeError("candidate_profile_migration_identity_mismatch")
+    if run_links != conn.execute(
+        "SELECT run_id, candidate_profile_id, candidate_profile_revision_id FROM run_inputs ORDER BY run_id"
+    ).fetchall():
+        raise RuntimeError("candidate_profile_migration_run_link_mismatch")
+    if conn.execute("PRAGMA foreign_key_check").fetchall():
+        raise RuntimeError("candidate_profile_migration_foreign_key_mismatch")
 
 
 def _is_transient_sqlite_open_error(exc: sqlite3.OperationalError) -> bool:
@@ -216,7 +385,7 @@ def _ensure_control_plane_schema(
     CREATE TABLE IF NOT EXISTS candidate_profiles (
         candidate_profile_id TEXT PRIMARY KEY,
         profile_name TEXT COLLATE NOCASE CHECK (profile_name IS NULL OR (length(trim(profile_name)) BETWEEN 1 AND 120)),
-        original_filename TEXT NOT NULL CHECK (lower(substr(original_filename, -5)) = '.yaml'),
+        original_filename TEXT NOT NULL,
         media_type TEXT NOT NULL,
         byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
         input_checksum TEXT NOT NULL,
@@ -840,11 +1009,16 @@ def _ensure_control_plane_schema(
         )
     );
     """
+    foreign_keys_disabled = version == 4
+    if foreign_keys_disabled:
+        conn.execute("PRAGMA foreign_keys = OFF")
     try:
         conn.execute("BEGIN IMMEDIATE")
         for statement in schema.split(";"):
             if statement.strip():
                 conn.execute(statement)
+        if version == 4:
+            _migrate_candidate_profiles_v4_to_v5(conn)
         if candidate_profiles is not None:
             _persist_initial_profile_state(conn, candidate_profiles, startup_warning)
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -883,6 +1057,9 @@ def _ensure_control_plane_schema(
         if conn.in_transaction:
             conn.rollback()
         raise
+    finally:
+        if foreign_keys_disabled:
+            conn.execute("PRAGMA foreign_keys = ON")
 
 
 def _policy_checksum(value: Any) -> str:
@@ -2022,6 +2199,926 @@ def get_candidate_profile_source(attempt_id: str, *, database_path: Path | None 
         if not row[4] or row[3] is None:
             raise ValueError("candidate_profile_source_purged")
         return {"filename": row[0], "media_type": row[1], "checksum": row[2], "content": bytes(row[3])}
+
+
+def get_candidate_profile_source_block(
+    attempt_id: str,
+    source_block_id: str,
+    *,
+    database_path: Path | None = None,
+) -> dict[str, Any] | None:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        row = conn.execute(
+            """
+            SELECT source_block_id, text, locator_json, kind, checksum
+            FROM candidate_profile_source_blocks
+            WHERE attempt_id=? AND source_block_id=?
+            """,
+            (attempt_id, source_block_id),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "source_block_id": row[0],
+        "text": row[1],
+        "locator": json.loads(row[2]),
+        "kind": row[3],
+        "checksum": row[4],
+    }
+
+
+def _candidate_profile_snapshot_table(stage: str) -> tuple[str, str]:
+    if stage == "baseline":
+        return "candidate_profile_baseline_snapshots", "baseline_fingerprint"
+    if stage == "derived":
+        return "candidate_profile_derived_snapshots", "derived_fingerprint"
+    raise ValueError("candidate_profile_transition_invalid")
+
+
+def get_candidate_profile_review(
+    attempt_id: str,
+    stage: str,
+    *,
+    database_path: Path | None = None,
+) -> dict[str, Any] | None:
+    table, fingerprint_column = _candidate_profile_snapshot_table(stage)
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        attempt = conn.execute(
+            f"SELECT revision, creation_status, {fingerprint_column} AS fingerprint FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+            (attempt_id,),
+        ).fetchone()
+        if attempt is None:
+            return None
+        if not attempt["fingerprint"]:
+            raise ValueError("candidate_profile_invalid_transition")
+        snapshot = conn.execute(
+            f"SELECT document_json, annotations_json, runtime_evidence_json FROM {table} WHERE attempt_id=? AND fingerprint=?",
+            (attempt_id, attempt["fingerprint"]),
+        ).fetchone()
+    if snapshot is None:
+        raise RuntimeError("candidate_profile_snapshot_missing")
+    expected_status = "base_review" if stage == "baseline" else "derived_review"
+    editable = attempt["creation_status"] == expected_status
+    return {
+        "attempt_id": attempt_id,
+        "stage": stage,
+        "revision": int(attempt["revision"]),
+        "fingerprint": attempt["fingerprint"],
+        "document": json.loads(snapshot["document_json"]),
+        "annotations": json.loads(snapshot["annotations_json"]),
+        "runtime_evidence": (
+            json.loads(snapshot["runtime_evidence_json"])
+            if snapshot["runtime_evidence_json"]
+            else None
+        ),
+        "validation": {"field_errors": []},
+        "capabilities": {
+            "patch": editable,
+            "regenerate_all": editable,
+            "approve": editable,
+        },
+    }
+
+
+def publish_candidate_profile_stage_result(
+    attempt_id: str,
+    *,
+    stage: str,
+    claim_id: str,
+    expected_revision: int,
+    result: dict[str, Any],
+    source_blocks: list[dict[str, Any]] | None = None,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    table, fingerprint_column = _candidate_profile_snapshot_table(stage)
+    processing_stage = "base_mapping" if stage == "baseline" else "derived_claims"
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            attempt = conn.execute(
+                """
+                SELECT revision, processing_stage, processing_claim_id, source_document_id
+                FROM candidate_profile_creation_attempts WHERE attempt_id=?
+                """,
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            if int(attempt["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if attempt["processing_stage"] != processing_stage or attempt["processing_claim_id"] != claim_id:
+                raise ValueError("candidate_profile_processing_claim_conflict")
+            if stage == "baseline":
+                for ordinal, block in enumerate(source_blocks or [], start=1):
+                    conn.execute(
+                        """
+                        INSERT INTO candidate_profile_source_blocks (
+                            source_block_id, attempt_id, source_document_id, ordinal, kind,
+                            locator_json, text, checksum
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            block.get("source_block_id") or block.get("block_id"),
+                            attempt_id,
+                            attempt["source_document_id"],
+                            ordinal,
+                            str(block.get("kind") or "text"),
+                            json.dumps(block.get("locator") or {}, sort_keys=True, separators=(",", ":")),
+                            str(block.get("text") or ""),
+                            str(block.get("checksum") or hashlib.sha256(str(block.get("text") or "").encode("utf-8")).hexdigest()),
+                        ),
+                    )
+            snapshot_id = f"snapshot_{uuid.uuid4().hex}"
+            values: list[Any] = [
+                snapshot_id,
+                attempt_id,
+            ]
+            columns = ["snapshot_id", "attempt_id"]
+            if stage == "derived":
+                columns.append("baseline_fingerprint")
+                values.append(str(result.get("baseline_fingerprint") or ""))
+            columns.extend(
+                ["fingerprint", "document_json", "annotations_json", "runtime_evidence_json", "created_at"]
+            )
+            values.extend(
+                [
+                    str(result["fingerprint"]),
+                    json.dumps(result["document"], ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    json.dumps(result.get("annotations") or {}, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    (
+                        json.dumps(result["runtime_evidence"], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                        if result.get("runtime_evidence") is not None
+                        else None
+                    ),
+                    now,
+                ]
+            )
+            conn.execute(
+                f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})",
+                values,
+            )
+            updates = [
+                "creation_status=?",
+                "revision=revision+1",
+                f"{fingerprint_column}=?",
+                "processing_stage=NULL",
+                "processing_claim_id=NULL",
+                "lease_expires_at=NULL",
+                "failure_json=NULL",
+                "resume_stage=NULL",
+                "next_action=?",
+                "updated_at=?",
+            ]
+            params: list[Any] = [
+                "base_review" if stage == "baseline" else "derived_review",
+                str(result["fingerprint"]),
+                "review_baseline" if stage == "baseline" else "review_derived",
+                now,
+            ]
+            if stage == "baseline":
+                extraction_fingerprint = result.get("extraction_fingerprint")
+                if extraction_fingerprint is None and source_blocks is not None:
+                    extraction_fingerprint = hashlib.sha256(
+                        json.dumps(source_blocks, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                    ).hexdigest()
+                updates.append("extraction_fingerprint=?")
+                params.append(extraction_fingerprint)
+            params.append(attempt_id)
+            conn.execute(
+                f"UPDATE candidate_profile_creation_attempts SET {', '.join(updates)} WHERE attempt_id=?",
+                params,
+            )
+            resource = _candidate_profile_attempt_resource(conn, attempt_id)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    assert resource is not None
+    return resource
+
+
+def _candidate_profile_request_fingerprint(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _candidate_profile_idempotent_replay(
+    conn: sqlite3.Connection,
+    *,
+    scope: str,
+    idempotency_key: str,
+    request_fingerprint: str,
+) -> dict[str, Any] | None:
+    row = conn.execute(
+        "SELECT request_fingerprint, response_json FROM idempotent_actions WHERE action_scope=? AND idempotency_key=?",
+        (scope, idempotency_key),
+    ).fetchone()
+    if row is None:
+        return None
+    if row[0] != request_fingerprint:
+        raise ValueError("idempotency_conflict")
+    return json.loads(row[1])
+
+
+def _record_candidate_profile_idempotent_result(
+    conn: sqlite3.Connection,
+    *,
+    scope: str,
+    idempotency_key: str,
+    request_fingerprint: str,
+    response: dict[str, Any],
+    now: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO idempotent_actions (
+            action_id, action_scope, idempotency_key, request_fingerprint,
+            status, response_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'succeeded', ?, ?, ?)
+        """,
+        (
+            f"action_{uuid.uuid4().hex}",
+            scope,
+            idempotency_key,
+            request_fingerprint,
+            json.dumps(response, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            now,
+            now,
+        ),
+    )
+
+
+def _candidate_profile_snapshot(
+    conn: sqlite3.Connection,
+    attempt_id: str,
+    stage: str,
+    fingerprint: str,
+) -> dict[str, Any]:
+    table, _ = _candidate_profile_snapshot_table(stage)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        f"SELECT document_json, annotations_json, runtime_evidence_json, "
+        f"{'baseline_fingerprint' if stage == 'derived' else 'NULL AS baseline_fingerprint'} "
+        f"FROM {table} WHERE attempt_id=? AND fingerprint=?",
+        (attempt_id, fingerprint),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("candidate_profile_snapshot_missing")
+    return {
+        "document": json.loads(row["document_json"]),
+        "annotations": json.loads(row["annotations_json"]),
+        "runtime_evidence": json.loads(row["runtime_evidence_json"]) if row["runtime_evidence_json"] else None,
+        "baseline_fingerprint": row["baseline_fingerprint"],
+    }
+
+
+def _candidate_profile_review_resource_in_transaction(
+    conn: sqlite3.Connection,
+    attempt_id: str,
+    stage: str,
+) -> dict[str, Any]:
+    _, fingerprint_column = _candidate_profile_snapshot_table(stage)
+    conn.row_factory = sqlite3.Row
+    attempt = conn.execute(
+        f"SELECT revision, creation_status, {fingerprint_column} AS fingerprint FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+        (attempt_id,),
+    ).fetchone()
+    if attempt is None:
+        raise ValueError("candidate_profile_attempt_not_found")
+    snapshot = _candidate_profile_snapshot(conn, attempt_id, stage, str(attempt["fingerprint"] or ""))
+    expected_status = "base_review" if stage == "baseline" else "derived_review"
+    editable = attempt["creation_status"] == expected_status
+    return {
+        "attempt_id": attempt_id,
+        "stage": stage,
+        "revision": int(attempt["revision"]),
+        "fingerprint": attempt["fingerprint"],
+        "document": snapshot["document"],
+        "annotations": snapshot["annotations"],
+        "runtime_evidence": snapshot["runtime_evidence"],
+        "validation": {"field_errors": []},
+        "capabilities": {"patch": editable, "regenerate_all": editable, "approve": editable},
+    }
+
+
+def patch_candidate_profile_review(
+    attempt_id: str,
+    stage: str,
+    *,
+    expected_revision: int,
+    operations: list[dict[str, Any]],
+    idempotency_key: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    from fitcv_cp.candidate_profile_service import apply_review_operations, approve_review
+
+    table, fingerprint_column = _candidate_profile_snapshot_table(stage)
+    scope = f"candidate_profile:{attempt_id}:{stage}:patch"
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {"expected_revision": expected_revision, "operations": operations}
+    )
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            attempt = conn.execute(
+                f"SELECT revision, creation_status, {fingerprint_column} AS fingerprint FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            if int(attempt["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if attempt["creation_status"] != ("base_review" if stage == "baseline" else "derived_review"):
+                raise ValueError("candidate_profile_invalid_transition")
+            current = _candidate_profile_snapshot(conn, attempt_id, stage, str(attempt["fingerprint"]))
+            document = apply_review_operations(stage, current["document"], operations)
+            approval = approve_review(
+                stage,
+                document,
+                expected_fingerprint=None,
+                baseline_fingerprint=current["baseline_fingerprint"],
+            )
+            fingerprint = str(approval["fingerprint"])
+            columns = ["snapshot_id", "attempt_id"]
+            values: list[Any] = [f"snapshot_{uuid.uuid4().hex}", attempt_id]
+            if stage == "derived":
+                columns.append("baseline_fingerprint")
+                values.append(current["baseline_fingerprint"])
+            columns.extend(
+                ["fingerprint", "document_json", "annotations_json", "runtime_evidence_json", "created_at"]
+            )
+            values.extend(
+                [
+                    fingerprint,
+                    json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    json.dumps(current["annotations"], ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    (
+                        json.dumps(current["runtime_evidence"], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                        if current["runtime_evidence"] is not None
+                        else None
+                    ),
+                    now,
+                ]
+            )
+            conn.execute(
+                f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})",
+                values,
+            )
+            conn.execute(
+                """
+                INSERT INTO candidate_profile_review_batches (
+                    review_batch_id, attempt_id, stage, expected_revision,
+                    operations_json, result_fingerprint, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    f"review_{uuid.uuid4().hex}",
+                    attempt_id,
+                    stage,
+                    expected_revision,
+                    json.dumps(operations, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    fingerprint,
+                    now,
+                ),
+            )
+            if stage == "baseline":
+                conn.execute(
+                    """
+                    UPDATE candidate_profile_creation_attempts
+                    SET revision=revision+1, baseline_fingerprint=?, approved_baseline_fingerprint=NULL,
+                        derived_fingerprint=NULL, approved_derived_fingerprint=NULL,
+                        confirmation_fingerprint=NULL, creation_status='base_review',
+                        next_action='review_baseline', updated_at=?
+                    WHERE attempt_id=?
+                    """,
+                    (fingerprint, now, attempt_id),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE candidate_profile_creation_attempts
+                    SET revision=revision+1, derived_fingerprint=?, approved_derived_fingerprint=NULL,
+                        confirmation_fingerprint=NULL, creation_status='derived_review',
+                        next_action='review_derived', updated_at=?
+                    WHERE attempt_id=?
+                    """,
+                    (fingerprint, now, attempt_id),
+                )
+            response = _candidate_profile_review_resource_in_transaction(conn, attempt_id, stage)
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
+
+
+def regenerate_candidate_profile_review(
+    attempt_id: str,
+    stage: str,
+    *,
+    expected_revision: int,
+    targets: list[str],
+    idempotency_key: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    from fitcv_cp.candidate_profile_service import resolve_regeneration_targets
+
+    _, fingerprint_column = _candidate_profile_snapshot_table(stage)
+    scope = f"candidate_profile:{attempt_id}:{stage}:regenerate"
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {"expected_revision": expected_revision, "targets": targets}
+    )
+    path = database_path or Path(_local_sqlite_path())
+    current = datetime.datetime.now(datetime.timezone.utc)
+    now = current.isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            attempt = conn.execute(
+                f"SELECT revision, creation_status, {fingerprint_column} AS fingerprint FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            if int(attempt["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if attempt["creation_status"] != ("base_review" if stage == "baseline" else "derived_review"):
+                raise ValueError("candidate_profile_invalid_transition")
+            snapshot = _candidate_profile_snapshot(conn, attempt_id, stage, str(attempt["fingerprint"]))
+            resolved_targets = resolve_regeneration_targets(snapshot["annotations"], targets)
+            processing_stage = "base_mapping" if stage == "baseline" else "derived_claims"
+            conn.execute(
+                """
+                INSERT INTO candidate_profile_review_batches (
+                    review_batch_id, attempt_id, stage, expected_revision,
+                    operations_json, result_fingerprint, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    f"review_{uuid.uuid4().hex}",
+                    attempt_id,
+                    stage,
+                    expected_revision,
+                    json.dumps(
+                        {"regeneration_targets": list(resolved_targets)},
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                    attempt["fingerprint"],
+                    now,
+                ),
+            )
+            conn.execute(
+                """
+                UPDATE candidate_profile_creation_attempts
+                SET creation_status=?, revision=revision+1, processing_stage=?,
+                    processing_claim_id=?, processing_attempt=processing_attempt+1,
+                    lease_expires_at=?, next_action='wait', updated_at=?
+                WHERE attempt_id=?
+                """,
+                (
+                    "extracting_base" if stage == "baseline" else "deriving",
+                    processing_stage,
+                    f"claim_{uuid.uuid4().hex}",
+                    (current + datetime.timedelta(seconds=_CANDIDATE_PROFILE_LEASE_SECONDS)).isoformat(),
+                    now,
+                    attempt_id,
+                ),
+            )
+            response = _candidate_profile_attempt_resource(conn, attempt_id)
+            assert response is not None
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
+
+
+def approve_candidate_profile_review(
+    attempt_id: str,
+    stage: str,
+    *,
+    expected_revision: int,
+    expected_fingerprint: str,
+    idempotency_key: str,
+    expected_baseline_fingerprint: str | None = None,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    _, fingerprint_column = _candidate_profile_snapshot_table(stage)
+    scope = f"candidate_profile:{attempt_id}:{stage}:approve"
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {
+            "expected_revision": expected_revision,
+            "expected_fingerprint": expected_fingerprint,
+            "expected_baseline_fingerprint": expected_baseline_fingerprint,
+        }
+    )
+    path = database_path or Path(_local_sqlite_path())
+    current = datetime.datetime.now(datetime.timezone.utc)
+    now = current.isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            attempt = conn.execute(
+                f"SELECT revision, creation_status, {fingerprint_column} AS fingerprint, approved_baseline_fingerprint FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            if int(attempt["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if attempt["creation_status"] != ("base_review" if stage == "baseline" else "derived_review"):
+                raise ValueError("candidate_profile_invalid_transition")
+            if attempt["fingerprint"] != expected_fingerprint:
+                raise ValueError("candidate_profile_fingerprint_conflict")
+            if stage == "derived" and attempt["approved_baseline_fingerprint"] != expected_baseline_fingerprint:
+                raise ValueError("candidate_profile_fingerprint_conflict")
+            if stage == "baseline":
+                conn.execute(
+                    """
+                    UPDATE candidate_profile_creation_attempts
+                    SET revision=revision+1, approved_baseline_fingerprint=?,
+                        creation_status='deriving', processing_stage='derived_claims',
+                        processing_claim_id=?, processing_attempt=processing_attempt+1,
+                        lease_expires_at=?, next_action='wait', updated_at=?
+                    WHERE attempt_id=?
+                    """,
+                    (
+                        expected_fingerprint,
+                        f"claim_{uuid.uuid4().hex}",
+                        (current + datetime.timedelta(seconds=_CANDIDATE_PROFILE_LEASE_SECONDS)).isoformat(),
+                        now,
+                        attempt_id,
+                    ),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE candidate_profile_creation_attempts
+                    SET revision=revision+1, approved_derived_fingerprint=?,
+                        creation_status='ready_to_confirm', confirmation_fingerprint=NULL,
+                        next_action='confirm', updated_at=?
+                    WHERE attempt_id=?
+                    """,
+                    (expected_fingerprint, now, attempt_id),
+                )
+            response = _candidate_profile_attempt_resource(conn, attempt_id)
+            assert response is not None
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
+
+
+def _candidate_profile_confirmation_in_transaction(
+    conn: sqlite3.Connection,
+    attempt_id: str,
+) -> dict[str, Any]:
+    from fitcv_cp.candidate_profile_service import assemble_confirmation
+
+    conn.row_factory = sqlite3.Row
+    attempt = conn.execute(
+        """
+        SELECT profile_name, revision, creation_status,
+               approved_baseline_fingerprint, approved_derived_fingerprint
+        FROM candidate_profile_creation_attempts WHERE attempt_id=?
+        """,
+        (attempt_id,),
+    ).fetchone()
+    if attempt is None:
+        raise ValueError("candidate_profile_attempt_not_found")
+    if attempt["creation_status"] not in {"ready_to_confirm", "succeeded"}:
+        raise ValueError("candidate_profile_invalid_transition")
+    baseline_fingerprint = str(attempt["approved_baseline_fingerprint"] or "")
+    derived_fingerprint = str(attempt["approved_derived_fingerprint"] or "")
+    if not baseline_fingerprint or not derived_fingerprint:
+        raise ValueError("candidate_profile_invalid_transition")
+    baseline = _candidate_profile_snapshot(conn, attempt_id, "baseline", baseline_fingerprint)
+    derived = _candidate_profile_snapshot(conn, attempt_id, "derived", derived_fingerprint)
+    confirmation = assemble_confirmation(
+        str(attempt["profile_name"]),
+        {"stage": "baseline", "document": baseline["document"], "fingerprint": baseline_fingerprint},
+        {
+            "stage": "derived",
+            "document": derived["document"],
+            "fingerprint": derived_fingerprint,
+            "baseline_fingerprint": derived["baseline_fingerprint"],
+        },
+    )
+    return {"attempt_id": attempt_id, "revision": int(attempt["revision"]), **confirmation}
+
+
+def get_candidate_profile_confirmation(
+    attempt_id: str,
+    *,
+    database_path: Path | None = None,
+) -> dict[str, Any] | None:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        if conn.execute(
+            "SELECT 1 FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+            (attempt_id,),
+        ).fetchone() is None:
+            return None
+        return _candidate_profile_confirmation_in_transaction(conn, attempt_id)
+
+
+def _insert_confirmed_candidate_profile(
+    conn: sqlite3.Connection,
+    *,
+    attempt_id: str,
+    confirmation: dict[str, Any],
+    now: str,
+) -> str:
+    conn.row_factory = sqlite3.Row
+    source = conn.execute(
+        """
+        SELECT a.profile_name, d.original_filename, d.media_type, d.byte_length, d.checksum
+        FROM candidate_profile_creation_attempts a
+        JOIN candidate_profile_source_documents d ON d.attempt_id=a.attempt_id
+        WHERE a.attempt_id=?
+        """,
+        (attempt_id,),
+    ).fetchone()
+    if source is None:
+        raise ValueError("candidate_profile_attempt_not_found")
+    profile_id = f"profile_{uuid.uuid4().hex}"
+    profile_revision_id = f"profile_revision_{uuid.uuid4().hex}"
+    canonical = confirmation["profile"]["canonical"]
+    conn.execute(
+        """
+        INSERT INTO candidate_profiles (
+            candidate_profile_id, profile_name, original_filename, media_type, byte_length,
+            input_checksum, creation_status, lifecycle, failure_code, failure_message,
+            is_default, sort_order, seed_manifest_revision, created_at, updated_at,
+            archived_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, 'succeeded', 'active', NULL, NULL, 0, 0, NULL, ?, ?, NULL, 1)
+        """,
+        (
+            profile_id,
+            source["profile_name"],
+            source["original_filename"],
+            source["media_type"],
+            source["byte_length"],
+            source["checksum"],
+            now,
+            now,
+        ),
+    )
+    conn.execute(
+        """
+        INSERT INTO candidate_profile_revisions (
+            profile_revision_id, candidate_profile_id, revision, profile_json,
+            checksum, schema_revision, created_at
+        ) VALUES (?, ?, 1, ?, ?, ?, ?)
+        """,
+        (
+            profile_revision_id,
+            profile_id,
+            json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            confirmation["profile"]["checksum"],
+            confirmation["profile"]["schema_version"],
+            now,
+        ),
+    )
+    return profile_id
+
+
+def confirm_candidate_profile_creation_attempt(
+    attempt_id: str,
+    *,
+    expected_revision: int,
+    expected_baseline_fingerprint: str,
+    expected_derived_fingerprint: str,
+    expected_confirmation_fingerprint: str,
+    idempotency_key: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {
+            "attempt_id": attempt_id,
+            "expected_baseline_fingerprint": expected_baseline_fingerprint,
+            "expected_derived_fingerprint": expected_derived_fingerprint,
+            "expected_confirmation_fingerprint": expected_confirmation_fingerprint,
+        }
+    )
+    scope = f"candidate_profile:{attempt_id}:confirm"
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            attempt = conn.execute(
+                "SELECT revision, profile_id FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            confirmation = _candidate_profile_confirmation_in_transaction(conn, attempt_id)
+            if confirmation["approval_fingerprints"]["baseline"] != expected_baseline_fingerprint:
+                raise ValueError("candidate_profile_fingerprint_conflict")
+            if confirmation["approval_fingerprints"]["derived"] != expected_derived_fingerprint:
+                raise ValueError("candidate_profile_fingerprint_conflict")
+            if confirmation["fingerprint"] != expected_confirmation_fingerprint:
+                raise ValueError("candidate_profile_fingerprint_conflict")
+            if attempt["profile_id"]:
+                response = _candidate_profile_resource(conn, str(attempt["profile_id"]))
+                assert response is not None
+            else:
+                if int(attempt["revision"]) != expected_revision:
+                    raise ValueError("candidate_profile_revision_conflict")
+                profile_id = _insert_confirmed_candidate_profile(
+                    conn,
+                    attempt_id=attempt_id,
+                    confirmation=confirmation,
+                    now=now,
+                )
+                conn.execute(
+                    """
+                    UPDATE candidate_profile_creation_attempts
+                    SET creation_status='succeeded', revision=revision+1, profile_id=?,
+                        confirmation_fingerprint=?, next_action='view_profile', updated_at=?
+                    WHERE attempt_id=?
+                    """,
+                    (profile_id, confirmation["fingerprint"], now, attempt_id),
+                )
+                response = _candidate_profile_resource(conn, profile_id)
+                assert response is not None
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
+
+
+def retry_candidate_profile_creation_attempt(
+    attempt_id: str,
+    *,
+    expected_revision: int,
+    idempotency_key: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    scope = f"candidate_profile:{attempt_id}:retry"
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {"expected_revision": expected_revision}
+    )
+    path = database_path or Path(_local_sqlite_path())
+    current = datetime.datetime.now(datetime.timezone.utc)
+    now = current.isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            attempt = conn.execute(
+                """
+                SELECT revision, creation_status, failure_json, resume_stage
+                FROM candidate_profile_creation_attempts WHERE attempt_id=?
+                """,
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            if int(attempt["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            failure = json.loads(attempt["failure_json"]) if attempt["failure_json"] else {}
+            stage = str(attempt["resume_stage"] or "")
+            if attempt["creation_status"] != "failed" or not failure.get("retryable"):
+                raise ValueError("candidate_profile_invalid_transition")
+            if stage not in {"base_mapping", "derived_claims"}:
+                raise ValueError("candidate_profile_invalid_transition")
+            conn.execute(
+                """
+                UPDATE candidate_profile_creation_attempts
+                SET creation_status=?, revision=revision+1, processing_stage=?,
+                    processing_claim_id=?, processing_attempt=processing_attempt+1,
+                    lease_expires_at=?, failure_json=NULL, resume_stage=NULL,
+                    next_action='wait', updated_at=?
+                WHERE attempt_id=?
+                """,
+                (
+                    "extracting_base" if stage == "base_mapping" else "deriving",
+                    stage,
+                    f"claim_{uuid.uuid4().hex}",
+                    (current + datetime.timedelta(seconds=_CANDIDATE_PROFILE_LEASE_SECONDS)).isoformat(),
+                    now,
+                    attempt_id,
+                ),
+            )
+            response = _candidate_profile_attempt_resource(conn, attempt_id)
+            assert response is not None
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
 
 
 def claim_candidate_profile_processing(

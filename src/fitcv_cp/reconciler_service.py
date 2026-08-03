@@ -43,11 +43,13 @@ def run_reconciler_forever() -> None:
         try:
             summary = reconcile_abandoned_attempts(store, now=started_at)
             logger.info(
-                "reconcile summary scanned_runs=%s abandoned_attempts=%s requeued_attempts=%s terminal_failed_runs=%s",
+                "reconcile summary scanned_runs=%s abandoned_attempts=%s requeued_attempts=%s terminal_failed_runs=%s candidate_profile_abandoned_attempts=%s candidate_profile_purged_sources=%s",
                 summary.scanned_runs,
                 summary.abandoned_attempts,
                 summary.requeued_attempts,
                 summary.terminal_failed_runs,
+                summary.candidate_profile_abandoned_attempts,
+                summary.candidate_profile_purged_sources,
             )
         except Exception as exc:
             logger.exception("reconcile failed: %s", exc)

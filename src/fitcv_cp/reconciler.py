@@ -37,6 +37,8 @@ class ReconcileSummary:
     abandoned_attempts: int
     requeued_attempts: int
     terminal_failed_runs: int
+    candidate_profile_abandoned_attempts: int = 0
+    candidate_profile_purged_sources: int = 0
 
 
 def _parse_iso_or_none(value: Any) -> datetime.datetime | None:
@@ -196,10 +198,13 @@ def reconcile_abandoned_attempts(
 
             requeued_attempts += 1
 
+    candidate_summary = store.reconcile_candidate_profile_attempts(now=now)
     return ReconcileSummary(
         scanned_runs=scanned_runs,
         abandoned_attempts=abandoned_attempts,
         requeued_attempts=requeued_attempts,
         terminal_failed_runs=terminal_failed_runs,
+        candidate_profile_abandoned_attempts=int(candidate_summary.get("abandoned") or 0),
+        candidate_profile_purged_sources=int(candidate_summary.get("purged") or 0),
     )
 

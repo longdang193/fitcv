@@ -60,6 +60,9 @@ class RunStore(Protocol):
     def get_candidate_profile_confirmation(self, attempt_id: str) -> dict[str, Any] | None: ...
     def confirm_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def retry_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def claim_candidate_profile_processing(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def publish_candidate_profile_stage_result(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def reconcile_candidate_profile_attempts(self, **kwargs: Any) -> dict[str, int]: ...
     def get_candidate_profile_detail(self, profile_id: str) -> dict[str, Any] | None: ...
     def query_candidate_profile_runs(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def transition_candidate_profile_lifecycle(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -225,6 +228,9 @@ class ControlPlaneStore:
     get_candidate_profile_confirmation_fn: Any | None = None
     confirm_candidate_profile_creation_attempt_fn: Any | None = None
     retry_candidate_profile_creation_attempt_fn: Any | None = None
+    claim_candidate_profile_processing_fn: Any | None = None
+    publish_candidate_profile_stage_result_fn: Any | None = None
+    reconcile_candidate_profile_attempts_fn: Any | None = None
     get_candidate_profile_detail_fn: Any | None = None
     query_candidate_profile_runs_fn: Any | None = None
     transition_candidate_profile_lifecycle_fn: Any | None = None
@@ -595,49 +601,75 @@ class ControlPlaneStore:
     def get_candidate_profile_source_block(self, attempt_id: str, source_block_id: str) -> dict[str, Any] | None:
         return cast(
             dict[str, Any] | None,
-            self._required_candidate_profile_override(self.get_candidate_profile_source_block_fn)(attempt_id, source_block_id),
+            self._call(self.get_candidate_profile_source_block_fn, sqlite_store.get_candidate_profile_source_block, attempt_id, source_block_id),
         )
 
     def get_candidate_profile_review(self, attempt_id: str, stage: str) -> dict[str, Any] | None:
         return cast(
             dict[str, Any] | None,
-            self._required_candidate_profile_override(self.get_candidate_profile_review_fn)(attempt_id, stage),
+            self._call(self.get_candidate_profile_review_fn, sqlite_store.get_candidate_profile_review, attempt_id, stage),
         )
 
     def patch_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]:
         return cast(
             dict[str, Any],
-            self._required_candidate_profile_override(self.patch_candidate_profile_review_fn)(attempt_id, stage, **kwargs),
+            self._call(self.patch_candidate_profile_review_fn, sqlite_store.patch_candidate_profile_review, attempt_id, stage, **kwargs),
         )
 
     def regenerate_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]:
         return cast(
             dict[str, Any],
-            self._required_candidate_profile_override(self.regenerate_candidate_profile_review_fn)(attempt_id, stage, **kwargs),
+            self._call(self.regenerate_candidate_profile_review_fn, sqlite_store.regenerate_candidate_profile_review, attempt_id, stage, **kwargs),
         )
 
     def approve_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]:
         return cast(
             dict[str, Any],
-            self._required_candidate_profile_override(self.approve_candidate_profile_review_fn)(attempt_id, stage, **kwargs),
+            self._call(self.approve_candidate_profile_review_fn, sqlite_store.approve_candidate_profile_review, attempt_id, stage, **kwargs),
         )
 
     def get_candidate_profile_confirmation(self, attempt_id: str) -> dict[str, Any] | None:
         return cast(
             dict[str, Any] | None,
-            self._required_candidate_profile_override(self.get_candidate_profile_confirmation_fn)(attempt_id),
+            self._call(self.get_candidate_profile_confirmation_fn, sqlite_store.get_candidate_profile_confirmation, attempt_id),
         )
 
     def confirm_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]:
         return cast(
             dict[str, Any],
-            self._required_candidate_profile_override(self.confirm_candidate_profile_creation_attempt_fn)(attempt_id, **kwargs),
+            self._call(self.confirm_candidate_profile_creation_attempt_fn, sqlite_store.confirm_candidate_profile_creation_attempt, attempt_id, **kwargs),
         )
 
     def retry_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]:
         return cast(
             dict[str, Any],
-            self._required_candidate_profile_override(self.retry_candidate_profile_creation_attempt_fn)(attempt_id, **kwargs),
+            self._call(self.retry_candidate_profile_creation_attempt_fn, sqlite_store.retry_candidate_profile_creation_attempt, attempt_id, **kwargs),
+        )
+
+    def claim_candidate_profile_processing(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.claim_candidate_profile_processing_fn,
+            sqlite_store.claim_candidate_profile_processing,
+            attempt_id,
+            **kwargs,
+        )
+
+    def publish_candidate_profile_stage_result(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.publish_candidate_profile_stage_result_fn,
+            sqlite_store.publish_candidate_profile_stage_result,
+            attempt_id,
+            **kwargs,
+        )
+
+    def reconcile_candidate_profile_attempts(self, **kwargs: Any) -> dict[str, int]:
+        return cast(
+            dict[str, int],
+            self._call(
+                self.reconcile_candidate_profile_attempts_fn,
+                sqlite_store.reconcile_candidate_profile_attempts,
+                **kwargs,
+            ),
         )
 
     def get_candidate_profile_detail(self, profile_id: str) -> dict[str, Any] | None:

@@ -232,6 +232,153 @@ def test_control_plane_schema_upgrades_version_3_without_losing_settings() -> No
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
 
 
+def _create_candidate_profile_v4_fixture(database_path: Path) -> None:
+    with sqlite3.connect(database_path) as conn:
+        conn.executescript(
+            """
+            PRAGMA foreign_keys = ON;
+            CREATE TABLE candidate_profiles (
+                candidate_profile_id TEXT PRIMARY KEY,
+                profile_name TEXT COLLATE NOCASE CHECK (
+                    profile_name IS NULL OR (length(trim(profile_name)) BETWEEN 1 AND 120)
+                ),
+                original_filename TEXT NOT NULL CHECK (lower(substr(original_filename, -5)) = '.yaml'),
+                media_type TEXT NOT NULL,
+                byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
+                input_checksum TEXT NOT NULL,
+                creation_status TEXT NOT NULL CHECK (creation_status IN ('succeeded', 'failed')),
+                lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'archived')),
+                failure_code TEXT,
+                failure_message TEXT,
+                is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                seed_manifest_revision TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                archived_at TEXT,
+                revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0)
+            );
+            CREATE TABLE candidate_profile_revisions (
+                profile_revision_id TEXT PRIMARY KEY,
+                candidate_profile_id TEXT NOT NULL REFERENCES candidate_profiles(candidate_profile_id) ON DELETE RESTRICT,
+                revision INTEGER NOT NULL CHECK (revision > 0),
+                profile_json TEXT NOT NULL CHECK (json_valid(profile_json)),
+                checksum TEXT NOT NULL,
+                schema_revision TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE (candidate_profile_id, revision)
+            );
+            CREATE TABLE pipeline_runs (
+                run_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                archived_at TEXT
+            );
+            CREATE TABLE run_inputs (
+                run_id TEXT PRIMARY KEY REFERENCES pipeline_runs(run_id) ON DELETE CASCADE,
+                candidate_profile_id TEXT REFERENCES candidate_profiles(candidate_profile_id) ON DELETE RESTRICT,
+                candidate_profile_revision_id TEXT REFERENCES candidate_profile_revisions(profile_revision_id) ON DELETE RESTRICT
+            );
+            """
+        )
+        rows = [
+            (
+                "profile-active", None, "active.yaml", "application/yaml", 11, "sha-active",
+                "succeeded", "active", None, None, 1, 3, "seed-7", "2026-07-01T00:00:00+00:00",
+                "2026-07-02T00:00:00+00:00", None, 4,
+            ),
+            (
+                "profile-archived", "Duplicate", "archived.yaml", "application/yaml", 12, "sha-archived",
+                "succeeded", "archived", None, None, 0, 4, None, "2026-07-03T00:00:00+00:00",
+                "2026-07-04T00:00:00+00:00", "2026-07-05T00:00:00+00:00", 2,
+            ),
+            (
+                "profile-failed", "Duplicate", "failed.yaml", "application/yaml", 13, "sha-failed",
+                "failed", "active", "invalid_profile", "Candidate profile validation failed.", 0, 5, None,
+                "2026-07-06T00:00:00+00:00", "2026-07-07T00:00:00+00:00", None, 1,
+            ),
+        ]
+        conn.executemany(
+            "INSERT INTO candidate_profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        revisions = [
+            (
+                "revision-active", "profile-active", 1,
+                json.dumps({"schema_version": "candidate-profile.v1", "name": "Active"}),
+                "revision-sha-active", "candidate-profile.v1", "2026-07-01T00:00:00+00:00",
+            ),
+            (
+                "revision-archived", "profile-archived", 1,
+                json.dumps({"schema_version": "candidate-profile.v1", "name": "Archived"}),
+                "revision-sha-archived", "candidate-profile.v1", "2026-07-03T00:00:00+00:00",
+            ),
+            (
+                "revision-failed", "profile-failed", 1,
+                json.dumps({"schema_version": "candidate-profile.v1", "name": "Failed"}),
+                "revision-sha-failed", "candidate-profile.v1", "2026-07-06T00:00:00+00:00",
+            ),
+        ]
+        conn.executemany("INSERT INTO candidate_profile_revisions VALUES (?, ?, ?, ?, ?, ?, ?)", revisions)
+        conn.execute("INSERT INTO pipeline_runs VALUES ('run-legacy', '2026-07-08T00:00:00+00:00', NULL)")
+        conn.execute("INSERT INTO run_inputs VALUES ('run-legacy', 'profile-active', 'revision-active')")
+        conn.execute("PRAGMA user_version = 4")
+        conn.commit()
+
+
+def test_control_plane_schema_migrates_v4_candidate_profiles_without_identity_loss(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv-v4.sqlite3"
+    _create_candidate_profile_v4_fixture(database_path)
+
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert conn.execute(
+            "SELECT candidate_profile_id, profile_name, lifecycle, is_default, sort_order, revision "
+            "FROM candidate_profiles ORDER BY candidate_profile_id"
+        ).fetchall() == [
+            ("profile-active", "active", "active", 1, 3, 4),
+            ("profile-archived", "Duplicate", "archived", 0, 4, 2),
+        ]
+        assert conn.execute(
+            "SELECT candidate_profile_id, candidate_profile_revision_id FROM run_inputs WHERE run_id='run-legacy'"
+        ).fetchone() == ("profile-active", "revision-active")
+        assert conn.execute(
+            "SELECT attempt_id, creation_status, source_document_id, profile_name FROM candidate_profile_creation_attempts"
+        ).fetchall() == [
+            ("legacy-attempt-profile-failed", "failed", "legacy-source-profile-failed", "Duplicate")
+        ]
+        assert conn.execute(
+            "SELECT source_bytes, source_available, byte_length, checksum FROM candidate_profile_source_documents"
+        ).fetchone() == (None, 0, 13, "sha-failed")
+        assert conn.execute(
+            "SELECT profile_revision_id FROM candidate_profile_revisions ORDER BY profile_revision_id"
+        ).fetchall() == [("revision-active",), ("revision-archived",)]
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def test_control_plane_schema_v4_migration_failure_rolls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    database_path = tmp_path / "fitcv-v4-failure.sqlite3"
+    _create_candidate_profile_v4_fixture(database_path)
+
+    def fail_migration(conn: sqlite3.Connection) -> None:
+        conn.execute("CREATE TABLE migration_should_rollback (id TEXT)")
+        raise RuntimeError("injected migration failure")
+
+    monkeypatch.setattr(sqlite_store, "_migrate_candidate_profiles_v4_to_v5", fail_migration)
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        with pytest.raises(RuntimeError, match="injected migration failure"):
+            sqlite_store._ensure_control_plane_schema(conn)
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profiles").fetchone()[0] == 3
+        assert conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='migration_should_rollback'"
+        ).fetchone()[0] == 0
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+
+
 def test_candidate_profile_reconciliation_marks_abandoned_and_purges_expired_source(tmp_path: Path) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
     created = sqlite_store.create_candidate_profile_creation_attempt(
@@ -271,6 +418,55 @@ def test_candidate_profile_reconciliation_marks_abandoned_and_purges_expired_sou
         assert conn.execute(
             "SELECT COUNT(*) FROM configuration_resources"
         ).fetchone()[0] == 6
+
+
+def test_candidate_profile_retry_resumes_failed_processing_stage(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex\n",
+        idempotency_key="create-retry",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"],
+        stage="base_mapping",
+        expected_revision=created["revision"],
+        lease_seconds=60,
+        database_path=database_path,
+    )
+    past = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=1)
+    future = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
+    with sqlite3.connect(database_path) as conn:
+        conn.execute(
+            "UPDATE candidate_profile_creation_attempts SET lease_expires_at=?, source_purge_after=? WHERE attempt_id=?",
+            (past.isoformat(), future.isoformat(), created["attempt_id"]),
+        )
+        conn.commit()
+    sqlite_store.reconcile_candidate_profile_attempts(
+        now=datetime.datetime.now(datetime.timezone.utc), database_path=database_path
+    )
+    failed = sqlite_store.get_candidate_profile_creation_attempt(
+        created["attempt_id"], database_path=database_path
+    )
+    assert failed is not None
+
+    retried = sqlite_store.retry_candidate_profile_creation_attempt(
+        created["attempt_id"],
+        expected_revision=failed["revision"],
+        idempotency_key="retry-1",
+        database_path=database_path,
+    )
+
+    assert retried["creation_status"] == "extracting_base"
+    assert retried["processing"]["stage"] == "base_mapping"
+    assert retried["processing"]["claim_id"] != claimed["processing"]["claim_id"]
+    assert retried["failure"] is None
+    assert sqlite_store.get_candidate_profile_source(
+        created["attempt_id"], database_path=database_path
+    )["content"] == b"# Alex\n"
 
 
 def test_provider_schema_has_no_secret_bearing_columns() -> None:
@@ -649,6 +845,310 @@ def test_candidate_profile_attempt_retains_source_and_uses_revision_cas(tmp_path
     assert claimed["creation_status"] == "extracting_base"
     assert claimed["revision"] == 2
     assert claimed["processing"]["claim_id"]
+
+
+def test_candidate_profile_stage_publication_requires_claim_and_is_append_only(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Analytics Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex Morgan\n",
+        idempotency_key="create-publish",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"],
+        stage="base_mapping",
+        expected_revision=created["revision"],
+        lease_seconds=60,
+        database_path=database_path,
+    )
+    source_blocks = [
+        {
+            "block_id": "block-name",
+            "kind": "paragraph",
+            "locator": {"kind": "markdown_lines", "start": 1, "end": 1},
+            "text": "Alex Morgan",
+            "checksum": hashlib.sha256(b"Alex Morgan").hexdigest(),
+        }
+    ]
+    result = {
+        "document": {"name": "Alex Morgan", "experiences": []},
+        "annotations": {"/name": {"origin": "deterministic", "source_block_ids": ["block-name"]}},
+        "fingerprint": "baseline-fingerprint-1",
+        "runtime_evidence": None,
+    }
+
+    with pytest.raises(ValueError, match="candidate_profile_processing_claim_conflict"):
+        sqlite_store.publish_candidate_profile_stage_result(
+            created["attempt_id"],
+            stage="baseline",
+            claim_id="wrong-claim",
+            expected_revision=claimed["revision"],
+            result=result,
+            source_blocks=source_blocks,
+            database_path=database_path,
+        )
+
+    published = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=claimed["processing"]["claim_id"],
+        expected_revision=claimed["revision"],
+        result=result,
+        source_blocks=source_blocks,
+        database_path=database_path,
+    )
+
+    assert published["creation_status"] == "base_review"
+    assert published["revision"] == 3
+    assert published["processing"]["claim_id"] is None
+    assert sqlite_store.get_candidate_profile_source_block(
+        created["attempt_id"], "block-name", database_path=database_path
+    ) == {
+        "source_block_id": "block-name",
+        "text": "Alex Morgan",
+        "locator": {"kind": "markdown_lines", "start": 1, "end": 1},
+        "kind": "paragraph",
+        "checksum": hashlib.sha256(b"Alex Morgan").hexdigest(),
+    }
+    review = sqlite_store.get_candidate_profile_review(
+        created["attempt_id"], "baseline", database_path=database_path
+    )
+    assert review is not None
+    assert review["fingerprint"] == "baseline-fingerprint-1"
+    assert review["document"]["name"] == "Alex Morgan"
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_source_blocks").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_baseline_snapshots").fetchone()[0] == 1
+
+
+def test_candidate_profile_regeneration_claims_same_stage_without_deleting_draft(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Analytics Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex Morgan\n",
+        idempotency_key="create-regenerate",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"], stage="base_mapping", expected_revision=1, lease_seconds=60,
+        database_path=database_path,
+    )
+    published = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=claimed["processing"]["claim_id"],
+        expected_revision=claimed["revision"],
+        result={
+            "document": {"name": "Alex Morgan", "summary": "Original"},
+            "annotations": {"/summary": {"regenerable": True, "source_block_ids": []}},
+            "fingerprint": "baseline-regenerate-1",
+            "runtime_evidence": None,
+        },
+        source_blocks=[],
+        database_path=database_path,
+    )
+
+    regenerating = sqlite_store.regenerate_candidate_profile_review(
+        created["attempt_id"],
+        "baseline",
+        expected_revision=published["revision"],
+        targets=["/summary"],
+        idempotency_key="regenerate-summary",
+        database_path=database_path,
+    )
+
+    assert regenerating["creation_status"] == "extracting_base"
+    assert regenerating["processing"]["stage"] == "base_mapping"
+    assert sqlite_store.get_candidate_profile_review(
+        created["attempt_id"], "baseline", database_path=database_path
+    )["document"]["summary"] == "Original"
+
+
+def _candidate_profile_v2_review_documents() -> tuple[dict[str, object], dict[str, object]]:
+    import yaml
+
+    canonical = yaml.safe_load(Path("data/candidate_profile.v2.sample.yaml").read_text(encoding="utf-8"))
+    derived_keys = {"skills", "role_families", "domain_tags", "responsibility_themes"}
+    baseline = {
+        key: value
+        for key, value in canonical.items()
+        if key != "schema_version" and key not in derived_keys
+    }
+    baseline.setdefault("headline", None)
+    baseline.setdefault("summary", None)
+    derived = {key: canonical.get(key, []) for key in derived_keys}
+    return baseline, derived
+
+
+def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, object], dict[str, object]]:
+    from fitcv_cp.candidate_profile_service import approve_review
+
+    baseline, derived = _candidate_profile_v2_review_documents()
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Analytics Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex Example\n",
+        idempotency_key="create-confirm",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"],
+        stage="base_mapping",
+        expected_revision=created["revision"],
+        lease_seconds=60,
+        database_path=database_path,
+    )
+    baseline_approval = approve_review("baseline", baseline, expected_fingerprint=None)
+    published = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=claimed["processing"]["claim_id"],
+        expected_revision=claimed["revision"],
+        result={
+            "document": baseline,
+            "annotations": {},
+            "fingerprint": baseline_approval["fingerprint"],
+            "runtime_evidence": None,
+        },
+        source_blocks=[],
+        database_path=database_path,
+    )
+    patched = sqlite_store.patch_candidate_profile_review(
+        created["attempt_id"],
+        "baseline",
+        expected_revision=published["revision"],
+        operations=[{"operation": "replace", "path": "/headline", "value": "Analytics Engineer"}],
+        idempotency_key="patch-headline",
+        database_path=database_path,
+    )
+    approved_baseline = sqlite_store.approve_candidate_profile_review(
+        created["attempt_id"],
+        "baseline",
+        expected_revision=patched["revision"],
+        expected_fingerprint=patched["fingerprint"],
+        idempotency_key="approve-baseline",
+        database_path=database_path,
+    )
+    derived_approval = approve_review(
+        "derived",
+        derived,
+        expected_fingerprint=None,
+        baseline_fingerprint=patched["fingerprint"],
+    )
+    published_derived = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="derived",
+        claim_id=approved_baseline["processing"]["claim_id"],
+        expected_revision=approved_baseline["revision"],
+        result={
+            "document": derived,
+            "annotations": {},
+            "fingerprint": derived_approval["fingerprint"],
+            "baseline_fingerprint": patched["fingerprint"],
+            "runtime_evidence": None,
+        },
+        database_path=database_path,
+    )
+    approved_derived = sqlite_store.approve_candidate_profile_review(
+        created["attempt_id"],
+        "derived",
+        expected_revision=published_derived["revision"],
+        expected_fingerprint=published_derived["fingerprints"]["derived_draft"],
+        expected_baseline_fingerprint=patched["fingerprint"],
+        idempotency_key="approve-derived",
+        database_path=database_path,
+    )
+    return approved_derived, patched
+
+
+def test_candidate_profile_review_and_confirmation_are_cas_and_idempotent(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, patched = _candidate_profile_ready_to_confirm(database_path)
+
+    assert ready["creation_status"] == "ready_to_confirm"
+    assert ready["fingerprints"]["approved_baseline"] == patched["fingerprint"]
+    confirmation = sqlite_store.get_candidate_profile_confirmation(
+        ready["attempt_id"], database_path=database_path
+    )
+    assert confirmation is not None
+    confirmed = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-1",
+        database_path=database_path,
+    )
+    replay = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-1",
+        database_path=database_path,
+    )
+    replay_with_new_key = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-2",
+        database_path=database_path,
+    )
+
+    assert replay["profile_id"] == confirmed["profile_id"] == replay_with_new_key["profile_id"]
+    assert confirmed["overview"] == confirmation["profile"]["canonical"]
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profiles").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_revisions").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_baseline_snapshots").fetchone()[0] == 2
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_derived_snapshots").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_review_batches").fetchone()[0] == 1
+
+
+def test_candidate_profile_confirmation_failure_rolls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    confirmation = sqlite_store.get_candidate_profile_confirmation(
+        ready["attempt_id"], database_path=database_path
+    )
+    assert confirmation is not None
+    insert_profile = sqlite_store._insert_confirmed_candidate_profile
+
+    def fail_after_profile_insert(*args, **kwargs):
+        insert_profile(*args, **kwargs)
+        raise RuntimeError("injected confirmation failure")
+
+    monkeypatch.setattr(sqlite_store, "_insert_confirmed_candidate_profile", fail_after_profile_insert)
+    with pytest.raises(RuntimeError, match="injected confirmation failure"):
+        sqlite_store.confirm_candidate_profile_creation_attempt(
+            ready["attempt_id"],
+            expected_revision=ready["revision"],
+            expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+            expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+            expected_confirmation_fingerprint=confirmation["fingerprint"],
+            idempotency_key="confirm-failure",
+            database_path=database_path,
+        )
+
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profiles").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_revisions").fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT creation_status, profile_id FROM candidate_profile_creation_attempts"
+        ).fetchone() == ("ready_to_confirm", None)
+        assert conn.execute(
+            "SELECT COUNT(*) FROM idempotent_actions WHERE action_scope LIKE '%:confirm'"
+        ).fetchone()[0] == 0
 
 
 def _synonym_policy_paths(tmp_path: Path) -> dict[str, Path]:
