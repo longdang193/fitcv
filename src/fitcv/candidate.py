@@ -245,6 +245,484 @@ def candidate_profile_field_schema() -> dict[str, Any]:
     return payload
 
 
+_V2_BASELINE_COLLECTIONS = tuple(
+    section["id"]
+    for section in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+    if section.get("stage") == "baseline" and section.get("shape") == "collection"
+)
+_V2_DERIVED_COLLECTIONS = tuple(
+    section["id"]
+    for section in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+    if section.get("stage") == "derived"
+)
+_V2_EVIDENCE_COLLECTIONS = tuple(
+    section["id"]
+    for section in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+    if section.get("stage") == "baseline"
+    and section.get("shape") == "collection"
+    and "evidence" in section.get("item", {})
+)
+_CANONICAL_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{1,127}$")
+_CANONICAL_MONTH_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+def canonical_candidate_checksum(profile: dict[str, Any]) -> str:
+    canonical = json.dumps(profile, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _stable_candidate_id(prefix: str, *parts: Any) -> str:
+    payload = json.dumps(parts, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return f"{prefix}_{hashlib.sha256(payload.encode('utf-8')).hexdigest()[:16]}"
+
+
+def _uploaded_source_ref(document_id: str) -> dict[str, Any]:
+    return {"document_id": document_id}
+
+
+def _with_uploaded_source_ref(values: Any, document_id: str) -> list[dict[str, Any]]:
+    refs = [copy.deepcopy(value) for value in values or [] if isinstance(value, dict)]
+    if not any(ref.get("document_id") == document_id for ref in refs):
+        refs.insert(0, _uploaded_source_ref(document_id))
+    return refs
+
+
+def _legacy_evidence(
+    *,
+    parent_id: str,
+    kind: str,
+    text: Any,
+    index: int,
+    document_id: str,
+    title: Any = None,
+    start: Any = None,
+    end: Any = None,
+) -> dict[str, Any] | None:
+    normalized_text = str(text or "").strip()
+    if not normalized_text:
+        return None
+    item: dict[str, Any] = {
+        "id": _stable_candidate_id(f"ev_{parent_id}", index, normalized_text),
+        "kind": kind,
+        "text": normalized_text,
+        "source_refs": [_uploaded_source_ref(document_id)],
+    }
+    for key, value in (("title", title), ("start", start), ("end", end)):
+        normalized = str(value or "").strip()
+        if normalized:
+            item[key] = normalized
+    return item
+
+
+def _normalize_v2_parent(item: dict[str, Any], document_id: str) -> dict[str, Any]:
+    normalized = copy.deepcopy(item)
+    normalized["source_refs"] = _with_uploaded_source_ref(normalized.get("source_refs"), document_id)
+    normalized["evidence"] = [
+        {
+            **copy.deepcopy(evidence),
+            "source_refs": _with_uploaded_source_ref(evidence.get("source_refs"), document_id),
+        }
+        for evidence in normalized.get("evidence") or []
+        if isinstance(evidence, dict)
+    ]
+    return normalized
+
+
+def _adapt_legacy_parent(
+    section: str,
+    item: dict[str, Any],
+    document_id: str,
+) -> tuple[dict[str, Any], list[str]]:
+    normalized = copy.deepcopy(item)
+    parent_id = str(normalized.get("id") or _stable_candidate_id(section[:-1], section, item))
+    normalized["id"] = parent_id
+    normalized["source_refs"] = [_uploaded_source_ref(document_id)]
+    if section == "experiences" and "company" not in normalized and normalized.get("organization"):
+        normalized["company"] = normalized.pop("organization")
+    current = normalized.pop("current", None)
+    end = str(normalized.get("end") or "").strip()
+    if current is True and end and end.lower() != "present":
+        raise ValueError("current: true contradicts end")
+    if current is True:
+        normalized["end"] = "Present"
+    elif end.lower() == "present":
+        normalized["end"] = "Present"
+    evidence: list[dict[str, Any]] = []
+    for index, value in enumerate(normalized.pop("evidence", []) or []):
+        if not isinstance(value, dict):
+            continue
+        candidate = _legacy_evidence(
+            parent_id=parent_id,
+            kind=str(value.get("kind") or "achievement"),
+            title=value.get("title"),
+            text=value.get("text"),
+            index=index,
+            document_id=document_id,
+            start=value.get("start") or value.get("date"),
+            end=value.get("end"),
+        )
+        if candidate:
+            evidence.append(candidate)
+    if section == "experiences":
+        for index, bullet in enumerate(normalized.pop("bullets", []) or []):
+            raw = bullet.get("text") if isinstance(bullet, dict) else bullet
+            candidate = _legacy_evidence(
+                parent_id=parent_id,
+                kind="work_achievement",
+                text=raw,
+                index=index,
+                document_id=document_id,
+            )
+            if candidate:
+                evidence.append(candidate)
+    elif section == "education":
+        thesis = normalized.pop("thesis", None)
+        if isinstance(thesis, dict):
+            candidate = _legacy_evidence(
+                parent_id=parent_id,
+                kind="thesis",
+                title=thesis.get("title"),
+                text=thesis.get("summary") or thesis.get("title"),
+                index=len(evidence),
+                document_id=document_id,
+            )
+            if candidate:
+                evidence.append(candidate)
+        for kind, key in (("course", "courses"), ("seminar", "activities")):
+            for value in normalized.pop(key, []) or []:
+                candidate = _legacy_evidence(
+                    parent_id=parent_id,
+                    kind=kind,
+                    title=value,
+                    text=value,
+                    index=len(evidence),
+                    document_id=document_id,
+                )
+                if candidate:
+                    evidence.append(candidate)
+    elif section == "projects":
+        values = list(normalized.pop("highlights", []) or [])
+        if normalized.get("business_value"):
+            values.append(normalized.pop("business_value"))
+        for value in values:
+            candidate = _legacy_evidence(
+                parent_id=parent_id,
+                kind="project_highlight",
+                text=value,
+                index=len(evidence),
+                document_id=document_id,
+            )
+            if candidate:
+                evidence.append(candidate)
+    elif section == "achievements":
+        candidate = _legacy_evidence(
+            parent_id=parent_id,
+            kind="achievement",
+            text=normalized.pop("text", None) or normalized.get("title"),
+            index=0,
+            document_id=document_id,
+        )
+        if candidate:
+            evidence.append(candidate)
+    elif section == "certifications":
+        if "date" not in normalized and normalized.get("year"):
+            normalized["date"] = f"{int(normalized.pop('year')):04d}-01"
+        if "expires" not in normalized and normalized.get("expiry"):
+            normalized["expires"] = f"{int(normalized.pop('expiry')):04d}-01"
+        candidate = _legacy_evidence(
+            parent_id=parent_id,
+            kind="certification_proof",
+            title=normalized.get("name"),
+            text=normalized.get("name"),
+            index=0,
+            document_id=document_id,
+            start=normalized.get("date"),
+        )
+        if candidate:
+            evidence.append(candidate)
+    elif section == "volunteering":
+        candidate = _legacy_evidence(
+            parent_id=parent_id,
+            kind="volunteer_contribution",
+            text=normalized.pop("description", None),
+            index=0,
+            document_id=document_id,
+        )
+        if candidate:
+            evidence.append(candidate)
+    normalized["evidence"] = evidence
+    return normalized, [entry["id"] for entry in evidence]
+
+
+def adapt_candidate_profile_to_v2(
+    profile: dict[str, Any],
+    uploaded_source_document: dict[str, Any],
+) -> dict[str, Any]:
+    if not isinstance(profile, dict):
+        raise ValueError("Candidate profile must be a mapping")
+    document_id = str(uploaded_source_document["id"])
+    if profile.get("schema_version") == "candidate-profile.v2":
+        normalized = copy.deepcopy(profile)
+        supplied_documents = []
+        for document in normalized.get("source_documents") or []:
+            if not isinstance(document, dict) or document.get("id") == document_id:
+                continue
+            supplied_documents.append({**copy.deepcopy(document), "origin": "declared"})
+        normalized["source_documents"] = [copy.deepcopy(uploaded_source_document), *supplied_documents]
+        normalized.setdefault("contact", {})
+        normalized.setdefault("headline", None)
+        normalized.setdefault("summary", None)
+        normalized.setdefault("interests", [])
+        if "search_preferences" not in normalized and "preferences" in normalized:
+            normalized["search_preferences"] = normalized.pop("preferences")
+        for section in _V2_BASELINE_COLLECTIONS:
+            values = normalized.get(section) or []
+            if section in _V2_EVIDENCE_COLLECTIONS:
+                normalized[section] = [
+                    _normalize_v2_parent(value, document_id)
+                    for value in values
+                    if isinstance(value, dict)
+                ]
+            else:
+                normalized[section] = [
+                    {
+                        **copy.deepcopy(value),
+                        "source_refs": _with_uploaded_source_ref(value.get("source_refs"), document_id),
+                    }
+                    for value in values
+                    if isinstance(value, dict)
+                ]
+        for section in _V2_DERIVED_COLLECTIONS:
+            claims: list[dict[str, Any]] = []
+            for value in normalized.get(section) or []:
+                if not isinstance(value, dict):
+                    value = {"name": value}
+                claim = copy.deepcopy(value)
+                claim.setdefault("origin", "user")
+                claim.setdefault("confidence", 1.0)
+                claim.setdefault("support_status", "supported")
+                claim["evidence_refs"] = list(dict.fromkeys(claim.get("evidence_refs") or []))
+                claims.append(claim)
+            normalized[section] = claims
+        normalized.setdefault("search_preferences", {})
+        normalized.pop("preferences", None)
+        return normalized
+
+    normalized: dict[str, Any] = {
+        "schema_version": "candidate-profile.v2",
+        "source_documents": [copy.deepcopy(uploaded_source_document)],
+        "name": str(profile.get("name") or "").strip(),
+        "headline": profile.get("headline"),
+        "summary": profile.get("summary"),
+        "contact": copy.deepcopy(profile.get("contact") or {}),
+        "interests": list(profile.get("interests") or []),
+        "search_preferences": copy.deepcopy(profile.get("search_preferences") or profile.get("preferences") or {}),
+    }
+    parent_evidence: dict[str, list[str]] = {}
+    for section in _V2_BASELINE_COLLECTIONS:
+        if section == "languages":
+            normalized[section] = [
+                {
+                    **copy.deepcopy(value),
+                    "source_refs": [_uploaded_source_ref(document_id)],
+                }
+                for value in profile.get(section) or []
+                if isinstance(value, dict)
+            ]
+            continue
+        adapted: list[dict[str, Any]] = []
+        for value in profile.get(section) or []:
+            if not isinstance(value, dict):
+                continue
+            parent, evidence_ids = _adapt_legacy_parent(section, value, document_id)
+            adapted.append(parent)
+            parent_evidence[parent["id"]] = evidence_ids
+        normalized[section] = adapted
+    skills: list[dict[str, Any]] = []
+    for index, value in enumerate(profile.get("skills") or []):
+        claim = copy.deepcopy(value) if isinstance(value, dict) else {"name": value}
+        refs: list[str] = []
+        for ref in claim.get("evidence_refs") or []:
+            refs.extend(parent_evidence.get(ref, [ref]))
+        claim.update(
+            {
+                "id": claim.get("id") or _stable_candidate_id("skill", index, claim.get("name")),
+                "origin": claim.get("origin") or "user",
+                "confidence": claim.get("confidence", 1.0),
+                "support_status": claim.get("support_status") or "supported",
+                "evidence_refs": list(dict.fromkeys(refs)),
+            }
+        )
+        skills.append(claim)
+    normalized["skills"] = skills
+    for section in ("role_families", "domain_tags", "responsibility_themes"):
+        normalized[section] = []
+    return normalized
+
+
+def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(profile, dict) or profile.get("schema_version") != "candidate-profile.v2":
+        return ["schema_version must be candidate-profile.v2"]
+    if not str(profile.get("name") or "").strip():
+        errors.append("name is required")
+    section_registry = {
+        section["id"]: section
+        for section in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+    }
+    allowed_top_level = {
+        "schema_version",
+        "source_documents",
+        *section_registry["identity"]["fields"],
+        "contact",
+        *(section_id for section_id in section_registry if section_id not in {"identity", "contact"}),
+    }
+    for key in sorted(set(profile) - allowed_top_level):
+        errors.append(f"unsupported top-level field: {key}")
+    contact = profile.get("contact") or {}
+    if not isinstance(contact, dict):
+        errors.append("contact must be a mapping")
+    else:
+        allowed_contact = set(section_registry["contact"]["fields"])
+        for key in sorted(set(contact) - allowed_contact):
+            errors.append(f"unsupported contact field: {key}")
+    documents = [value for value in profile.get("source_documents") or [] if isinstance(value, dict)]
+    document_ids = [str(value.get("id") or "") for value in documents]
+    if len(document_ids) != len(set(document_ids)) or any(not value for value in document_ids):
+        errors.append("source document IDs must be non-empty and unique")
+    uploaded_ids = {str(value.get("id")) for value in documents if value.get("origin") == "uploaded"}
+    if not uploaded_ids:
+        errors.append("at least one uploaded source document is required")
+    all_ids: set[str] = set()
+    evidence_ids: set[str] = set()
+
+    def register_id(value: Any, label: str) -> None:
+        identifier = str(value or "")
+        if not _CANONICAL_ID_PATTERN.fullmatch(identifier):
+            errors.append(f"invalid {label} ID: {identifier!r}")
+        elif identifier in all_ids:
+            errors.append(f"duplicate ID: {identifier}")
+        else:
+            all_ids.add(identifier)
+
+    def validate_date(value: Any, label: str) -> None:
+        text = str(value or "").strip()
+        if text and text != "Present" and not _CANONICAL_MONTH_PATTERN.fullmatch(text):
+            errors.append(f"invalid {label}: {text!r}")
+
+    def validate_refs(values: Any, label: str, *, require_uploaded: bool) -> None:
+        refs = [value for value in values or [] if isinstance(value, dict)]
+        if len(refs) != len(values or []):
+            errors.append(f"invalid source_refs in {label}")
+        serialized = [json.dumps(value, sort_keys=True, separators=(",", ":")) for value in refs]
+        if len(serialized) != len(set(serialized)):
+            errors.append(f"duplicate source_refs in {label}")
+        resolved = {str(value.get("document_id") or "") for value in refs}
+        dangling = sorted(resolved - set(document_ids))
+        if dangling:
+            errors.append(f"dangling source_refs in {label}: {dangling}")
+        if require_uploaded and not (resolved & uploaded_ids):
+            errors.append(f"{label} requires uploaded source_refs")
+        for ref in refs:
+            locator = ref.get("locator")
+            if locator is None:
+                continue
+            if not isinstance(locator, dict):
+                errors.append(f"invalid locator in {label}")
+                continue
+            kind = locator.get("kind")
+            if kind == "markdown_lines":
+                start = locator.get("start")
+                end = locator.get("end")
+                if not isinstance(start, int) or not isinstance(end, int) or start < 1 or end < start:
+                    errors.append(f"invalid markdown locator in {label}")
+            elif kind == "docx_paragraph":
+                if locator.get("part") not in {"document", "header", "footer"} or not isinstance(locator.get("paragraph"), int) or locator["paragraph"] < 1:
+                    errors.append(f"invalid DOCX paragraph locator in {label}")
+            elif kind == "docx_table_cell":
+                coordinates = (locator.get("table"), locator.get("row"), locator.get("cell"))
+                if locator.get("part") not in {"document", "header", "footer"} or any(not isinstance(value, int) or value < 1 for value in coordinates):
+                    errors.append(f"invalid DOCX table locator in {label}")
+            else:
+                errors.append(f"invalid locator kind in {label}: {kind!r}")
+
+    for document in documents:
+        register_id(document.get("id"), "source document")
+        if document.get("origin") not in {"uploaded", "declared"}:
+            errors.append(f"invalid source document origin: {document.get('origin')!r}")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(document.get("sha256") or "")):
+            errors.append(f"invalid source document sha256: {document.get('id')!r}")
+
+    for section in _V2_BASELINE_COLLECTIONS:
+        values = profile.get(section)
+        if not isinstance(values, list):
+            errors.append(f"{section} must be a list")
+            continue
+        for item in values:
+            if not isinstance(item, dict):
+                errors.append(f"{section} entries must be mappings")
+                continue
+            register_id(item.get("id"), section)
+            section_definition = section_registry[section]
+            allowed_fields = set(section_definition.get("item", {}))
+            for key in sorted(set(item) - allowed_fields):
+                errors.append(f"unsupported field in {section}/{item.get('id')}: {key}")
+            for field_name, field_definition in section_definition.get("item", {}).items():
+                if field_definition.get("required") and field_name not in {"source_refs", "evidence"} and not str(item.get(field_name) or "").strip():
+                    errors.append(f"{section}/{item.get('id')} requires {field_name}")
+            required_one_of = section_definition.get("required_one_of") or []
+            if required_one_of and not any(str(item.get(field) or "").strip() for field in required_one_of):
+                errors.append(f"{section}/{item.get('id')} requires one of {required_one_of}")
+            validate_refs(item.get("source_refs"), f"{section}/{item.get('id')}", require_uploaded=True)
+            for field_name, field_definition in section_definition.get("item", {}).items():
+                if field_definition.get("shape") in {"month", "month_or_present"}:
+                    validate_date(item.get(field_name), f"{section}.{field_name}")
+            if "current" in item:
+                errors.append(f"{section}/{item.get('id')} cannot contain current")
+            for evidence in item.get("evidence") or []:
+                if not isinstance(evidence, dict):
+                    errors.append(f"{section} evidence entries must be mappings")
+                    continue
+                register_id(evidence.get("id"), "evidence")
+                evidence_id = str(evidence.get("id") or "")
+                evidence_ids.add(evidence_id)
+                allowed_evidence_fields = set(_EVIDENCE_COLLECTION_FIELD["item"])
+                for key in sorted(set(evidence) - allowed_evidence_fields):
+                    errors.append(f"unsupported field in evidence/{evidence_id}: {key}")
+                if evidence.get("kind") not in _EVIDENCE_KINDS:
+                    errors.append(f"invalid evidence kind: {evidence.get('kind')!r}")
+                if not str(evidence.get("text") or "").strip():
+                    errors.append(f"evidence {evidence_id} requires text")
+                validate_date(evidence.get("start"), "evidence.start")
+                validate_date(evidence.get("end"), "evidence.end")
+                validate_refs(evidence.get("source_refs"), f"evidence/{evidence_id}", require_uploaded=True)
+    for section in _V2_DERIVED_COLLECTIONS:
+        values = profile.get(section)
+        if not isinstance(values, list):
+            errors.append(f"{section} must be a list")
+            continue
+        for claim in values:
+            if not isinstance(claim, dict):
+                errors.append(f"{section} entries must be mappings")
+                continue
+            register_id(claim.get("id"), section)
+            for key in sorted(set(claim) - set(_DERIVED_CLAIM_ITEM)):
+                errors.append(f"unsupported field in {section}/{claim.get('id')}: {key}")
+            if not str(claim.get("name") or "").strip():
+                errors.append(f"{section}/{claim.get('id')} requires name")
+            confidence = claim.get("confidence")
+            if not isinstance(confidence, (int, float)) or not 0 <= float(confidence) <= 1:
+                errors.append(f"{section}/{claim.get('id')} has invalid confidence")
+    for section in _V2_DERIVED_COLLECTIONS:
+        for claim in profile.get(section) or []:
+            if not isinstance(claim, dict):
+                continue
+            dangling = sorted(set(claim.get("evidence_refs") or []) - evidence_ids)
+            if dangling:
+                errors.append(f"dangling evidence_refs in {section}/{claim.get('id')}: {dangling}")
+    return errors
+
+
 
 # ── required profile sections ─────────────────────────────────────────────────
 

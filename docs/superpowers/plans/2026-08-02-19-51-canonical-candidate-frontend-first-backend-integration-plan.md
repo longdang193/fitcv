@@ -286,16 +286,16 @@ Correction rules:
 - Use Python `zipfile` and `xml.etree.ElementTree`; add no DOCX dependency
 
 **Steps:**
-- [ ] Add corpus tests for valid/invalid Markdown, DOCX paragraphs, tables, headers, footers, corrupt ZIP, encrypted/unsupported package, oversized expansion, YAML v1, YAML v2, empty input, media/extension mismatch, duplicate IDs, dangling refs, invalid locators, invalid dates, and contradictory `current`/`end`.
-- [ ] Implement coarse validation that rejects unsupported extension/media, empty request, request byte overflow, and unsafe filename before attempt creation.
-- [ ] Implement deterministic Markdown and DOCX extraction with bounded normalized blocks, native locators, parser name/version, stable ordering, checksum, and fingerprint; never send binary DOCX to LLM.
-- [ ] Implement safe YAML import that creates verified uploaded source metadata, preserves valid supplied source documents as declared metadata, injects uploaded document refs into every evidence-bearing parent and evidence statement, and rejects contradictory or dangling supplied provenance.
-- [ ] Implement deterministic v1 adaptation with stable generated evidence IDs, parent-reference expansion, `current: true` to `end: Present`, legacy evidence `date` to `start`, and no rewrite of stored historical v1 revisions.
-- [ ] Keep search preferences user-owned and exclude them from evidence extraction.
+- [x] Add corpus tests for valid/invalid Markdown, DOCX paragraphs, tables, headers, footers, corrupt ZIP, encrypted/unsupported package, oversized expansion, YAML v1, YAML v2, empty input, media/extension mismatch, duplicate IDs, dangling refs, invalid locators, invalid dates, and contradictory `current`/`end`.
+- [x] Implement coarse validation that rejects unsupported extension/media, empty request, request byte overflow, and unsafe filename before attempt creation.
+- [x] Implement deterministic Markdown and DOCX extraction with bounded normalized blocks, native locators, parser name/version, stable ordering, checksum, and fingerprint; never send binary DOCX to LLM.
+- [x] Implement safe YAML import that creates verified uploaded source metadata, preserves valid supplied source documents as declared metadata, injects uploaded document refs into every evidence-bearing parent and evidence statement, and rejects contradictory or dangling supplied provenance.
+- [x] Implement deterministic v1 adaptation with stable generated evidence IDs, parent-reference expansion, `current: true` to `end: Present`, legacy evidence `date` to `start`, and no rewrite of stored historical v1 revisions.
+- [x] Keep search preferences user-owned and exclude them from evidence extraction.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_candidate_profile_ingest.py tests/test_candidate.py tests/test_candidate_profile_template_contract.py -q`
-- [ ] `uv run python -m compileall -q src/fitcv/candidate.py src/fitcv/candidate_ingest.py`
+- [x] `uv run pytest tests/test_candidate_profile_ingest.py tests/test_candidate.py tests/test_candidate_profile_template_contract.py -q`
+- [x] `uv run python -m compileall -q src/fitcv/candidate.py src/fitcv/candidate_ingest.py`
 - Expected: repeated input produces identical blocks, IDs, locators, canonical payload, and fingerprints; every evidence chain reaches uploaded bytes; corrupt or unsupported input fails with specified stable boundary.
 
 **Exit Criteria:**

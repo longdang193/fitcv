@@ -1,14 +1,13 @@
-# Public-safe example for proposed CanonicalCandidateProfile v2.
-# This schema is not accepted by current candidate-profile.v1 loader yet.
-# Parser generates IDs, preserves them in YAML, and links derived skills to evidence.
+# Public-safe CanonicalCandidateProfile v2 example.
 
 schema_version: "candidate-profile.v2"
 
 source_documents:
   - id: "doc_cv_1"
+    origin: "uploaded"
     filename: "candidate-cv.md"
     media_type: "text/markdown"
-    sha256: "<sha256>"
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
     parser:
       name: "fitcv-cv-parser"
       version: "v1"
@@ -178,11 +177,20 @@ projects:
 
 achievements: []
 certifications: []
+volunteering: []
 languages:
-  - name: "English"
+  - id: "lang_english"
+    name: "English"
     level: "C1"
-  - name: "German"
+    source_refs:
+      - document_id: "doc_cv_1"
+  - id: "lang_german"
+    name: "German"
     level: "B1"
+    source_refs:
+      - document_id: "doc_cv_1"
+
+interests: []
 
 # Skills are normalized derived claims. evidence_refs are the SSOT relationship
 # between a skill and supporting candidate evidence.
@@ -191,6 +199,7 @@ skills:
     name: "Python"
     origin: "extracted_explicit"
     confidence: 0.99
+    support_status: "supported"
     evidence_refs:
       - "ev_exp_reporting_automation"
       - "ev_edu_analytics_thesis"
@@ -200,6 +209,7 @@ skills:
     name: "SQL"
     origin: "extracted_explicit"
     confidence: 0.99
+    support_status: "supported"
     evidence_refs:
       - "ev_exp_reporting_automation"
       - "ev_proj_sales_analysis_pipeline"
@@ -208,6 +218,7 @@ skills:
     name: "Power BI"
     origin: "extracted_explicit"
     confidence: 0.99
+    support_status: "supported"
     evidence_refs:
       - "ev_edu_analytics_project_dashboard"
 
@@ -215,6 +226,7 @@ skills:
     name: "Machine learning"
     origin: "inferred"
     confidence: 0.94
+    support_status: "supported"
     evidence_refs:
       - "ev_edu_analytics_thesis"
 
@@ -222,6 +234,7 @@ skills:
     name: "Statistical analysis"
     origin: "inferred"
     confidence: 0.96
+    support_status: "supported"
     evidence_refs:
       - "ev_edu_analytics_thesis"
       - "ev_edu_analytics_course_statistics"
@@ -230,6 +243,7 @@ skills:
     name: "Data visualization"
     origin: "inferred"
     confidence: 0.95
+    support_status: "supported"
     evidence_refs:
       - "ev_edu_analytics_project_dashboard"
 
@@ -237,6 +251,7 @@ skills:
     name: "Responsible data analysis"
     origin: "inferred"
     confidence: 0.90
+    support_status: "supported"
     evidence_refs:
       - "ev_edu_analytics_seminar_ethics"
 
@@ -244,10 +259,15 @@ skills:
     name: "Stakeholder communication"
     origin: "inferred"
     confidence: 0.88
+    support_status: "supported"
     evidence_refs:
       - "ev_exp_reporting_stakeholders"
       - "ev_edu_analytics_thesis"
       - "ev_proj_sales_analysis_findings"
+
+role_families: []
+domain_tags: []
+responsibility_themes: []
 
 # Search preferences are user intent, not facts derived from the uploaded CV.
 search_preferences:
