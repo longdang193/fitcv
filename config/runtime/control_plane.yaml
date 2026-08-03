@@ -21,6 +21,12 @@ control_plane:
 
   model_routing:
     parts:
+      candidate_profile_base_mapping:
+        provider: openai_compatible
+        model: cx/gpt-5.4-mini
+      candidate_profile_derived_claims:
+        provider: openai_compatible
+        model: cx/gpt-5.4-mini
       enrich_extraction:
         provider: openai_compatible
         # model: ds/deepseek-v4-flash

@@ -265,6 +265,8 @@ def test_packaged_llm_configuration_is_revisioned_and_local_only(
     resource = current.json()["data"]
     assert resource["default_model_ref"] is None
     assert resource["eligible_models"] == []
+    assert "candidate_profile_base_mapping" in resource["tasks"]
+    assert "candidate_profile_derived_claims" in resource["tasks"]
     assert current.headers["etag"] == f'"{resource["revision"]}"'
 
     updated = client.patch(
@@ -300,12 +302,14 @@ def test_packaged_prompt_configuration_exposes_defaults_and_validates_replacemen
     assert current.status_code == 200
     resources = current.json()["data"]
     assert [resource["task_id"] for resource in resources] == [
+        "candidate_profile_base_mapping",
+        "candidate_profile_derived_claims",
         "enrich_extraction",
         "ranking_ai_score",
         "cv_generation_structured_write",
         "synonym_triage_recommendation",
     ]
-    resource = resources[0]
+    resource = next(item for item in resources if item["task_id"] == "enrich_extraction")
     assert resource["display_name"] == "Enrich Extraction"
     assert resource["group"] == "Pipeline Prompts"
     assert resource["mode"] == "default"

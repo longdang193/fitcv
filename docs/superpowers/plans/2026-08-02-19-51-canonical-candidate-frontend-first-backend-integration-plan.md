@@ -335,17 +335,17 @@ Correction rules:
 - Existing shared LLM adapter, JSON-schema parsing, failure normalization, provenance, and settings revision behavior remain owners
 
 **Steps:**
-- [ ] Add failing service tests for deterministic-only baseline, ambiguous baseline LLM call, structured failure, unsupported inference, derived claims with separate `evidence_refs`, per-target regeneration, wildcard regeneration, non-regenerable fields, stale revisions, upstream invalidation, approval fingerprints, retry, and exact confirmation assembly.
-- [ ] Implement baseline mapper that preserves deterministic facts, calls LLM only for bounded unresolved blocks, validates returned proposals against source blocks, and assigns server IDs/source refs after validation.
-- [ ] Implement derived-claim generator for skills, role families, domain tags, and responsibility themes with stable server IDs, `origin`, bounded confidence, and evidence-item references only.
-- [ ] Implement one target resolver for baseline and derived paths; annotations declare regeneration capability and source-block binding.
-- [ ] Implement approval snapshots and invalidation rules without mutating approved upstream snapshots on failed LLM calls or route changes.
-- [ ] Store one shared runtime evidence record for each actual model call; never copy provider credentials or raw provider payload into Candidate Profile tables.
-- [ ] Keep LLM settings mutations on current revision conflict contract and current error code.
+- [x] Add failing service tests for deterministic-only baseline, ambiguous baseline LLM call, structured failure, unsupported inference, derived claims with separate `evidence_refs`, per-target regeneration, wildcard regeneration, non-regenerable fields, stale revisions, upstream invalidation, approval fingerprints, retry, and exact confirmation assembly.
+- [x] Implement baseline mapper that preserves deterministic facts, calls LLM only for bounded unresolved blocks, validates returned proposals against source blocks, and assigns server IDs/source refs after validation.
+- [x] Implement derived-claim generator for skills, role families, domain tags, and responsibility themes with stable server IDs, `origin`, bounded confidence, and evidence-item references only.
+- [x] Implement one target resolver for baseline and derived paths; annotations declare regeneration capability and source-block binding.
+- [x] Implement approval snapshots and invalidation rules without mutating approved upstream snapshots on failed LLM calls or route changes.
+- [x] Store one shared runtime evidence record for each actual model call; never copy provider credentials or raw provider payload into Candidate Profile tables.
+- [x] Keep LLM settings mutations on current revision conflict contract and current error code.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_llm_runtime.py tests/test_fitcv_cp/test_candidate_profile_service.py tests/test_fitcv_cp/test_local_app.py -q`
-- [ ] `uv run python -m compileall -q src/fitcv/llm_runtime.py src/fitcv/config.py src/fitcv_cp/candidate_profile_service.py src/fitcv_cp/settings_store.py`
+- [x] `uv run pytest tests/test_llm_runtime.py tests/test_fitcv_cp/test_candidate_profile_service.py tests/test_fitcv_cp/test_local_app.py -q`
+- [x] `uv run python -m compileall -q src/fitcv/llm_runtime.py src/fitcv/config.py src/fitcv_cp/candidate_profile_service.py src/fitcv_cp/settings_store.py`
 - Expected: deterministic data survives model failure, every derived claim is traceable, invalid targets fail stably, and existing LLM settings API behavior remains unchanged except added task IDs.
 
 **Exit Criteria:**

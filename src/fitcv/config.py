@@ -78,6 +78,8 @@ _RETIRED_CONFIG_SURFACES = (
 _DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
 _DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v2"
 _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID = "cv_generation.structured_write.v1"
+_DEFAULT_CANDIDATE_PROFILE_BASE_MAPPING_PROMPT_ID = "candidate_profile.base_mapping.v1"
+_DEFAULT_CANDIDATE_PROFILE_DERIVED_CLAIMS_PROMPT_ID = "candidate_profile.derived_claims.v1"
 _DEFAULT_CV_REQUIRED_MATCH_POLICY = {
     "required_match": {
         "min_ratio_by_fit": {
@@ -96,6 +98,8 @@ SUPPORTED_PROVIDER_TYPES = frozenset({"openai", "openai_compatible"})
 SUPPORTED_AUTH_MODES = frozenset({"required", "optional", "none"})
 SUPPORTED_WIRE_APIS = frozenset({"responses", "chat_completions"})
 SUPPORTED_ROUTING_PARTS = (
+    "candidate_profile_base_mapping",
+    "candidate_profile_derived_claims",
     "enrich_extraction",
     "ranking_ai_score",
     "cv_generation_structured_write",
@@ -103,10 +107,20 @@ SUPPORTED_ROUTING_PARTS = (
 )
 PROMPT_ADDENDUM_TASK_IDS = SUPPORTED_ROUTING_PARTS
 PROMPT_TASK_CONFIG_PATHS = {
+    "candidate_profile_base_mapping": ("candidate_profile", "base_mapping"),
+    "candidate_profile_derived_claims": ("candidate_profile", "derived_claims"),
     "enrich_extraction": ("enrich", "extraction"),
     "ranking_ai_score": ("ranking", "ai_score"),
     "cv_generation_structured_write": ("cv_generation", "structured_write"),
     "synonym_triage_recommendation": ("synonym_triage", "recommendation"),
+}
+_DEFAULT_PROMPT_IDS = {
+    "candidate_profile_base_mapping": _DEFAULT_CANDIDATE_PROFILE_BASE_MAPPING_PROMPT_ID,
+    "candidate_profile_derived_claims": _DEFAULT_CANDIDATE_PROFILE_DERIVED_CLAIMS_PROMPT_ID,
+    "enrich_extraction": _DEFAULT_ENRICH_PROMPT_ID,
+    "ranking_ai_score": _DEFAULT_RANKING_AI_SCORE_PROMPT_ID,
+    "cv_generation_structured_write": _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID,
+    "synonym_triage_recommendation": "synonym_triage.recommendation.v1",
 }
 PROVIDER_REGISTRY = {
     "openai": {"type": "openai", "label": "OpenAI"},
@@ -1133,125 +1147,47 @@ def _apply_prompt_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
     prompts = cfg.get("prompts")
     if not isinstance(prompts, dict):
         prompts = {}
-    enrich_prompt_cfg = prompts.get("enrich")
-    if not isinstance(enrich_prompt_cfg, dict):
-        enrich_prompt_cfg = {}
-    extraction_cfg = enrich_prompt_cfg.get("extraction")
-    if not isinstance(extraction_cfg, dict):
-        extraction_cfg = {}
-    prompt_id = str(extraction_cfg.get("prompt_id") or _DEFAULT_ENRICH_PROMPT_ID).strip()
-    extraction_cfg["prompt_id"] = prompt_id or _DEFAULT_ENRICH_PROMPT_ID
-    enrich_prompt_cfg["extraction"] = extraction_cfg
-    prompts["enrich"] = enrich_prompt_cfg
-
-    ranking_prompt_cfg = prompts.get("ranking")
-    if not isinstance(ranking_prompt_cfg, dict):
-        ranking_prompt_cfg = {}
-    ai_score_cfg = ranking_prompt_cfg.get("ai_score")
-    if not isinstance(ai_score_cfg, dict):
-        ai_score_cfg = {}
-    ranking_prompt_id = str(ai_score_cfg.get("prompt_id") or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID).strip()
-    ai_score_cfg["prompt_id"] = ranking_prompt_id or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID
-    ranking_prompt_cfg["ai_score"] = ai_score_cfg
-    prompts["ranking"] = ranking_prompt_cfg
-
-    cv_generation_prompt_cfg = prompts.get("cv_generation")
-    if not isinstance(cv_generation_prompt_cfg, dict):
-        cv_generation_prompt_cfg = {}
-    structured_write_cfg = cv_generation_prompt_cfg.get("structured_write")
-    if not isinstance(structured_write_cfg, dict):
-        structured_write_cfg = {}
-    structured_write_prompt_id = str(
-        structured_write_cfg.get("prompt_id") or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
-    ).strip()
-    structured_write_cfg["prompt_id"] = (
-        structured_write_prompt_id or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
-    )
-    cv_generation_prompt_cfg["structured_write"] = structured_write_cfg
-    prompts["cv_generation"] = cv_generation_prompt_cfg
+    for task_id, (section, key) in PROMPT_TASK_CONFIG_PATHS.items():
+        section_config = prompts.get(section)
+        if not isinstance(section_config, dict):
+            section_config = {}
+        task_config = section_config.get(key)
+        if not isinstance(task_config, dict):
+            task_config = {}
+        prompt_id = str(task_config.get("prompt_id") or _DEFAULT_PROMPT_IDS[task_id]).strip()
+        task_config["prompt_id"] = prompt_id or _DEFAULT_PROMPT_IDS[task_id]
+        section_config[key] = task_config
+        prompts[section] = section_config
     cfg["prompts"] = prompts
     return cfg
 
 
 def _build_prompts_runtime(cfg: dict[str, Any]) -> dict[str, Any]:
-    enrich_prompt_id = str(
-        (((cfg.get("prompts") or {}).get("enrich") or {}).get("extraction") or {}).get("prompt_id")
-        or _DEFAULT_ENRICH_PROMPT_ID
-    )
-    enrich_definition = get_prompt_definition(enrich_prompt_id)
-    ranking_prompt_id = str(
-        (((cfg.get("prompts") or {}).get("ranking") or {}).get("ai_score") or {}).get("prompt_id")
-        or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID
-    )
-    ranking_definition = get_prompt_definition(ranking_prompt_id)
-    cv_generation_structured_prompt_id = str(
-        (((cfg.get("prompts") or {}).get("cv_generation") or {}).get("structured_write") or {}).get("prompt_id")
-        or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
-    )
-    cv_generation_structured_definition = get_prompt_definition(cv_generation_structured_prompt_id)
-    return {
-        "enrich": {
-            "extraction": {
-                "prompt_id": enrich_definition.prompt_id,
-                "version": enrich_definition.version,
-                "template_path": str(enrich_definition.template_path),
-                "stage_id": enrich_definition.stage_id,
-            }
-        },
-        "ranking": {
-            "ai_score": {
-                "prompt_id": ranking_definition.prompt_id,
-                "version": ranking_definition.version,
-                "template_path": str(ranking_definition.template_path),
-                "stage_id": ranking_definition.stage_id,
-            }
-        },
-        "cv_generation": {
-            "structured_write": {
-                "prompt_id": cv_generation_structured_definition.prompt_id,
-                "version": cv_generation_structured_definition.version,
-                "template_path": str(cv_generation_structured_definition.template_path),
-                "stage_id": cv_generation_structured_definition.stage_id,
-            },
+    runtime: dict[str, Any] = {}
+    prompts = cfg.get("prompts") or {}
+    for task_id, (section, key) in PROMPT_TASK_CONFIG_PATHS.items():
+        prompt_id = str(((prompts.get(section) or {}).get(key) or {}).get("prompt_id") or _DEFAULT_PROMPT_IDS[task_id])
+        definition = get_prompt_definition(prompt_id)
+        runtime.setdefault(section, {})[key] = {
+            "prompt_id": definition.prompt_id,
+            "version": definition.version,
+            "template_path": str(definition.template_path),
+            "stage_id": definition.stage_id,
         }
-    }
+    return runtime
 
 
 def _validate_prompt_config(cfg: dict[str, Any]) -> None:
-    enrich_prompt_id = str(
-        (((cfg.get("prompts") or {}).get("enrich") or {}).get("extraction") or {}).get("prompt_id")
-        or ""
-    ).strip()
-    if not enrich_prompt_id:
-        raise ValueError("prompts.enrich.extraction.prompt_id is required")
-    try:
-        get_prompt_definition(enrich_prompt_id)
-    except KeyError as exc:
-        raise ValueError(f"Unknown enrich prompt_id: {enrich_prompt_id}") from exc
-
-    ranking_prompt_id = str(
-        (((cfg.get("prompts") or {}).get("ranking") or {}).get("ai_score") or {}).get("prompt_id")
-        or ""
-    ).strip()
-    if not ranking_prompt_id:
-        raise ValueError("prompts.ranking.ai_score.prompt_id is required")
-    try:
-        get_prompt_definition(ranking_prompt_id)
-    except KeyError as exc:
-        raise ValueError(f"Unknown ranking ai_score prompt_id: {ranking_prompt_id}") from exc
-
-    cv_generation_structured_prompt_id = str(
-        (((cfg.get("prompts") or {}).get("cv_generation") or {}).get("structured_write") or {}).get("prompt_id")
-        or ""
-    ).strip()
-    if not cv_generation_structured_prompt_id:
-        raise ValueError("prompts.cv_generation.structured_write.prompt_id is required")
-    try:
-        get_prompt_definition(cv_generation_structured_prompt_id)
-    except KeyError as exc:
-        raise ValueError(
-            f"Unknown cv_generation structured_write prompt_id: {cv_generation_structured_prompt_id}"
-        ) from exc
+    prompts = cfg.get("prompts") or {}
+    for task_id, (section, key) in PROMPT_TASK_CONFIG_PATHS.items():
+        prompt_id = str(((prompts.get(section) or {}).get(key) or {}).get("prompt_id") or "").strip()
+        if not prompt_id:
+            raise ValueError(f"prompts.{section}.{key}.prompt_id is required")
+        try:
+            get_prompt_definition(prompt_id)
+        except KeyError as exc:
+            label = "enrich" if task_id == "enrich_extraction" else task_id.replace("_", " ")
+            raise ValueError(f"Unknown {label} prompt_id: {prompt_id}") from exc
 
 
 def _resolve_config_relative_path(config_dir: Path, raw_path: str | Path) -> Path:

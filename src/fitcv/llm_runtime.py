@@ -19,6 +19,7 @@ lifecycle:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 import threading
 import time
 from typing import Any, Callable, Literal, TypeAlias
@@ -109,6 +110,13 @@ class LlmRuntimeResult:
     failure: LlmRuntimeFailure | None
     provenance: LlmRuntimeProvenance
     adapter_response: LlmAdapterResponse | None
+
+
+def parse_llm_json_object(response: LlmAdapterResponse) -> dict[str, Any]:
+    value = json.loads(response.raw_text)
+    if not isinstance(value, dict):
+        raise ValueError("LLM response must be a JSON object")
+    return value
 
 
 def project_llm_runtime_evidence(result: LlmRuntimeResult) -> dict[str, Any]:

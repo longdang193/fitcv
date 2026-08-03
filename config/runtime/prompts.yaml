@@ -12,6 +12,11 @@
 # canonical: true
 
 prompts:
+  candidate_profile:
+    base_mapping:
+      prompt_id: candidate_profile.base_mapping.v1
+    derived_claims:
+      prompt_id: candidate_profile.derived_claims.v1
   enrich:
     extraction:
       prompt_id: enrich.extraction.v1

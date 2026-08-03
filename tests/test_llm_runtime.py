@@ -29,6 +29,7 @@ from fitcv.llm_runtime import (
     LlmValidationResult,
     execute_llm_task,
     project_llm_runtime_evidence,
+    parse_llm_json_object,
 )
 from fitcv.runtime_routing import LlmRouting
 
@@ -94,6 +95,18 @@ def _request() -> LlmTaskRequest:
         schema_name="fitcv_structured_cv_document",
         schema={"type": "object", "additionalProperties": False},
     )
+
+
+def test_parse_llm_json_object_uses_adapter_text_only() -> None:
+    response = _response('{"value": 9}')
+    response = LlmAdapterResponse(
+        adapter=response.adapter,
+        runtime_path=response.runtime_path,
+        raw_text=response.raw_text,
+        provider_payload={"value": 1},
+    )
+
+    assert parse_llm_json_object(response) == {"value": 9}
 
 
 def _run(

@@ -241,9 +241,11 @@ def test_get_local_sqlite_path_uses_control_plane_sqlite_path_when_env_missing(
         "      auth_mode: required\n"
         "      wire_api: responses\n"
         "      timeout_seconds: 30\n"
-        "  model_routing:\n"
-        "    parts:\n"
-        "      enrich_extraction: {provider: openai_compatible, model: m}\n"
+            "  model_routing:\n"
+            "    parts:\n"
+            "      candidate_profile_base_mapping: {provider: openai_compatible, model: m}\n"
+            "      candidate_profile_derived_claims: {provider: openai_compatible, model: m}\n"
+            "      enrich_extraction: {provider: openai_compatible, model: m}\n"
         "      ranking_ai_score: {provider: openai_compatible, model: m}\n"
         "      cv_generation_structured_write: {provider: openai_compatible, model: m}\n"
         "      synonym_triage_recommendation: {provider: openai_compatible, model: m}\n"
@@ -1495,6 +1497,8 @@ def test_load_config_adds_default_enrich_prompt_id() -> None:
 def test_load_config_adds_default_ranking_and_cv_generation_prompt_ids() -> None:
     cfg = load_config()
 
+    assert cfg["prompts"]["candidate_profile"]["base_mapping"]["prompt_id"] == "candidate_profile.base_mapping.v1"
+    assert cfg["prompts"]["candidate_profile"]["derived_claims"]["prompt_id"] == "candidate_profile.derived_claims.v1"
     assert cfg["prompts"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v2"
     assert cfg["prompts"]["cv_generation"]["structured_write"]["prompt_id"] == "cv_generation.structured_write.v1"
 
@@ -1503,6 +1507,8 @@ def test_load_config_builds_prompts_runtime_for_all_major_stages() -> None:
     """@proves cv_system.config-owned-generation-contract"""
     cfg = load_config()
 
+    assert cfg["prompts_runtime"]["candidate_profile"]["base_mapping"]["prompt_id"] == "candidate_profile.base_mapping.v1"
+    assert cfg["prompts_runtime"]["candidate_profile"]["derived_claims"]["prompt_id"] == "candidate_profile.derived_claims.v1"
     assert cfg["prompts_runtime"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
     assert cfg["prompts_runtime"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v2"
     assert cfg["prompts_runtime"]["cv_generation"]["structured_write"]["prompt_id"] == "cv_generation.structured_write.v1"

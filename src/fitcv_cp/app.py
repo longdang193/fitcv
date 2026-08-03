@@ -5996,7 +5996,7 @@ class PromptConfigurationPatchRequest(BaseModel):
 class PromptConfigurationResource(BaseModel):
     task_id: str
     display_name: str
-    group: Literal["Pipeline Prompts", "Synonym Prompts"]
+    group: Literal["Candidate Profile Prompts", "Pipeline Prompts", "Synonym Prompts"]
     prompt_id: str
     prompt_version: str
     default_text: str
@@ -7172,6 +7172,8 @@ def create_app(
             return _data_response(resource)
 
         prompt_presentation = {
+            "candidate_profile_base_mapping": ("Candidate Profile Base Mapping", "Candidate Profile Prompts"),
+            "candidate_profile_derived_claims": ("Candidate Profile Derived Claims", "Candidate Profile Prompts"),
             "enrich_extraction": ("Enrich Extraction", "Pipeline Prompts"),
             "ranking_ai_score": ("Ranking AI Score", "Pipeline Prompts"),
             "cv_generation_structured_write": ("CV Generation", "Pipeline Prompts"),

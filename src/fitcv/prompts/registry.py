@@ -24,6 +24,20 @@ from fitcv.prompts.models import PromptDefinition
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
 _PROMPT_REGISTRY: dict[str, PromptDefinition] = {
+    "candidate_profile.base_mapping.v1": PromptDefinition(
+        prompt_id="candidate_profile.base_mapping.v1",
+        stage_id="candidate_profile_base_mapping",
+        version="v1",
+        template_path=_TEMPLATES_DIR / "candidate_profile_base_mapping_v1.md",
+        summary="Evidence-bound baseline mapping for Candidate Profile creation.",
+    ),
+    "candidate_profile.derived_claims.v1": PromptDefinition(
+        prompt_id="candidate_profile.derived_claims.v1",
+        stage_id="candidate_profile_derived_claims",
+        version="v1",
+        template_path=_TEMPLATES_DIR / "candidate_profile_derived_claims_v1.md",
+        summary="Evidence-bound controlled derivation for Candidate Profile creation.",
+    ),
     "enrich.extraction.v1": PromptDefinition(
         prompt_id="enrich.extraction.v1",
         stage_id="enrich",
