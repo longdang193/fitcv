@@ -43,6 +43,7 @@ from fitcv.late_stage_contract import (
     pipeline_outcome_surface,
 )
 from fitcv.pipeline import (
+    _build_analysis_evidence_selection_summary,
     _build_export_results,
     _build_stage_transition_artifacts,
     _build_cv_generation_debug_record as _project_cv_generation_debug_record,
@@ -86,6 +87,22 @@ def _vector_search_envelope(
         },
     }
 
+
+def test_pipeline_evidence_summary_records_projection_identity() -> None:
+    summary = _build_analysis_evidence_selection_summary(
+        {
+            "source_profile_schema_version": "candidate-profile.v2",
+            "projection_schema_version": "candidate-evidence.v1",
+            "projection_fingerprint": "projection::1",
+            "selected_evidence_ids": ["ev_1"],
+        },
+        [{"evidence_id": "ev_1"}],
+        fallback_used=False,
+    )
+
+    assert summary["source_profile_schema_version"] == "candidate-profile.v2"
+    assert summary["projection_schema_version"] == "candidate-evidence.v1"
+    assert summary["projection_fingerprint"] == "projection::1"
 
 def test_reuse_anomaly_ignores_fresh_run_without_reused_rows() -> None:
     payload = _reuse_anomaly_payload(
@@ -1596,11 +1613,13 @@ def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_reuse_bra
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
     mock_config: MagicMock,
     mock_profile_yaml: MagicMock,
+    mock_retrieve_bundle: MagicMock,
     mock_retrieve_evidence: MagicMock,
     mock_compute_gap: MagicMock,
 ) -> None:
@@ -1636,7 +1655,14 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
     config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     mock_config.return_value = config
     mock_profile_yaml.return_value = profile
-    mock_retrieve_evidence.return_value = [{"evidence_id": "e1", "evidence_type": "project", "source_ref": "p1", "name": "SQL"}]
+    evidence = {"evidence_id": "e1", "evidence_type": "project", "source_ref": "p1", "name": "SQL"}
+    mock_retrieve_bundle.return_value = {
+        "source_profile_schema_version": "candidate-profile.v1",
+        "projection_schema_version": "candidate-evidence.v1",
+        "projection_fingerprint": "projection::1",
+        "selected_evidence": [evidence],
+        "selected_evidence_ids": ["e1"],
+    }
     mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
 
     result = run_pipeline(
@@ -1653,6 +1679,7 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
     assert len(result["checkpoint_payload"]["cv_analysis_results"]) == 1
     assert result["checkpoint_payload"]["cv_analysis_results"][0]["status"] == "ready_for_generation"
     assert result["checkpoint_payload"]["cv_generation_debug_records"] == []
+    mock_retrieve_evidence.assert_not_called()
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")

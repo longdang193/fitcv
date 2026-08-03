@@ -12,11 +12,13 @@ targets:
   - docs/api.md
   - docs/configuration.md
   - docs/pipeline.md
+  - src/fitcv/agentic_cv_analysis.py
   - src/fitcv/candidate.py
   - src/fitcv/candidate_ingest.py
   - src/fitcv/config.py
   - src/fitcv/evidence.py
   - src/fitcv/llm_runtime.py
+  - src/fitcv/pipeline.py
   - src/fitcv_cp/app.py
   - src/fitcv_cp/candidate_profile_service.py
   - src/fitcv_cp/models.py
@@ -31,11 +33,13 @@ targets:
   - src/fitcv_cp/templates/candidate_profile_creation.html
   - src/fitcv_cp/templates/candidate_profile_sections.html
   - src/fitcv_cp/templates/candidate_profile_detail.html
+  - tests/test_agentic_cv_analysis.py
   - tests/test_candidate.py
   - tests/test_candidate_profile_ingest.py
   - tests/test_candidate_profile_template_contract.py
   - tests/test_evidence.py
   - tests/test_llm_runtime.py
+  - tests/test_pipeline.py
   - tests/test_fitcv_cp/test_app.py
   - tests/test_fitcv_cp/test_candidate_profile_service.py
   - tests/test_fitcv_cp/test_local_app.py
@@ -474,28 +478,34 @@ Correction rules:
 - `skill-code-standards`
 
 **Files And Symbols:**
+- Modify: `src/fitcv/agentic_cv_analysis.py`: record source profile and effective projection identity in analysis evidence summaries
 - Modify: `src/fitcv/candidate.py`: expose v1/v2 runtime convergence function and immutable profile fingerprint
 - Modify: `src/fitcv/evidence.py`: replace section collectors with one projector, build inverse skill index, use one relevance function and global selection budget, retain section/kind only as explanatory metadata
+- Modify: `src/fitcv/pipeline.py`: preserve projection identity in pipeline evidence-selection metadata
 - Modify: `docs/pipeline.md`: document v1/v2 convergence, projection schema, section-neutral selection, and trace chain
+- Verify: `tests/test_agentic_cv_analysis.py`
 - Verify: `tests/test_candidate.py`
 - Verify: `tests/test_evidence.py`
+- Verify: `tests/test_pipeline.py`
 
 **Dependencies:**
 - Task 8 complete
 - Existing configured global evidence limits remain; section-specific weights, quotas, and diversity bonuses cannot influence base score or reserve slots
 
 **Steps:**
-- [ ] Add tests for experienced-only, education-only fresh graduate, mixed sections, certifications, volunteering, repeated equivalent statements, dangling skill refs, duplicate IDs, unchanged profile checksum, and repeated projection fingerprint.
-- [ ] Adapt immutable v1 profile snapshot to v2-compatible nested evidence in memory with deterministic IDs; never rewrite stored v1 JSON.
-- [ ] Project all nested evidence through one function that adds parent context, resolves source refs, derives linked skills from `skills[].evidence_refs`, and emits one globally unique evidence ID per canonical evidence entry.
-- [ ] Remove `TYPE_WEIGHTS` and per-section quota/reservation effects from active v2 selection path; use content, linked skills, recency/completeness rules approved by specification, and one global budget.
-- [ ] Keep compatibility output fields only where current downstream consumers require them; mark projection schema explicitly and test equal content from different sections receives equal base treatment.
-- [ ] Ensure CV analysis/generation traceability resolves `claim -> evidence_refs -> evidence item -> source_refs -> uploaded source document` without profile mutation.
+- [x] Add tests for experienced-only, education-only fresh graduate, mixed sections, certifications, volunteering, repeated equivalent statements, dangling skill refs, duplicate IDs, unchanged profile checksum, and repeated projection fingerprint.
+- [x] Adapt immutable v1 profile snapshot to v2-compatible nested evidence in memory with deterministic IDs; never rewrite stored v1 JSON.
+- [x] Project all nested evidence through one function that adds parent context, resolves source refs, derives linked skills from `skills[].evidence_refs`, and emits one globally unique evidence ID per canonical evidence entry.
+- [x] Remove `TYPE_WEIGHTS` and per-section quota/reservation effects from active v2 selection path; use content, linked skills, recency/completeness rules approved by specification, and one global budget.
+- [x] Keep compatibility output fields only where current downstream consumers require them; mark projection schema explicitly and test equal content from different sections receives equal base treatment.
+- [x] Ensure CV analysis/generation traceability resolves `claim -> evidence_refs -> evidence item -> source_refs -> uploaded source document` without profile mutation.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_candidate.py tests/test_evidence.py -q`
-- [ ] `uv run python -m compileall -q src/fitcv/candidate.py src/fitcv/evidence.py`
+- [x] `uv run pytest tests/test_candidate.py tests/test_evidence.py -q`
+- [x] `uv run python -m compileall -q src/fitcv/candidate.py src/fitcv/evidence.py`
 - Expected: education competes uniformly, v1 and v2 converge, repeated projection is stable, and runtime fields never enter canonical JSON.
+
+Focused evidence: `92 passed, 1 skipped` across Candidate Profile convergence, evidence projection, and CV analysis; `137 passed` across pipeline tests.
 
 **Exit Criteria:**
 - Candidate Profile creation and pipeline consumption share one canonical truth and one symmetric evidence projector.

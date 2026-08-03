@@ -26,6 +26,7 @@ retrieve_evidence        : compatibility wrapper that returns final selected evi
 store_evidence_selection : persist selected evidence to local sqlite store
 """
 
+import copy
 import hashlib
 import json
 import math
@@ -37,7 +38,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fitcv.candidate import flatten_skills
+from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
 from fitcv.config import get_embedding_model
 from fitcv.semantic_snapshot import (
     build_semantic_snapshot,
@@ -56,17 +57,17 @@ from fitcv.embeddings import generate_embedding
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 
 
-SKILL_OVERLAP_WEIGHT: float = 0.60
-TYPE_WEIGHT_FACTOR: float = 0.25
-BUSINESS_VALUE_WEIGHT: float = 0.15
-
-TYPE_WEIGHTS: dict[str, float] = {
-    "experience_entry": 1.1,
-    "project_entry": 1.0,
-    "project": 1.0,
-    "experience_bullet": 0.7,
-    "achievement": 0.4,
-}
+SKILL_OVERLAP_WEIGHT: float = 0.70
+BUSINESS_VALUE_WEIGHT: float = 0.30
+EVIDENCE_PROJECTION_SCHEMA_VERSION = "candidate-evidence.v1"
+EVIDENCE_SECTIONS = (
+    "experiences",
+    "education",
+    "projects",
+    "achievements",
+    "certifications",
+    "volunteering",
+)
 RETRIEVAL_CHANNELS = ANALYSIS_CHANNEL_IDS
 DEFAULT_CHANNEL_POOL_SIZE = 4
 DEFAULT_SEMANTIC_ALIGNMENT_ENABLED = False
@@ -811,15 +812,115 @@ def normalise_evidence_item(
         "scoring_context": " ".join(part for part in (name, business_value, *domain_tags, *responsibility_themes) if part),
     }
 
+def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten every canonical nested evidence item through one runtime path."""
+    canonical = converge_candidate_profile_for_runtime(profile)
+    linked_claims: dict[str, dict[str, list[str]]] = {
+        section: {} for section in ("skills", "role_families", "domain_tags", "responsibility_themes")
+    }
+    for section, by_evidence in linked_claims.items():
+        for claim in canonical.get(section) or []:
+            if claim.get("support_status") != "supported":
+                continue
+            name = _normalize_optional_text(claim.get("name"))
+            if not name:
+                continue
+            for evidence_id in claim.get("evidence_refs") or []:
+                by_evidence.setdefault(str(evidence_id), []).append(name)
+
+    projected: list[dict[str, Any]] = []
+    for section in EVIDENCE_SECTIONS:
+        for parent in canonical.get(section) or []:
+            parent_id = str(parent["id"])
+            degree_title = " ".join(
+                value
+                for value in (
+                    _normalize_optional_text(parent.get("degree")),
+                    _normalize_optional_text(parent.get("field")),
+                )
+                if value
+            )
+            parent_title = _normalize_optional_text(
+                parent.get("title")
+                or parent.get("name")
+                or parent.get("role")
+                or degree_title
+            )
+            organization = _normalize_optional_text(
+                parent.get("company")
+                or parent.get("institution")
+                or parent.get("issuer")
+                or parent.get("organization")
+                or parent.get("context")
+            )
+            for evidence in parent.get("evidence") or []:
+                evidence_id = str(evidence["id"])
+                skills = sorted(set(linked_claims["skills"].get(evidence_id, [])), key=str.casefold)
+                role_families = sorted(
+                    set(linked_claims["role_families"].get(evidence_id, [])), key=str.casefold
+                )
+                domain_tags = sorted(
+                    set(linked_claims["domain_tags"].get(evidence_id, [])), key=str.casefold
+                )
+                responsibility_themes = sorted(
+                    set(linked_claims["responsibility_themes"].get(evidence_id, [])), key=str.casefold
+                )
+                title = _normalize_optional_text(evidence.get("title"))
+                text = _normalize_optional_text(evidence.get("text"))
+                scoring_context = " ".join(
+                    value
+                    for value in (
+                        text,
+                        title,
+                        *skills,
+                        parent_title,
+                        organization,
+                        _normalize_optional_text(parent.get("location")),
+                        *role_families,
+                        *domain_tags,
+                        *responsibility_themes,
+                    )
+                    if value
+                )
+                projected.append(
+                    {
+                        "schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
+                        "evidence_id": evidence_id,
+                        "kind": str(evidence["kind"]),
+                        "title": title or None,
+                        "text": text,
+                        "source_section": section,
+                        "parent_id": parent_id,
+                        "parent_title": parent_title or None,
+                        "organization": organization or None,
+                        "location": _normalize_optional_text(parent.get("location")) or None,
+                        "start": evidence.get("start") or parent.get("start"),
+                        "end": evidence.get("end") or parent.get("end"),
+                        "role_family": role_families[0] if role_families else None,
+                        "domain_tags": domain_tags,
+                        "responsibility_themes": responsibility_themes,
+                        "skills": skills,
+                        "source_refs": copy.deepcopy(evidence.get("source_refs") or []),
+                        "scoring_context": scoring_context,
+                        "evidence_type": "candidate_evidence",
+                        "name": title or text,
+                        "business_value": text,
+                        "score": 0.0,
+                        "source_ref": f"{section}/{parent_id}/evidence/{evidence_id}",
+                        "role": parent_title,
+                        "company": organization,
+                    }
+                )
+    return projected
+
 
 def _sort_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(
-        sorted(items, key=lambda item: str(item.get("name") or "")),
+        items,
         key=lambda item: (
-            float(item.get("score") or 0.0),
-            TYPE_WEIGHTS.get(str(item.get("evidence_type") or "achievement"), 0.4),
+            -float(item.get("score") or 0.0),
+            str(item.get("evidence_id") or ""),
         ),
-        reverse=True,
     )
 
 
@@ -948,8 +1049,6 @@ def score_evidence_item(item: dict[str, Any], jd_skills: list[str]) -> float:
     else:
         skill_ratio = 0.0
 
-    type_score = TYPE_WEIGHTS.get(str(item.get("evidence_type") or "achievement"), 0.4)
-
     biz_value = _tokenize(str(item.get("scoring_context") or item.get("business_value") or ""))
     if jd_lower and biz_value:
         biz_ratio = min(len(biz_value & jd_lower) / len(jd_lower), 1.0)
@@ -958,7 +1057,6 @@ def score_evidence_item(item: dict[str, Any], jd_skills: list[str]) -> float:
 
     return (
         SKILL_OVERLAP_WEIGHT * skill_ratio
-        + TYPE_WEIGHT_FACTOR * type_score
         + BUSINESS_VALUE_WEIGHT * biz_ratio
     )
 
@@ -1060,11 +1158,7 @@ def _trim_selected_experience_entry(
 
 
 def _collect_base_items(profile: dict[str, Any]) -> list[dict[str, Any]]:
-    return [
-        *_collect_experience_entries(profile),
-        *_collect_project_entries(profile),
-        *_collect_achievement_entries(profile),
-    ]
+    return project_candidate_evidence(profile)
 
 
 def _select_budgeted_items(
@@ -1524,11 +1618,9 @@ def _select_channel_candidates(
     return sorted(
         candidates,
         key=lambda item: (
-            float(item.get("channel_score") or 0.0),
-            TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0),
-            str(item.get("name") or ""),
+            -float(item.get("channel_score") or 0.0),
+            str(item.get("evidence_id") or ""),
         ),
-        reverse=True,
     )[:pool_size]
 
 
@@ -1567,12 +1659,10 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
     return sorted(
         merged_by_id.values(),
         key=lambda item: (
-            sum(float(score) for score in dict(item.get("channel_scores") or {}).values()),
-            len(list(item.get("matched_channels") or [])),
-            TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0),
-            str(item.get("name") or ""),
+            -sum(float(score) for score in dict(item.get("channel_scores") or {}).values()),
+            -len(list(item.get("matched_channels") or [])),
+            str(item.get("evidence_id") or ""),
         ),
-        reverse=True,
     )
 
 
@@ -1585,8 +1675,7 @@ def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> fl
     )
     matched_channels = list(item.get("matched_channels") or [])
     multi_channel_bonus = max(len(matched_channels) - 1, 0) * float(policy.get("multi_channel_bonus", 0.0))
-    type_bonus = TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0) * float(policy.get("type_weight_factor", 0.0))
-    return weighted_score + multi_channel_bonus + type_bonus
+    return weighted_score + multi_channel_bonus
 
 
 def _coverage_gain(
@@ -1671,29 +1760,20 @@ def _select_final_evidence(
         return []
 
     selected: list[dict[str, Any]] = []
-    selected_types: list[str] = []
     covered_channel_scores = {channel: 0.0 for channel in RETRIEVAL_CHANNELS}
     remaining = list(merged_pool)
     while remaining and len(selected) < top_k:
-        best_index = -1
-        best_score = -1.0
+        ranked: list[tuple[float, str, int]] = []
         for index, item in enumerate(remaining):
-            evidence_type = str(item.get("evidence_type") or "")
             dynamic_score = (
                 _coverage_gain(item, covered_channel_scores, policy=policy)
                 + (_base_selection_score(item, policy=policy) * float(policy.get("residual_score_factor", 0.0)))
             )
-            if evidence_type and evidence_type not in selected_types:
-                dynamic_score += float(policy.get("new_type_bonus", 0.0))
-            dynamic_score -= selected_types.count(evidence_type) * float(policy.get("same_type_penalty", 0.0))
-            if dynamic_score > best_score:
-                best_score = dynamic_score
-                best_index = index
-        if best_index < 0:
+            ranked.append((dynamic_score, str(item.get("evidence_id") or ""), index))
+        if not ranked:
             break
+        best_score, _, best_index = min(ranked, key=lambda value: (-value[0], value[1]))
         chosen = dict(remaining.pop(best_index))
-        evidence_type = str(chosen.get("evidence_type") or "")
-        selected_types.append(evidence_type)
         channel_scores = dict(chosen.get("channel_scores") or {})
         for channel in RETRIEVAL_CHANNELS:
             covered_channel_scores[channel] = max(
@@ -1727,12 +1807,10 @@ def _top_unselected_candidates(
     ranked_unselected = sorted(
         unselected,
         key=lambda item: (
-            float(item.get("selection_score") or _base_selection_score(item, policy=policy)),
-            len(list(item.get("matched_channels") or [])),
-            TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0),
-            str(item.get("name") or ""),
+            -float(item.get("selection_score") or _base_selection_score(item, policy=policy)),
+            -len(list(item.get("matched_channels") or [])),
+            str(item.get("evidence_id") or ""),
         ),
-        reverse=True,
     )
     return [_debug_candidate_sample(item) for item in ranked_unselected[:limit]]
 
@@ -1772,6 +1850,8 @@ def _build_retrieve_evidence_bundle_payload(
     selected_evidence: list[dict[str, Any]],
     merged_pool: list[dict[str, Any]],
     unselected_top_candidates: list[dict[str, Any]],
+    source_profile_schema_version: str,
+    projection_fingerprint: str,
 ) -> dict[str, Any]:
     required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
         semantic_settings,
@@ -1794,6 +1874,9 @@ def _build_retrieve_evidence_bundle_payload(
         semantic_weight_key="domain_semantic_weight",
     )
     return {
+        "source_profile_schema_version": source_profile_schema_version,
+        "projection_schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
+        "projection_fingerprint": projection_fingerprint,
         "selected_evidence": selected_evidence,
         "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in selected_evidence],
         "channel_counts": {
@@ -1838,6 +1921,13 @@ def retrieve_evidence_bundle(
     """Retrieve evidence via separate channels, then merge/dedupe/select."""
     coerced_job_context = _coerce_job_context(job_context)
     base_items = _collect_base_items(profile)
+    source_profile_schema_version = str(profile.get("schema_version") or "candidate-profile.v1")
+    projection_fingerprint = _stable_json_fingerprint(
+        {
+            "schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
+            "items": base_items,
+        }
+    )
     selection_policy = _cv_analysis_policy_settings(config)
     semantic_settings = _semantic_alignment_settings(config)
     runtime_state = _semantic_runtime_state()
@@ -1877,6 +1967,8 @@ def retrieve_evidence_bundle(
         selected_evidence=selected_evidence,
         merged_pool=merged_pool,
         unselected_top_candidates=list(selection_result["unselected_top_candidates"]),
+        source_profile_schema_version=source_profile_schema_version,
+        projection_fingerprint=projection_fingerprint,
     )
 
 

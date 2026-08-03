@@ -1,5 +1,6 @@
 """Tests for fitcv.candidate — all pure unit tests."""
 
+import copy
 import hashlib
 import json
 import uuid
@@ -8,7 +9,9 @@ from pathlib import Path
 import pytest
 
 from fitcv.candidate import (
+    canonical_candidate_checksum,
     candidate_profile_field_schema,
+    converge_candidate_profile_for_runtime,
     flatten_skills,
     infer_effective_preferences,
     load_profile_json_text,
@@ -32,6 +35,92 @@ _VALID_PROFILE_DICT: dict = {
     "achievements": [],
     "preferences": {"seniority_target": "mid", "location_types": ["remote"]},
 }
+
+def test_runtime_convergence_adapts_v1_without_mutating_snapshot() -> None:
+    profile = {
+        "name": "Fresh Graduate",
+        "experiences": [],
+        "education": [
+            {
+                "id": "edu_1",
+                "degree": "MSc",
+                "institution": "Example University",
+                "thesis": {"title": "Churn", "summary": "Built Python churn models"},
+                "courses": ["Applied Statistics"],
+            }
+        ],
+        "projects": [],
+        "achievements": [],
+        "certifications": [{"id": "cert_1", "name": "SQL Certificate", "issuer": "Example"}],
+        "volunteering": [
+            {"id": "vol_1", "organization": "Data Club", "role": "Mentor", "description": "Mentored SQL learners"}
+        ],
+        "languages": [],
+        "skills": [{"id": "skill_1", "name": "Python", "evidence_refs": ["edu_1"]}],
+        "preferences": {"target_role": "Data Analyst"},
+    }
+    before = copy.deepcopy(profile)
+    checksum = canonical_candidate_checksum(profile)
+
+    converged = converge_candidate_profile_for_runtime(profile)
+
+    assert converged["schema_version"] == "candidate-profile.v2"
+    assert [item["kind"] for item in converged["education"][0]["evidence"]] == ["thesis", "course"]
+    assert converged["certifications"][0]["evidence"][0]["kind"] == "certification_proof"
+    assert converged["volunteering"][0]["evidence"][0]["kind"] == "volunteer_contribution"
+    assert set(converged["skills"][0]["evidence_refs"]) == {
+        item["id"] for item in converged["education"][0]["evidence"]
+    }
+    assert profile == before
+    assert canonical_candidate_checksum(profile) == checksum
+    assert converge_candidate_profile_for_runtime(profile) == converged
+
+def test_runtime_convergence_normalizes_legacy_year_only_ranges() -> None:
+    converged = converge_candidate_profile_for_runtime(
+        {
+            "name": "Legacy Candidate",
+            "experiences": [
+                {
+                    "role": "Data Engineer",
+                    "company": "Example",
+                    "start": "2020",
+                    "end": "2022",
+                }
+            ],
+            "projects": [],
+            "skills": [],
+        }
+    )
+
+    assert converged["experiences"][0]["start"] == "2020-01"
+    assert converged["experiences"][0]["end"] == "2022-12"
+
+def test_runtime_convergence_rejects_invalid_v2_references() -> None:
+    profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})
+    profile["skills"][0]["evidence_refs"] = ["missing_evidence"]
+
+    with pytest.raises(ValueError, match="dangling evidence_refs"):
+        converge_candidate_profile_for_runtime(profile)
+
+def test_runtime_convergence_rejects_duplicate_evidence_ids() -> None:
+    profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})
+    profile["experiences"][0]["evidence"] = [
+        {
+            "id": "ev_duplicate",
+            "kind": "work_achievement",
+            "text": "First",
+            "source_refs": profile["experiences"][0]["source_refs"],
+        },
+        {
+            "id": "ev_duplicate",
+            "kind": "work_achievement",
+            "text": "Second",
+            "source_refs": profile["experiences"][0]["source_refs"],
+        },
+    ]
+
+    with pytest.raises(ValueError, match="duplicate ID: ev_duplicate"):
+        converge_candidate_profile_for_runtime(profile)
 
 
 def test_candidate_profile_v2_field_schema_is_stable_and_symmetric() -> None:

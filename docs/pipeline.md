@@ -34,6 +34,21 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 
 Shared LLM runtime rule: `enrich`, `ranking`, `cv_generation`, and auxiliary synonym triage build owner-local prompts and parse owner-local outputs through `src/fitcv/llm_runtime.py`. Shared runtime owns routing, credentials, transport, wire fallback, normalized operational failures, provenance, and the only persistable per-call evidence projection. Embeddings and deterministic builtin synonym triage remain outside this generative spine.
 
+## Candidate Evidence Projection
+
+CV analysis converges every immutable Candidate Profile revision before retrieval:
+
+`candidate-profile.v1 | candidate-profile.v2 -> validated v2 runtime snapshot -> candidate-evidence.v1 -> global selection`
+
+- v1 adaptation happens in memory with deterministic IDs and source metadata; stored revision bytes and checksum remain unchanged
+- legacy year-only ranges become deterministic month boundaries (`YYYY-01` for starts, `YYYY-12` for ends)
+- experience, education, projects, achievements, certifications, and volunteering use one nested-evidence projector
+- each nested evidence statement emits one item; section and kind remain provenance metadata, never score bonuses or reserved quotas
+- derived claims link by `evidence_refs`; runtime reverses those links into evidence-item skills without duplicating ownership
+- one global selection budget applies after channel retrieval and deterministic evidence-ID tie breaking
+- analysis metadata records `source_profile_schema_version`, `projection_schema_version`, and `projection_fingerprint`
+- traceability resolves `claim -> evidence_refs -> candidate-evidence.v1 item -> source_refs -> uploaded source document`
+
 ## Location And Language Eligibility
 
 Phase 1 uses one path for both factors:

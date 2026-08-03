@@ -287,6 +287,15 @@ def _with_uploaded_source_ref(values: Any, document_id: str) -> list[dict[str, A
     return refs
 
 
+def _normalize_legacy_month(value: Any, *, end: bool = False) -> str:
+    text = str(value or "").strip()
+    if text.lower() == "present":
+        return "Present"
+    if re.fullmatch(r"\d{4}", text):
+        return f"{text}-{'12' if end else '01'}"
+    return text
+
+
 def _legacy_evidence(
     *,
     parent_id: str,
@@ -308,7 +317,7 @@ def _legacy_evidence(
         "source_refs": [_uploaded_source_ref(document_id)],
     }
     for key, value in (("title", title), ("start", start), ("end", end)):
-        normalized = str(value or "").strip()
+        normalized = _normalize_legacy_month(value, end=key == "end") if key != "title" else str(value or "").strip()
         if normalized:
             item[key] = normalized
     return item
@@ -334,6 +343,15 @@ def _adapt_legacy_parent(
     document_id: str,
 ) -> tuple[dict[str, Any], list[str]]:
     normalized = copy.deepcopy(item)
+    for key in (
+        "skills",
+        "role_family",
+        "domain_tags",
+        "responsibility_themes",
+        "duration",
+        "tech_stack",
+    ):
+        normalized.pop(key, None)
     parent_id = str(normalized.get("id") or _stable_candidate_id(section[:-1], section, item))
     normalized["id"] = parent_id
     normalized["source_refs"] = [_uploaded_source_ref(document_id)]
@@ -415,6 +433,8 @@ def _adapt_legacy_parent(
             if candidate:
                 evidence.append(candidate)
     elif section == "achievements":
+        if not normalized.get("title") and normalized.get("text"):
+            normalized["title"] = normalized["text"]
         candidate = _legacy_evidence(
             parent_id=parent_id,
             kind="achievement",
@@ -426,9 +446,9 @@ def _adapt_legacy_parent(
             evidence.append(candidate)
     elif section == "certifications":
         if "date" not in normalized and normalized.get("year"):
-            normalized["date"] = f"{int(normalized.pop('year')):04d}-01"
+            normalized["date"] = _normalize_legacy_month(normalized.pop("year"))
         if "expires" not in normalized and normalized.get("expiry"):
-            normalized["expires"] = f"{int(normalized.pop('expiry')):04d}-01"
+            normalized["expires"] = _normalize_legacy_month(normalized.pop("expiry"), end=True)
         candidate = _legacy_evidence(
             parent_id=parent_id,
             kind="certification_proof",
@@ -450,6 +470,9 @@ def _adapt_legacy_parent(
         )
         if candidate:
             evidence.append(candidate)
+    for field_name, end_boundary in (("start", False), ("end", True), ("date", False), ("expires", True)):
+        if field_name in normalized:
+            normalized[field_name] = _normalize_legacy_month(normalized[field_name], end=end_boundary)
     normalized["evidence"] = evidence
     return normalized, [entry["id"] for entry in evidence]
 
@@ -511,7 +534,7 @@ def adapt_candidate_profile_to_v2(
     normalized: dict[str, Any] = {
         "schema_version": "candidate-profile.v2",
         "source_documents": [copy.deepcopy(uploaded_source_document)],
-        "name": str(profile.get("name") or "").strip(),
+        "name": str(profile.get("name") or "Candidate").strip(),
         "headline": profile.get("headline"),
         "summary": profile.get("summary"),
         "contact": copy.deepcopy(profile.get("contact") or {}),
@@ -519,6 +542,12 @@ def adapt_candidate_profile_to_v2(
         "search_preferences": copy.deepcopy(profile.get("search_preferences") or profile.get("preferences") or {}),
     }
     parent_evidence: dict[str, list[str]] = {}
+    legacy_claim_refs: dict[str, dict[str, set[str]]] = {
+        "skills": {},
+        "role_families": {},
+        "domain_tags": {},
+        "responsibility_themes": {},
+    }
     for section in _V2_BASELINE_COLLECTIONS:
         if section == "languages":
             normalized[section] = [
@@ -534,9 +563,28 @@ def adapt_candidate_profile_to_v2(
         for value in profile.get(section) or []:
             if not isinstance(value, dict):
                 continue
+            metadata = {
+                "skills": [
+                    *list(value.get("skills") or []),
+                    *[
+                        skill
+                        for bullet in value.get("bullets") or []
+                        if isinstance(bullet, dict)
+                        for skill in bullet.get("skills") or []
+                    ],
+                ],
+                "role_families": [value.get("role_family")],
+                "domain_tags": list(value.get("domain_tags") or []),
+                "responsibility_themes": list(value.get("responsibility_themes") or []),
+            }
             parent, evidence_ids = _adapt_legacy_parent(section, value, document_id)
             adapted.append(parent)
             parent_evidence[parent["id"]] = evidence_ids
+            for claim_section, names in metadata.items():
+                for name in names:
+                    normalized_name = str(name or "").strip()
+                    if normalized_name:
+                        legacy_claim_refs[claim_section].setdefault(normalized_name, set()).update(evidence_ids)
         normalized[section] = adapted
     skills: list[dict[str, Any]] = []
     for index, value in enumerate(profile.get("skills") or []):
@@ -554,9 +602,57 @@ def adapt_candidate_profile_to_v2(
             }
         )
         skills.append(claim)
+    existing_skills = {str(claim.get("name") or "").casefold(): claim for claim in skills}
+    for name, refs in legacy_claim_refs["skills"].items():
+        existing = existing_skills.get(name.casefold())
+        if existing is not None:
+            existing["evidence_refs"] = list(dict.fromkeys([*existing["evidence_refs"], *sorted(refs)]))
+            continue
+        skills.append(
+            {
+                "id": _stable_candidate_id("skill", len(skills), name),
+                "name": name,
+                "origin": "extracted_explicit",
+                "confidence": 1.0,
+                "support_status": "supported" if refs else "unsupported",
+                "evidence_refs": sorted(refs),
+            }
+        )
     normalized["skills"] = skills
     for section in ("role_families", "domain_tags", "responsibility_themes"):
-        normalized[section] = []
+        normalized[section] = [
+            {
+                "id": _stable_candidate_id(section[:-1], index, name),
+                "name": name,
+                "origin": "extracted_explicit",
+                "confidence": 1.0,
+                "support_status": "supported" if refs else "unsupported",
+                "evidence_refs": sorted(refs),
+            }
+            for index, (name, refs) in enumerate(legacy_claim_refs[section].items())
+        ]
+    return normalized
+
+def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str, Any]:
+    """Return one validated v2-compatible runtime snapshot without mutating input."""
+    if profile.get("schema_version") == "candidate-profile.v2":
+        normalized = copy.deepcopy(profile)
+    else:
+        checksum = canonical_candidate_checksum(profile)
+        normalized = adapt_candidate_profile_to_v2(
+            profile,
+            {
+                "id": f"doc_runtime_{checksum[:16]}",
+                "origin": "uploaded",
+                "filename": "candidate-profile.v1.json",
+                "media_type": "application/json",
+                "sha256": checksum,
+                "parser": {"name": "fitcv-v1-runtime-adapter", "version": "1"},
+            },
+        )
+    errors = validate_candidate_profile_v2(normalized)
+    if errors:
+        raise ValueError("; ".join(errors))
     return normalized
 
 

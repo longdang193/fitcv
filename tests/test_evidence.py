@@ -13,13 +13,16 @@ tags:
   - ci-safe
 """
 
+import copy
 from pathlib import Path
 
 import pytest
+import yaml
 
 from fitcv import evidence as evidence_module
+from fitcv.candidate import canonical_candidate_checksum
 from fitcv.config import apply_runtime_synonym_overlay
-from fitcv.evidence import retrieve_evidence, retrieve_evidence_bundle, score_evidence_item
+from fitcv.evidence import project_candidate_evidence, retrieve_evidence, retrieve_evidence_bundle, score_evidence_item
 from fitcv.ranking import compute_title_relevance
 
 
@@ -30,6 +33,131 @@ def _stable_contract_view(value: object) -> object:
     if isinstance(value, list):
         return [_stable_contract_view(item) for item in value]
     return value
+
+def _v2_profile() -> dict:
+    return yaml.safe_load(Path("data/candidate_profile.v2.sample.yaml").read_text(encoding="utf-8"))
+
+def test_uniform_projection_walks_every_evidence_section_once() -> None:
+    profile = _v2_profile()
+    document_id = profile["source_documents"][0]["id"]
+    shared_ref = [{"document_id": document_id}]
+    profile["achievements"] = [
+        {
+            "id": "achievement_1",
+            "title": "Analytics Award",
+            "source_refs": shared_ref,
+            "evidence": [{"id": "ev_achievement_1", "kind": "achievement", "text": "Won analytics award", "source_refs": shared_ref}],
+        }
+    ]
+    profile["certifications"] = [
+        {
+            "id": "certification_1",
+            "name": "SQL Certificate",
+            "issuer": "Example",
+            "source_refs": shared_ref,
+            "evidence": [{"id": "ev_certification_1", "kind": "certification_proof", "text": "Passed SQL certification", "source_refs": shared_ref}],
+        }
+    ]
+    profile["volunteering"] = [
+        {
+            "id": "volunteering_1",
+            "organization": "Data Club",
+            "role": "Mentor",
+            "source_refs": shared_ref,
+            "evidence": [{"id": "ev_volunteering_1", "kind": "volunteer_contribution", "text": "Mentored SQL learners", "source_refs": shared_ref}],
+        }
+    ]
+    profile["skills"].append(
+        {
+            "id": "skill_unsupported",
+            "name": "Unsupported skill",
+            "origin": "user",
+            "confidence": 1.0,
+            "support_status": "unsupported",
+            "evidence_refs": ["ev_exp_reporting_automation"],
+        }
+    )
+
+    projected = project_candidate_evidence(profile)
+
+    assert {item["source_section"] for item in projected} == {
+        "experiences",
+        "education",
+        "projects",
+        "achievements",
+        "certifications",
+        "volunteering",
+    }
+    assert len(projected) == sum(
+        len(parent.get("evidence") or [])
+        for section in ("experiences", "education", "projects", "achievements", "certifications", "volunteering")
+        for parent in profile[section]
+    )
+    sql = next(item for item in projected if item["evidence_id"] == "ev_exp_reporting_automation")
+    assert sql["skills"] == ["Python", "SQL"]
+    assert "Unsupported skill" not in sql["skills"]
+    assert sql["parent_id"] == "exp_reporting_assistant"
+    assert sql["organization"] == "Example Retail Company"
+
+def test_uniform_projection_supports_education_only_and_is_deterministic() -> None:
+    profile = _v2_profile()
+    profile["experiences"] = []
+    profile["projects"] = []
+    profile["achievements"] = []
+    profile["certifications"] = []
+    profile["volunteering"] = []
+    evidence_ids = {
+        item["id"] for parent in profile["education"] for item in parent["evidence"]
+    }
+    for skill in profile["skills"]:
+        skill["evidence_refs"] = [ref for ref in skill["evidence_refs"] if ref in evidence_ids]
+        skill["support_status"] = "supported" if skill["evidence_refs"] else "unsupported"
+    before = copy.deepcopy(profile)
+    checksum = canonical_candidate_checksum(profile)
+
+    first = retrieve_evidence_bundle(profile, {"required_skills": ["Python", "Statistics"]}, 10)
+    second = retrieve_evidence_bundle(profile, {"required_skills": ["Python", "Statistics"]}, 10)
+
+    assert first["projection_schema_version"] == "candidate-evidence.v1"
+    assert first["source_profile_schema_version"] == "candidate-profile.v2"
+    assert first["projection_fingerprint"] == second["projection_fingerprint"]
+    assert {item["source_section"] for item in first["selected_evidence"]} == {"education"}
+    assert profile == before
+    assert canonical_candidate_checksum(profile) == checksum
+
+def test_uniform_projection_keeps_equal_cross_section_evidence_tied_by_id() -> None:
+    profile = _v2_profile()
+    document_id = profile["source_documents"][0]["id"]
+    source_refs = [{"document_id": document_id}]
+    profile["experiences"] = [
+        {
+            "id": "exp_equal",
+            "role": "Analyst",
+            "company": "Example",
+            "source_refs": source_refs,
+            "evidence": [{"id": "ev_b", "kind": "work_achievement", "title": "SQL", "text": "Built SQL reports", "source_refs": source_refs}],
+        }
+    ]
+    profile["education"] = [
+        {
+            "id": "edu_equal",
+            "degree": "Analyst",
+            "institution": "Example",
+            "source_refs": source_refs,
+            "evidence": [{"id": "ev_a", "kind": "thesis", "title": "SQL", "text": "Built SQL reports", "source_refs": source_refs}],
+        }
+    ]
+    for section in ("projects", "achievements", "certifications", "volunteering"):
+        profile[section] = []
+    profile["skills"] = []
+    profile["role_families"] = []
+    profile["domain_tags"] = []
+    profile["responsibility_themes"] = []
+
+    bundle = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 2)
+
+    assert [item["evidence_id"] for item in bundle["selected_evidence"]] == ["ev_a", "ev_b"]
+    assert bundle["selected_evidence"][0]["channel_scores"] == bundle["selected_evidence"][1]["channel_scores"]
 
 
 # ── schema and ordering ───────────────────────────────────────────────────────
@@ -487,7 +615,7 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matche
         "retail banking analytics": [1.0, 0.0, 0.0],
         "data analyst retail banking analytics": [0.9, 0.0, 0.0],
         "translate raw data into recommendations for banking stakeholders": [0.0, 1.0, 0.0],
-        "analytics specialist finance co built executive reporting that guided loan portfolio decisions": [0.8, 0.9, 0.0],
+        "built executive reporting that guided loan portfolio decisions power bi sql analytics specialist finance co": [0.8, 0.9, 0.0],
     }
 
     def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> list[float]:
@@ -746,7 +874,7 @@ def test_runtime_overlay_role_family_neighbors_drive_ranking_and_evidence(monkey
     assert role_subscores["semantic"] == 0.0
     assert role_subscores["lexical"] == evidence_module.ROLE_ALIGNMENT_NEIGHBOR_SCORE
     assert role_subscores["combined"] == evidence_module.ROLE_ALIGNMENT_NEIGHBOR_SCORE
-def test_retrieve_evidence_bundle_prefers_broader_channel_coverage_over_redundancy() -> None:
+def test_retrieve_evidence_bundle_uses_global_relevance_without_section_reservations() -> None:
     profile = {
         "preferences": {
             "target_role": "Data Engineer",
@@ -804,14 +932,14 @@ def test_retrieve_evidence_bundle_prefers_broader_channel_coverage_over_redundan
     }
 
     bundle = retrieve_evidence_bundle(profile, job, top_k=2)
-    selected_ids = bundle["selected_evidence_ids"]
+    selected = bundle["selected_evidence"]
 
-    assert "exp_1" in selected_ids
-    assert "proj_1" in selected_ids
-    assert "exp_2" not in selected_ids
+    assert selected[0]["parent_id"] == "exp_1"
+    assert len(selected) == 2
+    assert all(item["schema_version"] == "candidate-evidence.v1" for item in selected)
     assert bundle["selected_evidence_count"] == 2
     assert len(bundle["unselected_top_candidates"]) >= 1
-    assert bundle["unselected_top_candidates"][0]["evidence_id"] == "exp_2"
+    assert bundle["unselected_top_candidates"][0]["source_ref"].startswith("projects/proj_1/")
 
 
 def test_retrieve_evidence_bundle_contract_is_deterministic_across_repeated_runs() -> None:
@@ -879,7 +1007,10 @@ def test_retrieve_evidence_bundle_contract_is_deterministic_across_repeated_runs
     second = retrieve_evidence_bundle(profile, job, top_k=2)
 
     assert _stable_contract_view(first) == _stable_contract_view(second)
-    assert first["selected_evidence_ids"] == ["exp_a", "proj_a"]
+    assert first["selected_evidence_ids"] == [
+        item["evidence_id"] for item in first["selected_evidence"]
+    ]
+    assert all(evidence_id.startswith("ev_") for evidence_id in first["selected_evidence_ids"])
 
     selected = first["selected_evidence"]
     assert len(selected) == 2

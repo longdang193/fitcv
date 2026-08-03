@@ -1764,6 +1764,9 @@ def _build_analysis_evidence_selection_summary(
     fallback_used: bool,
 ) -> dict[str, Any]:
     payload = {
+        "source_profile_schema_version": evidence_bundle.get("source_profile_schema_version"),
+        "projection_schema_version": evidence_bundle.get("projection_schema_version"),
+        "projection_fingerprint": evidence_bundle.get("projection_fingerprint"),
         "channel_counts": normalize_analysis_channel_mapping(
             evidence_bundle.get("channel_counts") or {}
         ),

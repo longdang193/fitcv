@@ -63,6 +63,9 @@ def test_analyze_ranked_job_emits_extended_analysis_fields(
 ) -> None:
     mock_fingerprint.return_value = {"fingerprint": "analysis::1"}
     mock_bundle.return_value = {
+        "source_profile_schema_version": "candidate-profile.v2",
+        "projection_schema_version": "candidate-evidence.v1",
+        "projection_fingerprint": "projection::1",
         "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
         "channel_counts": {"required_skill_support": 1},
         "merged_pool_size": 1,
@@ -90,6 +93,9 @@ def test_analyze_ranked_job_preserves_bundle_evidence_summary_fields(
 ) -> None:
     mock_fingerprint.return_value = {"fingerprint": "analysis::2"}
     mock_bundle.return_value = {
+        "source_profile_schema_version": "candidate-profile.v2",
+        "projection_schema_version": "candidate-evidence.v1",
+        "projection_fingerprint": "projection::1",
         "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
         "selected_evidence_ids": ["exp-1"],
         "channel_counts": {"required_skill_support": 1},
@@ -107,6 +113,9 @@ def test_analyze_ranked_job_preserves_bundle_evidence_summary_fields(
     assert summary["fallback_used"] is False
     assert summary["selected_evidence_count"] == 1
     assert summary["selected_evidence_ids"] == ["exp-1"]
+    assert summary["source_profile_schema_version"] == "candidate-profile.v2"
+    assert summary["projection_schema_version"] == "candidate-evidence.v1"
+    assert summary["projection_fingerprint"] == "projection::1"
     assert summary["merged_pool_size"] == 2
     assert summary["deduped_pool_size"] == 1
     assert summary["hybrid_alignment"]["responsibility_alignment"] == {
