@@ -90,7 +90,7 @@ _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
 _DEGRADATION_REASON_NONE = "none"
 _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
-CONTROL_PLANE_SCHEMA_VERSION = 4
+CONTROL_PLANE_SCHEMA_VERSION = 5
 _CANDIDATE_PROFILE_MAX_BYTES = 1024 * 1024
 
 class DatabaseSchemaIncompatibleError(RuntimeError):
@@ -210,7 +210,7 @@ def _ensure_control_plane_schema(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
         )
     }
-    if version not in {0, 3, CONTROL_PLANE_SCHEMA_VERSION} or (version == 0 and existing_tables):
+    if version not in {0, 3, 4, CONTROL_PLANE_SCHEMA_VERSION} or (version == 0 and existing_tables):
         raise DatabaseSchemaIncompatibleError(version)
     schema = """
     CREATE TABLE IF NOT EXISTS candidate_profiles (
@@ -257,6 +257,91 @@ def _ensure_control_plane_schema(
         schema_revision TEXT NOT NULL,
         created_at TEXT NOT NULL,
         UNIQUE (candidate_profile_id, revision)
+    );
+
+    CREATE TABLE IF NOT EXISTS candidate_profile_creation_attempts (
+        attempt_id TEXT PRIMARY KEY,
+        profile_name TEXT NOT NULL COLLATE NOCASE CHECK (length(trim(profile_name)) BETWEEN 1 AND 120),
+        creation_status TEXT NOT NULL CHECK (creation_status IN ('uploaded', 'extracting_base', 'base_review', 'deriving', 'derived_review', 'ready_to_confirm', 'succeeded', 'failed')),
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        source_document_id TEXT NOT NULL UNIQUE,
+        processing_stage TEXT,
+        processing_claim_id TEXT,
+        processing_attempt INTEGER NOT NULL DEFAULT 0 CHECK (processing_attempt >= 0),
+        lease_expires_at TEXT,
+        extraction_fingerprint TEXT,
+        baseline_fingerprint TEXT,
+        approved_baseline_fingerprint TEXT,
+        derived_fingerprint TEXT,
+        approved_derived_fingerprint TEXT,
+        confirmation_fingerprint TEXT,
+        failure_json TEXT CHECK (failure_json IS NULL OR json_valid(failure_json)),
+        resume_stage TEXT,
+        next_action TEXT NOT NULL,
+        source_purge_after TEXT NOT NULL,
+        profile_id TEXT REFERENCES candidate_profiles(candidate_profile_id) ON DELETE RESTRICT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS candidate_profile_source_documents (
+        source_document_id TEXT PRIMARY KEY,
+        attempt_id TEXT NOT NULL UNIQUE REFERENCES candidate_profile_creation_attempts(attempt_id) ON DELETE CASCADE,
+        original_filename TEXT NOT NULL,
+        media_type TEXT NOT NULL,
+        byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
+        checksum TEXT NOT NULL,
+        source_bytes BLOB,
+        source_available INTEGER NOT NULL DEFAULT 1 CHECK (source_available IN (0, 1)),
+        purged_at TEXT,
+        created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS candidate_profile_source_blocks (
+        source_block_id TEXT PRIMARY KEY,
+        attempt_id TEXT NOT NULL REFERENCES candidate_profile_creation_attempts(attempt_id) ON DELETE CASCADE,
+        source_document_id TEXT NOT NULL REFERENCES candidate_profile_source_documents(source_document_id) ON DELETE CASCADE,
+        ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+        kind TEXT NOT NULL,
+        locator_json TEXT NOT NULL CHECK (json_valid(locator_json)),
+        text TEXT NOT NULL,
+        checksum TEXT NOT NULL,
+        UNIQUE (attempt_id, ordinal)
+    );
+
+    CREATE TABLE IF NOT EXISTS candidate_profile_baseline_snapshots (
+        snapshot_id TEXT PRIMARY KEY,
+        attempt_id TEXT NOT NULL REFERENCES candidate_profile_creation_attempts(attempt_id) ON DELETE CASCADE,
+        fingerprint TEXT NOT NULL,
+        document_json TEXT NOT NULL CHECK (json_valid(document_json)),
+        annotations_json TEXT NOT NULL CHECK (json_valid(annotations_json)),
+        runtime_evidence_json TEXT CHECK (runtime_evidence_json IS NULL OR json_valid(runtime_evidence_json)),
+        approved INTEGER NOT NULL DEFAULT 0 CHECK (approved IN (0, 1)),
+        created_at TEXT NOT NULL,
+        UNIQUE (attempt_id, fingerprint)
+    );
+
+    CREATE TABLE IF NOT EXISTS candidate_profile_derived_snapshots (
+        snapshot_id TEXT PRIMARY KEY,
+        attempt_id TEXT NOT NULL REFERENCES candidate_profile_creation_attempts(attempt_id) ON DELETE CASCADE,
+        baseline_fingerprint TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        document_json TEXT NOT NULL CHECK (json_valid(document_json)),
+        annotations_json TEXT NOT NULL CHECK (json_valid(annotations_json)),
+        runtime_evidence_json TEXT CHECK (runtime_evidence_json IS NULL OR json_valid(runtime_evidence_json)),
+        approved INTEGER NOT NULL DEFAULT 0 CHECK (approved IN (0, 1)),
+        created_at TEXT NOT NULL,
+        UNIQUE (attempt_id, fingerprint)
+    );
+
+    CREATE TABLE IF NOT EXISTS candidate_profile_review_batches (
+        review_batch_id TEXT PRIMARY KEY,
+        attempt_id TEXT NOT NULL REFERENCES candidate_profile_creation_attempts(attempt_id) ON DELETE CASCADE,
+        stage TEXT NOT NULL CHECK (stage IN ('baseline', 'derived')),
+        expected_revision INTEGER NOT NULL,
+        operations_json TEXT NOT NULL CHECK (json_valid(operations_json)),
+        result_fingerprint TEXT NOT NULL,
+        created_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS startup_warnings (
@@ -1805,6 +1890,234 @@ def get_candidate_profile(
         "lifecycle": row[7],
         "is_active": bool(row[8]),
     }
+
+
+def _candidate_profile_attempt_resource(conn: sqlite3.Connection, attempt_id: str) -> dict[str, Any] | None:
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        """SELECT a.*, d.original_filename, d.media_type, d.byte_length, d.checksum, d.source_available
+           FROM candidate_profile_creation_attempts a
+           JOIN candidate_profile_source_documents d ON d.source_document_id = a.source_document_id
+           WHERE a.attempt_id = ?""",
+        (attempt_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    failure = json.loads(row["failure_json"]) if row["failure_json"] else None
+    status = str(row["creation_status"])
+    return {
+        "attempt_id": row["attempt_id"],
+        "profile_name": row["profile_name"],
+        "creation_status": status,
+        "revision": int(row["revision"]),
+        "source_document": {
+            "source_document_id": row["source_document_id"],
+            "original_filename": row["original_filename"],
+            "media_type": row["media_type"],
+            "byte_length": int(row["byte_length"]),
+            "checksum": row["checksum"],
+            "source_available": bool(row["source_available"]),
+        },
+        "processing": {
+            "stage": row["processing_stage"],
+            "claim_id": row["processing_claim_id"],
+            "attempt": int(row["processing_attempt"]),
+            "lease_expires_at": row["lease_expires_at"],
+        },
+        "source_purge_after": row["source_purge_after"],
+        "fingerprints": {
+            "extraction": row["extraction_fingerprint"],
+            "baseline_draft": row["baseline_fingerprint"],
+            "approved_baseline": row["approved_baseline_fingerprint"],
+            "derived_draft": row["derived_fingerprint"],
+            "approved_derived": row["approved_derived_fingerprint"],
+            "confirmation": row["confirmation_fingerprint"],
+        },
+        "failure": failure,
+        "next_action": row["next_action"],
+        "capabilities": {
+            "view_source": bool(row["source_available"]),
+            "review_baseline": status == "base_review",
+            "approve_baseline": status == "base_review",
+            "review_derived": status == "derived_review",
+            "approve_derived": status == "derived_review",
+            "confirm": status == "ready_to_confirm",
+            "retry": status == "failed" and bool(failure and failure.get("retryable")),
+        },
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def create_candidate_profile_creation_attempt(
+    *, profile_name: str, original_filename: str, media_type: str, content: bytes,
+    idempotency_key: str, database_path: Path | None = None,
+) -> dict[str, Any]:
+    normalized_name = profile_name.strip()
+    if not normalized_name:
+        raise ValueError("candidate_profile_name_required")
+    path = database_path or Path(_local_sqlite_path())
+    checksum = hashlib.sha256(content).hexdigest()
+    request_fingerprint = hashlib.sha256(json.dumps([normalized_name, original_filename, media_type, checksum], separators=(",", ":")).encode()).hexdigest()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        existing = conn.execute("SELECT request_fingerprint, response_json FROM idempotent_actions WHERE action_scope='candidate_profile_create' AND idempotency_key=?", (idempotency_key,)).fetchone()
+        if existing is not None:
+            if existing["request_fingerprint"] != request_fingerprint:
+                raise ValueError("idempotency_conflict")
+            return json.loads(existing["response_json"])
+        attempt_id = f"attempt_{uuid.uuid4().hex}"
+        document_id = f"doc_{checksum[:16]}"
+        timestamp = now.isoformat()
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """INSERT INTO candidate_profile_creation_attempts
+               (attempt_id, profile_name, creation_status, revision, source_document_id, next_action, source_purge_after, created_at, updated_at)
+               VALUES (?, ?, 'uploaded', 1, ?, 'process_baseline', ?, ?, ?)""",
+            (attempt_id, normalized_name, document_id, (now + datetime.timedelta(days=30)).isoformat(), timestamp, timestamp),
+        )
+        conn.execute(
+            """INSERT INTO candidate_profile_source_documents
+               (source_document_id, attempt_id, original_filename, media_type, byte_length, checksum, source_bytes, source_available, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)""",
+            (document_id, attempt_id, original_filename, media_type, len(content), checksum, content, timestamp),
+        )
+        resource = _candidate_profile_attempt_resource(conn, attempt_id)
+        assert resource is not None
+        conn.execute(
+            """INSERT INTO idempotent_actions
+               (action_id, action_scope, idempotency_key, request_fingerprint, status, response_json, created_at, updated_at)
+               VALUES (?, 'candidate_profile_create', ?, ?, 'succeeded', ?, ?, ?)""",
+            (f"action_{uuid.uuid4().hex}", idempotency_key, request_fingerprint, json.dumps(resource), timestamp, timestamp),
+        )
+        conn.commit()
+        return resource
+
+
+def get_candidate_profile_creation_attempt(attempt_id: str, *, database_path: Path | None = None) -> dict[str, Any] | None:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        return _candidate_profile_attempt_resource(conn, attempt_id)
+
+
+def query_candidate_profile_creation_attempts(*, database_path: Path | None = None, **_kwargs: Any) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        ids = [str(row[0]) for row in conn.execute("SELECT attempt_id FROM candidate_profile_creation_attempts ORDER BY created_at DESC")]
+        items = [_candidate_profile_attempt_resource(conn, attempt_id) for attempt_id in ids]
+    return {"items": [item for item in items if item is not None], "total": len(items)}
+
+
+def get_candidate_profile_source(attempt_id: str, *, database_path: Path | None = None) -> dict[str, Any] | None:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        row = conn.execute("SELECT original_filename, media_type, checksum, source_bytes, source_available FROM candidate_profile_source_documents WHERE attempt_id=?", (attempt_id,)).fetchone()
+        if row is None:
+            return None
+        if not row[4] or row[3] is None:
+            raise ValueError("candidate_profile_source_purged")
+        return {"filename": row[0], "media_type": row[1], "checksum": row[2], "content": bytes(row[3])}
+
+
+def claim_candidate_profile_processing(
+    attempt_id: str, *, stage: str, expected_revision: int, lease_seconds: int,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if stage not in {"base_mapping", "derived_claims"}:
+        raise ValueError("candidate_profile_transition_invalid")
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc)
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT revision FROM candidate_profile_creation_attempts WHERE attempt_id=?", (attempt_id,)).fetchone()
+        if row is None:
+            raise ValueError("candidate_profile_attempt_not_found")
+        if int(row[0]) != expected_revision:
+            raise ValueError("candidate_profile_revision_conflict")
+        conn.execute(
+            """UPDATE candidate_profile_creation_attempts
+               SET creation_status=?, revision=revision+1, processing_stage=?, processing_claim_id=?,
+                   processing_attempt=processing_attempt+1, lease_expires_at=?, next_action='wait', updated_at=?
+               WHERE attempt_id=?""",
+            (
+                "extracting_base" if stage == "base_mapping" else "deriving", stage,
+                f"claim_{uuid.uuid4().hex}", (now + datetime.timedelta(seconds=lease_seconds)).isoformat(),
+                now.isoformat(), attempt_id,
+            ),
+        )
+        resource = _candidate_profile_attempt_resource(conn, attempt_id)
+        conn.commit()
+    assert resource is not None
+    return resource
+
+
+def reconcile_candidate_profile_attempts(
+    *, now: datetime.datetime | None = None, database_path: Path | None = None
+) -> dict[str, int]:
+    current = now or datetime.datetime.now(datetime.timezone.utc)
+    path = database_path or Path(_local_sqlite_path())
+    abandoned = 0
+    purged = 0
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        expired_claims = conn.execute(
+            """SELECT attempt_id, processing_stage FROM candidate_profile_creation_attempts
+               WHERE processing_claim_id IS NOT NULL AND lease_expires_at < ?
+                 AND creation_status IN ('extracting_base', 'deriving')""",
+            (current.isoformat(),),
+        ).fetchall()
+        for attempt_id, stage in expired_claims:
+            failure = {
+                "code": "candidate_profile_processing_abandoned",
+                "message": "Processing lease expired.",
+                "retryable": True,
+                "stage": stage,
+            }
+            conn.execute(
+                """UPDATE candidate_profile_creation_attempts
+                   SET creation_status='failed', revision=revision+1, failure_json=?, resume_stage=?,
+                       processing_stage=NULL, processing_claim_id=NULL, lease_expires_at=NULL,
+                       next_action='retry', updated_at=? WHERE attempt_id=?""",
+                (json.dumps(failure), stage, current.isoformat(), attempt_id),
+            )
+            abandoned += 1
+        expired_sources = conn.execute(
+            """SELECT a.attempt_id FROM candidate_profile_creation_attempts a
+               JOIN candidate_profile_source_documents d ON d.attempt_id=a.attempt_id
+               WHERE a.source_purge_after < ? AND a.creation_status != 'succeeded' AND d.source_available=1""",
+            (current.isoformat(),),
+        ).fetchall()
+        for (attempt_id,) in expired_sources:
+            conn.execute("DELETE FROM candidate_profile_source_blocks WHERE attempt_id=?", (attempt_id,))
+            conn.execute("DELETE FROM candidate_profile_review_batches WHERE attempt_id=?", (attempt_id,))
+            conn.execute("DELETE FROM candidate_profile_baseline_snapshots WHERE attempt_id=?", (attempt_id,))
+            conn.execute("DELETE FROM candidate_profile_derived_snapshots WHERE attempt_id=?", (attempt_id,))
+            conn.execute(
+                "UPDATE candidate_profile_source_documents SET source_bytes=NULL, source_available=0, purged_at=? WHERE attempt_id=?",
+                (current.isoformat(), attempt_id),
+            )
+            failure = {
+                "code": "candidate_profile_source_expired",
+                "message": "Inactive Candidate Profile source expired.",
+                "retryable": False,
+                "stage": "source_retention",
+            }
+            conn.execute(
+                """UPDATE candidate_profile_creation_attempts
+                   SET creation_status='failed', revision=revision+1, failure_json=?, resume_stage=NULL,
+                       next_action='new_upload', updated_at=? WHERE attempt_id=?""",
+                (json.dumps(failure), current.isoformat(), attempt_id),
+            )
+            purged += 1
+        conn.commit()
+    return {"abandoned": abandoned, "purged": purged}
 
 
 def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> dict[str, Any] | None:

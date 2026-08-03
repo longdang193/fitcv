@@ -51,6 +51,12 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             "api_provider_state",
             "candidate_profiles",
             "candidate_profile_revisions",
+            "candidate_profile_creation_attempts",
+            "candidate_profile_source_documents",
+            "candidate_profile_source_blocks",
+            "candidate_profile_baseline_snapshots",
+            "candidate_profile_derived_snapshots",
+            "candidate_profile_review_batches",
             "configuration_resources",
             "custom_api_providers",
             "integration_migrations",
@@ -78,7 +84,7 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             "scan_outputs",
             "run_scan_inputs",
         } <= tables
-        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 4
+        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 5
         assert conn.execute("PRAGMA user_version").fetchone()[0] == sqlite_store.CONTROL_PLANE_SCHEMA_VERSION
         assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(run_inputs)"))
         assert any(row[2] == "candidate_profiles" and row[6] == "RESTRICT" for row in conn.execute("PRAGMA foreign_key_list(candidate_profile_revisions)"))
@@ -223,7 +229,41 @@ def test_control_plane_schema_upgrades_version_3_without_losing_settings() -> No
         sqlite_store._ensure_control_plane_schema(conn)
         sqlite_store._ensure_control_plane_schema(conn)
 
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
+
+
+def test_candidate_profile_reconciliation_marks_abandoned_and_purges_expired_source(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex\n",
+        idempotency_key="create-expired",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"], stage="base_mapping", expected_revision=1, lease_seconds=60,
+        database_path=database_path,
+    )
+    past = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=31)
+    with sqlite3.connect(database_path) as conn:
+        conn.execute(
+            "UPDATE candidate_profile_creation_attempts SET lease_expires_at=?, source_purge_after=? WHERE attempt_id=?",
+            (past.isoformat(), past.isoformat(), created["attempt_id"]),
+        )
+        conn.commit()
+
+    summary = sqlite_store.reconcile_candidate_profile_attempts(now=datetime.datetime.now(datetime.timezone.utc), database_path=database_path)
+
+    assert summary == {"abandoned": 1, "purged": 1}
+    refreshed = sqlite_store.get_candidate_profile_creation_attempt(created["attempt_id"], database_path=database_path)
+    assert refreshed is not None
+    assert refreshed["creation_status"] == "failed"
+    assert refreshed["failure"]["code"] == "candidate_profile_source_expired"
+    assert refreshed["capabilities"]["view_source"] is False
+    with pytest.raises(ValueError, match="candidate_profile_source_purged"):
+        sqlite_store.get_candidate_profile_source(created["attempt_id"], database_path=database_path)
         assert conn.execute(
             "SELECT setting_value_json FROM pipeline_settings WHERE setting_key = ?",
             ("pipeline.final_top_n",),
@@ -568,6 +608,47 @@ def test_initialize_control_plane_database_keeps_empty_catalog_with_setup_warnin
     assert [warning["code"] for warning in warnings] == ["candidate_profile_setup_required"]
     assert "candidate profile" in warnings[0]["message"].lower()
     assert warnings[0]["action"] == "Update candidate_profile.yaml, then reset the database."
+
+
+def test_candidate_profile_attempt_retains_source_and_uses_revision_cas(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    content = b"# Alex Morgan\n"
+
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Analytics Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=content,
+        idempotency_key="create-1",
+        database_path=database_path,
+    )
+
+    assert created["creation_status"] == "uploaded"
+    assert created["revision"] == 1
+    source = sqlite_store.get_candidate_profile_source(created["attempt_id"], database_path=database_path)
+    assert source is not None
+    assert source["content"] == content
+    assert source["checksum"] == hashlib.sha256(content).hexdigest()
+
+    with pytest.raises(ValueError, match="candidate_profile_revision_conflict"):
+        sqlite_store.claim_candidate_profile_processing(
+            created["attempt_id"],
+            stage="base_mapping",
+            expected_revision=2,
+            lease_seconds=60,
+            database_path=database_path,
+        )
+
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"],
+        stage="base_mapping",
+        expected_revision=1,
+        lease_seconds=60,
+        database_path=database_path,
+    )
+    assert claimed["creation_status"] == "extracting_base"
+    assert claimed["revision"] == 2
+    assert claimed["processing"]["claim_id"]
 
 
 def _synonym_policy_paths(tmp_path: Path) -> dict[str, Path]:

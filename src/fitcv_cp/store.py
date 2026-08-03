@@ -568,28 +568,28 @@ class ControlPlaneStore:
 
     def query_candidate_profile_creation_attempts(self, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(
-            self._required_candidate_profile_override(self.query_candidate_profile_creation_attempts_fn),
-            lambda **_kwargs: {},
+            self.query_candidate_profile_creation_attempts_fn,
+            sqlite_store.query_candidate_profile_creation_attempts,
             **kwargs,
         )
 
     def create_candidate_profile_creation_attempt(self, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(
-            self._required_candidate_profile_override(self.create_candidate_profile_creation_attempt_fn),
-            lambda **_kwargs: {},
+            self.create_candidate_profile_creation_attempt_fn,
+            sqlite_store.create_candidate_profile_creation_attempt,
             **kwargs,
         )
 
     def get_candidate_profile_creation_attempt(self, attempt_id: str) -> dict[str, Any] | None:
         return cast(
             dict[str, Any] | None,
-            self._required_candidate_profile_override(self.get_candidate_profile_creation_attempt_fn)(attempt_id),
+            self._call(self.get_candidate_profile_creation_attempt_fn, sqlite_store.get_candidate_profile_creation_attempt, attempt_id),
         )
 
     def get_candidate_profile_source(self, attempt_id: str) -> dict[str, Any] | None:
         return cast(
             dict[str, Any] | None,
-            self._required_candidate_profile_override(self.get_candidate_profile_source_fn)(attempt_id),
+            self._call(self.get_candidate_profile_source_fn, sqlite_store.get_candidate_profile_source, attempt_id),
         )
 
     def get_candidate_profile_source_block(self, attempt_id: str, source_block_id: str) -> dict[str, Any] | None:
