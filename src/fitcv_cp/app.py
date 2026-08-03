@@ -6708,9 +6708,12 @@ def create_app(
     )
     app = FastAPI(title="FitCV Admin Control Plane")
     app.state.run_store = _CP_STORE
-    from fitcv_cp.queue import enqueue_scan_with_job_id
+    from fitcv_cp.queue import enqueue_candidate_profile_stage, enqueue_scan_with_job_id
 
     app.state.enqueue_scan = lambda scan_id: enqueue_scan_with_job_id(scan_id, redis_url=redis_url)
+    app.state.enqueue_candidate_profile_stage = lambda **kwargs: enqueue_candidate_profile_stage(
+        **kwargs, redis_url=redis_url
+    )
 
     @app.exception_handler(ApiError)
     async def api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
@@ -9576,8 +9579,9 @@ def create_app(
     ) -> dict[str, Any]:
         key = _required_idempotency_key(request)
         content = await profile_file.read()
+        store = _resolve_run_store()
         resource = _candidate_profile_mock_call(
-            lambda: _resolve_run_store().create_candidate_profile_creation_attempt(
+            lambda: store.create_candidate_profile_creation_attempt(
                 profile_name=profile_name,
                 original_filename=str(profile_file.filename or ""),
                 media_type=str(profile_file.content_type or "application/octet-stream"),
@@ -9585,7 +9589,22 @@ def create_app(
                 idempotency_key=key,
             )
         )
-        return _data_response(resource)
+        claimed = _candidate_profile_mock_call(
+            lambda: store.claim_candidate_profile_processing(
+                resource["attempt_id"],
+                stage="base_mapping",
+                expected_revision=resource["revision"],
+                lease_seconds=900,
+            )
+        )
+        request.app.state.enqueue_candidate_profile_stage(
+            attempt_id=claimed["attempt_id"],
+            stage="base_mapping",
+            claim_id=claimed["processing"]["claim_id"],
+            expected_revision=claimed["revision"],
+            targets=None,
+        )
+        return _data_response(store.get_candidate_profile_creation_attempt(claimed["attempt_id"]) or claimed)
 
     @app.get(
         "/candidate-profile-creation-attempts/{attempt_id}",
@@ -9695,6 +9714,7 @@ def create_app(
         stage: str,
         body: CandidateProfileRegenerateRequest,
     ) -> dict[str, Any]:
+        store = _resolve_run_store()
         resource = _candidate_profile_mock_call(
             lambda: _resolve_run_store().regenerate_candidate_profile_review(
                 attempt_id,
@@ -9704,7 +9724,14 @@ def create_app(
                 idempotency_key=_required_idempotency_key(request),
             )
         )
-        return _data_response(resource)
+        request.app.state.enqueue_candidate_profile_stage(
+            attempt_id=attempt_id,
+            stage=str(resource["processing"]["stage"]),
+            claim_id=str(resource["processing"]["claim_id"]),
+            expected_revision=int(resource["revision"]),
+            targets=body.targets,
+        )
+        return _data_response(store.get_candidate_profile_creation_attempt(attempt_id) or resource)
 
     @app.post(
         "/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/regenerate",
@@ -9749,7 +9776,16 @@ def create_app(
                 idempotency_key=_required_idempotency_key(request),
             )
         )
-        return _data_response(resource)
+        request.app.state.enqueue_candidate_profile_stage(
+            attempt_id=attempt_id,
+            stage="derived_claims",
+            claim_id=str(resource["processing"]["claim_id"]),
+            expected_revision=int(resource["revision"]),
+            targets=None,
+        )
+        return _data_response(
+            _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id) or resource
+        )
 
     @app.post(
         "/candidate-profile-creation-attempts/{attempt_id}/derived/actions/approve",
@@ -9820,7 +9856,16 @@ def create_app(
                 idempotency_key=_required_idempotency_key(request),
             )
         )
-        return _data_response(resource)
+        request.app.state.enqueue_candidate_profile_stage(
+            attempt_id=attempt_id,
+            stage=str(resource["processing"]["stage"]),
+            claim_id=str(resource["processing"]["claim_id"]),
+            expected_revision=int(resource["revision"]),
+            targets=None,
+        )
+        return _data_response(
+            _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id) or resource
+        )
 
     @app.get("/candidate-profiles", response_model=CandidateProfileCollectionEnvelope)
     def get_candidate_profiles(
@@ -9851,38 +9896,6 @@ def create_app(
                 "archived_count": int(result.get("archived_count") or 0),
             },
         )
-
-    @app.post("/candidate-profiles", status_code=201, response_model=CandidateProfileEnvelope)
-    async def post_candidate_profile(
-        request: Request,
-        profile_file: UploadFile = File(..., description="Candidate profile .yaml file"),
-        profile_name: str | None = Form(None),
-    ) -> dict[str, Any]:
-        key = _required_idempotency_key(request)
-        content = await profile_file.read()
-        fingerprint = _request_fingerprint(
-            {
-                "filename": profile_file.filename,
-                "profile_name": profile_name,
-                "sha256": hashlib.sha256(content).hexdigest(),
-            }
-        )
-        store = _resolve_run_store()
-        reservation = store.reserve_idempotent_action("candidate-profiles:create", key, fingerprint)
-        if reservation.get("replayed") and reservation.get("response") is not None:
-            return _data_response(reservation["response"])
-        try:
-            resource = store.create_candidate_profile_attempt(
-                profile_bytes=content,
-                original_filename=str(profile_file.filename or ""),
-                profile_name=profile_name,
-                media_type=str(profile_file.content_type or "application/yaml"),
-            )
-        except ValueError as exc:
-            code = str(exc)
-            raise ApiError(422, code, "Candidate profile import was rejected.") from exc
-        store.complete_idempotent_action(str(reservation["action_id"]), resource)
-        return _data_response(resource)
 
     @app.get("/candidate-profiles/{profile_id}", response_model=CandidateProfileEnvelope)
     def get_candidate_profile_detail(profile_id: str) -> dict[str, Any]:

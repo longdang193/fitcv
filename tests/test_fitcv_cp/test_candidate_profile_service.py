@@ -20,11 +20,47 @@ from fitcv_cp.candidate_profile_service import (
     assemble_confirmation,
     build_baseline_review,
     build_derived_review,
+    execute_candidate_profile_stage,
     invalidation_for_stage,
     regenerate_review,
     resolve_regeneration_targets,
     retry_failed_stage,
 )
+
+
+def test_execute_candidate_profile_stage_publishes_deterministic_baseline() -> None:
+    published: dict[str, object] = {}
+
+    class Store:
+        def get_candidate_profile_source(self, attempt_id: str):
+            assert attempt_id == "attempt-1"
+            return {
+                "filename": "candidate.md",
+                "media_type": "text/markdown",
+                "content": b"# Alex Morgan\n",
+            }
+
+        def publish_candidate_profile_stage_result(self, attempt_id: str, **kwargs):
+            published.update({"attempt_id": attempt_id, **kwargs})
+            return {"attempt_id": attempt_id, "creation_status": "base_review"}
+
+        def fail_candidate_profile_stage(self, attempt_id: str, **kwargs):
+            raise AssertionError((attempt_id, kwargs))
+
+    resource = execute_candidate_profile_stage(
+        attempt_id="attempt-1",
+        stage="base_mapping",
+        claim_id="claim-1",
+        expected_revision=2,
+        targets=None,
+        store=Store(),
+    )
+
+    assert resource["creation_status"] == "base_review"
+    assert published["claim_id"] == "claim-1"
+    assert published["stage"] == "baseline"
+    assert published["result"]["document"]["name"] == "Alex Morgan"
+    assert published["source_blocks"][0]["block_id"]
 
 
 def _success(value: dict) -> LlmRuntimeResult:

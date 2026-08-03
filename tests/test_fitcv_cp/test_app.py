@@ -218,6 +218,84 @@ def test_candidate_profile_mock_contract_converges_confirmation_and_detail() -> 
     assert "Creation drafts" in admin_list.text
     assert "0 drafts" in admin_list.text
 
+
+def test_candidate_profile_real_app_routes_process_yaml_through_staged_lifecycle() -> None:
+    app = _app()
+
+    def execute_now(**kwargs):
+        from fitcv_cp.candidate_profile_service import execute_candidate_profile_stage
+
+        execute_candidate_profile_stage(**kwargs)
+        return f"inline:{kwargs['attempt_id']}:{kwargs['stage']}"
+
+    app.state.enqueue_candidate_profile_stage = execute_now
+    client = TestClient(app)
+    source = Path("data/candidate_profile.v2.sample.yaml").read_bytes()
+
+    created = client.post(
+        "/candidate-profile-creation-attempts",
+        headers={"Idempotency-Key": "real-create-1"},
+        data={"profile_name": "Real Analytics Profile"},
+        files={"profile_file": ("candidate.yaml", source, "application/yaml")},
+    )
+
+    assert created.status_code == 202
+    attempt = created.json()["data"]
+    assert attempt["next_action"] == "review_baseline"
+    baseline = client.get(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/baseline"
+    )
+    assert baseline.status_code == 200
+    baseline_data = baseline.json()["data"]
+    assert baseline_data["document"]["name"] == "Alex Example"
+    approved_baseline = client.post(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/baseline/actions/approve",
+        headers={"Idempotency-Key": "real-approve-baseline"},
+        json={
+            "expected_revision": baseline_data["revision"],
+            "expected_fingerprint": baseline_data["fingerprint"],
+        },
+    )
+    assert approved_baseline.status_code == 202
+    derived = client.get(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/derived"
+    )
+    assert derived.status_code == 200
+    derived_data = derived.json()["data"]
+    approved_derived = client.post(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/derived/actions/approve",
+        headers={"Idempotency-Key": "real-approve-derived"},
+        json={
+            "expected_revision": derived_data["revision"],
+            "expected_fingerprint": derived_data["fingerprint"],
+            "expected_baseline_fingerprint": approved_baseline.json()["data"]["fingerprints"]["approved_baseline"],
+        },
+    )
+    confirmation = client.get(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/confirmation"
+    )
+    confirmation_data = confirmation.json()["data"]
+    confirmed = client.post(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/actions/confirm",
+        headers={"Idempotency-Key": "real-confirm"},
+        json={
+            "expected_revision": approved_derived.json()["data"]["revision"],
+            "expected_baseline_fingerprint": confirmation_data["approval_fingerprints"]["baseline"],
+            "expected_derived_fingerprint": confirmation_data["approval_fingerprints"]["derived"],
+            "expected_confirmation_fingerprint": confirmation_data["fingerprint"],
+        },
+    )
+    assert confirmed.status_code == 201
+    detail = client.get(f"/candidate-profiles/{confirmed.json()['data']['profile_id']}")
+    assert detail.json()["data"]["profile"]["canonical"] == confirmation_data["profile"]["canonical"]
+    assert detail.json()["data"]["profile"]["checksum"] == confirmation_data["profile"]["checksum"]
+    assert client.post(
+        "/candidate-profiles",
+        headers={"Idempotency-Key": "direct-bypass"},
+        data={"profile_name": "Bypass"},
+        files={"profile_file": ("candidate.yaml", source, "application/yaml")},
+    ).status_code == 405
+
 def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> None:
     import hashlib
 

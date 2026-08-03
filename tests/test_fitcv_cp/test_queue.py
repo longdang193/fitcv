@@ -80,6 +80,27 @@ def test_enqueue_scan_uses_stable_queue_job_id() -> None:
     assert mock_q.enqueue.call_args.kwargs["job_id"] == "scan:scan-123"
 
 
+def test_enqueue_candidate_profile_stage_uses_stable_rq_target() -> None:
+    mock_q = MagicMock()
+    mock_q.enqueue.return_value.id = "candidate-profile:attempt-1:base_mapping:claim-1"
+    with patch("fitcv_cp.queue.get_queue", return_value=mock_q), patch.dict(
+        "os.environ", {"FITCV_CP_INLINE_EXECUTION": "0"}
+    ):
+        job_id = queue_module.enqueue_candidate_profile_stage(
+            attempt_id="attempt-1",
+            stage="base_mapping",
+            claim_id="claim-1",
+            expected_revision=2,
+            targets=None,
+        )
+
+    assert job_id == "candidate-profile:attempt-1:base_mapping:claim-1"
+    call = mock_q.enqueue.call_args
+    assert call.args[0].__name__ == "execute_candidate_profile_stage"
+    assert call.kwargs["attempt_id"] == "attempt-1"
+    assert call.kwargs["job_id"] == job_id
+
+
 def test_enqueue_run_with_job_id_wires_fixed_rq_retry_when_attempts_exceed_one() -> None:
     from rq.job import Retry
 

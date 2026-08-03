@@ -3154,6 +3154,65 @@ def claim_candidate_profile_processing(
     return resource
 
 
+def fail_candidate_profile_stage(
+    attempt_id: str,
+    *,
+    claim_id: str,
+    expected_revision: int,
+    code: str,
+    message: str,
+    retryable: bool,
+    stage: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            attempt = conn.execute(
+                "SELECT revision, processing_claim_id, processing_stage FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            if int(attempt["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if attempt["processing_claim_id"] != claim_id or attempt["processing_stage"] != stage:
+                raise ValueError("candidate_profile_processing_claim_conflict")
+            failure = {
+                "code": code,
+                "message": message,
+                "retryable": bool(retryable),
+                "stage": stage,
+            }
+            conn.execute(
+                """
+                UPDATE candidate_profile_creation_attempts
+                SET creation_status='failed', revision=revision+1, failure_json=?,
+                    resume_stage=?, processing_stage=NULL, processing_claim_id=NULL,
+                    lease_expires_at=NULL, next_action=?, updated_at=?
+                WHERE attempt_id=?
+                """,
+                (
+                    json.dumps(failure, sort_keys=True, separators=(",", ":")),
+                    stage if retryable else None,
+                    "retry" if retryable else "new_upload",
+                    now,
+                    attempt_id,
+                ),
+            )
+            resource = _candidate_profile_attempt_resource(conn, attempt_id)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    assert resource is not None
+    return resource
+
+
 def reconcile_candidate_profile_attempts(
     *, now: datetime.datetime | None = None, database_path: Path | None = None
 ) -> dict[str, int]:
@@ -3221,7 +3280,8 @@ def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> di
     conn.row_factory = sqlite3.Row
     row = conn.execute(
         """
-        SELECT cp.*, pr.profile_revision_id, pr.profile_json, pr.checksum AS profile_checksum
+        SELECT cp.*, pr.profile_revision_id, pr.revision AS profile_revision,
+               pr.profile_json, pr.checksum AS profile_checksum, pr.schema_revision
         FROM candidate_profiles AS cp
         LEFT JOIN candidate_profile_revisions AS pr
           ON pr.candidate_profile_id = cp.candidate_profile_id
@@ -3240,11 +3300,21 @@ def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> di
             "SELECT COUNT(*) FROM run_inputs WHERE candidate_profile_id = ?", (profile_id,)
         ).fetchone()[0]
     )
+    attempt_row = conn.execute(
+        "SELECT attempt_id FROM candidate_profile_creation_attempts WHERE profile_id=?",
+        (profile_id,),
+    ).fetchone()
+    attempt_id = str(attempt_row[0]) if attempt_row is not None else None
     return {
         "profile_id": row["candidate_profile_id"],
         "profile_name": row["profile_name"],
         "display_name": display_name,
         "original_filename": row["original_filename"],
+        "creation": {
+            "attempt_id": attempt_id,
+            "source_format": Path(row["original_filename"]).suffix.lstrip(".").upper() or "YAML",
+            "method": "staged-hybrid" if attempt_id else "legacy",
+        },
         "creation_status": row["creation_status"],
         "lifecycle": row["lifecycle"],
         "created_at": row["created_at"],
@@ -3271,6 +3341,17 @@ def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> di
             "byte_length": row["byte_length"],
             "media_type": row["media_type"],
         },
+        "profile": (
+            {
+                "profile_revision_id": row["profile_revision_id"],
+                "revision": int(row["profile_revision"]),
+                "checksum": row["profile_checksum"],
+                "schema_version": row["schema_revision"],
+                "canonical": profile,
+            }
+            if profile is not None
+            else None
+        ),
     }
 
 

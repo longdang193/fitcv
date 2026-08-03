@@ -469,6 +469,38 @@ def test_candidate_profile_retry_resumes_failed_processing_stage(tmp_path: Path)
     )["content"] == b"# Alex\n"
 
 
+def test_candidate_profile_stage_failure_requires_current_claim(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex\n",
+        idempotency_key="create-failure",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"], stage="base_mapping", expected_revision=1, lease_seconds=60,
+        database_path=database_path,
+    )
+
+    with pytest.raises(ValueError, match="candidate_profile_processing_claim_conflict"):
+        sqlite_store.fail_candidate_profile_stage(
+            created["attempt_id"], claim_id="wrong", expected_revision=2,
+            code="candidate_profile_llm_unavailable", message="Model unavailable.",
+            retryable=True, stage="base_mapping", database_path=database_path,
+        )
+    failed = sqlite_store.fail_candidate_profile_stage(
+        created["attempt_id"], claim_id=claimed["processing"]["claim_id"], expected_revision=2,
+        code="candidate_profile_llm_unavailable", message="Model unavailable.",
+        retryable=True, stage="base_mapping", database_path=database_path,
+    )
+
+    assert failed["creation_status"] == "failed"
+    assert failed["failure"]["code"] == "candidate_profile_llm_unavailable"
+    assert failed["capabilities"]["retry"] is True
+
+
 def test_provider_schema_has_no_secret_bearing_columns() -> None:
     with sqlite3.connect(":memory:") as conn:
         sqlite_store._ensure_control_plane_schema(conn)

@@ -62,6 +62,7 @@ class RunStore(Protocol):
     def retry_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def claim_candidate_profile_processing(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def publish_candidate_profile_stage_result(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def fail_candidate_profile_stage(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def reconcile_candidate_profile_attempts(self, **kwargs: Any) -> dict[str, int]: ...
     def get_candidate_profile_detail(self, profile_id: str) -> dict[str, Any] | None: ...
     def query_candidate_profile_runs(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -230,6 +231,7 @@ class ControlPlaneStore:
     retry_candidate_profile_creation_attempt_fn: Any | None = None
     claim_candidate_profile_processing_fn: Any | None = None
     publish_candidate_profile_stage_result_fn: Any | None = None
+    fail_candidate_profile_stage_fn: Any | None = None
     reconcile_candidate_profile_attempts_fn: Any | None = None
     get_candidate_profile_detail_fn: Any | None = None
     query_candidate_profile_runs_fn: Any | None = None
@@ -658,6 +660,14 @@ class ControlPlaneStore:
         return self._call_dict(
             self.publish_candidate_profile_stage_result_fn,
             sqlite_store.publish_candidate_profile_stage_result,
+            attempt_id,
+            **kwargs,
+        )
+
+    def fail_candidate_profile_stage(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.fail_candidate_profile_stage_fn,
+            sqlite_store.fail_candidate_profile_stage,
             attempt_id,
             **kwargs,
         )

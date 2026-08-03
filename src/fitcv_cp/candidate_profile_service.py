@@ -13,7 +13,7 @@ from fitcv.candidate import (
     canonical_candidate_checksum,
     validate_candidate_profile_v2,
 )
-from fitcv.candidate_ingest import CandidateIngestResult
+from fitcv.candidate_ingest import CandidateIngestError, CandidateIngestResult, ingest_candidate_source
 from fitcv.config import get_prompt_replacement, load_prompt_task_registry
 from fitcv.llm_runtime import (
     LlmRuntimeResult,
@@ -738,3 +738,143 @@ def retry_failed_stage(failure: dict[str, Any]) -> str:
     if stage == "confirmation":
         return "ready_to_confirm"
     raise CandidateProfileServiceError("candidate_profile_transition_invalid", "Failed stage cannot be resumed")
+
+
+def _stage_result_payload(result: CandidateProfileStageResult) -> dict[str, Any]:
+    return {
+        "document": result.document,
+        "annotations": result.annotations,
+        "fingerprint": result.fingerprint,
+        "runtime_evidence": result.runtime_evidence,
+        "baseline_fingerprint": result.baseline_fingerprint,
+    }
+
+
+def execute_candidate_profile_stage(
+    *,
+    attempt_id: str,
+    stage: str,
+    claim_id: str,
+    expected_revision: int,
+    targets: list[str] | None = None,
+    store: Any | None = None,
+) -> dict[str, Any]:
+    if stage not in {"base_mapping", "derived_claims"}:
+        raise CandidateProfileServiceError(
+            "candidate_profile_transition_invalid", "Unknown processing stage"
+        )
+    if store is None:
+        from fitcv_cp.store import ControlPlaneStore
+
+        store = ControlPlaneStore()
+    try:
+        if stage == "base_mapping":
+            source = store.get_candidate_profile_source(attempt_id)
+            if source is None:
+                raise CandidateProfileServiceError(
+                    "candidate_profile_source_not_found", "Candidate Profile source not found"
+                )
+            ingest = ingest_candidate_source(
+                str(source["filename"]),
+                str(source["media_type"]),
+                bytes(source["content"]),
+            )
+            if targets:
+                current = store.get_candidate_profile_review(attempt_id, "baseline")
+                if current is None:
+                    raise CandidateProfileServiceError(
+                        "candidate_profile_transition_invalid", "Baseline draft is unavailable"
+                    )
+                result = regenerate_review(
+                    "baseline", current["document"], current["annotations"], targets
+                )
+                source_blocks = None
+            else:
+                result = build_baseline_review(ingest)
+                source_blocks = list(ingest.source_blocks)
+            payload = _stage_result_payload(result)
+            payload["extraction_fingerprint"] = ingest.extraction_fingerprint
+            return store.publish_candidate_profile_stage_result(
+                attempt_id,
+                stage="baseline",
+                claim_id=claim_id,
+                expected_revision=expected_revision,
+                result=payload,
+                source_blocks=source_blocks,
+            )
+
+        attempt = store.get_candidate_profile_creation_attempt(attempt_id)
+        baseline = store.get_candidate_profile_review(attempt_id, "baseline")
+        if attempt is None or baseline is None:
+            raise CandidateProfileServiceError(
+                "candidate_profile_transition_invalid", "Approved baseline is unavailable"
+            )
+        approved_fingerprint = attempt["fingerprints"]["approved_baseline"]
+        if baseline["fingerprint"] != approved_fingerprint:
+            raise CandidateProfileServiceError(
+                "candidate_profile_fingerprint_conflict", "Approved baseline changed"
+            )
+        if targets:
+            current = store.get_candidate_profile_review(attempt_id, "derived")
+            if current is None:
+                raise CandidateProfileServiceError(
+                    "candidate_profile_transition_invalid", "Derived draft is unavailable"
+                )
+            result = regenerate_review(
+                "derived", current["document"], current["annotations"], targets
+            )
+            result = CandidateProfileStageResult(
+                result.document,
+                result.annotations,
+                result.fingerprint,
+                result.runtime_evidence,
+                result.llm_called,
+                baseline_fingerprint=str(approved_fingerprint),
+            )
+        else:
+            source = store.get_candidate_profile_source(attempt_id)
+            seed_document = None
+            if source is not None:
+                ingest = ingest_candidate_source(
+                    str(source["filename"]),
+                    str(source["media_type"]),
+                    bytes(source["content"]),
+                )
+                seed_document = build_baseline_review(ingest).derived_seed
+            result = build_derived_review(
+                {
+                    "stage": "baseline",
+                    "document": baseline["document"],
+                    "fingerprint": baseline["fingerprint"],
+                },
+                seed_document=seed_document,
+            )
+        return store.publish_candidate_profile_stage_result(
+            attempt_id,
+            stage="derived",
+            claim_id=claim_id,
+            expected_revision=expected_revision,
+            result=_stage_result_payload(result),
+        )
+    except CandidateIngestError as exc:
+        store.fail_candidate_profile_stage(
+            attempt_id,
+            claim_id=claim_id,
+            expected_revision=expected_revision,
+            code=exc.code,
+            message=str(exc),
+            retryable=False,
+            stage=stage,
+        )
+        raise
+    except CandidateProfileServiceError as exc:
+        store.fail_candidate_profile_stage(
+            attempt_id,
+            claim_id=claim_id,
+            expected_revision=expected_revision,
+            code=exc.code,
+            message=str(exc),
+            retryable=exc.retryable,
+            stage=stage,
+        )
+        raise

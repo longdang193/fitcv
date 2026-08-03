@@ -336,6 +336,61 @@ def enqueue_scan_with_job_id(
     )
     return str(job.id)
 
+
+def _run_inline_candidate_profile_stage(
+    job_id: str,
+    attempt_id: str,
+    stage: str,
+    claim_id: str,
+    expected_revision: int,
+    targets: list[str] | None,
+) -> None:
+    from fitcv_cp.candidate_profile_service import execute_candidate_profile_stage
+
+    _INLINE_JOB_STATUS[job_id] = "started"
+    try:
+        execute_candidate_profile_stage(
+            attempt_id=attempt_id,
+            stage=stage,
+            claim_id=claim_id,
+            expected_revision=expected_revision,
+            targets=targets,
+        )
+        _INLINE_JOB_STATUS[job_id] = "finished"
+    except Exception:
+        _INLINE_JOB_STATUS[job_id] = "failed"
+        raise
+
+
+def enqueue_candidate_profile_stage(
+    *,
+    attempt_id: str,
+    stage: str,
+    claim_id: str,
+    expected_revision: int,
+    targets: list[str] | None = None,
+    redis_url: str = "redis://redis:6379/0",
+) -> str:
+    job_id = f"candidate-profile:{attempt_id}:{stage}:{claim_id}"
+    if _inline_execution_enabled():
+        return _enqueue_inline_after_delay(
+            _run_inline_candidate_profile_stage,
+            (attempt_id, stage, claim_id, expected_revision, targets),
+        )
+    from fitcv_cp.candidate_profile_service import execute_candidate_profile_stage
+
+    job = get_queue(redis_url).enqueue(
+        execute_candidate_profile_stage,
+        attempt_id=attempt_id,
+        stage=stage,
+        claim_id=claim_id,
+        expected_revision=expected_revision,
+        targets=targets,
+        job_id=job_id,
+        job_timeout=1800,
+    )
+    return str(job.id)
+
 def enqueue_cv_regenerate_once_with_job_id(
     *,
     run_id: str,
