@@ -194,7 +194,7 @@ capabilities permit it.
 
 ### Catalog and lifecycle
 
-- `GET /candidate-profiles?view=active|archived|all&status=&search=&page=&page_size=`
+- `GET /candidate-profiles?view=active|archived&status=&search=&page=&page_size=`
 - `GET /candidate-profiles/{profile_id}`
 - `GET /candidate-profiles/{profile_id}/runs`
 - `POST /candidate-profiles/{profile_id}/actions/archive`

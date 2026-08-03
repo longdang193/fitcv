@@ -2073,7 +2073,11 @@ def get_candidate_profile(
 def _candidate_profile_attempt_resource(conn: sqlite3.Connection, attempt_id: str) -> dict[str, Any] | None:
     conn.row_factory = sqlite3.Row
     row = conn.execute(
-        """SELECT a.*, d.original_filename, d.media_type, d.byte_length, d.checksum, d.source_available
+        """SELECT a.*, d.original_filename, d.media_type, d.byte_length, d.checksum, d.source_available,
+                  (SELECT created_at FROM candidate_profile_baseline_snapshots
+                   WHERE attempt_id=a.attempt_id AND fingerprint=a.approved_baseline_fingerprint) AS baseline_approved_at,
+                  (SELECT created_at FROM candidate_profile_derived_snapshots
+                   WHERE attempt_id=a.attempt_id AND fingerprint=a.approved_derived_fingerprint) AS derived_approved_at
            FROM candidate_profile_creation_attempts a
            JOIN candidate_profile_source_documents d ON d.source_document_id = a.source_document_id
            WHERE a.attempt_id = ?""",
@@ -2110,6 +2114,10 @@ def _candidate_profile_attempt_resource(conn: sqlite3.Connection, attempt_id: st
             "derived_draft": row["derived_fingerprint"],
             "approved_derived": row["approved_derived_fingerprint"],
             "confirmation": row["confirmation_fingerprint"],
+        },
+        "approval_timestamps": {
+            "baseline": row["baseline_approved_at"],
+            "derived": row["derived_approved_at"],
         },
         "failure": failure,
         "next_action": row["next_action"],

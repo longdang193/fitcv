@@ -1124,6 +1124,26 @@ def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, 
     return approved_derived, patched
 
 
+def test_candidate_profile_attempt_exposes_approval_timestamps(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+
+    with sqlite3.connect(database_path) as conn:
+        baseline_created_at = conn.execute(
+            "SELECT created_at FROM candidate_profile_baseline_snapshots WHERE attempt_id=? AND fingerprint=?",
+            (ready["attempt_id"], ready["fingerprints"]["approved_baseline"]),
+        ).fetchone()[0]
+        derived_created_at = conn.execute(
+            "SELECT created_at FROM candidate_profile_derived_snapshots WHERE attempt_id=? AND fingerprint=?",
+            (ready["attempt_id"], ready["fingerprints"]["approved_derived"]),
+        ).fetchone()[0]
+
+    assert ready["approval_timestamps"] == {
+        "baseline": baseline_created_at,
+        "derived": derived_created_at,
+    }
+
+
 def test_candidate_profile_review_and_confirmation_are_cas_and_idempotent(tmp_path: Path) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
     ready, patched = _candidate_profile_ready_to_confirm(database_path)

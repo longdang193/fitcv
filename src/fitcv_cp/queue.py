@@ -371,7 +371,7 @@ def enqueue_candidate_profile_stage(
     targets: list[str] | None = None,
     redis_url: str = "redis://redis:6379/0",
 ) -> str:
-    job_id = f"candidate-profile:{attempt_id}:{stage}:{claim_id}"
+    job_id = f"candidate-profile-{attempt_id}-{stage}-{claim_id}"
     if _inline_execution_enabled():
         return _enqueue_inline_after_delay(
             _run_inline_candidate_profile_stage,

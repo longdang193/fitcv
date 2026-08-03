@@ -539,6 +539,14 @@ Focused evidence: `92 passed, 1 skipped` across Candidate Profile convergence, e
 - Production mock scan from Task 8 passes
 - Real-backend browser flow must pass before sidecar deletion
 
+**Execution Evidence — August 3, 2026:**
+- YAML completed real SQLite upload, baseline approval, controlled derivation approval, idempotent confirmation, exact Confirmation/Candidate Details canonical equality, catalog visibility, archive replay, restore symmetry, and Run eligibility capability checks on port `8766`.
+- Real attempt resources now expose baseline and derived approval timestamps from approved immutable snapshots; focused SQLite and Candidate Profile app suites pass.
+- Candidate Profile RQ jobs now use RQ-valid stable IDs; focused queue and Candidate Profile app suites pass.
+- Markdown and DOCX pass upload validation, source persistence, queue dispatch, deterministic extraction, and terminal failure projection, but full review remains blocked by missing `candidate_profile_base_mapping` LLM routing in the isolated runtime.
+- Packaged-local `/llm-configuration` exists but isolated live verification returns retryable `credential_store_failed`; existing route and settings tests remain current proof until an available credential store and configured model unblock live MD/DOCX completion.
+- Integration sidecar remains because real MD/DOCX completion, full browser/accessibility matrix, and live LLM settings verification are not complete.
+
 **Steps:**
 - [ ] Update API, configuration, pipeline, sample, and template documentation from executable routes, registry, tests, and SQLite schema; do not copy second field registry into prose.
 - [ ] Run Playwright MCP against real SQLite backend for MD, DOCX, and YAML creation through upload, polling, review, regeneration, evidence tracing, approvals, idempotent confirmation, details equality, archive/restore, resume, conflict, retry, restart recovery, and Run-picker eligibility.
