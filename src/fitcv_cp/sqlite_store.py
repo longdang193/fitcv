@@ -2158,7 +2158,7 @@ def create_candidate_profile_creation_attempt(
                 raise ValueError("idempotency_conflict")
             return json.loads(existing["response_json"])
         attempt_id = f"attempt_{uuid.uuid4().hex}"
-        document_id = f"doc_{checksum[:16]}"
+        document_id = f"doc_{attempt_id.removeprefix('attempt_')}"
         timestamp = now.isoformat()
         conn.execute("BEGIN IMMEDIATE")
         conn.execute(

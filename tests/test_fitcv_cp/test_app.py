@@ -584,6 +584,9 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     creation_template = Path(
         "src/fitcv_cp/templates/candidate_profile_creation.html"
     ).read_text(encoding="utf-8")
+    assert "async function waitForCandidateProfileAttempt" in creation_template
+    assert "await waitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline')" in creation_template
+    assert "await waitForCandidateProfileAttempt(attemptId, stage === 'baseline' ? 'review_derived' : 'confirm')" in creation_template
     collection_macro = creation_template[
         creation_template.index("{% macro review_collection") : creation_template.index(
             "{% macro evidence_ref_selector"

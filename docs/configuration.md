@@ -44,14 +44,15 @@ construction, FitCV Local:
 4. retires that matched set under
    `<data-root>\backups\database-reset-<UTC timestamp>`;
 5. removes the active matched set only after backup succeeds;
-6. creates control-plane schema version `2`, seeds Candidate Profiles, and
+6. creates control-plane schema version `5`, seeds Candidate Profiles, and
    starts with empty Runs.
 
 If backup fails, the active database remains in place. If an existing database
-has an unversioned populated schema or any version other than `2`, startup
-raises `database_schema_incompatible` and opens recovery mode instead of
-mutating, migrating, or dual-reading it. There is no database-reset HTTP route
-and no reset control in Data & Backup UI.
+has an unversioned populated schema or an unsupported version, startup raises
+`database_schema_incompatible` and opens recovery mode instead of mutating or
+dual-reading it. Supported v3/v4 stores migrate transactionally to v5 before
+normal startup. There is no database-reset HTTP route and no reset control in
+Data & Backup UI.
 
 Rollback requires stopping FitCV and restoring a matched old application and
 database set. New code does not promise compatibility with retired schema.
@@ -77,6 +78,17 @@ commits with no selectable profiles and persists
 `candidate_profile.yaml`, then run `fitcv-local --reset-database`. Seed rows are
 created only during fresh initialization; editing base file does not silently
 rewrite an existing catalog.
+
+### Candidate Profile Creation Runtime
+
+- `config/runtime/control_plane.yaml` owns routing parts `candidate_profile_base_mapping` and `candidate_profile_derived_claims`
+- existing `/llm-configuration` and `/admin/settings#llm-configuration` surfaces configure both tasks; no Candidate Profile-specific provider settings exist
+- deterministic parsers own source fidelity and source locators; shared LLM runtime handles only ambiguous baseline mapping and controlled derived proposals
+- `FITCV_LLM_API_KEY` remains sole repo-native generative credential input
+- accepted `.md`, `.docx`, and `.yaml` files use one SQLite-backed staged lifecycle and one v2 canonical confirmation path
+- unconfirmed attempts expire 30 days after last accepted mutation or successful processing completion; lease renewal alone does not extend retention
+- retention purge removes private bytes, source blocks, and review snapshots atomically; confirmed and archived profile sources remain available
+- existing data-root backup policy remains backup SSOT; Candidate Profile creation adds no second backup mechanism
 
 ## FitCV Local Configuration Ownership
 

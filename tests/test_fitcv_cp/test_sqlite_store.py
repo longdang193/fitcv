@@ -879,6 +879,31 @@ def test_candidate_profile_attempt_retains_source_and_uses_revision_cas(tmp_path
     assert claimed["processing"]["claim_id"]
 
 
+def test_candidate_profile_same_source_can_start_multiple_attempts(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    content = b"# Alex Morgan\n"
+
+    first = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="First",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=content,
+        idempotency_key="create-repeat-1",
+        database_path=database_path,
+    )
+    second = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Second",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=content,
+        idempotency_key="create-repeat-2",
+        database_path=database_path,
+    )
+
+    assert first["attempt_id"] != second["attempt_id"]
+    assert first["source_document"]["source_document_id"] != second["source_document"]["source_document_id"]
+    assert first["source_document"]["checksum"] == second["source_document"]["checksum"]
+
 def test_candidate_profile_stage_publication_requires_claim_and_is_append_only(tmp_path: Path) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
     created = sqlite_store.create_candidate_profile_creation_attempt(

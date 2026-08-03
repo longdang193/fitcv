@@ -280,6 +280,15 @@
 <script>
 (function() {
   var status = document.getElementById('creation-status');
+  async function waitForCandidateProfileAttempt(attemptId, nextAction) {
+    for (var poll = 0; poll < 240; poll += 1) {
+      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId));
+      if (payload.data.next_action === nextAction) return payload.data;
+      if (payload.data.failure) throw new Error(payload.data.failure.message || 'Candidate Profile processing failed.');
+      await new Promise(function(resolve) { setTimeout(resolve, 500); });
+    }
+    throw new Error('Candidate Profile processing is still running. Save and resume from Creation drafts.');
+  }
   var uploadForm = document.getElementById('candidate-profile-upload-form');
   if (uploadForm) {
     var uploadFile = uploadForm.querySelector('[name="profile_file"]');
@@ -305,6 +314,7 @@
     status.textContent = 'Processing CV…';
     try {
       var payload = await fitcvApiRequest('/candidate-profile-creation-attempts', {method: 'POST', headers: {'Idempotency-Key': crypto.randomUUID()}, body: new FormData(uploadForm)});
+      await waitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline');
       location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(payload.data.attempt_id) + '/baseline');
     } catch (error) { status.textContent = error.message; submit.disabled = false; }
     });
@@ -378,6 +388,7 @@
         } else if (regenerate) {
           status.textContent = 'Regenerating…';
           await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/regenerate', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify({expected_revision: revision, targets: [regenerate.dataset.regenerateTarget]})});
+          await waitForCandidateProfileAttempt(attemptId, 'review_' + stage);
           location.reload();
         } else {
           approve.disabled = true;
@@ -385,6 +396,7 @@
           var body = {expected_revision: revision, expected_fingerprint: fingerprint};
           if (stage === 'derived') body.expected_baseline_fingerprint = review.dataset.baselineFingerprint;
           await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/approve', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify(body)});
+          await waitForCandidateProfileAttempt(attemptId, stage === 'baseline' ? 'review_derived' : 'confirm');
           location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(attemptId) + '/' + (stage === 'baseline' ? 'derived' : 'confirm'));
         }
       } catch (error) { status.textContent = error.message; if (approve) approve.disabled = false; }

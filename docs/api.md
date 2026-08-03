@@ -146,11 +146,77 @@ the `/settings/pipeline` resource.
 
 ## Candidate Profiles
 
-### `GET /candidate-profiles?active=true`
+### Field schema
 
-Returns ordered selectable profiles. `active=false` includes inactive rows.
-Candidate Profile creation and management are navigation-only and have no new
-prototype API in this phase.
+`GET /candidate-profile-field-schema` returns the executable v2 field registry,
+including section order, labels, controls, requirements, evidence kinds, and
+date grammar. Its checksum owns `ETag`; matching `If-None-Match` returns `304`.
+
+### Staged creation
+
+- `GET /candidate-profile-creation-attempts`
+- `POST /candidate-profile-creation-attempts`
+- `GET /candidate-profile-creation-attempts/{attempt_id}`
+- `GET /candidate-profile-creation-attempts/{attempt_id}/source`
+- `GET /candidate-profile-creation-attempts/{attempt_id}/source-blocks/{source_block_id}`
+
+Creation requires `Idempotency-Key` plus multipart `profile_name` and one
+non-empty `.md`, `.docx`, or `.yaml` `profile_file`. All formats enter the same
+accepted-upload, deterministic extraction, review, approval, and confirmation
+lifecycle. Success returns `202`; no direct `POST /candidate-profiles` bypass
+exists.
+
+### Review and approval
+
+- `GET|PATCH /candidate-profile-creation-attempts/{attempt_id}/baseline`
+- `POST /candidate-profile-creation-attempts/{attempt_id}/baseline/actions/regenerate`
+- `POST /candidate-profile-creation-attempts/{attempt_id}/baseline/actions/approve`
+- `GET|PATCH /candidate-profile-creation-attempts/{attempt_id}/derived`
+- `POST /candidate-profile-creation-attempts/{attempt_id}/derived/actions/regenerate`
+- `POST /candidate-profile-creation-attempts/{attempt_id}/derived/actions/approve`
+
+PATCH uses one attempt CAS revision and ID-addressed `add`, `replace`, or
+`remove` operations. Regeneration accepts explicit field or entry targets;
+approval requires current revision and stage fingerprint. Baseline approval
+queues controlled derivation. Derived approval also binds the approved baseline
+fingerprint.
+
+### Confirmation and recovery
+
+- `GET /candidate-profile-creation-attempts/{attempt_id}/confirmation`
+- `POST /candidate-profile-creation-attempts/{attempt_id}/actions/confirm`
+- `POST /candidate-profile-creation-attempts/{attempt_id}/actions/retry`
+
+Confirmation requires revision, baseline fingerprint, derived fingerprint, and
+confirmation fingerprint. It creates one immutable Candidate Profile revision;
+same-key replay returns the same profile. Retry is available only when server
+capabilities permit it.
+
+### Catalog and lifecycle
+
+- `GET /candidate-profiles?view=active|archived|all&status=&search=&page=&page_size=`
+- `GET /candidate-profiles/{profile_id}`
+- `GET /candidate-profiles/{profile_id}/runs`
+- `POST /candidate-profiles/{profile_id}/actions/archive`
+- `POST /candidate-profiles/{profile_id}/actions/restore`
+
+Catalog, confirmation, and details expose the same persisted canonical profile
+resource. Archive and restore require `Idempotency-Key` plus
+`expected_revision`; archived profiles remain historically resolvable but are
+not eligible for new Runs.
+
+### Candidate Profile errors
+
+- `404`: missing attempt, source, source block, or profile
+- `409`: stale revision/fingerprint, invalid transition, processing claim, or idempotency conflict
+- `410`: source bytes or private review content purged after retention expiry
+- `413`: upload or bounded model input exceeds limit
+- `415`: unsupported extension or media mismatch
+- `422`: invalid request, review operation, or canonical profile
+
+Unconfirmed inactive attempts purge private source bytes, source blocks, and
+review snapshots atomically after 30 days. Safe filename, media type, size,
+checksum, timestamps, and failure diagnostics remain inspectable.
 
 ## Run Trigger
 
