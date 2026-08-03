@@ -84,11 +84,49 @@ def _app():
     )
     return create_app(redis_url="redis://localhost:6379/0")
 
+def _execute_candidate_profile_stage_now(**kwargs: object) -> str:
+    from fitcv_cp.candidate_profile_service import execute_candidate_profile_stage
+
+    execute_candidate_profile_stage(**kwargs)
+    return f"inline:{kwargs['attempt_id']}:{kwargs['stage']}"
+
+def _empty_docx_bytes() -> bytes:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            """<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>""",
+        )
+        archive.writestr(
+            "word/document.xml",
+            """<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body/></w:document>""",
+        )
+    return output.getvalue()
+
 
 def _candidate_profile_mock_app():
-    from fitcv_cp.candidate_profile_mock import create_candidate_profile_mock_app
+    from test_fitcv_cp.candidate_profile_fixtures import create_candidate_profile_mock_app
 
     return create_candidate_profile_mock_app()
+
+@pytest.mark.parametrize(
+    "app_factory",
+    [_candidate_profile_mock_app, _app],
+    ids=["deterministic-fixture", "sqlite"],
+)
+def test_candidate_profile_route_contract_matches_fixture_and_real_app(app_factory) -> None:
+    routes = {
+        (route.path, method)
+        for route in app_factory().routes
+        for method in (route.methods or set())
+        if "candidate-profile" in route.path
+    }
+
+    assert ("/candidate-profile-creation-attempts", "POST") in routes
+    assert ("/candidate-profile-creation-attempts/{attempt_id}/baseline", "PATCH") in routes
+    assert ("/candidate-profile-creation-attempts/{attempt_id}/actions/confirm", "POST") in routes
+    assert ("/candidate-profiles", "GET") in routes
+    assert ("/candidate-profiles", "POST") not in routes
 
 
 def test_candidate_profile_mock_contract_converges_confirmation_and_detail() -> None:
@@ -221,14 +259,7 @@ def test_candidate_profile_mock_contract_converges_confirmation_and_detail() -> 
 
 def test_candidate_profile_real_app_routes_process_yaml_through_staged_lifecycle() -> None:
     app = _app()
-
-    def execute_now(**kwargs):
-        from fitcv_cp.candidate_profile_service import execute_candidate_profile_stage
-
-        execute_candidate_profile_stage(**kwargs)
-        return f"inline:{kwargs['attempt_id']}:{kwargs['stage']}"
-
-    app.state.enqueue_candidate_profile_stage = execute_now
+    app.state.enqueue_candidate_profile_stage = _execute_candidate_profile_stage_now
     client = TestClient(app)
     source = Path("data/candidate_profile.v2.sample.yaml").read_bytes()
 
@@ -286,6 +317,18 @@ def test_candidate_profile_real_app_routes_process_yaml_through_staged_lifecycle
         },
     )
     assert confirmed.status_code == 201
+    confirmed_again = client.post(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/actions/confirm",
+        headers={"Idempotency-Key": "real-confirm-again"},
+        json={
+            "expected_revision": approved_derived.json()["data"]["revision"],
+            "expected_baseline_fingerprint": confirmation_data["approval_fingerprints"]["baseline"],
+            "expected_derived_fingerprint": confirmation_data["approval_fingerprints"]["derived"],
+            "expected_confirmation_fingerprint": confirmation_data["fingerprint"],
+        },
+    )
+    assert confirmed_again.status_code == 201
+    assert confirmed_again.json()["data"] == confirmed.json()["data"]
     detail = client.get(f"/candidate-profiles/{confirmed.json()['data']['profile_id']}")
     assert detail.json()["data"]["profile"]["canonical"] == confirmation_data["profile"]["canonical"]
     assert detail.json()["data"]["profile"]["checksum"] == confirmation_data["profile"]["checksum"]
@@ -295,6 +338,34 @@ def test_candidate_profile_real_app_routes_process_yaml_through_staged_lifecycle
         data={"profile_name": "Bypass"},
         files={"profile_file": ("candidate.yaml", source, "application/yaml")},
     ).status_code == 405
+
+@pytest.mark.parametrize(
+    ("filename", "media_type", "content"),
+    [
+        ("candidate.md", "text/markdown", b"# Alex Example\n"),
+        (
+            "candidate.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            _empty_docx_bytes(),
+        ),
+    ],
+)
+def test_candidate_profile_real_app_routes_accept_supported_non_yaml_formats(
+    filename: str,
+    media_type: str,
+    content: bytes,
+) -> None:
+    app = _app()
+    app.state.enqueue_candidate_profile_stage = _execute_candidate_profile_stage_now
+    response = TestClient(app).post(
+        "/candidate-profile-creation-attempts",
+        headers={"Idempotency-Key": f"create-{filename}"},
+        data={"profile_name": "Imported Candidate"},
+        files={"profile_file": (filename, content, media_type)},
+    )
+
+    assert response.status_code == 202
+    assert response.json()["data"]["next_action"] == "review_baseline"
 
 def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> None:
     import hashlib
@@ -2779,36 +2850,28 @@ def test_candidate_profiles_returns_collection_envelope() -> None:
 def test_candidate_profile_routes_create_detail_and_archive() -> None:
     app = _app()
     resource = _candidate_profile_resource()
-    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {"action_id": "action-1", "replayed": False, "response": None}
-    app.state.run_store.complete_idempotent_action_fn = lambda *_args: None
-    app.state.run_store.create_candidate_profile_attempt_fn = lambda **_kwargs: resource
     app.state.run_store.get_candidate_profile_detail_fn = lambda _profile_id: resource
     app.state.run_store.transition_candidate_profile_lifecycle_fn = lambda _profile_id, **_kwargs: {**resource, "lifecycle": "archived", "revision": 2}
     client = TestClient(app)
 
-    created = client.post(
-        "/candidate-profiles", headers={"Idempotency-Key": "profile-1"},
-        files={"profile_file": ("profile.yaml", "skills: []", "application/yaml")},
-    )
     detail = client.get("/candidate-profiles/profile-1")
     archived = client.post(
         "/candidate-profiles/profile-1/actions/archive",
         headers={"Idempotency-Key": "archive-1"}, json={"expected_revision": 1},
     )
 
-    assert created.status_code == 201 and created.json()["data"]["profile_id"] == "profile-1"
+    assert client.post("/candidate-profiles").status_code == 405
     assert detail.status_code == 200 and detail.json()["data"]["overview"] == {"skills": []}
     assert archived.status_code == 200 and archived.json()["data"]["lifecycle"] == "archived"
 
 
-def test_candidate_profile_openapi_declares_yaml_import_and_lifecycle_body() -> None:
+def test_candidate_profile_openapi_declares_staged_upload_and_lifecycle_body() -> None:
     schema = TestClient(_app()).get("/openapi.json").json()
 
-    create = schema["paths"]["/candidate-profiles"]["post"]
+    assert "post" not in schema["paths"]["/candidate-profiles"]
+    create = schema["paths"]["/candidate-profile-creation-attempts"]["post"]
     archive = schema["paths"]["/candidate-profiles/{profile_id}/actions/archive"]["post"]
     assert "multipart/form-data" in create["requestBody"]["content"]
-    create_ref = create["requestBody"]["content"]["multipart/form-data"]["schema"]["$ref"]
-    assert ".yaml" in str(schema["components"]["schemas"][create_ref.rsplit("/", 1)[-1]])
     assert archive["requestBody"]["content"]["application/json"]["schema"]
 
 
@@ -2864,29 +2927,24 @@ def test_central_workspace_list_routes_forward_canonical_sort_values() -> None:
     assert captured["synonym"]["sort"] == "updated_desc"
 
 
-def test_candidate_profile_routes_map_rejection_replay_missing_and_stale_states() -> None:
+def test_candidate_profile_routes_map_rejection_missing_and_stale_states() -> None:
     app = _app()
-    resource = _candidate_profile_resource()
     client = TestClient(app)
 
     assert client.post(
-        "/candidate-profiles", files={"profile_file": ("profile.yaml", "skills: []", "application/yaml")}
+        "/candidate-profile-creation-attempts",
+        data={"profile_name": "Candidate"},
+        files={"profile_file": ("profile.yaml", "skills: []", "application/yaml")},
     ).status_code == 422
 
-    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {"action_id": "action-1", "replayed": False, "response": None}
-    app.state.run_store.create_candidate_profile_attempt_fn = lambda **_kwargs: (_ for _ in ()).throw(ValueError("profile_file_type_invalid"))
     rejected = client.post(
-        "/candidate-profiles", headers={"Idempotency-Key": "bad-1"},
+        "/candidate-profile-creation-attempts",
+        headers={"Idempotency-Key": "bad-1"},
+        data={"profile_name": "Candidate"},
         files={"profile_file": ("profile.txt", "skills: []", "text/plain")},
     )
-    assert rejected.status_code == 422 and rejected.json()["error"]["code"] == "profile_file_type_invalid"
-
-    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {"action_id": "action-2", "replayed": True, "response": resource}
-    replay = client.post(
-        "/candidate-profiles", headers={"Idempotency-Key": "replay-1"},
-        files={"profile_file": ("profile.yaml", "skills: []", "application/yaml")},
-    )
-    assert replay.status_code == 201 and replay.json()["data"]["profile_id"] == "profile-1"
+    assert rejected.status_code == 415
+    assert rejected.json()["error"]["code"] == "candidate_profile_file_type_invalid"
 
     app.state.run_store.get_candidate_profile_detail_fn = lambda _profile_id: None
     assert client.get("/candidate-profiles/missing").status_code == 404
@@ -2897,6 +2955,17 @@ def test_candidate_profile_routes_map_rejection_replay_missing_and_stale_states(
         headers={"Idempotency-Key": "stale-1"}, json={"expected_revision": 1},
     )
     assert stale.status_code == 409 and stale.json()["error"]["code"] == "revision_conflict"
+
+def test_candidate_profile_source_purged_maps_to_gone() -> None:
+    app = _app()
+    app.state.run_store.get_candidate_profile_source_fn = lambda _attempt_id: (
+        _ for _ in ()
+    ).throw(ValueError("candidate_profile_source_purged"))
+
+    response = TestClient(app).get("/candidate-profile-creation-attempts/attempt-1/source")
+
+    assert response.status_code == 410
+    assert response.json()["error"]["code"] == "candidate_profile_source_purged"
 
 
 def _synonym_policy_resource() -> dict[str, object]:

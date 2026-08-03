@@ -9512,7 +9512,7 @@ def create_app(
             run_mode=run_mode,
         )
 
-    def _candidate_profile_mock_call(call: Callable[[], Any]) -> Any:
+    def _candidate_profile_call(call: Callable[[], Any]) -> Any:
         try:
             return call()
         except RuntimeError as exc:
@@ -9526,14 +9526,39 @@ def create_app(
             raise
         except ValueError as exc:
             code = str(exc)
-            status = 404 if code in {
-                "candidate_profile_attempt_not_found",
-                "candidate_profile_source_not_found",
-            } else 409 if code in {
-                "candidate_profile_revision_conflict",
-                "candidate_profile_invalid_transition",
-                "candidate_profile_fingerprint_conflict",
-            } else 422
+            status = (
+                404
+                if code in {
+                    "candidate_profile_attempt_not_found",
+                    "candidate_profile_source_not_found",
+                }
+                else 410
+                if code in {
+                    "candidate_profile_source_purged",
+                    "candidate_profile_source_expired",
+                }
+                else 409
+                if code in {
+                    "candidate_profile_revision_conflict",
+                    "candidate_profile_invalid_transition",
+                    "candidate_profile_transition_invalid",
+                    "candidate_profile_fingerprint_conflict",
+                    "candidate_profile_processing_claim_conflict",
+                    "candidate_profile_already_confirmed",
+                    "idempotency_conflict",
+                }
+                else 413
+                if code in {
+                    "candidate_profile_file_too_large",
+                    "candidate_profile_model_input_too_large",
+                }
+                else 415
+                if code in {
+                    "candidate_profile_file_type_invalid",
+                    "candidate_profile_file_media_mismatch",
+                }
+                else 422
+            )
             raise ApiError(status, code, "Candidate Profile action could not be completed.") from exc
 
     @app.get("/candidate-profile-field-schema")
@@ -9552,7 +9577,7 @@ def create_app(
         page_size: int = 20,
     ) -> dict[str, Any]:
         page, page_size = _validated_page(page, page_size)
-        result = _candidate_profile_mock_call(
+        result = _candidate_profile_call(
             lambda: _resolve_run_store().query_candidate_profile_creation_attempts(
                 status=status,
                 search=search,
@@ -9580,7 +9605,7 @@ def create_app(
         key = _required_idempotency_key(request)
         content = await profile_file.read()
         store = _resolve_run_store()
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: store.create_candidate_profile_creation_attempt(
                 profile_name=profile_name,
                 original_filename=str(profile_file.filename or ""),
@@ -9589,7 +9614,7 @@ def create_app(
                 idempotency_key=key,
             )
         )
-        claimed = _candidate_profile_mock_call(
+        claimed = _candidate_profile_call(
             lambda: store.claim_candidate_profile_processing(
                 resource["attempt_id"],
                 stage="base_mapping",
@@ -9611,7 +9636,7 @@ def create_app(
         response_model=CandidateProfileCreationAttemptEnvelope,
     )
     def get_candidate_profile_creation_attempt(attempt_id: str) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id)
         )
         if resource is None:
@@ -9620,7 +9645,7 @@ def create_app(
 
     @app.get("/candidate-profile-creation-attempts/{attempt_id}/source")
     def download_candidate_profile_source(attempt_id: str) -> Response:
-        source = _candidate_profile_mock_call(
+        source = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_source(attempt_id)
         )
         if source is None:
@@ -9640,7 +9665,7 @@ def create_app(
         response_model=CandidateProfileSourceBlockEnvelope,
     )
     def get_candidate_profile_source_block(attempt_id: str, source_block_id: str) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_source_block(attempt_id, source_block_id)
         )
         if resource is None:
@@ -9648,7 +9673,7 @@ def create_app(
         return _data_response(resource)
 
     def _candidate_profile_review(attempt_id: str, stage: str) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_review(attempt_id, stage)
         )
         if resource is None:
@@ -9675,7 +9700,7 @@ def create_app(
         stage: str,
         body: CandidateProfileReviewPatchRequest,
     ) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().patch_candidate_profile_review(
                 attempt_id,
                 stage,
@@ -9715,7 +9740,7 @@ def create_app(
         body: CandidateProfileRegenerateRequest,
     ) -> dict[str, Any]:
         store = _resolve_run_store()
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().regenerate_candidate_profile_review(
                 attempt_id,
                 stage,
@@ -9767,7 +9792,7 @@ def create_app(
         attempt_id: str,
         body: CandidateProfileApproveRequest,
     ) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().approve_candidate_profile_review(
                 attempt_id,
                 "baseline",
@@ -9796,7 +9821,7 @@ def create_app(
         attempt_id: str,
         body: CandidateProfileDerivedApproveRequest,
     ) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().approve_candidate_profile_review(
                 attempt_id,
                 "derived",
@@ -9813,7 +9838,7 @@ def create_app(
         response_model=CandidateProfileConfirmationEnvelope,
     )
     def get_candidate_profile_confirmation(attempt_id: str) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_confirmation(attempt_id)
         )
         if resource is None:
@@ -9830,7 +9855,7 @@ def create_app(
         attempt_id: str,
         body: CandidateProfileConfirmRequest,
     ) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().confirm_candidate_profile_creation_attempt(
                 attempt_id,
                 **body.model_dump(),
@@ -9849,7 +9874,7 @@ def create_app(
         attempt_id: str,
         body: CandidateProfileRetryRequest,
     ) -> dict[str, Any]:
-        resource = _candidate_profile_mock_call(
+        resource = _candidate_profile_call(
             lambda: _resolve_run_store().retry_candidate_profile_creation_attempt(
                 attempt_id,
                 expected_revision=body.expected_revision,
@@ -12083,19 +12108,19 @@ def create_app(
         attempt_id: str,
         stage: str,
     ) -> HTMLResponse:
-        attempt = _candidate_profile_mock_call(
+        attempt = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id)
         )
         if attempt is None:
             raise HTTPException(status_code=404, detail="Candidate Profile attempt not found")
-        review = _candidate_profile_mock_call(
+        review = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_review(attempt_id, stage)
         )
         if review is None:
             raise HTTPException(status_code=404, detail="Candidate Profile review not found")
         field_schema = candidate_profile_field_schema()
         baseline_review = (
-            _candidate_profile_mock_call(
+            _candidate_profile_call(
                 lambda: _resolve_run_store().get_candidate_profile_review(attempt_id, "baseline")
             )
             if stage == "derived"
@@ -12140,12 +12165,12 @@ def create_app(
         request: Request,
         attempt_id: str,
     ) -> HTMLResponse:
-        confirmation = _candidate_profile_mock_call(
+        confirmation = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_confirmation(attempt_id)
         )
         if confirmation is None:
             raise HTTPException(status_code=404, detail="Candidate Profile confirmation not found")
-        attempt = _candidate_profile_mock_call(
+        attempt = _candidate_profile_call(
             lambda: _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id)
         )
         if attempt is None:

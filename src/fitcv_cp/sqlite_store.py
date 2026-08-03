@@ -39,6 +39,7 @@ from fitcv.decision_feedback import (
     RatingEventType,
     RatingValue,
 )
+from fitcv.candidate_ingest import CandidateIngestError, validate_candidate_source_upload
 from fitcv.inverse_optimization import InverseOptimizationRequest, InverseTrainingEpisode
 from fitcv.persistence import get_local_sqlite_path
 from fitcv.preference_policy import (
@@ -2133,6 +2134,17 @@ def create_candidate_profile_creation_attempt(
     normalized_name = profile_name.strip()
     if not normalized_name:
         raise ValueError("candidate_profile_name_required")
+    try:
+        validate_candidate_source_upload(original_filename, media_type, content)
+    except CandidateIngestError as exc:
+        code = {
+            "candidate_profile_unsupported_source": "candidate_profile_file_type_invalid",
+            "candidate_profile_media_mismatch": "candidate_profile_file_media_mismatch",
+            "candidate_profile_empty_source": "candidate_profile_file_empty",
+            "candidate_profile_source_too_large": "candidate_profile_file_too_large",
+            "candidate_profile_unsafe_filename": "candidate_profile_file_unsafe",
+        }.get(exc.code, exc.code)
+        raise ValueError(code) from exc
     path = database_path or Path(_local_sqlite_path())
     checksum = hashlib.sha256(content).hexdigest()
     request_fingerprint = hashlib.sha256(json.dumps([normalized_name, original_filename, media_type, checksum], separators=(",", ":")).encode()).hexdigest()

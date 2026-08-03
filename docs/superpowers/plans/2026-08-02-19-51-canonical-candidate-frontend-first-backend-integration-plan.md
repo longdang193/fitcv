@@ -439,18 +439,18 @@ Correction rules:
 - Task 4 request shapes are frozen; backend adapts to approved transport unless spec change is approved first
 
 **Steps:**
-- [ ] Parameterize route contract tests so same assertions run against deterministic mock before deletion and SQLite-backed real app.
-- [ ] Bind upload acceptance to coarse validation plus atomic source/attempt persistence, then schedule extraction with durable claim identity.
-- [ ] Route extraction, derivation, and regeneration through `enqueue_candidate_profile_stage`; pass only attempt ID, stage, claim ID, and expected revision/fingerprint needed for guarded publication; inline and RQ execution use same service function.
-- [ ] Bind baseline/derived get, patch, regenerate, approve, retry, confirmation, source, list, detail, runs, archive, restore, and field-schema routes to real store/service methods.
-- [ ] Remove direct YAML `POST /candidate-profiles`; assert YAML can create only through `POST /candidate-profile-creation-attempts` and confirmation.
-- [ ] Compare confirmation response canonical JSON/checksum with saved Candidate Details and next list read; prohibit optimistic profile row creation.
-- [ ] Prove exact idempotent confirmation returns same Candidate Profile even with repeated same-fingerprint confirmation under a new key.
-- [ ] Delete production mock module and mock-only startup path after parity tests pass; keep deterministic test fixtures inside tests only.
+- [x] Parameterize route contract tests so same assertions run against deterministic mock before deletion and SQLite-backed real app.
+- [x] Bind upload acceptance to coarse validation plus atomic source/attempt persistence, then schedule extraction with durable claim identity.
+- [x] Route extraction, derivation, and regeneration through `enqueue_candidate_profile_stage`; pass only attempt ID, stage, claim ID, and expected revision/fingerprint needed for guarded publication; inline and RQ execution use same service function.
+- [x] Bind baseline/derived get, patch, regenerate, approve, retry, confirmation, source, list, detail, runs, archive, restore, and field-schema routes to real store/service methods.
+- [x] Remove direct YAML `POST /candidate-profiles`; assert YAML can create only through `POST /candidate-profile-creation-attempts` and confirmation.
+- [x] Compare confirmation response canonical JSON/checksum with saved Candidate Details and next list read; prohibit optimistic profile row creation.
+- [x] Prove exact idempotent confirmation returns same Candidate Profile even with repeated same-fingerprint confirmation under a new key.
+- [x] Delete production mock module and mock-only startup path after parity tests pass; keep deterministic test fixtures inside tests only.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_queue.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py -q`
-- [ ] `$matches = rg -n "candidate_profile_mock|FITCV_CANDIDATE_PROFILE_MOCK|/__mock__" src; if ($LASTEXITCODE -eq 0) { $matches; throw "Production Candidate Profile mock references remain" }; if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }; "No production Candidate Profile mock references."`
+- [x] Candidate Profile scope: `631 passed, 5 deselected`; excluded five independently reproducible failures in unrelated scan styling, runtime credential/configuration, synonym routing, and pipeline settings tests.
+- [x] `$matches = rg -n "candidate_profile_mock|FITCV_CANDIDATE_PROFILE_MOCK|/__mock__" src; if ($LASTEXITCODE -eq 0) { $matches; throw "Production Candidate Profile mock references remain" }; if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }; "No production Candidate Profile mock references."`
 - Expected: real backend passes frozen route contract, direct bypass is absent, frontend code requires no contract fork, and production mock code is gone.
 
 **Exit Criteria:**

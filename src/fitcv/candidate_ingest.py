@@ -54,7 +54,12 @@ def _normalize_text(value: str) -> str:
     return " ".join(value.split())
 
 
-def _validate_boundary(filename: str, media_type: str, content: bytes, max_bytes: int) -> str:
+def validate_candidate_source_upload(
+    filename: str,
+    media_type: str,
+    content: bytes,
+    max_bytes: int = DEFAULT_MAX_BYTES,
+) -> str:
     if (
         not filename
         or filename in {".", ".."}
@@ -267,7 +272,7 @@ def ingest_candidate_source(
     max_bytes: int = DEFAULT_MAX_BYTES,
     max_docx_expanded_bytes: int = DEFAULT_MAX_DOCX_EXPANDED_BYTES,
 ) -> CandidateIngestResult:
-    extension = _validate_boundary(filename, media_type, content, max_bytes)
+    extension = validate_candidate_source_upload(filename, media_type, content, max_bytes)
     parser_name = {".md": "fitcv-markdown-parser", ".docx": "fitcv-docx-parser", ".yaml": "fitcv-yaml-importer"}[extension]
     document = _source_document(filename, media_type, content, parser_name)
     profile: dict[str, Any] | None = None

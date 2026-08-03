@@ -1,4 +1,4 @@
-"""Deterministic Candidate Profile mock used for frontend approval."""
+"""Deterministic Candidate Profile fixture used for route and UI contract tests."""
 
 from __future__ import annotations
 
@@ -651,6 +651,20 @@ class CandidateProfileMockState:
         self.idempotent_results[key] = copy.deepcopy(resource)
         return resource
 
+    def claim_processing(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]:
+        attempt = self.attempts.get(attempt_id)
+        if not attempt:
+            raise ValueError("candidate_profile_attempt_not_found")
+        self._assert_revision(attempt, int(kwargs["expected_revision"]))
+        resource = self._attempt_resource(attempt)
+        resource["processing"] = {
+            "stage": str(kwargs["stage"]),
+            "claim_id": f"claim-{attempt_id}-{kwargs['stage']}",
+            "attempt": 1,
+            "lease_expires_at": None,
+        }
+        return resource
+
     def get_attempt(self, attempt_id: str) -> dict[str, Any] | None:
         attempt = self.attempts.get(attempt_id)
         return self._attempt_resource(attempt) if attempt else None
@@ -952,6 +966,7 @@ def create_candidate_profile_mock_app():
     store = app.state.run_store
     store.query_candidate_profile_creation_attempts_fn = state.query_attempts
     store.create_candidate_profile_creation_attempt_fn = state.create_attempt
+    store.claim_candidate_profile_processing_fn = state.claim_processing
     store.get_candidate_profile_creation_attempt_fn = state.get_attempt
     store.get_candidate_profile_source_fn = state.get_source
     store.get_candidate_profile_source_block_fn = state.get_source_block
@@ -967,6 +982,7 @@ def create_candidate_profile_mock_app():
     store.get_candidate_profile_fn = state.get_profile_for_run
     store.query_candidate_profile_runs_fn = lambda _profile_id, **_kwargs: {"items": [], "total": 0}
     store.transition_candidate_profile_lifecycle_fn = state.transition_profile
+    app.state.enqueue_candidate_profile_stage = lambda **_kwargs: None
     app.state.templates.env.globals["local_mode"] = True
     if not any(route.path == "/admin/llm-configuration" for route in app.routes):
         llm_configuration = {
@@ -1028,6 +1044,3 @@ def create_candidate_profile_mock_app():
             )
     app.state.candidate_profile_mock_state = state
     return app
-
-
-app = create_candidate_profile_mock_app()
