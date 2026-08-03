@@ -1,0 +1,456 @@
+{% extends "base.html" %}
+{% from "candidate_profile_sections.html" import presentation_field_label, presentation_origin, presentation_section_label, render_confirmation %}
+{% block title %}Create Candidate Profile — FitCV{% endblock %}
+
+{% macro wand_icon() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m15 4 5 5L8 21l-5-5Z"/><path d="m13 6 5 5M5 4v3M3.5 5.5h3M19 15v4M17 17h4"/></svg>
+{%- endmacro %}
+
+{% macro info_icon() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+{%- endmacro %}
+
+{% macro source_locator(source_refs) -%}
+{% set reference = (source_refs or [])|first %}{% set locator = reference.locator if reference else none %}{% if locator and locator.kind == 'markdown_lines' %}md:lines {{ locator.start }}-{{ locator.end }}{% elif locator and locator.kind == 'docx_paragraph' %}docx:paragraph {{ locator.paragraph }}{% elif locator %}{{ locator|tojson }}{% else %}unresolved{% endif %}
+{%- endmacro %}
+
+{% macro evidence_entry_actions(annotation, regenerate_target, remove_path, label, generate_label, remove_label, source_kind, source_title, source_description, reviewed_value='', evidence_id='', source_template='') -%}
+<div class="field-action-row">
+  {% if annotation.source_block_ids %}<button class="evidence-trigger" type="button" data-source-block="{{ annotation.source_block_ids[0] }}" data-source-kind="{{ source_kind }}" data-source-title="{{ source_title }}" data-source-description="{{ source_description }}"{% if reviewed_value %} data-reviewed-value="{{ reviewed_value }}"{% endif %}{% if evidence_id %} data-evidence-id="{{ evidence_id }}"{% endif %}{% if source_template %} data-source-template="{{ source_template }}"{% endif %} aria-label="View source evidence for {{ label }}">Source</button>{% endif %}
+  <button class="wand-btn" type="button" data-regenerate-target="{{ regenerate_target }}" aria-label="{{ generate_label }}">{{ wand_icon() }}</button>
+  <button class="btn danger" type="button" data-remove-path="{{ remove_path }}" aria-label="{{ remove_label }}">Remove</button>
+</div>
+{%- endmacro %}
+
+{% macro review_field(field_name, meta, value, path, annotations, compact=false, section_id='', qualifier='') -%}
+{% set annotation = annotations.get(path, {}) %}
+{% set input_id = ('field-' ~ path)|replace('/', '-') %}
+{% set field_label = presentation_field_label(section_id, field_name, meta) %}
+{% set requirement_label = qualifier if qualifier else ('' if meta.required else 'Optional') %}
+<div class="review-field" data-field-wrapper="{{ path }}">
+  {% if compact %}
+  <span class="field-label-copy"><label for="{{ input_id }}">{{ field_label }}</label>{% if requirement_label %}<span class="field-qualifier">{{ requirement_label }}</span>{% endif %}{% if meta.description %}<span class="field-help"><button class="info-trigger" type="button" aria-label="About {{ field_label }}" aria-describedby="{{ input_id }}-help">{{ info_icon() }}</button><span class="field-help-tooltip" id="{{ input_id }}-help" role="tooltip">{{ meta.description }}</span></span>{% endif %}</span>
+  {% else %}
+  <div class="review-field-label">
+    <span class="field-label-copy"><label for="{{ input_id }}">{{ field_label }}</label>{% if requirement_label %}<span class="field-qualifier">{{ requirement_label }}</span>{% endif %}{% if meta.description %}<span class="field-help"><button class="info-trigger" type="button" aria-label="About {{ field_label }}" aria-describedby="{{ input_id }}-help">{{ info_icon() }}</button><span class="field-help-tooltip" id="{{ input_id }}-help" role="tooltip">{{ meta.description }}</span></span>{% endif %}</span>
+    <span class="field-action-row">
+      {% if annotation.source_block_ids %}<button class="evidence-trigger" type="button" data-source-block="{{ annotation.source_block_ids[0] }}" data-source-kind="baseline" data-source-title="{{ field_label }}" data-source-description="Source locator for extracted baseline metadata." data-reviewed-value="{{ value or '—' }}" aria-label="View source evidence for {{ field_label }}">Source</button>{% endif %}
+      {% if annotation.regenerable %}<button class="wand-btn" type="button" data-regenerate-target="{{ path }}" aria-label="Regenerate {{ field_label }}">{{ wand_icon() }}</button>{% endif %}
+    </span>
+  </div>
+  {% endif %}
+  {% if meta.shape == 'textarea' %}
+  <textarea class="field" id="{{ input_id }}" data-field-path="{{ path }}" rows="3"{% if meta.required %} required{% endif %}>{{ value or '' }}</textarea>
+  {% elif meta.shape == 'select' %}
+  <select class="field" id="{{ input_id }}" data-field-path="{{ path }}"{% if meta.required %} required{% endif %}>{% for option in meta.options %}{% set option_value = option.value if option is mapping else option %}{% set option_label = option.label if option is mapping else option|replace('_', ' ')|title %}<option value="{{ option_value }}" {{ 'selected' if value == option_value else '' }}>{{ option_label }}</option>{% endfor %}</select>
+  {% elif meta.shape == 'number' %}
+  <input class="field" id="{{ input_id }}" data-field-path="{{ path }}" data-value-kind="number" type="number" min="0" max="1" step="0.01" value="{{ value if value is not none else '' }}"{% if meta.required %} required{% endif %}>
+  {% elif meta.shape in ['month', 'month_or_present'] %}
+  <input class="field" id="{{ input_id }}" data-field-path="{{ path }}" inputmode="numeric" pattern="(?:[0-9]{4}-(?:0[1-9]|1[0-2])|Present)" placeholder="YYYY-MM or Present" value="{{ value or '' }}"{% if meta.required %} required{% endif %}>
+  {% elif meta.shape == 'evidence_refs' %}
+  <textarea class="field" id="{{ input_id }}" data-field-path="{{ path }}" data-value-kind="list" rows="2" aria-describedby="{{ input_id }}-hint">{{ (value or [])|join(', ') }}</textarea>
+  <small class="meta" id="{{ input_id }}-hint">Comma-separated evidence IDs.</small>
+  {% elif meta.shape == 'string_list_field' %}
+  <input class="field" id="{{ input_id }}" data-field-path="{{ path }}" data-value-kind="list" type="text" value="{{ (value or [])|join(', ') }}" aria-describedby="{{ input_id }}-hint">
+  <small class="meta" id="{{ input_id }}-hint">Comma-separated values.</small>
+  {% elif meta.shape == 'source_refs' %}
+  <div class="source-ref-summary">{{ (value or [])|length }} source reference{{ '' if (value or [])|length == 1 else 's' }}</div>
+  {% else %}
+  <input class="field" id="{{ input_id }}" data-field-path="{{ path }}" type="text" value="{{ value or '' }}"{% if field_name in ['id', 'origin'] %} readonly{% endif %}{% if meta.required %} required{% endif %}>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro evidence_collection(meta, item_schema, items, path, annotations) -%}
+{% set item_label = (meta.item_label or 'Evidence')|trim %}
+<div class="nested-evidence">
+  <div class="review-section-head">
+    <div><h4>Evidence</h4><p>Each statement has stable ID and source provenance.</p></div>
+    <button class="btn" type="button" data-add-path="{{ path }}" data-item-schema="{{ item_schema|tojson|forceescape }}">Add Evidence</button>
+  </div>
+  <div class="evidence-editor-list">
+    {% for item in items or [] %}
+    {% set item_path = path ~ '/' ~ item.id %}
+    {% set annotation = annotations.get(item_path ~ '/text', {}) %}
+    <article class="evidence-editor">
+      <div class="entry-head">
+        <strong>{{ item_label }} {{ loop.index }} · <code>{{ item.id }}</code></strong>
+        {{ evidence_entry_actions(annotation, item_path ~ '/text', item_path, 'Evidence statement', 'Generate evidence text from parent context', 'Remove ' ~ item_label ~ ' ' ~ loop.index, 'evidence', item.title or item.id, 'Immutable source evidence for one canonical evidence item.', item.text, item.id) }}
+      </div>
+      <div class="entry-fields">
+        {% for field_name, field_meta in item_schema.items() if field_name not in ['id', 'source_refs'] %}
+        {{ review_field(field_name, field_meta, item.get(field_name), item_path ~ '/' ~ field_name, annotations, true, 'evidence') }}
+        {% endfor %}
+      </div>
+    </article>
+    {% else %}<p class="supporting-text">No evidence statements.</p>{% endfor %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro review_collection(meta, item_schema, items, path, annotations, nested=false, section_id='') -%}
+{% set item_label = meta.item_label or (meta.label[:-1] if meta.label.endswith('s') else meta.label) %}
+{% set section_label = presentation_section_label(meta) if meta.id else meta.label %}
+{% set required_one_of = meta.required_one_of or [] %}
+<div class="{{ 'nested-evidence' if nested else '' }}">
+  <div class="review-section-head">
+    <div><h3>{{ section_label }}</h3><p class="meta">{{ meta.description or 'Review and edit each entry.' }}</p></div>
+    <div class="review-section-head-actions"><span class="draft-status">{{ (items or [])|length }} {{ 'entry' if (items or [])|length == 1 else 'entries' }}</span><button class="btn" type="button" data-add-path="{{ path }}" data-item-schema="{{ item_schema|tojson|forceescape }}">Add {{ item_label }}</button></div>
+  </div>
+  <div class="collection-list">
+    {% for item in items or [] %}
+    {% set item_id = item.id or loop.index0 %}
+    <article class="collection-entry">
+      <div class="entry-head">
+        <strong>{{ item_label }} {{ loop.index }}{% if item.id %} · <code>{{ item.id }}</code>{% endif %}</strong>
+        <button class="btn danger" type="button" data-remove-path="{{ path }}/{{ item_id }}" aria-label="Remove {{ item_label }} {{ loop.index }}">Remove</button>
+      </div>
+      <div class="entry-fields">
+        {% for field_name, field_meta in item_schema.items() %}
+          {% set field_path = path ~ '/' ~ item_id ~ '/' ~ field_name %}
+          {% if field_meta.shape == 'collection' and field_name == 'evidence' %}
+          {% elif field_meta.shape == 'collection' %}
+            {{ review_collection(field_meta, field_meta.item, item.get(field_name), path ~ '/' ~ item_id ~ '/' ~ field_name, annotations, true, field_name) }}
+          {% elif field_name not in ['id', 'source_refs'] %}
+            {{ review_field(field_name, field_meta, item.get(field_name), field_path, annotations, false, section_id, 'One required' if field_name in required_one_of else '') }}
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% set evidence_meta = item_schema.get('evidence') %}
+      {% if evidence_meta and evidence_meta.shape == 'collection' %}
+        {{ evidence_collection(evidence_meta, evidence_meta.item, item.get('evidence'), path ~ '/' ~ item_id ~ '/evidence', annotations) }}
+      {% endif %}
+    </article>
+    {% else %}<div class="empty-state"><h3>No {{ section_label|lower }}</h3><p>Add an entry when this candidate document contains relevant evidence.</p></div>{% endfor %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro evidence_ref_selector(section, item, path, baseline_document, field_schema) -%}
+{% set input_prefix = ('field-' ~ path)|replace('/', '-') %}
+{% set found = namespace(value=false) %}
+<fieldset class="evidence-ref-selector">
+  <legend>Evidence refs</legend>
+  {% for baseline_section in field_schema.sections if baseline_section.stage == 'baseline' and baseline_section.shape == 'collection' %}
+    {% for parent in baseline_document.get(baseline_section.id, []) %}
+      {% for evidence in parent.get('evidence', []) %}
+        {% set found.value = true %}
+        <label for="{{ input_prefix }}-{{ evidence.id }}">
+          <input id="{{ input_prefix }}-{{ evidence.id }}" type="checkbox" value="{{ evidence.id }}" data-evidence-ref-path="{{ path }}" {{ 'checked' if evidence.id in (item.evidence_refs or []) else '' }}>
+          <span><code>{{ evidence.id }}</code>{{ evidence.title or evidence.text }}</span>
+        </label>
+      {% endfor %}
+    {% endfor %}
+  {% endfor %}
+  {% if not found.value %}<p class="meta">No approved evidence available.</p>{% endif %}
+  <small>Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.</small>
+</fieldset>
+{%- endmacro %}
+
+{% macro derived_collection(section, items, path, annotations, baseline_document, field_schema) -%}
+<div>
+  <div class="review-section-head">
+    <div><h3>{{ presentation_section_label(section) }}</h3><p class="meta">{{ section.description }}</p></div>
+    <div class="review-section-head-actions"><span class="draft-status">{{ (items or [])|length }} {{ 'entry' if (items or [])|length == 1 else 'entries' }}</span><button class="btn" type="button" data-add-path="{{ path }}" data-item-schema="{{ section.item|tojson|forceescape }}">Add {{ section.item_label }}</button></div>
+  </div>
+  <div class="collection-list">
+    {% for item in items or [] %}
+    {% set item_path = path ~ '/' ~ item.id %}
+    {% set name_path = item_path ~ '/name' %}
+    {% set annotation = annotations.get(name_path, {}) %}
+    {% set input_id = ('field-' ~ name_path)|replace('/', '-') %}
+    {% set source_template = 'source-dialog-' ~ section.id ~ '-' ~ item.id %}
+    <article class="derived-entry">
+      <div class="derived-entry-head">
+        <strong>{{ section.item_label }} {{ loop.index }} · <code>{{ item.id }}</code></strong>
+        {{ evidence_entry_actions(annotation, name_path, item_path, section.item_label|trim, 'Generate supported ' ~ (section.item_label|trim), 'Remove ' ~ (section.item_label|trim) ~ ' ' ~ loop.index, 'derived', item.name or section.item_label, 'Controlled derivation from approved evidence IDs.', '', '', source_template) }}
+      </div>
+      <div class="derived-entry-body">
+        <label for="{{ input_id }}">Name<input class="field" id="{{ input_id }}" data-field-path="{{ name_path }}" type="text" value="{{ item.name or '' }}" required></label>
+        {{ evidence_ref_selector(section, item, item_path ~ '/evidence_refs', baseline_document, field_schema) }}
+        <div class="derived-meta">
+          <span class="derived-chip">{{ (item.confidence * 100)|round|int }}% confidence</span>
+          <span class="derived-chip">{{ presentation_origin(item.origin) }}</span>
+          <span class="derived-chip">{{ item.support_status }}</span>
+        </div>
+      </div>
+    </article>
+    <template id="{{ source_template }}"><div><strong>Derived claim</strong><blockquote>{{ item.name or 'Empty claim' }}</blockquote></div><div><strong>Evidence refs</strong><div class="evidence-ref-list">{% for evidence_ref in item.evidence_refs or [] %}{% set match = namespace(value=none) %}{% for baseline_section in field_schema.sections if baseline_section.stage == 'baseline' and baseline_section.shape == 'collection' %}{% for parent in baseline_document.get(baseline_section.id, []) %}{% for evidence in parent.get('evidence', []) %}{% if evidence.id == evidence_ref %}{% set match.value = evidence %}{% endif %}{% endfor %}{% endfor %}{% endfor %}<div class="evidence-ref-item"><code>{{ evidence_ref }}</code><p>{{ match.value.text if match.value else 'Unresolved reference' }}</p><small>{{ source_locator(match.value.source_refs if match.value else []) }}</small></div>{% else %}<p>No evidence refs yet.</p>{% endfor %}</div></div></template>
+    {% else %}<div class="empty-state"><h3>No {{ section.label|lower }}</h3><p>Add an entry or regenerate this section from approved baseline evidence.</p></div>{% endfor %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro creation_stepper(stage) -%}
+{% set current = {'upload': 1, 'baseline': 2, 'derived': 3, 'confirm': 4}[stage] %}
+<ol class="creation-stepper" aria-label="Candidate Profile creation progress">
+  {% for step_label in ['Upload', 'Baseline', 'Derived', 'Confirm'] %}
+  <li class="creation-step {{ 'current' if loop.index == current else 'complete' if loop.index < current else '' }}"{% if loop.index == current %} aria-current="step"{% endif %}><span class="creation-step-index">{{ '✓' if loop.index < current else loop.index }}</span><span>{{ step_label }}</span></li>
+  {% endfor %}
+</ol>
+{%- endmacro %}
+
+{% macro creation_footer(stage) -%}
+{% set confirm_stage = stage == 'confirm' %}
+{% set derived_stage = stage == 'derived' %}
+<div class="creation-footer">
+  <div class="creation-footer-copy"><strong>{{ 'Ready to create profile' if confirm_stage else 'Draft saved automatically' }}</strong><p class="creation-status" role="status" aria-live="polite">{{ 'Confirmation creates one immutable Candidate Profile revision ready for Pipeline Runs.' if confirm_stage else 'Changes save automatically to this creation draft.' }}</p></div>
+  <div class="creation-action-group">
+    {% if confirm_stage %}<a class="btn" href="/admin/candidate-profiles/create/{{ confirmation.attempt_id }}/derived">Back to derived review</a>{% elif derived_stage %}<a class="btn" href="/admin/candidate-profiles/create/{{ attempt.attempt_id }}/baseline">Back to baseline</a>{% endif %}
+    <a class="btn" href="/admin/candidate-profiles">Save and exit</a>
+    {% if confirm_stage %}<button class="btn primary" type="button" data-confirm-profile>Confirm and save profile</button>{% else %}<button class="btn primary" type="button" data-approve-stage>{{ 'Approve derived claims' if derived_stage else 'Approve baseline and continue' }}</button>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% block content %}
+<main class="workspace-stack candidate-profile-creation" data-page="candidate-profile-creation" data-header-title="Create Candidate Profile" data-header-description="Upload, review baseline evidence, approve derivation, then confirm." data-header-icon="candidate-create">
+  {% if stage == 'upload' %}
+  <form class="creation-page-layout" id="candidate-profile-upload-form">
+  <div class="profile-creation">
+    <div class="details-page-head"><a class="details-page-back" href="/admin/candidate-profiles">← Back to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Step 1 · Upload</p><h2>Upload candidate document</h2><p>Define Profile Name once, then every supported format follows same extraction, review, derivation, and confirmation pipeline.</p></div></div></div>
+    {{ creation_stepper(stage) }}
+    <section class="section-card creation-upload-card">
+      <div class="creation-upload-grid">
+        <label class="creation-dropzone" for="profile-file"><input class="sr-only" id="profile-file" name="profile_file" type="file" accept=".md,.docx,.yaml" required><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 15v4h16v-4"/></svg><strong>Drop candidate document here or choose file</strong><span>Markdown (.md), Word (.docx), or YAML (.yaml), one file</span></span></label>
+        <div class="creation-upload-meta"><div><h3>One staged hybrid pipeline</h3><p>Deterministic readers preserve source text and locators. AI assists only with ambiguous mapping, normalization, and controlled derivation.</p></div><div class="provider-field"><label for="profile-name">Profile Name</label><input class="field" id="profile-name" name="profile_name" required maxlength="120" autocomplete="off"><small>Workspace label only. Candidate Full name remains baseline data.</small></div><div class="creation-file-summary" id="creation-file-name">No file selected</div><p class="creation-status" id="creation-status" role="status" aria-live="polite">Choose one candidate document to continue.</p><button class="btn primary" type="submit" disabled>Process document</button></div>
+      </div>
+    </section>
+  </div>
+  </form>
+
+  {% elif stage in ['baseline', 'derived'] %}
+  <div class="profile-creation" data-review-root data-attempt-id="{{ attempt.attempt_id }}" data-stage="{{ stage }}" data-revision="{{ review.revision }}" data-fingerprint="{{ review.fingerprint }}" data-baseline-fingerprint="{{ attempt.fingerprints.approved_baseline or '' }}">
+    <div class="details-page-head"><a class="details-page-back" href="/admin/candidate-profiles">← Save and exit to Candidate Profiles</a></div>
+    {{ creation_stepper(stage) }}
+    <div class="review-toolbar"><div class="review-toolbar-copy"><p class="eyebrow">{{ 'Step 2 · Evidence review' if stage == 'baseline' else 'Step 3 · Controlled derivation' }}</p><h2>{{ 'Review baseline facts' if stage == 'baseline' else 'Review derived claims' }}</h2><p>{{ 'Add any number of equivalent evidence entries. AI controls appear only where context supports inference.' if stage == 'baseline' else 'Each claim owns editable evidence refs, confidence, and origin.' }}</p></div><button class="btn" type="button" data-regenerate-target="*">Regenerate {{ 'AI-assisted fields' if stage == 'baseline' else 'all derived claims' }}</button></div>
+    <div class="review-workspace"><div class="review-main">
+    {% for section in sections if section.id not in ['interests', 'search_preferences'] %}
+    <section class="section-card review-section">
+      {% if section.shape == 'object' %}
+      <div class="review-section-head"><div><h3>{{ presentation_section_label(section) }}</h3><p class="meta">{{ section.description }}</p></div></div>
+      <div class="entry-fields">
+        {% set section_value = review.document.get(section.id, {}) %}
+        {% if section.fields %}
+          {% for field_name, meta in section.fields.items() %}
+          {% set field_path = '/' ~ field_name if section.id == 'identity' else '/' ~ section.id ~ '/' ~ field_name %}
+          {{ review_field(field_name, meta, review.document.get(field_name) if section.id == 'identity' else section_value.get(field_name), field_path, review.annotations, false, section.id) }}
+          {% endfor %}
+        {% else %}
+          {% for field_name, field_value in section_value.items() %}
+          {{ review_field(field_name, {'shape': 'string_list_field' if field_value is sequence and field_value is not string else 'text', 'label': field_name|replace('_', ' ')|title, 'required': false}, field_value, '/' ~ section.id ~ '/' ~ field_name, review.annotations) }}
+          {% endfor %}
+        {% endif %}
+      </div>
+      {% elif section.shape == 'collection' %}
+      {% if stage == 'derived' %}
+      {{ derived_collection(section, review.document.get(section.id), '/' ~ section.id, review.annotations, baseline_document, field_schema) }}
+      {% else %}
+      {{ review_collection(section, section.item, review.document.get(section.id), '/' ~ section.id, review.annotations, false, section.id) }}
+      {% endif %}
+      {% elif section.shape == 'string_list' %}
+      <div>
+        <div class="review-section-head"><div><h3>{{ section.label }}</h3><p class="meta">Repeatable values.</p></div><div class="review-section-head-actions"><span class="draft-status">{{ review.document.get(section.id, [])|length }} entries</span><button class="btn" type="button" data-add-path="/{{ section.id }}" data-item-schema="{{ {'shape':'text'}|tojson|forceescape }}">Add</button></div></div>
+        <div class="collection-list">{% for value in review.document.get(section.id, []) %}<div class="collection-entry"><div class="entry-fields">{{ review_field(section.id, {'shape':'text','label':section.label[:-1] if section.label.endswith('s') else section.label,'required':false}, value, '/' ~ section.id ~ '/' ~ loop.index0, review.annotations) }}</div><div class="repeatable-entry-actions"><button class="btn danger" type="button" data-remove-path="/{{ section.id }}/{{ loop.index0 }}">Remove</button></div></div>{% else %}<div class="empty-state"><p>No entries.</p></div>{% endfor %}</div>
+      </div>
+      {% endif %}
+    </section>
+    {% endfor %}
+    </div></div>
+    <p id="creation-status" class="sr-only" role="status" aria-live="polite"></p>
+    {{ creation_footer(stage) }}
+  </div>
+
+  {% else %}
+  <div class="profile-creation" data-confirm-root data-attempt-id="{{ confirmation.attempt_id }}" data-revision="{{ confirmation.revision }}" data-baseline-fingerprint="{{ confirmation.approval_fingerprints.baseline }}" data-derived-fingerprint="{{ confirmation.approval_fingerprints.derived }}" data-confirmation-fingerprint="{{ confirmation.fingerprint }}">
+    <div class="details-page-head"><a class="details-page-back" href="/admin/candidate-profiles">← Save and exit to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Step 4 · Idempotent confirmation</p><h2>Confirm Candidate Profile</h2><p>Review approved profile sections, then create one immutable revision for Pipeline Runs.</p></div></div></div>
+    {{ creation_stepper(stage) }}
+    {{ render_confirmation(confirmation, attempt, field_schema) }}
+    <p id="creation-status" class="sr-only" role="status" aria-live="polite"></p>
+    {{ creation_footer(stage) }}
+  </div>
+  {% endif %}
+</main>
+
+<dialog class="workspace-dialog evidence-dialog" id="candidate-profile-dialog" aria-labelledby="candidate-profile-dialog-title" aria-describedby="candidate-profile-dialog-description">
+  <div class="dialog-head"><div><p class="eyebrow">Source Evidence</p><h2 id="candidate-profile-dialog-title">Evidence details</h2><p id="candidate-profile-dialog-description">Review source excerpt and locators.</p></div><button class="dialog-close" type="button" data-close-dialog aria-label="Close Source Evidence dialog">×</button></div>
+  <div class="dialog-body" id="candidate-profile-dialog-body"></div>
+</dialog>
+
+<script>
+(function() {
+  var status = document.getElementById('creation-status');
+  var uploadForm = document.getElementById('candidate-profile-upload-form');
+  if (uploadForm) {
+    var uploadFile = uploadForm.querySelector('[name="profile_file"]');
+    var uploadName = uploadForm.querySelector('[name="profile_name"]');
+    var uploadSubmit = uploadForm.querySelector('[type="submit"]');
+    var uploadSummary = document.getElementById('creation-file-name');
+    var dropzone = uploadForm.querySelector('.creation-dropzone');
+    function updateUpload() {
+      var file = uploadFile.files && uploadFile.files[0];
+      uploadSummary.textContent = file ? file.name : 'No file selected';
+      uploadSubmit.disabled = !file || !uploadName.value.trim();
+      status.textContent = file ? file.name + ' selected.' : 'Choose one candidate document to continue.';
+    }
+    uploadFile.addEventListener('change', updateUpload);
+    uploadName.addEventListener('input', updateUpload);
+    ['dragenter', 'dragover'].forEach(function(type) { dropzone.addEventListener(type, function(event) { event.preventDefault(); dropzone.classList.add('dragging'); }); });
+    ['dragleave', 'drop'].forEach(function(type) { dropzone.addEventListener(type, function(event) { event.preventDefault(); dropzone.classList.remove('dragging'); }); });
+    dropzone.addEventListener('drop', function(event) { uploadFile.files = event.dataTransfer.files; updateUpload(); });
+    uploadForm.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    var submit = event.submitter;
+    submit.disabled = true;
+    status.textContent = 'Processing CV…';
+    try {
+      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts', {method: 'POST', headers: {'Idempotency-Key': crypto.randomUUID()}, body: new FormData(uploadForm)});
+      location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(payload.data.attempt_id) + '/baseline');
+    } catch (error) { status.textContent = error.message; submit.disabled = false; }
+    });
+    updateUpload();
+  }
+
+  var review = document.querySelector('[data-review-root]');
+  if (review) {
+    var attemptId = review.dataset.attemptId;
+    var stage = review.dataset.stage;
+    var revision = Number(review.dataset.revision);
+    var fingerprint = review.dataset.fingerprint;
+    var pending = new Map();
+    var saveTimer;
+    function fieldValue(field) {
+      if (field.dataset.valueKind === 'number') return field.value === '' ? null : Number(field.value);
+      if (field.dataset.valueKind === 'list') return field.value.split(',').map(function(value) { return value.trim(); }).filter(Boolean);
+      return field.value;
+    }
+    async function patch(operations) {
+      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage, {method: 'PATCH', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify({expected_revision: revision, operations: operations})});
+      revision = payload.data.revision;
+      fingerprint = payload.data.fingerprint;
+      review.dataset.revision = String(revision);
+      document.querySelectorAll('[data-revision-label]').forEach(function(node) { node.textContent = String(revision); });
+      return payload.data;
+    }
+    async function flush() {
+      clearTimeout(saveTimer);
+      if (!pending.size) return;
+      var operations = Array.from(pending.values());
+      pending.clear();
+      status.textContent = 'Saving changes…';
+      try { await patch(operations); status.textContent = 'Draft saved.'; }
+      catch (error) { operations.forEach(function(operation) { pending.set(operation.path, operation); }); status.textContent = error.message; throw error; }
+    }
+    function queueFieldChange(event) {
+      var field = event.target.closest('[data-field-path]');
+      var evidenceRef = event.target.closest('[data-evidence-ref-path]');
+      if (!field && !evidenceRef) return;
+      var path = field ? field.dataset.fieldPath : evidenceRef.dataset.evidenceRefPath;
+      var value = field ? fieldValue(field) : Array.from(review.querySelectorAll('[data-evidence-ref-path]')).filter(function(option) { return option.dataset.evidenceRefPath === path && option.checked; }).map(function(option) { return option.value; });
+      if (field && field.readOnly) return;
+      pending.set(path, {operation: 'replace', path: path, value: value});
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(function() { flush().catch(function() {}); }, 180);
+    }
+    review.addEventListener('input', queueFieldChange);
+    review.addEventListener('change', queueFieldChange);
+    review.addEventListener('click', async function(event) {
+      var add = event.target.closest('[data-add-path]');
+      var remove = event.target.closest('[data-remove-path]');
+      var regenerate = event.target.closest('[data-regenerate-target]');
+      var approve = event.target.closest('[data-approve-stage]');
+      if (!add && !remove && !regenerate && !approve) return;
+      event.preventDefault();
+      try {
+        await flush();
+        if (add) {
+          var schema = JSON.parse(add.dataset.itemSchema);
+          var value = schema.shape === 'text' ? '' : {};
+          if (!schema.shape) Object.keys(schema).forEach(function(name) {
+            var meta = schema[name];
+            value[name] = name === 'id' ? 'entry-' + crypto.randomUUID() : name === 'origin' ? 'user_asserted' : name === 'confidence' ? 1 : name === 'support_status' ? 'unsupported' : ['collection', 'source_refs', 'evidence_refs'].includes(meta.shape) ? [] : '';
+          });
+          await patch([{operation: 'add', path: add.dataset.addPath + '/-', value: value}]);
+          location.reload();
+        } else if (remove) {
+          await patch([{operation: 'remove', path: remove.dataset.removePath}]);
+          location.reload();
+        } else if (regenerate) {
+          status.textContent = 'Regenerating…';
+          await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/regenerate', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify({expected_revision: revision, targets: [regenerate.dataset.regenerateTarget]})});
+          location.reload();
+        } else {
+          approve.disabled = true;
+          status.textContent = 'Approving ' + stage + '…';
+          var body = {expected_revision: revision, expected_fingerprint: fingerprint};
+          if (stage === 'derived') body.expected_baseline_fingerprint = review.dataset.baselineFingerprint;
+          await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/approve', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify(body)});
+          location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(attemptId) + '/' + (stage === 'baseline' ? 'derived' : 'confirm'));
+        }
+      } catch (error) { status.textContent = error.message; if (approve) approve.disabled = false; }
+    });
+  }
+
+  var confirmRoot = document.querySelector('[data-confirm-root]');
+  var confirmButton = document.querySelector('[data-confirm-profile]');
+  if (confirmRoot && confirmButton) confirmButton.addEventListener('click', async function() {
+    confirmButton.disabled = true;
+    status.textContent = 'Saving Candidate Profile…';
+    try {
+      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(confirmRoot.dataset.attemptId) + '/actions/confirm', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify({expected_revision: Number(confirmRoot.dataset.revision), expected_baseline_fingerprint: confirmRoot.dataset.baselineFingerprint, expected_derived_fingerprint: confirmRoot.dataset.derivedFingerprint, expected_confirmation_fingerprint: confirmRoot.dataset.confirmationFingerprint})});
+      location.assign('/admin/candidate-profiles/' + encodeURIComponent(payload.data.profile_id));
+    } catch (error) { status.textContent = error.message; confirmButton.disabled = false; }
+  });
+
+  var dialog = document.getElementById('candidate-profile-dialog');
+  var dialogTitle = document.getElementById('candidate-profile-dialog-title');
+  var dialogDescription = document.getElementById('candidate-profile-dialog-description');
+  var dialogBody = document.getElementById('candidate-profile-dialog-body');
+  var dialogOpener;
+  function sourceBlockLocator(block) {
+    var locator = block.locator || {};
+    if (locator.kind === 'markdown_lines') return 'md:lines ' + locator.start + '-' + locator.end;
+    if (locator.kind === 'docx_paragraph') return 'docx:paragraph ' + locator.paragraph;
+    return block.kind || 'unresolved';
+  }
+  function sourceDialogRow(label, tagName, value) {
+    var row = document.createElement('div');
+    var heading = document.createElement('strong');
+    var content = document.createElement(tagName);
+    heading.textContent = label;
+    content.textContent = value;
+    row.append(heading, content);
+    return row;
+  }
+  function renderSourceDialog(source, block) {
+    dialogTitle.textContent = source.dataset.sourceTitle;
+    dialogDescription.textContent = source.dataset.sourceDescription;
+    dialogBody.replaceChildren();
+    if (source.dataset.sourceKind === 'derived') {
+      var template = document.getElementById(source.dataset.sourceTemplate);
+      if (template) dialogBody.append(template.content.cloneNode(true));
+      return;
+    }
+    if (source.dataset.sourceKind === 'evidence') dialogBody.append(sourceDialogRow('Evidence ID', 'code', source.dataset.evidenceId));
+    dialogBody.append(sourceDialogRow('Source excerpt', 'blockquote', block.text || (source.dataset.sourceKind === 'evidence' ? 'No immutable excerpt. This evidence was added manually.' : 'No immutable excerpt. This field or entry was added manually.')));
+    dialogBody.append(sourceDialogRow('Locator', 'code', sourceBlockLocator(block)));
+    dialogBody.append(sourceDialogRow(source.dataset.sourceKind === 'evidence' ? 'Current reviewed text' : 'Current reviewed value', 'p', source.dataset.reviewedValue || '—'));
+  }
+  document.addEventListener('click', async function(event) {
+    var source = event.target.closest('[data-source-kind]');
+    if (!source) return;
+    dialogOpener = source;
+    try {
+      var block = {};
+      if (source.dataset.sourceKind !== 'derived') block = (await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(review.dataset.attemptId) + '/source-blocks/' + encodeURIComponent(source.dataset.sourceBlock))).data;
+      renderSourceDialog(source, block);
+      dialog.showModal();
+    } catch (error) { dialogTitle.textContent = source.dataset.sourceTitle; dialogDescription.textContent = error.message; dialogBody.replaceChildren(); dialog.showModal(); }
+  });
+  if (dialog) {
+    dialog.querySelector('[data-close-dialog]').addEventListener('click', function() { dialog.close(); });
+    dialog.addEventListener('close', function() { if (dialogOpener) dialogOpener.focus(); });
+  }
+})();
+</script>
+{% endblock %}

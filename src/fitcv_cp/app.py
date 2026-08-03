@@ -63,6 +63,7 @@ from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION,
     SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION,
 )
+from fitcv.candidate import candidate_profile_field_schema
 from fitcv.decision_feedback import (
     DecisionRatingEvent,
     RatingEventType,
@@ -126,7 +127,21 @@ from fitcv.tracker import create_cv_version_record
 import fitcv_cp.sqlite_store as sqlite_store_module
 from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp import provider_registry
-from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+from fitcv_cp.models import (
+    CandidateProfileApproveRequest,
+    CandidateProfileConfirmRequest,
+    CandidateProfileCreationAttemptEnvelope,
+    CandidateProfileDerivedApproveRequest,
+    CandidateProfileRegenerateRequest,
+    CandidateProfileReviewEnvelope,
+    CandidateProfileReviewPatchRequest,
+    CandidateProfileRetryRequest,
+    CandidateProfileSourceBlockEnvelope,
+    CandidateProfileConfirmationEnvelope,
+    PipelineRun,
+    RunEvent,
+    RunStatus,
+)
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
 from fitcv_cp.queue import (
     enqueue_cv_regenerate_once_with_job_id,
@@ -5647,6 +5662,7 @@ class CandidateProfileResource(BaseModel):
     revision: int
     overview: CandidateProfileOverview | None = None
     input: CandidateProfileInput | None = None
+    profile: dict[str, Any] | None = None
 
 
 class CandidateProfileEnvelope(BaseModel):
@@ -5932,6 +5948,8 @@ class LlmConfigurationPatchRequest(BaseModel):
     default_model_ref: str | None = None
     tasks: dict[
         Literal[
+            "candidate_profile_base_mapping",
+            "candidate_profile_derived_claims",
             "enrich_extraction",
             "ranking_ai_score",
             "cv_generation_structured_write",
@@ -9489,6 +9507,319 @@ def create_app(
             run_mode=run_mode,
         )
 
+    def _candidate_profile_mock_call(call: Callable[[], Any]) -> Any:
+        try:
+            return call()
+        except RuntimeError as exc:
+            if str(exc) == "candidate_profile_backend_unavailable":
+                raise ApiError(
+                    503,
+                    "candidate_profile_backend_unavailable",
+                    "Candidate Profile creation backend is not integrated yet.",
+                    retryable=False,
+                ) from exc
+            raise
+        except ValueError as exc:
+            code = str(exc)
+            status = 404 if code in {
+                "candidate_profile_attempt_not_found",
+                "candidate_profile_source_not_found",
+            } else 409 if code in {
+                "candidate_profile_revision_conflict",
+                "candidate_profile_invalid_transition",
+                "candidate_profile_fingerprint_conflict",
+            } else 422
+            raise ApiError(status, code, "Candidate Profile action could not be completed.") from exc
+
+    @app.get("/candidate-profile-field-schema")
+    def get_candidate_profile_field_schema(request: Request) -> Response:
+        resource = candidate_profile_field_schema()
+        etag = f'"{resource["checksum"]}"'
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        return JSONResponse(content=_data_response(resource), headers={"ETag": etag})
+
+    @app.get("/candidate-profile-creation-attempts")
+    def get_candidate_profile_creation_attempts(
+        status: str | None = None,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        result = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().query_candidate_profile_creation_attempts(
+                status=status,
+                search=search,
+                page=page,
+                page_size=page_size,
+            )
+        )
+        return _collection_response(
+            list(result.get("items") or []),
+            page=page,
+            page_size=page_size,
+            total_items=int(result.get("total") or 0),
+        )
+
+    @app.post(
+        "/candidate-profile-creation-attempts",
+        status_code=202,
+        response_model=CandidateProfileCreationAttemptEnvelope,
+    )
+    async def create_candidate_profile_creation_attempt(
+        request: Request,
+        profile_name: str = Form(...),
+        profile_file: UploadFile = File(...),
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        content = await profile_file.read()
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().create_candidate_profile_creation_attempt(
+                profile_name=profile_name,
+                original_filename=str(profile_file.filename or ""),
+                media_type=str(profile_file.content_type or "application/octet-stream"),
+                content=content,
+                idempotency_key=key,
+            )
+        )
+        return _data_response(resource)
+
+    @app.get(
+        "/candidate-profile-creation-attempts/{attempt_id}",
+        response_model=CandidateProfileCreationAttemptEnvelope,
+    )
+    def get_candidate_profile_creation_attempt(attempt_id: str) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id)
+        )
+        if resource is None:
+            raise ApiError(404, "candidate_profile_attempt_not_found", "Candidate Profile attempt not found.")
+        return _data_response(resource)
+
+    @app.get("/candidate-profile-creation-attempts/{attempt_id}/source")
+    def download_candidate_profile_source(attempt_id: str) -> Response:
+        source = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_source(attempt_id)
+        )
+        if source is None:
+            raise ApiError(404, "candidate_profile_source_not_found", "Candidate Profile source not found.")
+        return Response(
+            content=bytes(source["content"]),
+            media_type=str(source["media_type"]),
+            headers={
+                "Content-Disposition": f'attachment; filename="{source["filename"]}"',
+                "ETag": f'"{source["checksum"]}"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.get(
+        "/candidate-profile-creation-attempts/{attempt_id}/source-blocks/{source_block_id}",
+        response_model=CandidateProfileSourceBlockEnvelope,
+    )
+    def get_candidate_profile_source_block(attempt_id: str, source_block_id: str) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_source_block(attempt_id, source_block_id)
+        )
+        if resource is None:
+            raise ApiError(404, "candidate_profile_source_not_found", "Candidate Profile source block not found.")
+        return _data_response(resource)
+
+    def _candidate_profile_review(attempt_id: str, stage: str) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_review(attempt_id, stage)
+        )
+        if resource is None:
+            raise ApiError(404, "candidate_profile_attempt_not_found", "Candidate Profile attempt not found.")
+        return _data_response(resource)
+
+    @app.get(
+        "/candidate-profile-creation-attempts/{attempt_id}/baseline",
+        response_model=CandidateProfileReviewEnvelope,
+    )
+    def get_candidate_profile_baseline(attempt_id: str) -> dict[str, Any]:
+        return _candidate_profile_review(attempt_id, "baseline")
+
+    @app.get(
+        "/candidate-profile-creation-attempts/{attempt_id}/derived",
+        response_model=CandidateProfileReviewEnvelope,
+    )
+    def get_candidate_profile_derived(attempt_id: str) -> dict[str, Any]:
+        return _candidate_profile_review(attempt_id, "derived")
+
+    def _patch_candidate_profile_review(
+        request: Request,
+        attempt_id: str,
+        stage: str,
+        body: CandidateProfileReviewPatchRequest,
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().patch_candidate_profile_review(
+                attempt_id,
+                stage,
+                expected_revision=body.expected_revision,
+                operations=[operation.model_dump() for operation in body.operations],
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
+
+    @app.patch(
+        "/candidate-profile-creation-attempts/{attempt_id}/baseline",
+        response_model=CandidateProfileReviewEnvelope,
+    )
+    def patch_candidate_profile_baseline(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileReviewPatchRequest,
+    ) -> dict[str, Any]:
+        return _patch_candidate_profile_review(request, attempt_id, "baseline", body)
+
+    @app.patch(
+        "/candidate-profile-creation-attempts/{attempt_id}/derived",
+        response_model=CandidateProfileReviewEnvelope,
+    )
+    def patch_candidate_profile_derived(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileReviewPatchRequest,
+    ) -> dict[str, Any]:
+        return _patch_candidate_profile_review(request, attempt_id, "derived", body)
+
+    def _regenerate_candidate_profile_review(
+        request: Request,
+        attempt_id: str,
+        stage: str,
+        body: CandidateProfileRegenerateRequest,
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().regenerate_candidate_profile_review(
+                attempt_id,
+                stage,
+                expected_revision=body.expected_revision,
+                targets=body.targets,
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/regenerate",
+        status_code=202,
+        response_model=CandidateProfileCreationAttemptEnvelope,
+    )
+    def regenerate_candidate_profile_baseline(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileRegenerateRequest,
+    ) -> dict[str, Any]:
+        return _regenerate_candidate_profile_review(request, attempt_id, "baseline", body)
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/derived/actions/regenerate",
+        status_code=202,
+        response_model=CandidateProfileCreationAttemptEnvelope,
+    )
+    def regenerate_candidate_profile_derived(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileRegenerateRequest,
+    ) -> dict[str, Any]:
+        return _regenerate_candidate_profile_review(request, attempt_id, "derived", body)
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/approve",
+        status_code=202,
+        response_model=CandidateProfileCreationAttemptEnvelope,
+    )
+    def approve_candidate_profile_baseline(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileApproveRequest,
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().approve_candidate_profile_review(
+                attempt_id,
+                "baseline",
+                expected_revision=body.expected_revision,
+                expected_fingerprint=body.expected_fingerprint,
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/derived/actions/approve",
+        response_model=CandidateProfileCreationAttemptEnvelope,
+    )
+    def approve_candidate_profile_derived(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileDerivedApproveRequest,
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().approve_candidate_profile_review(
+                attempt_id,
+                "derived",
+                expected_revision=body.expected_revision,
+                expected_fingerprint=body.expected_fingerprint,
+                expected_baseline_fingerprint=body.expected_baseline_fingerprint,
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
+
+    @app.get(
+        "/candidate-profile-creation-attempts/{attempt_id}/confirmation",
+        response_model=CandidateProfileConfirmationEnvelope,
+    )
+    def get_candidate_profile_confirmation(attempt_id: str) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_confirmation(attempt_id)
+        )
+        if resource is None:
+            raise ApiError(404, "candidate_profile_attempt_not_found", "Candidate Profile attempt not found.")
+        return _data_response(resource)
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/actions/confirm",
+        status_code=201,
+        response_model=CandidateProfileEnvelope,
+    )
+    def confirm_candidate_profile_creation_attempt(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileConfirmRequest,
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().confirm_candidate_profile_creation_attempt(
+                attempt_id,
+                **body.model_dump(),
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/actions/retry",
+        status_code=202,
+        response_model=CandidateProfileCreationAttemptEnvelope,
+    )
+    def retry_candidate_profile_creation_attempt(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileRetryRequest,
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().retry_candidate_profile_creation_attempt(
+                attempt_id,
+                expected_revision=body.expected_revision,
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
+
     @app.get("/candidate-profiles", response_model=CandidateProfileCollectionEnvelope)
     def get_candidate_profiles(
         view: str = "active",
@@ -11678,22 +12009,142 @@ def create_app(
         total_items = int(result.get("total") or 0)
         total_pages = max(1, (total_items + 19) // 20)
         page = min(page, total_pages)
+        profiles = []
+        for raw_profile in result.get("items") or []:
+            profile = dict(raw_profile)
+            profile["created_at_display"] = (
+                _format_compact_utc_timestamp(profile.get("created_at")) or "—"
+            )
+            profiles.append(profile)
         query = {"view": view, "page": page}
         if status:
             query["status"] = status
         if search:
             query["search"] = search
+        try:
+            attempts_result = _resolve_run_store().query_candidate_profile_creation_attempts(
+                search=search,
+                page=1,
+                page_size=20,
+            )
+        except RuntimeError as exc:
+            if str(exc) != "candidate_profile_backend_unavailable":
+                raise
+            attempts_result = {"items": [], "total": 0}
         return templates.TemplateResponse(
             request=request,
             name="candidate_profiles.html",
             context={
-                "profiles": list(result.get("items") or []),
+                "profiles": profiles,
+                "attempts": [
+                    attempt
+                    for attempt in list(attempts_result.get("items") or [])
+                    if attempt.get("creation_status") != "succeeded"
+                ],
                 "view": view,
                 "status": status,
                 "search": search,
                 "page": page,
                 "total_pages": total_pages,
+                "active_count": int(result.get("active_count") or 0),
+                "archived_count": int(result.get("archived_count") or 0),
                 "current_url": "/admin/candidate-profiles?" + urlencode(query),
+            },
+        )
+
+    @app.get("/admin/candidate-profiles/create", response_class=HTMLResponse)
+    def admin_candidate_profile_create(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="candidate_profile_creation.html",
+            context={
+                "stage": "upload",
+                "field_schema": candidate_profile_field_schema(),
+            },
+        )
+
+    def _candidate_profile_review_page(
+        request: Request,
+        attempt_id: str,
+        stage: str,
+    ) -> HTMLResponse:
+        attempt = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id)
+        )
+        if attempt is None:
+            raise HTTPException(status_code=404, detail="Candidate Profile attempt not found")
+        review = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_review(attempt_id, stage)
+        )
+        if review is None:
+            raise HTTPException(status_code=404, detail="Candidate Profile review not found")
+        field_schema = candidate_profile_field_schema()
+        baseline_review = (
+            _candidate_profile_mock_call(
+                lambda: _resolve_run_store().get_candidate_profile_review(attempt_id, "baseline")
+            )
+            if stage == "derived"
+            else None
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="candidate_profile_creation.html",
+            context={
+                "stage": stage,
+                "attempt": attempt,
+                "review": review,
+                "baseline_document": dict((baseline_review or {}).get("document") or {}),
+                "field_schema": field_schema,
+                "sections": [
+                    section
+                    for section in field_schema["sections"]
+                    if section["stage"] == stage
+                ],
+            },
+        )
+
+    @app.get(
+        "/admin/candidate-profiles/create/{attempt_id}/baseline",
+        response_class=HTMLResponse,
+    )
+    def admin_candidate_profile_baseline(request: Request, attempt_id: str) -> HTMLResponse:
+        return _candidate_profile_review_page(request, attempt_id, "baseline")
+
+    @app.get(
+        "/admin/candidate-profiles/create/{attempt_id}/derived",
+        response_class=HTMLResponse,
+    )
+    def admin_candidate_profile_derived(request: Request, attempt_id: str) -> HTMLResponse:
+        return _candidate_profile_review_page(request, attempt_id, "derived")
+
+    @app.get(
+        "/admin/candidate-profiles/create/{attempt_id}/confirm",
+        response_class=HTMLResponse,
+    )
+    def admin_candidate_profile_confirmation(
+        request: Request,
+        attempt_id: str,
+    ) -> HTMLResponse:
+        confirmation = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_confirmation(attempt_id)
+        )
+        if confirmation is None:
+            raise HTTPException(status_code=404, detail="Candidate Profile confirmation not found")
+        attempt = _candidate_profile_mock_call(
+            lambda: _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id)
+        )
+        if attempt is None:
+            raise HTTPException(status_code=404, detail="Candidate Profile creation attempt not found")
+        filename = str((attempt.get("source_document") or {}).get("original_filename") or "")
+        attempt["source_format"] = Path(filename).suffix.lstrip(".").upper() or "—"
+        return templates.TemplateResponse(
+            request=request,
+            name="candidate_profile_creation.html",
+            context={
+                "stage": "confirm",
+                "confirmation": confirmation,
+                "attempt": attempt,
+                "field_schema": candidate_profile_field_schema(),
             },
         )
 
@@ -11714,10 +12165,18 @@ def create_app(
             and parsed_return.path == "/admin/candidate-profiles"
             else "/admin/candidate-profiles"
         )
+        related_runs = _resolve_run_store().query_candidate_profile_runs(profile_id).get("items", [])
+        profile["created_at_display"] = _format_compact_utc_timestamp(profile.get("created_at")) or "—"
         return templates.TemplateResponse(
             request=request,
             name="candidate_profile_detail.html",
-            context={"profile": profile, "back_url": back_url},
+            context={
+                "profile": profile,
+                "canonical": dict((profile.get("profile") or {}).get("canonical") or profile.get("overview") or {}),
+                "field_schema": candidate_profile_field_schema(),
+                "related_runs": related_runs,
+                "back_url": back_url,
+            },
         )
 
     @app.get("/admin/synonyms", response_class=HTMLResponse)

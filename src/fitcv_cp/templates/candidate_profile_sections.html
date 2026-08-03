@@ -1,0 +1,119 @@
+{% macro scalar_value(value) -%}
+  {% if value is none or value == '' %}—{% elif value is sequence and value is not string and value is not mapping %}{{ value|join(', ') if value else '—' }}{% elif value is mapping %}{{ value|tojson }}{% else %}{{ value }}{% endif %}
+{%- endmacro %}
+
+{% macro presentation_section_label(section) -%}
+{{ section.label }}
+{%- endmacro %}
+
+{% macro presentation_field_label(section_id, field_name, field_meta) -%}
+{{ field_meta.label }}
+{%- endmacro %}
+
+{% macro presentation_field_value(field_meta, value, section_id='', field_name='') -%}
+{% if section_id == 'certifications' and field_name == 'date' and value is string %}{{ value[:4] }}{% elif field_meta.shape == 'select' %}{% set selected = namespace(label=value) %}{% for option in field_meta.options or [] %}{% set option_value = option.value if option is mapping else option %}{% if option_value == value %}{% set selected.label = option.label if option is mapping else option|replace('_', ' ')|title %}{% endif %}{% endfor %}{{ scalar_value(selected.label) }}{% else %}{{ scalar_value(value) }}{% endif %}
+{%- endmacro %}
+
+{% macro presentation_origin(value) -%}
+{{ {'llm_inferred': 'inferred'}.get(value, value) }}
+{%- endmacro %}
+
+{% macro presentation_source_format(value) -%}
+{{ {'MD': 'Markdown', 'DOCX': 'DOCX', 'YAML': 'YAML'}.get(value, value) }}
+{%- endmacro %}
+
+{% macro details_section(title, description, open=false, status='') -%}
+<details class="section-card collapsible-section drawer-section"{% if open %} open{% endif %}>
+  <summary><span class="section-heading"><strong>{{ title }}</strong><span>{{ description }}</span></span>{% if status %}<span class="drawer-status">{{ status|safe }}</span>{% endif %}</summary>
+  <div class="section-content drawer-section-content">{{ caller() }}</div>
+</details>
+{%- endmacro %}
+
+{% macro preview_fields(fields, entry, section_id='') -%}
+<dl>
+  {% for field_name, field_meta in fields.items() if field_name not in ['id', 'source_refs', 'evidence_refs', 'evidence', 'origin', 'confidence', 'support_status'] %}
+  <div><dt>{{ presentation_field_label(section_id, field_name, field_meta) }}</dt><dd>{{ presentation_field_value(field_meta, entry.get(field_name) if entry is mapping else none, section_id, field_name) }}</dd></div>
+  {% endfor %}
+</dl>
+{%- endmacro %}
+
+{% macro evidence_preview(evidence, evidence_fields) -%}
+<div class="evidence-ref-list">
+  {% for item in evidence or [] %}
+  <div class="evidence-ref-item"><code>{{ item.id }}</code>{{ preview_fields(evidence_fields, item) }}</div>
+  {% else %}<p>No evidence.</p>{% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro baseline_facts(canonical, field_schema) -%}
+  {% for section in field_schema.sections if section.stage == 'baseline' and section.id not in ['source_documents', 'interests', 'search_preferences'] %}
+  {% set title = presentation_section_label(section) %}
+  {% set value = canonical if section.id == 'identity' else canonical.get(section.id) %}
+  <section class="confirm-section">
+    <h3>{{ title }}</h3>
+    {% if section.shape == 'object' %}
+      <article class="confirm-entry"><h4>{{ title }}</h4>
+      {% if section.fields %}{{ preview_fields(section.fields, value or {}, section.id) }}{% elif value is mapping %}<dl>{% for field_name, field_value in value.items() %}<div><dt>{{ field_name|replace('_', ' ')|title }}</dt><dd>{{ scalar_value(field_value) }}</dd></div>{% endfor %}</dl>{% else %}<p class="supporting-text">No entries.</p>{% endif %}
+      </article>
+    {% elif section.shape == 'collection' %}
+      {% for entry in value or [] %}
+      <article class="confirm-entry"><h4>{{ section.item_label }} {{ loop.index }}</h4>{{ preview_fields(section.item, entry, section.id) }}{% if section.item.evidence %}{{ evidence_preview(entry.evidence, section.item.evidence.item) }}{% endif %}</article>
+      {% else %}<p class="supporting-text">No entries.</p>{% endfor %}
+    {% elif section.shape == 'string_list' %}
+      <article class="confirm-entry"><h4>{{ title }}</h4><p>{{ scalar_value(value) }}</p></article>
+    {% endif %}
+  </section>
+  {% endfor %}
+{%- endmacro %}
+
+{% macro derived_claims(canonical, field_schema) -%}
+  {% for section in field_schema.sections if section.stage == 'derived' %}
+  <section class="confirm-section"><h3>{{ presentation_section_label(section) }}</h3>
+    {% for entry in canonical.get(section.id) or [] %}
+    <article class="confirm-entry"><h4>{{ entry.name }}</h4><dl><div><dt>Evidence refs</dt><dd>{{ scalar_value(entry.evidence_refs) }}</dd></div><div><dt>Confidence</dt><dd>{{ ((entry.confidence or 0) * 100)|round|int }}%</dd></div><div><dt>Origin</dt><dd>{{ presentation_origin(entry.origin) }}</dd></div><div><dt>Support</dt><dd>{{ scalar_value(entry.support_status) }}</dd></div></dl></article>
+    {% else %}<p class="supporting-text">No entries.</p>{% endfor %}
+  </section>
+  {% endfor %}
+{%- endmacro %}
+
+{% macro traceability(canonical, field_schema) -%}
+<div class="trace-list">
+  {% for section in field_schema.sections if section.stage == 'baseline' and section.shape == 'collection' %}
+    {% for entry in canonical.get(section.id) or [] %}
+      {% for evidence in entry.evidence or [] %}
+      <div class="trace-row"><strong>{{ evidence.id }}</strong><span>{{ section.item_label }} evidence</span><code>{{ (evidence.source_refs or [])|tojson }}</code></div>
+      {% endfor %}
+    {% endfor %}
+  {% endfor %}
+  {% for section in field_schema.sections if section.stage == 'derived' %}
+    {% for entry in canonical.get(section.id) or [] %}
+    <div class="trace-row"><strong>{{ entry.name }}</strong><span>{{ section.item_label }}</span><code>{{ scalar_value(entry.evidence_refs) }}</code></div>
+    {% endfor %}
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro source_input(source, attempt_id='—', method='staged-hybrid') -%}
+<dl class="details-grid run-input-details"><div class="detail-item"><dt>File</dt><dd>{{ source.original_filename or '—' }}</dd></div><div class="detail-item"><dt>Format</dt><dd>{{ presentation_source_format(source.source_format) if source.source_format else '—' }}</dd></div><div class="detail-item"><dt>Creation Method</dt><dd>{{ 'Staged hybrid parser and review' if method == 'staged-hybrid' else 'Legacy profile' }}</dd></div><div class="detail-item"><dt>Attempt ID</dt><dd>{{ attempt_id or '—' }}</dd></div></dl>
+{%- endmacro %}
+
+{% macro render_confirmation(confirmation, attempt, field_schema) -%}
+  {% set canonical = confirmation.profile.canonical %}
+  {% set counts = namespace(evidence=0, claims=0, supported=0) %}
+  {% for section in field_schema.sections if section.stage == 'baseline' and section.shape == 'collection' %}{% for entry in canonical.get(section.id) or [] %}{% set counts.evidence = counts.evidence + (entry.evidence|length if entry.evidence else 0) %}{% endfor %}{% endfor %}
+  {% for section in field_schema.sections if section.stage == 'derived' %}{% for entry in canonical.get(section.id) or [] %}{% set counts.claims = counts.claims + 1 %}{% if entry.support_status == 'supported' %}{% set counts.supported = counts.supported + 1 %}{% endif %}{% endfor %}{% endfor %}
+  {% call details_section('Confirmation Overview', 'Final identity, schema, and profile readiness.', true, '<span class="draft-status">Ready to save</span>') %}<dl class="details-grid"><div class="detail-item"><dt>Profile Name</dt><dd>{{ confirmation.profile_name }}</dd></div><div class="detail-item"><dt>Schema</dt><dd>{{ confirmation.profile.schema_version }}</dd></div><div class="detail-item"><dt>Baseline Evidence</dt><dd>{{ counts.evidence }} traceable {{ 'statement' if counts.evidence == 1 else 'statements' }}</dd></div><div class="detail-item"><dt>Derived Claims</dt><dd>{{ counts.supported }} supported of {{ counts.claims }}</dd></div></dl>{% endcall %}
+  {% call details_section('Source Input', 'Original document and staged creation identity.', true) %}{{ source_input({'original_filename': attempt.source_document.original_filename, 'source_format': attempt.source_format}, confirmation.attempt_id) }}{% endcall %}
+  {% call details_section('Approval Status', 'Required review gates and traceability checks.', true) %}<dl class="details-grid"><div class="detail-item"><dt>Baseline Approved</dt><dd>{% if attempt.approval_timestamps.baseline %}<time data-local-time="{{ attempt.approval_timestamps.baseline }}">{{ attempt.approval_timestamps.baseline }}</time>{% else %}Pending{% endif %}</dd></div><div class="detail-item"><dt>Derivation Approved</dt><dd>{% if attempt.approval_timestamps.derived %}<time data-local-time="{{ attempt.approval_timestamps.derived }}">{{ attempt.approval_timestamps.derived }}</time>{% else %}Pending{% endif %}</dd></div><div class="detail-item"><dt>Traceability</dt><dd>Claims reference evidence IDs; evidence retains source refs.</dd></div><div class="detail-item"><dt>Idempotency</dt><dd>Repeating confirmation returns same profile revision.</dd></div></dl>{% endcall %}
+  {% call details_section('Baseline Facts', 'Approved direct facts and repeatable evidence entries.', true) %}{{ baseline_facts(canonical, field_schema) }}{% endcall %}
+  {% call details_section('Derived Claims', 'Approved claims with evidence refs, confidence, and origin.', true) %}{{ derived_claims(canonical, field_schema) }}{% endcall %}
+{%- endmacro %}
+
+{% macro render_candidate_profile(profile, canonical, field_schema, related_runs, confirmation=false) -%}
+  {% call details_section('Profile Overview', 'Current lifecycle and pipeline availability.', true, '<span class="draft-status">' ~ (profile.creation_status|replace('_', ' ')|title) ~ '</span>') %}<dl class="details-grid"><div class="detail-item"><dt>Profile ID</dt><dd>{{ profile.profile_id }}</dd></div><div class="detail-item"><dt>Profile Name</dt><dd>{{ profile.display_name }}</dd></div><div class="detail-item"><dt>Created</dt><dd><time data-local-time="{{ profile.created_at }}">{{ profile.created_at_display }}</time></dd></div><div class="detail-item"><dt>Availability</dt><dd>{{ 'Archived · historical runs only' if profile.lifecycle == 'archived' else 'Ready for new Runs' }}</dd></div></dl>{% endcall %}
+  {% call details_section('Source Input', 'Every format uses same staged creation path.', true) %}{{ source_input({'original_filename': profile.original_filename, 'source_format': profile.creation.source_format}, profile.creation.attempt_id, profile.creation.method) }}{% endcall %}
+  {% call details_section('Baseline Facts', 'Approved direct facts and repeatable evidence entries.', confirmation) %}{{ baseline_facts(canonical, field_schema) }}{% endcall %}
+  {% call details_section('Derived Claims', 'Each claim owns evidence refs, confidence, and origin.', confirmation) %}{{ derived_claims(canonical, field_schema) }}{% endcall %}
+  {% call details_section('Traceability', 'Baseline source locators and claim-level evidence refs.') %}{{ traceability(canonical, field_schema) }}{% endcall %}
+  {% call details_section('Related Runs', 'Runs that used this immutable profile snapshot.') %}{% if related_runs %}<p>{% for run in related_runs %}<a href="/admin/runs/{{ run.run_id }}">{{ run.run_id }}</a>{{ ', ' if not loop.last else '' }}{% endfor %}</p>{% else %}<p>No related Runs yet.</p>{% endif %}{% endcall %}
+{%- endmacro %}

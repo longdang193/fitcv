@@ -317,10 +317,13 @@ related_stages:
   - confirmation combines approved baseline, approved derived claims, ingestion-owned provenance, and user-owned `search_preferences`
   - confirmation displays Profile Name as read-only workspace metadata captured in Step 1 and never edits canonical candidate Full name
   - final validator checks required fields, global ID uniqueness, dates, confidence bounds, `evidence_refs`, `source_refs`, and at least one runnable evidence item
-  - confirmation displays revision summary, approval/readiness checks, and a complete expandable preview of approved baseline and derived fields before save
-  - confirmation uses the same details-page heading, collapsible section, details-grid, baseline preview, and derived preview components as Candidate Details and Run Details; no confirmation-only summary or checklist owns duplicate presentation logic
+  - confirmation displays restored prototype sections in order: Confirmation Overview, Source Input, Approval Status, Baseline Facts, and Derived Claims
+  - Candidate Details displays restored prototype sections in order: Profile Overview, Source Input, Baseline Facts, Derived Claims, collapsed Traceability, and collapsed Related Runs
+  - both pages reuse one collapsible section-card wrapper and the same baseline and derived preview renderers; page-specific metadata remains limited to its prototype-defined overview/input/status sections
+  - Candidate Profile ID renders in Profile Overview; creation-attempt ID renders in Source Input; field evidence IDs and source locators render only in prototype-defined evidence/Traceability surfaces
+  - checksums, source-document IDs, parser provenance, and LLM provenance remain API/persistence integrity metadata and are not rendered
   - one successful confirmation creates first immutable `candidate-profile.v2` revision and changes attempt to `succeeded`
-  - confirmation records canonical checksum plus deterministic parser and LLM runtime provenance
+  - confirmation records canonical checksum plus deterministic parser and LLM runtime provenance internally
   - drafts, ambiguity warnings, review events, LLM responses, scores, and review-state fields remain outside canonical profile
 - output or state change: confirmed profile becomes selectable for Pipeline Runs
 - failure behavior: validation failure returns attempt to appropriate review step without creating partial canonical revision
@@ -695,8 +698,8 @@ The review-envelope `revision` always equals enclosing attempt revision. It is n
 - baseline `document` contains only canonical baseline roots and ingestion-owned `source_documents`; derived `document` contains only canonical derived-claim roots
 - annotation keys use canonical ID-addressed field paths, never array indexes; examples are `/experiences/{experience_id}/role`, `/experiences/{experience_id}/evidence/{evidence_id}/text`, and `/skills/{skill_id}/name`
 - annotations are review metadata and never enter `candidate-profile.v2`
-- `CandidateProfileConfirmation` exposes read-only `profile.canonical`, canonical checksum, approval fingerprints, readiness, and warnings; its `profile.canonical` object is the exact object persisted on confirmation
-- `CandidateProfile` exposes catalog metadata plus immutable `profile.profile_revision_id`, `profile.revision`, `profile.checksum`, `profile.schema_version`, and `profile.canonical`
+- `CandidateProfileConfirmation` exposes read-only `profile.canonical`, canonical checksum, approval fingerprints, readiness, and warnings; its `profile.canonical` object is the exact object persisted on confirmation, while checksum and fingerprints remain non-visual contract metadata
+- `CandidateProfile` exposes catalog metadata plus immutable `profile.profile_revision_id`, `profile.revision`, `profile.checksum`, `profile.schema_version`, and `profile.canonical`; Candidate Details render prototype-defined Profile Overview, Source Input, Baseline Facts, Derived Claims, Traceability, and Related Runs without rendering checksum or parser/LLM provenance metadata
 - Candidate Profile collection rows are server-derived summaries and do not own a second baseline or derived copy
 - `CandidateProfileFieldSchema` exposes `schema_revision`, ordered sections, field metadata, collection/claim metadata, evidence-kind options, date grammar, and static validation requirements; context-dependent regeneration remains on draft annotations/capabilities
 
@@ -1076,7 +1079,7 @@ Additional rules:
   - stale browser edits overwrite a newer review draft
     - mitigation: expected revision/fingerprint, conflict payload with current stage, and explicit path-level reconciliation
   - confirmation preview and Candidate Details drift
-    - mitigation: both render same server-owned `profile.canonical` and checksum; frontend reconstruction is forbidden
+    - mitigation: both render same server-owned `profile.canonical` through one shared canonical-section renderer; checksum remains internal and frontend reconstruction is forbidden
   - private source content leaks into public fixtures
     - mitigation: public-safe sample remains synthetic and publication boundary remains enforced
 

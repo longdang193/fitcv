@@ -1,89 +1,53 @@
 {% extends "base.html" %}
 {% block title %}Candidate Profiles — FitCV{% endblock %}
 {% block content %}
-<main class="workspace-stack" data-page="candidate-profiles">
-  <header class="page-header">
-    <div><h1>Candidate Profiles</h1><p class="meta">Manage profile inputs available to future Runs.</p></div>
-    <button class="btn-primary" id="open-create-profile" type="button">Create Profile</button>
-  </header>
+<main class="candidate-profiles-page" data-page="candidate-profiles" data-header-title="Candidate Profiles" data-header-description="Create and review profiles used by matching runs." data-header-icon="candidate">
+  <div class="page-head"><div><p class="eyebrow">Workspace</p><h2>Candidate Profiles</h2><p>Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.</p></div><button class="btn primary" type="button" data-open-profile-dialog>Create Profile</button></div>
 
-  <div class="workspace-tabs" aria-label="Candidate Profile lifecycle">
-    <a class="btn-secondary" href="/admin/candidate-profiles?view=active" aria-current="{{ 'page' if view == 'active' else 'false' }}">Active</a>
-    <a class="btn-secondary" href="/admin/candidate-profiles?view=archived" aria-current="{{ 'page' if view == 'archived' else 'false' }}">Archived</a>
-  </div>
+  <section class="section-card creation-drafts" aria-labelledby="creation-drafts-title">
+    <div class="creation-drafts-head"><div><h3 id="creation-drafts-title">Creation drafts</h3><span>Paused and failed attempts are not available to Runs.</span></div><span>{{ attempts|length }} {{ 'draft' if attempts|length == 1 else 'drafts' }}</span></div>
+    {% if attempts %}<div class="creation-draft-list">{% for attempt in attempts %}<div class="creation-draft"><span class="draft-status">{{ 'Ready to confirm' if attempt.next_action == 'confirm' else 'Derived review' if attempt.next_action == 'review_derived' else 'Needs attention' if attempt.creation_status == 'failed' else 'Baseline review' }}</span><div class="creation-draft-copy"><strong>{{ attempt.profile_name }}</strong><span>{{ attempt.source_document.original_filename }} · Updated {{ attempt.updated_at }}</span></div>{% if attempt.next_action == 'review_baseline' %}<a class="btn" href="/admin/candidate-profiles/create/{{ attempt.attempt_id }}/baseline">Resume</a>{% elif attempt.next_action == 'review_derived' %}<a class="btn" href="/admin/candidate-profiles/create/{{ attempt.attempt_id }}/derived">Resume</a>{% elif attempt.next_action == 'confirm' %}<a class="btn" href="/admin/candidate-profiles/create/{{ attempt.attempt_id }}/confirm">Resume</a>{% elif attempt.profile_id %}<a class="btn" href="/admin/candidate-profiles/{{ attempt.profile_id }}">View</a>{% endif %}</div>{% endfor %}</div>{% else %}<div class="creation-draft"><div class="creation-draft-copy"><strong>No creation drafts</strong><span>Upload Markdown, DOCX, or YAML to start one staged review.</span></div></div>{% endif %}
+  </section>
 
-  <form class="filter-bar section-card" method="get" action="/admin/candidate-profiles">
-    <input type="hidden" name="view" value="{{ view }}">
-    <label>Search<input name="search" type="search" value="{{ search }}" autocomplete="off"></label>
-    <label>Status<select name="status"><option value="">All statuses</option><option value="succeeded" {{ 'selected' if status == 'succeeded' else '' }}>Succeeded</option><option value="failed" {{ 'selected' if status == 'failed' else '' }}>Failed</option></select></label>
-    <button class="btn-secondary" type="submit">Apply</button>
-  </form>
-
-  <div id="profile-notice" aria-live="polite"></div>
-  <div class="table-shell">
-    <table>
-      <thead><tr><th>Profile ID</th><th>Status</th><th>Profile Name</th><th>Created Time</th></tr></thead>
-      <tbody>
-        {% for profile in profiles %}
-        <tr>
-          <td><a href="/admin/candidate-profiles/{{ profile.profile_id }}?return_to={{ current_url|urlencode }}"><code>{{ profile.profile_id }}</code></a></td>
-          <td>{{ profile.creation_status }}</td>
-          <td>{{ profile.display_name }}</td>
-          <td>{{ profile.created_at }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="4" class="empty-state">No profiles match current view.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <nav class="selection-toolbar" aria-label="Candidate Profile pages">
-    {% if page > 1 %}<a class="btn-secondary" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page - 1)) }}">Previous</a>{% endif %}
-    <span class="meta">Page {{ page }} of {{ total_pages }}</span>
-    {% if page < total_pages %}<a class="btn-secondary" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page + 1)) }}">Next</a>{% endif %}
-  </nav>
-</main>
-
-<dialog class="workspace-dialog" id="create-profile-dialog" aria-labelledby="create-profile-title">
-  <form id="create-profile-form">
-    <h2 id="create-profile-title">Create Profile</h2>
-    <p>Upload one UTF-8 <code>.yaml</code> Candidate Profile.</p>
-    <label>Profile file<input name="profile_file" type="file" accept=".yaml,application/yaml,text/yaml" required></label>
-    <label>Profile Name <span class="meta">Optional</span><input name="profile_name" maxlength="120"></label>
-    <p id="create-profile-status" class="meta" role="status" aria-live="polite"></p>
-    <div class="selection-toolbar">
-      <button class="btn-primary" type="submit">Create Profile</button>
-      <button class="btn-secondary" type="button" id="cancel-create-profile">Cancel</button>
+  <div class="run-panel">
+    <div class="run-tabs" role="tablist" aria-label="Candidate Profile views"><a class="btn" href="/admin/candidate-profiles?view=active" role="tab" aria-selected="{{ 'true' if view == 'active' else 'false' }}" tabindex="{{ '0' if view == 'active' else '-1' }}">Active<span class="run-tab-count">{{ active_count }}</span></a><a class="btn" href="/admin/candidate-profiles?view=archived" role="tab" aria-selected="{{ 'true' if view == 'archived' else 'false' }}" tabindex="{{ '0' if view == 'archived' else '-1' }}">Archived<span class="run-tab-count">{{ archived_count }}</span></a></div>
+    <div id="profile-table-panel" role="tabpanel">
+      <div class="run-selection" id="profile-selection" hidden><div class="run-selection-copy"><strong id="profile-selection-title"></strong><span>{{ 'Archived profiles remain available to historical runs.' if view == 'active' else 'Restore selected profiles for future Runs.' }}</span></div><div class="run-selection-actions"><button class="btn" id="profile-selection-action" type="button">{{ 'Archive Profile' if view == 'active' else 'Restore Profile' }}</button></div></div>
+      {% if profiles %}<div class="table-card section-card"><div class="table-scroll"><table class="run-table profile-table"><thead><tr><th><input id="selectAllProfiles" type="checkbox" aria-label="Select all visible profiles"></th><th scope="col">Profile ID</th><th scope="col">Status</th><th scope="col">Profile Name</th><th scope="col">Created Time</th></tr></thead><tbody>{% for profile in profiles %}<tr data-profile-row="{{ profile.profile_id }}"><td><input type="checkbox" data-profile-select="{{ profile.profile_id }}" data-profile-revision="{{ profile.revision }}" aria-label="Select profile {{ profile.profile_id }}"></td><td><a class="run-id run-id-link" href="/admin/candidate-profiles/{{ profile.profile_id }}?return_to={{ current_url|urlencode }}">{{ profile.profile_id }}</a></td><td><span class="badge run-status" data-status="{{ profile.creation_status|title }}">{{ profile.creation_status|replace('_', ' ')|title }}</span></td><td><span class="profile-name">{{ profile.display_name }}</span></td><td><time class="run-created" data-local-time="{{ profile.created_at }}">{{ profile.created_at_display }}</time></td></tr>{% endfor %}</tbody></table></div></div>{% else %}<div class="table-card section-card"><div class="empty-state"><h3>{{ 'No archived profiles' if view == 'archived' else 'No active profiles yet' }}</h3><p>{{ 'Archived Candidate Profiles will appear here.' if view == 'archived' else 'Create a profile from a CV or resume file before triggering a run.' }}</p>{% if view == 'active' %}<button class="btn" type="button" data-open-profile-dialog>Create Profile</button>{% endif %}</div></div>{% endif %}
     </div>
-  </form>
-</dialog>
+  </div>
+
+  {% if total_pages > 1 %}<nav class="run-pagination" aria-label="Candidate Profile pages"><span>Page {{ page }} of {{ total_pages }}</span><div class="run-pagination-controls">{% if page > 1 %}<a class="btn" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page - 1)) }}">Previous</a>{% endif %}{% if page < total_pages %}<a class="btn" href="{{ current_url|replace('page=' ~ page, 'page=' ~ (page + 1)) }}">Next</a>{% endif %}</div></nav>{% endif %}
+  <p id="profile-notice" class="meta" role="status" aria-live="polite"></p>
+</main>
 <script>
 (function() {
-  var dialog = document.getElementById('create-profile-dialog');
-  var open = document.getElementById('open-create-profile');
-  var cancel = document.getElementById('cancel-create-profile');
-  var form = document.getElementById('create-profile-form');
-  if (!dialog || !open || !cancel || !form) return;
-  open.addEventListener('click', function() { dialog.showModal(); });
-  cancel.addEventListener('click', function() { dialog.close(); open.focus(); });
-  form.addEventListener('submit', async function(event) {
-    event.preventDefault();
-    var submit = event.submitter;
-    var status = document.getElementById('create-profile-status');
-    submit.disabled = true;
-    status.textContent = 'Creating Candidate Profile…';
+  var options = Array.from(document.querySelectorAll('[data-profile-select]'));
+  var selectAll = document.getElementById('selectAllProfiles');
+  var selection = document.getElementById('profile-selection');
+  var title = document.getElementById('profile-selection-title');
+  var action = document.getElementById('profile-selection-action');
+  var notice = document.getElementById('profile-notice');
+  document.querySelectorAll('[data-open-profile-dialog]').forEach(function(button) { button.addEventListener('click', function() { location.assign('/admin/candidate-profiles/create'); }); });
+  if (!selectAll || !selection || !action) return;
+  function updateSelection() {
+    var selected = options.filter(function(option) { return option.checked; });
+    options.forEach(function(option) { option.closest('tr').classList.toggle('is-selected', option.checked); });
+    selectAll.checked = selected.length === options.length && options.length > 0;
+    selectAll.indeterminate = selected.length > 0 && selected.length < options.length;
+    selection.hidden = selected.length === 0;
+    title.textContent = selected.length + ' {{ 'archived ' if view == 'archived' else '' }}profile' + (selected.length === 1 ? '' : 's') + ' selected';
+  }
+  selectAll.addEventListener('change', function() { options.forEach(function(option) { option.checked = selectAll.checked; }); updateSelection(); });
+  options.forEach(function(option) { option.addEventListener('change', updateSelection); });
+  action.addEventListener('click', async function() {
+    var selected = options.filter(function(option) { return option.checked; });
+    action.disabled = true;
+    notice.textContent = '{{ 'Restoring' if view == 'archived' else 'Archiving' }} selected profiles…';
     try {
-      var payload = await fitcvApiRequest('/candidate-profiles', {
-        method: 'POST',
-        headers: {'Idempotency-Key': crypto.randomUUID()},
-        body: new FormData(form)
-      });
-      location.assign('/admin/candidate-profiles/' + encodeURIComponent(payload.data.profile_id));
-    } catch (error) {
-      status.textContent = error.message;
-    } finally {
-      submit.disabled = false;
-    }
+      for (var option of selected) await fitcvApiRequest('/candidate-profiles/' + encodeURIComponent(option.dataset.profileSelect) + '/actions/{{ 'restore' if view == 'archived' else 'archive' }}', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify({expected_revision: Number(option.dataset.profileRevision)})});
+      location.reload();
+    } catch (error) { notice.textContent = error.message; action.disabled = false; }
   });
 })();
 </script>

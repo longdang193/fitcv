@@ -18,9 +18,114 @@ import datetime
 from enum import Enum
 import json
 import uuid
-from typing import Any, Optional
+from typing import Any, Literal, Optional
+
+from pydantic import BaseModel, field_validator
 
 from fitcv_cp.run_artifact_contracts import stable_sha256_fingerprint
+
+
+class CandidateProfileReviewOperation(BaseModel):
+    operation: Literal["add", "replace", "remove"]
+    path: str
+    value: Any = None
+
+    @field_validator("path")
+    @classmethod
+    def path_is_id_addressed(cls, value: str) -> str:
+        normalized = str(value or "").strip()
+        if not normalized.startswith("/") or "//" in normalized:
+            raise ValueError("path must be an ID-addressed absolute field path")
+        return normalized
+
+
+class CandidateProfileReviewPatchRequest(BaseModel):
+    expected_revision: int
+    operations: list[CandidateProfileReviewOperation]
+
+
+class CandidateProfileRegenerateRequest(BaseModel):
+    expected_revision: int
+    targets: list[str]
+
+
+class CandidateProfileApproveRequest(BaseModel):
+    expected_revision: int
+    expected_fingerprint: str
+
+
+class CandidateProfileDerivedApproveRequest(CandidateProfileApproveRequest):
+    expected_baseline_fingerprint: str
+
+
+class CandidateProfileConfirmRequest(BaseModel):
+    expected_revision: int
+    expected_baseline_fingerprint: str
+    expected_derived_fingerprint: str
+    expected_confirmation_fingerprint: str
+
+
+class CandidateProfileRetryRequest(BaseModel):
+    expected_revision: int
+
+
+class CandidateProfileCreationAttemptResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+    attempt_id: str
+    profile_name: str
+    creation_status: str
+    revision: int
+    next_action: str
+    capabilities: dict[str, Any]
+
+
+class CandidateProfileCreationAttemptEnvelope(BaseModel):
+    data: CandidateProfileCreationAttemptResource
+
+
+class CandidateProfileReviewResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+    attempt_id: str
+    stage: Literal["baseline", "derived"]
+    revision: int
+    fingerprint: str
+    document: dict[str, Any]
+    annotations: dict[str, Any]
+    validation: dict[str, Any]
+    capabilities: dict[str, Any]
+
+
+class CandidateProfileReviewEnvelope(BaseModel):
+    data: CandidateProfileReviewResource
+
+
+class CandidateProfileConfirmationResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+    attempt_id: str
+    revision: int
+    fingerprint: str
+    approval_fingerprints: dict[str, str]
+    profile: dict[str, Any]
+    readiness: dict[str, Any]
+
+
+class CandidateProfileConfirmationEnvelope(BaseModel):
+    data: CandidateProfileConfirmationResource
+
+
+class CandidateProfileSourceBlockResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+    source_block_id: str
+    text: str
+    locator: dict[str, Any]
+
+
+class CandidateProfileSourceBlockEnvelope(BaseModel):
+    data: CandidateProfileSourceBlockResource
 
 
 class RunStatus(str, Enum):

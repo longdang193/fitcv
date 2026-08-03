@@ -28,7 +28,13 @@ import pytest
 from fastapi.testclient import TestClient
 from fitcv.pipeline_contracts import PIPELINE_BUNDLE_ARTIFACT_FILENAMES, PIPELINE_STAGE_SEQUENCE, timeline_stage_download_for_event, timeline_stage_label
 from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _control_plane_bundle_artifact_specs, _control_plane_stage_specs, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
-from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+from fitcv_cp.models import (
+    CandidateProfileReviewOperation,
+    CandidateProfileReviewPatchRequest,
+    PipelineRun,
+    RunEvent,
+    RunStatus,
+)
 from fitcv_cp.orchestrator import RunSubmission
 from fitcv_cp import sqlite_store
 
@@ -47,6 +53,27 @@ def _valid_fitcv_job(**overrides: str) -> dict[str, str]:
     return job
 
 
+def test_candidate_profile_review_patch_uses_ordered_id_addressed_operations() -> None:
+    request = CandidateProfileReviewPatchRequest(
+        expected_revision=4,
+        operations=[
+            CandidateProfileReviewOperation(
+                operation="replace",
+                path="/experiences/exp-acme/role",
+                value="Senior Data Analyst",
+            ),
+            CandidateProfileReviewOperation(
+                operation="remove",
+                path="/projects/project-old",
+            ),
+        ],
+    )
+
+    assert request.expected_revision == 4
+    assert [operation.operation for operation in request.operations] == ["replace", "remove"]
+    assert request.operations[0].path == "/experiences/exp-acme/role"
+
+
 def _app():
     os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
     database_path = Path(_TEST_DATABASE_ROOT.name) / f"{uuid.uuid4()}.sqlite3"
@@ -56,6 +83,614 @@ def _app():
         Path(_TEST_DATABASE_ROOT.name) / "missing-candidate-profile.yaml",
     )
     return create_app(redis_url="redis://localhost:6379/0")
+
+
+def _candidate_profile_mock_app():
+    from fitcv_cp.candidate_profile_mock import create_candidate_profile_mock_app
+
+    return create_candidate_profile_mock_app()
+
+
+def test_candidate_profile_mock_contract_converges_confirmation_and_detail() -> None:
+    client = TestClient(_candidate_profile_mock_app())
+
+    schema = client.get("/candidate-profile-field-schema")
+    assert schema.status_code == 200
+    assert schema.headers["etag"]
+    assert schema.json()["data"]["schema_version"] == "candidate-profile-fields.v1"
+
+    created = client.post(
+        "/candidate-profile-creation-attempts",
+        headers={"Idempotency-Key": "create-profile-1"},
+        data={"profile_name": "Analytics Profile"},
+        files={"profile_file": ("alex-profile.md", "# Candidate\n\nData analyst", "text/markdown")},
+    )
+    assert created.status_code == 202
+    attempt = created.json()["data"]
+    attempt_id = attempt["attempt_id"]
+    assert attempt["profile_name"] == "Analytics Profile"
+    assert attempt["next_action"] == "review_baseline"
+
+    baseline = client.get(f"/candidate-profile-creation-attempts/{attempt_id}/baseline")
+    assert baseline.status_code == 200
+    baseline_data = baseline.json()["data"]
+    assert len(baseline_data["document"]["experiences"]) == 2
+    assert len(baseline_data["document"]["education"]) == 2
+    assert len(baseline_data["document"]["projects"]) == 2
+
+    patched = client.patch(
+        f"/candidate-profile-creation-attempts/{attempt_id}/baseline",
+        headers={"Idempotency-Key": "patch-baseline-1"},
+        json={
+            "expected_revision": baseline_data["revision"],
+            "operations": [
+                {
+                    "operation": "replace",
+                    "path": "/experiences/exp-northstar/role",
+                    "value": "Senior Product Data Analyst",
+                },
+                {
+                    "operation": "replace",
+                    "path": "/interests/0",
+                    "value": "Analytics engineering",
+                },
+                {
+                    "operation": "add",
+                    "path": "/interests/-",
+                    "value": "Data products",
+                },
+            ],
+        },
+    )
+    assert patched.status_code == 200
+    assert patched.json()["data"]["document"]["experiences"][0]["role"] == "Senior Product Data Analyst"
+    assert patched.json()["data"]["document"]["interests"] == [
+        "Analytics engineering",
+        "Product analytics",
+        "Data products",
+    ]
+
+    source = client.get(
+        f"/candidate-profile-creation-attempts/{attempt_id}/source-blocks/block-experience-1"
+    )
+    assert source.status_code == 200
+    assert source.json()["data"]["source_block_id"] == "block-experience-1"
+
+    approved_baseline = client.post(
+        f"/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/approve",
+        headers={"Idempotency-Key": "approve-baseline-1"},
+        json={
+            "expected_revision": patched.json()["data"]["revision"],
+            "expected_fingerprint": patched.json()["data"]["fingerprint"],
+        },
+    )
+    assert approved_baseline.status_code == 202
+    assert approved_baseline.json()["data"]["next_action"] == "review_derived"
+
+    derived = client.get(f"/candidate-profile-creation-attempts/{attempt_id}/derived")
+    assert derived.status_code == 200
+    derived_data = derived.json()["data"]
+    assert [skill["name"] for skill in derived_data["document"]["skills"]][:2] == ["SQL", "Python"]
+    assert derived_data["document"]["skills"][0]["evidence_refs"] == [
+        "ev-exp-quality",
+        "ev-project-capstone",
+    ]
+
+    approved_derived = client.post(
+        f"/candidate-profile-creation-attempts/{attempt_id}/derived/actions/approve",
+        headers={"Idempotency-Key": "approve-derived-1"},
+        json={
+            "expected_revision": derived_data["revision"],
+            "expected_fingerprint": derived_data["fingerprint"],
+            "expected_baseline_fingerprint": approved_baseline.json()["data"]["fingerprints"]["approved_baseline"],
+        },
+    )
+    assert approved_derived.status_code == 200
+    assert approved_derived.json()["data"]["next_action"] == "confirm"
+
+    confirmation = client.get(f"/candidate-profile-creation-attempts/{attempt_id}/confirmation")
+    assert confirmation.status_code == 200
+    confirmation_data = confirmation.json()["data"]
+
+    confirmed = client.post(
+        f"/candidate-profile-creation-attempts/{attempt_id}/actions/confirm",
+        headers={"Idempotency-Key": "confirm-profile-1"},
+        json={
+            "expected_revision": approved_derived.json()["data"]["revision"],
+            "expected_baseline_fingerprint": confirmation_data["approval_fingerprints"]["baseline"],
+            "expected_derived_fingerprint": confirmation_data["approval_fingerprints"]["derived"],
+            "expected_confirmation_fingerprint": confirmation_data["fingerprint"],
+        },
+    )
+    assert confirmed.status_code == 201
+    profile = confirmed.json()["data"]
+
+    detail = client.get(f"/candidate-profiles/{profile['profile_id']}")
+    assert detail.status_code == 200
+    assert detail.json()["data"]["profile"]["canonical"] == confirmation_data["profile"]["canonical"]
+    assert detail.json()["data"]["profile"]["checksum"] == confirmation_data["profile"]["checksum"]
+    assert detail.json()["data"]["input"]["original_filename"] == "alex-profile.md"
+    assert detail.json()["data"]["input"]["original_filename"] == confirmation_data["profile"]["canonical"]["source_documents"][0]["filename"]
+
+    admin_list = client.get("/admin/candidate-profiles")
+    assert admin_list.status_code == 200
+    assert "Analytics Profile" in admin_list.text
+    assert "Creation drafts" in admin_list.text
+    assert "0 drafts" in admin_list.text
+
+def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> None:
+    import hashlib
+
+    prototype = Path("docs/fitcv-settings-ui-prototype.html").read_bytes().replace(b"\r\n", b"\n")
+    prototype_blob = hashlib.sha1(
+        f"blob {len(prototype)}\0".encode() + prototype
+    ).hexdigest()
+    assert prototype_blob == "989af611bd7767c148022c79ac00c5069d8a3956"
+
+    client = TestClient(_candidate_profile_mock_app())
+
+    profiles = client.get("/admin/candidate-profiles")
+    assert profiles.status_code == 200
+    assert '<p class="eyebrow">Workspace</p>' in profiles.text
+    assert 'class="run-tabs"' in profiles.text
+    assert 'id="selectAllProfiles"' in profiles.text
+    assert 'class="filter-bar section-card"' not in profiles.text
+    assert "candidate-product-data" in profiles.text
+    assert "candidate-analytics" in profiles.text
+    assert "candidate-platform" not in profiles.text
+    assert '<main class="candidate-profiles-page" data-page="candidate-profiles"' in profiles.text
+    assert '<button class="btn primary" type="button" data-open-profile-dialog>Create Profile</button>' in profiles.text
+    assert '.candidate-profiles-page .section-card{padding:0;margin-bottom:0}' in profiles.text
+    assert '.candidate-profiles-page .creation-drafts{margin-bottom:18px;padding:0}' in profiles.text
+    assert ':root{--sidebar-w:288px;--header-h:72px;--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--font-sans:var(--font);--display-font:var(--font)}' in profiles.text
+    dark_tokens = re.search(r':root\[data-theme="dark"\]\{.*?\}', profiles.text)
+    assert dark_tokens is not None
+    assert '--font:' not in dark_tokens.group(0)
+    assert '--sidebar-w:' not in dark_tokens.group(0)
+    header = re.search(r'<header class="global-header">.*?</header>', profiles.text, re.S)
+    assert header is not None
+    assert 'class="icon-btn"' in header.group(0)
+    assert 'class="icon-btn danger"' in header.group(0)
+    assert 'class="icon-button' not in header.group(0)
+    assert 'aria-label="Switch to dark theme" title="Switch to dark theme"' in header.group(0)
+    assert '.icon-btn,.menu-btn{display:grid;width:38px;height:38px;' in profiles.text
+    assert '.icon-btn,.menu-btn{display:grid;width:38px;height:38px;place-items:center;padding:1px 6px;' in profiles.text
+    assert '.icon-btn:hover,.menu-btn:hover{border-color:var(--border);background:var(--surface-2);' in profiles.text
+    assert '.icon-btn,.menu-btn{min-height:44px}' in profiles.text
+    assert '.icon-btn,.menu-btn{width:44px}' in profiles.text
+    assert '.icon-btn.danger{color:#b91c1c}' in profiles.text
+    assert '[data-theme="dark"] .icon-btn.danger{color:#fca5a5}' in profiles.text
+    assert "var actionLabel = t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';" in profiles.text
+    assert "toggle.setAttribute('aria-label', actionLabel);" in profiles.text
+    assert "toggle.setAttribute('title', actionLabel);" in profiles.text
+
+    seeded_detail = client.get("/admin/candidate-profiles/candidate-product-data")
+    assert seeded_detail.status_code == 200
+    assert 'class="details-page-head"' in seeded_detail.text
+    assert '<span class="draft-status">Succeeded</span>' in seeded_detail.text
+    assert "Legacy profile" in seeded_detail.text
+
+    upload = client.get("/admin/candidate-profiles/create")
+    assert upload.status_code == 200
+    assert 'name="profile_name"' in upload.text
+    assert 'name="profile_name" required' in upload.text
+    assert 'accept=".md,.docx,.yaml"' in upload.text
+    assert 'class="details-page-head"' in upload.text
+    assert 'class="creation-upload-grid"' in upload.text
+    assert 'class="creation-dropzone"' in upload.text
+    assert "One staged hybrid pipeline" in upload.text
+    assert "Process document" in upload.text
+    assert '<div class="provider-field"><label for="profile-name">Profile Name</label>' in upload.text
+    assert '<label class="provider-field"' not in upload.text
+    assert 'class="content container creation-content" id="page-content"' in upload.text
+    upload_form = upload.text.index('<form class="creation-page-layout" id="candidate-profile-upload-form">')
+    upload_profile = upload.text.index('<div class="profile-creation">', upload_form)
+    upload_card = upload.text.index('<section class="section-card creation-upload-card">', upload_profile)
+    assert upload_form < upload_profile < upload_card
+    assert '<form class="section-card creation-upload-card"' not in upload.text
+    assert '.provider-field{display:grid;gap:6px}' in upload.text
+    assert '.creation-status{min-height:22px;margin:0;color:var(--muted)}' in upload.text
+    assert '.review-workspace{display:block}' in upload.text
+    assert '.review-workspace{display:grid' not in upload.text
+    assert upload.text.count('.review-workspace{') == 1
+    info_rule = re.search(r'\.info-trigger\{([^}]*)\}', upload.text)
+    assert info_rule is not None
+    assert 'width:32px;height:32px;place-items:center' in info_rule.group(1)
+    assert 'padding:1px 6px' in info_rule.group(1)
+    wand_rule = re.search(r'\.wand-btn\{([^}]*)\}', upload.text)
+    assert wand_rule is not None
+    assert 'width:44px;height:44px;flex:0 0 44px;place-items:center' in wand_rule.group(1)
+    assert 'padding:1px 6px' in wand_rule.group(1)
+    assert 'font:' not in wand_rule.group(1)
+    assert upload.text.count('.wand-btn{') == 1
+    assert '.dialog-close{display:grid;width:36px;height:36px;place-items:center;padding:1px 6px;' in upload.text
+    assert '.candidate-profile-creation button,.candidate-profile-creation input,.candidate-profile-creation select{font:inherit}' in upload.text
+    assert '.candidate-profile-creation .section-card{padding:0;margin-bottom:0}' not in upload.text
+    assert '.candidate-profile-creation .review-section,.candidate-profile-creation .collapsible-section{padding:0;margin-bottom:0}' in upload.text
+    assert '.creation-upload-card{padding:28px}' in upload.text
+    assert '.creation-upload-card{margin-bottom:0' not in upload.text
+
+    created = client.post(
+        "/candidate-profile-creation-attempts",
+        headers={"Idempotency-Key": "create-profile-admin-1"},
+        data={"profile_name": "Analytics Profile"},
+        files={"profile_file": ("candidate.md", "# Candidate", "text/markdown")},
+    ).json()["data"]
+    attempt_id = created["attempt_id"]
+
+    baseline = client.get(f"/admin/candidate-profiles/create/{attempt_id}/baseline")
+    assert baseline.status_code == 200
+    assert "Regenerate AI-assisted fields" in baseline.text
+    assert "Save and exit" in baseline.text
+    assert "Approve baseline" in baseline.text
+    assert ">Source<" in baseline.text
+    assert '<small class="field-source">' not in baseline.text
+    assert '/source">View source</a>' not in baseline.text
+    assert "Parity Review Profile · Revision" not in baseline.text
+    assert 'class="evidence-editor"' in baseline.text
+    assert re.search(r'<h3>Profile</h3><p[^>]*>Canonical identity and profile text\.</p>', baseline.text)
+    assert re.search(r'<h3>Contact</h3><p[^>]*>Direct contact facts; never inferred\.</p>', baseline.text)
+    assert '<div class="empty-state"><h3>No achievements</h3><p>Add an entry when this candidate document contains relevant evidence.</p></div>' in baseline.text
+    assert '<div class="empty-state"><h3>No volunteering</h3><p>Add an entry when this candidate document contains relevant evidence.</p></div>' in baseline.text
+    assert 'Add one when source CV contains this information.' not in baseline.text
+    for field_path, block_id in {
+        "/name": "block-baseline-profile-name",
+        "/experiences/exp-northstar/start": "block-baseline-experiences-exp-northstar-start",
+        "/education/edu-msc/end": "block-baseline-education-edu-msc-end",
+        "/projects/project-capstone/context": "block-baseline-projects-project-capstone-context",
+        "/certifications/cert-powerbi/issuer": "block-baseline-certifications-cert-powerbi-issuer",
+        "/languages/lang-en/level": "block-baseline-languages-lang-en-level",
+    }.items():
+        field_start = baseline.text.index(f'data-field-wrapper="{field_path}"')
+        field_end = baseline.text.find('data-field-wrapper="', field_start + 1)
+        field_markup = baseline.text[field_start:field_end]
+        assert f'data-source-block="{block_id}"' in field_markup
+    name_field_start = baseline.text.index('data-field-wrapper="/name"')
+    name_field_end = baseline.text.index('data-field-wrapper="/headline"', name_field_start)
+    name_field_markup = baseline.text[name_field_start:name_field_end]
+    assert 'data-source-kind="baseline"' in name_field_markup
+    assert 'data-source-title="Full name"' in name_field_markup
+    assert 'data-reviewed-value="Alex Morgan"' in name_field_markup
+    assert '<p class="eyebrow">Source Evidence</p><h2 id="candidate-profile-dialog-title">Evidence details</h2><p id="candidate-profile-dialog-description">Review source excerpt and locators.</p>' in baseline.text
+    full_name_source = client.get(
+        f"/candidate-profile-creation-attempts/{attempt_id}/source-blocks/block-baseline-profile-name"
+    )
+    assert full_name_source.status_code == 200
+    assert full_name_source.json()["data"]["text"] == "Alex Morgan"
+    assert full_name_source.json()["data"]["locator"] == {
+        "kind": "markdown_lines",
+        "start": 2,
+        "end": 3,
+    }
+    nested_evidence_start = baseline.text.index('<div class="nested-evidence">')
+    nested_evidence_list = baseline.text.index(
+        '<div class="evidence-editor-list">', nested_evidence_start
+    )
+    nested_evidence_head = baseline.text[nested_evidence_start:nested_evidence_list]
+    assert "<h4>Evidence</h4>" in nested_evidence_head
+    assert "Each statement has stable ID and source provenance." in nested_evidence_head
+    assert '<span class="draft-status">' not in nested_evidence_head
+    evidence_start = baseline.text.index('class="evidence-editor"')
+    evidence_end = baseline.text.index("</article>", evidence_start)
+    evidence_markup = baseline.text[evidence_start:evidence_end]
+    evidence_actions = (
+        evidence_markup.index(">Source</button>"),
+        evidence_markup.index('class="wand-btn"'),
+        evidence_markup.index(">Remove</button>"),
+    )
+    assert evidence_actions == tuple(sorted(evidence_actions))
+    assert evidence_markup.count(">Source</button>") == 1
+    assert evidence_markup.count('class="wand-btn"') == 1
+    assert evidence_markup.count(">Remove</button>") == 1
+    assert 'data-source-kind="evidence"' in evidence_markup
+    assert 'data-source-title="Data quality and reporting"' in evidence_markup
+    assert 'data-evidence-id="ev-exp-quality"' in evidence_markup
+    assert 'data-source-block="block-baseline-experiences-exp-northstar-evidence-ev-exp-quality"' in evidence_markup
+    assert 'data-reviewed-value="Built SQL quality checks, maintained Power BI reporting, and coordinated weekly delivery reviews with product and engineering."' in evidence_markup
+    nested_evidence_source = client.get(
+        f"/candidate-profile-creation-attempts/{attempt_id}/source-blocks/block-baseline-experiences-exp-northstar-evidence-ev-exp-quality"
+    )
+    assert nested_evidence_source.status_code == 200
+    assert nested_evidence_source.json()["data"]["text"] == "Built SQL quality checks, maintained Power BI reporting, and coordinated weekly delivery reviews with product and engineering."
+    assert nested_evidence_source.json()["data"]["locator"] == {
+        "kind": "markdown_lines",
+        "start": 50,
+        "end": 51,
+    }
+    assert '<div class="dialog-body" id="candidate-profile-dialog-body"></div>' in baseline.text
+    for dialog_label in (
+        "Source locator for extracted baseline metadata.",
+        "Immutable source evidence for one canonical evidence item.",
+        "Current reviewed value",
+        "Current reviewed text",
+        "Source excerpt",
+        "Locator",
+    ):
+        assert dialog_label in baseline.text
+    assert 'id="field--experiences-exp-northstar-evidence-ev-exp-quality-start" data-field-path="/experiences/exp-northstar/evidence/ev-exp-quality/start" inputmode="numeric"' in baseline.text
+    assert wand_rule.group(0) in baseline.text
+    assert '.review-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}' in baseline.text
+    assert '.review-section-head-actions,.entry-head,.field-action-row,.derived-entry-head{display:flex;align-items:center;gap:8px}' in baseline.text
+    assert '.entry-head,.derived-entry-head{padding:12px 14px;border-bottom:1px solid var(--border-soft)}' in baseline.text
+    assert '.collection-entry,.derived-entry{border:1px solid var(--border);border-radius:12px;background:var(--surface-2);overflow:hidden}' in baseline.text
+    assert '.derived-entry{display:grid;gap:12px;padding:15px}' in baseline.text
+    final_derived_entry = '.derived-entry{display:grid;gap:12px;padding:15px;border:1px solid var(--border);border-radius:11px;background:var(--surface);overflow:hidden}'
+    final_derived_head = '.derived-entry-head{display:flex;align-items:center;gap:10px}'
+    assert final_derived_entry in baseline.text
+    assert final_derived_head in baseline.text
+    assert baseline.text.rindex(final_derived_entry) > baseline.text.rindex('.collection-entry,.derived-entry{')
+    assert baseline.text.rindex(final_derived_head) > baseline.text.rindex('.review-section-head-actions,.entry-head,.field-action-row,.derived-entry-head{')
+    assert '.derived-entry-head strong{flex:1}' in baseline.text
+    assert '.field-action-row{flex-direction:column' not in baseline.text
+    assert 'button:not([class]) { background: var(--accent);' in baseline.text
+    assert 'button:not([class]):hover { background: var(--accent-hover); }' in baseline.text
+    assert 'button:not(.btn):not(.btn-primary):not(.btn-secondary):not(.btn-section):not(.decision-toggle):hover' not in baseline.text
+    assert 'aria-label="Generate evidence text from parent context"' in baseline.text
+    assert 'aria-label="Close Source Evidence dialog"' in baseline.text
+    assert 'aria-label="Remove  ' not in baseline.text
+    assert '>Degree or credential</label><span class="field-qualifier">One required</span>' in baseline.text
+    assert '>Field of study</label><span class="field-qualifier">One required</span>' in baseline.text
+    assert '>Evidence text</label>' in baseline.text
+    assert '>Degree</label><span class="field-qualifier">Optional</span>' not in baseline.text
+    creation_template = Path(
+        "src/fitcv_cp/templates/candidate_profile_creation.html"
+    ).read_text(encoding="utf-8")
+    collection_macro = creation_template[
+        creation_template.index("{% macro review_collection") : creation_template.index(
+            "{% macro evidence_ref_selector"
+        )
+    ]
+    entry_fields_start = collection_macro.index('<div class="entry-fields">')
+    entry_fields_end = collection_macro.index("</div>", entry_fields_start)
+    evidence_collection_call = collection_macro.index("{{ evidence_collection")
+    assert entry_fields_end < evidence_collection_call
+    sections_template = Path(
+        "src/fitcv_cp/templates/candidate_profile_sections.html"
+    ).read_text(encoding="utf-8")
+    assert "{{ section.label }}" in sections_template
+    assert "{{ field_meta.label }}" in sections_template
+    assert "{'identity': 'Profile'" not in sections_template
+    stepper = re.search(r'<ol class="creation-stepper".*?</ol>', baseline.text, re.DOTALL)
+    assert stepper is not None
+    assert '<span class="creation-step-index">✓</span><span>Upload</span>' in stepper.group(0)
+    assert '<span>Baseline</span>' in stepper.group(0)
+    assert '<span>Derived</span>' in stepper.group(0)
+    assert '<span>Confirm</span>' in stepper.group(0)
+    assert 'Controlled derivation' not in stepper.group(0)
+    assert '>Confirmation<' not in stepper.group(0)
+    baseline_sections = [
+        '<h3>Profile</h3>',
+        '<h3>Contact</h3>',
+        '<h3>Experience</h3>',
+        '<h3>Education</h3>',
+        '<h3>Projects</h3>',
+        '<h3>Achievements</h3>',
+        '<h3>Certifications</h3>',
+        '<h3>Volunteering</h3>',
+        '<h3>Languages</h3>',
+    ]
+    assert [baseline.text.index(label) for label in baseline_sections] == sorted(
+        baseline.text.index(label) for label in baseline_sections
+    )
+    assert '<h3>Candidate overview</h3>' not in baseline.text
+    assert '<h3>Interests</h3>' not in baseline.text
+    assert '<h3>Search preferences</h3>' not in baseline.text
+    assert '>Professional headline</label>' in baseline.text
+    assert '>LinkedIn URL</label>' in baseline.text
+    assert '>GitHub URL</label>' in baseline.text
+    assert '>Website URL</label>' in baseline.text
+    evidence_entries = re.findall(r'<article class="evidence-editor">.*?</article>', baseline.text, re.DOTALL)
+    assert evidence_entries
+    for evidence_entry in evidence_entries:
+        assert evidence_entry.index('>Source</button>') < evidence_entry.index('class="wand-btn"') < evidence_entry.index('>Remove</button>')
+
+    baseline_data = client.get(
+        f"/candidate-profile-creation-attempts/{attempt_id}/baseline"
+    ).json()["data"]
+    approved_baseline = client.post(
+        f"/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/approve",
+        headers={"Idempotency-Key": "approve-baseline-admin-1"},
+        json={
+            "expected_revision": baseline_data["revision"],
+            "expected_fingerprint": baseline_data["fingerprint"],
+        },
+    ).json()["data"]
+
+    derived = client.get(f"/admin/candidate-profiles/create/{attempt_id}/derived")
+    assert derived.status_code == 200
+    assert 'class="derived-entry"' in derived.text
+    assert 'class="evidence-ref-selector"' in derived.text
+    assert 'type="checkbox"' in derived.text
+    assert 'data-evidence-ref-path="/skills/skill-sql/evidence_refs"' in derived.text
+    assert 'data-field-path="/skills/skill-sql/name"' in derived.text
+    assert 'data-field-path="/skills/skill-sql/id"' not in derived.text
+    assert 'data-field-path="/skills/skill-sql/origin"' not in derived.text
+    assert 'data-field-path="/skills/skill-sql/confidence"' not in derived.text
+    assert "Comma-separated evidence IDs." not in derived.text
+    assert "98% confidence" in derived.text
+    assert ">inferred</span>" in derived.text
+    assert "llm_inferred" not in derived.text
+    assert "supported" in derived.text
+    assert "Approve derived" in derived.text
+    assert 'class="review-toolbar"' in derived.text
+    assert 'class="collection-list"' in derived.text
+    assert 'class="field-action-row"' in derived.text
+    assert 'class="wand-btn"' in derived.text
+    assert 'class="btn danger"' in derived.text
+    assert 'class="creation-footer-copy"' in derived.text
+    assert 'class="creation-action-group"' in derived.text
+    assert "ev-exp-quality" in derived.text
+    assert "Cross-functional delivery" in derived.text
+    cross_functional = re.search(
+        r'<article class="derived-entry">.*?Cross-functional delivery.*?</article>',
+        derived.text,
+        re.DOTALL,
+    )
+    assert cross_functional is not None
+    actions = cross_functional.group(0)
+    assert actions.index(">Source</button>") < actions.index('class="wand-btn"') < actions.index(">Remove</button>")
+    assert 'data-source-kind="derived"' in actions
+    assert 'data-source-title="Cross-functional delivery"' in actions
+    assert 'data-source-description="Controlled derivation from approved evidence IDs."' in actions
+    assert "<strong>Derived claim</strong>" in derived.text
+    assert "<strong>Evidence refs</strong>" in derived.text
+    for heading in ('Role Families', 'Domain Tags', 'Responsibility Themes'):
+        assert f'<h3>{heading}</h3>' in derived.text
+    for heading in ('Role families', 'Domain tags', 'Responsibility themes'):
+        assert f'<h3>{heading}</h3>' not in derived.text
+
+    derived_data = client.get(
+        f"/candidate-profile-creation-attempts/{attempt_id}/derived"
+    ).json()["data"]
+    assert derived_data["document"]["skills"][0]["origin"] == "llm_inferred"
+    approved_derived = client.post(
+        f"/candidate-profile-creation-attempts/{attempt_id}/derived/actions/approve",
+        headers={"Idempotency-Key": "approve-derived-admin-1"},
+        json={
+            "expected_revision": derived_data["revision"],
+            "expected_fingerprint": derived_data["fingerprint"],
+            "expected_baseline_fingerprint": approved_baseline["fingerprints"]["approved_baseline"],
+        },
+    ).json()["data"]
+
+    confirmation = client.get(f"/admin/candidate-profiles/create/{attempt_id}/confirm")
+    assert confirmation.status_code == 200
+    assert "Step 4 · Idempotent confirmation" in confirmation.text
+    assert "<h2>Confirm Candidate Profile</h2>" in confirmation.text
+    assert "<h1>Analytics Profile</h1>" not in confirmation.text
+    confirmation_sections = [
+        "<strong>Confirmation Overview</strong>",
+        "<strong>Source Input</strong>",
+        "<strong>Approval Status</strong>",
+        "<strong>Baseline Facts</strong>",
+        "<strong>Derived Claims</strong>",
+    ]
+    assert [confirmation.text.index(label) for label in confirmation_sections] == sorted(
+        confirmation.text.index(label) for label in confirmation_sections
+    )
+    assert "Profile checksum" not in confirmation.text
+    assert "ev-exp-quality" in confirmation.text
+    assert '<dt>Kind</dt><dd>Work achievement</dd>' in confirmation.text
+    assert '<dt>Kind</dt><dd>work_achievement</dd>' not in confirmation.text
+    certification_start = confirmation.text.index('<h3>Certifications</h3>')
+    certification_metadata_end = confirmation.text.index(
+        '<div class="evidence-ref-list">', certification_start
+    )
+    certification_metadata = confirmation.text[
+        certification_start:certification_metadata_end
+    ]
+    assert '<dt>Date</dt><dd>2025</dd>' in certification_metadata
+    assert '<dt>Start</dt>' not in certification_metadata
+    assert '<dd>2025-01</dd>' not in certification_metadata
+    confirmation_baseline_sections = [
+        '<h3>Profile</h3>', '<h3>Contact</h3>', '<h3>Experience</h3>', '<h3>Education</h3>',
+        '<h3>Projects</h3>', '<h3>Achievements</h3>', '<h3>Certifications</h3>',
+        '<h3>Volunteering</h3>', '<h3>Languages</h3>',
+    ]
+    assert [confirmation.text.index(label) for label in confirmation_baseline_sections] == sorted(
+        confirmation.text.index(label) for label in confirmation_baseline_sections
+    )
+    assert '<h3>Interests</h3>' not in confirmation.text
+    assert '<h3>Search preferences</h3>' not in confirmation.text
+    assert '<dt>Format</dt><dd>Markdown</dd>' in confirmation.text
+    assert '.confirm-section{display:grid;gap:10px}' in confirmation.text
+    assert '.confirm-entry{padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2)}' in confirmation.text
+    assert '.confirm-entry dl div{display:grid;grid-template-columns:minmax(120px,.35fr) minmax(0,1fr);gap:12px}' in confirmation.text
+    assert '.confirm-section>h3{margin:1em 0}' in confirmation.text
+    assert '@media(max-width:760px){.entry-fields{grid-template-columns:1fr}.entry-fields .review-field:last-child:nth-child(odd){grid-column:auto}.confirm-entry dl div,.trace-row{grid-template-columns:1fr}' in confirmation.text
+    assert confirmation.text.count(
+        'class="section-card collapsible-section drawer-section"'
+    ) == 5
+    assert re.findall(
+        r'<details class="section-card collapsible-section drawer-section" open>.*?<strong>(.*?)</strong>',
+        confirmation.text,
+        re.S,
+    ) == [label.removeprefix("<strong>").removesuffix("</strong>") for label in confirmation_sections]
+    assert confirmation.text.count('data-local-time="2026-08-02T12:00:00+00:00"') >= 2
+    assert "new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'})" in confirmation.text
+
+    confirmation_data = client.get(
+        f"/candidate-profile-creation-attempts/{attempt_id}/confirmation"
+    ).json()["data"]
+    assert confirmation_data["profile"]["canonical"]["certifications"][0]["date"] == "2025-01"
+    assert confirmation_data["profile"]["canonical"]["certifications"][0]["evidence"][0]["start"] == "2025-01"
+    confirmed = client.post(
+        f"/candidate-profile-creation-attempts/{attempt_id}/actions/confirm",
+        headers={"Idempotency-Key": "confirm-profile-admin-1"},
+        json={
+            "expected_revision": approved_derived["revision"],
+            "expected_baseline_fingerprint": confirmation_data["approval_fingerprints"]["baseline"],
+            "expected_derived_fingerprint": confirmation_data["approval_fingerprints"]["derived"],
+            "expected_confirmation_fingerprint": confirmation_data["fingerprint"],
+        },
+    ).json()["data"]
+    detail = client.get(f"/admin/candidate-profiles/{confirmed['profile_id']}")
+    assert detail.status_code == 200
+    assert confirmed["profile_id"] in detail.text
+    detail_sections = [
+        "<strong>Profile Overview</strong>",
+        "<strong>Source Input</strong>",
+        "<strong>Baseline Facts</strong>",
+        "<strong>Derived Claims</strong>",
+        "<strong>Traceability</strong>",
+        "<strong>Related Runs</strong>",
+    ]
+    assert [detail.text.index(label) for label in detail_sections] == sorted(
+        detail.text.index(label) for label in detail_sections
+    )
+    assert "Checksum" not in detail.text
+    assert "ev-exp-quality" in detail.text
+    assert '<h3>Interests</h3>' not in detail.text
+    assert '<h3>Search preferences</h3>' not in detail.text
+    assert '<dt>Professional headline</dt>' in detail.text
+    assert '<dt>LinkedIn URL</dt>' in detail.text
+    assert '<dt>GitHub URL</dt>' in detail.text
+    assert '<dt>Website URL</dt>' in detail.text
+    assert '<dt>Format</dt><dd>Markdown</dd>' in detail.text
+    assert ">2026-08-02T12:00:00+00:00<" not in detail.text
+    assert 'data-profile-action=' not in detail.text
+    assert detail.text.count('class="section-card collapsible-section drawer-section"') == 6
+    assert re.findall(
+        r'<details class="section-card collapsible-section drawer-section" open>.*?<strong>(.*?)</strong>',
+        detail.text,
+        re.S,
+    ) == [label.removeprefix("<strong>").removesuffix("</strong>") for label in detail_sections[:2]]
+
+def test_candidate_profile_mock_llm_configuration_matches_prototype_copy() -> None:
+    client = TestClient(_candidate_profile_mock_app())
+    llm_configuration = client.get("/admin/llm-configuration")
+
+    assert llm_configuration.status_code == 200
+    assert '<main data-page="llm-configuration"' in llm_configuration.text
+    assert '<p class="eyebrow">Application</p>' in llm_configuration.text
+    assert "Manage API Providers" in llm_configuration.text
+    assert 'class="llm-config-grid"' in llm_configuration.text
+    assert '.llm-config-grid{display:grid;gap:16px}' in llm_configuration.text
+    assert '.llm-config-grid{display:grid;grid-template-columns:' not in llm_configuration.text
+    assert '.llm-config-card{padding:22px}' in llm_configuration.text
+    assert '.llm-config-grid>.llm-config-card{margin-bottom:0}' in llm_configuration.text
+    assert '.llm-config-card h3{margin:0 0 4px;font-size:18px}' in llm_configuration.text
+    assert '.llm-config-card>p{margin:0 0 18px;color:var(--muted)}' in llm_configuration.text
+    assert '.llm-route-row{justify-content:space-between;padding:14px 0;border-top:1px solid var(--border-soft)}' in llm_configuration.text
+    assert "Candidate Profile Base Mapping" in llm_configuration.text
+    assert "Candidate Profile Derived Claims" in llm_configuration.text
+    assert "Default · 120s · temperature 0.2" in llm_configuration.text
+    assert "Default model · 120 seconds · Temperature 0.2" not in llm_configuration.text
+    assert '<option value="">Select a validated model</option>' in llm_configuration.text
+    assert '<option value="">Select a model</option>' not in llm_configuration.text
+    assert "textContent=button.closest('.llm-route-row').querySelector('strong').textContent+' Configuration'" in llm_configuration.text
+
+    llm_resource = client.get("/llm-configuration").json()["data"]
+    patched_llm = client.patch(
+        "/llm-configuration",
+        json={
+            "expected_revision": llm_resource["revision"],
+            "tasks": {"candidate_profile_derived_claims": {"temperature": 0.3}},
+        },
+    )
+    assert patched_llm.status_code == 200
+    assert patched_llm.json()["data"]["tasks"]["candidate_profile_derived_claims"]["temperature"] == 0.3
+
 
 def _seed_active_profile() -> str:
     resource = sqlite_store.create_candidate_profile_attempt(
@@ -697,6 +1332,10 @@ def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
     assert manifest == [
         ("/admin/bookmarks", ("GET",), "admin_bookmarks", "HTMLResponse"),
         ("/admin/candidate-profiles", ("GET",), "admin_candidate_profiles", "HTMLResponse"),
+        ("/admin/candidate-profiles/create", ("GET",), "admin_candidate_profile_create", "HTMLResponse"),
+        ("/admin/candidate-profiles/create/{attempt_id}/baseline", ("GET",), "admin_candidate_profile_baseline", "HTMLResponse"),
+        ("/admin/candidate-profiles/create/{attempt_id}/confirm", ("GET",), "admin_candidate_profile_confirmation", "HTMLResponse"),
+        ("/admin/candidate-profiles/create/{attempt_id}/derived", ("GET",), "admin_candidate_profile_derived", "HTMLResponse"),
         ("/admin/candidate-profiles/{profile_id}", ("GET",), "admin_candidate_profile_detail", "HTMLResponse"),
         ("/admin/cvs/{version_id}/download", ("GET",), "download_cv", "DefaultPlaceholder"),
         ("/admin/diagnostics/orchestration-schema", ("GET",), "admin_orchestration_schema_diagnostics", "DefaultPlaceholder"),
@@ -2262,8 +2901,8 @@ def test_central_workspace_pages_share_navigation_and_retire_legacy_labels() -> 
         assert "fitcvApiRequest" in html
         assert html.index("async function fitcvApiRequest") < html.index('data-page=')
     assert "table-shell" in candidate_html
-    assert 'name="status"' in candidate_html
-    assert 'name="search"' in candidate_html
+    assert 'class="run-tabs"' in candidate_html
+    assert 'class="filter-bar section-card"' not in candidate_html
     assert "return_to={{ current_url|urlencode }}" in Path("src/fitcv_cp/templates/candidate_profiles.html").read_text(encoding="utf-8")
     assert "table-shell" in bookmark_html
     assert bookmark_html.index('id="bookmarkNotice"') < bookmark_html.index('id="bookmarkCount"') < bookmark_html.index('class="table-shell"')

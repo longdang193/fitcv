@@ -42,6 +42,8 @@ class SettingsRevisionConflict(RuntimeError):
 
 
 LLM_TASK_IDS = (
+    "candidate_profile_base_mapping",
+    "candidate_profile_derived_claims",
     "enrich_extraction",
     "ranking_ai_score",
     "cv_generation_structured_write",

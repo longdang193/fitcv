@@ -1,59 +1,10 @@
 {% extends "base.html" %}
+{% from "candidate_profile_sections.html" import render_candidate_profile %}
 {% block title %}Candidate Profile {{ profile.profile_id }} — FitCV{% endblock %}
 {% block content %}
-<main class="workspace-stack" data-page="candidate-profile-detail">
-  <a class="page-back-link" href="{{ back_url }}">← Back to Candidate Profiles</a>
-  <header class="page-header">
-    <div><h1>{{ profile.display_name }}</h1><p class="meta"><code>{{ profile.profile_id }}</code></p></div>
-    {% if profile.capabilities.archive %}<button class="btn-secondary" type="button" data-profile-action="archive">Archive</button>{% endif %}
-    {% if profile.capabilities.restore %}<button class="btn-secondary" type="button" data-profile-action="restore">Restore</button>{% endif %}
-  </header>
+<main class="workspace-stack" data-page="candidate-profile-detail" data-header-title="Candidate Profile" data-header-description="Review source, approved facts, derived claims, traceability, and related runs." data-header-icon="candidate">
+  <div class="details-page-head"><a class="details-page-back" href="{{ back_url }}">← Back to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Candidate Profile</p><h2>{{ profile.display_name }}</h2><p>Review source, approved facts, derived claims, traceability, and related Runs.</p></div></div></div>
   {% if profile.failure %}<div class="notice" role="alert">{{ profile.failure.message }}</div>{% endif %}
-  <section class="section-card">
-    <h2>Profile Overview</h2>
-    <dl class="kv">
-      <span class="k">Status</span><span class="v">{{ profile.creation_status }}</span>
-      <span class="k">Lifecycle</span><span class="v">{{ profile.lifecycle }}</span>
-      <span class="k">Profile Name</span><span class="v">{{ profile.profile_name or 'Not provided' }}</span>
-      <span class="k">Created</span><span class="v">{{ profile.created_at }}</span>
-      <span class="k">Updated</span><span class="v">{{ profile.updated_at }}</span>
-    </dl>
-  </section>
-  <section class="section-card">
-    <h2>Profile Input</h2>
-    <dl class="kv">
-      <span class="k">File</span><span class="v"><code>{{ profile.input.original_filename }}</code></span>
-      <span class="k">Media Type</span><span class="v">{{ profile.input.media_type }}</span>
-      <span class="k">Size</span><span class="v">{{ profile.input.byte_length }} bytes</span>
-      <span class="k">Checksum</span><span class="v"><code>{{ profile.input.checksum }}</code></span>
-    </dl>
-  </section>
-  <section class="section-card">
-    <h2>Parsed Profile</h2>
-    {% if profile.overview %}<pre>{{ profile.overview|tojson(indent=2) }}</pre>{% else %}<p class="empty-state">No parsed profile data is available.</p>{% endif %}
-  </section>
-  <p id="profile-action-status" class="meta" role="status" aria-live="polite"></p>
+  {% if canonical %}{{ render_candidate_profile(profile, canonical, field_schema, related_runs) }}{% else %}<p class="empty-state">No parsed profile data is available.</p>{% endif %}
 </main>
-<script>
-(function() {
-  var button = document.querySelector('[data-profile-action]');
-  if (!button) return;
-  button.addEventListener('click', async function() {
-    var action = button.dataset.profileAction;
-    if (!confirm((action === 'archive' ? 'Archive' : 'Restore') + ' this Candidate Profile?')) return;
-    button.disabled = true;
-    try {
-      await fitcvApiRequest('/candidate-profiles/{{ profile.profile_id }}/actions/' + action, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()},
-        body: JSON.stringify({expected_revision: {{ profile.revision }}})
-      });
-      location.reload();
-    } catch (error) {
-      document.getElementById('profile-action-status').textContent = error.message;
-      button.disabled = false;
-    }
-  });
-})();
-</script>
 {% endblock %}

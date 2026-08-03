@@ -48,6 +48,18 @@ class RunStore(Protocol):
     def get_candidate_profile(self, candidate_profile_id: str) -> dict[str, Any] | None: ...
     def query_candidate_profiles(self, **kwargs: Any) -> dict[str, Any]: ...
     def create_candidate_profile_attempt(self, **kwargs: Any) -> dict[str, Any]: ...
+    def query_candidate_profile_creation_attempts(self, **kwargs: Any) -> dict[str, Any]: ...
+    def create_candidate_profile_creation_attempt(self, **kwargs: Any) -> dict[str, Any]: ...
+    def get_candidate_profile_creation_attempt(self, attempt_id: str) -> dict[str, Any] | None: ...
+    def get_candidate_profile_source(self, attempt_id: str) -> dict[str, Any] | None: ...
+    def get_candidate_profile_source_block(self, attempt_id: str, source_block_id: str) -> dict[str, Any] | None: ...
+    def get_candidate_profile_review(self, attempt_id: str, stage: str) -> dict[str, Any] | None: ...
+    def patch_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
+    def regenerate_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
+    def approve_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
+    def get_candidate_profile_confirmation(self, attempt_id: str) -> dict[str, Any] | None: ...
+    def confirm_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def retry_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def get_candidate_profile_detail(self, profile_id: str) -> dict[str, Any] | None: ...
     def query_candidate_profile_runs(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def transition_candidate_profile_lifecycle(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -201,6 +213,18 @@ class ControlPlaneStore:
     get_candidate_profile_fn: Any | None = None
     query_candidate_profiles_fn: Any | None = None
     create_candidate_profile_attempt_fn: Any | None = None
+    query_candidate_profile_creation_attempts_fn: Any | None = None
+    create_candidate_profile_creation_attempt_fn: Any | None = None
+    get_candidate_profile_creation_attempt_fn: Any | None = None
+    get_candidate_profile_source_fn: Any | None = None
+    get_candidate_profile_source_block_fn: Any | None = None
+    get_candidate_profile_review_fn: Any | None = None
+    patch_candidate_profile_review_fn: Any | None = None
+    regenerate_candidate_profile_review_fn: Any | None = None
+    approve_candidate_profile_review_fn: Any | None = None
+    get_candidate_profile_confirmation_fn: Any | None = None
+    confirm_candidate_profile_creation_attempt_fn: Any | None = None
+    retry_candidate_profile_creation_attempt_fn: Any | None = None
     get_candidate_profile_detail_fn: Any | None = None
     query_candidate_profile_runs_fn: Any | None = None
     transition_candidate_profile_lifecycle_fn: Any | None = None
@@ -534,6 +558,86 @@ class ControlPlaneStore:
             self.create_candidate_profile_attempt_fn,
             sqlite_store.create_candidate_profile_attempt,
             **kwargs,
+        )
+
+    @staticmethod
+    def _required_candidate_profile_override(fn: Any | None) -> Any:
+        if fn is None:
+            raise RuntimeError("candidate_profile_backend_unavailable")
+        return fn
+
+    def query_candidate_profile_creation_attempts(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self._required_candidate_profile_override(self.query_candidate_profile_creation_attempts_fn),
+            lambda **_kwargs: {},
+            **kwargs,
+        )
+
+    def create_candidate_profile_creation_attempt(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self._required_candidate_profile_override(self.create_candidate_profile_creation_attempt_fn),
+            lambda **_kwargs: {},
+            **kwargs,
+        )
+
+    def get_candidate_profile_creation_attempt(self, attempt_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._required_candidate_profile_override(self.get_candidate_profile_creation_attempt_fn)(attempt_id),
+        )
+
+    def get_candidate_profile_source(self, attempt_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._required_candidate_profile_override(self.get_candidate_profile_source_fn)(attempt_id),
+        )
+
+    def get_candidate_profile_source_block(self, attempt_id: str, source_block_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._required_candidate_profile_override(self.get_candidate_profile_source_block_fn)(attempt_id, source_block_id),
+        )
+
+    def get_candidate_profile_review(self, attempt_id: str, stage: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._required_candidate_profile_override(self.get_candidate_profile_review_fn)(attempt_id, stage),
+        )
+
+    def patch_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            self._required_candidate_profile_override(self.patch_candidate_profile_review_fn)(attempt_id, stage, **kwargs),
+        )
+
+    def regenerate_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            self._required_candidate_profile_override(self.regenerate_candidate_profile_review_fn)(attempt_id, stage, **kwargs),
+        )
+
+    def approve_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            self._required_candidate_profile_override(self.approve_candidate_profile_review_fn)(attempt_id, stage, **kwargs),
+        )
+
+    def get_candidate_profile_confirmation(self, attempt_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._required_candidate_profile_override(self.get_candidate_profile_confirmation_fn)(attempt_id),
+        )
+
+    def confirm_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            self._required_candidate_profile_override(self.confirm_candidate_profile_creation_attempt_fn)(attempt_id, **kwargs),
+        )
+
+    def retry_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            self._required_candidate_profile_override(self.retry_candidate_profile_creation_attempt_fn)(attempt_id, **kwargs),
         )
 
     def get_candidate_profile_detail(self, profile_id: str) -> dict[str, Any] | None:

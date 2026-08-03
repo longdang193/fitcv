@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from fitcv.candidate import (
+    candidate_profile_field_schema,
     flatten_skills,
     infer_effective_preferences,
     load_profile_json_text,
@@ -31,6 +32,108 @@ _VALID_PROFILE_DICT: dict = {
     "achievements": [],
     "preferences": {"seniority_target": "mid", "location_types": ["remote"]},
 }
+
+
+def test_candidate_profile_v2_field_schema_is_stable_and_symmetric() -> None:
+    schema = candidate_profile_field_schema()
+
+    assert schema["schema_version"] == "candidate-profile-fields.v1"
+    assert len(schema["checksum"]) == 64
+    assert schema["date_grammar"] == {
+        "format": "YYYY-MM",
+        "present_value": "Present",
+        "optional": True,
+    }
+    assert [section["id"] for section in schema["sections"]] == [
+        "identity",
+        "contact",
+        "experiences",
+        "education",
+        "projects",
+        "achievements",
+        "certifications",
+        "volunteering",
+        "languages",
+        "interests",
+        "search_preferences",
+        "skills",
+        "role_families",
+        "domain_tags",
+        "responsibility_themes",
+    ]
+    collections = {
+        section["id"]: section
+        for section in schema["sections"]
+        if section["shape"] == "collection"
+    }
+    assert collections["experiences"]["item"]["evidence"]["shape"] == "collection"
+    assert collections["education"]["item"]["evidence"] == collections["experiences"]["item"]["evidence"]
+    evidence_item = collections["experiences"]["item"]["evidence"]["item"]
+    assert list(evidence_item) == ["id", "kind", "title", "start", "end", "text", "source_refs"]
+    assert evidence_item["kind"]["options"] == [
+        {"value": "work_achievement", "label": "Work achievement"},
+        {"value": "work_responsibility", "label": "Work responsibility"},
+        {"value": "thesis", "label": "Thesis"},
+        {"value": "seminar", "label": "Seminar"},
+        {"value": "course", "label": "Course"},
+        {"value": "academic_project", "label": "Academic project"},
+        {"value": "project_highlight", "label": "Project highlight"},
+        {"value": "achievement", "label": "Achievement"},
+        {"value": "certification_proof", "label": "Certification proof"},
+        {"value": "volunteer_contribution", "label": "Volunteer contribution"},
+    ]
+    assert evidence_item["text"] == {
+        "shape": "textarea",
+        "label": "Evidence text",
+        "description": "Reviewed statement projected into runtime candidate evidence.",
+        "required": True,
+    }
+    identity = next(section for section in schema["sections"] if section["id"] == "identity")
+    contact = next(section for section in schema["sections"] if section["id"] == "contact")
+    education = collections["education"]
+    projects = collections["projects"]
+    certifications = collections["certifications"]
+    languages = collections["languages"]
+    assert identity["label"] == "Profile"
+    assert identity["fields"]["headline"]["label"] == "Professional headline"
+    assert contact["fields"]["linkedin"]["label"] == "LinkedIn URL"
+    assert contact["fields"]["github"]["label"] == "GitHub URL"
+    assert contact["fields"]["website"]["label"] == "Website URL"
+    assert education["required_one_of"] == ["degree", "field"]
+    assert education["item"]["degree"]["label"] == "Degree or credential"
+    assert education["item"]["field"]["label"] == "Field of study"
+    assert projects["item"]["name"]["label"] == "Project name"
+    assert projects["item"]["context"]["label"] == "Context or organization"
+    assert projects["item"]["url"]["label"] == "Project URL"
+    assert certifications["item"]["name"]["label"] == "Certification"
+    assert certifications["item"]["url"]["label"] == "Credential URL"
+    assert languages["item"]["name"]["label"] == "Language"
+    assert collections["role_families"]["label"] == "Role Families"
+    assert collections["role_families"]["item_label"] == "Role Family"
+    assert collections["domain_tags"]["label"] == "Domain Tags"
+    assert collections["responsibility_themes"]["label"] == "Responsibility Themes"
+    assert collections["skills"]["item"] == collections["domain_tags"]["item"]
+    assert collections["skills"]["item"]["support_status"] == {
+        "shape": "status",
+        "label": "Support status",
+        "required": True,
+    }
+    assert collections["skills"]["description"] == "Each skill is independently editable and traceable."
+    assert collections["skills"]["item_label"] == "Skill"
+    for section in schema["sections"]:
+        if section["stage"] != "baseline" or section["id"] in {"interests", "search_preferences"}:
+            continue
+        fields = section.get("fields") or section.get("item") or {}
+        if section["shape"] == "collection":
+            assert section.get("description"), section["id"]
+            assert section.get("item_label"), section["id"]
+        for field_name, field in fields.items():
+            if field_name in {"id", "source_refs", "evidence"}:
+                continue
+            assert field.get("description"), f"{section['id']}.{field_name}"
+    serialized = json.dumps(schema, sort_keys=True)
+    assert '"current"' not in serialized
+    assert schema == candidate_profile_field_schema()
 
 
 # ── load_profile_yaml ─────────────────────────────────────────────────────────

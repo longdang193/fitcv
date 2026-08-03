@@ -15,6 +15,9 @@ lifecycle:
   - status: active
 """
 
+import copy
+import hashlib
+import json
 import re
 import uuid
 from datetime import datetime, timezone
@@ -22,6 +25,224 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+_EVIDENCE_KINDS = (
+    "work_achievement",
+    "work_responsibility",
+    "thesis",
+    "seminar",
+    "course",
+    "academic_project",
+    "project_highlight",
+    "achievement",
+    "certification_proof",
+    "volunteer_contribution",
+)
+
+_SOURCE_REFS_FIELD = {
+    "shape": "source_refs",
+    "label": "Source references",
+    "description": "Links this fact to exact uploaded source evidence.",
+    "required": True,
+}
+
+_EVIDENCE_COLLECTION_FIELD = {
+    "shape": "collection",
+    "label": "Evidence",
+    "description": "Atomic statements used by pipeline evidence projection.",
+    "required": True,
+    "item": {
+        "id": {"shape": "text", "label": "ID", "required": True},
+        "kind": {
+            "shape": "select",
+            "label": "Kind",
+            "description": "Classifies this statement for explanation and display. Kind never changes relevance scoring.",
+            "required": True,
+            "options": [
+                {"value": value, "label": value.replace("_", " ").capitalize()}
+                for value in _EVIDENCE_KINDS
+            ],
+        },
+        "title": {
+            "shape": "text",
+            "label": "Title",
+            "description": "Optional short label for this evidence statement.",
+            "required": False,
+        },
+        "start": {
+            "shape": "month",
+            "label": "Start",
+            "description": "Optional start value. Use YYYY-MM or Present.",
+            "required": False,
+        },
+        "end": {
+            "shape": "month_or_present",
+            "label": "End",
+            "description": "Optional end value. Use YYYY-MM or Present.",
+            "required": False,
+        },
+        "text": {
+            "shape": "textarea",
+            "label": "Evidence text",
+            "description": "Reviewed statement projected into runtime candidate evidence.",
+            "required": True,
+        },
+        "source_refs": _SOURCE_REFS_FIELD,
+    },
+}
+
+_DERIVED_CLAIM_ITEM = {
+    "id": {"shape": "text", "label": "ID", "required": True},
+    "name": {"shape": "text", "label": "Name", "required": True},
+    "origin": {"shape": "status", "label": "Origin", "required": True},
+    "confidence": {"shape": "number", "label": "Confidence", "required": True},
+    "support_status": {"shape": "status", "label": "Support status", "required": True},
+    "evidence_refs": {
+        "shape": "evidence_refs",
+        "label": "Evidence references",
+        "required": True,
+    },
+}
+
+CANDIDATE_PROFILE_V2_FIELD_REGISTRY: dict[str, Any] = {
+    "schema_version": "candidate-profile-fields.v1",
+    "schema_revision": 1,
+    "date_grammar": {
+        "format": "YYYY-MM",
+        "present_value": "Present",
+        "optional": True,
+    },
+    "evidence_kinds": list(_EVIDENCE_KINDS),
+    "sections": [
+        {
+            "id": "identity",
+            "stage": "baseline",
+            "shape": "object",
+            "label": "Profile",
+            "description": "Canonical identity and profile text.",
+            "fields": {
+                "name": {"shape": "text", "label": "Full name", "description": "Reviewed candidate display name.", "required": True},
+                "headline": {"shape": "text", "label": "Professional headline", "description": "Optional professional headline copied from source.", "required": False},
+                "summary": {"shape": "textarea", "label": "Summary", "description": "Optional profile summary based on reviewed evidence.", "required": False},
+            },
+        },
+        {
+            "id": "contact",
+            "stage": "baseline",
+            "shape": "object",
+            "label": "Contact",
+            "description": "Direct contact facts; never inferred.",
+            "fields": {
+                "email": {"shape": "text", "label": "Email", "description": "Optional email address copied from source.", "required": False},
+                "phone": {"shape": "text", "label": "Phone", "description": "Optional phone number copied from source.", "required": False},
+                "location": {"shape": "text", "label": "Location", "description": "Optional candidate location copied from source.", "required": False},
+                "linkedin": {"shape": "text", "label": "LinkedIn URL", "description": "Optional LinkedIn profile URL copied from source.", "required": False},
+                "github": {"shape": "text", "label": "GitHub URL", "description": "Optional GitHub profile URL copied from source.", "required": False},
+                "website": {"shape": "text", "label": "Website URL", "description": "Optional personal website URL copied from source.", "required": False},
+            },
+        },
+        {
+            "id": "experiences",
+            "stage": "baseline",
+            "shape": "collection",
+            "label": "Experience",
+            "item_label": "Experience",
+            "description": "One parent per company and role; each statement is separate evidence.",
+            "item": {
+                "id": {"shape": "text", "label": "ID", "required": True},
+                "role": {"shape": "text", "label": "Role", "description": "Role title stated in source.", "required": True},
+                "company": {"shape": "text", "label": "Company", "description": "Employer stated in source.", "required": True},
+                "company_url": {"shape": "text", "label": "Company URL", "description": "Optional employer URL stated in source.", "required": False},
+                "location": {"shape": "text", "label": "Location", "description": "Optional work location stated in source.", "required": False},
+                "start": {"shape": "month", "label": "Start", "description": "Optional start value. Use YYYY-MM or Present.", "required": False},
+                "end": {"shape": "month_or_present", "label": "End", "description": "Optional end value. Use YYYY-MM or Present.", "required": False},
+                "source_refs": _SOURCE_REFS_FIELD,
+                "evidence": _EVIDENCE_COLLECTION_FIELD,
+            },
+        },
+        {
+            "id": "education",
+            "stage": "baseline",
+            "shape": "collection",
+            "label": "Education",
+            "item_label": "Education",
+            "description": "Degrees, thesis work, seminars, courses, and academic projects use same evidence shape.",
+            "required_one_of": ["degree", "field"],
+            "item": {
+                "id": {"shape": "text", "label": "ID", "required": True},
+                "institution": {"shape": "text", "label": "Institution", "description": "Institution stated in source.", "required": True},
+                "degree": {"shape": "text", "label": "Degree or credential", "description": "Degree or credential stated in source; degree or field is required.", "required": False},
+                "field": {"shape": "text", "label": "Field of study", "description": "Field of study stated in source; degree or field is required.", "required": False},
+                "location": {"shape": "text", "label": "Location", "description": "Optional study location stated in source.", "required": False},
+                "start": {"shape": "month", "label": "Start", "description": "Optional start value. Use YYYY-MM or Present.", "required": False},
+                "end": {"shape": "month_or_present", "label": "End", "description": "Optional end value. Use YYYY-MM or Present.", "required": False},
+                "source_refs": _SOURCE_REFS_FIELD,
+                "evidence": _EVIDENCE_COLLECTION_FIELD,
+            },
+        },
+        {
+            "id": "projects",
+            "stage": "baseline",
+            "shape": "collection",
+            "label": "Projects",
+            "item_label": "Project",
+            "description": "Academic, personal, and work projects use same parent and evidence shape.",
+            "item": {
+                "id": {"shape": "text", "label": "ID", "required": True},
+                "name": {"shape": "text", "label": "Project name", "description": "Project name stated in source.", "required": True},
+                "context": {"shape": "text", "label": "Context or organization", "description": "Optional project context or organization.", "required": False},
+                "url": {"shape": "text", "label": "Project URL", "description": "Optional project URL.", "required": False},
+                "start": {"shape": "month", "label": "Start", "description": "Optional start value. Use YYYY-MM or Present.", "required": False},
+                "end": {"shape": "month_or_present", "label": "End", "description": "Optional end value. Use YYYY-MM or Present.", "required": False},
+                "source_refs": _SOURCE_REFS_FIELD,
+                "evidence": _EVIDENCE_COLLECTION_FIELD,
+            },
+        },
+        *[
+            {
+                "id": section_id,
+                "stage": "baseline",
+                "shape": "collection",
+                "label": label,
+                "item_label": item_label,
+                "description": description,
+                "item": item,
+            }
+            for section_id, label, item_label, description, item in (
+                ("achievements", "Achievements", "Achievement", "Each achievement may contain one or more traceable statements.", {"id": {"shape": "text", "label": "ID", "required": True}, "title": {"shape": "text", "label": "Title", "description": "Achievement title stated in source.", "required": True}, "issuer": {"shape": "text", "label": "Issuer", "description": "Optional issuing organization.", "required": False}, "date": {"shape": "month", "label": "Date", "description": "Optional achievement date copied from source.", "required": False}, "url": {"shape": "text", "label": "URL", "description": "Optional achievement URL.", "required": False}, "source_refs": _SOURCE_REFS_FIELD, "evidence": _EVIDENCE_COLLECTION_FIELD}),
+                ("certifications", "Certifications", "Certification", "Each certification uses same evidence contract.", {"id": {"shape": "text", "label": "ID", "required": True}, "name": {"shape": "text", "label": "Certification", "description": "Certification name stated in source.", "required": True}, "issuer": {"shape": "text", "label": "Issuer", "description": "Certification issuer stated in source.", "required": True}, "date": {"shape": "month", "label": "Date", "description": "Optional issue date copied from source.", "required": False}, "expires": {"shape": "month", "label": "Expires", "description": "Optional expiry value copied from source.", "required": False}, "credential_id": {"shape": "text", "label": "Credential ID", "description": "Optional credential identifier.", "required": False}, "url": {"shape": "text", "label": "Credential URL", "description": "Optional credential URL.", "required": False}, "source_refs": _SOURCE_REFS_FIELD, "evidence": _EVIDENCE_COLLECTION_FIELD}),
+                ("volunteering", "Volunteering", "Volunteer role", "Volunteer contributions compete uniformly with other evidence.", {"id": {"shape": "text", "label": "ID", "required": True}, "organization": {"shape": "text", "label": "Organization", "description": "Volunteer organization stated in source.", "required": True}, "role": {"shape": "text", "label": "Role", "description": "Volunteer role stated in source.", "required": True}, "location": {"shape": "text", "label": "Location", "description": "Optional volunteer location.", "required": False}, "start": {"shape": "month", "label": "Start", "description": "Optional start value. Use YYYY-MM or Present.", "required": False}, "end": {"shape": "month_or_present", "label": "End", "description": "Optional end value. Use YYYY-MM or Present.", "required": False}, "source_refs": _SOURCE_REFS_FIELD, "evidence": _EVIDENCE_COLLECTION_FIELD}),
+                ("languages", "Languages", "Language", "Add each language and level separately.", {"id": {"shape": "text", "label": "ID", "required": True}, "name": {"shape": "text", "label": "Language", "description": "Language stated in source.", "required": True}, "level": {"shape": "text", "label": "Level", "description": "Optional proficiency level stated in source.", "required": False}, "source_refs": _SOURCE_REFS_FIELD}),
+            )
+        ],
+        {"id": "interests", "stage": "baseline", "shape": "string_list", "label": "Interests"},
+        {"id": "search_preferences", "stage": "baseline", "shape": "object", "label": "Search preferences", "fields": {}},
+        *[
+            {
+                "id": section_id,
+                "stage": "derived",
+                "shape": "collection",
+                "label": label,
+                "item_label": item_label,
+                "description": description,
+                "item": _DERIVED_CLAIM_ITEM,
+            }
+            for section_id, label, item_label, description in (
+                ("skills", "Skills", "Skill", "Each skill is independently editable and traceable."),
+                ("role_families", "Role Families", "Role Family", "Each role family retains its own evidence refs."),
+                ("domain_tags", "Domain Tags", "Domain Tag", "Each domain tag retains its own evidence refs."),
+                ("responsibility_themes", "Responsibility Themes", "Responsibility Theme", "Each theme retains its own evidence refs."),
+            )
+        ],
+    ],
+}
+
+
+def candidate_profile_field_schema() -> dict[str, Any]:
+    payload = copy.deepcopy(CANDIDATE_PROFILE_V2_FIELD_REGISTRY)
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    payload["checksum"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return payload
 
 
 
