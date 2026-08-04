@@ -1025,6 +1025,25 @@ def test_candidate_profile_regeneration_claims_same_stage_without_deleting_draft
         created["attempt_id"], "baseline", database_path=database_path
     )["document"]["summary"] == "Original"
 
+    unchanged = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=regenerating["processing"]["claim_id"],
+        expected_revision=regenerating["revision"],
+        result={
+            "document": {"name": "Alex Morgan", "summary": "Original"},
+            "annotations": {"/summary": {"regenerable": True, "source_block_ids": []}},
+            "fingerprint": "baseline-regenerate-1",
+            "runtime_evidence": {"status": "succeeded"},
+        },
+        database_path=database_path,
+    )
+
+    assert unchanged["creation_status"] == "base_review"
+    assert unchanged["revision"] == 5
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_baseline_snapshots").fetchone()[0] == 1
+
 
 def _candidate_profile_v2_review_documents() -> tuple[dict[str, object], dict[str, object]]:
     import yaml

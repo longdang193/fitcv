@@ -418,6 +418,8 @@
   var dialogTitle = document.getElementById('candidate-profile-dialog-title');
   var dialogDescription = document.getElementById('candidate-profile-dialog-description');
   var dialogBody = document.getElementById('candidate-profile-dialog-body');
+  var sourceRoot = document.querySelector('[data-page="candidate-profile-creation"]');
+  var sourceAttempt = review || confirmRoot;
   var dialogOpener;
   function sourceBlockLocator(block) {
     var locator = block.locator || {};
@@ -448,13 +450,13 @@
     dialogBody.append(sourceDialogRow('Locator', 'code', sourceBlockLocator(block)));
     dialogBody.append(sourceDialogRow(source.dataset.sourceKind === 'evidence' ? 'Current reviewed text' : 'Current reviewed value', 'p', source.dataset.reviewedValue || '—'));
   }
-  document.addEventListener('click', async function(event) {
+  if (sourceRoot && dialog && sourceAttempt) sourceRoot.addEventListener('click', async function(event) {
     var source = event.target.closest('[data-source-kind]');
     if (!source) return;
     dialogOpener = source;
     try {
       var block = {};
-      if (source.dataset.sourceKind !== 'derived') block = (await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(review.dataset.attemptId) + '/source-blocks/' + encodeURIComponent(source.dataset.sourceBlock))).data;
+      if (source.dataset.sourceKind !== 'derived') block = (await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(sourceAttempt.dataset.attemptId) + '/source-blocks/' + encodeURIComponent(source.dataset.sourceBlock))).data;
       renderSourceDialog(source, block);
       dialog.showModal();
     } catch (error) { dialogTitle.textContent = source.dataset.sourceTitle; dialogDescription.textContent = error.message; dialogBody.replaceChildren(); dialog.showModal(); }

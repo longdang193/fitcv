@@ -25,15 +25,15 @@ from fitcv_cp.candidate_profile_service import (
     regenerate_review,
     resolve_regeneration_targets,
     retry_failed_stage,
+    _validate_baseline_payload,
 )
 
 
 def test_execute_candidate_profile_stage_publishes_deterministic_baseline() -> None:
-    published: dict[str, object] = {}
+    published: list[dict[str, object]] = []
 
     class Store:
         def get_candidate_profile_source(self, attempt_id: str):
-            assert attempt_id == "attempt-1"
             return {
                 "filename": "candidate.md",
                 "media_type": "text/markdown",
@@ -41,26 +41,29 @@ def test_execute_candidate_profile_stage_publishes_deterministic_baseline() -> N
             }
 
         def publish_candidate_profile_stage_result(self, attempt_id: str, **kwargs):
-            published.update({"attempt_id": attempt_id, **kwargs})
+            published.append({"attempt_id": attempt_id, **kwargs})
             return {"attempt_id": attempt_id, "creation_status": "base_review"}
 
         def fail_candidate_profile_stage(self, attempt_id: str, **kwargs):
             raise AssertionError((attempt_id, kwargs))
 
+    store = Store()
     resource = execute_candidate_profile_stage(
-        attempt_id="attempt-1",
-        stage="base_mapping",
-        claim_id="claim-1",
-        expected_revision=2,
-        targets=None,
-        store=Store(),
+        attempt_id="attempt-1", stage="base_mapping", claim_id="claim-1", expected_revision=2, targets=None, store=store
+    )
+    execute_candidate_profile_stage(
+        attempt_id="attempt-2", stage="base_mapping", claim_id="claim-2", expected_revision=2, targets=None, store=store
     )
 
     assert resource["creation_status"] == "base_review"
-    assert published["claim_id"] == "claim-1"
-    assert published["stage"] == "baseline"
-    assert published["result"]["document"]["name"] == "Alex Morgan"
-    assert published["source_blocks"][0]["block_id"]
+    assert published[0]["claim_id"] == "claim-1"
+    assert published[0]["stage"] == "baseline"
+    assert published[0]["result"]["document"]["name"] == "Alex Morgan"
+    first_block_id = published[0]["source_blocks"][0]["block_id"]
+    second_block_id = published[1]["source_blocks"][0]["block_id"]
+    assert first_block_id != second_block_id
+    assert published[0]["result"]["annotations"]["/name"]["source_block_ids"] == [first_block_id]
+    assert published[1]["result"]["annotations"]["/name"]["source_block_ids"] == [second_block_id]
 
 
 def _success(value: dict) -> LlmRuntimeResult:
@@ -174,7 +177,13 @@ def test_ambiguous_baseline_calls_llm_only_with_unresolved_blocks() -> None:
                             "value": "Data analyst focused on reliable reporting.",
                             "source_block_ids": [paragraph_id],
                             "confidence": 0.91,
-                        }
+                        },
+                        {
+                            "path": "/contact/email",
+                            "value": "alex@example.com",
+                            "source_block_ids": [paragraph_id],
+                            "confidence": 0.8,
+                        },
                     ],
                     "collections": [],
                 }
@@ -188,8 +197,30 @@ def test_ambiguous_baseline_calls_llm_only_with_unresolved_blocks() -> None:
     assert source.source_blocks[0]["block_id"] not in calls[0].prompt
     assert result.document["summary"] == "Data analyst focused on reliable reporting."
     assert result.annotations["/summary"]["source_block_ids"] == [paragraph_id]
+    assert result.annotations["/summary"]["regenerable"] is True
+    assert result.annotations["/contact/email"]["regenerable"] is False
     assert result.runtime_evidence["status"] == "succeeded"
     assert "secret" not in str(result.runtime_evidence)
+
+
+def test_baseline_validator_rejects_foreign_collection_fields() -> None:
+    validation = _validate_baseline_payload(
+        {
+            "proposals": [],
+            "collections": [
+                {
+                    "section": "experiences",
+                    "fields": {"organization": "Northstar"},
+                    "source_block_ids": ["block-1"],
+                    "confidence": 0.9,
+                }
+            ],
+        },
+        {"block-1"},
+    )
+
+    assert validation.valid is False
+    assert "unsupported baseline collection field" in validation.errors
 
 
 def test_baseline_llm_failure_preserves_deterministic_work() -> None:
@@ -304,6 +335,8 @@ def test_regeneration_uses_one_target_resolver_for_both_stages() -> None:
     )
     assert regenerated.document["summary"] == "New"
     assert len(calls) == 1
+    assert calls[0].schema["properties"]["proposals"]["items"]["properties"]["path"]["enum"] == ["/summary"]
+    assert "/summary" in calls[0].instructions
 
 
 def test_review_patch_is_atomic_and_baseline_invalidates_all_downstream_state() -> None:

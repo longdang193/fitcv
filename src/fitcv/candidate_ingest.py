@@ -25,6 +25,11 @@ _SUPPORTED_MEDIA_TYPES = {
     ".docx": {DOCX_MEDIA_TYPE},
     ".yaml": {"application/yaml", "application/x-yaml", "text/yaml"},
 }
+_DEFAULT_MEDIA_TYPES = {
+    ".md": "text/markdown",
+    ".docx": DOCX_MEDIA_TYPE,
+    ".yaml": "application/yaml",
+}
 _WORD_NAMESPACE = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _WORD = f"{{{_WORD_NAMESPACE}}}"
 _HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*$")
@@ -71,7 +76,10 @@ def validate_candidate_source_upload(
     extension = PureWindowsPath(filename).suffix.lower()
     if extension not in _SUPPORTED_MEDIA_TYPES:
         raise CandidateIngestError("candidate_profile_unsupported_source", "Unsupported Candidate Profile source")
-    if media_type.lower().split(";", 1)[0].strip() not in _SUPPORTED_MEDIA_TYPES[extension]:
+    normalized_media_type = media_type.lower().split(";", 1)[0].strip()
+    if normalized_media_type == "application/octet-stream":
+        normalized_media_type = ""
+    if normalized_media_type and normalized_media_type not in _SUPPORTED_MEDIA_TYPES[extension]:
         raise CandidateIngestError("candidate_profile_media_mismatch", "Filename and media type do not match")
     if not content:
         raise CandidateIngestError("candidate_profile_empty_source", "Candidate Profile source is empty")
@@ -82,11 +90,14 @@ def validate_candidate_source_upload(
 
 def _source_document(filename: str, media_type: str, content: bytes, parser_name: str) -> dict[str, Any]:
     checksum = hashlib.sha256(content).hexdigest()
+    normalized_media_type = media_type.lower().split(";", 1)[0].strip()
+    if normalized_media_type == "application/octet-stream":
+        normalized_media_type = ""
     return {
         "id": f"doc_{checksum[:16]}",
         "origin": "uploaded",
         "filename": filename,
-        "media_type": media_type.lower().split(";", 1)[0].strip(),
+        "media_type": normalized_media_type or _DEFAULT_MEDIA_TYPES[PureWindowsPath(filename).suffix.lower()],
         "byte_length": len(content),
         "sha256": checksum,
         "parser": {"name": parser_name, "version": "1"},

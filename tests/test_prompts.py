@@ -120,6 +120,26 @@ def test_render_prompt_cv_generation_structured_write_includes_schema() -> None:
     assert '{"sections": {}}' in rendered.text
 
 
+def test_candidate_profile_prompts_name_required_response_collections() -> None:
+    baseline = render_prompt(
+        "candidate_profile.base_mapping.v1",
+        {"payload": '{"source_blocks": []}'},
+    )
+    derived = render_prompt(
+        "candidate_profile.derived_claims.v1",
+        {"payload": '{"approved_baseline": {}}'},
+    )
+
+    assert '"proposals"' in baseline.text
+    assert '"collections"' in baseline.text
+    assert '"source_block_ids"' in baseline.text
+    assert "company" in baseline.text
+    assert "institution" in baseline.text
+    assert "name" in baseline.text
+    assert '"claims"' in derived.text
+    assert '"evidence_refs"' in derived.text
+
+
 def test_render_prompt_raises_for_missing_required_variables() -> None:
     with pytest.raises(ValueError, match="missing template variables"):
         render_prompt("enrich.extraction.v1", {"description": "Only description"})

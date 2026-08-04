@@ -123,7 +123,7 @@ CANDIDATE_PROFILE_V2_FIELD_REGISTRY: dict[str, Any] = {
             "fields": {
                 "name": {"shape": "text", "label": "Full name", "description": "Reviewed candidate display name.", "required": True},
                 "headline": {"shape": "text", "label": "Professional headline", "description": "Optional professional headline copied from source.", "required": False},
-                "summary": {"shape": "textarea", "label": "Summary", "description": "Optional profile summary based on reviewed evidence.", "required": False},
+                "summary": {"shape": "textarea", "label": "Summary", "description": "Optional profile summary based on reviewed evidence.", "required": False, "regenerable": True},
             },
         },
         {

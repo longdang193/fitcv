@@ -159,6 +159,14 @@ def test_docx_ingestion_reads_document_table_header_and_footer() -> None:
     assert result.source_blocks[-1]["locator"]["source_part"] == "word/footer1.xml"
 
 
+@pytest.mark.parametrize("media_type", ["", "application/octet-stream"])
+def test_yaml_ingestion_accepts_browser_upload_without_media_type(media_type: str) -> None:
+    result = ingest_candidate_source("candidate.yaml", media_type, _minimal_v2_yaml())
+
+    assert result.source_document["media_type"] == "application/yaml"
+    assert result.profile is not None
+
+
 @pytest.mark.parametrize(
     ("filename", "media_type", "content", "code"),
     [

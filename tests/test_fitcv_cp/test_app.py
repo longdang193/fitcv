@@ -584,6 +584,8 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     creation_template = Path(
         "src/fitcv_cp/templates/candidate_profile_creation.html"
     ).read_text(encoding="utf-8")
+    assert "sourceRoot.addEventListener('click', async function(event)" in creation_template
+    assert "document.addEventListener('click', async function(event)" not in creation_template
     assert "async function waitForCandidateProfileAttempt" in creation_template
     assert "await waitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline')" in creation_template
     assert "await waitForCandidateProfileAttempt(attemptId, stage === 'baseline' ? 'review_derived' : 'confirm')" in creation_template
@@ -1170,7 +1172,7 @@ def test_base_exposes_prototype_scan_component_styles() -> None:
     assert ".run-id-link{display:inline-block" in template
     assert ".badge,.mirror-value{display:inline-flex" in template
     assert "[hidden]{display:none!important}" in template
-    assert "button:not(.btn):not(.btn-primary)" in template
+    assert "button:not([class])" in template
     assert ".details-page-head{" in template
     assert ".details-grid{" in template
     assert ".detail-item dt{" in template
@@ -7770,6 +7772,12 @@ def test_resolve_synonym_triage_runtime_uses_dedicated_control_plane_route(
         "      timeout_seconds: 300\n"
         "  model_routing:\n"
         "    parts:\n"
+        "      candidate_profile_base_mapping:\n"
+        "        provider: openai_compatible\n"
+        "        model: cx/gpt-5.2\n"
+        "      candidate_profile_derived_claims:\n"
+        "        provider: openai_compatible\n"
+        "        model: cx/gpt-5.2\n"
         "      enrich_extraction:\n"
         "        provider: openai_compatible\n"
         "        model: cx/gpt-5.2\n"
@@ -13940,7 +13948,7 @@ def test_admin_settings_uses_pipeline_resource_ui() -> None:
     assert 'data-setting-row=' in html
     assert "fitcvApiRequest('/settings/pipeline'" in html
     assert "async function patchSettings" in html
-    assert "fitcvApiRequest('/settings/pipeline/reset'" in html
+    assert "fitcvApiRequest('/settings/pipeline/actions/reset'" in html
     assert "field.type==='bool'" in html
     base_source = open("src/fitcv_cp/templates/base.html", encoding="utf-8").read()
     assert "localStorage" in base_source

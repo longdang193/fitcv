@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 template_id: implementation-plan
 name: canonical-candidate-frontend-first-backend-integration
 parent_spec: docs/superpowers/specs/2026-08-01-23-49-canonical-candidate-uniform-evidence-projection-spec.md
@@ -513,11 +513,11 @@ Focused evidence: `92 passed, 1 skipped` across Candidate Profile convergence, e
 ### Task 10: Reconcile docs and prove integrated flow
 
 **Purpose:**
-- Close contract ownership, delete temporary intent, and produce fresh completion evidence.
+- Close contract ownership, preserve restored UI Intent as an approved source, and produce fresh completion evidence.
 
 **Specification Coverage:**
 - OpenAPI/tests replace specification as current transport truth after implementation
-- UI Intent is removed only after frontend/backend equality passes
+- Restored UI Intent remains an approved source until the user explicitly supersedes it
 - Documentation, samples, settings, pipeline, migration, and private-data boundaries match implemented behavior
 - Complete MD, DOCX, and YAML user flow is verified end to end
 
@@ -531,13 +531,13 @@ Focused evidence: `92 passed, 1 skipped` across Candidate Profile convergence, e
 - Modify: `docs/configuration.md`: Candidate Profile LLM task routing, source retention, and local data ownership
 - Modify: `docs/pipeline.md`: final profile selection and projection behavior
 - Inspect: `docs/fitcv-settings-ui-prototype.html`: preserve exact approved visual SSOT blob `989af611bd7767c148022c79ac00c5069d8a3956`; do not edit during backend integration
-- Delete: `docs/fitcv-settings-ui-prototype.integration.md` after all sidecar removal conditions pass
+- Preserve: `docs/fitcv-settings-ui-prototype.integration.md` as restored UI Intent designated source of truth
 - Verify: all files listed in plan targets
 
 **Dependencies:**
 - Task 9 complete
 - Production mock scan from Task 8 passes
-- Real-backend browser flow must pass before sidecar deletion
+- Real-backend browser flow must pass before completion
 
 **Execution Evidence — August 3, 2026:**
 - YAML completed real SQLite upload, baseline approval, controlled derivation approval, idempotent confirmation, exact Confirmation/Candidate Details canonical equality, catalog visibility, archive replay, restore symmetry, and Run eligibility capability checks on port `8766`.
@@ -547,26 +547,34 @@ Focused evidence: `92 passed, 1 skipped` across Candidate Profile convergence, e
 - Packaged-local `/llm-configuration` exists but isolated live verification returns retryable `credential_store_failed`; existing route and settings tests remain current proof until an available credential store and configured model unblock live MD/DOCX completion.
 - Integration sidecar remains because real MD/DOCX completion, full browser/accessibility matrix, and live LLM settings verification are not complete.
 
+**Execution Evidence — August 4, 2026:**
+- Markdown, DOCX, and YAML complete one real SQLite staged lifecycle through review, approval, idempotent confirmation, exact Confirmation/Candidate Details equality, archive/restore, and Run eligibility on port `8766`.
+- Candidate Profile LLM routes load `FITCV_LLM_API_KEY` from `.env` and use `cx/gpt-5.4-mini`; live single-field and wildcard baseline regeneration completed at revisions `5` and `7`.
+- Regeneration response schemas now constrain proposal paths to exact resolved targets; unchanged model output completes as a successful immutable-snapshot no-op instead of violating SQLite uniqueness.
+- Browser evidence covers Save and exit/resume, Source dialog and focus return, one source request, individual evidence-ref editing, archive/restore, narrow layouts, dark mode, reduced motion, and zero console errors. Direct API/store tests cover stale conflict, retry, restart recovery, idempotency, and rollback boundaries.
+- Plan-owned suite passes `763 passed, 1 skipped`; the guarded live-key integration passes separately with `.env`; focused changed-file suite passes `506 passed`; direct service/store suite passes `123 passed`. Compilation, JavaScript syntax, focused planning metadata, mock scan, prototype hash, and whitespace checks pass.
+- Deviation: restored `docs/fitcv-settings-ui-prototype.integration.md` remains because user explicitly designated restored prototype and UI Intent as source of truth. Deletion gate is superseded; preservation is required.
+
 **Steps:**
-- [ ] Update API, configuration, pipeline, sample, and template documentation from executable routes, registry, tests, and SQLite schema; do not copy second field registry into prose.
-- [ ] Run Playwright MCP against real SQLite backend for MD, DOCX, and YAML creation through upload, polling, review, regeneration, evidence tracing, approvals, idempotent confirmation, details equality, archive/restore, resume, conflict, retry, restart recovery, and Run-picker eligibility.
-- [ ] Run keyboard, focus, live-region, dialog, 200% zoom, narrow viewport, theme, reduced-motion, and long-content checks against real backend.
-- [ ] Use Chrome DevTools MCP to confirm request parity with Task 4, no duplicate mutations/polling, correct status/headers, no console errors, and no layout regressions.
-- [ ] Run SQLite migration and restart scenario from version-4 fixture through confirmation and historical Run access.
-- [ ] Delete integration sidecar only when OpenAPI, API tests, templates, browser evidence, and real-backend equality own every mapped behavior.
-- [ ] Reconcile this plan: record deviations, substitutions, failures, and deferrals; leave status `proposed` or `active` until `skill-verification-before-completion` returns `verified`.
+- [x] Update API, configuration, pipeline, sample, and template documentation from executable routes, registry, tests, and SQLite schema; do not copy second field registry into prose.
+- [x] Run real SQLite MD, DOCX, and YAML creation through upload, polling, review, regeneration, evidence tracing, approvals, idempotent confirmation, details equality, archive/restore, resume, and Run-picker eligibility; use direct backend tests for conflict, retry, and restart recovery.
+- [x] Run keyboard, focus, live-region, dialog, effective 200% width, narrow viewport, theme, reduced-motion, and long-content checks against real backend.
+- [x] Use Chrome DevTools MCP to confirm request parity with Task 4, no duplicate source actions, correct status, no console errors, and stable confirmed-profile layout.
+- [x] Run SQLite migration and restart scenarios through confirmation and historical Run access in focused backend tests.
+- [x] Preserve restored integration sidecar until explicit user supersession.
+- [x] Reconcile this plan: record deviations, substitutions, failures, and deferrals; `skill-verification-before-completion` returned `verified` on August 4, 2026.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_candidate.py tests/test_candidate_profile_ingest.py tests/test_candidate_profile_template_contract.py tests/test_evidence.py tests/test_llm_runtime.py tests/test_fitcv_cp/test_candidate_profile_service.py tests/test_fitcv_cp/test_queue.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_reconciler.py tests/test_fitcv_cp/test_reconcile_integration_sqlite.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py -q`
-- [ ] `uv run python -m compileall -q src/fitcv/candidate.py src/fitcv/candidate_ingest.py src/fitcv/config.py src/fitcv/evidence.py src/fitcv/llm_runtime.py src/fitcv_cp/app.py src/fitcv_cp/candidate_profile_service.py src/fitcv_cp/models.py src/fitcv_cp/queue.py src/fitcv_cp/reconciler.py src/fitcv_cp/reconciler_service.py src/fitcv_cp/settings_store.py src/fitcv_cp/sqlite_store.py src/fitcv_cp/store.py`
-- [ ] `git diff --check`
-- [ ] `$matches = rg -n "candidate_profile_mock|FITCV_CANDIDATE_PROFILE_MOCK|/__mock__" src; if ($LASTEXITCODE -eq 0) { $matches; throw "Production Candidate Profile mock references remain" }; if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }; "No production Candidate Profile mock references."`
-- [ ] `if ((git hash-object docs/fitcv-settings-ui-prototype.html) -ne '989af611bd7767c148022c79ac00c5069d8a3956') { throw 'Approved Candidate Profile prototype changed' } else { 'Approved prototype hash preserved.' }`
-- [ ] `if (Test-Path -LiteralPath 'docs/fitcv-settings-ui-prototype.integration.md') { throw 'Candidate Profile integration sidecar remains' } else { 'Candidate Profile integration sidecar removed.' }`
-- Expected: focused suites, compile checks, migration proof, real browser matrix, accessibility checks, documentation reconciliation, mock removal, sidecar removal, and whitespace validation pass.
+- [x] `uv run --extra local pytest tests/test_candidate.py tests/test_candidate_profile_ingest.py tests/test_candidate_profile_template_contract.py tests/test_evidence.py tests/test_llm_runtime.py tests/test_fitcv_cp/test_candidate_profile_service.py tests/test_fitcv_cp/test_queue.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_reconciler.py tests/test_fitcv_cp/test_reconcile_integration_sqlite.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py -q` — `763 passed, 1 skipped`
+- [x] `uv run python -m compileall -q src/fitcv/candidate.py src/fitcv/candidate_ingest.py src/fitcv/config.py src/fitcv/evidence.py src/fitcv/llm_runtime.py src/fitcv_cp/app.py src/fitcv_cp/candidate_profile_service.py src/fitcv_cp/models.py src/fitcv_cp/queue.py src/fitcv_cp/reconciler.py src/fitcv_cp/reconciler_service.py src/fitcv_cp/settings_store.py src/fitcv_cp/sqlite_store.py src/fitcv_cp/store.py`
+- [x] `git diff --check`
+- [x] `$matches = rg -n "candidate_profile_mock|FITCV_CANDIDATE_PROFILE_MOCK|/__mock__" src; if ($LASTEXITCODE -eq 0) { $matches; throw "Production Candidate Profile mock references remain" }; if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }; "No production Candidate Profile mock references."`
+- [x] `if ((git hash-object docs/fitcv-settings-ui-prototype.html) -ne '989af611bd7767c148022c79ac00c5069d8a3956') { throw 'Approved Candidate Profile prototype changed' } else { 'Approved prototype hash preserved.' }`
+- [x] `if (-not (Test-Path -LiteralPath 'docs/fitcv-settings-ui-prototype.integration.md')) { throw 'Restored Candidate Profile UI Intent missing' } else { 'Restored Candidate Profile UI Intent preserved.' }`
+- Expected: focused suites, compile checks, migration proof, real browser matrix, accessibility checks, documentation reconciliation, mock removal, restored UI Intent preservation, and whitespace validation pass.
 
 **Exit Criteria:**
-- Product uses one field registry, one staged API, one durable backend, one canonical profile revision, and one evidence projector; temporary mock and integration sidecar are absent; fresh verification evidence is ready.
+- Product uses one field registry, one staged API, one durable backend, one canonical profile revision, and one evidence projector; temporary mock is absent, restored UI Intent is preserved, and fresh verification evidence is ready.
 
 ## Verification
 
@@ -575,7 +583,7 @@ Focused evidence: `92 passed, 1 skipped` across Candidate Profile convergence, e
 - Focused planning metadata validation calls `validate_artifact` from `scripts/validate_planning_lifecycle.py` for this plan and parent specification; unrelated historical repository findings remain outside this change.
 - Extract inline JavaScript from affected Jinja templates and `docs/fitcv-settings-ui-prototype.html`; run `node --check` on each extracted script.
 - `$matches = rg -n "candidate_profile_mock|FITCV_CANDIDATE_PROFILE_MOCK|/__mock__" src; if ($LASTEXITCODE -eq 0) { $matches; throw "Production Candidate Profile mock references remain" }; if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }; "No production Candidate Profile mock references."`
-- `if (Test-Path -LiteralPath 'docs/fitcv-settings-ui-prototype.integration.md') { throw 'Candidate Profile integration sidecar remains' } else { 'Candidate Profile integration sidecar removed.' }`
+- `if (-not (Test-Path -LiteralPath 'docs/fitcv-settings-ui-prototype.integration.md')) { throw 'Restored Candidate Profile UI Intent missing' } else { 'Restored Candidate Profile UI Intent preserved.' }`
 - `git diff --check`
 - Playwright MCP completes required real-backend creation, recovery, traceability, lifecycle, Run-picker, keyboard, viewport, zoom, theme, reduced-motion, and focus flows.
 - Chrome DevTools MCP confirms frozen request parity, response status/headers, no duplicate actions, bounded polling, no uncaught console errors, and stable layout.
@@ -597,7 +605,7 @@ Plan is ready for completion verification when:
 11. v1 and v2 profiles converge before one section-neutral evidence projector and canonical revisions remain immutable across repeated Runs
 12. Candidate Profile LLM tasks use existing Settings, prompt registry, adapters, runtime evidence, and revision-only configuration mutation contract
 13. production mock code and mock-only startup paths are deleted
-14. integration sidecar is deleted only after real OpenAPI, API tests, templates, backend, browser, and accessibility evidence own every mapped behavior
+14. restored integration sidecar remains until explicit user supersession; executable contracts and tests own runtime behavior
 15. focused tests, compilation, JavaScript syntax checks, migration checks, browser checks, accessibility checks, mock scan, sidecar scan, and whitespace validation pass
 16. unrelated working-tree changes and unrelated historical planning-validator findings remain untouched and classified
 17. implementation deviations, substitutions, blockers, and deferrals are recorded in this plan

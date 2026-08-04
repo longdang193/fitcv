@@ -31,6 +31,18 @@ _BASELINE_COLLECTIONS = tuple(
     for section in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
     if section.get("stage") == "baseline" and section.get("shape") == "collection"
 )
+_BASELINE_COLLECTION_FIELDS = {
+    section["id"]: frozenset(section["item"]) - {"id", "source_refs", "evidence"}
+    for section in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+    if section.get("stage") == "baseline" and section.get("shape") == "collection"
+}
+_BASELINE_REGENERABLE_SCALAR_PATHS = frozenset(
+    f"/{field_id}" if section["id"] == "identity" else f"/{section['id']}/{field_id}"
+    for section in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+    if section.get("stage") == "baseline" and section.get("shape") == "object"
+    for field_id, field in section["fields"].items()
+    if field.get("regenerable")
+)
 _DERIVED_COLLECTIONS = tuple(
     section["id"]
     for section in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
@@ -240,6 +252,12 @@ def _validate_baseline_payload(value: Any, block_ids: set[str]) -> LlmValidation
         if not isinstance(collection, dict) or collection.get("section") not in _BASELINE_COLLECTIONS:
             errors.append("invalid baseline collection")
             continue
+        fields = collection.get("fields")
+        if not isinstance(fields, dict):
+            errors.append("baseline collection fields must be a mapping")
+            continue
+        if set(fields) - _BASELINE_COLLECTION_FIELDS[str(collection["section"])]:
+            errors.append("unsupported baseline collection field")
         refs = collection.get("source_block_ids")
         if not isinstance(refs, list) or not refs or not set(refs) <= block_ids:
             errors.append("baseline collection requires valid source_block_ids")
@@ -281,7 +299,7 @@ def _apply_scalar_proposal(
         origin="llm_normalized",
         source_block_ids=list(proposal.get("source_block_ids") or []),
         confidence=float(proposal.get("confidence", 0.0)),
-        regenerable=True,
+        regenerable=path in _BASELINE_REGENERABLE_SCALAR_PATHS,
     )
 
 
@@ -554,13 +572,19 @@ def regenerate_review(
     resolved = resolve_regeneration_targets(annotations, targets)
     working = copy.deepcopy(document)
     routing_part = "candidate_profile_base_mapping" if stage == "baseline" else "candidate_profile_derived_claims"
+    response_schema = copy.deepcopy(_REGENERATION_RESPONSE_SCHEMA)
+    response_schema["properties"]["proposals"]["items"] = {
+        "type": "object",
+        "properties": {"path": {"type": "string", "enum": list(resolved)}},
+        "required": ["path"],
+    }
     request = LlmTaskRequest(
         routing_part=routing_part,
         prompt=_render_task_prompt(routing_part, {"document": working, "targets": resolved, "mode": "regenerate"}),
         response_mode="json_schema",
-        instructions="Return replacements only for requested canonical paths.",
+        instructions=f"Return replacements only for requested canonical paths: {json.dumps(resolved)}.",
         schema_name=f"candidate_profile_{stage}_regeneration",
-        schema=_REGENERATION_RESPONSE_SCHEMA,
+        schema=response_schema,
     )
 
     def validator(value: Any) -> LlmValidationResult:
@@ -791,7 +815,18 @@ def execute_candidate_profile_stage(
                 source_blocks = None
             else:
                 result = build_baseline_review(ingest)
-                source_blocks = list(ingest.source_blocks)
+                source_blocks = copy.deepcopy(list(ingest.source_blocks))
+                scoped_ids = {
+                    str(block["block_id"]): _stable_id("block", [attempt_id, block["block_id"]])
+                    for block in source_blocks
+                }
+                for block in source_blocks:
+                    block["block_id"] = scoped_ids[str(block["block_id"])]
+                for annotation in result.annotations.values():
+                    annotation["source_block_ids"] = [
+                        scoped_ids.get(str(block_id), str(block_id))
+                        for block_id in annotation.get("source_block_ids") or []
+                    ]
             payload = _stage_result_payload(result)
             payload["extraction_fingerprint"] = ingest.extraction_fingerprint
             return store.publish_candidate_profile_stage_result(

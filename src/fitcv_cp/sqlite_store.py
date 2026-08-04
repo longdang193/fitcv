@@ -2383,7 +2383,8 @@ def publish_candidate_profile_stage_result(
                 ]
             )
             conn.execute(
-                f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})",
+                f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)}) "
+                "ON CONFLICT(attempt_id, fingerprint) DO NOTHING",
                 values,
             )
             updates = [
