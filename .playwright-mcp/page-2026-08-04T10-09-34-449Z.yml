@@ -1,0 +1,277 @@
+- generic [ref=f6e2]:
+  - complementary "Primary navigation" [ref=f6e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f6e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f6e9]:
+        - strong [ref=f6e10]: FitCV Control Plane
+        - generic [ref=f6e11]: Local workspace
+    - navigation "Workspace" [ref=f6e12]:
+      - link "Runs" [ref=f6e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f6e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f6e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f6e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f6e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f6e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f6e32]:
+    - banner [ref=f6e33]:
+      - generic [ref=f6e39]:
+        - heading "Create Candidate Profile" [level=1] [ref=f6e40]
+        - paragraph [ref=f6e41]: Upload, review baseline evidence, approve derivation, then confirm.
+      - button "Switch to light theme" [ref=f6e43] [cursor=pointer]:
+        - generic [ref=f6e47]: Light
+    - main [ref=f6e50]:
+      - generic [ref=f6e51]:
+        - generic [ref=f6e52]:
+          - link "← Save and exit to Candidate Profiles" [ref=f6e53] [cursor=pointer]:
+            - /url: /admin/candidate-profiles
+          - generic [ref=f6e55]:
+            - paragraph [ref=f6e56]: Step 4 · Idempotent confirmation
+            - heading "Confirm Candidate Profile" [level=2] [ref=f6e57]
+            - paragraph [ref=f6e58]: Review approved profile sections, then create one immutable revision for Pipeline Runs.
+        - list "Candidate Profile creation progress" [ref=f6e59]:
+          - listitem [ref=f6e60]:
+            - generic [ref=f6e61]: ✓
+            - generic [ref=f6e62]: Upload
+          - listitem [ref=f6e63]:
+            - generic [ref=f6e64]: ✓
+            - generic [ref=f6e65]: Baseline
+          - listitem [ref=f6e66]:
+            - generic [ref=f6e67]: ✓
+            - generic [ref=f6e68]: Derived
+          - listitem [ref=f6e69]:
+            - generic [ref=f6e70]: "4"
+            - generic [ref=f6e71]: Confirm
+        - group [ref=f6e72]:
+          - generic "› Confirmation Overview Final identity, schema, and profile readiness. Ready to save" [ref=f6e73] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f6e74]:
+              - strong [ref=f6e75]: Confirmation Overview
+              - generic [ref=f6e76]: Final identity, schema, and profile readiness.
+            - generic [ref=f6e77]: Ready to save
+          - generic [ref=f6e80]:
+            - generic [ref=f6e81]:
+              - term [ref=f6e82]: Profile Name
+              - definition [ref=f6e83]: Selective Wand Browser Profile 2
+            - generic [ref=f6e84]:
+              - term [ref=f6e85]: Schema
+              - definition [ref=f6e86]: candidate-profile.v2
+            - generic [ref=f6e87]:
+              - term [ref=f6e88]: Baseline Evidence
+              - definition [ref=f6e89]: 1 traceable statement
+            - generic [ref=f6e90]:
+              - term [ref=f6e91]: Derived Claims
+              - definition [ref=f6e92]: 1 supported of 1
+        - group [ref=f6e93]:
+          - generic "› Source Input Original document and staged creation identity." [ref=f6e94] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f6e95]:
+              - strong [ref=f6e96]: Source Input
+              - generic [ref=f6e97]: Original document and staged creation identity.
+          - generic [ref=f6e99]:
+            - generic [ref=f6e100]:
+              - term [ref=f6e101]: File
+              - definition [ref=f6e102]: jordan-lee.md
+            - generic [ref=f6e103]:
+              - term [ref=f6e104]: Format
+              - definition [ref=f6e105]: Markdown
+            - generic [ref=f6e106]:
+              - term [ref=f6e107]: Creation Method
+              - definition [ref=f6e108]: Staged hybrid parser and review
+            - generic [ref=f6e109]:
+              - term [ref=f6e110]: Attempt ID
+              - definition [ref=f6e111]: attempt_3a879a3a744a4c3ba310cdede01ef8dc
+        - group [ref=f6e112]:
+          - generic "› Approval Status Required review gates and traceability checks." [ref=f6e113] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f6e114]:
+              - strong [ref=f6e115]: Approval Status
+              - generic [ref=f6e116]: Required review gates and traceability checks.
+          - generic [ref=f6e118]:
+            - generic [ref=f6e119]:
+              - term [ref=f6e120]: Baseline Approved
+              - definition [ref=f6e121]:
+                - time [ref=f6e122]: Aug 4, 2026, 12:07 PM
+            - generic [ref=f6e123]:
+              - term [ref=f6e124]: Derivation Approved
+              - definition [ref=f6e125]:
+                - time [ref=f6e126]: Aug 4, 2026, 12:08 PM
+            - generic [ref=f6e127]:
+              - term [ref=f6e128]: Traceability
+              - definition [ref=f6e129]: Claims reference evidence IDs; evidence retains source refs.
+            - generic [ref=f6e130]:
+              - term [ref=f6e131]: Idempotency
+              - definition [ref=f6e132]: Repeating confirmation returns same profile revision.
+        - group [ref=f6e133]:
+          - generic "› Baseline Facts Approved direct facts and repeatable evidence entries." [ref=f6e134] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f6e135]:
+              - strong [ref=f6e136]: Baseline Facts
+              - generic [ref=f6e137]: Approved direct facts and repeatable evidence entries.
+          - generic [ref=f6e138]:
+            - generic [ref=f6e139]:
+              - heading "Profile" [level=3] [ref=f6e140]
+              - article [ref=f6e141]:
+                - heading "Profile" [level=4] [ref=f6e142]
+                - generic [ref=f6e143]:
+                  - generic [ref=f6e144]:
+                    - term [ref=f6e145]: Full name
+                    - definition [ref=f6e146]: Jordan Lee
+                  - generic [ref=f6e147]:
+                    - term [ref=f6e148]: Professional headline
+                    - definition [ref=f6e149]: —
+                  - generic [ref=f6e150]:
+                    - term [ref=f6e151]: Summary
+                    - definition [ref=f6e152]: Data analyst focused on product analytics and reliable reporting.
+            - generic [ref=f6e153]:
+              - heading "Contact" [level=3] [ref=f6e154]
+              - article [ref=f6e155]:
+                - heading "Contact" [level=4] [ref=f6e156]
+                - generic [ref=f6e157]:
+                  - generic [ref=f6e158]:
+                    - term [ref=f6e159]: Email
+                    - definition [ref=f6e160]: jordan.lee@example.com
+                  - generic [ref=f6e161]:
+                    - term [ref=f6e162]: Phone
+                    - definition [ref=f6e163]: —
+                  - generic [ref=f6e164]:
+                    - term [ref=f6e165]: Location
+                    - definition [ref=f6e166]: —
+                  - generic [ref=f6e167]:
+                    - term [ref=f6e168]: LinkedIn URL
+                    - definition [ref=f6e169]: —
+                  - generic [ref=f6e170]:
+                    - term [ref=f6e171]: GitHub URL
+                    - definition [ref=f6e172]: —
+                  - generic [ref=f6e173]:
+                    - term [ref=f6e174]: Website URL
+                    - definition [ref=f6e175]: —
+            - generic [ref=f6e176]:
+              - heading "Experience" [level=3] [ref=f6e177]
+              - article [ref=f6e178]:
+                - heading "Experience 1" [level=4] [ref=f6e179]
+                - generic [ref=f6e180]:
+                  - generic [ref=f6e181]:
+                    - term [ref=f6e182]: Role
+                    - definition [ref=f6e183]: Product Data Analyst
+                  - generic [ref=f6e184]:
+                    - term [ref=f6e185]: Company
+                    - definition [ref=f6e186]: Northstar Labs
+                  - generic [ref=f6e187]:
+                    - term [ref=f6e188]: Company URL
+                    - definition [ref=f6e189]: —
+                  - generic [ref=f6e190]:
+                    - term [ref=f6e191]: Location
+                    - definition [ref=f6e192]: —
+                  - generic [ref=f6e193]:
+                    - term [ref=f6e194]: Start
+                    - definition [ref=f6e195]: 2023-01
+                  - generic [ref=f6e196]:
+                    - term [ref=f6e197]: End
+                    - definition [ref=f6e198]: Present
+                - paragraph [ref=f6e200]: No evidence.
+            - generic [ref=f6e201]:
+              - heading "Education" [level=3] [ref=f6e202]
+              - article [ref=f6e203]:
+                - heading "Education 1" [level=4] [ref=f6e204]
+                - generic [ref=f6e205]:
+                  - generic [ref=f6e206]:
+                    - term [ref=f6e207]: Institution
+                    - definition [ref=f6e208]: City University
+                  - generic [ref=f6e209]:
+                    - term [ref=f6e210]: Degree or credential
+                    - definition [ref=f6e211]: BSc
+                  - generic [ref=f6e212]:
+                    - term [ref=f6e213]: Field of study
+                    - definition [ref=f6e214]: Information Systems
+                  - generic [ref=f6e215]:
+                    - term [ref=f6e216]: Location
+                    - definition [ref=f6e217]: —
+                  - generic [ref=f6e218]:
+                    - term [ref=f6e219]: Start
+                    - definition [ref=f6e220]: 2019-09
+                  - generic [ref=f6e221]:
+                    - term [ref=f6e222]: End
+                    - definition [ref=f6e223]: 2022-06
+                - generic [ref=f6e225]:
+                  - code [ref=f6e226]: ev_edu_efbe48fa31d0ec98_17b2febb7ab09027
+                  - generic [ref=f6e227]:
+                    - generic [ref=f6e228]:
+                      - term [ref=f6e229]: Kind
+                      - definition [ref=f6e230]: Thesis
+                    - generic [ref=f6e231]:
+                      - term [ref=f6e232]: Title
+                      - definition [ref=f6e233]: —
+                    - generic [ref=f6e234]:
+                      - term [ref=f6e235]: Start
+                      - definition [ref=f6e236]: —
+                    - generic [ref=f6e237]:
+                      - term [ref=f6e238]: End
+                      - definition [ref=f6e239]: —
+                    - generic [ref=f6e240]:
+                      - term [ref=f6e241]: Evidence text
+                      - definition [ref=f6e242]: "Thesis: Automated data-quality monitoring for analytics pipelines."
+            - generic [ref=f6e243]:
+              - heading "Projects" [level=3] [ref=f6e244]
+              - paragraph [ref=f6e245]: No entries.
+            - generic [ref=f6e246]:
+              - heading "Achievements" [level=3] [ref=f6e247]
+              - paragraph [ref=f6e248]: No entries.
+            - generic [ref=f6e249]:
+              - heading "Certifications" [level=3] [ref=f6e250]
+              - paragraph [ref=f6e251]: No entries.
+            - generic [ref=f6e252]:
+              - heading "Volunteering" [level=3] [ref=f6e253]
+              - paragraph [ref=f6e254]: No entries.
+            - generic [ref=f6e255]:
+              - heading "Languages" [level=3] [ref=f6e256]
+              - paragraph [ref=f6e257]: No entries.
+        - group [ref=f6e258]:
+          - generic "› Derived Claims Approved claims with evidence refs, confidence, and origin." [ref=f6e259] [cursor=pointer]:
+            - text: ›
+            - generic [ref=f6e260]:
+              - strong [ref=f6e261]: Derived Claims
+              - generic [ref=f6e262]: Approved claims with evidence refs, confidence, and origin.
+          - generic [ref=f6e263]:
+            - generic [ref=f6e264]:
+              - heading "Skills" [level=3] [ref=f6e265]
+              - article [ref=f6e266]:
+                - heading "data-quality monitoring" [level=4] [ref=f6e267]
+                - generic [ref=f6e268]:
+                  - generic [ref=f6e269]:
+                    - term [ref=f6e270]: Evidence refs
+                    - definition [ref=f6e271]: ev_edu_efbe48fa31d0ec98_17b2febb7ab09027
+                  - generic [ref=f6e272]:
+                    - term [ref=f6e273]: Confidence
+                    - definition [ref=f6e274]: 89%
+                  - generic [ref=f6e275]:
+                    - term [ref=f6e276]: Origin
+                    - definition [ref=f6e277]: inferred
+                  - generic [ref=f6e278]:
+                    - term [ref=f6e279]: Support
+                    - definition [ref=f6e280]: supported
+            - generic [ref=f6e281]:
+              - heading "Role Families" [level=3] [ref=f6e282]
+              - paragraph [ref=f6e283]: No entries.
+            - generic [ref=f6e284]:
+              - heading "Domain Tags" [level=3] [ref=f6e285]
+              - paragraph [ref=f6e286]: No entries.
+            - generic [ref=f6e287]:
+              - heading "Responsibility Themes" [level=3] [ref=f6e288]
+              - paragraph [ref=f6e289]: No entries.
+        - status [ref=f6e290]
+        - generic [ref=f6e291]:
+          - generic [ref=f6e292]:
+            - strong [ref=f6e293]: Ready to create profile
+            - status [ref=f6e294]: Confirmation creates one immutable Candidate Profile revision ready for Pipeline Runs.
+          - generic [ref=f6e295]:
+            - link "Back to derived review" [ref=f6e296] [cursor=pointer]:
+              - /url: /admin/candidate-profiles/create/attempt_3a879a3a744a4c3ba310cdede01ef8dc/derived
+            - link "Save and exit" [ref=f6e297] [cursor=pointer]:
+              - /url: /admin/candidate-profiles
+            - button "Confirm and save profile" [ref=f6e298] [cursor=pointer]

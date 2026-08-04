@@ -6,8 +6,6 @@ scope: unit
 domain: docs
 covers:
   - Repo contract validator orchestration and fast-mode success on the current starter repo
-  - Partial-generated feature history boundary validation
-  - Required metadata coverage rules for setup scripts and architecture-aware YAML
 tags:
   - fast
   - ci-safe
@@ -20,14 +18,11 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
-import uuid
 from pathlib import Path
-from shutil import rmtree
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate_repo_contracts.py"
-POLICY_PATH = REPO_ROOT / "scripts" / "validator_policy.py"
 SCRIPTS_ROOT = str(REPO_ROOT / "scripts")
 
 if SCRIPTS_ROOT not in sys.path:
@@ -45,7 +40,6 @@ def load_module(name: str, path: Path):
 
 
 VALIDATOR = load_module("validate_repo_contracts", VALIDATOR_PATH)
-POLICY = load_module("validator_policy_for_tests", POLICY_PATH)
 ENV_GITIGNORE_VALIDATOR = load_module(
     "validate_env_gitignore_contract",
     REPO_ROOT / "scripts" / "validate_env_gitignore_contract.py",
@@ -62,12 +56,6 @@ def run_validator(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def make_test_root() -> Path:
-    root = REPO_ROOT / ".tmp-tests" / f"validate-repo-contracts-{uuid.uuid4().hex}"
-    root.mkdir(parents=True, exist_ok=False)
-    return root
-
-
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -80,69 +68,7 @@ def test_validator_fast_mode_passes_for_current_repo() -> None:
     assert "repo contract validation passed" in result.stdout.lower()
 
 
-def test_validate_history_boundaries_reports_missing_human_notes() -> None:
-    test_root = make_test_root()
-    try:
-        write_text(
-            test_root / "docs" / "features" / "demo-feature" / "feature.source.yaml",
-            "feature_id: demo-feature\nname: Demo\nstatus: active\ntype: workflow\nsummary: Demo\ninvariants: []\ndomains: []\ndepends_on: []\ncapabilities: []\n",
-        )
-        write_text(
-            test_root / "docs" / "features" / "demo-feature" / "history.md",
-            (
-                "# Demo History\n\n"
-                f"{POLICY.GENERATED_HISTORY_START_MARKER}\n\n"
-                "Nothing yet.\n\n"
-                f"{POLICY.GENERATED_HISTORY_END_MARKER}\n"
-            ),
-        )
-
-        issues = VALIDATOR.validate_history_boundaries(test_root)
-
-        assert len(issues) == 1
-        assert issues[0].category == "partial_generated_boundary_error"
-        assert "human notes" in issues[0].message.lower()
-    finally:
-        rmtree(test_root, ignore_errors=True)
-
-
-def test_required_metadata_coverage_allows_leading_comment_before_architecture_block() -> None:
-    test_root = make_test_root()
-    try:
-        write_text(
-            test_root / "configs" / "demo.yaml",
-            (
-                "# Helpful comment.\n"
-                f"{POLICY.ARCHITECTURE_METADATA_MARKER_LINE}\n"
-                "# owner: demo-feature\n# stages:\n#   - fixed_train\n# role: config\nvalue: 1\n"
-            ),
-        )
-        write_text(
-            test_root / "aml" / "components" / "demo.yaml",
-            (
-                f"{POLICY.ARCHITECTURE_METADATA_MARKER_LINE}\n"
-                "# owner: demo-feature\n# stages:\n#   - fixed_train\n# role: component\ncomponent: true\n"
-            ),
-        )
-        write_text(
-            test_root / "setup" / "demo.sh",
-            (
-                "#!/usr/bin/env sh\n"
-                f"# {POLICY.SETUP_META_MARKER}\n"
-                "# type: script\n# name: demo_setup\n\necho ok\n"
-            ),
-        )
-
-        issues = VALIDATOR.validate_required_metadata_coverage(test_root)
-
-        assert issues == []
-    finally:
-        rmtree(test_root, ignore_errors=True)
-
-
 def test_main_propagates_subprocess_failure(monkeypatch) -> None:
-    monkeypatch.setattr(VALIDATOR, "validate_required_metadata_coverage", lambda root: [])
-    monkeypatch.setattr(VALIDATOR, "validate_history_boundaries", lambda root: [])
     monkeypatch.setattr(
         VALIDATOR,
         "build_subprocess_steps",
@@ -155,7 +81,7 @@ def test_main_propagates_subprocess_failure(monkeypatch) -> None:
     assert status == 1
 
 
-def test_build_subprocess_steps_excludes_retired_planning_validators() -> None:
+def test_build_subprocess_steps_excludes_retired_metadata_validators() -> None:
     steps = VALIDATOR.build_subprocess_steps(
         root=REPO_ROOT,
         python_executable="python",
@@ -169,15 +95,12 @@ def test_build_subprocess_steps_excludes_retired_planning_validators() -> None:
     assert any("validate_env_gitignore_contract.py" in step for step in rendered)
     assert any("validate_repo_config.py" in step for step in rendered)
     assert not any("validate_adoption_shape.py" in step for step in rendered)
-    assert not any("validate_planning_lifecycle.py" in step for step in rendered)
+    assert not any("validate_python_meta_headers.py" in step for step in rendered)
 
 
-def test_shared_repo_contract_markers_match_expected_contract() -> None:
-    assert POLICY.GENERATED_HISTORY_START_MARKER == "<!-- GENERATED HISTORY START -->"
-    assert POLICY.GENERATED_HISTORY_END_MARKER == "<!-- GENERATED HISTORY END -->"
-    assert POLICY.HUMAN_NOTES_HEADING == "## Human Notes"
-    assert POLICY.ARCHITECTURE_METADATA_MARKER_LINE == "# @architecture"
-    assert POLICY.SETUP_META_MARKER == "@meta"
+def test_starter_kit_classification_constants_match_contract() -> None:
+    assert VALIDATOR.STARTER_KIT_DISTRIBUTION_TIER == "starter_kit"
+    assert VALIDATOR.STARTER_KIT_CLASSIFICATION_ENFORCEMENT == "fail"
 
 
 def test_validate_env_gitignore_contract_passes_with_required_entries(tmp_path: Path) -> None:

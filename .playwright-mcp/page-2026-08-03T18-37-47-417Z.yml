@@ -1,0 +1,147 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary "Primary navigation" [ref=e3]:
+      - generic [ref=e9]:
+        - strong [ref=e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=e11]:
+        - link "Runs" [ref=e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Scans" [ref=e15] [cursor=pointer]:
+          - /url: "#scans"
+        - link "Candidate Profiles" [ref=e19] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=e23] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=e26] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=e30]:
+          - generic "Pipeline ›" [ref=e31] [cursor=pointer]
+          - generic [ref=e34]:
+            - link "Overview" [ref=e35] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=e36] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=e37] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=e38] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=e39] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "Preference Optimization" [ref=e40] [cursor=pointer]:
+              - /url: "#preference-optimization"
+            - link "CV Analysis" [ref=e41] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=e42] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=e43] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=e44] [cursor=pointer]:
+              - /url: "#automation-reuse"
+            - link "Prompt Management" [ref=e45] [cursor=pointer]:
+              - /url: "#prompt-management"
+        - group [ref=e46]:
+          - generic "Application ›" [ref=e47] [cursor=pointer]
+          - generic [ref=e51]:
+            - link "API Providers" [ref=e52] [cursor=pointer]:
+              - /url: "#api-providers"
+            - link "LLM Configuration" [ref=e53] [cursor=pointer]:
+              - /url: "#llm-configuration"
+            - link "System" [ref=e54] [cursor=pointer]:
+              - /url: "#system"
+    - main [ref=e55]:
+      - generic [ref=e56]:
+        - generic [ref=e61]:
+          - heading "Candidate Profiles" [level=1] [ref=e62]
+          - paragraph [ref=e63]: Create and review profiles used by matching runs.
+        - generic [ref=e64]:
+          - button "Switch to dark theme" [ref=e65] [cursor=pointer]
+          - button "Shutdown FitCV" [ref=e68] [cursor=pointer]
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - paragraph [ref=e76]: Workspace
+            - heading "Candidate Profiles" [level=2] [ref=e77]
+            - paragraph [ref=e78]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+          - button "Create Profile" [ref=e79] [cursor=pointer]
+        - region [ref=e80]:
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - heading "Creation drafts" [level=3] [ref=e83]
+              - text: Paused and failed attempts are not available to Runs.
+            - generic [ref=e84]: 2 drafts
+          - generic [ref=e85]:
+            - generic [ref=e86]:
+              - generic [ref=e87]: Baseline review
+              - generic [ref=e88]:
+                - strong [ref=e89]: candidate-profile-parity
+                - generic [ref=e90]: candidate-profile-parity.md · Updated Aug 3, 2026, 8:11 PM
+              - link "Resume" [ref=e91] [cursor=pointer]:
+                - /url: "#candidate-profiles/create/draft-msdjpich-27bn/baseline"
+            - generic [ref=e92]:
+              - generic [ref=e93]: Ready to confirm
+              - generic [ref=e94]:
+                - strong [ref=e95]: Final Verifier 2026-08-03
+                - generic [ref=e96]: cv_2f26619f-b1db-44ab-87c5-dee1f29cfdcb.md · Updated Aug 3, 2026, 6:59 PM
+              - link "Resume" [ref=e97] [cursor=pointer]:
+                - /url: "#candidate-profiles/create/draft-msdh2atk-hd0v/confirm"
+        - generic [ref=e98]:
+          - tablist "Candidate Profile views" [ref=e99]:
+            - tab "Active 5" [selected] [ref=e100] [cursor=pointer]:
+              - text: Active
+              - generic [ref=e101]: "5"
+            - tab "Archived 1" [ref=e102] [cursor=pointer]:
+              - text: Archived
+              - generic [ref=e103]: "1"
+          - tabpanel "Active 5" [ref=e104]:
+            - table [ref=e107]:
+              - rowgroup [ref=e108]:
+                - row [ref=e109]:
+                  - columnheader [ref=e110]:
+                    - checkbox "Select all visible profiles" [ref=e111]
+                  - columnheader "Profile ID" [ref=e112]
+                  - columnheader "Status" [ref=e113]
+                  - columnheader "Profile Name" [ref=e114]
+                  - columnheader "Created Time" [ref=e115]
+              - rowgroup [ref=e116]:
+                - row [ref=e117]:
+                  - cell [ref=e118]:
+                    - checkbox "Select profile PROFILE-1225B207" [ref=e119]
+                  - cell [ref=e120]:
+                    - button "Open details for PROFILE-1225B207" [ref=e121] [cursor=pointer]: PROFILE-1225B207
+                  - cell "Succeeded" [ref=e122]
+                  - cell "Prototype Bounded Verifier 2026-08-03" [ref=e124]
+                  - cell "Aug 3, 2026, 7:25 PM" [ref=e125]
+                - row [ref=e126]:
+                  - cell [ref=e127]:
+                    - checkbox "Select profile PROFILE-3F0D8FAE" [ref=e128]
+                  - cell [ref=e129]:
+                    - button "Open details for PROFILE-3F0D8FAE" [ref=e130] [cursor=pointer]: PROFILE-3F0D8FAE
+                  - cell "Succeeded" [ref=e131]
+                  - cell "Verifier Rerun 2026-08-03" [ref=e133]
+                  - cell "Aug 3, 2026, 6:30 PM" [ref=e134]
+                - row [ref=e135]:
+                  - cell [ref=e136]:
+                    - checkbox "Select profile PROFILE-8CAE5309" [ref=e137]
+                  - cell [ref=e138]:
+                    - button "Open details for PROFILE-8CAE5309" [ref=e139] [cursor=pointer]: PROFILE-8CAE5309
+                  - cell "Succeeded" [ref=e140]
+                  - cell "Verifier Candidate 2026-08-03" [ref=e142]
+                  - cell "Aug 3, 2026, 6:00 PM" [ref=e143]
+                - row [ref=e144]:
+                  - cell [ref=e145]:
+                    - checkbox "Select profile candidate-product-data" [ref=e146]
+                  - cell [ref=e147]:
+                    - button "Open details for candidate-product-data" [ref=e148] [cursor=pointer]: candidate-product-data
+                  - cell "Succeeded" [ref=e149]
+                  - cell "Product Data Specialist" [ref=e151]
+                  - cell "Aug 3, 2026, 6:16 AM" [ref=e152]
+                - row [ref=e153]:
+                  - cell [ref=e154]:
+                    - checkbox "Select profile candidate-analytics" [ref=e155]
+                  - cell [ref=e156]:
+                    - button "Open details for candidate-analytics" [ref=e157] [cursor=pointer]: candidate-analytics
+                  - cell "Succeeded" [ref=e158]
+                  - cell "Analytics & Operations" [ref=e160]
+                  - cell "Aug 2, 2026, 4:46 AM" [ref=e161]
+  - status: Ranking changes saved in prototype

@@ -1,0 +1,114 @@
+- generic [ref=f23e2]:
+  - complementary "Primary navigation" [ref=f23e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f23e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f23e9]:
+        - strong [ref=f23e10]: FitCV Control Plane
+        - generic [ref=f23e11]: Local workspace
+    - navigation "Workspace" [ref=f23e12]:
+      - link "Runs" [ref=f23e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f23e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f23e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f23e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f23e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f23e31]:
+        - generic "Pipeline ›" [ref=f23e32] [cursor=pointer]
+        - generic [ref=f23e35]:
+          - link "Overview" [ref=f23e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f23e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f23e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f23e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f23e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f23e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f23e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f23e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f23e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f23e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f23e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f23e47]:
+        - generic "Application ›" [ref=f23e48] [cursor=pointer]
+        - generic [ref=f23e52]:
+          - link "API Providers" [ref=f23e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f23e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f23e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f23e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f23e57]:
+    - banner [ref=f23e58]:
+      - generic [ref=f23e65]:
+        - heading "LLM Configuration" [level=1] [ref=f23e66]
+        - paragraph [ref=f23e67]: Choose default and task-specific model routes.
+      - generic [ref=f23e68]:
+        - button "Switch to dark theme" [ref=f23e69] [cursor=pointer]:
+          - generic [ref=f23e72]: Dark
+        - button "Shutdown FitCV" [ref=f23e73] [cursor=pointer]
+    - main [ref=f23e78]:
+      - generic [ref=f23e79]:
+        - generic [ref=f23e80]:
+          - paragraph [ref=f23e81]: Application
+          - heading "LLM Configuration" [level=2] [ref=f23e82]
+          - paragraph [ref=f23e83]: Choose model routes and runtime behavior for Candidate Profile generation and pipeline AI tasks.
+        - link "Manage API Providers" [ref=f23e84] [cursor=pointer]:
+          - /url: /admin/api-providers
+      - generic [ref=f23e85]:
+        - region [ref=f23e86]:
+          - heading "Default Route" [level=3] [ref=f23e87]
+          - paragraph [ref=f23e88]: Used by tasks whose Model remains Default. Options come from validated models on connected providers.
+          - generic [ref=f23e89]:
+            - generic [ref=f23e90]: Default Model
+            - combobox "Default Model" [ref=f23e91]:
+              - option "Select a model"
+              - option "OpenAI · gpt-4.1-mini" [selected]
+        - region [ref=f23e92]:
+          - heading "Task Configuration" [level=3] [ref=f23e93]
+          - paragraph [ref=f23e94]: Manage model, timeout, and temperature independently for each AI-powered task.
+          - generic [ref=f23e95]:
+            - generic [ref=f23e96]:
+              - generic [ref=f23e97]:
+                - strong [ref=f23e98]: Candidate Profile Base Mapping
+                - generic [ref=f23e99]: Default model · 120 seconds · Temperature 0.2
+              - button "Manage" [ref=f23e100] [cursor=pointer]
+            - generic [ref=f23e101]:
+              - generic [ref=f23e102]:
+                - strong [ref=f23e103]: Candidate Profile Derived Claims
+                - generic [ref=f23e104]: Default model · 120 seconds · Temperature 0.2
+              - button "Manage" [ref=f23e105] [cursor=pointer]
+            - generic [ref=f23e106]:
+              - generic [ref=f23e107]:
+                - strong [ref=f23e108]: Enrich Extraction
+                - generic [ref=f23e109]: Default model · 120 seconds · Temperature 0.2
+              - button "Manage" [ref=f23e110] [cursor=pointer]
+            - generic [ref=f23e111]:
+              - generic [ref=f23e112]:
+                - strong [ref=f23e113]: Ranking AI Score
+                - generic [ref=f23e114]: Default model · 120 seconds · Temperature 0.2
+              - button "Manage" [ref=f23e115] [cursor=pointer]
+            - generic [ref=f23e116]:
+              - generic [ref=f23e117]:
+                - strong [ref=f23e118]: CV Generation
+                - generic [ref=f23e119]: Default model · 120 seconds · Temperature 0.2
+              - button "Manage" [ref=f23e120] [cursor=pointer]
+            - generic [ref=f23e121]:
+              - generic [ref=f23e122]:
+                - strong [ref=f23e123]: Synonym Recommendation
+                - generic [ref=f23e124]: Default model · 120 seconds · Temperature 0.2
+              - button "Manage" [ref=f23e125] [cursor=pointer]

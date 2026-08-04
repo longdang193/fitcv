@@ -1,113 +1,43 @@
-"""
-@meta
-# distribution_tier: starter_kit
-type: test
-scope: unit
-domain: metadata
-covers:
-  - Agent metadata schema validation for skills, rules, and workflows
-excludes:
-  - End-to-end adapter generation and publish flows
-tags:
-  - fast
-  - ci-safe
-"""
-
-from __future__ import annotations
-
-import importlib.util
-import sys
-import uuid
 from pathlib import Path
-from shutil import rmtree
+import importlib.util
+
+ROOT=Path(__file__).resolve().parents[1]
+spec=importlib.util.spec_from_file_location('agent_schema',ROOT/'scripts/validate_agent_metadata_schema.py')
+module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+
+def test_agent_metadata_matches_lean_schema():
+    assert module.validate(ROOT)==[]
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate_agent_metadata_schema.py"
+def test_agent_metadata_allows_no_workflow_directory(tmp_path):
+    skills = tmp_path / ".agents" / "skills" / "sample"
+    skills.mkdir(parents=True)
+    (skills / "SKILL.md").write_text(
+        "---\nname: sample\ndescription: Sample skill.\nrequired_reads: []\n---\n",
+        encoding="utf-8",
+    )
+    assert module.validate(tmp_path) == []
 
+def write_skill(root: Path, name: str, body: str = "") -> None:
+    skill = root / ".agents" / "skills" / name
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: Sample skill.\nrequired_reads: []\n---\n{body}\n",
+        encoding="utf-8",
+    )
 
-def load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load {path.name}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+def test_agent_references_accept_existing_skill_and_rule(tmp_path):
+    write_skill(tmp_path,"skill-sample","Use `skill-helper` and `docs/operating_system/rules/sample-rule.md`.")
+    write_skill(tmp_path,"skill-helper")
+    rule=tmp_path/"docs"/"operating_system"/"rules"/"sample-rule.md"
+    rule.parent.mkdir(parents=True)
+    rule.write_text("# Sample Rule\n",encoding="utf-8")
+    assert module.validate(tmp_path)==[]
 
+def test_agent_references_reject_missing_skill(tmp_path):
+    write_skill(tmp_path,"skill-sample","Use `skill-missing`.")
+    assert module.validate(tmp_path)==[".agents/skills/skill-sample/SKILL.md:6: missing skill reference skill-missing"]
 
-VALIDATOR = load_module("validate_agent_metadata_schema", VALIDATOR_PATH)
-
-
-def _mkroot() -> Path:
-    root = REPO_ROOT / ".tmp-tests" / f"agent-meta-{uuid.uuid4().hex}"
-    root.mkdir(parents=True, exist_ok=False)
-    return root
-
-
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-
-
-def test_schema_passes_for_minimal_valid_surfaces() -> None:
-    root = _mkroot()
-    try:
-        _write(
-            root / ".agents/skills/demo/SKILL.md",
-            """---
-name: demo
-description: demo
-allowed-tools: []
-hooks:
-  pre: []
-  post: []
-required_reads: []
-required_outputs: []
-tags: []
----
-# Demo
-""",
-        )
-        _write(
-            root / "docs/operating_system/rules/demo.md",
-            """---
-name: demo
-description: demo
-alwaysApply: true
-required_reads: []
-required_outputs: []
-tags: []
----
-# Demo
-""",
-        )
-        _write(
-            root / "docs/operating_system/workflows/demo.md",
-            """---
-name: demo
-description: demo
-allowed-tools: []
-required_reads: []
-required_outputs: []
-related_skills: []
-tags: []
----
-# Demo
-""",
-        )
-        findings = VALIDATOR.validate(root)
-        assert findings == []
-    finally:
-        rmtree(root, ignore_errors=True)
-
-
-def test_schema_fails_when_required_fields_missing() -> None:
-    root = _mkroot()
-    try:
-        _write(root / ".agents/skills/demo/SKILL.md", "---\nname: demo\n---\n# Demo\n")
-        findings = VALIDATOR.validate(root)
-        assert any("allowed-tools" in f.message for f in findings)
-    finally:
-        rmtree(root, ignore_errors=True)
-
+def test_agent_references_reject_missing_rule(tmp_path):
+    write_skill(tmp_path,"skill-sample","Follow `docs/operating_system/rules/missing-rule.md`.")
+    assert module.validate(tmp_path)==[".agents/skills/skill-sample/SKILL.md:6: missing rule reference docs/operating_system/rules/missing-rule.md"]

@@ -1,0 +1,83 @@
+- generic [ref=e2]:
+  - complementary "Primary navigation" [ref=e3]:
+    - link "FitCV Control Plane Local workspace" [ref=e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=e9]:
+        - strong [ref=e10]: FitCV Control Plane
+        - generic [ref=e11]: Local workspace
+    - navigation "Workspace" [ref=e12]:
+      - link "Runs" [ref=e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=e32]:
+    - banner [ref=e33]:
+      - generic [ref=e38]:
+        - heading "Candidate Profiles" [level=1] [ref=e39]
+        - paragraph [ref=e40]: Create and review profiles used by matching runs.
+      - button "Switch to dark theme" [ref=e42] [cursor=pointer]:
+        - generic [ref=e45]: Dark
+    - main [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - paragraph [ref=e51]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=e52]
+          - paragraph [ref=e53]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - button "Create Profile" [ref=e54] [cursor=pointer]
+      - region [ref=e55]:
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - heading "Creation drafts" [level=3] [ref=e58]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=e59]: 0 drafts
+        - generic [ref=e61]:
+          - strong [ref=e62]: No creation drafts
+          - generic [ref=e63]: Upload Markdown, DOCX, or YAML to start one staged review.
+      - generic [ref=e64]:
+        - tablist "Candidate Profile views" [ref=e65]:
+          - tab "Active 2" [selected] [ref=e66] [cursor=pointer]:
+            - text: Active
+            - generic [ref=e67]: "2"
+          - tab "Archived 0" [ref=e68] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=e69]: "0"
+        - tabpanel [ref=e70]:
+          - table [ref=e73]:
+            - rowgroup [ref=e74]:
+              - row [ref=e75]:
+                - columnheader [ref=e76]:
+                  - checkbox "Select all visible profiles" [ref=e77]
+                - columnheader "Profile ID" [ref=e78]
+                - columnheader "Status" [ref=e79]
+                - columnheader "Profile Name" [ref=e80]
+                - columnheader "Created Time" [ref=e81]
+            - rowgroup [ref=e82]:
+              - row [ref=e83]:
+                - cell [ref=e84]:
+                  - checkbox "Select profile profile_023ee579a325464fb0946b2166fc8b26" [ref=e85]
+                - cell [ref=e86]:
+                  - link "profile_023ee579a325464fb0946b2166fc8b26" [ref=e87] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/profile_023ee579a325464fb0946b2166fc8b26?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=e88]
+                - cell "Live DOCX Profile" [ref=e90]
+                - cell [ref=e91]:
+                  - time [ref=e92]: Aug 4, 2026, 11:12 AM
+              - row [ref=e93]:
+                - cell [ref=e94]:
+                  - checkbox "Select profile profile_6278acc6dd7748bba13a4a186119dc9d" [ref=e95]
+                - cell [ref=e96]:
+                  - link "profile_6278acc6dd7748bba13a4a186119dc9d" [ref=e97] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/profile_6278acc6dd7748bba13a4a186119dc9d?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=e98]
+                - cell "Live MD Profile" [ref=e100]
+                - cell [ref=e101]:
+                  - time [ref=e102]: Aug 4, 2026, 11:11 AM
+      - status

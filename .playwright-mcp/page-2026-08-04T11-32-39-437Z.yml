@@ -1,0 +1,444 @@
+- generic [ref=e2]:
+  - complementary "Primary navigation" [ref=e3]:
+    - link "FitCV Control Plane Local workspace" [ref=e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=e9]:
+        - strong [ref=e10]: FitCV Control Plane
+        - generic [ref=e11]: Local workspace
+    - navigation "Workspace" [ref=e12]:
+      - link "Runs" [ref=e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=e32]:
+    - banner [ref=e33]:
+      - generic [ref=e39]:
+        - heading "Create Candidate Profile" [level=1] [ref=e40]
+        - paragraph [ref=e41]: Upload, review baseline evidence, approve derivation, then confirm.
+      - button "Switch to light theme" [ref=e43] [cursor=pointer]:
+        - generic [ref=e47]: Light
+    - generic [ref=e49]:
+      - main [ref=e50]:
+        - generic [ref=e51]:
+          - link "← Save and exit to Candidate Profiles" [ref=e53] [cursor=pointer]:
+            - /url: /admin/candidate-profiles
+          - list "Candidate Profile creation progress" [ref=e54]:
+            - listitem [ref=e55]:
+              - generic [ref=e56]: ✓
+              - generic [ref=e57]: Upload
+            - listitem [ref=e58]:
+              - generic [ref=e59]: "2"
+              - generic [ref=e60]: Baseline
+            - listitem [ref=e61]:
+              - generic [ref=e62]: "3"
+              - generic [ref=e63]: Derived
+            - listitem [ref=e64]:
+              - generic [ref=e65]: "4"
+              - generic [ref=e66]: Confirm
+          - generic [ref=e67]:
+            - generic [ref=e68]:
+              - paragraph [ref=e69]: Step 2 · Evidence review
+              - heading "Review baseline facts" [level=2] [ref=e70]
+              - paragraph [ref=e71]: Add any number of equivalent evidence entries. AI controls appear only where context supports inference.
+            - button "Regenerate AI-assisted fields" [ref=e72] [cursor=pointer]
+          - generic [ref=e74]:
+            - generic [ref=e75]:
+              - generic [ref=e77]:
+                - heading "Profile" [level=3] [ref=e78]
+                - paragraph [ref=e79]: Canonical identity and profile text.
+              - generic [ref=e80]:
+                - generic [ref=e81]:
+                  - generic [ref=e82]:
+                    - generic [ref=e83]:
+                      - generic [ref=e84]: Full name
+                      - generic [ref=e85]:
+                        - button "About Full name" [ref=e86]
+                        - tooltip "Reviewed candidate display name."
+                    - button "View source evidence for Full name" [ref=e91] [cursor=pointer]: Source
+                  - textbox "Full name" [ref=e92]: Jordan Lee
+                - generic [ref=e93]:
+                  - generic [ref=e95]:
+                    - generic [ref=e96]: Professional headline
+                    - generic [ref=e97]: Optional
+                    - generic [ref=e98]:
+                      - button "About Professional headline" [ref=e99]
+                      - tooltip "Optional professional headline copied from source."
+                  - textbox "Professional headline" [ref=e103]
+                - generic [ref=e104]:
+                  - generic [ref=e105]:
+                    - generic [ref=e106]:
+                      - generic [ref=e107]: Summary
+                      - generic [ref=e108]: Optional
+                      - generic [ref=e109]:
+                        - button "About Summary" [ref=e110]
+                        - tooltip "Optional profile summary based on reviewed evidence."
+                    - generic [ref=e114]:
+                      - button "View source evidence for Summary" [ref=e115] [cursor=pointer]: Source
+                      - button "Regenerate Summary" [ref=e116] [cursor=pointer]
+                  - textbox "Summary" [ref=e120]: Data analyst focused on product analytics and reliable reporting.
+            - generic [ref=e121]:
+              - generic [ref=e123]:
+                - heading "Contact" [level=3] [ref=e124]
+                - paragraph [ref=e125]: Direct contact facts; never inferred.
+              - generic [ref=e126]:
+                - generic [ref=e127]:
+                  - generic [ref=e128]:
+                    - generic [ref=e129]:
+                      - generic [ref=e130]: Email
+                      - generic [ref=e131]: Optional
+                      - generic [ref=e132]:
+                        - button "About Email" [ref=e133]
+                        - tooltip "Optional email address copied from source."
+                    - button "View source evidence for Email" [ref=e138] [cursor=pointer]: Source
+                  - textbox "Email" [ref=e139]: jordan.lee@example.com
+                - generic [ref=e140]:
+                  - generic [ref=e142]:
+                    - generic [ref=e143]: Phone
+                    - generic [ref=e144]: Optional
+                    - generic [ref=e145]:
+                      - button "About Phone" [ref=e146]
+                      - tooltip "Optional phone number copied from source."
+                  - textbox "Phone" [ref=e150]
+                - generic [ref=e151]:
+                  - generic [ref=e153]:
+                    - generic [ref=e154]: Location
+                    - generic [ref=e155]: Optional
+                    - generic [ref=e156]:
+                      - button "About Location" [ref=e157]
+                      - tooltip "Optional candidate location copied from source."
+                  - textbox "Location" [ref=e161]
+                - generic [ref=e162]:
+                  - generic [ref=e164]:
+                    - generic [ref=e165]: LinkedIn URL
+                    - generic [ref=e166]: Optional
+                    - generic [ref=e167]:
+                      - button "About LinkedIn URL" [ref=e168]
+                      - tooltip "Optional LinkedIn profile URL copied from source."
+                  - textbox "LinkedIn URL" [ref=e172]
+                - generic [ref=e173]:
+                  - generic [ref=e175]:
+                    - generic [ref=e176]: GitHub URL
+                    - generic [ref=e177]: Optional
+                    - generic [ref=e178]:
+                      - button "About GitHub URL" [ref=e179]
+                      - tooltip "Optional GitHub profile URL copied from source."
+                  - textbox "GitHub URL" [ref=e183]
+                - generic [ref=e184]:
+                  - generic [ref=e186]:
+                    - generic [ref=e187]: Website URL
+                    - generic [ref=e188]: Optional
+                    - generic [ref=e189]:
+                      - button "About Website URL" [ref=e190]
+                      - tooltip "Optional personal website URL copied from source."
+                  - textbox "Website URL" [ref=e194]
+            - generic [ref=e196]:
+              - generic [ref=e197]:
+                - generic [ref=e198]:
+                  - heading "Experience" [level=3] [ref=e199]
+                  - paragraph [ref=e200]: One parent per company and role; each statement is separate evidence.
+                - generic [ref=e201]:
+                  - generic [ref=e202]: 1 entry
+                  - button "Add Experience" [ref=e203] [cursor=pointer]
+              - article [ref=e205]:
+                - generic [ref=e206]:
+                  - strong [ref=e207]:
+                    - text: Experience 1 ·
+                    - code [ref=e208]: exp_cf487c8355f59ad5
+                  - button "Remove Experience 1" [ref=e209] [cursor=pointer]: Remove
+                - generic [ref=e210]:
+                  - generic [ref=e211]:
+                    - generic [ref=e212]:
+                      - generic [ref=e213]:
+                        - generic [ref=e214]: Role
+                        - generic [ref=e215]:
+                          - button "About Role" [ref=e216]
+                          - tooltip "Role title stated in source."
+                      - button "View source evidence for Role" [ref=e221] [cursor=pointer]: Source
+                    - textbox "Role" [ref=e222]: Product Data Analyst
+                  - generic [ref=e223]:
+                    - generic [ref=e224]:
+                      - generic [ref=e225]:
+                        - generic [ref=e226]: Company
+                        - generic [ref=e227]:
+                          - button "About Company" [ref=e228]
+                          - tooltip "Employer stated in source."
+                      - button "View source evidence for Company" [ref=e233] [cursor=pointer]: Source
+                    - textbox "Company" [ref=e234]: Northstar Labs
+                  - generic [ref=e235]:
+                    - generic [ref=e237]:
+                      - generic [ref=e238]: Company URL
+                      - generic [ref=e239]: Optional
+                      - generic [ref=e240]:
+                        - button "About Company URL" [ref=e241]
+                        - tooltip "Optional employer URL stated in source."
+                    - textbox "Company URL" [ref=e245]
+                  - generic [ref=e246]:
+                    - generic [ref=e248]:
+                      - generic [ref=e249]: Location
+                      - generic [ref=e250]: Optional
+                      - generic [ref=e251]:
+                        - button "About Location" [ref=e252]
+                        - tooltip "Optional work location stated in source."
+                    - textbox "Location" [ref=e256]
+                  - generic [ref=e257]:
+                    - generic [ref=e258]:
+                      - generic [ref=e259]:
+                        - generic [ref=e260]: Start
+                        - generic [ref=e261]: Optional
+                        - generic [ref=e262]:
+                          - button "About Start" [ref=e263]
+                          - tooltip "Optional start value. Use YYYY-MM or Present."
+                      - button "View source evidence for Start" [ref=e268] [cursor=pointer]: Source
+                    - textbox "Start" [ref=e269]:
+                      - /placeholder: YYYY-MM or Present
+                      - text: 2023-01
+                  - generic [ref=e270]:
+                    - generic [ref=e271]:
+                      - generic [ref=e272]:
+                        - generic [ref=e273]: End
+                        - generic [ref=e274]: Optional
+                        - generic [ref=e275]:
+                          - button "About End" [ref=e276]
+                          - tooltip "Optional end value. Use YYYY-MM or Present."
+                      - button "View source evidence for End" [ref=e281] [cursor=pointer]: Source
+                    - textbox "End" [ref=e282]:
+                      - /placeholder: YYYY-MM or Present
+                      - text: Present
+                - generic [ref=e283]:
+                  - generic [ref=e284]:
+                    - generic [ref=e285]:
+                      - heading "Evidence" [level=4] [ref=e286]
+                      - paragraph [ref=e287]: Each statement has stable ID and source provenance.
+                    - button "Add Evidence" [ref=e288] [cursor=pointer]
+                  - paragraph [ref=e290]: No evidence statements.
+            - generic [ref=e292]:
+              - generic [ref=e293]:
+                - generic [ref=e294]:
+                  - heading "Education" [level=3] [ref=e295]
+                  - paragraph [ref=e296]: Degrees, thesis work, seminars, courses, and academic projects use same evidence shape.
+                - generic [ref=e297]:
+                  - generic [ref=e298]: 1 entry
+                  - button "Add Education" [ref=e299] [cursor=pointer]
+              - article [ref=e301]:
+                - generic [ref=e302]:
+                  - strong [ref=e303]:
+                    - text: Education 1 ·
+                    - code [ref=e304]: edu_d2f9706a1566d37a
+                  - button "Remove Education 1" [ref=e305] [cursor=pointer]: Remove
+                - generic [ref=e306]:
+                  - generic [ref=e307]:
+                    - generic [ref=e308]:
+                      - generic [ref=e309]:
+                        - generic [ref=e310]: Institution
+                        - generic [ref=e311]:
+                          - button "About Institution" [ref=e312]
+                          - tooltip "Institution stated in source."
+                      - button "View source evidence for Institution" [ref=e317] [cursor=pointer]: Source
+                    - textbox "Institution" [ref=e318]: City University
+                  - generic [ref=e319]:
+                    - generic [ref=e320]:
+                      - generic [ref=e321]:
+                        - generic [ref=e322]: Degree or credential
+                        - generic [ref=e323]: One required
+                        - generic [ref=e324]:
+                          - button "About Degree or credential" [ref=e325]
+                          - tooltip "Degree or credential stated in source; degree or field is required."
+                      - button "View source evidence for Degree or credential" [ref=e330] [cursor=pointer]: Source
+                    - textbox "Degree or credential" [ref=e331]: BSc
+                  - generic [ref=e332]:
+                    - generic [ref=e333]:
+                      - generic [ref=e334]:
+                        - generic [ref=e335]: Field of study
+                        - generic [ref=e336]: One required
+                        - generic [ref=e337]:
+                          - button "About Field of study" [ref=e338]
+                          - tooltip "Field of study stated in source; degree or field is required."
+                      - button "View source evidence for Field of study" [ref=e343] [cursor=pointer]: Source
+                    - textbox "Field of study" [ref=e344]: Information Systems
+                  - generic [ref=e345]:
+                    - generic [ref=e347]:
+                      - generic [ref=e348]: Location
+                      - generic [ref=e349]: Optional
+                      - generic [ref=e350]:
+                        - button "About Location" [ref=e351]
+                        - tooltip "Optional study location stated in source."
+                    - textbox "Location" [ref=e355]
+                  - generic [ref=e356]:
+                    - generic [ref=e357]:
+                      - generic [ref=e358]:
+                        - generic [ref=e359]: Start
+                        - generic [ref=e360]: Optional
+                        - generic [ref=e361]:
+                          - button "About Start" [ref=e362]
+                          - tooltip "Optional start value. Use YYYY-MM or Present."
+                      - button "View source evidence for Start" [ref=e367] [cursor=pointer]: Source
+                    - textbox "Start" [ref=e368]:
+                      - /placeholder: YYYY-MM or Present
+                      - text: 2019-09
+                  - generic [ref=e369]:
+                    - generic [ref=e370]:
+                      - generic [ref=e371]:
+                        - generic [ref=e372]: End
+                        - generic [ref=e373]: Optional
+                        - generic [ref=e374]:
+                          - button "About End" [ref=e375]
+                          - tooltip "Optional end value. Use YYYY-MM or Present."
+                      - button "View source evidence for End" [ref=e380] [cursor=pointer]: Source
+                    - textbox "End" [ref=e381]:
+                      - /placeholder: YYYY-MM or Present
+                      - text: 2022-06
+                - generic [ref=e382]:
+                  - generic [ref=e383]:
+                    - generic [ref=e384]:
+                      - heading "Evidence" [level=4] [ref=e385]
+                      - paragraph [ref=e386]: Each statement has stable ID and source provenance.
+                    - button "Add Evidence" [ref=e387] [cursor=pointer]
+                  - article [ref=e389]:
+                    - generic [ref=e390]:
+                      - strong [ref=e391]:
+                        - text: Evidence 1 ·
+                        - code [ref=e392]: ev_edu_d2f9706a1566d37a_17b2febb7ab09027
+                      - generic [ref=e393]:
+                        - button "View source evidence for Evidence statement" [ref=e394] [cursor=pointer]: Source
+                        - button "Generate evidence text from parent context" [ref=e395] [cursor=pointer]
+                        - button "Remove Evidence 1" [ref=e399] [cursor=pointer]: Remove
+                    - generic [ref=e400]:
+                      - generic [ref=e401]:
+                        - generic [ref=e402]:
+                          - generic [ref=e403]: Kind
+                          - generic [ref=e404]:
+                            - button "About Kind" [ref=e405]
+                            - tooltip "Classifies this statement for explanation and display. Kind never changes relevance scoring."
+                        - combobox "Kind" [ref=e409]:
+                          - option "Work achievement"
+                          - option "Work responsibility"
+                          - option "Thesis" [selected]
+                          - option "Seminar"
+                          - option "Course"
+                          - option "Academic project"
+                          - option "Project highlight"
+                          - option "Achievement"
+                          - option "Certification proof"
+                          - option "Volunteer contribution"
+                      - generic [ref=e410]:
+                        - generic [ref=e411]:
+                          - generic [ref=e412]: Title
+                          - generic [ref=e413]: Optional
+                          - generic [ref=e414]:
+                            - button "About Title" [ref=e415]
+                            - tooltip "Optional short label for this evidence statement."
+                        - textbox "Title" [ref=e419]
+                      - generic [ref=e420]:
+                        - generic [ref=e421]:
+                          - generic [ref=e422]: Start
+                          - generic [ref=e423]: Optional
+                          - generic [ref=e424]:
+                            - button "About Start" [ref=e425]
+                            - tooltip "Optional start value. Use YYYY-MM or Present."
+                        - textbox "Start" [ref=e429]:
+                          - /placeholder: YYYY-MM or Present
+                      - generic [ref=e430]:
+                        - generic [ref=e431]:
+                          - generic [ref=e432]: End
+                          - generic [ref=e433]: Optional
+                          - generic [ref=e434]:
+                            - button "About End" [ref=e435]
+                            - tooltip "Optional end value. Use YYYY-MM or Present."
+                        - textbox "End" [ref=e439]:
+                          - /placeholder: YYYY-MM or Present
+                      - generic [ref=e440]:
+                        - generic [ref=e441]:
+                          - generic [ref=e442]: Evidence text
+                          - generic [ref=e443]:
+                            - button "About Evidence text" [ref=e444]
+                            - tooltip "Reviewed statement projected into runtime candidate evidence."
+                        - textbox "Evidence text" [ref=e448]: "Thesis: Automated data-quality monitoring for analytics pipelines."
+            - generic [ref=e450]:
+              - generic [ref=e451]:
+                - generic [ref=e452]:
+                  - heading "Projects" [level=3] [ref=e453]
+                  - paragraph [ref=e454]: Academic, personal, and work projects use same parent and evidence shape.
+                - generic [ref=e455]:
+                  - generic [ref=e456]: 0 entries
+                  - button "Add Project" [ref=e457] [cursor=pointer]
+              - generic [ref=e459]:
+                - heading "No projects" [level=3] [ref=e460]
+                - paragraph [ref=e461]: Add an entry when this candidate document contains relevant evidence.
+            - generic [ref=e463]:
+              - generic [ref=e464]:
+                - generic [ref=e465]:
+                  - heading "Achievements" [level=3] [ref=e466]
+                  - paragraph [ref=e467]: Each achievement may contain one or more traceable statements.
+                - generic [ref=e468]:
+                  - generic [ref=e469]: 0 entries
+                  - button "Add Achievement" [ref=e470] [cursor=pointer]
+              - generic [ref=e472]:
+                - heading "No achievements" [level=3] [ref=e473]
+                - paragraph [ref=e474]: Add an entry when this candidate document contains relevant evidence.
+            - generic [ref=e476]:
+              - generic [ref=e477]:
+                - generic [ref=e478]:
+                  - heading "Certifications" [level=3] [ref=e479]
+                  - paragraph [ref=e480]: Each certification uses same evidence contract.
+                - generic [ref=e481]:
+                  - generic [ref=e482]: 0 entries
+                  - button "Add Certification" [ref=e483] [cursor=pointer]
+              - generic [ref=e485]:
+                - heading "No certifications" [level=3] [ref=e486]
+                - paragraph [ref=e487]: Add an entry when this candidate document contains relevant evidence.
+            - generic [ref=e489]:
+              - generic [ref=e490]:
+                - generic [ref=e491]:
+                  - heading "Volunteering" [level=3] [ref=e492]
+                  - paragraph [ref=e493]: Volunteer contributions compete uniformly with other evidence.
+                - generic [ref=e494]:
+                  - generic [ref=e495]: 0 entries
+                  - button "Add Volunteer role" [ref=e496] [cursor=pointer]
+              - generic [ref=e498]:
+                - heading "No volunteering" [level=3] [ref=e499]
+                - paragraph [ref=e500]: Add an entry when this candidate document contains relevant evidence.
+            - generic [ref=e502]:
+              - generic [ref=e503]:
+                - generic [ref=e504]:
+                  - heading "Languages" [level=3] [ref=e505]
+                  - paragraph [ref=e506]: Add each language and level separately.
+                - generic [ref=e507]:
+                  - generic [ref=e508]: 0 entries
+                  - button "Add Language" [ref=e509] [cursor=pointer]
+              - generic [ref=e511]:
+                - heading "No languages" [level=3] [ref=e512]
+                - paragraph [ref=e513]: Add an entry when this candidate document contains relevant evidence.
+          - status [ref=e514]
+          - generic [ref=e515]:
+            - generic [ref=e516]:
+              - strong [ref=e517]: Draft saved automatically
+              - status [ref=e518]: Changes save automatically to this creation draft.
+            - generic [ref=e519]:
+              - link "Save and exit" [ref=e520] [cursor=pointer]:
+                - /url: /admin/candidate-profiles
+              - button "Approve baseline and continue" [ref=e521] [cursor=pointer]
+      - dialog [ref=e522]:
+        - generic [ref=e523]:
+          - generic [ref=e524]:
+            - paragraph [ref=e525]: Source Evidence
+            - heading "Summary" [level=2] [ref=e526]
+            - paragraph [ref=e527]: Source locator for extracted baseline metadata.
+          - button "Close Source Evidence dialog" [active] [ref=e528] [cursor=pointer]: ×
+        - generic [ref=e529]:
+          - generic [ref=e530]:
+            - strong [ref=e531]: Source excerpt
+            - blockquote [ref=e532]: Data analyst focused on product analytics and reliable reporting.
+          - generic [ref=e533]:
+            - strong [ref=e534]: Locator
+            - code [ref=e535]: md:lines 6-6
+          - generic [ref=e536]:
+            - strong [ref=e537]: Current reviewed value
+            - paragraph [ref=e538]: Data analyst focused on product analytics and reliable reporting.

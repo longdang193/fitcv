@@ -1,0 +1,98 @@
+- generic [ref=f3e2]:
+  - complementary "Primary navigation" [ref=f3e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f3e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f3e9]:
+        - strong [ref=f3e10]: FitCV Control Plane
+        - generic [ref=f3e11]: Local workspace
+    - navigation "Workspace" [ref=f3e12]:
+      - link "Runs" [ref=f3e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f3e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f3e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f3e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f3e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f3e31]:
+        - generic "Pipeline ›" [ref=f3e32] [cursor=pointer]
+        - generic [ref=f3e35]:
+          - link "Overview" [ref=f3e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f3e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f3e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f3e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f3e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f3e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f3e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f3e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f3e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f3e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f3e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f3e47]:
+        - generic "Application ›" [ref=f3e48] [cursor=pointer]
+        - generic [ref=f3e52]:
+          - link "API Providers" [ref=f3e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f3e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f3e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f3e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f3e57]:
+    - banner [ref=f3e58]:
+      - generic [ref=f3e62]:
+        - heading "API Providers" [level=1] [ref=f3e63]
+        - paragraph [ref=f3e64]: Manage one verified connection per provider.
+      - generic [ref=f3e65]:
+        - button "Switch to light theme" [ref=f3e66] [cursor=pointer]:
+          - generic [ref=f3e70]: Light
+        - button "Shutdown FitCV" [ref=f3e71] [cursor=pointer]
+    - main [ref=f3e76]:
+      - generic [ref=f3e77]:
+        - generic [ref=f3e78]:
+          - heading "API Providers" [level=1] [ref=f3e79]
+          - paragraph [ref=f3e80]: Manage one verified connection per provider.
+        - button "Add Custom Provider" [ref=f3e81] [cursor=pointer]
+      - generic [ref=f3e82]:
+        - heading "Custom Providers" [level=2] [ref=f3e83]
+        - paragraph [ref=f3e84]: No custom providers.
+      - generic [ref=f3e85]:
+        - heading "API Key Providers" [level=2] [ref=f3e86]
+        - link "OpenAI Openai-compatible No connection ›" [ref=f3e87] [cursor=pointer]:
+          - /url: /admin/api-providers/openai
+          - generic [ref=f3e88]:
+            - strong [ref=f3e89]: OpenAI
+            - text: Openai-compatible
+          - generic [ref=f3e90]: No connection ›
+        - link "Anthropic Anthropic-compatible No connection ›" [ref=f3e91] [cursor=pointer]:
+          - /url: /admin/api-providers/anthropic
+          - generic [ref=f3e92]:
+            - strong [ref=f3e93]: Anthropic
+            - text: Anthropic-compatible
+          - generic [ref=f3e94]: No connection ›
+        - link "DeepSeek Openai-compatible No connection ›" [ref=f3e95] [cursor=pointer]:
+          - /url: /admin/api-providers/deepseek
+          - generic [ref=f3e96]:
+            - strong [ref=f3e97]: DeepSeek
+            - text: Openai-compatible
+          - generic [ref=f3e98]: No connection ›
+        - link "Groq Openai-compatible No connection ›" [ref=f3e99] [cursor=pointer]:
+          - /url: /admin/api-providers/groq
+          - generic [ref=f3e100]:
+            - strong [ref=f3e101]: Groq
+            - text: Openai-compatible
+          - generic [ref=f3e102]: No connection ›

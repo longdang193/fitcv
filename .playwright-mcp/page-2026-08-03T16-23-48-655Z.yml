@@ -1,0 +1,119 @@
+- generic [ref=f17e2]:
+  - complementary "Primary navigation" [ref=f17e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f17e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f17e9]:
+        - strong [ref=f17e10]: FitCV Control Plane
+        - generic [ref=f17e11]: Local workspace
+    - navigation "Workspace" [ref=f17e12]:
+      - link "Runs" [ref=f17e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f17e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f17e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f17e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f17e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f17e31]:
+        - generic "Pipeline ›" [ref=f17e32] [cursor=pointer]
+        - generic [ref=f17e35]:
+          - link "Overview" [ref=f17e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f17e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f17e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f17e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f17e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f17e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f17e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f17e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f17e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f17e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f17e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f17e47]:
+        - generic "Application ›" [ref=f17e48] [cursor=pointer]
+        - generic [ref=f17e52]:
+          - link "API Providers" [ref=f17e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f17e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f17e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f17e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f17e57]:
+    - banner [ref=f17e58]:
+      - generic [ref=f17e63]:
+        - heading "Candidate Profiles" [level=1] [ref=f17e64]
+        - paragraph [ref=f17e65]: Create and review profiles used by matching runs.
+      - generic [ref=f17e66]:
+        - button "Switch to dark theme" [ref=f17e67] [cursor=pointer]:
+          - generic [ref=f17e70]: Dark
+        - button "Shutdown FitCV" [ref=f17e71] [cursor=pointer]
+    - main [ref=f17e76]:
+      - generic [ref=f17e77]:
+        - generic [ref=f17e78]:
+          - paragraph [ref=f17e79]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=f17e80]
+          - paragraph [ref=f17e81]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - link "Create Profile" [ref=f17e82] [cursor=pointer]:
+          - /url: /admin/candidate-profiles/create
+      - region [ref=f17e83]:
+        - generic [ref=f17e84]:
+          - generic [ref=f17e85]:
+            - heading "Creation drafts" [level=3] [ref=f17e86]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=f17e87]: 0 drafts
+        - generic [ref=f17e89]:
+          - strong [ref=f17e90]: No creation drafts
+          - generic [ref=f17e91]: Upload Markdown, DOCX, or YAML to start one staged review.
+      - generic [ref=f17e92]:
+        - tablist "Candidate Profile views" [ref=f17e93]:
+          - tab "Active 2" [selected] [ref=f17e94] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f17e95]: "2"
+          - tab "Archived 1" [ref=f17e96] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f17e97]: "1"
+        - tabpanel [ref=f17e98]:
+          - table [ref=f17e101]:
+            - rowgroup [ref=f17e102]:
+              - row [ref=f17e103]:
+                - columnheader [ref=f17e104]:
+                  - checkbox "Select all visible profiles" [ref=f17e105]
+                - columnheader "Profile ID" [ref=f17e106]
+                - columnheader "Status" [ref=f17e107]
+                - columnheader "Profile Name" [ref=f17e108]
+                - columnheader "Created Time" [ref=f17e109]
+            - rowgroup [ref=f17e110]:
+              - row [ref=f17e111]:
+                - cell [ref=f17e112]:
+                  - checkbox "Select profile candidate-product-data" [ref=f17e113]
+                - cell [ref=f17e114]:
+                  - link "candidate-product-data" [ref=f17e115] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/candidate-product-data?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f17e116]
+                - cell "Product Data Specialist" [ref=f17e118]
+                - cell [ref=f17e119]:
+                  - time [ref=f17e120]: Aug 2, 2026, 2:00 PM
+              - row [ref=f17e121]:
+                - cell [ref=f17e122]:
+                  - checkbox "Select profile candidate-analytics" [ref=f17e123]
+                - cell [ref=f17e124]:
+                  - link "candidate-analytics" [ref=f17e125] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/candidate-analytics?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f17e126]
+                - cell "Analytics & Operations" [ref=f17e128]
+                - cell [ref=f17e129]:
+                  - time [ref=f17e130]: Aug 2, 2026, 2:00 PM

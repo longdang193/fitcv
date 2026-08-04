@@ -1,0 +1,99 @@
+- generic [ref=e2]:
+  - complementary "Primary navigation" [ref=e3]:
+    - link "FitCV Control Plane Local workspace" [ref=e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=e9]:
+        - strong [ref=e10]: FitCV Control Plane
+        - generic [ref=e11]: Local workspace
+    - navigation "Workspace" [ref=e12]:
+      - link "Runs" [ref=e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=e32]:
+    - banner [ref=e33]:
+      - generic [ref=e38]:
+        - heading "Candidate Profile" [level=1] [ref=e105]
+        - paragraph [ref=e40]: Review source, approved facts, derived claims, traceability, and related runs.
+      - button "Switch to dark theme" [ref=e42] [cursor=pointer]:
+        - generic [ref=e45]: Dark
+    - main [ref=e106]:
+      - generic [ref=e107]:
+        - link "← Back to Candidate Profiles" [ref=e108] [cursor=pointer]:
+          - /url: /admin/candidate-profiles?view=active&page=1
+        - generic [ref=e110]:
+          - paragraph [ref=e111]: Candidate Profile
+          - heading "Live MD Profile" [active] [level=2] [ref=e112]
+          - paragraph [ref=e113]: Review source, approved facts, derived claims, traceability, and related Runs.
+      - group [ref=e114]:
+        - generic "› Profile Overview Current lifecycle and pipeline availability. Succeeded" [ref=e115] [cursor=pointer]:
+          - text: ›
+          - generic [ref=e116]:
+            - strong [ref=e117]: Profile Overview
+            - generic [ref=e118]: Current lifecycle and pipeline availability.
+          - generic [ref=e119]: Succeeded
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - term [ref=e124]: Profile ID
+            - definition [ref=e125]: profile_6278acc6dd7748bba13a4a186119dc9d
+          - generic [ref=e126]:
+            - term [ref=e127]: Profile Name
+            - definition [ref=e128]: Live MD Profile
+          - generic [ref=e129]:
+            - term [ref=e130]: Created
+            - definition [ref=e131]:
+              - time [ref=e132]: Aug 4, 2026, 11:11 AM
+          - generic [ref=e133]:
+            - term [ref=e134]: Availability
+            - definition [ref=e135]: Ready for new Runs
+      - group [ref=e136]:
+        - generic "› Source Input Every format uses same staged creation path." [ref=e137] [cursor=pointer]:
+          - text: ›
+          - generic [ref=e138]:
+            - strong [ref=e139]: Source Input
+            - generic [ref=e140]: Every format uses same staged creation path.
+        - generic [ref=e142]:
+          - generic [ref=e143]:
+            - term [ref=e144]: File
+            - definition [ref=e145]: candidate.md
+          - generic [ref=e146]:
+            - term [ref=e147]: Format
+            - definition [ref=e148]: Markdown
+          - generic [ref=e149]:
+            - term [ref=e150]: Creation Method
+            - definition [ref=e151]: Staged hybrid parser and review
+          - generic [ref=e152]:
+            - term [ref=e153]: Attempt ID
+            - definition [ref=e154]: attempt_6ec0fa078d504a51bd9d2124d66f161c
+      - group [ref=e155]:
+        - generic "› Baseline Facts Approved direct facts and repeatable evidence entries." [ref=e156] [cursor=pointer]:
+          - text: ›
+          - generic [ref=e157]:
+            - strong [ref=e158]: Baseline Facts
+            - generic [ref=e159]: Approved direct facts and repeatable evidence entries.
+      - group [ref=e160]:
+        - generic "› Derived Claims Each claim owns evidence refs, confidence, and origin." [ref=e161] [cursor=pointer]:
+          - text: ›
+          - generic [ref=e162]:
+            - strong [ref=e163]: Derived Claims
+            - generic [ref=e164]: Each claim owns evidence refs, confidence, and origin.
+      - group [ref=e165]:
+        - generic "› Traceability Baseline source locators and claim-level evidence refs." [ref=e166] [cursor=pointer]:
+          - text: ›
+          - generic [ref=e167]:
+            - strong [ref=e168]: Traceability
+            - generic [ref=e169]: Baseline source locators and claim-level evidence refs.
+      - group [ref=e170]:
+        - generic "› Related Runs Runs that used this immutable profile snapshot." [ref=e171] [cursor=pointer]:
+          - text: ›
+          - generic [ref=e172]:
+            - strong [ref=e173]: Related Runs
+            - generic [ref=e174]: Runs that used this immutable profile snapshot.

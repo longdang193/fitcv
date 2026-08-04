@@ -1,0 +1,842 @@
+- generic [ref=f44e2]:
+  - complementary "Primary navigation" [ref=f44e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f44e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f44e9]:
+        - strong [ref=f44e10]: FitCV Control Plane
+        - generic [ref=f44e11]: Local workspace
+    - navigation "Workspace" [ref=f44e12]:
+      - link "Runs" [ref=f44e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f44e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f44e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f44e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f44e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f44e31]:
+        - generic "Pipeline ›" [ref=f44e32] [cursor=pointer]
+        - generic [ref=f44e35]:
+          - link "Overview" [ref=f44e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f44e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f44e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f44e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f44e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f44e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f44e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f44e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f44e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f44e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f44e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f44e47]:
+        - generic "Application ›" [ref=f44e48] [cursor=pointer]
+        - generic [ref=f44e52]:
+          - link "API Providers" [ref=f44e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f44e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f44e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f44e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f44e57]:
+    - banner [ref=f44e58]:
+      - generic [ref=f44e59]:
+        - button "Open navigation" [ref=f44e60] [cursor=pointer]
+        - heading "Create Candidate Profile" [level=1] [ref=f44e68]
+      - generic [ref=f44e69]:
+        - button "Switch to dark theme" [ref=f44e70] [cursor=pointer]:
+          - generic [ref=f44e73]: Dark
+        - button "Shutdown FitCV" [ref=f44e74] [cursor=pointer]
+    - main [ref=f44e79]:
+      - generic [ref=f44e80]:
+        - link "← Save and exit to Candidate Profiles" [ref=f44e82] [cursor=pointer]:
+          - /url: /admin/candidate-profiles
+        - list "Candidate Profile creation progress" [ref=f44e83]:
+          - listitem [ref=f44e84]:
+            - generic [ref=f44e85]: ✓
+            - generic [ref=f44e86]: Upload
+          - listitem [ref=f44e87]:
+            - generic [ref=f44e88]: ✓
+            - generic [ref=f44e89]: Baseline
+          - listitem [ref=f44e90]:
+            - generic [ref=f44e91]: "3"
+            - generic [ref=f44e92]: Derived
+          - listitem [ref=f44e93]:
+            - generic [ref=f44e94]: "4"
+            - generic [ref=f44e95]: Confirm
+        - generic [ref=f44e96]:
+          - generic [ref=f44e97]:
+            - paragraph [ref=f44e98]: Step 3 · Controlled derivation
+            - heading "Review derived claims" [level=2] [ref=f44e99]
+            - paragraph [ref=f44e100]: Each claim owns editable evidence refs, confidence, and origin.
+          - button "Regenerate all derived claims" [ref=f44e101] [cursor=pointer]
+        - generic [ref=f44e103]:
+          - generic [ref=f44e105]:
+            - generic [ref=f44e106]:
+              - generic [ref=f44e107]:
+                - heading "Skills" [level=3] [ref=f44e108]
+                - paragraph [ref=f44e109]: Each skill is independently editable and traceable.
+              - generic [ref=f44e110]:
+                - generic [ref=f44e111]: 6 entries
+                - button "Add Skill" [ref=f44e112] [cursor=pointer]
+            - generic [ref=f44e113]:
+              - article [ref=f44e114]:
+                - generic [ref=f44e115]:
+                  - strong [ref=f44e116]:
+                    - text: Skill 1 ·
+                    - code [ref=f44e117]: skill-sql
+                  - generic [ref=f44e118]:
+                    - button "View source evidence for Skill" [ref=f44e119] [cursor=pointer]: Source
+                    - button "Generate supported Skill" [ref=f44e120] [cursor=pointer]
+                    - button "Remove Skill 1" [ref=f44e124] [cursor=pointer]: Remove
+                - generic [ref=f44e125]:
+                  - generic [ref=f44e126]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e127]: SQL
+                  - group "Evidence refs" [ref=f44e128]:
+                    - generic [ref=f44e130]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [checked] [ref=f44e131]
+                      - generic [ref=f44e132]:
+                        - code [ref=f44e133]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e134]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e135]
+                      - generic [ref=f44e136]:
+                        - code [ref=f44e137]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e138]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e139]
+                      - generic [ref=f44e140]:
+                        - code [ref=f44e141]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e142]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e143]
+                      - generic [ref=f44e144]:
+                        - code [ref=f44e145]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e146]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e147]
+                      - generic [ref=f44e148]:
+                        - code [ref=f44e149]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e150]:
+                      - checkbox "ev-project-capstone Analytics delivery" [checked] [ref=f44e151]
+                      - generic [ref=f44e152]:
+                        - code [ref=f44e153]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e154]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e155]
+                      - generic [ref=f44e156]:
+                        - code [ref=f44e157]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e158]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e159]
+                      - generic [ref=f44e160]:
+                        - code [ref=f44e161]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e162]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e163]:
+                    - generic [ref=f44e164]: 98% confidence
+                    - generic [ref=f44e165]: llm_inferred
+                    - generic [ref=f44e166]: supported
+              - article [ref=f44e167]:
+                - generic [ref=f44e168]:
+                  - strong [ref=f44e169]:
+                    - text: Skill 2 ·
+                    - code [ref=f44e170]: skill-python
+                  - generic [ref=f44e171]:
+                    - button "View source evidence for Skill" [ref=f44e172] [cursor=pointer]: Source
+                    - button "Generate supported Skill" [ref=f44e173] [cursor=pointer]
+                    - button "Remove Skill 2" [ref=f44e177] [cursor=pointer]: Remove
+                - generic [ref=f44e178]:
+                  - generic [ref=f44e179]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e180]: Python
+                  - group "Evidence refs" [ref=f44e181]:
+                    - generic [ref=f44e183]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [ref=f44e184]
+                      - generic [ref=f44e185]:
+                        - code [ref=f44e186]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e187]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e188]
+                      - generic [ref=f44e189]:
+                        - code [ref=f44e190]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e191]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e192]
+                      - generic [ref=f44e193]:
+                        - code [ref=f44e194]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e195]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e196]
+                      - generic [ref=f44e197]:
+                        - code [ref=f44e198]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e199]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e200]
+                      - generic [ref=f44e201]:
+                        - code [ref=f44e202]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e203]:
+                      - checkbox "ev-project-capstone Analytics delivery" [checked] [ref=f44e204]
+                      - generic [ref=f44e205]:
+                        - code [ref=f44e206]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e207]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [checked] [ref=f44e208]
+                      - generic [ref=f44e209]:
+                        - code [ref=f44e210]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e211]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e212]
+                      - generic [ref=f44e213]:
+                        - code [ref=f44e214]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e215]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e216]:
+                    - generic [ref=f44e217]: 97% confidence
+                    - generic [ref=f44e218]: llm_inferred
+                    - generic [ref=f44e219]: supported
+              - article [ref=f44e220]:
+                - generic [ref=f44e221]:
+                  - strong [ref=f44e222]:
+                    - text: Skill 3 ·
+                    - code [ref=f44e223]: skill-powerbi
+                  - generic [ref=f44e224]:
+                    - button "View source evidence for Skill" [ref=f44e225] [cursor=pointer]: Source
+                    - button "Generate supported Skill" [ref=f44e226] [cursor=pointer]
+                    - button "Remove Skill 3" [ref=f44e230] [cursor=pointer]: Remove
+                - generic [ref=f44e231]:
+                  - generic [ref=f44e232]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e233]: Power BI
+                  - group "Evidence refs" [ref=f44e234]:
+                    - generic [ref=f44e236]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [checked] [ref=f44e237]
+                      - generic [ref=f44e238]:
+                        - code [ref=f44e239]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e240]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e241]
+                      - generic [ref=f44e242]:
+                        - code [ref=f44e243]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e244]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e245]
+                      - generic [ref=f44e246]:
+                        - code [ref=f44e247]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e248]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e249]
+                      - generic [ref=f44e250]:
+                        - code [ref=f44e251]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e252]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e253]
+                      - generic [ref=f44e254]:
+                        - code [ref=f44e255]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e256]:
+                      - checkbox "ev-project-capstone Analytics delivery" [ref=f44e257]
+                      - generic [ref=f44e258]:
+                        - code [ref=f44e259]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e260]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e261]
+                      - generic [ref=f44e262]:
+                        - code [ref=f44e263]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e264]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [checked] [ref=f44e265]
+                      - generic [ref=f44e266]:
+                        - code [ref=f44e267]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e268]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e269]:
+                    - generic [ref=f44e270]: 97% confidence
+                    - generic [ref=f44e271]: llm_inferred
+                    - generic [ref=f44e272]: supported
+              - article [ref=f44e273]:
+                - generic [ref=f44e274]:
+                  - strong [ref=f44e275]:
+                    - text: Skill 4 ·
+                    - code [ref=f44e276]: skill-data-quality
+                  - generic [ref=f44e277]:
+                    - button "View source evidence for Skill" [ref=f44e278] [cursor=pointer]: Source
+                    - button "Generate supported Skill" [ref=f44e279] [cursor=pointer]
+                    - button "Remove Skill 4" [ref=f44e283] [cursor=pointer]: Remove
+                - generic [ref=f44e284]:
+                  - generic [ref=f44e285]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e286]: Data Quality
+                  - group "Evidence refs" [ref=f44e287]:
+                    - generic [ref=f44e289]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [checked] [ref=f44e290]
+                      - generic [ref=f44e291]:
+                        - code [ref=f44e292]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e293]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e294]
+                      - generic [ref=f44e295]:
+                        - code [ref=f44e296]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e297]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e298]
+                      - generic [ref=f44e299]:
+                        - code [ref=f44e300]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e301]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e302]
+                      - generic [ref=f44e303]:
+                        - code [ref=f44e304]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e305]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e306]
+                      - generic [ref=f44e307]:
+                        - code [ref=f44e308]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e309]:
+                      - checkbox "ev-project-capstone Analytics delivery" [ref=f44e310]
+                      - generic [ref=f44e311]:
+                        - code [ref=f44e312]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e313]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e314]
+                      - generic [ref=f44e315]:
+                        - code [ref=f44e316]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e317]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e318]
+                      - generic [ref=f44e319]:
+                        - code [ref=f44e320]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e321]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e322]:
+                    - generic [ref=f44e323]: 94% confidence
+                    - generic [ref=f44e324]: llm_inferred
+                    - generic [ref=f44e325]: supported
+              - article [ref=f44e326]:
+                - generic [ref=f44e327]:
+                  - strong [ref=f44e328]:
+                    - text: Skill 5 ·
+                    - code [ref=f44e329]: skill-product-analytics
+                  - generic [ref=f44e330]:
+                    - button "View source evidence for Skill" [ref=f44e331] [cursor=pointer]: Source
+                    - button "Generate supported Skill" [ref=f44e332] [cursor=pointer]
+                    - button "Remove Skill 5" [ref=f44e336] [cursor=pointer]: Remove
+                - generic [ref=f44e337]:
+                  - generic [ref=f44e338]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e339]: Product Analytics
+                  - group "Evidence refs" [ref=f44e340]:
+                    - generic [ref=f44e342]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [ref=f44e343]
+                      - generic [ref=f44e344]:
+                        - code [ref=f44e345]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e346]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [checked] [ref=f44e347]
+                      - generic [ref=f44e348]:
+                        - code [ref=f44e349]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e350]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e351]
+                      - generic [ref=f44e352]:
+                        - code [ref=f44e353]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e354]:
+                      - checkbox "ev-edu-seminars Applied seminars" [checked] [ref=f44e355]
+                      - generic [ref=f44e356]:
+                        - code [ref=f44e357]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e358]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e359]
+                      - generic [ref=f44e360]:
+                        - code [ref=f44e361]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e362]:
+                      - checkbox "ev-project-capstone Analytics delivery" [ref=f44e363]
+                      - generic [ref=f44e364]:
+                        - code [ref=f44e365]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e366]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e367]
+                      - generic [ref=f44e368]:
+                        - code [ref=f44e369]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e370]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e371]
+                      - generic [ref=f44e372]:
+                        - code [ref=f44e373]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e374]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e375]:
+                    - generic [ref=f44e376]: 93% confidence
+                    - generic [ref=f44e377]: llm_inferred
+                    - generic [ref=f44e378]: supported
+              - article [ref=f44e379]:
+                - generic [ref=f44e380]:
+                  - strong [ref=f44e381]:
+                    - text: Skill 6 ·
+                    - code [ref=f44e382]: skill-stakeholder
+                  - generic [ref=f44e383]:
+                    - button "View source evidence for Skill" [ref=f44e384] [cursor=pointer]: Source
+                    - button "Generate supported Skill" [ref=f44e385] [cursor=pointer]
+                    - button "Remove Skill 6" [ref=f44e389] [cursor=pointer]: Remove
+                - generic [ref=f44e390]:
+                  - generic [ref=f44e391]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e392]: Stakeholder Communication
+                  - group "Evidence refs" [ref=f44e393]:
+                    - generic [ref=f44e395]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [checked] [ref=f44e396]
+                      - generic [ref=f44e397]:
+                        - code [ref=f44e398]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e399]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e400]
+                      - generic [ref=f44e401]:
+                        - code [ref=f44e402]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e403]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e404]
+                      - generic [ref=f44e405]:
+                        - code [ref=f44e406]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e407]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e408]
+                      - generic [ref=f44e409]:
+                        - code [ref=f44e410]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e411]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e412]
+                      - generic [ref=f44e413]:
+                        - code [ref=f44e414]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e415]:
+                      - checkbox "ev-project-capstone Analytics delivery" [checked] [ref=f44e416]
+                      - generic [ref=f44e417]:
+                        - code [ref=f44e418]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e419]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e420]
+                      - generic [ref=f44e421]:
+                        - code [ref=f44e422]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e423]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e424]
+                      - generic [ref=f44e425]:
+                        - code [ref=f44e426]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e427]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e428]:
+                    - generic [ref=f44e429]: 91% confidence
+                    - generic [ref=f44e430]: llm_inferred
+                    - generic [ref=f44e431]: supported
+          - generic [ref=f44e433]:
+            - generic [ref=f44e434]:
+              - generic [ref=f44e435]:
+                - heading "Role Families" [level=3] [ref=f44e436]
+                - paragraph [ref=f44e437]: Each role family retains its own evidence refs.
+              - generic [ref=f44e438]:
+                - generic [ref=f44e439]: 2 entries
+                - button "Add Role family" [ref=f44e440] [cursor=pointer]
+            - generic [ref=f44e441]:
+              - article [ref=f44e442]:
+                - generic [ref=f44e443]:
+                  - strong [ref=f44e444]:
+                    - text: Role family 1 ·
+                    - code [ref=f44e445]: role-family-data-operations
+                  - generic [ref=f44e446]:
+                    - button "View source evidence for Role family" [ref=f44e447] [cursor=pointer]: Source
+                    - button "Generate supported Role family" [ref=f44e448] [cursor=pointer]
+                    - button "Remove Role family 1" [ref=f44e452] [cursor=pointer]: Remove
+                - generic [ref=f44e453]:
+                  - generic [ref=f44e454]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e455]: Data Operations
+                  - group "Evidence refs" [ref=f44e456]:
+                    - generic [ref=f44e458]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [checked] [ref=f44e459]
+                      - generic [ref=f44e460]:
+                        - code [ref=f44e461]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e462]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e463]
+                      - generic [ref=f44e464]:
+                        - code [ref=f44e465]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e466]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e467]
+                      - generic [ref=f44e468]:
+                        - code [ref=f44e469]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e470]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e471]
+                      - generic [ref=f44e472]:
+                        - code [ref=f44e473]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e474]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e475]
+                      - generic [ref=f44e476]:
+                        - code [ref=f44e477]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e478]:
+                      - checkbox "ev-project-capstone Analytics delivery" [ref=f44e479]
+                      - generic [ref=f44e480]:
+                        - code [ref=f44e481]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e482]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e483]
+                      - generic [ref=f44e484]:
+                        - code [ref=f44e485]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e486]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e487]
+                      - generic [ref=f44e488]:
+                        - code [ref=f44e489]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e490]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e491]:
+                    - generic [ref=f44e492]: 92% confidence
+                    - generic [ref=f44e493]: llm_inferred
+                    - generic [ref=f44e494]: supported
+              - article [ref=f44e495]:
+                - generic [ref=f44e496]:
+                  - strong [ref=f44e497]:
+                    - text: Role family 2 ·
+                    - code [ref=f44e498]: role-family-product-analytics
+                  - generic [ref=f44e499]:
+                    - button "View source evidence for Role family" [ref=f44e500] [cursor=pointer]: Source
+                    - button "Generate supported Role family" [ref=f44e501] [cursor=pointer]
+                    - button "Remove Role family 2" [ref=f44e505] [cursor=pointer]: Remove
+                - generic [ref=f44e506]:
+                  - generic [ref=f44e507]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e508]: Product Analytics
+                  - group "Evidence refs" [ref=f44e509]:
+                    - generic [ref=f44e511]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [ref=f44e512]
+                      - generic [ref=f44e513]:
+                        - code [ref=f44e514]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e515]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [checked] [ref=f44e516]
+                      - generic [ref=f44e517]:
+                        - code [ref=f44e518]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e519]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e520]
+                      - generic [ref=f44e521]:
+                        - code [ref=f44e522]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e523]:
+                      - checkbox "ev-edu-seminars Applied seminars" [checked] [ref=f44e524]
+                      - generic [ref=f44e525]:
+                        - code [ref=f44e526]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e527]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e528]
+                      - generic [ref=f44e529]:
+                        - code [ref=f44e530]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e531]:
+                      - checkbox "ev-project-capstone Analytics delivery" [ref=f44e532]
+                      - generic [ref=f44e533]:
+                        - code [ref=f44e534]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e535]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e536]
+                      - generic [ref=f44e537]:
+                        - code [ref=f44e538]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e539]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e540]
+                      - generic [ref=f44e541]:
+                        - code [ref=f44e542]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e543]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e544]:
+                    - generic [ref=f44e545]: 89% confidence
+                    - generic [ref=f44e546]: llm_inferred
+                    - generic [ref=f44e547]: supported
+          - generic [ref=f44e549]:
+            - generic [ref=f44e550]:
+              - generic [ref=f44e551]:
+                - heading "Domain Tags" [level=3] [ref=f44e552]
+                - paragraph [ref=f44e553]: Each domain tag retains its own evidence refs.
+              - generic [ref=f44e554]:
+                - generic [ref=f44e555]: 2 entries
+                - button "Add Domain tag" [ref=f44e556] [cursor=pointer]
+            - generic [ref=f44e557]:
+              - article [ref=f44e558]:
+                - generic [ref=f44e559]:
+                  - strong [ref=f44e560]:
+                    - text: Domain tag 1 ·
+                    - code [ref=f44e561]: domain-analytics
+                  - generic [ref=f44e562]:
+                    - button "View source evidence for Domain tag" [ref=f44e563] [cursor=pointer]: Source
+                    - button "Generate supported Domain tag" [ref=f44e564] [cursor=pointer]
+                    - button "Remove Domain tag 1" [ref=f44e568] [cursor=pointer]: Remove
+                - generic [ref=f44e569]:
+                  - generic [ref=f44e570]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e571]: Analytics
+                  - group "Evidence refs" [ref=f44e572]:
+                    - generic [ref=f44e574]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [ref=f44e575]
+                      - generic [ref=f44e576]:
+                        - code [ref=f44e577]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e578]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [checked] [ref=f44e579]
+                      - generic [ref=f44e580]:
+                        - code [ref=f44e581]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e582]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e583]
+                      - generic [ref=f44e584]:
+                        - code [ref=f44e585]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e586]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e587]
+                      - generic [ref=f44e588]:
+                        - code [ref=f44e589]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e590]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e591]
+                      - generic [ref=f44e592]:
+                        - code [ref=f44e593]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e594]:
+                      - checkbox "ev-project-capstone Analytics delivery" [checked] [ref=f44e595]
+                      - generic [ref=f44e596]:
+                        - code [ref=f44e597]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e598]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e599]
+                      - generic [ref=f44e600]:
+                        - code [ref=f44e601]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e602]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e603]
+                      - generic [ref=f44e604]:
+                        - code [ref=f44e605]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e606]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e607]:
+                    - generic [ref=f44e608]: 91% confidence
+                    - generic [ref=f44e609]: llm_inferred
+                    - generic [ref=f44e610]: supported
+              - article [ref=f44e611]:
+                - generic [ref=f44e612]:
+                  - strong [ref=f44e613]:
+                    - text: Domain tag 2 ·
+                    - code [ref=f44e614]: domain-responsible-ai
+                  - generic [ref=f44e615]:
+                    - button "View source evidence for Domain tag" [ref=f44e616] [cursor=pointer]: Source
+                    - button "Generate supported Domain tag" [ref=f44e617] [cursor=pointer]
+                    - button "Remove Domain tag 2" [ref=f44e621] [cursor=pointer]: Remove
+                - generic [ref=f44e622]:
+                  - generic [ref=f44e623]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e624]: Responsible AI
+                  - group "Evidence refs" [ref=f44e625]:
+                    - generic [ref=f44e627]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [ref=f44e628]
+                      - generic [ref=f44e629]:
+                        - code [ref=f44e630]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e631]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e632]
+                      - generic [ref=f44e633]:
+                        - code [ref=f44e634]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e635]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [checked] [ref=f44e636]
+                      - generic [ref=f44e637]:
+                        - code [ref=f44e638]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e639]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e640]
+                      - generic [ref=f44e641]:
+                        - code [ref=f44e642]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e643]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e644]
+                      - generic [ref=f44e645]:
+                        - code [ref=f44e646]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e647]:
+                      - checkbox "ev-project-capstone Analytics delivery" [ref=f44e648]
+                      - generic [ref=f44e649]:
+                        - code [ref=f44e650]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e651]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [checked] [ref=f44e652]
+                      - generic [ref=f44e653]:
+                        - code [ref=f44e654]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e655]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e656]
+                      - generic [ref=f44e657]:
+                        - code [ref=f44e658]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e659]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e660]:
+                    - generic [ref=f44e661]: 88% confidence
+                    - generic [ref=f44e662]: llm_inferred
+                    - generic [ref=f44e663]: supported
+          - generic [ref=f44e665]:
+            - generic [ref=f44e666]:
+              - generic [ref=f44e667]:
+                - heading "Responsibility Themes" [level=3] [ref=f44e668]
+                - paragraph [ref=f44e669]: Each theme retains its own evidence refs.
+              - generic [ref=f44e670]:
+                - generic [ref=f44e671]: 2 entries
+                - button "Add Responsibility theme" [ref=f44e672] [cursor=pointer]
+            - generic [ref=f44e673]:
+              - article [ref=f44e674]:
+                - generic [ref=f44e675]:
+                  - strong [ref=f44e676]:
+                    - text: Responsibility theme 1 ·
+                    - code [ref=f44e677]: theme-data-quality
+                  - generic [ref=f44e678]:
+                    - button "View source evidence for Responsibility theme" [ref=f44e679] [cursor=pointer]: Source
+                    - button "Generate supported Responsibility theme" [ref=f44e680] [cursor=pointer]
+                    - button "Remove Responsibility theme 1" [ref=f44e684] [cursor=pointer]: Remove
+                - generic [ref=f44e685]:
+                  - generic [ref=f44e686]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e687]: Data quality and reporting
+                  - group "Evidence refs" [ref=f44e688]:
+                    - generic [ref=f44e690]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [checked] [ref=f44e691]
+                      - generic [ref=f44e692]:
+                        - code [ref=f44e693]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e694]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e695]
+                      - generic [ref=f44e696]:
+                        - code [ref=f44e697]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e698]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e699]
+                      - generic [ref=f44e700]:
+                        - code [ref=f44e701]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e702]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e703]
+                      - generic [ref=f44e704]:
+                        - code [ref=f44e705]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e706]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e707]
+                      - generic [ref=f44e708]:
+                        - code [ref=f44e709]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e710]:
+                      - checkbox "ev-project-capstone Analytics delivery" [ref=f44e711]
+                      - generic [ref=f44e712]:
+                        - code [ref=f44e713]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e714]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e715]
+                      - generic [ref=f44e716]:
+                        - code [ref=f44e717]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e718]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e719]
+                      - generic [ref=f44e720]:
+                        - code [ref=f44e721]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e722]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e723]:
+                    - generic [ref=f44e724]: 94% confidence
+                    - generic [ref=f44e725]: llm_inferred
+                    - generic [ref=f44e726]: supported
+              - article [ref=f44e727]:
+                - generic [ref=f44e728]:
+                  - strong [ref=f44e729]:
+                    - text: Responsibility theme 2 ·
+                    - code [ref=f44e730]: theme-cross-functional
+                  - generic [ref=f44e731]:
+                    - button "View source evidence for Responsibility theme" [ref=f44e732] [cursor=pointer]: Source
+                    - button "Generate supported Responsibility theme" [ref=f44e733] [cursor=pointer]
+                    - button "Remove Responsibility theme 2" [ref=f44e737] [cursor=pointer]: Remove
+                - generic [ref=f44e738]:
+                  - generic [ref=f44e739]:
+                    - text: Name
+                    - textbox "Name" [ref=f44e740]: Cross-functional delivery
+                  - group "Evidence refs" [ref=f44e741]:
+                    - generic [ref=f44e743]:
+                      - checkbox "ev-exp-quality Data quality and reporting" [checked] [ref=f44e744]
+                      - generic [ref=f44e745]:
+                        - code [ref=f44e746]: ev-exp-quality
+                        - text: Data quality and reporting
+                    - generic [ref=f44e747]:
+                      - checkbox "ev-exp-funnel Funnel analytics" [ref=f44e748]
+                      - generic [ref=f44e749]:
+                        - code [ref=f44e750]: ev-exp-funnel
+                        - text: Funnel analytics
+                    - generic [ref=f44e751]:
+                      - checkbox "ev-edu-thesis Evidence-aware skill extraction" [ref=f44e752]
+                      - generic [ref=f44e753]:
+                        - code [ref=f44e754]: ev-edu-thesis
+                        - text: Evidence-aware skill extraction
+                    - generic [ref=f44e755]:
+                      - checkbox "ev-edu-seminars Applied seminars" [ref=f44e756]
+                      - generic [ref=f44e757]:
+                        - code [ref=f44e758]: ev-edu-seminars
+                        - text: Applied seminars
+                    - generic [ref=f44e759]:
+                      - checkbox "ev-edu-coursework Applied coursework" [ref=f44e760]
+                      - generic [ref=f44e761]:
+                        - code [ref=f44e762]: ev-edu-coursework
+                        - text: Applied coursework
+                    - generic [ref=f44e763]:
+                      - checkbox "ev-project-capstone Analytics delivery" [checked] [ref=f44e764]
+                      - generic [ref=f44e765]:
+                        - code [ref=f44e766]: ev-project-capstone
+                        - text: Analytics delivery
+                    - generic [ref=f44e767]:
+                      - checkbox "ev-project-parser Staged hybrid parser" [ref=f44e768]
+                      - generic [ref=f44e769]:
+                        - code [ref=f44e770]: ev-project-parser
+                        - text: Staged hybrid parser
+                    - generic [ref=f44e771]:
+                      - checkbox "ev-cert-powerbi Power BI certification" [ref=f44e772]
+                      - generic [ref=f44e773]:
+                        - code [ref=f44e774]: ev-cert-powerbi
+                        - text: Power BI certification
+                    - generic [ref=f44e775]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f44e776]:
+                    - generic [ref=f44e777]: 90% confidence
+                    - generic [ref=f44e778]: llm_inferred
+                    - generic [ref=f44e779]: supported
+        - status [ref=f44e780]
+        - generic [ref=f44e781]:
+          - generic [ref=f44e782]:
+            - strong [ref=f44e783]: Draft saved automatically
+            - status [ref=f44e784]: Changes save automatically to this creation draft.
+          - generic [ref=f44e785]:
+            - link "Back to baseline" [ref=f44e786] [cursor=pointer]:
+              - /url: /admin/candidate-profiles/create/attempt-mock-1/baseline
+            - link "Save and exit" [ref=f44e787] [cursor=pointer]:
+              - /url: /admin/candidate-profiles
+            - button "Approve derived claims" [ref=f44e788] [cursor=pointer]

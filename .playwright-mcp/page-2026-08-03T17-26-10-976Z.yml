@@ -1,0 +1,682 @@
+- generic [ref=f46e2]:
+  - complementary "Primary navigation" [ref=f46e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f46e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f46e9]:
+        - strong [ref=f46e10]: FitCV Control Plane
+        - generic [ref=f46e11]: Local workspace
+    - navigation "Workspace" [ref=f46e12]:
+      - link "Runs" [ref=f46e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f46e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f46e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f46e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f46e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f46e31]:
+        - generic "Pipeline ›" [ref=f46e32] [cursor=pointer]
+        - generic [ref=f46e35]:
+          - link "Overview" [ref=f46e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f46e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f46e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f46e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f46e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f46e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f46e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f46e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f46e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f46e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f46e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f46e47]:
+        - generic "Application ›" [ref=f46e48] [cursor=pointer]
+        - generic [ref=f46e52]:
+          - link "API Providers" [ref=f46e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f46e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f46e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f46e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f46e57]:
+    - banner [ref=f46e58]:
+      - generic [ref=f46e59]:
+        - button "Open navigation" [ref=f46e60] [cursor=pointer]
+        - heading "Candidate Profile" [level=1] [ref=f46e67]
+      - generic [ref=f46e68]:
+        - button "Switch to dark theme" [ref=f46e69] [cursor=pointer]:
+          - generic [ref=f46e72]: Dark
+        - button "Shutdown FitCV" [ref=f46e73] [cursor=pointer]
+    - main [ref=f46e78]:
+      - generic [ref=f46e79]:
+        - link "← Back to Candidate Profiles" [ref=f46e80] [cursor=pointer]:
+          - /url: /admin/candidate-profiles
+        - generic [ref=f46e82]:
+          - paragraph [ref=f46e83]: Candidate Profile
+          - heading "Final Bounded Verifier 2026-08-03" [level=2] [ref=f46e84]
+          - paragraph [ref=f46e85]: Review source, approved facts, derived claims, traceability, and related Runs.
+      - group [ref=f46e86]:
+        - generic "› Profile Overview Current lifecycle and pipeline availability. Succeeded" [ref=f46e87] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f46e88]:
+            - strong [ref=f46e89]: Profile Overview
+            - generic [ref=f46e90]: Current lifecycle and pipeline availability.
+          - generic [ref=f46e91]: Succeeded
+        - generic [ref=f46e94]:
+          - generic [ref=f46e95]:
+            - term [ref=f46e96]: Profile ID
+            - definition [ref=f46e97]: profile-mock-4
+          - generic [ref=f46e98]:
+            - term [ref=f46e99]: Profile Name
+            - definition [ref=f46e100]: Final Bounded Verifier 2026-08-03
+          - generic [ref=f46e101]:
+            - term [ref=f46e102]: Created
+            - definition [ref=f46e103]:
+              - time [ref=f46e104]: Aug 2, 2026, 2:00 PM
+          - generic [ref=f46e105]:
+            - term [ref=f46e106]: Availability
+            - definition [ref=f46e107]: Ready for new Runs
+      - group [ref=f46e108]:
+        - generic "› Source Input Every format uses same staged creation path." [ref=f46e109] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f46e110]:
+            - strong [ref=f46e111]: Source Input
+            - generic [ref=f46e112]: Every format uses same staged creation path.
+        - generic [ref=f46e114]:
+          - generic [ref=f46e115]:
+            - term [ref=f46e116]: File
+            - definition [ref=f46e117]: cv_2f26619f-b1db-44ab-87c5-dee1f29cfdcb.md
+          - generic [ref=f46e118]:
+            - term [ref=f46e119]: Format
+            - definition [ref=f46e120]: Markdown
+          - generic [ref=f46e121]:
+            - term [ref=f46e122]: Creation Method
+            - definition [ref=f46e123]: Staged hybrid parser and review
+          - generic [ref=f46e124]:
+            - term [ref=f46e125]: Attempt ID
+            - definition [ref=f46e126]: attempt-mock-1
+      - group [ref=f46e127]:
+        - generic "› Baseline Facts Approved direct facts and repeatable evidence entries." [ref=f46e128] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f46e129]:
+            - strong [ref=f46e130]: Baseline Facts
+            - generic [ref=f46e131]: Approved direct facts and repeatable evidence entries.
+        - generic [ref=f46e132]:
+          - generic [ref=f46e133]:
+            - heading "Profile" [level=3] [ref=f46e134]
+            - article [ref=f46e135]:
+              - heading "Profile" [level=4] [ref=f46e136]
+              - generic [ref=f46e137]:
+                - generic [ref=f46e138]:
+                  - term [ref=f46e139]: Full name
+                  - definition [ref=f46e140]: Alex Morgan
+                - generic [ref=f46e141]:
+                  - term [ref=f46e142]: Professional headline
+                  - definition [ref=f46e143]: Data & Product Operations Specialist
+                - generic [ref=f46e144]:
+                  - term [ref=f46e145]: Summary
+                  - definition [ref=f46e146]: Data-focused operator who turns ambiguous business needs into measurable workflows, dashboards, and reliable delivery plans.
+          - generic [ref=f46e147]:
+            - heading "Contact" [level=3] [ref=f46e148]
+            - article [ref=f46e149]:
+              - heading "Contact" [level=4] [ref=f46e150]
+              - generic [ref=f46e151]:
+                - generic [ref=f46e152]:
+                  - term [ref=f46e153]: Email
+                  - definition [ref=f46e154]: alex.morgan@example.com
+                - generic [ref=f46e155]:
+                  - term [ref=f46e156]: Phone
+                  - definition [ref=f46e157]: +49 151 555 0184
+                - generic [ref=f46e158]:
+                  - term [ref=f46e159]: Location
+                  - definition [ref=f46e160]: Berlin, Germany
+                - generic [ref=f46e161]:
+                  - term [ref=f46e162]: LinkedIn URL
+                  - definition [ref=f46e163]: —
+                - generic [ref=f46e164]:
+                  - term [ref=f46e165]: GitHub URL
+                  - definition [ref=f46e166]: —
+                - generic [ref=f46e167]:
+                  - term [ref=f46e168]: Website URL
+                  - definition [ref=f46e169]: —
+          - generic [ref=f46e170]:
+            - heading "Experience" [level=3] [ref=f46e171]
+            - article [ref=f46e172]:
+              - heading "Experience 1" [level=4] [ref=f46e173]
+              - generic [ref=f46e174]:
+                - generic [ref=f46e175]:
+                  - term [ref=f46e176]: Role
+                  - definition [ref=f46e177]: Data Operations Working Student
+                - generic [ref=f46e178]:
+                  - term [ref=f46e179]: Company
+                  - definition [ref=f46e180]: Northstar Labs
+                - generic [ref=f46e181]:
+                  - term [ref=f46e182]: Company URL
+                  - definition [ref=f46e183]: —
+                - generic [ref=f46e184]:
+                  - term [ref=f46e185]: Location
+                  - definition [ref=f46e186]: Berlin, Germany
+                - generic [ref=f46e187]:
+                  - term [ref=f46e188]: Start
+                  - definition [ref=f46e189]: 2024-04
+                - generic [ref=f46e190]:
+                  - term [ref=f46e191]: End
+                  - definition [ref=f46e192]: 2026-07
+              - generic [ref=f46e194]:
+                - code [ref=f46e195]: ev-exp-quality
+                - generic [ref=f46e196]:
+                  - generic [ref=f46e197]:
+                    - term [ref=f46e198]: Kind
+                    - definition [ref=f46e199]: work_achievement
+                  - generic [ref=f46e200]:
+                    - term [ref=f46e201]: Title
+                    - definition [ref=f46e202]: Data quality and reporting
+                  - generic [ref=f46e203]:
+                    - term [ref=f46e204]: Start
+                    - definition [ref=f46e205]: 2024-04
+                  - generic [ref=f46e206]:
+                    - term [ref=f46e207]: End
+                    - definition [ref=f46e208]: 2026-07
+                  - generic [ref=f46e209]:
+                    - term [ref=f46e210]: Evidence
+                    - definition [ref=f46e211]: Built SQL quality checks, maintained Power BI reporting, and coordinated weekly delivery reviews with product and engineering.
+            - article [ref=f46e212]:
+              - heading "Experience 2" [level=4] [ref=f46e213]
+              - generic [ref=f46e214]:
+                - generic [ref=f46e215]:
+                  - term [ref=f46e216]: Role
+                  - definition [ref=f46e217]: Product Analytics Intern
+                - generic [ref=f46e218]:
+                  - term [ref=f46e219]: Company
+                  - definition [ref=f46e220]: Acme GmbH
+                - generic [ref=f46e221]:
+                  - term [ref=f46e222]: Company URL
+                  - definition [ref=f46e223]: —
+                - generic [ref=f46e224]:
+                  - term [ref=f46e225]: Location
+                  - definition [ref=f46e226]: Munich, Germany
+                - generic [ref=f46e227]:
+                  - term [ref=f46e228]: Start
+                  - definition [ref=f46e229]: 2023-06
+                - generic [ref=f46e230]:
+                  - term [ref=f46e231]: End
+                  - definition [ref=f46e232]: 2023-09
+              - generic [ref=f46e234]:
+                - code [ref=f46e235]: ev-exp-funnel
+                - generic [ref=f46e236]:
+                  - generic [ref=f46e237]:
+                    - term [ref=f46e238]: Kind
+                    - definition [ref=f46e239]: work_achievement
+                  - generic [ref=f46e240]:
+                    - term [ref=f46e241]: Title
+                    - definition [ref=f46e242]: Funnel analytics
+                  - generic [ref=f46e243]:
+                    - term [ref=f46e244]: Start
+                    - definition [ref=f46e245]: 2023-06
+                  - generic [ref=f46e246]:
+                    - term [ref=f46e247]: End
+                    - definition [ref=f46e248]: 2023-09
+                  - generic [ref=f46e249]:
+                    - term [ref=f46e250]: Evidence
+                    - definition [ref=f46e251]: Analyzed funnel performance, automated weekly KPI reporting, and presented experiment results to product managers.
+          - generic [ref=f46e252]:
+            - heading "Education" [level=3] [ref=f46e253]
+            - article [ref=f46e254]:
+              - heading "Education 1" [level=4] [ref=f46e255]
+              - generic [ref=f46e256]:
+                - generic [ref=f46e257]:
+                  - term [ref=f46e258]: Institution
+                  - definition [ref=f46e259]: Technical University of Berlin
+                - generic [ref=f46e260]:
+                  - term [ref=f46e261]: Degree
+                  - definition [ref=f46e262]: M.Sc. Information Systems
+                - generic [ref=f46e263]:
+                  - term [ref=f46e264]: Field
+                  - definition [ref=f46e265]: Information Systems
+                - generic [ref=f46e266]:
+                  - term [ref=f46e267]: Location
+                  - definition [ref=f46e268]: Berlin, Germany
+                - generic [ref=f46e269]:
+                  - term [ref=f46e270]: Start
+                  - definition [ref=f46e271]: 2023-10
+                - generic [ref=f46e272]:
+                  - term [ref=f46e273]: End
+                  - definition [ref=f46e274]: 2026-07
+              - generic [ref=f46e275]:
+                - generic [ref=f46e276]:
+                  - code [ref=f46e277]: ev-edu-thesis
+                  - generic [ref=f46e278]:
+                    - generic [ref=f46e279]:
+                      - term [ref=f46e280]: Kind
+                      - definition [ref=f46e281]: thesis
+                    - generic [ref=f46e282]:
+                      - term [ref=f46e283]: Title
+                      - definition [ref=f46e284]: Evidence-aware skill extraction
+                    - generic [ref=f46e285]:
+                      - term [ref=f46e286]: Start
+                      - definition [ref=f46e287]: 2026-01
+                    - generic [ref=f46e288]:
+                      - term [ref=f46e289]: End
+                      - definition [ref=f46e290]: 2026-07
+                    - generic [ref=f46e291]:
+                      - term [ref=f46e292]: Evidence
+                      - definition [ref=f46e293]: Compared deterministic CV parsing with controlled LLM normalization and evidence-aware skill extraction.
+                - generic [ref=f46e294]:
+                  - code [ref=f46e295]: ev-edu-seminars
+                  - generic [ref=f46e296]:
+                    - generic [ref=f46e297]:
+                      - term [ref=f46e298]: Kind
+                      - definition [ref=f46e299]: seminar
+                    - generic [ref=f46e300]:
+                      - term [ref=f46e301]: Title
+                      - definition [ref=f46e302]: Applied seminars
+                    - generic [ref=f46e303]:
+                      - term [ref=f46e304]: Start
+                      - definition [ref=f46e305]: 2025-04
+                    - generic [ref=f46e306]:
+                      - term [ref=f46e307]: End
+                      - definition [ref=f46e308]: 2025-07
+                    - generic [ref=f46e309]:
+                      - term [ref=f46e310]: Evidence
+                      - definition [ref=f46e311]: Completed seminars in data governance, responsible AI, and product analytics.
+            - article [ref=f46e312]:
+              - heading "Education 2" [level=4] [ref=f46e313]
+              - generic [ref=f46e314]:
+                - generic [ref=f46e315]:
+                  - term [ref=f46e316]: Institution
+                  - definition [ref=f46e317]: University of Mannheim
+                - generic [ref=f46e318]:
+                  - term [ref=f46e319]: Degree
+                  - definition [ref=f46e320]: B.Sc. Business Informatics
+                - generic [ref=f46e321]:
+                  - term [ref=f46e322]: Field
+                  - definition [ref=f46e323]: Business Informatics
+                - generic [ref=f46e324]:
+                  - term [ref=f46e325]: Location
+                  - definition [ref=f46e326]: Mannheim, Germany
+                - generic [ref=f46e327]:
+                  - term [ref=f46e328]: Start
+                  - definition [ref=f46e329]: 2019-10
+                - generic [ref=f46e330]:
+                  - term [ref=f46e331]: End
+                  - definition [ref=f46e332]: 2023-07
+              - generic [ref=f46e334]:
+                - code [ref=f46e335]: ev-edu-coursework
+                - generic [ref=f46e336]:
+                  - generic [ref=f46e337]:
+                    - term [ref=f46e338]: Kind
+                    - definition [ref=f46e339]: course
+                  - generic [ref=f46e340]:
+                    - term [ref=f46e341]: Title
+                    - definition [ref=f46e342]: Applied coursework
+                  - generic [ref=f46e343]:
+                    - term [ref=f46e344]: Start
+                    - definition [ref=f46e345]: 2019-10
+                  - generic [ref=f46e346]:
+                    - term [ref=f46e347]: End
+                    - definition [ref=f46e348]: 2023-07
+                  - generic [ref=f46e349]:
+                    - term [ref=f46e350]: Evidence
+                    - definition [ref=f46e351]: Applied databases, statistics, software engineering, and operations research to academic assignments.
+          - generic [ref=f46e352]:
+            - heading "Projects" [level=3] [ref=f46e353]
+            - article [ref=f46e354]:
+              - heading "Project 1" [level=4] [ref=f46e355]
+              - generic [ref=f46e356]:
+                - generic [ref=f46e357]:
+                  - term [ref=f46e358]: Name
+                  - definition [ref=f46e359]: Graduate Analytics Capstone
+                - generic [ref=f46e360]:
+                  - term [ref=f46e361]: Context
+                  - definition [ref=f46e362]: University project with a nonprofit partner
+                - generic [ref=f46e363]:
+                  - term [ref=f46e364]: Project URL
+                  - definition [ref=f46e365]: —
+                - generic [ref=f46e366]:
+                  - term [ref=f46e367]: Start
+                  - definition [ref=f46e368]: 2025-01
+                - generic [ref=f46e369]:
+                  - term [ref=f46e370]: End
+                  - definition [ref=f46e371]: 2025-06
+              - generic [ref=f46e373]:
+                - code [ref=f46e374]: ev-project-capstone
+                - generic [ref=f46e375]:
+                  - generic [ref=f46e376]:
+                    - term [ref=f46e377]: Kind
+                    - definition [ref=f46e378]: project_highlight
+                  - generic [ref=f46e379]:
+                    - term [ref=f46e380]: Title
+                    - definition [ref=f46e381]: Analytics delivery
+                  - generic [ref=f46e382]:
+                    - term [ref=f46e383]: Start
+                    - definition [ref=f46e384]: 2025-01
+                  - generic [ref=f46e385]:
+                    - term [ref=f46e386]: End
+                    - definition [ref=f46e387]: 2025-06
+                  - generic [ref=f46e388]:
+                    - term [ref=f46e389]: Evidence
+                    - definition [ref=f46e390]: Designed a Python and SQL pipeline, defined KPI logic, and presented findings to non-technical stakeholders.
+            - article [ref=f46e391]:
+              - heading "Project 2" [level=4] [ref=f46e392]
+              - generic [ref=f46e393]:
+                - generic [ref=f46e394]:
+                  - term [ref=f46e395]: Name
+                  - definition [ref=f46e396]: Evidence-aware CV Parser
+                - generic [ref=f46e397]:
+                  - term [ref=f46e398]: Context
+                  - definition [ref=f46e399]: Master thesis prototype
+                - generic [ref=f46e400]:
+                  - term [ref=f46e401]: Project URL
+                  - definition [ref=f46e402]: —
+                - generic [ref=f46e403]:
+                  - term [ref=f46e404]: Start
+                  - definition [ref=f46e405]: 2026-01
+                - generic [ref=f46e406]:
+                  - term [ref=f46e407]: End
+                  - definition [ref=f46e408]: 2026-07
+              - generic [ref=f46e410]:
+                - code [ref=f46e411]: ev-project-parser
+                - generic [ref=f46e412]:
+                  - generic [ref=f46e413]:
+                    - term [ref=f46e414]: Kind
+                    - definition [ref=f46e415]: project_highlight
+                  - generic [ref=f46e416]:
+                    - term [ref=f46e417]: Title
+                    - definition [ref=f46e418]: Staged hybrid parser
+                  - generic [ref=f46e419]:
+                    - term [ref=f46e420]: Start
+                    - definition [ref=f46e421]: 2026-01
+                  - generic [ref=f46e422]:
+                    - term [ref=f46e423]: End
+                    - definition [ref=f46e424]: 2026-07
+                  - generic [ref=f46e425]:
+                    - term [ref=f46e426]: Evidence
+                    - definition [ref=f46e427]: Combined deterministic document parsing with controlled LLM normalization and evidence tracking.
+          - generic [ref=f46e428]:
+            - heading "Achievements" [level=3] [ref=f46e429]
+            - paragraph [ref=f46e430]: No entries.
+          - generic [ref=f46e431]:
+            - heading "Certifications" [level=3] [ref=f46e432]
+            - article [ref=f46e433]:
+              - heading "Certification 1" [level=4] [ref=f46e434]
+              - generic [ref=f46e435]:
+                - generic [ref=f46e436]:
+                  - term [ref=f46e437]: Name
+                  - definition [ref=f46e438]: Microsoft Power BI Data Analyst Associate
+                - generic [ref=f46e439]:
+                  - term [ref=f46e440]: Issuer
+                  - definition [ref=f46e441]: Microsoft
+                - generic [ref=f46e442]:
+                  - term [ref=f46e443]: Date
+                  - definition [ref=f46e444]: 2025-01
+                - generic [ref=f46e445]:
+                  - term [ref=f46e446]: Expires
+                  - definition [ref=f46e447]: —
+                - generic [ref=f46e448]:
+                  - term [ref=f46e449]: Credential ID
+                  - definition [ref=f46e450]: —
+                - generic [ref=f46e451]:
+                  - term [ref=f46e452]: URL
+                  - definition [ref=f46e453]: —
+              - generic [ref=f46e455]:
+                - code [ref=f46e456]: ev-cert-powerbi
+                - generic [ref=f46e457]:
+                  - generic [ref=f46e458]:
+                    - term [ref=f46e459]: Kind
+                    - definition [ref=f46e460]: certification_proof
+                  - generic [ref=f46e461]:
+                    - term [ref=f46e462]: Title
+                    - definition [ref=f46e463]: Power BI certification
+                  - generic [ref=f46e464]:
+                    - term [ref=f46e465]: Start
+                    - definition [ref=f46e466]: 2025-01
+                  - generic [ref=f46e467]:
+                    - term [ref=f46e468]: End
+                    - definition [ref=f46e469]: 2025-01
+                  - generic [ref=f46e470]:
+                    - term [ref=f46e471]: Evidence
+                    - definition [ref=f46e472]: Earned Microsoft Power BI Data Analyst Associate certification.
+          - generic [ref=f46e473]:
+            - heading "Volunteering" [level=3] [ref=f46e474]
+            - paragraph [ref=f46e475]: No entries.
+          - generic [ref=f46e476]:
+            - heading "Languages" [level=3] [ref=f46e477]
+            - article [ref=f46e478]:
+              - heading "Language 1" [level=4] [ref=f46e479]
+              - generic [ref=f46e480]:
+                - generic [ref=f46e481]:
+                  - term [ref=f46e482]: Name
+                  - definition [ref=f46e483]: English
+                - generic [ref=f46e484]:
+                  - term [ref=f46e485]: Level
+                  - definition [ref=f46e486]: C1
+            - article [ref=f46e487]:
+              - heading "Language 2" [level=4] [ref=f46e488]
+              - generic [ref=f46e489]:
+                - generic [ref=f46e490]:
+                  - term [ref=f46e491]: Name
+                  - definition [ref=f46e492]: German
+                - generic [ref=f46e493]:
+                  - term [ref=f46e494]: Level
+                  - definition [ref=f46e495]: B2
+      - group [ref=f46e496]:
+        - generic "› Derived Claims Each claim owns evidence refs, confidence, and origin." [ref=f46e497] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f46e498]:
+            - strong [ref=f46e499]: Derived Claims
+            - generic [ref=f46e500]: Each claim owns evidence refs, confidence, and origin.
+        - generic [ref=f46e501]:
+          - generic [ref=f46e502]:
+            - heading "Skills" [level=3] [ref=f46e503]
+            - article [ref=f46e504]:
+              - heading "SQL" [level=4] [ref=f46e505]
+              - generic [ref=f46e506]:
+                - generic [ref=f46e507]:
+                  - term [ref=f46e508]: Evidence refs
+                  - definition [ref=f46e509]: ev-exp-quality, ev-project-capstone
+                - generic [ref=f46e510]:
+                  - term [ref=f46e511]: Confidence
+                  - definition [ref=f46e512]: 98%
+                - generic [ref=f46e513]:
+                  - term [ref=f46e514]: Origin
+                  - definition [ref=f46e515]: llm_inferred
+                - generic [ref=f46e516]:
+                  - term [ref=f46e517]: Support
+                  - definition [ref=f46e518]: supported
+            - article [ref=f46e519]:
+              - heading "Python" [level=4] [ref=f46e520]
+              - generic [ref=f46e521]:
+                - generic [ref=f46e522]:
+                  - term [ref=f46e523]: Evidence refs
+                  - definition [ref=f46e524]: ev-project-capstone, ev-project-parser
+                - generic [ref=f46e525]:
+                  - term [ref=f46e526]: Confidence
+                  - definition [ref=f46e527]: 97%
+                - generic [ref=f46e528]:
+                  - term [ref=f46e529]: Origin
+                  - definition [ref=f46e530]: llm_inferred
+                - generic [ref=f46e531]:
+                  - term [ref=f46e532]: Support
+                  - definition [ref=f46e533]: supported
+            - article [ref=f46e534]:
+              - heading "Power BI" [level=4] [ref=f46e535]
+              - generic [ref=f46e536]:
+                - generic [ref=f46e537]:
+                  - term [ref=f46e538]: Evidence refs
+                  - definition [ref=f46e539]: ev-exp-quality, ev-cert-powerbi
+                - generic [ref=f46e540]:
+                  - term [ref=f46e541]: Confidence
+                  - definition [ref=f46e542]: 97%
+                - generic [ref=f46e543]:
+                  - term [ref=f46e544]: Origin
+                  - definition [ref=f46e545]: llm_inferred
+                - generic [ref=f46e546]:
+                  - term [ref=f46e547]: Support
+                  - definition [ref=f46e548]: supported
+            - article [ref=f46e549]:
+              - heading "Data Quality" [level=4] [ref=f46e550]
+              - generic [ref=f46e551]:
+                - generic [ref=f46e552]:
+                  - term [ref=f46e553]: Evidence refs
+                  - definition [ref=f46e554]: ev-exp-quality
+                - generic [ref=f46e555]:
+                  - term [ref=f46e556]: Confidence
+                  - definition [ref=f46e557]: 94%
+                - generic [ref=f46e558]:
+                  - term [ref=f46e559]: Origin
+                  - definition [ref=f46e560]: llm_inferred
+                - generic [ref=f46e561]:
+                  - term [ref=f46e562]: Support
+                  - definition [ref=f46e563]: supported
+            - article [ref=f46e564]:
+              - heading "Product Analytics" [level=4] [ref=f46e565]
+              - generic [ref=f46e566]:
+                - generic [ref=f46e567]:
+                  - term [ref=f46e568]: Evidence refs
+                  - definition [ref=f46e569]: ev-exp-funnel, ev-edu-seminars
+                - generic [ref=f46e570]:
+                  - term [ref=f46e571]: Confidence
+                  - definition [ref=f46e572]: 93%
+                - generic [ref=f46e573]:
+                  - term [ref=f46e574]: Origin
+                  - definition [ref=f46e575]: llm_inferred
+                - generic [ref=f46e576]:
+                  - term [ref=f46e577]: Support
+                  - definition [ref=f46e578]: supported
+            - article [ref=f46e579]:
+              - heading "Stakeholder Communication" [level=4] [ref=f46e580]
+              - generic [ref=f46e581]:
+                - generic [ref=f46e582]:
+                  - term [ref=f46e583]: Evidence refs
+                  - definition [ref=f46e584]: ev-exp-quality, ev-project-capstone
+                - generic [ref=f46e585]:
+                  - term [ref=f46e586]: Confidence
+                  - definition [ref=f46e587]: 91%
+                - generic [ref=f46e588]:
+                  - term [ref=f46e589]: Origin
+                  - definition [ref=f46e590]: llm_inferred
+                - generic [ref=f46e591]:
+                  - term [ref=f46e592]: Support
+                  - definition [ref=f46e593]: supported
+          - generic [ref=f46e594]:
+            - heading "Role Families" [level=3] [ref=f46e595]
+            - article [ref=f46e596]:
+              - heading "Data Operations" [level=4] [ref=f46e597]
+              - generic [ref=f46e598]:
+                - generic [ref=f46e599]:
+                  - term [ref=f46e600]: Evidence refs
+                  - definition [ref=f46e601]: ev-exp-quality
+                - generic [ref=f46e602]:
+                  - term [ref=f46e603]: Confidence
+                  - definition [ref=f46e604]: 92%
+                - generic [ref=f46e605]:
+                  - term [ref=f46e606]: Origin
+                  - definition [ref=f46e607]: llm_inferred
+                - generic [ref=f46e608]:
+                  - term [ref=f46e609]: Support
+                  - definition [ref=f46e610]: supported
+            - article [ref=f46e611]:
+              - heading "Product Analytics" [level=4] [ref=f46e612]
+              - generic [ref=f46e613]:
+                - generic [ref=f46e614]:
+                  - term [ref=f46e615]: Evidence refs
+                  - definition [ref=f46e616]: ev-exp-funnel, ev-edu-seminars
+                - generic [ref=f46e617]:
+                  - term [ref=f46e618]: Confidence
+                  - definition [ref=f46e619]: 89%
+                - generic [ref=f46e620]:
+                  - term [ref=f46e621]: Origin
+                  - definition [ref=f46e622]: llm_inferred
+                - generic [ref=f46e623]:
+                  - term [ref=f46e624]: Support
+                  - definition [ref=f46e625]: supported
+          - generic [ref=f46e626]:
+            - heading "Domain Tags" [level=3] [ref=f46e627]
+            - article [ref=f46e628]:
+              - heading "Analytics" [level=4] [ref=f46e629]
+              - generic [ref=f46e630]:
+                - generic [ref=f46e631]:
+                  - term [ref=f46e632]: Evidence refs
+                  - definition [ref=f46e633]: ev-project-capstone, ev-exp-funnel
+                - generic [ref=f46e634]:
+                  - term [ref=f46e635]: Confidence
+                  - definition [ref=f46e636]: 91%
+                - generic [ref=f46e637]:
+                  - term [ref=f46e638]: Origin
+                  - definition [ref=f46e639]: llm_inferred
+                - generic [ref=f46e640]:
+                  - term [ref=f46e641]: Support
+                  - definition [ref=f46e642]: supported
+            - article [ref=f46e643]:
+              - heading "Responsible AI" [level=4] [ref=f46e644]
+              - generic [ref=f46e645]:
+                - generic [ref=f46e646]:
+                  - term [ref=f46e647]: Evidence refs
+                  - definition [ref=f46e648]: ev-edu-thesis, ev-project-parser
+                - generic [ref=f46e649]:
+                  - term [ref=f46e650]: Confidence
+                  - definition [ref=f46e651]: 88%
+                - generic [ref=f46e652]:
+                  - term [ref=f46e653]: Origin
+                  - definition [ref=f46e654]: llm_inferred
+                - generic [ref=f46e655]:
+                  - term [ref=f46e656]: Support
+                  - definition [ref=f46e657]: supported
+          - generic [ref=f46e658]:
+            - heading "Responsibility Themes" [level=3] [ref=f46e659]
+            - article [ref=f46e660]:
+              - heading "Data quality and reporting" [level=4] [ref=f46e661]
+              - generic [ref=f46e662]:
+                - generic [ref=f46e663]:
+                  - term [ref=f46e664]: Evidence refs
+                  - definition [ref=f46e665]: ev-exp-quality
+                - generic [ref=f46e666]:
+                  - term [ref=f46e667]: Confidence
+                  - definition [ref=f46e668]: 94%
+                - generic [ref=f46e669]:
+                  - term [ref=f46e670]: Origin
+                  - definition [ref=f46e671]: llm_inferred
+                - generic [ref=f46e672]:
+                  - term [ref=f46e673]: Support
+                  - definition [ref=f46e674]: supported
+            - article [ref=f46e675]:
+              - heading "Cross-functional delivery" [level=4] [ref=f46e676]
+              - generic [ref=f46e677]:
+                - generic [ref=f46e678]:
+                  - term [ref=f46e679]: Evidence refs
+                  - definition [ref=f46e680]: ev-exp-quality, ev-project-capstone
+                - generic [ref=f46e681]:
+                  - term [ref=f46e682]: Confidence
+                  - definition [ref=f46e683]: 90%
+                - generic [ref=f46e684]:
+                  - term [ref=f46e685]: Origin
+                  - definition [ref=f46e686]: llm_inferred
+                - generic [ref=f46e687]:
+                  - term [ref=f46e688]: Support
+                  - definition [ref=f46e689]: supported
+      - group [ref=f46e690]:
+        - generic "› Traceability Baseline source locators and claim-level evidence refs." [ref=f46e691] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f46e692]:
+            - strong [ref=f46e693]: Traceability
+            - generic [ref=f46e694]: Baseline source locators and claim-level evidence refs.
+      - group [ref=f46e695]:
+        - generic "› Related Runs Runs that used this immutable profile snapshot." [ref=f46e696] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f46e697]:
+            - strong [ref=f46e698]: Related Runs
+            - generic [ref=f46e699]: Runs that used this immutable profile snapshot.

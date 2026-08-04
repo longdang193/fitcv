@@ -12,14 +12,14 @@ required_sections:
 - Completion Criteria
 required_frontmatter:
   artifact_type: spec
-  status: proposed
+  status: active
   layer: change
 distribution_tier: starter_kit
 ---
 
 # Detailed Specification Template
 
-Use this template after problem, evidence, and design direction are understood. Specification owns required behavior and design-level boundaries. Exact files, task order, commands, dependencies, rollout steps, and execution waves belong in implementation plan.
+Use this template after behavior and design direction are approved. Promote an existing draft in place when one exists. Specification owns required behavior and design-level boundaries. Exact files, task order, commands, dependencies, rollout steps, and execution waves belong in implementation plan.
 
 ## Goal and Problem
 
@@ -50,6 +50,13 @@ Use this template after problem, evidence, and design direction are understood. 
 | Question | Evidence | Source | Confidence | Specification implication |
 |---|---|---|---|---|
 | <what must be known> | <observed fact> | <file, test, tool, or system> | high / medium / low | <decision or open question> |
+
+### Prototype and Validation Evidence
+
+- prototype reference or `Not applicable: <reason>`:
+- validated scenarios and states:
+- findings incorporated into approved behavior:
+- rejected alternatives:
 
 ### Scope
 
@@ -126,6 +133,19 @@ Use `Not applicable: <reason>` for fields that genuinely do not apply. Do not le
 Remove non-applicable edge-case rows or mark them with reason. Preserve equivalent rules under one authoritative owner.
 
 ## Validation Plan
+
+### Backend Verification Claims
+
+- direct boundary:
+- important success and failure behavior:
+- final state or side effects:
+- rollback, retry, duplicate, or idempotency behavior:
+- canonical contract and conformance proof, or `Not applicable: <reason>`:
+- real dependencies requiring proof, or `Not applicable: <reason>`:
+- representative-operation trace mechanism, or `Not applicable: <reason>`:
+- performance claim and threshold, or `Not applicable: <reason>`:
+
+Frontend and browser evidence may extend these claims but never replace direct backend proof.
 
 ### Acceptance Criterion: <claim>
 

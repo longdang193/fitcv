@@ -39,6 +39,7 @@ Describe another concrete implementation result this plan must deliver, such as 
 - Mode: `inline sequential | subagent-ready | parallel-capable`
 - Required skills: `<exact skill names or none>`
 - Isolation: `<current workspace | optional worktree>`
+- Commit policy: `<per-task commits authorized | no commits during execution>`
 - Parallel ownership: `<disjoint files/symbols or none>`
 - Sequential fallback: `<ordered fallback when parallel work is unsafe>`
 
@@ -56,6 +57,10 @@ Within each task:
 - `Steps` owns execution sequence
 - `Verification` owns task-local proof
 - `Exit Criteria` owns task completion gate
+
+For material backend tasks, name direct boundary, important success/failure behavior, final state or side effects, rollback/idempotency, real dependencies, contract evidence, and representative-operation trace mechanism by applicability. Frontend/backend tasks also name final specification, prototype reference when material, canonical contract owner, integration sidecar, browser flow, and sidecar removal condition.
+
+Prefer one smallest valuable vertical capability per task. Do not create isolated frontend and backend phases when neither can prove user-visible capability independently.
 
 Do not duplicate final artifact verification commands here unless a command is truly both task-local and final.
 

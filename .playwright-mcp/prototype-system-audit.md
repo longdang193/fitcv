@@ -1,0 +1,97 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary "Primary navigation" [ref=f1e3]:
+      - generic [ref=f1e9]:
+        - strong [ref=f1e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f1e11]:
+        - link "Runs" [ref=f1e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Scans" [ref=f1e15] [cursor=pointer]:
+          - /url: "#scans"
+        - link "Candidate Profiles" [ref=f1e19] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f1e23] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f1e26] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f1e30]:
+          - generic "Pipeline ›" [ref=f1e31] [cursor=pointer]
+          - generic [ref=f1e34]:
+            - link "Overview" [ref=f1e35] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f1e36] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f1e37] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f1e38] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f1e39] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "Preference Optimization" [ref=f1e40] [cursor=pointer]:
+              - /url: "#preference-optimization"
+            - link "CV Analysis" [ref=f1e41] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f1e42] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f1e43] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f1e44] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f1e45]:
+          - generic "Application ›" [ref=f1e46] [cursor=pointer]
+          - generic [ref=f1e50]:
+            - link "API Providers" [ref=f1e51] [cursor=pointer]:
+              - /url: "#api-providers"
+            - link "LLM Configuration" [ref=f1e52] [cursor=pointer]:
+              - /url: "#llm-configuration"
+            - link "System" [ref=f1e53] [cursor=pointer]:
+              - /url: "#system"
+    - main [ref=f1e54]:
+      - generic [ref=f1e55]:
+        - generic [ref=f1e59]:
+          - heading "System" [level=1] [ref=f1e248]
+          - paragraph [ref=f1e61]: Manage local data, retry behavior, and worker recovery.
+        - generic [ref=f1e62]:
+          - button "Switch to dark theme" [ref=f1e68] [cursor=pointer]
+          - button "Shutdown FitCV" [ref=f1e71] [cursor=pointer]
+      - generic [ref=f1e76]:
+        - generic [ref=f1e250]:
+          - paragraph [ref=f1e251]: Application
+          - heading "System" [level=2] [ref=f1e252]
+          - paragraph [ref=f1e253]: Manage local data, retry behavior, and worker recovery.
+        - generic [ref=f1e254]:
+          - region "Data & Backup" [ref=f1e255]:
+            - generic [ref=f1e260]:
+              - heading "Data & Backup" [level=3] [ref=f1e261]
+              - paragraph [ref=f1e262]: Local Mode · running on your machine
+            - generic [ref=f1e264]:
+              - generic [ref=f1e265]: Database Location
+              - code [ref=f1e266]: ~/.fitcv/data/fitcv.sqlite3
+            - generic [ref=f1e267]:
+              - button "Download Backup" [ref=f1e268] [cursor=pointer]
+              - button "Import Backup" [ref=f1e271] [cursor=pointer]
+            - status [ref=f1e274]: Backup operations require an idle local workspace.
+          - group [ref=f1e275]:
+            - generic "› Request Retry Global retry limits for transient provider failures." [ref=f1e276] [cursor=pointer]:
+              - text: ›
+              - generic [ref=f1e277]:
+                - strong [ref=f1e278]: Request Retry
+                - generic [ref=f1e279]: Global retry limits for transient provider failures.
+            - generic [ref=f1e280]:
+              - generic [ref=f1e281]:
+                - generic [ref=f1e282]
+                - spinbutton "Maximum Attempts Maximum number of attempts, including the initial attempt." [ref=f1e286]: "3"
+              - generic [ref=f1e287]:
+                - generic [ref=f1e288]
+                - spinbutton "Initial Backoff (seconds) Waiting time before retrying after a transient provider failure." [ref=f1e292]: "10"
+              - generic [ref=f1e293]:
+                - generic [ref=f1e294]
+                - spinbutton "Error Detail Limit Maximum troubleshooting detail retained, in characters. Larger values use more storage." [ref=f1e298]: "10000"
+          - group [ref=f1e299]:
+            - generic "› Worker Recovery Global ownership and stalled-run recovery timing." [ref=f1e300] [cursor=pointer]:
+              - text: ›
+              - generic [ref=f1e301]:
+                - strong [ref=f1e302]: Worker Recovery
+                - generic [ref=f1e303]: Global ownership and stalled-run recovery timing.
+  - status: Ranking changes saved in prototype

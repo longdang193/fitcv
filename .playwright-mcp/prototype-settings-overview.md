@@ -1,0 +1,73 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary "Primary navigation" [ref=f1e3]:
+      - generic [ref=f1e9]:
+        - strong [ref=f1e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f1e11]:
+        - link "Runs" [ref=f1e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Scans" [ref=f1e15] [cursor=pointer]:
+          - /url: "#scans"
+        - link "Candidate Profiles" [ref=f1e19] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f1e23] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f1e26] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f1e30]:
+          - generic "Pipeline ›" [ref=f1e31] [cursor=pointer]
+          - generic [ref=f1e34]:
+            - link "Overview" [ref=f1e35] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f1e36] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f1e37] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f1e38] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f1e39] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "Preference Optimization" [ref=f1e40] [cursor=pointer]:
+              - /url: "#preference-optimization"
+            - link "CV Analysis" [ref=f1e41] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f1e42] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f1e43] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f1e44] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f1e45]:
+          - generic "Application ›" [ref=f1e46] [cursor=pointer]
+          - generic [ref=f1e50]:
+            - link "API Providers" [ref=f1e51] [cursor=pointer]:
+              - /url: "#api-providers"
+            - link "LLM Configuration" [ref=f1e52] [cursor=pointer]:
+              - /url: "#llm-configuration"
+            - link "System" [ref=f1e53] [cursor=pointer]:
+              - /url: "#system"
+    - main [ref=f1e54]:
+      - generic [ref=f1e55]:
+        - generic [ref=f1e59]:
+          - heading "Pipeline" [level=1] [ref=f1e60]
+          - paragraph [ref=f1e61]: Configure how each matching run selects and prepares candidates.
+        - generic [ref=f1e62]:
+          - searchbox "Search Overview" [ref=f1e67]
+          - button "Switch to dark theme" [ref=f1e68] [cursor=pointer]
+          - button "Shutdown FitCV" [ref=f1e71] [cursor=pointer]
+      - generic [ref=f1e76]:
+        - generic [ref=f1e77]:
+          - generic [ref=f1e78]:
+            - paragraph [ref=f1e79]: Pipeline
+            - heading "Overview" [level=2] [ref=f1e80]
+            - paragraph [ref=f1e81]: Set the most important pipeline volumes and output limits. Changes apply to future runs.
+          - button "Restore Defaults" [ref=f1e83] [cursor=pointer]
+        - generic [ref=f1e84]:
+          - group [ref=f1e85]:
+            - generic "› Candidate Scope" [ref=f1e86] [cursor=pointer]
+            - generic [ref=f1e89]
+          - group [ref=f1e118]:
+            - generic "› Pre-enrichment Filter" [ref=f1e119] [cursor=pointer]
+            - generic [ref=f1e122]
+  - status: Ranking changes saved in prototype

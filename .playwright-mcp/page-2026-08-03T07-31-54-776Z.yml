@@ -1,0 +1,131 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary "Primary navigation" [ref=e3]:
+      - generic [ref=e9]:
+        - strong [ref=e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=e11]:
+        - link "Runs" [ref=e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Scans" [ref=e15] [cursor=pointer]:
+          - /url: "#scans"
+        - link "Candidate Profiles" [ref=e19] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=e23] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=e26] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=e30]:
+          - generic "Pipeline ›" [ref=e31] [cursor=pointer]
+          - generic [ref=e34]:
+            - link "Overview" [ref=e35] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=e36] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=e37] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=e38] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=e39] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "Preference Optimization" [ref=e40] [cursor=pointer]:
+              - /url: "#preference-optimization"
+            - link "CV Analysis" [ref=e41] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=e42] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=e43] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=e44] [cursor=pointer]:
+              - /url: "#automation-reuse"
+            - link "Prompt Management" [ref=e45] [cursor=pointer]:
+              - /url: "#prompt-management"
+        - group [ref=e46]:
+          - generic "Application ›" [ref=e47] [cursor=pointer]
+          - generic [ref=e51]:
+            - link "API Providers" [ref=e52] [cursor=pointer]:
+              - /url: "#api-providers"
+            - link "LLM Configuration" [ref=e53] [cursor=pointer]:
+              - /url: "#llm-configuration"
+            - link "System" [ref=e54] [cursor=pointer]:
+              - /url: "#system"
+    - main [ref=e55]:
+      - generic [ref=e56]:
+        - generic [ref=e61]:
+          - heading "Candidate Profile" [level=1] [ref=e62]
+          - paragraph [ref=e63]: Review source, approved facts, derived claims, traceability, and related runs.
+        - generic [ref=e64]:
+          - button "Switch to dark theme" [ref=e65] [cursor=pointer]
+          - button "Shutdown FitCV" [ref=e68] [cursor=pointer]
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - link "← Back to Candidate Profiles" [ref=e75] [cursor=pointer]:
+            - /url: "#candidate-profiles"
+          - generic [ref=e77]:
+            - paragraph [ref=e78]: Candidate Profile
+            - heading "Product Data Specialist" [level=2] [ref=e79]
+            - paragraph [ref=e80]: Review source, approved facts, derived claims, traceability, and related Runs.
+        - group [ref=e81]:
+          - generic "› Profile Overview Current lifecycle and pipeline availability. Succeeded" [ref=e82] [cursor=pointer]:
+            - text: ›
+            - generic [ref=e83]:
+              - strong [ref=e84]: Profile Overview
+              - generic [ref=e85]: Current lifecycle and pipeline availability.
+            - generic [ref=e86]: Succeeded
+          - generic [ref=e89]:
+            - generic [ref=e90]:
+              - term [ref=e91]: Profile ID
+              - definition [ref=e92]: candidate-product-data
+            - generic [ref=e93]:
+              - term [ref=e94]: Profile Name
+              - definition [ref=e95]: Product Data Specialist
+            - generic [ref=e96]:
+              - term [ref=e97]: Created
+              - definition [ref=e98]: Aug 3, 2026, 6:16 AM
+            - generic [ref=e99]:
+              - term [ref=e100]: Availability
+              - definition [ref=e101]: Ready for new Runs
+        - group [ref=e102]:
+          - generic "› Source Input Every format uses same staged creation path." [ref=e103] [cursor=pointer]:
+            - text: ›
+            - generic [ref=e104]:
+              - strong [ref=e105]: Source Input
+              - generic [ref=e106]: Every format uses same staged creation path.
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - term [ref=e110]: File
+              - definition [ref=e111]: product-data-specialist.yaml
+            - generic [ref=e112]:
+              - term [ref=e113]: Format
+              - definition [ref=e114]: YAML
+            - generic [ref=e115]:
+              - term [ref=e116]: Creation Method
+              - definition [ref=e117]: Legacy profile
+            - generic [ref=e118]:
+              - term [ref=e119]: Attempt ID
+              - definition [ref=e120]: —
+        - group [ref=e121]:
+          - generic "› Baseline Facts Approved direct facts and repeatable evidence entries." [ref=e122] [cursor=pointer]:
+            - text: ›
+            - generic [ref=e123]:
+              - strong [ref=e124]: Baseline Facts
+              - generic [ref=e125]: Approved direct facts and repeatable evidence entries.
+        - group [ref=e126]:
+          - generic "› Derived Claims Each claim owns evidence refs, confidence, and origin." [ref=e127] [cursor=pointer]:
+            - text: ›
+            - generic [ref=e128]:
+              - strong [ref=e129]: Derived Claims
+              - generic [ref=e130]: Each claim owns evidence refs, confidence, and origin.
+        - group [ref=e131]:
+          - generic "› Traceability Baseline source locators and claim-level evidence refs." [ref=e132] [cursor=pointer]:
+            - text: ›
+            - generic [ref=e133]:
+              - strong [ref=e134]: Traceability
+              - generic [ref=e135]: Baseline source locators and claim-level evidence refs.
+        - group [ref=e136]:
+          - generic "› Related Runs Runs that used this immutable profile snapshot." [ref=e137] [cursor=pointer]:
+            - text: ›
+            - generic [ref=e138]:
+              - strong [ref=e139]: Related Runs
+              - generic [ref=e140]: Runs that used this immutable profile snapshot.
+  - status: Ranking changes saved in prototype

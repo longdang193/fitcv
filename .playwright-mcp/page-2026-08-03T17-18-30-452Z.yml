@@ -1,0 +1,119 @@
+- generic [ref=f41e2]:
+  - complementary "Primary navigation" [ref=f41e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f41e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f41e9]:
+        - strong [ref=f41e10]: FitCV Control Plane
+        - generic [ref=f41e11]: Local workspace
+    - navigation "Workspace" [ref=f41e12]:
+      - link "Runs" [ref=f41e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f41e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f41e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f41e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f41e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f41e31]:
+        - generic "Pipeline ›" [ref=f41e32] [cursor=pointer]
+        - generic [ref=f41e35]:
+          - link "Overview" [ref=f41e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f41e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f41e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f41e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f41e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f41e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f41e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f41e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f41e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f41e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f41e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f41e47]:
+        - generic "Application ›" [ref=f41e48] [cursor=pointer]
+        - generic [ref=f41e52]:
+          - link "API Providers" [ref=f41e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f41e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f41e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f41e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f41e57]:
+    - banner [ref=f41e58]:
+      - generic [ref=f41e63]:
+        - heading "Candidate Profiles" [level=1] [ref=f41e64]
+        - paragraph [ref=f41e65]: Create and review profiles used by matching runs.
+      - generic [ref=f41e66]:
+        - button "Switch to light theme" [ref=f41e67] [cursor=pointer]:
+          - generic [ref=f41e71]: Light
+        - button "Shutdown FitCV" [ref=f41e72] [cursor=pointer]
+    - main [ref=f41e77]:
+      - generic [ref=f41e78]:
+        - generic [ref=f41e79]:
+          - paragraph [ref=f41e80]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=f41e81]
+          - paragraph [ref=f41e82]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - button "Create Profile" [ref=f41e83] [cursor=pointer]
+      - region [ref=f41e84]:
+        - generic [ref=f41e85]:
+          - generic [ref=f41e86]:
+            - heading "Creation drafts" [level=3] [ref=f41e87]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=f41e88]: 0 drafts
+        - generic [ref=f41e90]:
+          - strong [ref=f41e91]: No creation drafts
+          - generic [ref=f41e92]: Upload Markdown, DOCX, or YAML to start one staged review.
+      - generic [ref=f41e93]:
+        - tablist "Candidate Profile views" [ref=f41e94]:
+          - tab "Active 2" [selected] [ref=f41e95] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f41e96]: "2"
+          - tab "Archived 1" [ref=f41e97] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f41e98]: "1"
+        - tabpanel [ref=f41e99]:
+          - table [ref=f41e102]:
+            - rowgroup [ref=f41e103]:
+              - row [ref=f41e104]:
+                - columnheader [ref=f41e105]:
+                  - checkbox "Select all visible profiles" [ref=f41e106]
+                - columnheader "Profile ID" [ref=f41e107]
+                - columnheader "Status" [ref=f41e108]
+                - columnheader "Profile Name" [ref=f41e109]
+                - columnheader "Created Time" [ref=f41e110]
+            - rowgroup [ref=f41e111]:
+              - row [ref=f41e112]:
+                - cell [ref=f41e113]:
+                  - checkbox "Select profile candidate-product-data" [ref=f41e114]
+                - cell [ref=f41e115]:
+                  - link "candidate-product-data" [ref=f41e116] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/candidate-product-data?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f41e117]
+                - cell "Product Data Specialist" [ref=f41e119]
+                - cell [ref=f41e120]:
+                  - time [ref=f41e121]: Aug 2, 2026, 2:00 PM
+              - row [ref=f41e122]:
+                - cell [ref=f41e123]:
+                  - checkbox "Select profile candidate-analytics" [ref=f41e124]
+                - cell [ref=f41e125]:
+                  - link "candidate-analytics" [ref=f41e126] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/candidate-analytics?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f41e127]
+                - cell "Analytics & Operations" [ref=f41e129]
+                - cell [ref=f41e130]:
+                  - time [ref=f41e131]: Aug 2, 2026, 2:00 PM
+      - status

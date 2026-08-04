@@ -1,0 +1,66 @@
+- generic [ref=f9e2]:
+  - complementary "Primary navigation" [ref=f9e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f9e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f9e9]:
+        - strong [ref=f9e10]: FitCV Control Plane
+        - generic [ref=f9e11]: Local workspace
+    - navigation "Workspace" [ref=f9e12]:
+      - link "Runs" [ref=f9e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f9e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f9e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f9e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f9e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f9e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f9e32]:
+    - banner [ref=f9e33]:
+      - generic [ref=f9e38]:
+        - heading "Candidate Profiles" [level=1] [ref=f9e39]
+        - paragraph [ref=f9e40]: Create and review profiles used by matching runs.
+      - button "Switch to light theme" [ref=f9e42] [cursor=pointer]:
+        - generic [ref=f9e46]: Light
+    - main [ref=f9e49]:
+      - generic [ref=f9e50]:
+        - generic [ref=f9e51]:
+          - paragraph [ref=f9e52]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=f9e53]
+          - paragraph [ref=f9e54]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - button "Create Profile" [ref=f9e55] [cursor=pointer]
+      - region [ref=f9e56]:
+        - generic [ref=f9e57]:
+          - generic [ref=f9e58]:
+            - heading "Creation drafts" [level=3] [ref=f9e59]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=f9e60]: 2 drafts
+        - generic [ref=f9e61]:
+          - generic [ref=f9e62]:
+            - generic [ref=f9e63]: Baseline review
+            - generic [ref=f9e64]:
+              - strong [ref=f9e65]: Selective Wand Browser Profile
+              - generic [ref=f9e66]: jordan-lee.md · Updated 2026-08-04T10:01:22.092118+00:00
+          - generic [ref=f9e67]:
+            - generic [ref=f9e68]: Baseline review
+            - generic [ref=f9e69]:
+              - strong [ref=f9e70]: Final Browser MD Profile
+              - generic [ref=f9e71]: jordan-lee.md · Updated 2026-08-04T09:50:40.225163+00:00
+            - link "Resume" [ref=f9e72] [cursor=pointer]:
+              - /url: /admin/candidate-profiles/create/attempt_0abfeaf07e1547f1b3e797bc3675f7ee/baseline
+      - generic [ref=f9e73]:
+        - tablist "Candidate Profile views" [ref=f9e74]:
+          - tab "Active 4" [ref=f9e75] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f9e76]: "4"
+          - tab "Archived 0" [selected] [ref=f9e77] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f9e78]: "0"
+        - tabpanel [ref=f9e79]:
+          - generic [ref=f9e81]:
+            - heading "No archived profiles" [level=3] [ref=f9e82]
+            - paragraph [ref=f9e83]: Archived Candidate Profiles will appear here.
+      - status

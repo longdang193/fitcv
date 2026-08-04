@@ -1,0 +1,100 @@
+- generic [ref=f1e2]:
+  - complementary "Primary navigation" [ref=f1e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f1e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f1e9]:
+        - strong [ref=f1e10]: FitCV Control Plane
+        - generic [ref=f1e11]: Local workspace
+    - navigation "Workspace" [ref=f1e12]:
+      - link "Runs" [ref=f1e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f1e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f1e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f1e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f1e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f1e31]:
+        - generic "Pipeline ›" [ref=f1e32] [cursor=pointer]
+        - generic [ref=f1e35]:
+          - link "Overview" [ref=f1e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f1e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f1e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f1e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f1e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f1e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f1e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f1e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f1e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f1e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f1e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f1e47]:
+        - generic "Application ›" [ref=f1e48] [cursor=pointer]
+        - generic [ref=f1e52]:
+          - link "API Providers" [ref=f1e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f1e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f1e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f1e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f1e57]:
+    - banner [ref=f1e58]:
+      - generic [ref=f1e62]:
+        - heading "Set Up FitCV" [level=1] [ref=f1e63]
+        - paragraph [ref=f1e64]: Complete local profile and model routing before the first Run.
+      - generic [ref=f1e65]:
+        - button "Switch to light theme" [ref=f1e66] [cursor=pointer]:
+          - generic [ref=f1e70]: Light
+        - button "Shutdown FitCV" [ref=f1e71] [cursor=pointer]
+    - main [ref=f1e76]:
+      - generic [ref=f1e78]:
+        - heading "Set Up FitCV" [level=1] [ref=f1e79]
+        - paragraph [ref=f1e80]: Complete local profile and model routing before the first Run.
+      - generic [ref=f1e81]:
+        - heading "Local Data" [level=2] [ref=f1e82]
+        - paragraph [ref=f1e83]:
+          - text: FitCV stores packaged-local data under
+          - code [ref=f1e84]: C:\tmp\fitcv-settings-local-audit-c39be78791d943ca95675ce21b757b00\AppData\Local\FitCV\data
+          - text: .
+      - generic [ref=f1e85]:
+        - heading "1. Candidate Profile" [level=2] [ref=f1e86]
+        - generic [ref=f1e87]:
+          - generic [ref=f1e88]:
+            - text: Profile YAML
+            - textbox "Profile YAML" [ref=f1e89]: "# CanonicalCandidateProfile v2 authoring template. # Upload ingestion owns source_documents, checksums, parser metadata, and uploaded source_refs. schema_version: \"candidate-profile.v2\" name: \"<full name>\" headline: null summary: null contact: email: null phone: null location: null linkedin: null github: null website: null experiences: - id: \"exp_1\" role: \"<role>\" company: \"<company>\" start: null end: null evidence: - id: \"ev_exp_1\" kind: \"work_achievement\" title: null start: null end: null text: \"<reviewed evidence statement>\" education: - id: \"edu_1\" institution: \"<institution>\" degree: \"<degree or credential>\" field: null start: null end: null evidence: - id: \"ev_edu_1\" kind: \"thesis\" title: \"<thesis, seminar, course, or project>\" start: null end: null text: \"<reviewed evidence statement>\" projects: [] achievements: [] certifications: [] volunteering: [] languages: [] interests: [] skills: - id: \"skill_1\" name: \"<skill>\" origin: \"user\" confidence: 1.0 support_status: \"supported\" evidence_refs: [\"ev_exp_1\"] role_families: [] domain_tags: [] responsibility_themes: [] search_preferences: target_role: null role_families: [] location_types: [] locations: [] domains: [] seniority_target: null exclude_contract_types: [] exclude_experience_levels: []"
+          - button "Save Candidate Profile" [ref=f1e90] [cursor=pointer]
+      - generic [ref=f1e91]:
+        - heading "2. API Providers" [level=2] [ref=f1e92]
+        - paragraph [ref=f1e93]: Configure one verified connection and add at least one validated model.
+        - link "Open API Providers" [ref=f1e94] [cursor=pointer]:
+          - /url: /admin/api-providers
+      - generic [ref=f1e95]:
+        - heading "3. LLM Configuration" [level=2] [ref=f1e96]
+        - paragraph [ref=f1e97]: Select a validated model for the Default Route.
+        - link "Open LLM Configuration" [ref=f1e98] [cursor=pointer]:
+          - /url: /admin/llm-configuration
+      - generic [ref=f1e99]:
+        - heading "4. Finish" [level=2] [ref=f1e100]
+        - generic [ref=f1e101]:
+          - strong [ref=f1e102]: Setup incomplete.
+          - list [ref=f1e103]:
+            - listitem [ref=f1e104]: Local integration migration is incomplete
+            - listitem [ref=f1e105]: Candidate profile is not configured
+            - listitem [ref=f1e106]: No verified provider model is available
+            - listitem [ref=f1e107]: Default Route is not configured
+        - button "Finish Setup" [disabled]

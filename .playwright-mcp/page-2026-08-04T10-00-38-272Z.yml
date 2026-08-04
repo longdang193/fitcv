@@ -1,0 +1,66 @@
+- generic [ref=f1e2]:
+  - complementary "Primary navigation" [ref=f1e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f1e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f1e9]:
+        - strong [ref=f1e10]: FitCV Control Plane
+        - generic [ref=f1e11]: Local workspace
+    - navigation "Workspace" [ref=f1e12]:
+      - link "Runs" [ref=f1e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f1e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f1e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f1e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f1e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f1e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f1e32]:
+    - banner [ref=f1e33]:
+      - generic [ref=f1e39]:
+        - heading "Create Candidate Profile" [level=1] [ref=f1e40]
+        - paragraph [ref=f1e41]: Upload, review baseline evidence, approve derivation, then confirm.
+      - button "Switch to light theme" [ref=f1e43] [cursor=pointer]:
+        - generic [ref=f1e47]: Light
+    - main [ref=f1e50]:
+      - generic [ref=f1e52]:
+        - generic [ref=f1e53]:
+          - link "← Back to Candidate Profiles" [ref=f1e54] [cursor=pointer]:
+            - /url: /admin/candidate-profiles
+          - generic [ref=f1e56]:
+            - paragraph [ref=f1e57]: Step 1 · Upload
+            - heading "Upload candidate document" [level=2] [ref=f1e58]
+            - paragraph [ref=f1e59]: Define Profile Name once, then every supported format follows same extraction, review, derivation, and confirmation pipeline.
+        - list "Candidate Profile creation progress" [ref=f1e60]:
+          - listitem [ref=f1e61]:
+            - generic [ref=f1e62]: "1"
+            - generic [ref=f1e63]: Upload
+          - listitem [ref=f1e64]:
+            - generic [ref=f1e65]: "2"
+            - generic [ref=f1e66]: Baseline
+          - listitem [ref=f1e67]:
+            - generic [ref=f1e68]: "3"
+            - generic [ref=f1e69]: Derived
+          - listitem [ref=f1e70]:
+            - generic [ref=f1e71]: "4"
+            - generic [ref=f1e72]: Confirm
+        - generic [ref=f1e74]:
+          - generic [ref=f1e75] [cursor=pointer]:
+            - button "Drop candidate document here or choose file Markdown (.md), Word (.docx), or YAML (.yaml), one file" [ref=f1e76]
+            - generic [ref=f1e77]:
+              - strong [ref=f1e81]: Drop candidate document here or choose file
+              - generic [ref=f1e82]: Markdown (.md), Word (.docx), or YAML (.yaml), one file
+          - generic [ref=f1e83]:
+            - generic [ref=f1e84]:
+              - heading "One staged hybrid pipeline" [level=3] [ref=f1e85]
+              - paragraph [ref=f1e86]: Deterministic readers preserve source text and locators. AI assists only with ambiguous mapping, normalization, and controlled derivation.
+            - generic [ref=f1e87]:
+              - generic [ref=f1e88]: Profile Name
+              - textbox "Profile Name" [ref=f1e89]
+              - generic [ref=f1e90]: Workspace label only. Candidate Full name remains baseline data.
+            - generic [ref=f1e91]: No file selected
+            - status [ref=f1e92]: Choose one candidate document to continue.
+            - button "Process document" [disabled]

@@ -1,0 +1,126 @@
+- generic [ref=f5e2]:
+  - complementary "Primary navigation" [ref=f5e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f5e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f5e9]:
+        - strong [ref=f5e10]: FitCV Control Plane
+        - generic [ref=f5e11]: Local workspace
+    - navigation "Workspace" [ref=f5e12]:
+      - link "Runs" [ref=f5e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f5e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f5e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f5e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f5e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f5e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f5e32]:
+    - banner [ref=f5e33]:
+      - generic [ref=f5e39]:
+        - heading "Create Candidate Profile" [level=1] [ref=f5e40]
+        - paragraph [ref=f5e41]: Upload, review baseline evidence, approve derivation, then confirm.
+      - button "Switch to light theme" [ref=f5e43] [cursor=pointer]:
+        - generic [ref=f5e47]: Light
+    - main [ref=f5e50]:
+      - generic [ref=f5e51]:
+        - link "← Save and exit to Candidate Profiles" [ref=f5e53] [cursor=pointer]:
+          - /url: /admin/candidate-profiles
+        - list "Candidate Profile creation progress" [ref=f5e54]:
+          - listitem [ref=f5e55]:
+            - generic [ref=f5e56]: ✓
+            - generic [ref=f5e57]: Upload
+          - listitem [ref=f5e58]:
+            - generic [ref=f5e59]: ✓
+            - generic [ref=f5e60]: Baseline
+          - listitem [ref=f5e61]:
+            - generic [ref=f5e62]: "3"
+            - generic [ref=f5e63]: Derived
+          - listitem [ref=f5e64]:
+            - generic [ref=f5e65]: "4"
+            - generic [ref=f5e66]: Confirm
+        - generic [ref=f5e67]:
+          - generic [ref=f5e68]:
+            - paragraph [ref=f5e69]: Step 3 · Controlled derivation
+            - heading "Review derived claims" [level=2] [ref=f5e70]
+            - paragraph [ref=f5e71]: Each claim owns editable evidence refs, confidence, and origin.
+          - button "Regenerate all derived claims" [ref=f5e72] [cursor=pointer]
+        - generic [ref=f5e74]:
+          - generic [ref=f5e76]:
+            - generic [ref=f5e77]:
+              - generic [ref=f5e78]:
+                - heading "Skills" [level=3] [ref=f5e79]
+                - paragraph [ref=f5e80]: Each skill is independently editable and traceable.
+              - generic [ref=f5e81]:
+                - generic [ref=f5e82]: 1 entry
+                - button "Add Skill" [ref=f5e83] [cursor=pointer]
+            - article [ref=f5e85]:
+              - generic [ref=f5e86]:
+                - strong [ref=f5e87]:
+                  - text: Skill 1 ·
+                  - code [ref=f5e88]: skill_4f0e22e954651a4f
+                - generic [ref=f5e89]:
+                  - button "Generate supported Skill" [ref=f5e90] [cursor=pointer]
+                  - button "Remove Skill 1" [ref=f5e94] [cursor=pointer]: Remove
+              - generic [ref=f5e95]:
+                - generic [ref=f5e96]:
+                  - text: Name
+                  - textbox "Name" [ref=f5e97]: data-quality monitoring
+                - group "Evidence refs" [ref=f5e98]:
+                  - generic [ref=f5e100]:
+                    - 'checkbox "ev_edu_efbe48fa31d0ec98_17b2febb7ab09027 Thesis: Automated data-quality monitoring for analytics pipelines." [checked] [ref=f5e101]'
+                    - generic [ref=f5e102]:
+                      - code [ref=f5e103]: ev_edu_efbe48fa31d0ec98_17b2febb7ab09027
+                      - text: "Thesis: Automated data-quality monitoring for analytics pipelines."
+                  - generic [ref=f5e104]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                - generic [ref=f5e105]:
+                  - generic [ref=f5e106]: 89% confidence
+                  - generic [ref=f5e107]: inferred
+                  - generic [ref=f5e108]: supported
+          - generic [ref=f5e110]:
+            - generic [ref=f5e111]:
+              - generic [ref=f5e112]:
+                - heading "Role Families" [level=3] [ref=f5e113]
+                - paragraph [ref=f5e114]: Each role family retains its own evidence refs.
+              - generic [ref=f5e115]:
+                - generic [ref=f5e116]: 0 entries
+                - button "Add Role Family" [ref=f5e117] [cursor=pointer]
+            - generic [ref=f5e119]:
+              - heading "No role families" [level=3] [ref=f5e120]
+              - paragraph [ref=f5e121]: Add an entry or regenerate this section from approved baseline evidence.
+          - generic [ref=f5e123]:
+            - generic [ref=f5e124]:
+              - generic [ref=f5e125]:
+                - heading "Domain Tags" [level=3] [ref=f5e126]
+                - paragraph [ref=f5e127]: Each domain tag retains its own evidence refs.
+              - generic [ref=f5e128]:
+                - generic [ref=f5e129]: 0 entries
+                - button "Add Domain Tag" [ref=f5e130] [cursor=pointer]
+            - generic [ref=f5e132]:
+              - heading "No domain tags" [level=3] [ref=f5e133]
+              - paragraph [ref=f5e134]: Add an entry or regenerate this section from approved baseline evidence.
+          - generic [ref=f5e136]:
+            - generic [ref=f5e137]:
+              - generic [ref=f5e138]:
+                - heading "Responsibility Themes" [level=3] [ref=f5e139]
+                - paragraph [ref=f5e140]: Each theme retains its own evidence refs.
+              - generic [ref=f5e141]:
+                - generic [ref=f5e142]: 0 entries
+                - button "Add Responsibility Theme" [ref=f5e143] [cursor=pointer]
+            - generic [ref=f5e145]:
+              - heading "No responsibility themes" [level=3] [ref=f5e146]
+              - paragraph [ref=f5e147]: Add an entry or regenerate this section from approved baseline evidence.
+        - status [ref=f5e148]
+        - generic [ref=f5e149]:
+          - generic [ref=f5e150]:
+            - strong [ref=f5e151]: Draft saved automatically
+            - status [ref=f5e152]: Changes save automatically to this creation draft.
+          - generic [ref=f5e153]:
+            - link "Back to baseline" [ref=f5e154] [cursor=pointer]:
+              - /url: /admin/candidate-profiles/create/attempt_3a879a3a744a4c3ba310cdede01ef8dc/baseline
+            - link "Save and exit" [ref=f5e155] [cursor=pointer]:
+              - /url: /admin/candidate-profiles
+            - button "Approve derived claims" [ref=f5e156] [cursor=pointer]

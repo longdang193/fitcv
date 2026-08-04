@@ -9,6 +9,11 @@ This folder holds repo governance, execution routing, runtime guidance, reusable
 
 ## Sections
 
+- `rules/frontend-backend-integration-rule.md`: integration ownership and cross-boundary invariants
+- `rules/backend-verification-rule.md`: backend-independent proof requirements
+- `tooling/frontend-backend-integration-tools.md`: stage-to-rule-to-skill and MCP routing
+- `procedures/frontend-backend-integration-mcp-setup.md`: Context7 and Specmatic client setup
+
 - `governance/` — repo ownership, precedence, and routing policy
 - `planning/` — planning-tier and execution routing
 - `runtime/` — runtime surfaces

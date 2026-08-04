@@ -1,0 +1,610 @@
+- generic [ref=f5e2]:
+  - complementary "Primary navigation" [ref=f5e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f5e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f5e9]:
+        - strong [ref=f5e10]: FitCV Control Plane
+        - generic [ref=f5e11]: Local workspace
+    - navigation "Workspace" [ref=f5e12]:
+      - link "Runs" [ref=f5e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f5e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f5e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f5e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f5e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f5e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f5e32]:
+    - banner [ref=f5e33]:
+      - generic [ref=f5e34]:
+        - button "Open navigation" [ref=f5e35] [cursor=pointer]
+        - heading "Review controlled derivation" [level=1] [ref=f5e41]
+      - button "Switch to light theme" [ref=f5e43] [cursor=pointer]:
+        - generic [ref=f5e47]: Light
+    - generic [ref=f5e49]:
+      - main [ref=f5e50]:
+        - link "← Back to Candidate Profiles" [ref=f5e51] [cursor=pointer]:
+          - /url: /admin/candidate-profiles
+        - list "Candidate Profile creation progress" [ref=f5e52]:
+          - listitem [ref=f5e53]:
+            - generic [ref=f5e54]: "1"
+            - text: Upload
+          - listitem [ref=f5e55]:
+            - generic [ref=f5e56]: "2"
+            - text: Baseline
+          - listitem [ref=f5e57]:
+            - generic [ref=f5e58]: "3"
+            - text: Controlled derivation
+          - listitem [ref=f5e59]:
+            - generic [ref=f5e60]: "4"
+            - text: Confirmation
+        - generic [ref=f5e61]:
+          - generic [ref=f5e62]:
+            - heading "Review controlled derivation" [level=1] [ref=f5e63]
+            - paragraph [ref=f5e64]: Prototype Parity Check · Revision 4
+          - generic [ref=f5e65]:
+            - link "View source" [ref=f5e66] [cursor=pointer]:
+              - /url: /candidate-profile-creation-attempts/attempt-mock-1/source
+            - button "Regenerate all" [ref=f5e67] [cursor=pointer]
+        - generic [ref=f5e68]:
+          - generic [ref=f5e70]:
+            - generic [ref=f5e71]:
+              - generic [ref=f5e72]:
+                - heading "Skills" [level=3] [ref=f5e73]
+                - paragraph [ref=f5e74]: Each skill is independently editable and traceable.
+              - generic [ref=f5e75]:
+                - generic [ref=f5e76]: 6 entries
+                - button "Add Skill" [ref=f5e77] [cursor=pointer]
+            - generic [ref=f5e78]:
+              - article [ref=f5e79]:
+                - generic [ref=f5e80]:
+                  - strong [ref=f5e81]:
+                    - text: Skill 1 ·
+                    - code [ref=f5e82]: skill-sql
+                  - generic [ref=f5e83]:
+                    - button "Source" [ref=f5e84] [cursor=pointer]
+                    - button "Regenerate Skill" [ref=f5e85] [cursor=pointer]
+                    - button "Remove Skill 1" [ref=f5e90] [cursor=pointer]: Remove
+                - generic [ref=f5e91]:
+                  - generic [ref=f5e92]:
+                    - generic [ref=f5e93]: Name
+                    - textbox "Name" [ref=f5e94]: SQL
+                  - group "Evidence refs" [ref=f5e95]:
+                    - generic [ref=f5e97]:
+                      - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [checked] [ref=f5e98]
+                      - generic [ref=f5e99]:
+                        - code [ref=f5e100]: evidence-exp-sql
+                        - text: Built SQL quality checks that cut reporting defects by 35%.
+                    - generic [ref=f5e101]:
+                      - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [checked] [ref=f5e102]
+                      - generic [ref=f5e103]:
+                        - code [ref=f5e104]: evidence-exp-stakeholders
+                        - text: Created weekly product reviews used by product and operations leads.
+                    - generic [ref=f5e105]:
+                      - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [ref=f5e106]
+                      - generic [ref=f5e107]:
+                        - code [ref=f5e108]: evidence-exp-powerbi
+                        - text: Delivered Power BI models for sales and inventory planning.
+                    - generic [ref=f5e109]:
+                      - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e110]
+                      - generic [ref=f5e111]:
+                        - code [ref=f5e112]: evidence-thesis
+                        - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                    - generic [ref=f5e113]:
+                      - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [ref=f5e114]
+                      - generic [ref=f5e115]:
+                        - code [ref=f5e116]: evidence-seminar
+                        - text: Seminar work compared causal inference methods for product experiments.
+                    - generic [ref=f5e117]:
+                      - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e118]
+                      - generic [ref=f5e119]:
+                        - code [ref=f5e120]: evidence-coursework
+                        - text: Completed database, statistics, and software engineering coursework.
+                    - generic [ref=f5e121]:
+                      - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [ref=f5e122]
+                      - generic [ref=f5e123]:
+                        - code [ref=f5e124]: evidence-project-python
+                        - text: Built Python checks for freshness, completeness, and metric drift.
+                    - generic [ref=f5e125]:
+                      - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e126]
+                      - generic [ref=f5e127]:
+                        - code [ref=f5e128]: evidence-project-visualization
+                        - text: Created an interactive explorer for anomaly model comparisons.
+                    - generic [ref=f5e129]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f5e130]:
+                    - generic [ref=f5e131]: 98% confidence
+                    - generic [ref=f5e132]: llm_inferred
+                    - generic [ref=f5e133]: supported
+              - article [ref=f5e134]:
+                - generic [ref=f5e135]:
+                  - strong [ref=f5e136]:
+                    - text: Skill 2 ·
+                    - code [ref=f5e137]: skill-python
+                  - generic [ref=f5e138]:
+                    - button "Source" [ref=f5e139] [cursor=pointer]
+                    - button "Regenerate Skill" [ref=f5e140] [cursor=pointer]
+                    - button "Remove Skill 2" [ref=f5e145] [cursor=pointer]: Remove
+                - generic [ref=f5e146]:
+                  - generic [ref=f5e147]:
+                    - generic [ref=f5e148]: Name
+                    - textbox "Name" [ref=f5e149]: Python
+                  - group "Evidence refs" [ref=f5e150]:
+                    - generic [ref=f5e152]:
+                      - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [ref=f5e153]
+                      - generic [ref=f5e154]:
+                        - code [ref=f5e155]: evidence-exp-sql
+                        - text: Built SQL quality checks that cut reporting defects by 35%.
+                    - generic [ref=f5e156]:
+                      - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [ref=f5e157]
+                      - generic [ref=f5e158]:
+                        - code [ref=f5e159]: evidence-exp-stakeholders
+                        - text: Created weekly product reviews used by product and operations leads.
+                    - generic [ref=f5e160]:
+                      - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [ref=f5e161]
+                      - generic [ref=f5e162]:
+                        - code [ref=f5e163]: evidence-exp-powerbi
+                        - text: Delivered Power BI models for sales and inventory planning.
+                    - generic [ref=f5e164]:
+                      - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e165]
+                      - generic [ref=f5e166]:
+                        - code [ref=f5e167]: evidence-thesis
+                        - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                    - generic [ref=f5e168]:
+                      - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [ref=f5e169]
+                      - generic [ref=f5e170]:
+                        - code [ref=f5e171]: evidence-seminar
+                        - text: Seminar work compared causal inference methods for product experiments.
+                    - generic [ref=f5e172]:
+                      - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e173]
+                      - generic [ref=f5e174]:
+                        - code [ref=f5e175]: evidence-coursework
+                        - text: Completed database, statistics, and software engineering coursework.
+                    - generic [ref=f5e176]:
+                      - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [checked] [ref=f5e177]
+                      - generic [ref=f5e178]:
+                        - code [ref=f5e179]: evidence-project-python
+                        - text: Built Python checks for freshness, completeness, and metric drift.
+                    - generic [ref=f5e180]:
+                      - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e181]
+                      - generic [ref=f5e182]:
+                        - code [ref=f5e183]: evidence-project-visualization
+                        - text: Created an interactive explorer for anomaly model comparisons.
+                    - generic [ref=f5e184]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f5e185]:
+                    - generic [ref=f5e186]: 96% confidence
+                    - generic [ref=f5e187]: llm_inferred
+                    - generic [ref=f5e188]: supported
+              - article [ref=f5e189]:
+                - generic [ref=f5e190]:
+                  - strong [ref=f5e191]:
+                    - text: Skill 3 ·
+                    - code [ref=f5e192]: skill-powerbi
+                  - button "Remove Skill 3" [ref=f5e194] [cursor=pointer]: Remove
+                - generic [ref=f5e195]:
+                  - generic [ref=f5e196]:
+                    - generic [ref=f5e197]: Name
+                    - textbox "Name" [ref=f5e198]: Power BI
+                  - group "Evidence refs" [ref=f5e199]:
+                    - generic [ref=f5e201]:
+                      - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [ref=f5e202]
+                      - generic [ref=f5e203]:
+                        - code [ref=f5e204]: evidence-exp-sql
+                        - text: Built SQL quality checks that cut reporting defects by 35%.
+                    - generic [ref=f5e205]:
+                      - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [ref=f5e206]
+                      - generic [ref=f5e207]:
+                        - code [ref=f5e208]: evidence-exp-stakeholders
+                        - text: Created weekly product reviews used by product and operations leads.
+                    - generic [ref=f5e209]:
+                      - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [checked] [ref=f5e210]
+                      - generic [ref=f5e211]:
+                        - code [ref=f5e212]: evidence-exp-powerbi
+                        - text: Delivered Power BI models for sales and inventory planning.
+                    - generic [ref=f5e213]:
+                      - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e214]
+                      - generic [ref=f5e215]:
+                        - code [ref=f5e216]: evidence-thesis
+                        - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                    - generic [ref=f5e217]:
+                      - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [ref=f5e218]
+                      - generic [ref=f5e219]:
+                        - code [ref=f5e220]: evidence-seminar
+                        - text: Seminar work compared causal inference methods for product experiments.
+                    - generic [ref=f5e221]:
+                      - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e222]
+                      - generic [ref=f5e223]:
+                        - code [ref=f5e224]: evidence-coursework
+                        - text: Completed database, statistics, and software engineering coursework.
+                    - generic [ref=f5e225]:
+                      - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [ref=f5e226]
+                      - generic [ref=f5e227]:
+                        - code [ref=f5e228]: evidence-project-python
+                        - text: Built Python checks for freshness, completeness, and metric drift.
+                    - generic [ref=f5e229]:
+                      - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e230]
+                      - generic [ref=f5e231]:
+                        - code [ref=f5e232]: evidence-project-visualization
+                        - text: Created an interactive explorer for anomaly model comparisons.
+                    - generic [ref=f5e233]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f5e234]:
+                    - generic [ref=f5e235]: 95% confidence
+                    - generic [ref=f5e236]: llm_inferred
+                    - generic [ref=f5e237]: supported
+              - article [ref=f5e238]:
+                - generic [ref=f5e239]:
+                  - strong [ref=f5e240]:
+                    - text: Skill 4 ·
+                    - code [ref=f5e241]: skill-data-quality
+                  - button "Remove Skill 4" [ref=f5e243] [cursor=pointer]: Remove
+                - generic [ref=f5e244]:
+                  - generic [ref=f5e245]:
+                    - generic [ref=f5e246]: Name
+                    - textbox "Name" [ref=f5e247]: Data Quality
+                  - group "Evidence refs" [ref=f5e248]:
+                    - generic [ref=f5e250]:
+                      - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [checked] [ref=f5e251]
+                      - generic [ref=f5e252]:
+                        - code [ref=f5e253]: evidence-exp-sql
+                        - text: Built SQL quality checks that cut reporting defects by 35%.
+                    - generic [ref=f5e254]:
+                      - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [ref=f5e255]
+                      - generic [ref=f5e256]:
+                        - code [ref=f5e257]: evidence-exp-stakeholders
+                        - text: Created weekly product reviews used by product and operations leads.
+                    - generic [ref=f5e258]:
+                      - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [ref=f5e259]
+                      - generic [ref=f5e260]:
+                        - code [ref=f5e261]: evidence-exp-powerbi
+                        - text: Delivered Power BI models for sales and inventory planning.
+                    - generic [ref=f5e262]:
+                      - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e263]
+                      - generic [ref=f5e264]:
+                        - code [ref=f5e265]: evidence-thesis
+                        - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                    - generic [ref=f5e266]:
+                      - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [ref=f5e267]
+                      - generic [ref=f5e268]:
+                        - code [ref=f5e269]: evidence-seminar
+                        - text: Seminar work compared causal inference methods for product experiments.
+                    - generic [ref=f5e270]:
+                      - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e271]
+                      - generic [ref=f5e272]:
+                        - code [ref=f5e273]: evidence-coursework
+                        - text: Completed database, statistics, and software engineering coursework.
+                    - generic [ref=f5e274]:
+                      - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [checked] [ref=f5e275]
+                      - generic [ref=f5e276]:
+                        - code [ref=f5e277]: evidence-project-python
+                        - text: Built Python checks for freshness, completeness, and metric drift.
+                    - generic [ref=f5e278]:
+                      - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e279]
+                      - generic [ref=f5e280]:
+                        - code [ref=f5e281]: evidence-project-visualization
+                        - text: Created an interactive explorer for anomaly model comparisons.
+                    - generic [ref=f5e282]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f5e283]:
+                    - generic [ref=f5e284]: 94% confidence
+                    - generic [ref=f5e285]: llm_inferred
+                    - generic [ref=f5e286]: supported
+              - article [ref=f5e287]:
+                - generic [ref=f5e288]:
+                  - strong [ref=f5e289]:
+                    - text: Skill 5 ·
+                    - code [ref=f5e290]: skill-product-analytics
+                  - button "Remove Skill 5" [ref=f5e292] [cursor=pointer]: Remove
+                - generic [ref=f5e293]:
+                  - generic [ref=f5e294]:
+                    - generic [ref=f5e295]: Name
+                    - textbox "Name" [ref=f5e296]: Product Analytics
+                  - group "Evidence refs" [ref=f5e297]:
+                    - generic [ref=f5e299]:
+                      - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [ref=f5e300]
+                      - generic [ref=f5e301]:
+                        - code [ref=f5e302]: evidence-exp-sql
+                        - text: Built SQL quality checks that cut reporting defects by 35%.
+                    - generic [ref=f5e303]:
+                      - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [checked] [ref=f5e304]
+                      - generic [ref=f5e305]:
+                        - code [ref=f5e306]: evidence-exp-stakeholders
+                        - text: Created weekly product reviews used by product and operations leads.
+                    - generic [ref=f5e307]:
+                      - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [ref=f5e308]
+                      - generic [ref=f5e309]:
+                        - code [ref=f5e310]: evidence-exp-powerbi
+                        - text: Delivered Power BI models for sales and inventory planning.
+                    - generic [ref=f5e311]:
+                      - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e312]
+                      - generic [ref=f5e313]:
+                        - code [ref=f5e314]: evidence-thesis
+                        - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                    - generic [ref=f5e315]:
+                      - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [checked] [ref=f5e316]
+                      - generic [ref=f5e317]:
+                        - code [ref=f5e318]: evidence-seminar
+                        - text: Seminar work compared causal inference methods for product experiments.
+                    - generic [ref=f5e319]:
+                      - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e320]
+                      - generic [ref=f5e321]:
+                        - code [ref=f5e322]: evidence-coursework
+                        - text: Completed database, statistics, and software engineering coursework.
+                    - generic [ref=f5e323]:
+                      - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [ref=f5e324]
+                      - generic [ref=f5e325]:
+                        - code [ref=f5e326]: evidence-project-python
+                        - text: Built Python checks for freshness, completeness, and metric drift.
+                    - generic [ref=f5e327]:
+                      - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e328]
+                      - generic [ref=f5e329]:
+                        - code [ref=f5e330]: evidence-project-visualization
+                        - text: Created an interactive explorer for anomaly model comparisons.
+                    - generic [ref=f5e331]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f5e332]:
+                    - generic [ref=f5e333]: 91% confidence
+                    - generic [ref=f5e334]: llm_inferred
+                    - generic [ref=f5e335]: supported
+              - article [ref=f5e336]:
+                - generic [ref=f5e337]:
+                  - strong [ref=f5e338]:
+                    - text: Skill 6 ·
+                    - code [ref=f5e339]: skill-stakeholder
+                  - button "Remove Skill 6" [ref=f5e341] [cursor=pointer]: Remove
+                - generic [ref=f5e342]:
+                  - generic [ref=f5e343]:
+                    - generic [ref=f5e344]: Name
+                    - textbox "Name" [ref=f5e345]: Stakeholder Communication
+                  - group "Evidence refs" [ref=f5e346]:
+                    - generic [ref=f5e348]:
+                      - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [ref=f5e349]
+                      - generic [ref=f5e350]:
+                        - code [ref=f5e351]: evidence-exp-sql
+                        - text: Built SQL quality checks that cut reporting defects by 35%.
+                    - generic [ref=f5e352]:
+                      - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [checked] [ref=f5e353]
+                      - generic [ref=f5e354]:
+                        - code [ref=f5e355]: evidence-exp-stakeholders
+                        - text: Created weekly product reviews used by product and operations leads.
+                    - generic [ref=f5e356]:
+                      - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [ref=f5e357]
+                      - generic [ref=f5e358]:
+                        - code [ref=f5e359]: evidence-exp-powerbi
+                        - text: Delivered Power BI models for sales and inventory planning.
+                    - generic [ref=f5e360]:
+                      - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e361]
+                      - generic [ref=f5e362]:
+                        - code [ref=f5e363]: evidence-thesis
+                        - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                    - generic [ref=f5e364]:
+                      - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [ref=f5e365]
+                      - generic [ref=f5e366]:
+                        - code [ref=f5e367]: evidence-seminar
+                        - text: Seminar work compared causal inference methods for product experiments.
+                    - generic [ref=f5e368]:
+                      - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e369]
+                      - generic [ref=f5e370]:
+                        - code [ref=f5e371]: evidence-coursework
+                        - text: Completed database, statistics, and software engineering coursework.
+                    - generic [ref=f5e372]:
+                      - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [ref=f5e373]
+                      - generic [ref=f5e374]:
+                        - code [ref=f5e375]: evidence-project-python
+                        - text: Built Python checks for freshness, completeness, and metric drift.
+                    - generic [ref=f5e376]:
+                      - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e377]
+                      - generic [ref=f5e378]:
+                        - code [ref=f5e379]: evidence-project-visualization
+                        - text: Created an interactive explorer for anomaly model comparisons.
+                    - generic [ref=f5e380]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f5e381]:
+                    - generic [ref=f5e382]: 89% confidence
+                    - generic [ref=f5e383]: llm_inferred
+                    - generic [ref=f5e384]: supported
+          - generic [ref=f5e386]:
+            - generic [ref=f5e387]:
+              - generic [ref=f5e388]:
+                - heading "Role families" [level=3] [ref=f5e389]
+                - paragraph [ref=f5e390]: Each role family retains its own evidence refs.
+              - generic [ref=f5e391]:
+                - generic [ref=f5e392]: 1 entry
+                - button "Add Role family" [ref=f5e393] [cursor=pointer]
+            - article [ref=f5e395]:
+              - generic [ref=f5e396]:
+                - strong [ref=f5e397]:
+                  - text: Role family 1 ·
+                  - code [ref=f5e398]: role-family-analytics
+                - button "Remove Role family 1" [ref=f5e400] [cursor=pointer]: Remove
+              - generic [ref=f5e401]:
+                - generic [ref=f5e402]:
+                  - generic [ref=f5e403]: Name
+                  - textbox "Name" [ref=f5e404]: Analytics
+                - group "Evidence refs" [ref=f5e405]:
+                  - generic [ref=f5e407]:
+                    - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [checked] [ref=f5e408]
+                    - generic [ref=f5e409]:
+                      - code [ref=f5e410]: evidence-exp-sql
+                      - text: Built SQL quality checks that cut reporting defects by 35%.
+                  - generic [ref=f5e411]:
+                    - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [ref=f5e412]
+                    - generic [ref=f5e413]:
+                      - code [ref=f5e414]: evidence-exp-stakeholders
+                      - text: Created weekly product reviews used by product and operations leads.
+                  - generic [ref=f5e415]:
+                    - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [ref=f5e416]
+                    - generic [ref=f5e417]:
+                      - code [ref=f5e418]: evidence-exp-powerbi
+                      - text: Delivered Power BI models for sales and inventory planning.
+                  - generic [ref=f5e419]:
+                    - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e420]
+                    - generic [ref=f5e421]:
+                      - code [ref=f5e422]: evidence-thesis
+                      - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                  - generic [ref=f5e423]:
+                    - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [ref=f5e424]
+                    - generic [ref=f5e425]:
+                      - code [ref=f5e426]: evidence-seminar
+                      - text: Seminar work compared causal inference methods for product experiments.
+                  - generic [ref=f5e427]:
+                    - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e428]
+                    - generic [ref=f5e429]:
+                      - code [ref=f5e430]: evidence-coursework
+                      - text: Completed database, statistics, and software engineering coursework.
+                  - generic [ref=f5e431]:
+                    - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [ref=f5e432]
+                    - generic [ref=f5e433]:
+                      - code [ref=f5e434]: evidence-project-python
+                      - text: Built Python checks for freshness, completeness, and metric drift.
+                  - generic [ref=f5e435]:
+                    - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e436]
+                    - generic [ref=f5e437]:
+                      - code [ref=f5e438]: evidence-project-visualization
+                      - text: Created an interactive explorer for anomaly model comparisons.
+                  - generic [ref=f5e439]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                - generic [ref=f5e440]:
+                  - generic [ref=f5e441]: 96% confidence
+                  - generic [ref=f5e442]: llm_inferred
+                  - generic [ref=f5e443]: supported
+          - generic [ref=f5e445]:
+            - generic [ref=f5e446]:
+              - generic [ref=f5e447]:
+                - heading "Domain tags" [level=3] [ref=f5e448]
+                - paragraph [ref=f5e449]: Each domain tag retains its own evidence refs.
+              - generic [ref=f5e450]:
+                - generic [ref=f5e451]: 1 entry
+                - button "Add Domain tag" [ref=f5e452] [cursor=pointer]
+            - article [ref=f5e454]:
+              - generic [ref=f5e455]:
+                - strong [ref=f5e456]:
+                  - text: Domain tag 1 ·
+                  - code [ref=f5e457]: domain-product
+                - button "Remove Domain tag 1" [ref=f5e459] [cursor=pointer]: Remove
+              - generic [ref=f5e460]:
+                - generic [ref=f5e461]:
+                  - generic [ref=f5e462]: Name
+                  - textbox "Name" [ref=f5e463]: Product
+                - group "Evidence refs" [ref=f5e464]:
+                  - generic [ref=f5e466]:
+                    - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [ref=f5e467]
+                    - generic [ref=f5e468]:
+                      - code [ref=f5e469]: evidence-exp-sql
+                      - text: Built SQL quality checks that cut reporting defects by 35%.
+                  - generic [ref=f5e470]:
+                    - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [checked] [ref=f5e471]
+                    - generic [ref=f5e472]:
+                      - code [ref=f5e473]: evidence-exp-stakeholders
+                      - text: Created weekly product reviews used by product and operations leads.
+                  - generic [ref=f5e474]:
+                    - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [ref=f5e475]
+                    - generic [ref=f5e476]:
+                      - code [ref=f5e477]: evidence-exp-powerbi
+                      - text: Delivered Power BI models for sales and inventory planning.
+                  - generic [ref=f5e478]:
+                    - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e479]
+                    - generic [ref=f5e480]:
+                      - code [ref=f5e481]: evidence-thesis
+                      - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                  - generic [ref=f5e482]:
+                    - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [ref=f5e483]
+                    - generic [ref=f5e484]:
+                      - code [ref=f5e485]: evidence-seminar
+                      - text: Seminar work compared causal inference methods for product experiments.
+                  - generic [ref=f5e486]:
+                    - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e487]
+                    - generic [ref=f5e488]:
+                      - code [ref=f5e489]: evidence-coursework
+                      - text: Completed database, statistics, and software engineering coursework.
+                  - generic [ref=f5e490]:
+                    - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [ref=f5e491]
+                    - generic [ref=f5e492]:
+                      - code [ref=f5e493]: evidence-project-python
+                      - text: Built Python checks for freshness, completeness, and metric drift.
+                  - generic [ref=f5e494]:
+                    - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e495]
+                    - generic [ref=f5e496]:
+                      - code [ref=f5e497]: evidence-project-visualization
+                      - text: Created an interactive explorer for anomaly model comparisons.
+                  - generic [ref=f5e498]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                - generic [ref=f5e499]:
+                  - generic [ref=f5e500]: 91% confidence
+                  - generic [ref=f5e501]: llm_inferred
+                  - generic [ref=f5e502]: supported
+          - generic [ref=f5e504]:
+            - generic [ref=f5e505]:
+              - generic [ref=f5e506]:
+                - heading "Responsibility themes" [level=3] [ref=f5e507]
+                - paragraph [ref=f5e508]: Each theme retains its own evidence refs.
+              - generic [ref=f5e509]:
+                - generic [ref=f5e510]: 1 entry
+                - button "Add Responsibility theme" [ref=f5e511] [cursor=pointer]
+            - article [ref=f5e513]:
+              - generic [ref=f5e514]:
+                - strong [ref=f5e515]:
+                  - text: Responsibility theme 1 ·
+                  - code [ref=f5e516]: theme-quality
+                - button "Remove Responsibility theme 1" [ref=f5e518] [cursor=pointer]: Remove
+              - generic [ref=f5e519]:
+                - generic [ref=f5e520]:
+                  - generic [ref=f5e521]: Name
+                  - textbox "Name" [ref=f5e522]: Data quality ownership
+                - group "Evidence refs" [ref=f5e523]:
+                  - generic [ref=f5e525]:
+                    - checkbox "evidence-exp-sql Built SQL quality checks that cut reporting defects by 35%." [checked] [ref=f5e526]
+                    - generic [ref=f5e527]:
+                      - code [ref=f5e528]: evidence-exp-sql
+                      - text: Built SQL quality checks that cut reporting defects by 35%.
+                  - generic [ref=f5e529]:
+                    - checkbox "evidence-exp-stakeholders Created weekly product reviews used by product and operations leads." [ref=f5e530]
+                    - generic [ref=f5e531]:
+                      - code [ref=f5e532]: evidence-exp-stakeholders
+                      - text: Created weekly product reviews used by product and operations leads.
+                  - generic [ref=f5e533]:
+                    - checkbox "evidence-exp-powerbi Delivered Power BI models for sales and inventory planning." [ref=f5e534]
+                    - generic [ref=f5e535]:
+                      - code [ref=f5e536]: evidence-exp-powerbi
+                      - text: Delivered Power BI models for sales and inventory planning.
+                  - generic [ref=f5e537]:
+                    - checkbox "evidence-thesis Thesis evaluated anomaly detection for noisy operational metrics." [ref=f5e538]
+                    - generic [ref=f5e539]:
+                      - code [ref=f5e540]: evidence-thesis
+                      - text: Thesis evaluated anomaly detection for noisy operational metrics.
+                  - generic [ref=f5e541]:
+                    - checkbox "evidence-seminar Seminar work compared causal inference methods for product experiments." [ref=f5e542]
+                    - generic [ref=f5e543]:
+                      - code [ref=f5e544]: evidence-seminar
+                      - text: Seminar work compared causal inference methods for product experiments.
+                  - generic [ref=f5e545]:
+                    - checkbox "evidence-coursework Completed database, statistics, and software engineering coursework." [ref=f5e546]
+                    - generic [ref=f5e547]:
+                      - code [ref=f5e548]: evidence-coursework
+                      - text: Completed database, statistics, and software engineering coursework.
+                  - generic [ref=f5e549]:
+                    - checkbox "evidence-project-python Built Python checks for freshness, completeness, and metric drift." [checked] [ref=f5e550]
+                    - generic [ref=f5e551]:
+                      - code [ref=f5e552]: evidence-project-python
+                      - text: Built Python checks for freshness, completeness, and metric drift.
+                  - generic [ref=f5e553]:
+                    - checkbox "evidence-project-visualization Created an interactive explorer for anomaly model comparisons." [ref=f5e554]
+                    - generic [ref=f5e555]:
+                      - code [ref=f5e556]: evidence-project-visualization
+                      - text: Created an interactive explorer for anomaly model comparisons.
+                  - generic [ref=f5e557]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                - generic [ref=f5e558]:
+                  - generic [ref=f5e559]: 94% confidence
+                  - generic [ref=f5e560]: llm_inferred
+                  - generic [ref=f5e561]: supported
+          - status
+          - generic [ref=f5e562]:
+            - generic [ref=f5e563]: Changes save automatically to this draft after each field change.
+            - generic [ref=f5e564]:
+              - link "Save and exit" [ref=f5e565] [cursor=pointer]:
+                - /url: /admin/candidate-profiles
+              - button "Approve derived" [ref=f5e566] [cursor=pointer]
+      - dialog [ref=f5e567]:
+        - generic [ref=f5e568]:
+          - generic [ref=f5e569]:
+            - heading "Source Evidence" [level=2] [ref=f5e570]
+            - paragraph [ref=f5e571]: candidate.md
+          - button "Close" [active] [ref=f5e572] [cursor=pointer]: ×
+        - paragraph [ref=f5e574]: Northstar Labs - Product Data Analyst. Built SQL checks and product reviews.

@@ -1,0 +1,68 @@
+- generic [ref=f6e2]:
+  - complementary "Primary navigation" [ref=f6e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f6e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f6e9]:
+        - strong [ref=f6e10]: FitCV Control Plane
+        - generic [ref=f6e11]: Local workspace
+    - navigation "Workspace" [ref=f6e12]:
+      - link "Runs" [ref=f6e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f6e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f6e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f6e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f6e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f6e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f6e32]:
+    - banner [ref=f6e33]:
+      - generic [ref=f6e34]:
+        - button "Open navigation" [ref=f6e35] [cursor=pointer]
+        - heading "Review controlled derivation" [level=1] [ref=f6e41]
+      - button "Switch to light theme" [ref=f6e43] [cursor=pointer]:
+        - generic [ref=f6e47]: Light
+    - main [ref=f6e50]:
+      - link "← Back to Candidate Profiles" [ref=f6e51] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - list "Candidate Profile creation progress" [ref=f6e52]:
+        - listitem [ref=f6e53]:
+          - generic [ref=f6e54]: "1"
+          - text: Upload
+        - listitem [ref=f6e55]:
+          - generic [ref=f6e56]: "2"
+          - text: Baseline
+        - listitem [ref=f6e57]:
+          - generic [ref=f6e58]: "3"
+          - text: Controlled derivation
+        - listitem [ref=f6e59]:
+          - generic [ref=f6e60]: "4"
+          - text: Confirmation
+      - generic [ref=f6e61]:
+        - generic [ref=f6e62]:
+          - heading "Review controlled derivation" [level=1] [ref=f6e63]
+          - paragraph [ref=f6e64]: Prototype Parity Check · Revision 4
+        - generic [ref=f6e65]:
+          - link "View source" [ref=f6e66] [cursor=pointer]:
+            - /url: /candidate-profile-creation-attempts/attempt-mock-1/source
+          - button "Regenerate all" [ref=f6e67] [cursor=pointer]
+      - generic [ref=f6e68]:
+        - generic [ref=f6e70]:
+          - generic [ref=f6e71]
+          - generic [ref=f6e78]
+        - generic [ref=f6e386]:
+          - generic [ref=f6e387]
+          - article [ref=f6e395]
+        - generic [ref=f6e445]:
+          - generic [ref=f6e446]
+          - article [ref=f6e454]
+        - generic [ref=f6e504]:
+          - generic [ref=f6e505]
+          - article [ref=f6e513]
+        - status
+        - generic [ref=f6e562]:
+          - generic [ref=f6e563]: Changes save automatically to this draft after each field change.
+          - generic [ref=f6e564]

@@ -1,0 +1,93 @@
+- generic [ref=f2e2]:
+  - complementary "Primary navigation" [ref=f2e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f2e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f2e9]:
+        - strong [ref=f2e10]: FitCV Control Plane
+        - generic [ref=f2e11]: Local workspace
+    - navigation "Workspace" [ref=f2e12]:
+      - link "Runs" [ref=f2e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f2e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f2e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f2e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f2e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f2e31]:
+        - generic "Pipeline ›" [ref=f2e32] [cursor=pointer]
+        - generic [ref=f2e35]:
+          - link "Overview" [ref=f2e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f2e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f2e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f2e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f2e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f2e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f2e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f2e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f2e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f2e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f2e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f2e47]:
+        - generic "Application ›" [ref=f2e48] [cursor=pointer]
+        - generic [ref=f2e52]:
+          - link "API Providers" [ref=f2e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f2e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f2e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f2e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f2e57]:
+    - banner [ref=f2e58]:
+      - generic [ref=f2e62]:
+        - heading "Pipeline" [level=1] [ref=f2e63]
+        - paragraph [ref=f2e64]: Configure pipeline stages and output defaults.
+      - generic [ref=f2e65]:
+        - button "Switch to light theme" [ref=f2e66] [cursor=pointer]:
+          - generic [ref=f2e70]: Light
+        - button "Shutdown FitCV" [ref=f2e71] [cursor=pointer]
+    - main [ref=f2e76]:
+      - generic [ref=f2e77]:
+        - generic [ref=f2e78]:
+          - paragraph [ref=f2e79]: Pipeline settings
+          - heading "Overview" [level=2] [ref=f2e80]
+          - paragraph [ref=f2e81]: Set the most important pipeline volumes and output limits.
+        - button "Reset Pipeline Settings" [ref=f2e82] [cursor=pointer]
+      - generic [ref=f2e83]:
+        - generic [ref=f2e84]:
+          - heading "Candidate Scope" [level=3] [ref=f2e86]
+          - generic [ref=f2e87]:
+            - generic [ref=f2e88]
+            - spinbutton "Initial Candidate Pool Size" [ref=f2e93]: "50"
+          - generic [ref=f2e94]:
+            - generic [ref=f2e95]
+            - spinbutton "AI Reranking Pool Size" [ref=f2e100]: "50"
+          - generic [ref=f2e101]:
+            - generic [ref=f2e102]
+            - spinbutton "Final Output Count" [ref=f2e107]: "15"
+          - generic [ref=f2e108]:
+            - generic [ref=f2e109]
+            - spinbutton "Final Evidence Items Per Job" [ref=f2e114]: "5"
+        - generic [ref=f2e115]:
+          - heading "Pre-enrichment Filter" [level=3] [ref=f2e117]
+          - generic [ref=f2e118]:
+            - generic [ref=f2e119]
+            - spinbutton "Maximum Applicant Count" [ref=f2e124]: "200"
+          - generic [ref=f2e125]:
+            - generic [ref=f2e126]
+            - spinbutton "Maximum Posting Age (Days)" [ref=f2e131]: "30"

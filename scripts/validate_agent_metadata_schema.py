@@ -1,9 +1,12 @@
 from __future__ import annotations
 import argparse
 from pathlib import Path
+import re
 import yaml
 
 SKILL_ALLOWED={"name","description","required_reads","distribution_tier"}
+SKILL_REFERENCE_RE=re.compile(r"`(skill-[a-z0-9]+(?:-[a-z0-9]+)*)`")
+RULE_REFERENCE_RE=re.compile(r"`(docs/operating_system/rules/[A-Za-z0-9._/-]+\.md)`")
 
 def _meta(path: Path):
     text=path.read_text(encoding="utf-8",errors="ignore")
@@ -30,6 +33,23 @@ def validate(root: Path) -> list[str]:
         else:
             for read in reads:
                 if not (root/read).exists(): findings.append(f"{path}: missing required read {read}")
+    skill_names={path.parent.name for path in skills}
+    reference_paths=set((root/".agents/skills").rglob("*.md"))
+    reference_paths.update((root/"docs/operating_system/rules").glob("*.md"))
+    reference_paths.update({
+        root/"docs/operating_system/templates/agents/root-AGENTS.template.md",
+        root/"docs/operating_system/planning/planning-dispatch.md",
+    })
+    for path in sorted(candidate for candidate in reference_paths if candidate.exists()):
+        text=path.read_text(encoding="utf-8",errors="ignore")
+        rel=path.relative_to(root).as_posix()
+        for line_number,line in enumerate(text.splitlines(),start=1):
+            for match in SKILL_REFERENCE_RE.finditer(line):
+                skill_name=match.group(1)
+                if line[:match.start()].rstrip().lower().endswith(" not"): continue
+                if skill_name not in skill_names: findings.append(f"{rel}:{line_number}: missing skill reference {skill_name}")
+            for rule_path in RULE_REFERENCE_RE.findall(line):
+                if not (root/rule_path).is_file(): findings.append(f"{rel}:{line_number}: missing rule reference {rule_path}")
     return findings
 
 def main(argv=None):

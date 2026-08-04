@@ -76,11 +76,15 @@ Memory informs work but never overrides explicit instructions, source code, test
 
 Detailed policy: `docs/operating_system/rules/agent-memory-rule.md`.
 
+## Backend Work
+
+For every material backend behavior change, use `skill-backend-verification` whether or not a frontend exists. Prove behavior through direct boundary tests, important success and failure paths, final state or side effects, and fresh automated output. Add contract, real-dependency, representative-operation trace, or performance evidence only when applicable. Frontend and browser evidence never substitute for backend proof.
+
 ## Front-End Work
 
-For material UI, UX, accessibility, responsive-layout, or visual-design work, use `ui-ux-pro-max` when available. Reuse existing components and design tokens, prefer semantic native controls, and verify affected states, keyboard access, focus, contrast, responsive behavior, reduced motion, and supported themes.
+For material UI, UX, accessibility, responsive-layout, or visual-design work, use `ui-ux-pro-max` when available and target platform fits its scope. Existing project design-system sources remain canonical. Reuse existing components and design tokens, prefer semantic native controls, and verify affected states, keyboard access, focus, contrast, responsive behavior, reduced motion, and supported themes.
 
-When a matching `*.integration.md` exists, use `skill-full-stack-integration`. Integration notes own temporary UI intent and acceptance evidence, not transport schemas; canonical schemas, generated clients, backend routes, and tests establish current behavior. Report any conflict and affected owners, then ask the user to decide before implementation.
+When work crosses frontend behavior and backend contracts or routes, use `skill-full-stack-integration`. Matching `*.integration.md` notes own temporary contract-to-UI mapping, unresolved mismatches, and acceptance evidence, not transport schemas. Canonical schemas, generated clients, backend routes, and tests establish current behavior. Report conflicts and affected owners before implementation.
 
 When browser MCPs are available, use Playwright MCP for repeatable user flows, accessibility snapshots, viewport checks, and screenshots; use Chrome DevTools MCP for console, network, computed layout and styles, Lighthouse, and performance diagnosis. Use both only when their roles differ. Browser evidence does not replace committed regression tests.
 
@@ -88,9 +92,10 @@ Skip skill for copy-only edits, mechanical selector changes, or isolated nonvisu
 
 ## Code Intelligence
 
-Use native code tools for small local work, Serena for exact symbols and references, and GitNexus for broad flows or impact. Do not query both by default. Source and tests win every conflict; unavailable tools never block safe source-first work.
+Use native code tools for current files and small local changes, Serena for exact symbols and references, GitNexus for broad flows or impact, and DeepWiki for advisory orientation in unfamiliar external GitHub repositories. Do not query multiple tools for the same fact by default. Source and tests win every conflict; unavailable tools never block safe source-first work.
 
 - Serena runs with `--context codex --project-from-cwd`, `no-memories`, and `no-onboarding`. Never commit `.serena/` state.
 - GitNexus remains optional and private-only. Check freshness before high-trust impact or refactor use; never make refresh a universal completion gate.
+- For DeepWiki, use `read_wiki_structure` before focused `ask_question`; use `read_wiki_contents` only when full generated documentation is required. Hand off to local source and Serena before implementation, and to GitNexus before broad impact or refactoring decisions. Treat unknown-freshness output as advisory and verify against pinned upstream source.
 - Tests and CI own enforcement. `docs/architecture.md` and ADRs own durable architecture intent.
 - Detailed policy: `docs/operating_system/tooling/code-intelligence-tools.md`.

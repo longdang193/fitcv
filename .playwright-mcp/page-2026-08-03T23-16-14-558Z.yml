@@ -1,0 +1,93 @@
+- generic [ref=e2]:
+  - complementary "Primary navigation" [ref=e3]:
+    - link "FitCV Control Plane Local workspace" [ref=e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=e9]:
+        - strong [ref=e10]: FitCV Control Plane
+        - generic [ref=e11]: Local workspace
+    - navigation "Workspace" [ref=e12]:
+      - link "Runs" [ref=e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=e31]:
+        - generic "Pipeline ›" [ref=e32] [cursor=pointer]
+        - generic [ref=e35]:
+          - link "Overview" [ref=e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=e47]:
+        - generic "Application ›" [ref=e48] [cursor=pointer]
+        - generic [ref=e52]:
+          - link "API Providers" [ref=e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=e57]:
+    - banner [ref=e58]:
+      - generic [ref=e63]:
+        - heading "Candidate Profiles" [level=1] [ref=e64]
+        - paragraph [ref=e65]: Create and review profiles used by matching runs.
+      - generic [ref=e66]:
+        - button "Switch to dark theme" [ref=e67] [cursor=pointer]:
+          - generic [ref=e70]: Dark
+        - button "Shutdown FitCV" [ref=e71] [cursor=pointer]
+    - main [ref=e76]:
+      - generic [ref=e77]:
+        - generic [ref=e78]:
+          - paragraph [ref=e79]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=e80]
+          - paragraph [ref=e81]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - button "Create Profile" [ref=e82] [cursor=pointer]
+      - region [ref=e83]:
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - heading "Creation drafts" [level=3] [ref=e86]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=e87]: 0 drafts
+        - generic [ref=e89]:
+          - strong [ref=e90]: No creation drafts
+          - generic [ref=e91]: Upload Markdown, DOCX, or YAML to start one staged review.
+      - generic [ref=e92]:
+        - tablist "Candidate Profile views" [ref=e93]:
+          - tab "Active 0" [selected] [ref=e94] [cursor=pointer]:
+            - text: Active
+            - generic [ref=e95]: "0"
+          - tab "Archived 0" [ref=e96] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=e97]: "0"
+        - tabpanel [ref=e98]:
+          - generic [ref=e100]:
+            - heading "No active profiles yet" [level=3] [ref=e101]
+            - paragraph [ref=e102]: Create a profile from a CV or resume file before triggering a run.
+            - button "Create Profile" [ref=e103] [cursor=pointer]
+      - status

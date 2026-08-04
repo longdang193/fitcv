@@ -1,0 +1,604 @@
+- generic [ref=f7e2]:
+  - complementary "Primary navigation" [ref=f7e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f7e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f7e9]:
+        - strong [ref=f7e10]: FitCV Control Plane
+        - generic [ref=f7e11]: Local workspace
+    - navigation "Workspace" [ref=f7e12]:
+      - link "Runs" [ref=f7e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f7e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f7e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f7e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f7e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f7e31]:
+        - generic "Pipeline ›" [ref=f7e32] [cursor=pointer]
+        - generic [ref=f7e35]:
+          - link "Overview" [ref=f7e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f7e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f7e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f7e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f7e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f7e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f7e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f7e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f7e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f7e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f7e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f7e47]:
+        - generic "Application ›" [ref=f7e48] [cursor=pointer]
+        - generic [ref=f7e52]:
+          - link "API Providers" [ref=f7e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f7e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f7e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f7e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f7e57]:
+    - banner [ref=f7e58]:
+      - generic [ref=f7e64]:
+        - heading "Create Candidate Profile" [level=1] [ref=f7e65]
+        - paragraph [ref=f7e66]: Upload, review baseline evidence, approve derivation, then confirm.
+      - generic [ref=f7e67]:
+        - button "Switch to dark theme" [ref=f7e68] [cursor=pointer]:
+          - generic [ref=f7e71]: Dark
+        - button "Shutdown FitCV" [ref=f7e72] [cursor=pointer]
+    - main [ref=f7e77]:
+      - generic [ref=f7e78]:
+        - link "← Save and exit to Candidate Profiles" [ref=f7e80] [cursor=pointer]:
+          - /url: /admin/candidate-profiles
+        - list "Candidate Profile creation progress" [ref=f7e81]:
+          - listitem [ref=f7e82]:
+            - generic [ref=f7e83]: ✓
+            - generic [ref=f7e84]: Upload
+          - listitem [ref=f7e85]:
+            - generic [ref=f7e86]: ✓
+            - generic [ref=f7e87]: Baseline
+          - listitem [ref=f7e88]:
+            - generic [ref=f7e89]: "3"
+            - generic [ref=f7e90]: Derived
+          - listitem [ref=f7e91]:
+            - generic [ref=f7e92]: "4"
+            - generic [ref=f7e93]: Confirm
+        - generic [ref=f7e94]:
+          - generic [ref=f7e95]:
+            - paragraph [ref=f7e96]: Step 3 · Controlled derivation
+            - heading "Review derived claims" [level=2] [ref=f7e97]
+            - paragraph [ref=f7e98]: Each claim owns editable evidence refs, confidence, and origin.
+          - button "Regenerate all derived claims" [ref=f7e99] [cursor=pointer]
+        - generic [ref=f7e101]:
+          - generic [ref=f7e103]:
+            - generic [ref=f7e104]:
+              - generic [ref=f7e105]:
+                - heading "Skills" [level=3] [ref=f7e106]
+                - paragraph [ref=f7e107]: Each skill is independently editable and traceable.
+              - generic [ref=f7e108]:
+                - generic [ref=f7e109]: 8 entries
+                - button "Add Skill" [ref=f7e110] [cursor=pointer]
+            - generic [ref=f7e111]:
+              - article [ref=f7e112]:
+                - generic [ref=f7e113]:
+                  - strong [ref=f7e114]:
+                    - text: Skill 1 ·
+                    - code [ref=f7e115]: skill_python
+                  - generic [ref=f7e116]:
+                    - button "Generate supported Skill" [ref=f7e117] [cursor=pointer]
+                    - button "Remove Skill 1" [ref=f7e121] [cursor=pointer]: Remove
+                - generic [ref=f7e122]:
+                  - generic [ref=f7e123]:
+                    - text: Name
+                    - textbox "Name" [ref=f7e124]: Python
+                  - group "Evidence refs" [ref=f7e125]:
+                    - generic [ref=f7e127]:
+                      - checkbox "ev_exp_reporting_automation Reporting Automation" [checked] [ref=f7e128]
+                      - generic [ref=f7e129]:
+                        - code [ref=f7e130]: ev_exp_reporting_automation
+                        - text: Reporting Automation
+                    - generic [ref=f7e131]:
+                      - checkbox "ev_exp_reporting_stakeholders Stakeholder Reporting" [ref=f7e132]
+                      - generic [ref=f7e133]:
+                        - code [ref=f7e134]: ev_exp_reporting_stakeholders
+                        - text: Stakeholder Reporting
+                    - generic [ref=f7e135]:
+                      - checkbox "ev_edu_analytics_thesis Customer Churn Prediction" [checked] [ref=f7e136]
+                      - generic [ref=f7e137]:
+                        - code [ref=f7e138]: ev_edu_analytics_thesis
+                        - text: Customer Churn Prediction
+                    - generic [ref=f7e139]:
+                      - checkbox "ev_edu_analytics_project_dashboard Retail Performance Dashboard" [ref=f7e140]
+                      - generic [ref=f7e141]:
+                        - code [ref=f7e142]: ev_edu_analytics_project_dashboard
+                        - text: Retail Performance Dashboard
+                    - generic [ref=f7e143]:
+                      - checkbox "ev_edu_analytics_seminar_ethics Responsible Data Analysis" [ref=f7e144]
+                      - generic [ref=f7e145]:
+                        - code [ref=f7e146]: ev_edu_analytics_seminar_ethics
+                        - text: Responsible Data Analysis
+                    - generic [ref=f7e147]:
+                      - checkbox "ev_edu_analytics_course_statistics Applied Statistics" [ref=f7e148]
+                      - generic [ref=f7e149]:
+                        - code [ref=f7e150]: ev_edu_analytics_course_statistics
+                        - text: Applied Statistics
+                    - generic [ref=f7e151]:
+                      - checkbox "ev_proj_sales_analysis_pipeline Analysis Pipeline" [checked] [ref=f7e152]
+                      - generic [ref=f7e153]:
+                        - code [ref=f7e154]: ev_proj_sales_analysis_pipeline
+                        - text: Analysis Pipeline
+                    - generic [ref=f7e155]:
+                      - checkbox "ev_proj_sales_analysis_findings Business Findings" [ref=f7e156]
+                      - generic [ref=f7e157]:
+                        - code [ref=f7e158]: ev_proj_sales_analysis_findings
+                        - text: Business Findings
+                    - generic [ref=f7e159]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f7e160]:
+                    - generic [ref=f7e161]: 99% confidence
+                    - generic [ref=f7e162]: extracted_explicit
+                    - generic [ref=f7e163]: supported
+              - article [ref=f7e164]:
+                - generic [ref=f7e165]:
+                  - strong [ref=f7e166]:
+                    - text: Skill 2 ·
+                    - code [ref=f7e167]: skill_sql
+                  - generic [ref=f7e168]:
+                    - button "Generate supported Skill" [ref=f7e169] [cursor=pointer]
+                    - button "Remove Skill 2" [ref=f7e173] [cursor=pointer]: Remove
+                - generic [ref=f7e174]:
+                  - generic [ref=f7e175]:
+                    - text: Name
+                    - textbox "Name" [ref=f7e176]: SQL
+                  - group "Evidence refs" [ref=f7e177]:
+                    - generic [ref=f7e179]:
+                      - checkbox "ev_exp_reporting_automation Reporting Automation" [checked] [ref=f7e180]
+                      - generic [ref=f7e181]:
+                        - code [ref=f7e182]: ev_exp_reporting_automation
+                        - text: Reporting Automation
+                    - generic [ref=f7e183]:
+                      - checkbox "ev_exp_reporting_stakeholders Stakeholder Reporting" [ref=f7e184]
+                      - generic [ref=f7e185]:
+                        - code [ref=f7e186]: ev_exp_reporting_stakeholders
+                        - text: Stakeholder Reporting
+                    - generic [ref=f7e187]:
+                      - checkbox "ev_edu_analytics_thesis Customer Churn Prediction" [ref=f7e188]
+                      - generic [ref=f7e189]:
+                        - code [ref=f7e190]: ev_edu_analytics_thesis
+                        - text: Customer Churn Prediction
+                    - generic [ref=f7e191]:
+                      - checkbox "ev_edu_analytics_project_dashboard Retail Performance Dashboard" [ref=f7e192]
+                      - generic [ref=f7e193]:
+                        - code [ref=f7e194]: ev_edu_analytics_project_dashboard
+                        - text: Retail Performance Dashboard
+                    - generic [ref=f7e195]:
+                      - checkbox "ev_edu_analytics_seminar_ethics Responsible Data Analysis" [ref=f7e196]
+                      - generic [ref=f7e197]:
+                        - code [ref=f7e198]: ev_edu_analytics_seminar_ethics
+                        - text: Responsible Data Analysis
+                    - generic [ref=f7e199]:
+                      - checkbox "ev_edu_analytics_course_statistics Applied Statistics" [ref=f7e200]
+                      - generic [ref=f7e201]:
+                        - code [ref=f7e202]: ev_edu_analytics_course_statistics
+                        - text: Applied Statistics
+                    - generic [ref=f7e203]:
+                      - checkbox "ev_proj_sales_analysis_pipeline Analysis Pipeline" [checked] [ref=f7e204]
+                      - generic [ref=f7e205]:
+                        - code [ref=f7e206]: ev_proj_sales_analysis_pipeline
+                        - text: Analysis Pipeline
+                    - generic [ref=f7e207]:
+                      - checkbox "ev_proj_sales_analysis_findings Business Findings" [ref=f7e208]
+                      - generic [ref=f7e209]:
+                        - code [ref=f7e210]: ev_proj_sales_analysis_findings
+                        - text: Business Findings
+                    - generic [ref=f7e211]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f7e212]:
+                    - generic [ref=f7e213]: 99% confidence
+                    - generic [ref=f7e214]: extracted_explicit
+                    - generic [ref=f7e215]: supported
+              - article [ref=f7e216]:
+                - generic [ref=f7e217]:
+                  - strong [ref=f7e218]:
+                    - text: Skill 3 ·
+                    - code [ref=f7e219]: skill_power_bi
+                  - generic [ref=f7e220]:
+                    - button "Generate supported Skill" [ref=f7e221] [cursor=pointer]
+                    - button "Remove Skill 3" [ref=f7e225] [cursor=pointer]: Remove
+                - generic [ref=f7e226]:
+                  - generic [ref=f7e227]:
+                    - text: Name
+                    - textbox "Name" [ref=f7e228]: Power BI
+                  - group "Evidence refs" [ref=f7e229]:
+                    - generic [ref=f7e231]:
+                      - checkbox "ev_exp_reporting_automation Reporting Automation" [ref=f7e232]
+                      - generic [ref=f7e233]:
+                        - code [ref=f7e234]: ev_exp_reporting_automation
+                        - text: Reporting Automation
+                    - generic [ref=f7e235]:
+                      - checkbox "ev_exp_reporting_stakeholders Stakeholder Reporting" [ref=f7e236]
+                      - generic [ref=f7e237]:
+                        - code [ref=f7e238]: ev_exp_reporting_stakeholders
+                        - text: Stakeholder Reporting
+                    - generic [ref=f7e239]:
+                      - checkbox "ev_edu_analytics_thesis Customer Churn Prediction" [ref=f7e240]
+                      - generic [ref=f7e241]:
+                        - code [ref=f7e242]: ev_edu_analytics_thesis
+                        - text: Customer Churn Prediction
+                    - generic [ref=f7e243]:
+                      - checkbox "ev_edu_analytics_project_dashboard Retail Performance Dashboard" [checked] [ref=f7e244]
+                      - generic [ref=f7e245]:
+                        - code [ref=f7e246]: ev_edu_analytics_project_dashboard
+                        - text: Retail Performance Dashboard
+                    - generic [ref=f7e247]:
+                      - checkbox "ev_edu_analytics_seminar_ethics Responsible Data Analysis" [ref=f7e248]
+                      - generic [ref=f7e249]:
+                        - code [ref=f7e250]: ev_edu_analytics_seminar_ethics
+                        - text: Responsible Data Analysis
+                    - generic [ref=f7e251]:
+                      - checkbox "ev_edu_analytics_course_statistics Applied Statistics" [ref=f7e252]
+                      - generic [ref=f7e253]:
+                        - code [ref=f7e254]: ev_edu_analytics_course_statistics
+                        - text: Applied Statistics
+                    - generic [ref=f7e255]:
+                      - checkbox "ev_proj_sales_analysis_pipeline Analysis Pipeline" [ref=f7e256]
+                      - generic [ref=f7e257]:
+                        - code [ref=f7e258]: ev_proj_sales_analysis_pipeline
+                        - text: Analysis Pipeline
+                    - generic [ref=f7e259]:
+                      - checkbox "ev_proj_sales_analysis_findings Business Findings" [ref=f7e260]
+                      - generic [ref=f7e261]:
+                        - code [ref=f7e262]: ev_proj_sales_analysis_findings
+                        - text: Business Findings
+                    - generic [ref=f7e263]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f7e264]:
+                    - generic [ref=f7e265]: 99% confidence
+                    - generic [ref=f7e266]: extracted_explicit
+                    - generic [ref=f7e267]: supported
+              - article [ref=f7e268]:
+                - generic [ref=f7e269]:
+                  - strong [ref=f7e270]:
+                    - text: Skill 4 ·
+                    - code [ref=f7e271]: skill_machine_learning
+                  - generic [ref=f7e272]:
+                    - button "Generate supported Skill" [ref=f7e273] [cursor=pointer]
+                    - button "Remove Skill 4" [ref=f7e277] [cursor=pointer]: Remove
+                - generic [ref=f7e278]:
+                  - generic [ref=f7e279]:
+                    - text: Name
+                    - textbox "Name" [ref=f7e280]: Machine learning
+                  - group "Evidence refs" [ref=f7e281]:
+                    - generic [ref=f7e283]:
+                      - checkbox "ev_exp_reporting_automation Reporting Automation" [ref=f7e284]
+                      - generic [ref=f7e285]:
+                        - code [ref=f7e286]: ev_exp_reporting_automation
+                        - text: Reporting Automation
+                    - generic [ref=f7e287]:
+                      - checkbox "ev_exp_reporting_stakeholders Stakeholder Reporting" [ref=f7e288]
+                      - generic [ref=f7e289]:
+                        - code [ref=f7e290]: ev_exp_reporting_stakeholders
+                        - text: Stakeholder Reporting
+                    - generic [ref=f7e291]:
+                      - checkbox "ev_edu_analytics_thesis Customer Churn Prediction" [checked] [ref=f7e292]
+                      - generic [ref=f7e293]:
+                        - code [ref=f7e294]: ev_edu_analytics_thesis
+                        - text: Customer Churn Prediction
+                    - generic [ref=f7e295]:
+                      - checkbox "ev_edu_analytics_project_dashboard Retail Performance Dashboard" [ref=f7e296]
+                      - generic [ref=f7e297]:
+                        - code [ref=f7e298]: ev_edu_analytics_project_dashboard
+                        - text: Retail Performance Dashboard
+                    - generic [ref=f7e299]:
+                      - checkbox "ev_edu_analytics_seminar_ethics Responsible Data Analysis" [ref=f7e300]
+                      - generic [ref=f7e301]:
+                        - code [ref=f7e302]: ev_edu_analytics_seminar_ethics
+                        - text: Responsible Data Analysis
+                    - generic [ref=f7e303]:
+                      - checkbox "ev_edu_analytics_course_statistics Applied Statistics" [ref=f7e304]
+                      - generic [ref=f7e305]:
+                        - code [ref=f7e306]: ev_edu_analytics_course_statistics
+                        - text: Applied Statistics
+                    - generic [ref=f7e307]:
+                      - checkbox "ev_proj_sales_analysis_pipeline Analysis Pipeline" [ref=f7e308]
+                      - generic [ref=f7e309]:
+                        - code [ref=f7e310]: ev_proj_sales_analysis_pipeline
+                        - text: Analysis Pipeline
+                    - generic [ref=f7e311]:
+                      - checkbox "ev_proj_sales_analysis_findings Business Findings" [ref=f7e312]
+                      - generic [ref=f7e313]:
+                        - code [ref=f7e314]: ev_proj_sales_analysis_findings
+                        - text: Business Findings
+                    - generic [ref=f7e315]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f7e316]:
+                    - generic [ref=f7e317]: 94% confidence
+                    - generic [ref=f7e318]: inferred
+                    - generic [ref=f7e319]: supported
+              - article [ref=f7e320]:
+                - generic [ref=f7e321]:
+                  - strong [ref=f7e322]:
+                    - text: Skill 5 ·
+                    - code [ref=f7e323]: skill_statistical_analysis
+                  - generic [ref=f7e324]:
+                    - button "Generate supported Skill" [ref=f7e325] [cursor=pointer]
+                    - button "Remove Skill 5" [ref=f7e329] [cursor=pointer]: Remove
+                - generic [ref=f7e330]:
+                  - generic [ref=f7e331]:
+                    - text: Name
+                    - textbox "Name" [ref=f7e332]: Statistical analysis
+                  - group "Evidence refs" [ref=f7e333]:
+                    - generic [ref=f7e335]:
+                      - checkbox "ev_exp_reporting_automation Reporting Automation" [ref=f7e336]
+                      - generic [ref=f7e337]:
+                        - code [ref=f7e338]: ev_exp_reporting_automation
+                        - text: Reporting Automation
+                    - generic [ref=f7e339]:
+                      - checkbox "ev_exp_reporting_stakeholders Stakeholder Reporting" [ref=f7e340]
+                      - generic [ref=f7e341]:
+                        - code [ref=f7e342]: ev_exp_reporting_stakeholders
+                        - text: Stakeholder Reporting
+                    - generic [ref=f7e343]:
+                      - checkbox "ev_edu_analytics_thesis Customer Churn Prediction" [checked] [ref=f7e344]
+                      - generic [ref=f7e345]:
+                        - code [ref=f7e346]: ev_edu_analytics_thesis
+                        - text: Customer Churn Prediction
+                    - generic [ref=f7e347]:
+                      - checkbox "ev_edu_analytics_project_dashboard Retail Performance Dashboard" [ref=f7e348]
+                      - generic [ref=f7e349]:
+                        - code [ref=f7e350]: ev_edu_analytics_project_dashboard
+                        - text: Retail Performance Dashboard
+                    - generic [ref=f7e351]:
+                      - checkbox "ev_edu_analytics_seminar_ethics Responsible Data Analysis" [ref=f7e352]
+                      - generic [ref=f7e353]:
+                        - code [ref=f7e354]: ev_edu_analytics_seminar_ethics
+                        - text: Responsible Data Analysis
+                    - generic [ref=f7e355]:
+                      - checkbox "ev_edu_analytics_course_statistics Applied Statistics" [checked] [ref=f7e356]
+                      - generic [ref=f7e357]:
+                        - code [ref=f7e358]: ev_edu_analytics_course_statistics
+                        - text: Applied Statistics
+                    - generic [ref=f7e359]:
+                      - checkbox "ev_proj_sales_analysis_pipeline Analysis Pipeline" [ref=f7e360]
+                      - generic [ref=f7e361]:
+                        - code [ref=f7e362]: ev_proj_sales_analysis_pipeline
+                        - text: Analysis Pipeline
+                    - generic [ref=f7e363]:
+                      - checkbox "ev_proj_sales_analysis_findings Business Findings" [ref=f7e364]
+                      - generic [ref=f7e365]:
+                        - code [ref=f7e366]: ev_proj_sales_analysis_findings
+                        - text: Business Findings
+                    - generic [ref=f7e367]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f7e368]:
+                    - generic [ref=f7e369]: 96% confidence
+                    - generic [ref=f7e370]: inferred
+                    - generic [ref=f7e371]: supported
+              - article [ref=f7e372]:
+                - generic [ref=f7e373]:
+                  - strong [ref=f7e374]:
+                    - text: Skill 6 ·
+                    - code [ref=f7e375]: skill_data_visualization
+                  - generic [ref=f7e376]:
+                    - button "Generate supported Skill" [ref=f7e377] [cursor=pointer]
+                    - button "Remove Skill 6" [ref=f7e381] [cursor=pointer]: Remove
+                - generic [ref=f7e382]:
+                  - generic [ref=f7e383]:
+                    - text: Name
+                    - textbox "Name" [ref=f7e384]: Data visualization
+                  - group "Evidence refs" [ref=f7e385]:
+                    - generic [ref=f7e387]:
+                      - checkbox "ev_exp_reporting_automation Reporting Automation" [ref=f7e388]
+                      - generic [ref=f7e389]:
+                        - code [ref=f7e390]: ev_exp_reporting_automation
+                        - text: Reporting Automation
+                    - generic [ref=f7e391]:
+                      - checkbox "ev_exp_reporting_stakeholders Stakeholder Reporting" [ref=f7e392]
+                      - generic [ref=f7e393]:
+                        - code [ref=f7e394]: ev_exp_reporting_stakeholders
+                        - text: Stakeholder Reporting
+                    - generic [ref=f7e395]:
+                      - checkbox "ev_edu_analytics_thesis Customer Churn Prediction" [ref=f7e396]
+                      - generic [ref=f7e397]:
+                        - code [ref=f7e398]: ev_edu_analytics_thesis
+                        - text: Customer Churn Prediction
+                    - generic [ref=f7e399]:
+                      - checkbox "ev_edu_analytics_project_dashboard Retail Performance Dashboard" [checked] [ref=f7e400]
+                      - generic [ref=f7e401]:
+                        - code [ref=f7e402]: ev_edu_analytics_project_dashboard
+                        - text: Retail Performance Dashboard
+                    - generic [ref=f7e403]:
+                      - checkbox "ev_edu_analytics_seminar_ethics Responsible Data Analysis" [ref=f7e404]
+                      - generic [ref=f7e405]:
+                        - code [ref=f7e406]: ev_edu_analytics_seminar_ethics
+                        - text: Responsible Data Analysis
+                    - generic [ref=f7e407]:
+                      - checkbox "ev_edu_analytics_course_statistics Applied Statistics" [ref=f7e408]
+                      - generic [ref=f7e409]:
+                        - code [ref=f7e410]: ev_edu_analytics_course_statistics
+                        - text: Applied Statistics
+                    - generic [ref=f7e411]:
+                      - checkbox "ev_proj_sales_analysis_pipeline Analysis Pipeline" [ref=f7e412]
+                      - generic [ref=f7e413]:
+                        - code [ref=f7e414]: ev_proj_sales_analysis_pipeline
+                        - text: Analysis Pipeline
+                    - generic [ref=f7e415]:
+                      - checkbox "ev_proj_sales_analysis_findings Business Findings" [ref=f7e416]
+                      - generic [ref=f7e417]:
+                        - code [ref=f7e418]: ev_proj_sales_analysis_findings
+                        - text: Business Findings
+                    - generic [ref=f7e419]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f7e420]:
+                    - generic [ref=f7e421]: 95% confidence
+                    - generic [ref=f7e422]: inferred
+                    - generic [ref=f7e423]: supported
+              - article [ref=f7e424]:
+                - generic [ref=f7e425]:
+                  - strong [ref=f7e426]:
+                    - text: Skill 7 ·
+                    - code [ref=f7e427]: skill_data_ethics
+                  - generic [ref=f7e428]:
+                    - button "Generate supported Skill" [ref=f7e429] [cursor=pointer]
+                    - button "Remove Skill 7" [ref=f7e433] [cursor=pointer]: Remove
+                - generic [ref=f7e434]:
+                  - generic [ref=f7e435]:
+                    - text: Name
+                    - textbox "Name" [ref=f7e436]: Responsible data analysis
+                  - group "Evidence refs" [ref=f7e437]:
+                    - generic [ref=f7e439]:
+                      - checkbox "ev_exp_reporting_automation Reporting Automation" [ref=f7e440]
+                      - generic [ref=f7e441]:
+                        - code [ref=f7e442]: ev_exp_reporting_automation
+                        - text: Reporting Automation
+                    - generic [ref=f7e443]:
+                      - checkbox "ev_exp_reporting_stakeholders Stakeholder Reporting" [ref=f7e444]
+                      - generic [ref=f7e445]:
+                        - code [ref=f7e446]: ev_exp_reporting_stakeholders
+                        - text: Stakeholder Reporting
+                    - generic [ref=f7e447]:
+                      - checkbox "ev_edu_analytics_thesis Customer Churn Prediction" [ref=f7e448]
+                      - generic [ref=f7e449]:
+                        - code [ref=f7e450]: ev_edu_analytics_thesis
+                        - text: Customer Churn Prediction
+                    - generic [ref=f7e451]:
+                      - checkbox "ev_edu_analytics_project_dashboard Retail Performance Dashboard" [ref=f7e452]
+                      - generic [ref=f7e453]:
+                        - code [ref=f7e454]: ev_edu_analytics_project_dashboard
+                        - text: Retail Performance Dashboard
+                    - generic [ref=f7e455]:
+                      - checkbox "ev_edu_analytics_seminar_ethics Responsible Data Analysis" [checked] [ref=f7e456]
+                      - generic [ref=f7e457]:
+                        - code [ref=f7e458]: ev_edu_analytics_seminar_ethics
+                        - text: Responsible Data Analysis
+                    - generic [ref=f7e459]:
+                      - checkbox "ev_edu_analytics_course_statistics Applied Statistics" [ref=f7e460]
+                      - generic [ref=f7e461]:
+                        - code [ref=f7e462]: ev_edu_analytics_course_statistics
+                        - text: Applied Statistics
+                    - generic [ref=f7e463]:
+                      - checkbox "ev_proj_sales_analysis_pipeline Analysis Pipeline" [ref=f7e464]
+                      - generic [ref=f7e465]:
+                        - code [ref=f7e466]: ev_proj_sales_analysis_pipeline
+                        - text: Analysis Pipeline
+                    - generic [ref=f7e467]:
+                      - checkbox "ev_proj_sales_analysis_findings Business Findings" [ref=f7e468]
+                      - generic [ref=f7e469]:
+                        - code [ref=f7e470]: ev_proj_sales_analysis_findings
+                        - text: Business Findings
+                    - generic [ref=f7e471]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f7e472]:
+                    - generic [ref=f7e473]: 90% confidence
+                    - generic [ref=f7e474]: inferred
+                    - generic [ref=f7e475]: supported
+              - article [ref=f7e476]:
+                - generic [ref=f7e477]:
+                  - strong [ref=f7e478]:
+                    - text: Skill 8 ·
+                    - code [ref=f7e479]: skill_stakeholder_communication
+                  - generic [ref=f7e480]:
+                    - button "Generate supported Skill" [ref=f7e481] [cursor=pointer]
+                    - button "Remove Skill 8" [ref=f7e485] [cursor=pointer]: Remove
+                - generic [ref=f7e486]:
+                  - generic [ref=f7e487]:
+                    - text: Name
+                    - textbox "Name" [ref=f7e488]: Stakeholder communication
+                  - group "Evidence refs" [ref=f7e489]:
+                    - generic [ref=f7e491]:
+                      - checkbox "ev_exp_reporting_automation Reporting Automation" [ref=f7e492]
+                      - generic [ref=f7e493]:
+                        - code [ref=f7e494]: ev_exp_reporting_automation
+                        - text: Reporting Automation
+                    - generic [ref=f7e495]:
+                      - checkbox "ev_exp_reporting_stakeholders Stakeholder Reporting" [checked] [ref=f7e496]
+                      - generic [ref=f7e497]:
+                        - code [ref=f7e498]: ev_exp_reporting_stakeholders
+                        - text: Stakeholder Reporting
+                    - generic [ref=f7e499]:
+                      - checkbox "ev_edu_analytics_thesis Customer Churn Prediction" [checked] [ref=f7e500]
+                      - generic [ref=f7e501]:
+                        - code [ref=f7e502]: ev_edu_analytics_thesis
+                        - text: Customer Churn Prediction
+                    - generic [ref=f7e503]:
+                      - checkbox "ev_edu_analytics_project_dashboard Retail Performance Dashboard" [ref=f7e504]
+                      - generic [ref=f7e505]:
+                        - code [ref=f7e506]: ev_edu_analytics_project_dashboard
+                        - text: Retail Performance Dashboard
+                    - generic [ref=f7e507]:
+                      - checkbox "ev_edu_analytics_seminar_ethics Responsible Data Analysis" [ref=f7e508]
+                      - generic [ref=f7e509]:
+                        - code [ref=f7e510]: ev_edu_analytics_seminar_ethics
+                        - text: Responsible Data Analysis
+                    - generic [ref=f7e511]:
+                      - checkbox "ev_edu_analytics_course_statistics Applied Statistics" [ref=f7e512]
+                      - generic [ref=f7e513]:
+                        - code [ref=f7e514]: ev_edu_analytics_course_statistics
+                        - text: Applied Statistics
+                    - generic [ref=f7e515]:
+                      - checkbox "ev_proj_sales_analysis_pipeline Analysis Pipeline" [ref=f7e516]
+                      - generic [ref=f7e517]:
+                        - code [ref=f7e518]: ev_proj_sales_analysis_pipeline
+                        - text: Analysis Pipeline
+                    - generic [ref=f7e519]:
+                      - checkbox "ev_proj_sales_analysis_findings Business Findings" [checked] [ref=f7e520]
+                      - generic [ref=f7e521]:
+                        - code [ref=f7e522]: ev_proj_sales_analysis_findings
+                        - text: Business Findings
+                    - generic [ref=f7e523]: Choose nested evidence IDs. Parent fields and source paths are not valid claim refs.
+                  - generic [ref=f7e524]:
+                    - generic [ref=f7e525]: 88% confidence
+                    - generic [ref=f7e526]: inferred
+                    - generic [ref=f7e527]: supported
+          - generic [ref=f7e529]:
+            - generic [ref=f7e530]:
+              - generic [ref=f7e531]:
+                - heading "Role Families" [level=3] [ref=f7e532]
+                - paragraph [ref=f7e533]: Each role family retains its own evidence refs.
+              - generic [ref=f7e534]:
+                - generic [ref=f7e535]: 0 entries
+                - button "Add Role Family" [ref=f7e536] [cursor=pointer]
+            - generic [ref=f7e538]:
+              - heading "No role families" [level=3] [ref=f7e539]
+              - paragraph [ref=f7e540]: Add an entry or regenerate this section from approved baseline evidence.
+          - generic [ref=f7e542]:
+            - generic [ref=f7e543]:
+              - generic [ref=f7e544]:
+                - heading "Domain Tags" [level=3] [ref=f7e545]
+                - paragraph [ref=f7e546]: Each domain tag retains its own evidence refs.
+              - generic [ref=f7e547]:
+                - generic [ref=f7e548]: 0 entries
+                - button "Add Domain Tag" [ref=f7e549] [cursor=pointer]
+            - generic [ref=f7e551]:
+              - heading "No domain tags" [level=3] [ref=f7e552]
+              - paragraph [ref=f7e553]: Add an entry or regenerate this section from approved baseline evidence.
+          - generic [ref=f7e555]:
+            - generic [ref=f7e556]:
+              - generic [ref=f7e557]:
+                - heading "Responsibility Themes" [level=3] [ref=f7e558]
+                - paragraph [ref=f7e559]: Each theme retains its own evidence refs.
+              - generic [ref=f7e560]:
+                - generic [ref=f7e561]: 0 entries
+                - button "Add Responsibility Theme" [ref=f7e562] [cursor=pointer]
+            - generic [ref=f7e564]:
+              - heading "No responsibility themes" [level=3] [ref=f7e565]
+              - paragraph [ref=f7e566]: Add an entry or regenerate this section from approved baseline evidence.
+        - status [ref=f7e567]
+        - generic [ref=f7e568]:
+          - generic [ref=f7e569]:
+            - strong [ref=f7e570]: Draft saved automatically
+            - status [ref=f7e571]: Changes save automatically to this creation draft.
+          - generic [ref=f7e572]:
+            - link "Back to baseline" [ref=f7e573] [cursor=pointer]:
+              - /url: /admin/candidate-profiles/create/attempt_1f659cecc7d5409e971f81ce74bfd10d/baseline
+            - link "Save and exit" [ref=f7e574] [cursor=pointer]:
+              - /url: /admin/candidate-profiles
+            - button "Approve derived claims" [ref=f7e575] [cursor=pointer]

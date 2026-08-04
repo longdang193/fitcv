@@ -1,0 +1,111 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary "Primary navigation" [ref=e3]:
+      - generic [ref=e9]:
+        - strong [ref=e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=e11]:
+        - link "Runs" [ref=e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Scans" [ref=e15] [cursor=pointer]:
+          - /url: "#scans"
+        - link "Candidate Profiles" [ref=e19] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=e23] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=e26] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=e30]:
+          - generic "Pipeline ›" [ref=e31] [cursor=pointer]
+          - generic [ref=e34]:
+            - link "Overview" [ref=e35] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=e36] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=e37] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=e38] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=e39] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "Preference Optimization" [ref=e40] [cursor=pointer]:
+              - /url: "#preference-optimization"
+            - link "CV Analysis" [ref=e41] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=e42] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=e43] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=e44] [cursor=pointer]:
+              - /url: "#automation-reuse"
+            - link "Prompt Management" [ref=e45] [cursor=pointer]:
+              - /url: "#prompt-management"
+        - group [ref=e46]:
+          - generic "Application ›" [ref=e47] [cursor=pointer]
+          - generic [ref=e51]:
+            - link "API Providers" [ref=e52] [cursor=pointer]:
+              - /url: "#api-providers"
+            - link "LLM Configuration" [ref=e53] [cursor=pointer]:
+              - /url: "#llm-configuration"
+            - link "System" [ref=e54] [cursor=pointer]:
+              - /url: "#system"
+    - main [ref=e55]:
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - button "Open navigation" [ref=e3586] [cursor=pointer]
+          - heading "LLM Configuration" [level=1] [ref=e14037]
+        - generic [ref=e64]:
+          - button "Switch to dark theme" [ref=e10668] [cursor=pointer]
+          - button "Shutdown FitCV" [ref=e68] [cursor=pointer]
+      - generic [ref=e73]:
+        - generic [ref=e14038]:
+          - generic [ref=e14039]:
+            - paragraph [ref=e14040]: Application
+            - heading "LLM Configuration" [level=2] [ref=e14041]
+            - paragraph [ref=e14042]: Choose model routes and runtime behavior for Candidate Profile generation and pipeline AI tasks.
+          - link "Manage API Providers" [ref=e14043] [cursor=pointer]:
+            - /url: "#api-providers"
+        - generic [ref=e14044]:
+          - region [ref=e14045]:
+            - heading "Default Route" [level=3] [ref=e14046]
+            - paragraph [ref=e14047]: Used by tasks whose Model remains Default. Options come from validated models on connected providers.
+            - generic [ref=e14048]:
+              - generic [ref=e14049]: Default Model
+              - combobox "Default Model" [ref=e14050]:
+                - option "Select a validated model"
+                - option "OpenAI · gpt-4.1-mini" [selected]
+          - region [ref=e14051]:
+            - heading "Task Configuration" [level=3] [ref=e14052]
+            - paragraph [ref=e14053]: Manage model, timeout, and temperature independently for each AI-powered task.
+            - generic [ref=e14054]:
+              - generic [ref=e14055]:
+                - generic [ref=e14056]:
+                  - strong [ref=e14057]: Candidate Profile Base Mapping
+                  - generic [ref=e14058]: Default · 120s · temperature 0.2
+                - button "Manage" [ref=e14059] [cursor=pointer]
+              - generic [ref=e14060]:
+                - generic [ref=e14061]:
+                  - strong [ref=e14062]: Candidate Profile Derived Claims
+                  - generic [ref=e14063]: Default · 120s · temperature 0.2
+                - button "Manage" [ref=e14064] [cursor=pointer]
+              - generic [ref=e14065]:
+                - generic [ref=e14066]:
+                  - strong [ref=e14067]: Enrich Extraction
+                  - generic [ref=e14068]: Default · 120s · temperature 0.2
+                - button "Manage" [ref=e14069] [cursor=pointer]
+              - generic [ref=e14070]:
+                - generic [ref=e14071]:
+                  - strong [ref=e14072]: Ranking AI Score
+                  - generic [ref=e14073]: Default · 120s · temperature 0.2
+                - button "Manage" [ref=e14074] [cursor=pointer]
+              - generic [ref=e14075]:
+                - generic [ref=e14076]:
+                  - strong [ref=e14077]: CV Generation
+                  - generic [ref=e14078]: Default · 120s · temperature 0.2
+                - button "Manage" [ref=e14079] [cursor=pointer]
+              - generic [ref=e14080]:
+                - generic [ref=e14081]:
+                  - strong [ref=e14082]: Synonym Recommendation
+                  - generic [ref=e14083]: Default · 120s · temperature 0.2
+                - button "Manage" [ref=e14084] [cursor=pointer]
+  - status: Candidate Profile ready for Runs

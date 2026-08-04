@@ -1,0 +1,103 @@
+- generic [ref=f8e2]:
+  - complementary "Primary navigation" [ref=f8e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f8e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f8e9]:
+        - strong [ref=f8e10]: FitCV Control Plane
+        - generic [ref=f8e11]: Local workspace
+    - navigation "Workspace" [ref=f8e12]:
+      - link "Runs" [ref=f8e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f8e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f8e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f8e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f8e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f8e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f8e32]:
+    - banner [ref=f8e33]:
+      - generic [ref=f8e38]:
+        - heading "Candidate Profiles" [level=1] [ref=f8e39]
+        - paragraph [ref=f8e40]: Create and review profiles used by matching runs.
+      - button "Switch to light theme" [ref=f8e42] [cursor=pointer]:
+        - generic [ref=f8e46]: Light
+    - main [ref=f8e49]:
+      - generic [ref=f8e50]:
+        - generic [ref=f8e51]:
+          - paragraph [ref=f8e52]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=f8e53]
+          - paragraph [ref=f8e54]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - button "Create Profile" [ref=f8e55] [cursor=pointer]
+      - region [ref=f8e56]:
+        - generic [ref=f8e57]:
+          - generic [ref=f8e58]:
+            - heading "Creation drafts" [level=3] [ref=f8e59]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=f8e60]: 2 drafts
+        - generic [ref=f8e61]:
+          - generic [ref=f8e62]:
+            - generic [ref=f8e63]: Baseline review
+            - generic [ref=f8e64]:
+              - strong [ref=f8e65]: Selective Wand Browser Profile
+              - generic [ref=f8e66]: jordan-lee.md · Updated 2026-08-04T10:01:22.092118+00:00
+          - generic [ref=f8e67]:
+            - generic [ref=f8e68]: Baseline review
+            - generic [ref=f8e69]:
+              - strong [ref=f8e70]: Final Browser MD Profile
+              - generic [ref=f8e71]: jordan-lee.md · Updated 2026-08-04T09:50:40.225163+00:00
+            - link "Resume" [ref=f8e72] [cursor=pointer]:
+              - /url: /admin/candidate-profiles/create/attempt_0abfeaf07e1547f1b3e797bc3675f7ee/baseline
+      - generic [ref=f8e73]:
+        - tablist "Candidate Profile views" [ref=f8e74]:
+          - tab "Active 3" [selected] [ref=f8e75] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f8e76]: "3"
+          - tab "Archived 1" [ref=f8e77] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f8e78]: "1"
+        - tabpanel [ref=f8e79]:
+          - table [ref=f8e82]:
+            - rowgroup [ref=f8e83]:
+              - row [ref=f8e84]:
+                - columnheader [ref=f8e85]:
+                  - checkbox "Select all visible profiles" [ref=f8e86]
+                - columnheader "Profile ID" [ref=f8e87]
+                - columnheader "Status" [ref=f8e88]
+                - columnheader "Profile Name" [ref=f8e89]
+                - columnheader "Created Time" [ref=f8e90]
+            - rowgroup [ref=f8e91]:
+              - row [ref=f8e92]:
+                - cell [ref=f8e93]:
+                  - checkbox "Select profile profile_00181ebba00e4780b458f82c9fa9c91b" [ref=f8e94]
+                - cell [ref=f8e95]:
+                  - link "profile_00181ebba00e4780b458f82c9fa9c91b" [ref=f8e96] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/profile_00181ebba00e4780b458f82c9fa9c91b?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f8e97]
+                - cell "Browser YAML Profile" [ref=f8e99]
+                - cell [ref=f8e100]:
+                  - time [ref=f8e101]: Aug 4, 2026, 11:26 AM
+              - row [ref=f8e102]:
+                - cell [ref=f8e103]:
+                  - checkbox "Select profile profile_023ee579a325464fb0946b2166fc8b26" [ref=f8e104]
+                - cell [ref=f8e105]:
+                  - link "profile_023ee579a325464fb0946b2166fc8b26" [ref=f8e106] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/profile_023ee579a325464fb0946b2166fc8b26?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f8e107]
+                - cell "Live DOCX Profile" [ref=f8e109]
+                - cell [ref=f8e110]:
+                  - time [ref=f8e111]: Aug 4, 2026, 11:12 AM
+              - row [ref=f8e112]:
+                - cell [ref=f8e113]:
+                  - checkbox "Select profile profile_6278acc6dd7748bba13a4a186119dc9d" [ref=f8e114]
+                - cell [ref=f8e115]:
+                  - link "profile_6278acc6dd7748bba13a4a186119dc9d" [ref=f8e116] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/profile_6278acc6dd7748bba13a4a186119dc9d?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f8e117]
+                - cell "Live MD Profile" [ref=f8e119]
+                - cell [ref=f8e120]:
+                  - time [ref=f8e121]: Aug 4, 2026, 11:11 AM
+      - status

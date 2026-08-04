@@ -1,0 +1,117 @@
+- generic [ref=f1e2]:
+  - complementary "Primary navigation" [ref=f1e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f1e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f1e9]:
+        - strong [ref=f1e10]: FitCV Control Plane
+        - generic [ref=f1e11]: Local workspace
+    - navigation "Workspace" [ref=f1e12]:
+      - link "Runs" [ref=f1e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f1e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f1e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f1e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f1e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f1e31]:
+        - generic "Pipeline ›" [ref=f1e32] [cursor=pointer]
+        - generic [ref=f1e35]:
+          - link "Overview" [ref=f1e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f1e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f1e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f1e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f1e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f1e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f1e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f1e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f1e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f1e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f1e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f1e47]:
+        - generic "Application ›" [ref=f1e48] [cursor=pointer]
+        - generic [ref=f1e52]:
+          - link "API Providers" [ref=f1e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f1e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f1e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f1e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f1e57]:
+    - banner [ref=f1e58]:
+      - generic [ref=f1e63]:
+        - heading "Candidate Profiles" [level=1] [ref=f1e64]
+        - paragraph [ref=f1e65]: Create and review profiles used by matching runs.
+      - generic [ref=f1e66]:
+        - button "Switch to light theme" [ref=f1e67] [cursor=pointer]:
+          - generic [ref=f1e71]: Light
+        - button "Shutdown FitCV" [ref=f1e72] [cursor=pointer]
+    - main [ref=f1e77]:
+      - generic [ref=f1e78]:
+        - generic [ref=f1e79]:
+          - paragraph [ref=f1e80]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=f1e81]
+          - paragraph [ref=f1e82]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - link "Create Profile" [ref=f1e83] [cursor=pointer]:
+          - /url: /admin/candidate-profiles/create
+      - region [ref=f1e84]:
+        - generic [ref=f1e85]:
+          - generic [ref=f1e86]:
+            - heading "Creation drafts" [level=3] [ref=f1e87]
+            - generic [ref=f1e88]: Paused and failed attempts are not available to Runs.
+          - generic [ref=f1e89]: 0 drafts
+        - generic [ref=f1e91]:
+          - strong [ref=f1e92]: No creation drafts
+          - generic [ref=f1e93]: Upload Markdown, DOCX, or YAML to start one staged review.
+      - generic [ref=f1e94]:
+        - tablist "Candidate Profile views" [ref=f1e95]:
+          - tab "Active 2" [selected] [ref=f1e96] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f1e97]: "2"
+          - tab "Archived 1" [ref=f1e98] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f1e99]: "1"
+        - tabpanel [ref=f1e100]:
+          - table [ref=f1e103]:
+            - rowgroup [ref=f1e104]:
+              - row [ref=f1e105]:
+                - columnheader [ref=f1e106]:
+                  - checkbox "Select all visible profiles" [ref=f1e107]
+                - columnheader "Profile ID" [ref=f1e108]
+                - columnheader "Status" [ref=f1e109]
+                - columnheader "Profile Name" [ref=f1e110]
+                - columnheader "Created Time" [ref=f1e111]
+            - rowgroup [ref=f1e112]:
+              - row [ref=f1e113]:
+                - cell [ref=f1e114]:
+                  - checkbox "Select profile candidate-product-data" [ref=f1e115]
+                - cell [ref=f1e116]:
+                  - link "candidate-product-data" [ref=f1e117] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/candidate-product-data?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f1e118]
+                - cell "Product Data Specialist" [ref=f1e120]
+                - cell "02.08.2026 14:00 CEST" [ref=f1e121]
+              - row [ref=f1e122]:
+                - cell [ref=f1e123]:
+                  - checkbox "Select profile candidate-analytics" [ref=f1e124]
+                - cell [ref=f1e125]:
+                  - link "candidate-analytics" [ref=f1e126] [cursor=pointer]:
+                    - /url: /admin/candidate-profiles/candidate-analytics?return_to=/admin/candidate-profiles%3Fview%3Dactive%26page%3D1
+                - cell "Succeeded" [ref=f1e127]
+                - cell "Analytics & Operations" [ref=f1e129]
+                - cell "02.08.2026 14:00 CEST" [ref=f1e130]

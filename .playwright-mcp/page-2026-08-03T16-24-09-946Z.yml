@@ -1,0 +1,102 @@
+- generic [ref=f18e2]:
+  - complementary "Primary navigation" [ref=f18e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f18e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f18e9]:
+        - strong [ref=f18e10]: FitCV Control Plane
+        - generic [ref=f18e11]: Local workspace
+    - navigation "Workspace" [ref=f18e12]:
+      - link "Runs" [ref=f18e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f18e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f18e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f18e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f18e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f18e31]:
+        - generic "Pipeline ›" [ref=f18e32] [cursor=pointer]
+        - generic [ref=f18e35]:
+          - link "Overview" [ref=f18e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f18e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f18e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f18e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f18e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f18e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f18e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f18e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f18e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f18e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f18e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f18e47]:
+        - generic "Application ›" [ref=f18e48] [cursor=pointer]
+        - generic [ref=f18e52]:
+          - link "API Providers" [ref=f18e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f18e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f18e55] [cursor=pointer]:
+            - /url: /admin/system
+          - link "Lifecycle" [ref=f18e56] [cursor=pointer]:
+            - /url: /admin/lifecycle
+  - generic [ref=f18e57]:
+    - banner [ref=f18e58]:
+      - generic [ref=f18e64]:
+        - heading "Create Candidate Profile" [level=1] [ref=f18e65]
+        - paragraph [ref=f18e66]: Upload, review baseline evidence, approve derivation, then confirm.
+      - generic [ref=f18e67]:
+        - button "Switch to dark theme" [ref=f18e68] [cursor=pointer]:
+          - generic [ref=f18e71]: Dark
+        - button "Shutdown FitCV" [ref=f18e72] [cursor=pointer]
+    - main [ref=f18e77]:
+      - generic [ref=f18e79]:
+        - generic [ref=f18e80]:
+          - link "← Back to Candidate Profiles" [ref=f18e81] [cursor=pointer]:
+            - /url: /admin/candidate-profiles
+          - generic [ref=f18e83]:
+            - paragraph [ref=f18e84]: Step 1 · Upload
+            - heading "Upload candidate document" [level=2] [ref=f18e85]
+            - paragraph [ref=f18e86]: Define Profile Name once, then every supported format follows same extraction, review, derivation, and confirmation pipeline.
+        - list "Candidate Profile creation progress" [ref=f18e87]:
+          - listitem [ref=f18e88]:
+            - generic [ref=f18e89]: "1"
+            - generic [ref=f18e90]: Upload
+          - listitem [ref=f18e91]:
+            - generic [ref=f18e92]: "2"
+            - generic [ref=f18e93]: Baseline
+          - listitem [ref=f18e94]:
+            - generic [ref=f18e95]: "3"
+            - generic [ref=f18e96]: Derived
+          - listitem [ref=f18e97]:
+            - generic [ref=f18e98]: "4"
+            - generic [ref=f18e99]: Confirm
+        - generic [ref=f18e101]:
+          - generic [ref=f18e102] [cursor=pointer]:
+            - button "Drop candidate document here or choose file Markdown (.md), Word (.docx), or YAML (.yaml), one file" [ref=f18e103]
+            - generic [ref=f18e104]:
+              - strong [ref=f18e108]: Drop candidate document here or choose file
+              - generic [ref=f18e109]: Markdown (.md), Word (.docx), or YAML (.yaml), one file
+          - generic [ref=f18e110]:
+            - generic [ref=f18e111]:
+              - heading "One staged hybrid pipeline" [level=3] [ref=f18e112]
+              - paragraph [ref=f18e113]: Deterministic readers preserve source text and locators. AI assists only with ambiguous mapping, normalization, and controlled derivation.
+            - generic [ref=f18e114]:
+              - generic [ref=f18e115]: Profile Name
+              - textbox "Profile Name" [ref=f18e116]
+              - generic [ref=f18e117]: Workspace label only. Candidate Full name remains baseline data.
+            - generic [ref=f18e118]: No file selected
+            - status [ref=f18e119]: Choose one candidate document to continue.
+            - button "Process document" [disabled]

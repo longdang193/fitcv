@@ -1,0 +1,541 @@
+- generic [ref=f8e2]:
+  - complementary "Primary navigation" [ref=f8e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f8e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f8e9]:
+        - strong [ref=f8e10]: FitCV Control Plane
+        - generic [ref=f8e11]: Local workspace
+    - navigation "Workspace" [ref=f8e12]:
+      - link "Runs" [ref=f8e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f8e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f8e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f8e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f8e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f8e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f8e32]:
+    - banner [ref=f8e33]:
+      - generic [ref=f8e34]:
+        - button "Open navigation" [ref=f8e35] [cursor=pointer]
+        - heading "Prototype Parity Check" [level=1] [ref=f8e41]
+      - button "Switch to light theme" [ref=f8e43] [cursor=pointer]:
+        - generic [ref=f8e47]: Light
+    - main [ref=f8e50]:
+      - link "← Back to Candidate Profiles" [ref=f8e51] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - generic [ref=f8e52]:
+        - generic [ref=f8e53]:
+          - paragraph [ref=f8e54]: Candidate Profile
+          - heading "Prototype Parity Check" [level=1] [ref=f8e55]
+          - paragraph [ref=f8e56]:
+            - text: "Candidate Profile ID:"
+            - code [ref=f8e57]: profile-mock-2
+        - generic [ref=f8e58]:
+          - generic [ref=f8e59]: active
+          - button "Archive" [ref=f8e60] [cursor=pointer]
+      - group [ref=f8e61]:
+        - generic "› Candidate overview Identity approved for pipeline use." [ref=f8e62] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f8e63]:
+            - strong [ref=f8e64]: Candidate overview
+            - generic [ref=f8e65]: Identity approved for pipeline use.
+        - generic [ref=f8e67]:
+          - generic [ref=f8e68]:
+            - term [ref=f8e69]: Full name
+            - definition [ref=f8e70]: Alex Morgan
+          - generic [ref=f8e71]:
+            - term [ref=f8e72]: Headline
+            - definition [ref=f8e73]: Product Data Analyst
+          - generic [ref=f8e74]:
+            - term [ref=f8e75]: Summary
+            - definition [ref=f8e76]: Turns product and operational data into trusted decisions.
+      - group [ref=f8e77]:
+        - generic "› Baseline profile Reviewed facts extracted from source CV." [ref=f8e78] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f8e79]:
+            - strong [ref=f8e80]: Baseline profile
+            - generic [ref=f8e81]: Reviewed facts extracted from source CV.
+        - generic [ref=f8e82]:
+          - generic [ref=f8e83]:
+            - heading "Contact" [level=3] [ref=f8e84]
+            - generic [ref=f8e85]:
+              - generic [ref=f8e86]:
+                - term [ref=f8e87]: Email
+                - definition [ref=f8e88]: alex@example.com
+              - generic [ref=f8e89]:
+                - term [ref=f8e90]: Phone
+                - definition [ref=f8e91]: +49 30 555 0102
+              - generic [ref=f8e92]:
+                - term [ref=f8e93]: Location
+                - definition [ref=f8e94]: Berlin, Germany
+              - generic [ref=f8e95]:
+                - term [ref=f8e96]: LinkedIn
+                - definition [ref=f8e97]: linkedin.com/in/alex-morgan
+              - generic [ref=f8e98]:
+                - term [ref=f8e99]: GitHub
+                - definition [ref=f8e100]: github.com/alex-morgan
+              - generic [ref=f8e101]:
+                - term [ref=f8e102]: Website
+                - definition [ref=f8e103]: alexmorgan.dev
+          - generic [ref=f8e104]:
+            - heading "Experience" [level=3] [ref=f8e105]
+            - generic [ref=f8e106]:
+              - article [ref=f8e107]:
+                - generic [ref=f8e108]:
+                  - heading "Product Data Analyst" [level=4] [ref=f8e109]
+                  - button "Source" [ref=f8e110] [cursor=pointer]
+                - generic [ref=f8e111]:
+                  - generic [ref=f8e112]:
+                    - term [ref=f8e113]: Role
+                    - definition [ref=f8e114]: Product Data Analyst
+                  - generic [ref=f8e115]:
+                    - term [ref=f8e116]: Company
+                    - definition [ref=f8e117]: Northstar Labs
+                  - generic [ref=f8e118]:
+                    - term [ref=f8e119]: Company URL
+                    - definition [ref=f8e120]: Not provided
+                  - generic [ref=f8e121]:
+                    - term [ref=f8e122]: Location
+                    - definition [ref=f8e123]: Berlin, Germany
+                  - generic [ref=f8e124]:
+                    - term [ref=f8e125]: Start
+                    - definition [ref=f8e126]: 2023-02
+                  - generic [ref=f8e127]:
+                    - term [ref=f8e128]: End
+                    - definition [ref=f8e129]: Present
+                  - generic [ref=f8e130]:
+                    - term [ref=f8e131]: Evidence
+                    - definition [ref=f8e132]:
+                      - generic [ref=f8e133]:
+                        - article [ref=f8e134]:
+                          - generic [ref=f8e135]:
+                            - heading "evidence-exp-sql" [level=4] [ref=f8e136]
+                            - button "Source" [ref=f8e137] [cursor=pointer]
+                          - generic [ref=f8e138]:
+                            - generic [ref=f8e139]:
+                              - term [ref=f8e140]: Kind
+                              - definition [ref=f8e141]: work_responsibility
+                            - generic [ref=f8e142]:
+                              - term [ref=f8e143]: Title
+                              - definition [ref=f8e144]: Not provided
+                            - generic [ref=f8e145]:
+                              - term [ref=f8e146]: Start
+                              - definition [ref=f8e147]: 2023-02
+                            - generic [ref=f8e148]:
+                              - term [ref=f8e149]: End
+                              - definition [ref=f8e150]: Present
+                            - generic [ref=f8e151]:
+                              - term [ref=f8e152]: Evidence
+                              - definition [ref=f8e153]: Built SQL quality checks that cut reporting defects by 35%.
+                        - article [ref=f8e154]:
+                          - generic [ref=f8e155]:
+                            - heading "evidence-exp-stakeholders" [level=4] [ref=f8e156]
+                            - button "Source" [ref=f8e157] [cursor=pointer]
+                          - generic [ref=f8e158]:
+                            - generic [ref=f8e159]:
+                              - term [ref=f8e160]: Kind
+                              - definition [ref=f8e161]: achievement
+                            - generic [ref=f8e162]:
+                              - term [ref=f8e163]: Title
+                              - definition [ref=f8e164]: Not provided
+                            - generic [ref=f8e165]:
+                              - term [ref=f8e166]: Start
+                              - definition [ref=f8e167]: Not provided
+                            - generic [ref=f8e168]:
+                              - term [ref=f8e169]: End
+                              - definition [ref=f8e170]: Not provided
+                            - generic [ref=f8e171]:
+                              - term [ref=f8e172]: Evidence
+                              - definition [ref=f8e173]: Created weekly product reviews used by product and operations leads.
+              - article [ref=f8e174]:
+                - generic [ref=f8e175]:
+                  - heading "Business Intelligence Analyst" [level=4] [ref=f8e176]
+                  - button "Source" [ref=f8e177] [cursor=pointer]
+                - generic [ref=f8e178]:
+                  - generic [ref=f8e179]:
+                    - term [ref=f8e180]: Role
+                    - definition [ref=f8e181]: Business Intelligence Analyst
+                  - generic [ref=f8e182]:
+                    - term [ref=f8e183]: Company
+                    - definition [ref=f8e184]: Orbit Retail
+                  - generic [ref=f8e185]:
+                    - term [ref=f8e186]: Company URL
+                    - definition [ref=f8e187]: Not provided
+                  - generic [ref=f8e188]:
+                    - term [ref=f8e189]: Location
+                    - definition [ref=f8e190]: Hamburg, Germany
+                  - generic [ref=f8e191]:
+                    - term [ref=f8e192]: Start
+                    - definition [ref=f8e193]: 2021-04
+                  - generic [ref=f8e194]:
+                    - term [ref=f8e195]: End
+                    - definition [ref=f8e196]: 2023-01
+                  - generic [ref=f8e197]:
+                    - term [ref=f8e198]: Evidence
+                    - definition [ref=f8e199]:
+                      - article [ref=f8e201]:
+                        - generic [ref=f8e202]:
+                          - heading "evidence-exp-powerbi" [level=4] [ref=f8e203]
+                          - button "Source" [ref=f8e204] [cursor=pointer]
+                        - generic [ref=f8e205]:
+                          - generic [ref=f8e206]:
+                            - term [ref=f8e207]: Kind
+                            - definition [ref=f8e208]: project_highlight
+                          - generic [ref=f8e209]:
+                            - term [ref=f8e210]: Title
+                            - definition [ref=f8e211]: Not provided
+                          - generic [ref=f8e212]:
+                            - term [ref=f8e213]: Start
+                            - definition [ref=f8e214]: Not provided
+                          - generic [ref=f8e215]:
+                            - term [ref=f8e216]: End
+                            - definition [ref=f8e217]: Not provided
+                          - generic [ref=f8e218]:
+                            - term [ref=f8e219]: Evidence
+                            - definition [ref=f8e220]: Delivered Power BI models for sales and inventory planning.
+          - generic [ref=f8e221]:
+            - heading "Education" [level=3] [ref=f8e222]
+            - generic [ref=f8e223]:
+              - article [ref=f8e224]:
+                - generic [ref=f8e225]:
+                  - heading "Technical University of Berlin" [level=4] [ref=f8e226]
+                  - button "Source" [ref=f8e227] [cursor=pointer]
+                - generic [ref=f8e228]:
+                  - generic [ref=f8e229]:
+                    - term [ref=f8e230]: Institution
+                    - definition [ref=f8e231]: Technical University of Berlin
+                  - generic [ref=f8e232]:
+                    - term [ref=f8e233]: Degree
+                    - definition [ref=f8e234]: MSc
+                  - generic [ref=f8e235]:
+                    - term [ref=f8e236]: Field
+                    - definition [ref=f8e237]: Data Science
+                  - generic [ref=f8e238]:
+                    - term [ref=f8e239]: Location
+                    - definition [ref=f8e240]: Berlin, Germany
+                  - generic [ref=f8e241]:
+                    - term [ref=f8e242]: Start
+                    - definition [ref=f8e243]: 2019-10
+                  - generic [ref=f8e244]:
+                    - term [ref=f8e245]: End
+                    - definition [ref=f8e246]: 2021-03
+                  - generic [ref=f8e247]:
+                    - term [ref=f8e248]: Evidence
+                    - definition [ref=f8e249]:
+                      - generic [ref=f8e250]:
+                        - article [ref=f8e251]:
+                          - generic [ref=f8e252]:
+                            - heading "evidence-thesis" [level=4] [ref=f8e253]
+                            - button "Source" [ref=f8e254] [cursor=pointer]
+                          - generic [ref=f8e255]:
+                            - generic [ref=f8e256]:
+                              - term [ref=f8e257]: Kind
+                              - definition [ref=f8e258]: thesis
+                            - generic [ref=f8e259]:
+                              - term [ref=f8e260]: Title
+                              - definition [ref=f8e261]: Not provided
+                            - generic [ref=f8e262]:
+                              - term [ref=f8e263]: Start
+                              - definition [ref=f8e264]: Not provided
+                            - generic [ref=f8e265]:
+                              - term [ref=f8e266]: End
+                              - definition [ref=f8e267]: Not provided
+                            - generic [ref=f8e268]:
+                              - term [ref=f8e269]: Evidence
+                              - definition [ref=f8e270]: Thesis evaluated anomaly detection for noisy operational metrics.
+                        - article [ref=f8e271]:
+                          - generic [ref=f8e272]:
+                            - heading "evidence-seminar" [level=4] [ref=f8e273]
+                            - button "Source" [ref=f8e274] [cursor=pointer]
+                          - generic [ref=f8e275]:
+                            - generic [ref=f8e276]:
+                              - term [ref=f8e277]: Kind
+                              - definition [ref=f8e278]: seminar
+                            - generic [ref=f8e279]:
+                              - term [ref=f8e280]: Title
+                              - definition [ref=f8e281]: Not provided
+                            - generic [ref=f8e282]:
+                              - term [ref=f8e283]: Start
+                              - definition [ref=f8e284]: Not provided
+                            - generic [ref=f8e285]:
+                              - term [ref=f8e286]: End
+                              - definition [ref=f8e287]: Not provided
+                            - generic [ref=f8e288]:
+                              - term [ref=f8e289]: Evidence
+                              - definition [ref=f8e290]: Seminar work compared causal inference methods for product experiments.
+              - article [ref=f8e291]:
+                - generic [ref=f8e292]:
+                  - heading "Berlin School of Economics and Law" [level=4] [ref=f8e293]
+                  - button "Source" [ref=f8e294] [cursor=pointer]
+                - generic [ref=f8e295]:
+                  - generic [ref=f8e296]:
+                    - term [ref=f8e297]: Institution
+                    - definition [ref=f8e298]: Berlin School of Economics and Law
+                  - generic [ref=f8e299]:
+                    - term [ref=f8e300]: Degree
+                    - definition [ref=f8e301]: BSc
+                  - generic [ref=f8e302]:
+                    - term [ref=f8e303]: Field
+                    - definition [ref=f8e304]: Business Information Systems
+                  - generic [ref=f8e305]:
+                    - term [ref=f8e306]: Location
+                    - definition [ref=f8e307]: Not provided
+                  - generic [ref=f8e308]:
+                    - term [ref=f8e309]: Start
+                    - definition [ref=f8e310]: 2016-10
+                  - generic [ref=f8e311]:
+                    - term [ref=f8e312]: End
+                    - definition [ref=f8e313]: 2019-09
+                  - generic [ref=f8e314]:
+                    - term [ref=f8e315]: Evidence
+                    - definition [ref=f8e316]:
+                      - article [ref=f8e318]:
+                        - generic [ref=f8e319]:
+                          - heading "evidence-coursework" [level=4] [ref=f8e320]
+                          - button "Source" [ref=f8e321] [cursor=pointer]
+                        - generic [ref=f8e322]:
+                          - generic [ref=f8e323]:
+                            - term [ref=f8e324]: Kind
+                            - definition [ref=f8e325]: course
+                          - generic [ref=f8e326]:
+                            - term [ref=f8e327]: Title
+                            - definition [ref=f8e328]: Not provided
+                          - generic [ref=f8e329]:
+                            - term [ref=f8e330]: Start
+                            - definition [ref=f8e331]: Not provided
+                          - generic [ref=f8e332]:
+                            - term [ref=f8e333]: End
+                            - definition [ref=f8e334]: Not provided
+                          - generic [ref=f8e335]:
+                            - term [ref=f8e336]: Evidence
+                            - definition [ref=f8e337]: Completed database, statistics, and software engineering coursework.
+          - generic [ref=f8e338]:
+            - heading "Projects" [level=3] [ref=f8e339]
+            - generic [ref=f8e340]:
+              - article [ref=f8e341]:
+                - generic [ref=f8e342]:
+                  - heading "Product Metrics Quality Monitor" [level=4] [ref=f8e343]
+                  - button "Source" [ref=f8e344] [cursor=pointer]
+                - generic [ref=f8e345]:
+                  - generic [ref=f8e346]:
+                    - term [ref=f8e347]: Name
+                    - definition [ref=f8e348]: Product Metrics Quality Monitor
+                  - generic [ref=f8e349]:
+                    - term [ref=f8e350]: Context
+                    - definition [ref=f8e351]: Independent project
+                  - generic [ref=f8e352]:
+                    - term [ref=f8e353]: URL
+                    - definition [ref=f8e354]: github.com/alex-morgan/metrics-monitor
+                  - generic [ref=f8e355]:
+                    - term [ref=f8e356]: Start
+                    - definition [ref=f8e357]: 2024-01
+                  - generic [ref=f8e358]:
+                    - term [ref=f8e359]: End
+                    - definition [ref=f8e360]: 2024-05
+                  - generic [ref=f8e361]:
+                    - term [ref=f8e362]: Evidence
+                    - definition [ref=f8e363]:
+                      - article [ref=f8e365]:
+                        - generic [ref=f8e366]:
+                          - heading "evidence-project-python" [level=4] [ref=f8e367]
+                          - button "Source" [ref=f8e368] [cursor=pointer]
+                        - generic [ref=f8e369]:
+                          - generic [ref=f8e370]:
+                            - term [ref=f8e371]: Kind
+                            - definition [ref=f8e372]: project_highlight
+                          - generic [ref=f8e373]:
+                            - term [ref=f8e374]: Title
+                            - definition [ref=f8e375]: Not provided
+                          - generic [ref=f8e376]:
+                            - term [ref=f8e377]: Start
+                            - definition [ref=f8e378]: Not provided
+                          - generic [ref=f8e379]:
+                            - term [ref=f8e380]: End
+                            - definition [ref=f8e381]: Not provided
+                          - generic [ref=f8e382]:
+                            - term [ref=f8e383]: Evidence
+                            - definition [ref=f8e384]: Built Python checks for freshness, completeness, and metric drift.
+              - article [ref=f8e385]:
+                - generic [ref=f8e386]:
+                  - heading "Thesis Results Explorer" [level=4] [ref=f8e387]
+                  - button "Source" [ref=f8e388] [cursor=pointer]
+                - generic [ref=f8e389]:
+                  - generic [ref=f8e390]:
+                    - term [ref=f8e391]: Name
+                    - definition [ref=f8e392]: Thesis Results Explorer
+                  - generic [ref=f8e393]:
+                    - term [ref=f8e394]: Context
+                    - definition [ref=f8e395]: University project
+                  - generic [ref=f8e396]:
+                    - term [ref=f8e397]: URL
+                    - definition [ref=f8e398]: Not provided
+                  - generic [ref=f8e399]:
+                    - term [ref=f8e400]: Start
+                    - definition [ref=f8e401]: 2020-09
+                  - generic [ref=f8e402]:
+                    - term [ref=f8e403]: End
+                    - definition [ref=f8e404]: 2021-02
+                  - generic [ref=f8e405]:
+                    - term [ref=f8e406]: Evidence
+                    - definition [ref=f8e407]:
+                      - article [ref=f8e409]:
+                        - generic [ref=f8e410]:
+                          - heading "evidence-project-visualization" [level=4] [ref=f8e411]
+                          - button "Source" [ref=f8e412] [cursor=pointer]
+                        - generic [ref=f8e413]:
+                          - generic [ref=f8e414]:
+                            - term [ref=f8e415]: Kind
+                            - definition [ref=f8e416]: project_highlight
+                          - generic [ref=f8e417]:
+                            - term [ref=f8e418]: Title
+                            - definition [ref=f8e419]: Not provided
+                          - generic [ref=f8e420]:
+                            - term [ref=f8e421]: Start
+                            - definition [ref=f8e422]: Not provided
+                          - generic [ref=f8e423]:
+                            - term [ref=f8e424]: End
+                            - definition [ref=f8e425]: Not provided
+                          - generic [ref=f8e426]:
+                            - term [ref=f8e427]: Evidence
+                            - definition [ref=f8e428]: Created an interactive explorer for anomaly model comparisons.
+          - generic [ref=f8e429]:
+            - heading "Achievements" [level=3] [ref=f8e430]
+            - paragraph [ref=f8e432]: No entries.
+          - generic [ref=f8e433]:
+            - heading "Certifications" [level=3] [ref=f8e434]
+            - paragraph [ref=f8e436]: No entries.
+          - generic [ref=f8e437]:
+            - heading "Volunteering" [level=3] [ref=f8e438]
+            - paragraph [ref=f8e440]: No entries.
+          - generic [ref=f8e441]:
+            - heading "Languages" [level=3] [ref=f8e442]
+            - generic [ref=f8e443]:
+              - article [ref=f8e444]:
+                - generic [ref=f8e445]:
+                  - heading "English" [level=4] [ref=f8e446]
+                  - button "Source" [ref=f8e447] [cursor=pointer]
+                - generic [ref=f8e448]:
+                  - generic [ref=f8e449]:
+                    - term [ref=f8e450]: Name
+                    - definition [ref=f8e451]: English
+                  - generic [ref=f8e452]:
+                    - term [ref=f8e453]: Level
+                    - definition [ref=f8e454]: Professional
+              - article [ref=f8e455]:
+                - generic [ref=f8e456]:
+                  - heading "German" [level=4] [ref=f8e457]
+                  - button "Source" [ref=f8e458] [cursor=pointer]
+                - generic [ref=f8e459]:
+                  - generic [ref=f8e460]:
+                    - term [ref=f8e461]: Name
+                    - definition [ref=f8e462]: German
+                  - generic [ref=f8e463]:
+                    - term [ref=f8e464]: Level
+                    - definition [ref=f8e465]: Intermediate
+          - generic [ref=f8e466]:
+            - heading "Interests" [level=3] [ref=f8e467]
+            - list [ref=f8e468]:
+              - listitem [ref=f8e469]: Data quality
+              - listitem [ref=f8e470]: Product analytics
+          - generic [ref=f8e471]:
+            - heading "Search preferences" [level=3] [ref=f8e472]
+            - generic [ref=f8e473]:
+              - generic [ref=f8e474]:
+                - term [ref=f8e475]: Target Role
+                - definition [ref=f8e476]: Senior Product Data Analyst
+              - generic [ref=f8e477]:
+                - term [ref=f8e478]: Location Types
+                - definition [ref=f8e479]: hybrid, remote
+              - generic [ref=f8e480]:
+                - term [ref=f8e481]: Locations
+                - definition [ref=f8e482]: Berlin
+      - group [ref=f8e483]:
+        - generic "› Derived claims Controlled inferences with individual evidence references." [ref=f8e484] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f8e485]:
+            - strong [ref=f8e486]: Derived claims
+            - generic [ref=f8e487]: Controlled inferences with individual evidence references.
+        - generic [ref=f8e488]:
+          - generic [ref=f8e489]:
+            - heading "Skills" [level=3] [ref=f8e490]
+            - generic [ref=f8e491]:
+              - article [ref=f8e492]:
+                - generic [ref=f8e493]:
+                  - heading "SQL" [level=4] [ref=f8e494]
+                  - button "Source" [active] [ref=f8e495] [cursor=pointer]
+                - generic [ref=f8e497]:
+                  - term [ref=f8e498]: Name
+                  - definition [ref=f8e499]: SQL
+              - article [ref=f8e500]:
+                - generic [ref=f8e501]:
+                  - heading "Python" [level=4] [ref=f8e502]
+                  - button "Source" [ref=f8e503] [cursor=pointer]
+                - generic [ref=f8e505]:
+                  - term [ref=f8e506]: Name
+                  - definition [ref=f8e507]: Python
+              - article [ref=f8e508]:
+                - generic [ref=f8e509]:
+                  - heading "Power BI" [level=4] [ref=f8e510]
+                  - button "Source" [ref=f8e511] [cursor=pointer]
+                - generic [ref=f8e513]:
+                  - term [ref=f8e514]: Name
+                  - definition [ref=f8e515]: Power BI
+              - article [ref=f8e516]:
+                - generic [ref=f8e517]:
+                  - heading "Data Quality" [level=4] [ref=f8e518]
+                  - button "Source" [ref=f8e519] [cursor=pointer]
+                - generic [ref=f8e521]:
+                  - term [ref=f8e522]: Name
+                  - definition [ref=f8e523]: Data Quality
+              - article [ref=f8e524]:
+                - generic [ref=f8e525]:
+                  - heading "Product Analytics" [level=4] [ref=f8e526]
+                  - button "Source" [ref=f8e527] [cursor=pointer]
+                - generic [ref=f8e529]:
+                  - term [ref=f8e530]: Name
+                  - definition [ref=f8e531]: Product Analytics
+              - article [ref=f8e532]:
+                - generic [ref=f8e533]:
+                  - heading "Stakeholder Communication" [level=4] [ref=f8e534]
+                  - button "Source" [ref=f8e535] [cursor=pointer]
+                - generic [ref=f8e537]:
+                  - term [ref=f8e538]: Name
+                  - definition [ref=f8e539]: Stakeholder Communication
+          - generic [ref=f8e540]:
+            - heading "Role families" [level=3] [ref=f8e541]
+            - article [ref=f8e543]:
+              - generic [ref=f8e544]:
+                - heading "Analytics" [level=4] [ref=f8e545]
+                - button "Source" [ref=f8e546] [cursor=pointer]
+              - generic [ref=f8e548]:
+                - term [ref=f8e549]: Name
+                - definition [ref=f8e550]: Analytics
+          - generic [ref=f8e551]:
+            - heading "Domain tags" [level=3] [ref=f8e552]
+            - article [ref=f8e554]:
+              - generic [ref=f8e555]:
+                - heading "Product" [level=4] [ref=f8e556]
+                - button "Source" [ref=f8e557] [cursor=pointer]
+              - generic [ref=f8e559]:
+                - term [ref=f8e560]: Name
+                - definition [ref=f8e561]: Product
+          - generic [ref=f8e562]:
+            - heading "Responsibility themes" [level=3] [ref=f8e563]
+            - article [ref=f8e565]:
+              - generic [ref=f8e566]:
+                - heading "Data quality ownership" [level=4] [ref=f8e567]
+                - button "Source" [ref=f8e568] [cursor=pointer]
+              - generic [ref=f8e570]:
+                - term [ref=f8e571]: Name
+                - definition [ref=f8e572]: Data quality ownership
+      - group [ref=f8e573]:
+        - generic "› Related Runs Runs that used this immutable profile snapshot." [ref=f8e574] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f8e575]:
+            - strong [ref=f8e576]: Related Runs
+            - generic [ref=f8e577]: Runs that used this immutable profile snapshot.

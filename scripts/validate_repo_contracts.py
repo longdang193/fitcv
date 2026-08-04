@@ -6,7 +6,7 @@ domain: docs
 distribution_tier: starter_kit
 responsibility:
   - Validate active repository contracts through one canonical command.
-  - Orchestrate focused schema, prompt, runtime, and repository checks.
+  - Orchestrate focused schema, planning, prompt, runtime, and repository checks.
 inputs:
   - docs/superpowers/specs/*.md
   - docs/superpowers/plans/*.md
@@ -60,7 +60,7 @@ def relative_path(path: Path, root: Path) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Validate active repository schemas, generated "
+            "Validate active repository schemas, planning contracts, generated "
             "agent surfaces, and starter-kit classification."
         )
     )
@@ -93,6 +93,7 @@ def pytest_basetemp(default_relative: str) -> str:
 
 
 IN_PROCESS_SCRIPT_NAMES = {
+    "validate_planning_lifecycle.py",
     "validate_template_required_sections.py",
     "validate_learning_materials_format.py",
     "validate_prompt_metadata_schema.py",
@@ -166,6 +167,7 @@ def build_subprocess_steps(
     python_executable: str,
     fast: bool,
 ) -> list[list[str]]:
+    planning_lifecycle_script = str(root / "scripts" / "validate_planning_lifecycle.py")
     template_sections_script = str(root / "scripts" / "validate_template_required_sections.py")
     learning_format_script = str(root / "scripts" / "validate_learning_materials_format.py")
     prompt_metadata_schema_script = str(root / "scripts" / "validate_prompt_metadata_schema.py")
@@ -176,6 +178,7 @@ def build_subprocess_steps(
     agent_runtime_drift_script = str(root / "scripts" / "validate_agent_runtime_drift.py")
 
     steps: list[list[str]] = [
+        [python_executable, planning_lifecycle_script],
         [python_executable, template_sections_script],
         [python_executable, learning_format_script],
         [python_executable, prompt_metadata_schema_script],
@@ -188,6 +191,7 @@ def build_subprocess_steps(
     if not fast:
         pytest_targets = [
             "tests/test_validate_repo_config.py",
+            "tests/test_validate_planning_lifecycle.py",
             "tests/test_validate_repo_contracts.py",
         ]
         steps.append(

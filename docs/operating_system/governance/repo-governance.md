@@ -27,7 +27,7 @@ Public repository receives curated product-facing output through publication pro
 - `docs/operating_system/planning/`: planning-tier and routing policy.
 - `docs/operating_system/publication/`: publication policy and rewrite guidance.
 - `docs/operating_system/procedures/`: maintainer commands and runbooks.
-- `repo_config/`: actively consumed repository, starter-kit, adapter, and publication configuration.
+- `repo_config/`: actively consumed repository, starter-kit, adapter, planning-schema, and publication configuration.
 - code, tests, configuration, and validators: executable truth.
 
 Do not duplicate one behavior across several layers. References do not justify preserving an otherwise dead layer.
@@ -109,6 +109,7 @@ Detailed policy lives in `docs/operating_system/publication/public-repo-publicat
 
 Keep only configuration with an active consumer. `repo_config/` currently owns:
 
+- `planning_artifact_schema.yaml`
 - `publication-config.json`
 - `starter-kit-manifest.json`
 

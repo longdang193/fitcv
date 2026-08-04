@@ -1,0 +1,99 @@
+- generic [ref=f7e2]:
+  - complementary "Primary navigation" [ref=f7e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f7e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f7e9]:
+        - strong [ref=f7e10]: FitCV Control Plane
+        - generic [ref=f7e11]: Local workspace
+    - navigation "Workspace" [ref=f7e12]:
+      - link "Runs" [ref=f7e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f7e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f7e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f7e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f7e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f7e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f7e32]:
+    - banner [ref=f7e33]:
+      - generic [ref=f7e38]:
+        - heading "Candidate Profile" [level=1] [ref=f7e39]
+        - paragraph [ref=f7e40]: Review source, approved facts, derived claims, traceability, and related runs.
+      - button "Switch to light theme" [ref=f7e42] [cursor=pointer]:
+        - generic [ref=f7e46]: Light
+    - main [ref=f7e49]:
+      - generic [ref=f7e50]:
+        - link "← Back to Candidate Profiles" [ref=f7e51] [cursor=pointer]:
+          - /url: /admin/candidate-profiles
+        - generic [ref=f7e53]:
+          - paragraph [ref=f7e54]: Candidate Profile
+          - heading "Selective Wand Browser Profile 2" [level=2] [ref=f7e55]
+          - paragraph [ref=f7e56]: Review source, approved facts, derived claims, traceability, and related Runs.
+      - group [ref=f7e57]:
+        - generic "› Profile Overview Current lifecycle and pipeline availability. Succeeded" [ref=f7e58] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e59]:
+            - strong [ref=f7e60]: Profile Overview
+            - generic [ref=f7e61]: Current lifecycle and pipeline availability.
+          - generic [ref=f7e62]: Succeeded
+        - generic [ref=f7e65]:
+          - generic [ref=f7e66]:
+            - term [ref=f7e67]: Profile ID
+            - definition [ref=f7e68]: profile_b27e60ad15a34be5988432d7fe985cd3
+          - generic [ref=f7e69]:
+            - term [ref=f7e70]: Profile Name
+            - definition [ref=f7e71]: Selective Wand Browser Profile 2
+          - generic [ref=f7e72]:
+            - term [ref=f7e73]: Created
+            - definition [ref=f7e74]:
+              - time [ref=f7e75]: Aug 4, 2026, 12:09 PM
+          - generic [ref=f7e76]:
+            - term [ref=f7e77]: Availability
+            - definition [ref=f7e78]: Ready for new Runs
+      - group [ref=f7e79]:
+        - generic "› Source Input Every format uses same staged creation path." [ref=f7e80] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e81]:
+            - strong [ref=f7e82]: Source Input
+            - generic [ref=f7e83]: Every format uses same staged creation path.
+        - generic [ref=f7e85]:
+          - generic [ref=f7e86]:
+            - term [ref=f7e87]: File
+            - definition [ref=f7e88]: jordan-lee.md
+          - generic [ref=f7e89]:
+            - term [ref=f7e90]: Format
+            - definition [ref=f7e91]: Markdown
+          - generic [ref=f7e92]:
+            - term [ref=f7e93]: Creation Method
+            - definition [ref=f7e94]: Staged hybrid parser and review
+          - generic [ref=f7e95]:
+            - term [ref=f7e96]: Attempt ID
+            - definition [ref=f7e97]: attempt_3a879a3a744a4c3ba310cdede01ef8dc
+      - group [ref=f7e98]:
+        - generic "› Baseline Facts Approved direct facts and repeatable evidence entries." [ref=f7e99] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e100]:
+            - strong [ref=f7e101]: Baseline Facts
+            - generic [ref=f7e102]: Approved direct facts and repeatable evidence entries.
+      - group [ref=f7e103]:
+        - generic "› Derived Claims Each claim owns evidence refs, confidence, and origin." [ref=f7e104] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e105]:
+            - strong [ref=f7e106]: Derived Claims
+            - generic [ref=f7e107]: Each claim owns evidence refs, confidence, and origin.
+      - group [ref=f7e108]:
+        - generic "› Traceability Baseline source locators and claim-level evidence refs." [ref=f7e109] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e110]:
+            - strong [ref=f7e111]: Traceability
+            - generic [ref=f7e112]: Baseline source locators and claim-level evidence refs.
+      - group [ref=f7e113]:
+        - generic "› Related Runs Runs that used this immutable profile snapshot." [ref=f7e114] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e115]:
+            - strong [ref=f7e116]: Related Runs
+            - generic [ref=f7e117]: Runs that used this immutable profile snapshot.

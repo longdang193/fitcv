@@ -84,11 +84,15 @@ Memory informs work but never overrides explicit instructions, source code, test
 
 Detailed policy: `docs/operating_system/rules/agent-memory-rule.md`.
 
+## Backend Work
+
+For every material backend behavior change, use `skill-backend-verification` whether or not a frontend exists. Prove behavior through direct boundary tests, important success and failure paths, final state or side effects, and fresh automated output. Add contract, real-dependency, representative-operation trace, or performance evidence only when applicable. Frontend and browser evidence never substitute for backend proof.
+
 ## Front-End Work
 
-For material UI, UX, accessibility, responsive-layout, or visual-design work, use `ui-ux-pro-max` when available. Reuse existing components and design tokens, prefer semantic native controls, and verify affected states, keyboard access, focus, contrast, responsive behavior, reduced motion, and supported themes.
+For material UI, UX, accessibility, responsive-layout, or visual-design work, use `ui-ux-pro-max` when available and target platform fits its scope. Existing project design-system sources remain canonical. Reuse existing components and design tokens, prefer semantic native controls, and verify affected states, keyboard access, focus, contrast, responsive behavior, reduced motion, and supported themes.
 
-When a matching `*.integration.md` exists, use `skill-full-stack-integration`. Integration notes own temporary UI intent and acceptance evidence, not transport schemas; canonical schemas, generated clients, backend routes, and tests establish current behavior. Report any conflict and affected owners, then ask the user to decide before implementation.
+When work crosses frontend behavior and backend contracts or routes, use `skill-full-stack-integration`. Matching `*.integration.md` notes own temporary contract-to-UI mapping, unresolved mismatches, and acceptance evidence, not transport schemas. Canonical schemas, generated clients, backend routes, and tests establish current behavior. Report conflicts and affected owners before implementation.
 
 When browser MCPs are available, use Playwright MCP for repeatable user flows, accessibility snapshots, viewport checks, and screenshots; use Chrome DevTools MCP for console, network, computed layout and styles, Lighthouse, and performance diagnosis. Use both only when their roles differ. Browser evidence does not replace committed regression tests.
 
@@ -96,10 +100,11 @@ Skip skill for copy-only edits, mechanical selector changes, or isolated nonvisu
 
 ## Code Intelligence
 
-Use native code tools for small local work, Serena for exact symbols and references, and GitNexus for broad flows or impact. Do not query both by default. Source and tests win every conflict; unavailable tools never block safe source-first work.
+Use native code tools for current files and small local changes, Serena for exact symbols and references, GitNexus for broad flows or impact, and DeepWiki for advisory orientation in unfamiliar external GitHub repositories. Do not query multiple tools for the same fact by default. Source and tests win every conflict; unavailable tools never block safe source-first work.
 
 - Serena runs with `--context codex --project-from-cwd`, `no-memories`, and `no-onboarding`. Never commit `.serena/` state.
 - GitNexus remains optional and private-only. Check freshness before high-trust impact or refactor use; never make refresh a universal completion gate.
+- For DeepWiki, use `read_wiki_structure` before focused `ask_question`; use `read_wiki_contents` only when full generated documentation is required. Hand off to local source and Serena before implementation, and to GitNexus before broad impact or refactoring decisions. Treat unknown-freshness output as advisory and verify against pinned upstream source.
 - Tests and CI own enforcement. `docs/architecture.md` and ADRs own durable architecture intent.
 - Detailed policy: `docs/operating_system/tooling/code-intelligence-tools.md`.
 
@@ -116,10 +121,14 @@ Use native code tools for small local work, Serena for exact symbols and referen
   - Source: `docs/operating_system/rules/agent-memory-rule.md`
 - `audit-evidence-mandate-rule.md` — Require formal audit evidence only for serious or explicitly requested incidents.
   - Source: `docs/operating_system/rules/audit-evidence-mandate-rule.md`
+- `backend-verification-rule.md` — Require direct, backend-independent proof for material backend behavior changes.
+  - Source: `docs/operating_system/rules/backend-verification-rule.md`
 - `command-execution-rule.md` — Define command execution safety boundaries and escalation conditions.
   - Source: `docs/operating_system/rules/command-execution-rule.md`
 - `doc-contracts-rule.md` — Enforce canonical ownership and generated-surface integrity for documentation.
   - Source: `docs/operating_system/rules/doc-contracts-rule.md`
+- `frontend-backend-integration-rule.md` — Preserve canonical ownership and direct backend proof across frontend-backend delivery.
+  - Source: `docs/operating_system/rules/frontend-backend-integration-rule.md`
 - `frontend-ui-rule.md` — Route material front-end work through repository UI and accessibility requirements.
   - Source: `docs/operating_system/rules/frontend-ui-rule.md`
 - `publication-boundary-rule.md` — Enforce private/public publication boundaries and controlled export workflow.
@@ -128,6 +137,8 @@ Use native code tools for small local work, Serena for exact symbols and referen
   - Source: `docs/operating_system/rules/python-contracts-rule.md`
 
 ### Native Skills Manifest
+- `skill-backend-verification` — Use when material backend behavior needs direct boundary, failure, state, dependency, contract, or trace proof whether or not a frontend exists.
+  - Source: `.agents/skills/skill-backend-verification/SKILL.md`
 - `skill-brainstorming` — Use when exploring or defining non-trivial behavior before implementation.
   - Source: `.agents/skills/skill-brainstorming/SKILL.md`
 - `skill-central-config-layer` — Use when shared configuration spans multiple modules, services, agents, or pipelines.
@@ -136,7 +147,7 @@ Use native code tools for small local work, Serena for exact symbols and referen
   - Source: `.agents/skills/skill-code-standards/SKILL.md`
 - `skill-creating-learning-materials` — Use when creating source-grounded questions, cards, exercises, or study materials.
   - Source: `.agents/skills/skill-creating-learning-materials/SKILL.md`
-- `skill-dispatching-parallel-agents` — Use when two or more independent problem domains can be investigated or handled concurrently without shared state, sequential dependencies, or overlapping write ownership.
+- `skill-dispatching-parallel-agents` — Use when two or more independent investigations or approved implementation lanes can run concurrently without shared state, hidden dependencies, or overlapping write ownership.
   - Source: `.agents/skills/skill-dispatching-parallel-agents/SKILL.md`
 - `skill-distinctive-frontend-design` — Use when new or substantially restyled frontend work needs a distinctive aesthetic direction and current output risks generic template-like design.
   - Source: `.agents/skills/skill-distinctive-frontend-design/SKILL.md`
@@ -146,7 +157,7 @@ Use native code tools for small local work, Serena for exact symbols and referen
   - Source: `.agents/skills/skill-finishing-a-development-branch/SKILL.md`
 - `skill-frontend-component-engineering` — Use when stateful frontend components or pages need decisions about component boundaries, state ownership, URL state, server data, or asynchronous UI transitions.
   - Source: `.agents/skills/skill-frontend-component-engineering/SKILL.md`
-- `skill-full-stack-integration` — Use when frontend features with matching integration notes need backend API contract reconciliation, route changes, typed client wiring, or end-to-end verification.
+- `skill-full-stack-integration` — Use when frontend behavior crosses backend API contracts or routes and needs contract reconciliation, typed client wiring, or end-to-end verification.
   - Source: `.agents/skills/skill-full-stack-integration/SKILL.md`
 - `skill-performance-optimization` — Use when measured latency, throughput, memory, query, bundle, rendering, or Core Web Vitals problems need diagnosis and verified improvement.
   - Source: `.agents/skills/skill-performance-optimization/SKILL.md`

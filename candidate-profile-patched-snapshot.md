@@ -1,0 +1,118 @@
+- generic [ref=f7e2]:
+  - complementary "Primary navigation" [ref=f7e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f7e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f7e9]:
+        - strong [ref=f7e10]: FitCV Control Plane
+        - generic [ref=f7e11]: Local workspace
+    - navigation "Workspace" [ref=f7e12]:
+      - link "Runs" [ref=f7e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f7e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f7e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f7e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f7e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f7e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f7e32]:
+    - banner [ref=f7e33]:
+      - generic [ref=f7e34]:
+        - button "Open navigation" [ref=f7e35] [cursor=pointer]
+        - heading "Prototype Parity Check" [level=1] [ref=f7e41]
+      - button "Switch to light theme" [ref=f7e43] [cursor=pointer]:
+        - generic [ref=f7e47]: Light
+    - main [ref=f7e50]:
+      - link "← Back to Candidate Profiles" [ref=f7e51] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - generic [ref=f7e52]:
+        - generic [ref=f7e53]:
+          - paragraph [ref=f7e54]: Candidate Profile
+          - heading "Prototype Parity Check" [level=1] [ref=f7e55]
+          - paragraph [ref=f7e56]:
+            - text: "Candidate Profile ID:"
+            - code [ref=f7e57]: profile-mock-2
+        - generic [ref=f7e58]:
+          - generic [ref=f7e59]: active
+          - button "Archive" [ref=f7e60] [cursor=pointer]
+      - group [ref=f7e61]:
+        - generic "› Candidate overview Identity approved for pipeline use." [ref=f7e62] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e63]:
+            - strong [ref=f7e64]: Candidate overview
+            - generic [ref=f7e65]: Identity approved for pipeline use.
+        - generic [ref=f7e67]:
+          - generic [ref=f7e68]:
+            - term [ref=f7e69]: Full name
+            - definition [ref=f7e70]: Alex Morgan
+          - generic [ref=f7e71]:
+            - term [ref=f7e72]: Headline
+            - definition [ref=f7e73]: Product Data Analyst
+          - generic [ref=f7e74]:
+            - term [ref=f7e75]: Summary
+            - definition [ref=f7e76]: Turns product and operational data into trusted decisions.
+      - group [ref=f7e77]:
+        - generic "› Baseline profile Reviewed facts extracted from source CV." [ref=f7e78] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e79]:
+            - strong [ref=f7e80]: Baseline profile
+            - generic [ref=f7e81]: Reviewed facts extracted from source CV.
+        - generic [ref=f7e82]:
+          - generic [ref=f7e83]:
+            - heading "Contact" [level=3] [ref=f7e84]
+            - generic [ref=f7e85]
+          - generic [ref=f7e104]:
+            - heading "Experience" [level=3] [ref=f7e105]
+            - generic [ref=f7e106]
+          - generic [ref=f7e251]:
+            - heading "Education" [level=3] [ref=f7e252]
+            - generic [ref=f7e253]
+          - generic [ref=f7e398]:
+            - heading "Projects" [level=3] [ref=f7e399]
+            - generic [ref=f7e400]
+          - generic [ref=f7e513]:
+            - heading "Achievements" [level=3] [ref=f7e514]
+            - paragraph [ref=f7e516]: No entries.
+          - generic [ref=f7e517]:
+            - heading "Certifications" [level=3] [ref=f7e518]
+            - paragraph [ref=f7e520]: No entries.
+          - generic [ref=f7e521]:
+            - heading "Volunteering" [level=3] [ref=f7e522]
+            - paragraph [ref=f7e524]: No entries.
+          - generic [ref=f7e525]:
+            - heading "Languages" [level=3] [ref=f7e526]
+            - generic [ref=f7e527]
+          - generic [ref=f7e562]:
+            - heading "Interests" [level=3] [ref=f7e563]
+            - list [ref=f7e564]
+          - generic [ref=f7e567]:
+            - heading "Search preferences" [level=3] [ref=f7e568]
+            - generic [ref=f7e569]
+      - group [ref=f7e579]:
+        - generic "› Derived claims Controlled inferences with individual evidence references." [ref=f7e580] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e581]:
+            - strong [ref=f7e582]: Derived claims
+            - generic [ref=f7e583]: Controlled inferences with individual evidence references.
+        - generic [ref=f7e584]:
+          - generic [ref=f7e585]:
+            - heading "Skills" [level=3] [ref=f7e586]
+            - generic [ref=f7e587]
+          - generic [ref=f7e729]:
+            - heading "Role families" [level=3] [ref=f7e730]
+            - article [ref=f7e732]
+          - generic [ref=f7e755]:
+            - heading "Domain tags" [level=3] [ref=f7e756]
+            - article [ref=f7e758]
+          - generic [ref=f7e781]:
+            - heading "Responsibility themes" [level=3] [ref=f7e782]
+            - article [ref=f7e784]
+      - group [ref=f7e808]:
+        - generic "› Related Runs Runs that used this immutable profile snapshot." [ref=f7e809] [cursor=pointer]:
+          - text: ›
+          - generic [ref=f7e810]:
+            - strong [ref=f7e811]: Related Runs
+            - generic [ref=f7e812]: Runs that used this immutable profile snapshot.

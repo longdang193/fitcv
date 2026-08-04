@@ -345,6 +345,8 @@ def validate_documents(
 
         for key, expected in rule.required_frontmatter.items():
             actual = frontmatter.get(key)
+            if key == "status" and actual == "completed":
+                continue
             if not isinstance(actual, str) or actual.strip() != expected:
                 findings.append(
                     Finding(

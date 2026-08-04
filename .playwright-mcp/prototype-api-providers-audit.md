@@ -1,0 +1,89 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary "Primary navigation" [ref=f1e3]:
+      - generic [ref=f1e9]:
+        - strong [ref=f1e10]: FitCV Control Plane
+        - text: Local workspace
+      - navigation "Workspace" [ref=f1e11]:
+        - link "Runs" [ref=f1e12] [cursor=pointer]:
+          - /url: "#runs"
+        - link "Scans" [ref=f1e15] [cursor=pointer]:
+          - /url: "#scans"
+        - link "Candidate Profiles" [ref=f1e19] [cursor=pointer]:
+          - /url: "#candidate-profiles"
+        - link "Bookmarks" [ref=f1e23] [cursor=pointer]:
+          - /url: "#bookmarks"
+        - link "Synonyms" [ref=f1e26] [cursor=pointer]:
+          - /url: "#synonyms"
+        - group [ref=f1e30]:
+          - generic "Pipeline ›" [ref=f1e31] [cursor=pointer]
+          - generic [ref=f1e34]:
+            - link "Overview" [ref=f1e35] [cursor=pointer]:
+              - /url: "#overview"
+            - link "Enrichment" [ref=f1e36] [cursor=pointer]:
+              - /url: "#enrichment"
+            - link "Screening" [ref=f1e37] [cursor=pointer]:
+              - /url: "#screening"
+            - link "Shortlisting" [ref=f1e38] [cursor=pointer]:
+              - /url: "#shortlisting"
+            - link "Ranking" [ref=f1e39] [cursor=pointer]:
+              - /url: "#ranking"
+            - link "Preference Optimization" [ref=f1e40] [cursor=pointer]:
+              - /url: "#preference-optimization"
+            - link "CV Analysis" [ref=f1e41] [cursor=pointer]:
+              - /url: "#cv-analysis"
+            - link "CV Generation" [ref=f1e42] [cursor=pointer]:
+              - /url: "#cv-generation"
+            - link "Runtime & Limits" [ref=f1e43] [cursor=pointer]:
+              - /url: "#runtime-limits"
+            - link "Automation & Reuse" [ref=f1e44] [cursor=pointer]:
+              - /url: "#automation-reuse"
+        - group [ref=f1e45]:
+          - generic "Application ›" [ref=f1e46] [cursor=pointer]
+          - generic [ref=f1e50]:
+            - link "API Providers" [ref=f1e51] [cursor=pointer]:
+              - /url: "#api-providers"
+            - link "LLM Configuration" [ref=f1e52] [cursor=pointer]:
+              - /url: "#llm-configuration"
+            - link "System" [ref=f1e53] [cursor=pointer]:
+              - /url: "#system"
+    - main [ref=f1e54]:
+      - generic [ref=f1e55]:
+        - generic [ref=f1e59]:
+          - heading "API Providers" [level=1] [ref=f1e139]
+          - paragraph [ref=f1e61]: Manage shared and custom provider connections.
+        - generic [ref=f1e62]:
+          - button "Switch to dark theme" [ref=f1e68] [cursor=pointer]
+          - button "Shutdown FitCV" [ref=f1e71] [cursor=pointer]
+      - generic [ref=f1e76]:
+        - generic [ref=f1e141]:
+          - paragraph [ref=f1e142]: Application
+          - heading "API Providers" [level=2] [ref=f1e143]
+          - paragraph [ref=f1e144]: Manage predefined and custom AI provider connections. Each provider supports one connection.
+        - generic [ref=f1e145]:
+          - generic [ref=f1e146]:
+            - generic [ref=f1e147]:
+              - generic [ref=f1e148]: Search providers
+              - searchbox "Search API providers" [ref=f1e149]
+            - generic [ref=f1e150]:
+              - button "Add OpenAI-compatible" [ref=f1e151] [cursor=pointer]
+              - button "Add Anthropic-compatible" [ref=f1e152] [cursor=pointer]
+          - group [ref=f1e153]:
+            - generic "› Custom Providers Connect OpenAI-compatible or Anthropic-compatible endpoints." [ref=f1e154] [cursor=pointer]:
+              - text: ›
+              - generic [ref=f1e155]
+            - generic [ref=f1e158]: No custom providers yet. Add one from buttons above.
+          - group [ref=f1e160]:
+            - generic "› API Key Providers Predefined API-key providers supplied by FitCV." [ref=f1e161] [cursor=pointer]:
+              - text: ›
+              - generic [ref=f1e162]
+            - generic [ref=f1e166]:
+              - link "OpenAI OpenAI-compatible Connected" [ref=f1e167] [cursor=pointer]:
+                - /url: "#api-providers/openai"
+              - link "Anthropic Anthropic-compatible No connection" [ref=f1e174] [cursor=pointer]:
+                - /url: "#api-providers/anthropic"
+              - link "DeepSeek OpenAI-compatible No connection" [ref=f1e181] [cursor=pointer]:
+                - /url: "#api-providers/deepseek"
+              - link "Groq OpenAI-compatible No connection" [ref=f1e188] [cursor=pointer]:
+                - /url: "#api-providers/groq"
+  - status: Ranking changes saved in prototype
