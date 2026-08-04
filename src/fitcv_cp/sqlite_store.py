@@ -2339,6 +2339,25 @@ def publish_candidate_profile_stage_result(
                 raise ValueError("candidate_profile_processing_claim_conflict")
             if stage == "baseline":
                 for ordinal, block in enumerate(source_blocks or [], start=1):
+                    stored = (
+                        block.get("source_block_id") or block.get("block_id"),
+                        attempt["source_document_id"],
+                        str(block.get("kind") or "text"),
+                        json.dumps(block.get("locator") or {}, sort_keys=True, separators=(",", ":")),
+                        str(block.get("text") or ""),
+                        str(block.get("checksum") or hashlib.sha256(str(block.get("text") or "").encode("utf-8")).hexdigest()),
+                    )
+                    existing = conn.execute(
+                        """
+                        SELECT source_block_id, source_document_id, kind, locator_json, text, checksum
+                        FROM candidate_profile_source_blocks WHERE attempt_id=? AND ordinal=?
+                        """,
+                        (attempt_id, ordinal),
+                    ).fetchone()
+                    if existing is not None:
+                        if tuple(existing) != stored:
+                            raise ValueError("candidate_profile_source_block_conflict")
+                        continue
                     conn.execute(
                         """
                         INSERT INTO candidate_profile_source_blocks (
@@ -2347,14 +2366,11 @@ def publish_candidate_profile_stage_result(
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
-                            block.get("source_block_id") or block.get("block_id"),
+                            stored[0],
                             attempt_id,
-                            attempt["source_document_id"],
+                            stored[1],
                             ordinal,
-                            str(block.get("kind") or "text"),
-                            json.dumps(block.get("locator") or {}, sort_keys=True, separators=(",", ":")),
-                            str(block.get("text") or ""),
-                            str(block.get("checksum") or hashlib.sha256(str(block.get("text") or "").encode("utf-8")).hexdigest()),
+                            *stored[2:],
                         ),
                     )
             snapshot_id = f"snapshot_{uuid.uuid4().hex}"

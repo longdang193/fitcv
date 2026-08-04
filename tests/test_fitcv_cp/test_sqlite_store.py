@@ -980,6 +980,46 @@ def test_candidate_profile_stage_publication_requires_claim_and_is_append_only(t
         assert conn.execute("SELECT COUNT(*) FROM candidate_profile_source_blocks").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM candidate_profile_baseline_snapshots").fetchone()[0] == 1
 
+    retried = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"],
+        stage="base_mapping",
+        expected_revision=published["revision"],
+        lease_seconds=60,
+        database_path=database_path,
+    )
+    republished = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=retried["processing"]["claim_id"],
+        expected_revision=retried["revision"],
+        result=result,
+        source_blocks=source_blocks,
+        database_path=database_path,
+    )
+
+    assert republished["creation_status"] == "base_review"
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_source_blocks").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_baseline_snapshots").fetchone()[0] == 1
+
+    conflicted = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"],
+        stage="base_mapping",
+        expected_revision=republished["revision"],
+        lease_seconds=60,
+        database_path=database_path,
+    )
+    with pytest.raises(ValueError, match="candidate_profile_source_block_conflict"):
+        sqlite_store.publish_candidate_profile_stage_result(
+            created["attempt_id"],
+            stage="baseline",
+            claim_id=conflicted["processing"]["claim_id"],
+            expected_revision=conflicted["revision"],
+            result=result,
+            source_blocks=[{**source_blocks[0], "text": "Changed"}],
+            database_path=database_path,
+        )
+
 
 def test_candidate_profile_regeneration_claims_same_stage_without_deleting_draft(tmp_path: Path) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
