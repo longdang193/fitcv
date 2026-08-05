@@ -1,0 +1,56 @@
+- generic [ref=f8e2]:
+  - complementary "Primary navigation" [ref=f8e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f8e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f8e9]:
+        - strong [ref=f8e10]: FitCV Control Plane
+        - generic [ref=f8e11]: Local workspace
+    - navigation "Workspace" [ref=f8e12]:
+      - link "Runs" [ref=f8e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f8e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f8e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f8e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f8e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f8e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f8e32]:
+    - banner [ref=f8e33]:
+      - generic [ref=f8e38]:
+        - heading "Candidate Profiles" [level=1] [ref=f8e39]
+        - paragraph [ref=f8e40]: Create and review profiles used by matching runs.
+      - button "Switch to dark theme" [ref=f8e42] [cursor=pointer]:
+        - generic [ref=f8e45]: Dark
+    - main [ref=f8e48]:
+      - generic [ref=f8e49]:
+        - generic [ref=f8e50]:
+          - paragraph [ref=f8e51]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=f8e52]
+          - paragraph [ref=f8e53]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - button "Create Profile" [ref=f8e54] [cursor=pointer]
+      - region [ref=f8e55]:
+        - generic [ref=f8e56]:
+          - generic [ref=f8e57]:
+            - heading "Creation drafts" [level=3] [ref=f8e58]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=f8e59]: 0 drafts
+        - generic [ref=f8e61]:
+          - strong [ref=f8e62]: No creation drafts
+          - generic [ref=f8e63]: Upload Markdown, DOCX, or YAML to start one staged review.
+      - generic [ref=f8e64]:
+        - tablist "Candidate Profile views" [ref=f8e65]:
+          - tab "Active 0" [ref=f8e66] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f8e67]: "0"
+          - tab "Archived 0" [selected] [ref=f8e68] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f8e69]: "0"
+        - tabpanel "Archived 0" [ref=f8e70]:
+          - generic [ref=f8e72]:
+            - heading "No archived profiles" [level=3] [ref=f8e73]
+            - paragraph [ref=f8e74]: Archived Candidate Profiles will appear here.
+      - status

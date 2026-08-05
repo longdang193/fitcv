@@ -94,6 +94,8 @@ def test_build_subprocess_steps_excludes_retired_metadata_validators() -> None:
     assert any("validate_prompt_metadata_schema.py" in step for step in rendered)
     assert any("validate_env_gitignore_contract.py" in step for step in rendered)
     assert any("validate_repo_config.py" in step for step in rendered)
+    assert any("validate_harness_config.py" in step for step in rendered)
+    assert any("render_harness_routing.py" in step for step in rendered)
     assert not any("validate_adoption_shape.py" in step for step in rendered)
     assert not any("validate_python_meta_headers.py" in step for step in rendered)
 

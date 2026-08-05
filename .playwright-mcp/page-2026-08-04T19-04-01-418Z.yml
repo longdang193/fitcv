@@ -1,0 +1,127 @@
+- generic [ref=f4e2]:
+  - complementary "Primary navigation" [ref=f4e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f4e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f4e9]:
+        - strong [ref=f4e10]: FitCV Control Plane
+        - generic [ref=f4e11]: Local workspace
+    - navigation "Workspace" [ref=f4e12]:
+      - link "Runs" [ref=f4e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f4e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f4e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f4e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f4e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f4e31]:
+        - generic "Pipeline ›" [ref=f4e32] [cursor=pointer]
+        - generic [ref=f4e35]:
+          - link "Overview" [ref=f4e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f4e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f4e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f4e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f4e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f4e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f4e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f4e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f4e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f4e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f4e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f4e47]:
+        - generic "Application ›" [ref=f4e48] [cursor=pointer]
+        - generic [ref=f4e52]:
+          - link "API Providers" [ref=f4e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f4e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f4e55] [cursor=pointer]:
+            - /url: /admin/system
+  - generic [ref=f4e56]:
+    - banner [ref=f4e57]:
+      - generic [ref=f4e58]:
+        - button "Open navigation" [ref=f4e59] [cursor=pointer]
+        - heading "Pipeline" [level=1] [ref=f4e65]
+      - generic [ref=f4e66]:
+        - button "Switch to light theme" [ref=f4e67] [cursor=pointer]:
+          - generic [ref=f4e71]: Light
+        - button "Shutdown FitCV" [ref=f4e72] [cursor=pointer]
+    - main [ref=f4e77]:
+      - generic [ref=f4e78]:
+        - generic [ref=f4e79]:
+          - paragraph [ref=f4e80]: Pipeline
+          - heading "CV Analysis" [level=2] [ref=f4e81]
+          - paragraph [ref=f4e82]: Control how CV evidence is compared with each job. Changes apply to future runs.
+        - button "Restore Defaults" [ref=f4e83] [cursor=pointer]
+      - generic [ref=f4e84]:
+        - group [ref=f4e85]:
+          - generic [ref=f4e86] [cursor=pointer]:
+            - text: ›
+            - strong [ref=f4e88]: Evidence Scope
+          - generic [ref=f4e90]:
+            - generic [ref=f4e91]:
+              - strong [ref=f4e92]: Final Evidence Items Per Job
+              - paragraph [ref=f4e93]: Controls how much bounded evidence cv_analysis keeps per ranked job after merge, dedupe, and final selection.
+              - paragraph [ref=f4e94]: Managed in Overview.
+            - generic [ref=f4e95]: "5"
+        - group [ref=f4e97]:
+          - generic [ref=f4e98] [cursor=pointer]:
+            - text: ›
+            - strong [ref=f4e100]: Semantic Alignment
+          - generic [ref=f4e101]:
+            - generic [ref=f4e102]:
+              - generic [ref=f4e103]:
+                - strong [ref=f4e105]: Semantic Alignment
+                - paragraph [ref=f4e106]: Enable hybrid lexical-plus-semantic scoring for cv_analysis required-skill, role, domain, and responsibility alignment.
+              - checkbox "Semantic Alignment" [checked] [ref=f4e109]
+            - generic [ref=f4e111]:
+              - generic [ref=f4e112]:
+                - strong [ref=f4e113]: Embedding Model
+                - paragraph [ref=f4e114]: Embedding model used for cv_analysis semantic skill, role, domain, and responsibility similarity.
+              - generic [ref=f4e115]: text-embedding-005
+        - group [ref=f4e117]:
+          - generic [ref=f4e118] [cursor=pointer]:
+            - text: ›
+            - strong [ref=f4e120]: Match Methods
+          - generic [ref=f4e121]:
+            - generic [ref=f4e122]:
+              - generic [ref=f4e123]:
+                - strong [ref=f4e124]: Skills Match
+                - paragraph [ref=f4e125]: Balance exact skill wording against semantic similarity.
+                - generic [ref=f4e126]: 2 settings configured
+                - paragraph
+              - button "Manage" [ref=f4e128] [cursor=pointer]
+            - generic [ref=f4e129]:
+              - generic [ref=f4e130]:
+                - strong [ref=f4e131]: Role Match
+                - paragraph [ref=f4e132]: Balance exact role wording against semantic similarity.
+                - generic [ref=f4e133]: 2 settings configured
+                - paragraph
+              - button "Manage" [ref=f4e135] [cursor=pointer]
+            - generic [ref=f4e136]:
+              - generic [ref=f4e137]:
+                - strong [ref=f4e138]: Responsibilities Match
+                - paragraph [ref=f4e139]: Balance exact responsibility wording against semantic similarity.
+                - generic [ref=f4e140]: 2 settings configured
+                - paragraph
+              - button "Manage" [ref=f4e142] [cursor=pointer]
+            - generic [ref=f4e143]:
+              - generic [ref=f4e144]:
+                - strong [ref=f4e145]: Domain Match
+                - paragraph [ref=f4e146]: Balance exact domain wording against semantic similarity.
+                - generic [ref=f4e147]: 2 settings configured
+                - paragraph
+              - button "Manage" [ref=f4e149] [cursor=pointer]

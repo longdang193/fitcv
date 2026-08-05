@@ -36,10 +36,10 @@ Describe another concrete implementation result this plan must deliver, such as 
 
 ## Execution Approach
 
-- Mode: `inline sequential | subagent-ready | parallel-capable`
+- Mode: `inline sequential | harness sequential_agents | harness parallel_lanes`
 - Required skills: `<exact skill names or none>`
-- Isolation: `<current workspace | optional worktree>`
-- Commit policy: `<per-task commits authorized | no commits during execution>`
+- Isolation: `<current workspace | isolated worktree for parallel writers>`
+- Commit policy: `<external authorization | no commits during execution>`
 - Parallel ownership: `<disjoint files/symbols or none>`
 - Sequential fallback: `<ordered fallback when parallel work is unsafe>`
 

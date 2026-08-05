@@ -6,6 +6,7 @@ This folder holds repo governance, execution routing, runtime guidance, reusable
 
 - [Repository governance](./governance/repo-governance.md)
 - [Planning dispatch](./planning/planning-dispatch.md)
+- [Harness routing](./tooling/harness-routing.generated.md)
 
 ## Sections
 
@@ -19,7 +20,10 @@ This folder holds repo governance, execution routing, runtime guidance, reusable
 - `runtime/` — runtime surfaces
 - `adoption/` — project adoption and migration guidance
 - `procedures/` — maintainer runbooks
+- `procedures/code-intelligence-tools-setup.md` — optional Semble and ast-grep setup
+- `templates/harness-improvement-template.md` — recurring-friction experiment record
 - `rules/agent-memory-rule.md` — conditional MCP memory policy
+- `rules/multi-agent-orchestration-rule.md` — controller-owned multi-agent safety
 - `prompt_templates/` — reusable invocation wording
 - `rules/` — canonical hard invariants
 - `templates/` — reusable artifact templates

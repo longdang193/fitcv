@@ -24,7 +24,7 @@ Use one primary method per trigger. Load supporting skills or tools only when bo
 | material backend behavior changes | `docs/operating_system/rules/backend-verification-rule.md` | `skill-backend-verification` | Specmatic, real dependencies, `skill-systematic-debugging`, `skill-test-driven-development` | direct boundary, business/failure, state, automated proof | consumer integration or final verification |
 | frontend crosses backend contract or route | `docs/operating_system/rules/frontend-backend-integration-rule.md` | `skill-full-stack-integration` | Specmatic, `skill-backend-verification`, `skill-frontend-component-engineering` | canonical contract, backend proof, frontend tests, browser flow | `skill-verification-before-completion` |
 | stateful frontend component or page | `docs/operating_system/rules/frontend-ui-rule.md` | `skill-frontend-component-engineering` | `ui-ux-pro-max`, `skill-distinctive-frontend-design`, Context7 | state ownership, tests, required rendered/accessibility evidence | integration or final verification |
-| approved plan execution | planning dispatch | `skill-executing-plans` | `skill-subagent-driven-development` only with authorized per-task commits | task-local proof | `skill-verification-before-completion` |
+| approved plan execution | planning dispatch | `skill-executing-plans` | `skill-subagent-driven-development` when harness selects `sequential_agents` | task-local proof | `skill-verification-before-completion` |
 | independent disjoint lanes | plan execution ownership | `skill-dispatching-parallel-agents` | platform subagent tools | lane-local and combined proof | `skill-executing-plans` |
 | failure or unexpected behavior | source and tests | `skill-systematic-debugging` | trace, browser diagnosis, code intelligence | reproduced root cause and regression proof | implementation skill |
 | completion claim | approved plan/specification | `skill-verification-before-completion` | affected validators, browser/runtime evidence | fresh claim-to-evidence map | authorized branch finishing |
@@ -53,3 +53,7 @@ Grafana, Postman, database, and GitHub MCPs remain target-project options with a
 ## Source-First Fallback
 
 If optional MCP unavailable, continue with pinned documentation, local source, canonical contracts, tests, existing command-line tools, and runtime systems. Do not create substitute truth layers.
+# General Routing
+
+Use generated [harness routing](./harness-routing.generated.md) for generic
+task selection. This guide owns only frontend-backend integration method.

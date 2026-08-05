@@ -26,6 +26,7 @@ prevent destructive execution without explicit approval flow.
 - `pytest`
 - `scripts/validate_repo_contracts.py --fast`
 - `scripts/publish_public_repo.ps1`
+- `sg --json <pattern>`
 
 ## Prompt Before Execute
 
@@ -38,3 +39,4 @@ prevent destructive execution without explicit approval flow.
 ## Forbidden
 
 - Ad hoc publication to the public repo outside `scripts/publish_public_repo.ps1 -Push`
+- ast-grep rewrite commands; use `apply_patch` for source edits

@@ -59,6 +59,76 @@ canonical: true
       clearTimeout(timeout);
     }
   }
+  async function fitcvRunLocked(control, operation) {
+    if (!control || control.dataset.fitcvPending === 'true') return;
+    var wasDisabled = control.disabled;
+    control.dataset.fitcvPending = 'true';
+    control.disabled = true;
+    try {
+      return await operation();
+    } finally {
+      delete control.dataset.fitcvPending;
+      control.disabled = wasDisabled;
+    }
+  }
+  function fitcvIdempotencyKey(control) {
+    if (!control.dataset.fitcvIdempotencyKey) control.dataset.fitcvIdempotencyKey = crypto.randomUUID();
+    return control.dataset.fitcvIdempotencyKey;
+  }
+  async function fitcvWaitForCandidateProfileAttempt(attemptId, nextAction) {
+    var expected = Array.isArray(nextAction) ? nextAction : [nextAction];
+    for (var poll = 0; poll < 240; poll += 1) {
+      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId));
+      var attempt = payload.data;
+      if (expected.includes(attempt.next_action)) return attempt;
+      if (attempt.failure) {
+        var failure = new Error(attempt.failure.message || 'Candidate Profile processing failed.');
+        failure.code = attempt.failure.code || 'candidate_profile_processing_failed';
+        failure.retryable = Boolean(attempt.failure.retryable);
+        failure.attempt = attempt;
+        throw failure;
+      }
+      await new Promise(function(resolve) { setTimeout(resolve, 500); });
+    }
+    var timeout = new Error('Candidate Profile processing is still running. Save and resume from Creation drafts.');
+    timeout.code = 'candidate_profile_processing_timeout';
+    timeout.retryable = true;
+    throw timeout;
+  }
+  function fitcvRenderAsyncState(target, state) {
+    if (!target) return;
+    state = state || {};
+    var kind = state.kind || 'empty';
+    target.setAttribute('data-fitcv-async-state', kind);
+    target.hidden = false;
+    if (!state.preserveContent) target.replaceChildren();
+    else {
+      var existing = target.querySelector(':scope > .fitcv-async-state');
+      if (existing) existing.remove();
+    }
+    var notice = document.createElement('div');
+    notice.className = 'notice fitcv-async-state fitcv-async-state-' + kind;
+    notice.setAttribute('role', kind === 'error' || kind === 'retryable' || kind === 'non_retryable' ? 'alert' : 'status');
+    notice.tabIndex = -1;
+    var message = document.createElement('span');
+    message.textContent = state.message || '';
+    notice.appendChild(message);
+    if (state.code) {
+      var code = document.createElement('code');
+      code.textContent = state.code;
+      notice.appendChild(code);
+    }
+    if (state.action && typeof state.retry === 'function') {
+      var retry = document.createElement('button');
+      retry.className = 'btn-secondary';
+      retry.type = 'button';
+      retry.textContent = state.action;
+      retry.addEventListener('click', state.retry);
+      notice.appendChild(retry);
+    }
+    target.appendChild(notice);
+    if (kind === 'error' || kind === 'retryable' || kind === 'non_retryable' || kind === 'stale') notice.focus();
+  }
   </script>
   <title>{% block title %}FitCV Admin{% endblock %}</title>
   <style>
@@ -173,7 +243,6 @@ canonical: true
     .app-sidebar nav > .meta { padding: 0.8rem 0.75rem 0.25rem; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; }
     .nav-icon { flex: 0 0 1.15rem; width: 1.15rem; text-align: center; }
     .app-frame { min-width: 0; }
-    .global-header { min-height: 4rem; display: flex; align-items: center; justify-content: flex-end; gap: 0.35rem; padding: 0.65rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid var(--border); background: var(--surface-1); }
     .icon-button { flex: 0 0 2.5rem; width: 2.5rem; height: 2.5rem; display: inline-grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); cursor: pointer; font: inherit; }
     .icon-button:hover { background: var(--table-row-hover); color: var(--text-primary); }
     .icon-button.danger { color: var(--badge-error-fg); }
@@ -582,9 +651,14 @@ canonical: true
     .workspace-tabs button[aria-selected="true"] { border-color: var(--accent); color: var(--accent-text); background: var(--accent-dim); }
     .table-shell { min-width: 0; overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1); }
     .table-shell table { min-width: 760px; margin: 0; }
-    .empty-state { padding: 2rem; text-align: center; color: var(--text-muted); }
+    .empty-state { display: grid; justify-items: center; gap: 8px; padding: 56px 24px; text-align: center; }
+    .empty-state svg { width: 34px; color: var(--accent); }
+    .empty-state h3 { margin: 4px 0 0; font-size: 17px; }
+    .empty-state p { max-width: 430px; margin: 0; color: var(--muted); }
     .notice { padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; }
     .notice[role="alert"] { border-color: var(--badge-error-fg); color: var(--badge-error-fg); }
+    .fitcv-async-state { display: flex; align-items: center; gap: 0.75rem; justify-content: space-between; }
+    .fitcv-async-state code { margin-left: auto; }
     .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 0.85rem 0; border-top: 1px solid var(--border-soft); }
     .settings-row:first-of-type { border-top: 0; }
     .settings-row:hover { background: var(--table-row-hover); }
@@ -631,6 +705,8 @@ canonical: true
     .run-field{display:grid;gap:7px}.run-field>label{font-weight:650}.run-field small{color:var(--muted)}.run-field .field{width:100%;min-height:42px}.file-input{padding-block:8px}.run-dialog-status{min-height:20px;margin:0 24px;color:var(--muted);font-size:13px}.managed-selection-field-copy{min-width:0}
     .small-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;padding:0 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;line-height:1;white-space:nowrap}.small-action:disabled{opacity:.45;cursor:not-allowed}.small-action:not(:disabled):hover{border-color:var(--accent);color:var(--accent)}.job-action-row{display:flex;flex-wrap:wrap;gap:6px}
     .run-panel{display:grid;gap:14px}
+    .process-console-controls{display:flex;flex-wrap:wrap;gap:.65rem;align-items:end;margin:.75rem 0}.process-console-controls label{display:grid;gap:.25rem;min-width:10rem}.process-console details pre{max-width:44rem;white-space:pre-wrap;overflow-wrap:anywhere}.process-console :focus-visible{outline:2px solid currentColor;outline-offset:2px}.console-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}.console-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}.console-log{min-height:220px;max-height:360px;padding:14px 16px;overflow:auto;border:1px solid #1f2937;border-radius:10px;background:#080b10;color:#d6deeb;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overscroll-behavior:contain}.console-line{display:grid;grid-template-columns:max-content max-content max-content minmax(220px,1fr);gap:12px;min-width:720px}.console-time{color:#7f8ea3;font-variant-numeric:tabular-nums}.console-level{color:#9ccfd8;font-weight:700;text-transform:uppercase}.console-level[data-level="error"]{color:#ff7b72}.console-operation{color:#c4b5fd}.console-message{white-space:pre-wrap;overflow-wrap:anywhere}.console-empty{color:#7f8ea3}
+    .run-id{font-weight:600}.run-job,.run-status{font-weight:500}.detail-item dt,.job-attribute span{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.06em;line-height:1.3;text-transform:uppercase}.detail-item dd,.job-attribute strong{font-size:14px;font-weight:400;line-height:1.4}.run-input-details{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-card{display:inline-flex;min-height:34px;appearance:none;width:auto;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;padding:0 10px;color:var(--text);cursor:pointer;text-align:left;line-height:1.1}.summary-card[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.summary-card span{font-size:11px;line-height:1}.summary-card strong{display:block;margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}.results-filters{display:block;min-width:0;margin-bottom:12px}.stage-filter{width:100%;min-width:0}.pipeline-stage-tabs{display:flex;width:100%;max-width:100%;gap:4px;padding:4px;overflow-x:auto;overflow-y:hidden;border-radius:12px;background:var(--surface-2);white-space:nowrap}.pipeline-stage-tabs .btn{flex:1 0 110px;min-width:110px;border-color:transparent;background:transparent;font-weight:500}.pipeline-stage-tabs .btn[aria-selected="true"]{border-color:var(--border);background:var(--surface);color:var(--text);box-shadow:var(--shadow)}.pipeline-summary{display:flex;width:max-content;max-width:100%;gap:4px;margin:0;padding:4px;overflow-x:auto;border-radius:10px;background:var(--surface-2)}.results-search{width:min(560px,100%);min-width:min(560px,100%);flex:1}.results-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}.results-toolbar-actions{display:flex;max-width:100%;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}.jobs-table{min-width:1240px}.jobs-table th,.jobs-table td{vertical-align:top}.jobs-table td{font-size:14px}.jobs-table th:first-child,.jobs-table td:first-child{position:sticky;left:0;min-width:300px;max-width:320px;background:var(--surface);box-shadow:1px 0 0 var(--border-soft)}.jobs-table th:first-child{z-index:2}.jobs-table td:first-child{z-index:1}.jobs-table tbody tr:hover td:first-child{background:var(--surface-2)}.job-primary{display:grid;gap:10px;min-width:0}.job-title-row{min-width:0}.job-title-link{min-width:0;color:var(--accent);font-size:14px;font-weight:600}.job-action-row{display:flex;flex-wrap:wrap;gap:6px}.job-attributes{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:7px 14px}.job-attribute{display:grid}.skill-list{display:flex;max-width:310px;gap:6px;flex-wrap:wrap}.skill-chip{padding:3px 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:14px;white-space:nowrap}.pipeline-outcome{display:grid;gap:8px}.outcome-reason{display:block;max-width:260px;color:var(--muted);font-size:13px;line-height:1.3}.jobs-empty{padding:28px;text-align:center;color:var(--muted)}.tab-loading-state{display:flex;min-height:8rem;align-items:center;justify-content:center;text-align:center}@media(max-width:760px){.results-search{width:100%;min-width:0}.results-toolbar-actions{width:100%;margin-left:0}}
     .run-panel,#runTablePanel,.table-card,.table-scroll{min-width:0}
     .run-panel>*{min-width:0}
     .run-panel>[role="tabpanel"]{display:grid;gap:14px}
@@ -683,7 +759,7 @@ canonical: true
     .derived-entry{display:grid;gap:12px;padding:15px;border:1px solid var(--border);border-radius:11px;background:var(--surface);overflow:hidden}.derived-entry-head{display:flex;align-items:center;gap:10px}
     .candidate-profile-creation button,.candidate-profile-creation input,.candidate-profile-creation select{font:inherit}
     .provider-field{display:grid;gap:6px}.provider-field label{font-weight:650}.provider-field small{color:var(--muted)}.provider-field .field{width:100%}
-    .llm-config-grid{display:grid;gap:16px}.llm-config-grid>.llm-config-card{margin-bottom:0}.llm-config-card{padding:22px}.llm-config-card h3{margin:0 0 4px;font-size:18px}.llm-config-card>p{margin:0 0 18px;color:var(--muted)}.llm-route-list{display:grid;gap:0}.llm-config-grid .llm-route-row{display:flex;align-items:center;gap:12px}.llm-route-row{justify-content:space-between;padding:14px 0;border-top:1px solid var(--border-soft)}.llm-route-row:first-child{border-top:0}.llm-route-copy strong{display:block}.llm-route-copy span{display:block;margin-top:3px;color:var(--muted);font-size:12px}.llm-route-row .field{width:min(360px,100%)}@media(max-width:760px){.llm-route-row{align-items:stretch;flex-direction:column}.llm-route-row .field{width:100%}.llm-config-card{padding:18px}}
+    .llm-config-grid{display:grid;gap:16px}.llm-config-grid>.llm-config-card{margin-bottom:0}.llm-config-card{padding:22px}.llm-config-card h3{margin:0 0 4px;font-size:18px}.llm-config-card>p{margin:0 0 18px;color:var(--muted)}.llm-route-list{display:grid;gap:0}.llm-config-grid .llm-route-row{display:flex;align-items:center;gap:12px}.llm-route-row{justify-content:space-between;padding:14px 0;border-top:1px solid var(--border-soft)}.llm-route-row:first-child{border-top:0}.llm-route-copy strong{display:block}.llm-route-copy span{display:block;margin-top:3px;color:var(--muted);font-size:12px}.llm-route-row .field{width:min(360px,100%)}@media(max-width:760px){.llm-route-row{align-items:stretch;flex-direction:column}.llm-route-row .field{width:100%}.llm-config-card{padding:18px}}.llm-prompt-dialog{width:min(720px,calc(100vw - 32px))}.stage-prompt-editor{width:100%;min-height:260px;padding:13px;resize:vertical;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}.stage-prompt-editor[readonly]{background:var(--surface-2);color:var(--muted);cursor:default}.stage-prompt-editor:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}.prompt-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px}.prompt-message{min-height:18px;margin:0}@media(max-width:760px){.prompt-meta{flex-direction:column-reverse}.llm-prompt-dialog .dialog-actions{grid-template-columns:1fr 1fr}}.data-backup-card{padding:24px}.local-mode-heading{display:flex;align-items:center;gap:16px}.local-mode-icon{display:grid;width:48px;height:48px;place-items:center;border-radius:11px;background:color-mix(in srgb,#22c55e 12%,var(--surface));color:#16a34a}.local-mode-icon svg{width:24px;height:24px}.local-mode-heading h3{margin:0;font-size:20px}.local-mode-heading p{margin:4px 0 0;color:var(--muted)}.data-backup-divider{height:1px;margin:20px 0 16px;background:var(--border-soft)}.database-location{padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}.database-location span{display:block;margin-bottom:7px;font-weight:650}.database-location code{color:var(--muted);overflow-wrap:anywhere}.backup-actions{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}.backup-actions .btn{display:inline-flex;align-items:center;gap:8px}.backup-actions .btn[hidden]{display:none}.backup-actions svg{width:17px;height:17px}.backup-status{min-height:20px;margin:12px 0 0;color:var(--muted);font-size:13px}.backup-file{display:none}.system-stack{display:grid;gap:16px}.llm-setting-control{display:grid;justify-items:end;gap:5px}.llm-setting-control .field{width:min(360px,100%)}@media(max-width:760px){.data-backup-card{padding:18px}.backup-actions{align-items:stretch;flex-direction:column}.backup-actions .btn{width:100%}.llm-setting-control{justify-items:stretch}.llm-setting-control .field{width:100%}}
   </style>
 </head>
 <body>
@@ -715,7 +791,6 @@ canonical: true
           <a class="nav-link child" href="/admin/api-providers" aria-current="{{ 'page' if current_path.startswith('/admin/api-providers') else 'false' }}">API Providers</a>
           <a class="nav-link child" href="/admin/llm-configuration" aria-current="{{ 'page' if current_path == '/admin/llm-configuration' else 'false' }}">LLM Configuration</a>
           <a class="nav-link child" href="/admin/system" aria-current="{{ 'page' if current_path == '/admin/system' else 'false' }}">System</a>
-          <a class="nav-link child" href="/admin/lifecycle" aria-current="{{ 'page' if current_path == '/admin/lifecycle' else 'false' }}">Lifecycle</a>
         </div></details>
         {% else %}
         <a class="nav-link" href="/admin/settings" aria-current="{{ 'page' if current_path == '/admin/settings' else 'false' }}">Pipeline</a>

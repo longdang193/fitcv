@@ -101,6 +101,8 @@ IN_PROCESS_SCRIPT_NAMES = {
     "validate_generated_header_format.py",
     "validate_agent_runtime_drift.py",
     "validate_repo_config.py",
+    "validate_harness_config.py",
+    "render_harness_routing.py",
 }
 
 @lru_cache(maxsize=64)
@@ -172,6 +174,8 @@ def build_subprocess_steps(
     learning_format_script = str(root / "scripts" / "validate_learning_materials_format.py")
     prompt_metadata_schema_script = str(root / "scripts" / "validate_prompt_metadata_schema.py")
     repo_config_script = str(root / "scripts" / "validate_repo_config.py")
+    harness_config_script = str(root / "scripts" / "validate_harness_config.py")
+    harness_routing_script = str(root / "scripts" / "render_harness_routing.py")
     agent_metadata_schema_script = str(root / "scripts" / "validate_agent_metadata_schema.py")
     generated_header_script = str(root / "scripts" / "validate_generated_header_format.py")
     env_gitignore_contract_script = str(root / "scripts" / "validate_env_gitignore_contract.py")
@@ -188,6 +192,8 @@ def build_subprocess_steps(
         [python_executable, agent_runtime_drift_script, "--skip-deploy-check"],
     ]
     steps.append([python_executable, repo_config_script])
+    steps.append([python_executable, harness_config_script, "--repo-root", str(root)])
+    steps.append([python_executable, harness_routing_script, "--repo-root", str(root), "--check"])
     if not fast:
         pytest_targets = [
             "tests/test_validate_repo_config.py",

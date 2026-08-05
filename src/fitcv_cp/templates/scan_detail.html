@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Scan {{ scan.scan_id }} — FitCV Admin{% endblock %}
 {% block content %}
-<main class="details-page-layout" data-page="scan-detail" data-header-title="Scan Details" data-header-description="Review Scan inputs, progress, and output." data-scan-id="{{ scan.scan_id }}" data-scan-revision="{{ scan.row_revision }}">
+<main class="details-page-layout" data-page="scan-detail" data-header-title="Scan Details" data-header-description="Review Scan inputs, progress, and output." data-scan-id="{{ scan.scan_id }}" data-scan-revision="{{ scan.row_revision }}" data-scan-status="{{ scan.execution_status }}">
   <div class="details-page-head">
     <a class="details-page-back" href="{{ back_url }}">← Back to Scans</a>
     <div class="page-head">
@@ -27,10 +27,6 @@
         <div class="detail-item"><dt>Created</dt><dd>{{ scan.created_at_display }}</dd></div>
         <div class="detail-item"><dt>Started</dt><dd>{{ scan.started_at_display }}</dd></div>
         <div class="detail-item"><dt>Finished</dt><dd>{{ scan.finished_at_display }}</dd></div>
-        <div class="detail-item"><dt>Tracked Companies</dt><dd>{{ scan.company_count }}</dd></div>
-        <div class="detail-item"><dt>Output Jobs</dt><dd>{{ scan.output_record_count if scan.output_record_count is not none else '—' }}</dd></div>
-        <div class="detail-item"><dt>Row Revision</dt><dd>{{ scan.row_revision }}</dd></div>
-        {% if scan.rerun_of_scan_id %}<div class="detail-item"><dt>Run Again Of</dt><dd>{{ scan.rerun_of_scan_id }}</dd></div>{% endif %}
       </dl>
     </div>
   </details>
@@ -59,9 +55,9 @@
     {% elif output_json is none %}
       <div class="scan-notice">{% if scan.execution_status in ['queued','running','cancelling'] %}Scan output is not ready yet.{% else %}No Scan output is available for this status.{% endif %}</div>
     {% else %}
-      <div class="scan-output-head"><div class="scan-output-tabs" role="tablist" aria-label="Scan Output views"><button class="btn" id="scan-output-table-tab" type="button" role="tab" aria-selected="true" aria-controls="scan-output-table-panel">Table</button><button class="btn" id="scan-output-json-tab" type="button" role="tab" aria-selected="false" aria-controls="scan-output-json-panel" tabindex="-1">JSON</button></div></div>
+      <div class="scan-output-head"><div class="scan-output-tabs" role="tablist" aria-label="Scan output views"><button class="btn" id="scan-output-table-tab" type="button" role="tab" aria-selected="true" aria-controls="scan-output-table-panel">Table</button><button class="btn" id="scan-output-json-tab" type="button" role="tab" aria-selected="false" aria-controls="scan-output-json-panel" tabindex="-1">JSON</button></div></div>
       <div id="scan-output-table-panel" role="tabpanel" aria-labelledby="scan-output-table-tab">
-        <div class="table-card"><div class="table-scroll"><table class="run-table scan-output-table"><thead><tr><th>#</th><th>Title</th><th>Company</th><th>Location</th><th>Published</th><th>Contract</th><th>Experience</th><th>Description</th><th>Job URL</th></tr></thead><tbody>{% for job in jobs %}<tr><td>{{ (output_page - 1) * output_page_size + loop.index }}</td><td>{{ job.title }}</td><td>{{ job.companyName }}</td><td>{{ job.location }}</td><td>{{ job.publishedAt }}</td><td>{{ job.contractType }}</td><td>{{ job.experienceLevel }}</td><td><span class="scan-output-long">{{ job.description }}</span></td><td><a class="run-id-link" href="{{ job.jobUrl }}" rel="noopener noreferrer">Open job</a></td></tr>{% else %}<tr><td colspan="9" class="empty-state">This successful Scan produced no matching jobs.</td></tr>{% endfor %}</tbody></table></div>
+        <div class="table-card"><div class="table-scroll"><table class="run-table scan-output-table"><thead><tr><th>#</th><th>Title</th><th>Company</th><th>Location</th><th>Contract Type</th><th>Experience Level</th><th>Published At</th><th>Job URL</th><th>Apply URL</th><th>Description</th></tr></thead><tbody>{% for job in jobs %}<tr><td>{{ (output_page - 1) * output_page_size + loop.index }}</td><td>{{ job.title }}</td><td>{{ job.companyName }}</td><td>{{ job.location }}</td><td>{{ job.contractType }}</td><td>{{ job.experienceLevel }}</td><td>{{ job.publishedAt }}</td><td>{% if job.jobUrl %}<a class="run-id-link" href="{{ job.jobUrl }}" target="_blank" rel="noreferrer">{{ job.jobUrl }}</a>{% else %}—{% endif %}</td><td>{% if job.applyUrl %}<a class="run-id-link" href="{{ job.applyUrl }}" target="_blank" rel="noreferrer">{{ job.applyUrl }}</a>{% else %}—{% endif %}</td><td><span class="scan-output-long">{{ job.description }}</span></td></tr>{% else %}<tr><td colspan="10" class="empty-state">No jobs in this Scan output.</td></tr>{% endfor %}</tbody></table></div>
 {% if output_total > 10 %}
 <div class="run-pagination">
   <span>Showing <strong>{{ (output_page - 1) * output_page_size + 1 }}</strong> to <strong>{{ [output_page * output_page_size, output_total]|min }}</strong> of <strong>{{ output_total }}</strong> results</span>
@@ -76,7 +72,7 @@
 </div>
 {% endif %}</div>
       </div>
-      <div id="scan-output-json-panel" role="tabpanel" aria-labelledby="scan-output-json-tab" hidden><pre class="scan-output-json" aria-label="Canonical Scan output JSON">{{ output_json }}</pre></div>
+      <div id="scan-output-json-panel" role="tabpanel" aria-labelledby="scan-output-json-tab" hidden><pre class="scan-output-json" aria-label="Scan output JSON">{{ output_json }}</pre></div>
     {% endif %}
     </div>
   </details>
@@ -89,18 +85,19 @@
   const revision = Number(root.dataset.scanRevision);
   const status = document.getElementById('scan-action-status');
   document.querySelectorAll('[data-scan-action]').forEach(button => button.addEventListener('click', async () => {
-    button.disabled = true;
-    status.textContent = `${button.textContent.trim()} pending…`;
-    try {
-      const action = button.dataset.scanAction;
-      if (action === 'archive' || action === 'unarchive') {
-        await fitcvApiRequest(`/scans/actions/${action}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({items:[{scan_id:scanId,expected_revision:revision}]})});
-        location.assign('/admin/scans?lifecycle=' + (action === 'archive' ? 'archived' : 'active'));
-      } else {
-        const payload = await fitcvApiRequest(`/scans/${encodeURIComponent(scanId)}/actions/${action}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({expected_revision:revision})});
-        location.assign('/admin/scans/' + encodeURIComponent(payload.data.scan_id));
-      }
-    } catch (error) { status.textContent = error.message; button.disabled = false; }
+    await fitcvRunLocked(button, async () => {
+      status.textContent = `${button.textContent.trim()} pending…`;
+      try {
+        const action = button.dataset.scanAction;
+        if (action === 'archive' || action === 'unarchive') {
+          await fitcvApiRequest(`/scans/actions/${action}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({items:[{scan_id:scanId,expected_revision:revision}]})});
+          location.assign('/admin/scans?lifecycle=' + (action === 'archive' ? 'archived' : 'active'));
+        } else {
+          const payload = await fitcvApiRequest(`/scans/${encodeURIComponent(scanId)}/actions/${action}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({expected_revision:revision})});
+          location.assign('/admin/scans/' + encodeURIComponent(payload.data.scan_id));
+        }
+      } catch (error) { fitcvRenderAsyncState(status, {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: () => button.click()}); }
+    });
   }));
   const tableTab = document.getElementById('scan-output-table-tab');
   const jsonTab = document.getElementById('scan-output-json-tab');
@@ -115,6 +112,10 @@
   }
   tableTab?.addEventListener('click', () => selectOutput('table'));
   jsonTab?.addEventListener('click', () => selectOutput('json'));
+  if (['queued', 'running', 'cancelling'].includes(root.dataset.scanStatus)) {
+    const poll = window.setTimeout(() => { if (!document.hidden) location.reload(); }, 5000);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) window.clearTimeout(poll); }, {once:true});
+  }
 })();
 </script>
 {% endblock %}

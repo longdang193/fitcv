@@ -8,15 +8,16 @@
   </div>
 
   <div class="run-panel">
-  <div class="run-tabs" role="tablist" aria-label="Scan lifecycle">
-    <a class="btn" role="tab" tabindex="{{ '0' if lifecycle == 'active' else '-1' }}" href="/admin/scans?lifecycle=active&page_size={{ page_size }}" aria-selected="{{ 'true' if lifecycle == 'active' else 'false' }}">Active <span class="run-tab-count">{{ active_count }}</span></a>
-    <a class="btn" role="tab" tabindex="{{ '0' if lifecycle == 'archived' else '-1' }}" href="/admin/scans?lifecycle=archived&page_size={{ page_size }}" aria-selected="{{ 'true' if lifecycle == 'archived' else 'false' }}">Archived <span class="run-tab-count">{{ archived_count }}</span></a>
+  <div class="run-tabs" role="tablist" aria-label="Scan views">
+    <button class="btn" id="scan-active-tab" type="button" role="tab" data-scan-tab="active" tabindex="{{ '0' if lifecycle == 'active' else '-1' }}" aria-selected="{{ 'true' if lifecycle == 'active' else 'false' }}">Active<span class="run-tab-count">{{ active_count }}</span></button>
+    <button class="btn" id="scan-archived-tab" type="button" role="tab" data-scan-tab="archived" tabindex="{{ '0' if lifecycle == 'archived' else '-1' }}" aria-selected="{{ 'true' if lifecycle == 'archived' else 'false' }}">Archived<span class="run-tab-count">{{ archived_count }}</span></button>
   </div>
 
+  <div id="scan-table-panel" role="tabpanel" aria-labelledby="scan-{{ lifecycle }}-tab">
   <div id="scan-notice" role="status" aria-live="polite"></div>
   {% if load_error %}<div class="notice error" role="alert">{{ load_error }} <a href="{{ current_url }}">Retry</a></div>{% endif %}
   <div id="scan-bulk-actions" class="run-selection" hidden>
-      <span class="meta" id="selected-scan-count">0 selected</span>
+      <div class="run-selection-copy"><strong id="selected-scan-count">0 Scans selected</strong><span>{% if lifecycle == 'active' %}Successful Scans remain valid Run inputs until archived.{% else %}Restore selected Scans or delete them permanently.{% endif %}</span></div>
       {% if lifecycle == 'active' %}
       <button class="btn" type="button" data-bulk-scan-action="archive">Archive</button>
       {% else %}
@@ -24,6 +25,7 @@
       <button class="btn danger" type="button" id="delete-selected-scans">Delete</button>
       {% endif %}
   </div>
+  {% if scans %}
   <div class="section-card table-card">
     <div class="table-scroll">
       <table class="run-table">
@@ -31,15 +33,13 @@
         <tbody>
         {% for scan in scans %}
           <tr>
-            <td><input name="selected_scan_ids" type="checkbox" value="{{ scan.scan_id }}" data-revision="{{ scan.row_revision }}" aria-label="Select {{ scan.scan_id }}"></td>
+            <td><input name="selected_scan_ids" type="checkbox" value="{{ scan.scan_id }}" data-revision="{{ scan.row_revision }}" data-can-archive="{{ 'true' if scan.capabilities.archive else 'false' }}" data-can-unarchive="{{ 'true' if scan.capabilities.unarchive else 'false' }}" aria-label="Select {{ scan.scan_id }}"></td>
             <td><a class="run-id run-id-link" href="/admin/scans/{{ scan.scan_id }}?return_to={{ current_url|urlencode }}">{{ scan.scan_id }}</a></td>
             <td><span class="badge run-status" data-status="{{ scan.execution_status|replace('_',' ')|title }}">{{ scan.execution_status|replace('_',' ')|title }}</span>{% if scan.lifecycle == 'archived' %} <span class="badge run-status">Archived</span>{% endif %}</td>
             <td><span class="scan-name">{{ scan.scan_name }}</span></td>
             <td><span class="run-created">{{ scan.created_at_display }}</span></td>
             <td><span class="run-duration">{{ scan.duration_display }}</span></td>
           </tr>
-        {% else %}
-          <tr><td colspan="6"><div class="empty-state">{% if lifecycle == 'active' %}No Active Scans. Create a Scan to produce reusable job input.{% else %}No Archived Scans.{% endif %}</div></td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -48,16 +48,20 @@
     <nav class="run-pagination" aria-label="Scan pages">
       <span>Showing {{ (page - 1) * page_size + 1 }} to {{ [page * page_size, total_items]|min }} of {{ total_items }} results</span>
       <div class="run-pagination-controls">
-        <label class="run-page-size">Rows <select class="field" onchange="location.href='/admin/scans?lifecycle={{ lifecycle }}&page_size='+this.value+'&page=1'">{% for size in [10,20,50] %}<option value="{{ size }}" {{ 'selected' if page_size == size else '' }}>{{ size }}</option>{% endfor %}</select></label>
-        <div class="run-page-numbers">
-          {% if page > 1 %}<a class="btn" href="/admin/scans?{{ page_query }}&page={{ page - 1 }}" aria-label="Previous page">‹</a>{% endif %}
-          <span class="btn" aria-current="page">{{ page }}</span>
-          {% if page < total_pages %}<a class="btn" href="/admin/scans?{{ page_query }}&page={{ page + 1 }}" aria-label="Next page">›</a>{% endif %}
+        <label class="run-page-size">Rows:<select class="field" id="scanPageSize" onchange="location.href='/admin/scans?lifecycle={{ lifecycle }}&page_size='+this.value+'&page=1'">{% for size in [10,20,50] %}<option value="{{ size }}" {{ 'selected' if page_size == size else '' }}>{{ size }}</option>{% endfor %}</select></label>
+        <div class="run-page-numbers" aria-label="Scan table pagination">
+          {% if page > 1 %}<a class="btn" href="/admin/scans?{{ page_query }}&page={{ page - 1 }}" aria-label="Previous page">‹</a>{% else %}<button class="btn" type="button" aria-label="Previous page" disabled>‹</button>{% endif %}
+          {% for page_number in range(1, total_pages + 1) %}{% if page_number == page %}<span class="btn" aria-current="page">{{ page_number }}</span>{% else %}<a class="btn" href="/admin/scans?{{ page_query }}&page={{ page_number }}" aria-label="Page {{ page_number }}">{{ page_number }}</a>{% endif %}{% endfor %}
+          {% if page < total_pages %}<a class="btn" href="/admin/scans?{{ page_query }}&page={{ page + 1 }}" aria-label="Next page">›</a>{% else %}<button class="btn" type="button" aria-label="Next page" disabled>›</button>{% endif %}
         </div>
       </div>
     </nav>
     {% endif %}
   </div>
+  </div>
+  {% else %}
+  <div class="section-card table-card"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/></svg><h3>{% if lifecycle == 'active' %}No active Scans yet{% else %}No archived Scans{% endif %}</h3><p>{% if lifecycle == 'active' %}Create a Scan to produce reusable FitCV job input.{% else %}Archived Scans will appear here.{% endif %}</p></div></div>
+  {% endif %}
   </div>
 </main>
 
@@ -108,6 +112,7 @@
   const picker = document.getElementById('company-picker-dialog');
   const addDialog = document.getElementById('add-company-dialog');
   const newForm = document.getElementById('new-scan-form');
+  const notice = document.getElementById('scan-notice');
   let companies = [];
   let selectedCompanyIds = [];
   let draftCompanyIds = [];
@@ -147,13 +152,18 @@
 
   async function loadCompanies() {
     document.getElementById('apply-company-selection').disabled = true;
-    const payload = await fitcvApiRequest('/tracked-companies?page=1&page_size=50');
-    companies = payload.data || [];
-    renderCompanies();
-    document.getElementById('apply-company-selection').disabled = false;
+    try {
+      const payload = await fitcvApiRequest('/tracked-companies?page=1&page_size=50');
+      companies = payload.data || [];
+      renderCompanies();
+    } finally { document.getElementById('apply-company-selection').disabled = false; }
   }
 
-  document.getElementById('open-new-scan').addEventListener('click', () => { syncNewScanState(); newDialog.showModal(); });
+  function showCompanyLoadError(error) {
+    fitcvRenderAsyncState(document.getElementById('company-picker-list'), {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: async () => { try { await loadCompanies(); } catch (retryError) { showCompanyLoadError(retryError); } }});
+  }
+
+  document.getElementById('open-new-scan').addEventListener('click', () => { syncNewScanState(); newDialog.showModal(); document.getElementById('scan-name').focus(); });
   document.getElementById('close-new-scan').addEventListener('click', () => newDialog.close());
   document.getElementById('cancel-new-scan').addEventListener('click', () => newDialog.close());
   newForm.addEventListener('input', syncNewScanState);
@@ -162,7 +172,7 @@
     draftCompanyIds = [...selectedCompanyIds];
     newDialog.close();
     picker.showModal();
-    try { await loadCompanies(); } catch (error) { document.getElementById('company-picker-list').innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`; }
+    try { await loadCompanies(); } catch (error) { showCompanyLoadError(error); }
   });
   document.getElementById('company-picker-search').addEventListener('input', renderCompanies);
   document.getElementById('select-filtered-companies').addEventListener('click', () => {
@@ -214,38 +224,53 @@
     const data = new FormData(newForm);
     const body = {scan_name:data.get('scan_name'), company_ids:selectedCompanyIds, job_titles:splitLines(String(data.get('job_titles') || '')), locations:splitLines(String(data.get('locations') || '')), published_window:data.get('published_window'), total_rows:Number(data.get('total_rows'))};
     const startButton = document.getElementById('start-scan');
-    startButton.disabled = true;
-    status.textContent = 'Starting Scan…';
-    try {
-      const payload = await fitcvApiRequest('/scans', {method:'POST', headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()}, body:JSON.stringify(body)});
-      location.assign('/admin/scans/' + encodeURIComponent(payload.data.scan_id));
-    } catch (error) { status.textContent = error.message; startButton.disabled = selectedCompanyIds.length === 0; }
+    await fitcvRunLocked(startButton, async () => {
+      status.textContent = 'Starting Scan…';
+      try {
+        const payload = await fitcvApiRequest('/scans', {method:'POST', headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()}, body:JSON.stringify(body)});
+        location.assign('/admin/scans/' + encodeURIComponent(payload.data.scan_id));
+      } catch (error) { fitcvRenderAsyncState(status, {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: () => newForm.requestSubmit()}); }
+    });
   });
 
+  const selectAll = document.getElementById('select-all-scans');
   const selectedInputs = () => Array.from(document.querySelectorAll('input[name="selected_scan_ids"]:checked'));
   function updateBulk() {
     const selected = selectedInputs();
     document.getElementById('scan-bulk-actions').hidden = !selected.length;
-    document.getElementById('selected-scan-count').textContent = `${selected.length} selected`;
-    const all = document.getElementById('select-all-scans');
+    document.getElementById('selected-scan-count').textContent = `${selected.length} Scan${selected.length === 1 ? '' : 's'} selected`;
     const visible = Array.from(document.querySelectorAll('input[name="selected_scan_ids"]'));
-    all.checked = visible.length > 0 && selected.length === visible.length;
-    all.indeterminate = selected.length > 0 && selected.length < visible.length;
+    visible.forEach(input => { const row = input.closest('tr'); row?.classList.toggle('is-selected', input.checked); });
+    if (selectAll) {
+      selectAll.checked = visible.length > 0 && selected.length === visible.length;
+      selectAll.indeterminate = selected.length > 0 && selected.length < visible.length;
+    }
+    const action = document.querySelector('[data-bulk-scan-action]');
+    if (action) action.disabled = selected.some(input => input.dataset[`can${action.dataset.bulkScanAction[0].toUpperCase()}${action.dataset.bulkScanAction.slice(1)}`] !== 'true');
   }
+  document.querySelectorAll('[data-scan-tab]').forEach(tab => {
+    tab.addEventListener('click', () => { const query = new URLSearchParams(location.search); query.set('lifecycle', tab.dataset.scanTab); query.set('page', '1'); location.assign(`/admin/scans?${query}`); });
+    tab.addEventListener('keydown', event => { if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return; event.preventDefault(); const next = tab.dataset.scanTab === 'active' ? document.querySelector('[data-scan-tab="archived"]') : document.querySelector('[data-scan-tab="active"]'); next.focus(); next.click(); });
+  });
   document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => input.addEventListener('change', updateBulk));
-  document.getElementById('select-all-scans').addEventListener('change', event => { document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => { input.checked = event.target.checked; }); updateBulk(); });
+  if (selectAll) selectAll.addEventListener('change', event => { document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => { input.checked = event.target.checked; }); updateBulk(); });
   document.querySelectorAll('[data-bulk-scan-action]').forEach(button => button.addEventListener('click', async () => {
     const items = selectedInputs().map(input => ({scan_id:input.value, expected_revision:Number(input.dataset.revision)}));
-    try { await fitcvApiRequest(`/scans/actions/${button.dataset.bulkScanAction}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({items})}); location.reload(); } catch (error) { document.getElementById('scan-notice').textContent = error.message; }
+    await fitcvRunLocked(button, async () => {
+      try { await fitcvApiRequest(`/scans/actions/${button.dataset.bulkScanAction}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({items})}); location.reload(); } catch (error) { fitcvRenderAsyncState(notice, {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: () => button.click()}); }
+    });
   }));
   document.getElementById('delete-selected-scans')?.addEventListener('click', async () => {
     const scan_ids = selectedInputs().map(input => input.value);
-    try {
-      const preview = await fitcvApiRequest('/scans/actions/delete-archived/preview', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scan_ids})});
-      if (!preview.data.eligible_scan_ids.length || !confirm(`Delete ${preview.data.eligible_scan_ids.length} archived Scan(s)? This cannot be undone.`)) return;
-      await fitcvApiRequest('/scans/actions/delete-archived', {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({scan_ids,preview_revision:preview.data.preview_revision})});
-      location.reload();
-    } catch (error) { document.getElementById('scan-notice').textContent = error.message; }
+    const button = document.getElementById('delete-selected-scans');
+    await fitcvRunLocked(button, async () => {
+      try {
+        const preview = await fitcvApiRequest('/scans/actions/delete-archived/preview', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scan_ids})});
+        if (!preview.data.eligible_scan_ids.length || !confirm(`Delete ${preview.data.eligible_scan_ids.length} archived Scan(s)? This cannot be undone.`)) return;
+        await fitcvApiRequest('/scans/actions/delete-archived', {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({scan_ids,preview_revision:preview.data.preview_revision})});
+        location.reload();
+      } catch (error) { fitcvRenderAsyncState(notice, {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: () => button.click()}); }
+    });
   });
 })();
 </script>

@@ -19,6 +19,39 @@ This file is repo-wide instruction layer. More specific directory instructions o
 - Never expose private governance, credentials, agent memory, or internal tooling through public publication.
 - For generated agent surfaces, edit canonical sources, then run required sync and verification commands.
 
+## Subagent Routing
+
+`repo_config/harness.yaml` owns route selection. For managed execution,
+controller starts version-2 request through host-supplied `run_managed` adapter
+boundary. `run.json` owns mutable run state; each attempt owns immutable packet.
+Packet owns template, role, rules, skills, allowed tools, workspace, checks,
+approval gates, planned write paths, resolved base commit, and orchestration
+mode. Generic CLI has no platform agent adapter and must report unavailable
+mode instead of claiming dispatch.
+
+Use only packet-selected agent types:
+
+- `low`: small, narrow, low-risk work.
+- `normal`: routine implementation, testing, exploration, and focused analysis.
+- `high`: difficult reasoning, architecture, broad debugging, or high-risk work.
+
+When spawning a subagent:
+
+- Select the template through the platform's agent-type selector; task names only label work.
+- Use a fresh-context fork when selecting a different agent type.
+- Never override the template's model or reasoning effort.
+- Do not select unnamed or other agent types.
+- Subagents must not spawn other agents.
+- If task scope or needed capability changes, controller creates successor
+  attempt and regenerates immutable packet.
+- Harness dispatches only mode intersection of route policy and enforced host
+  capability. Controller alone accepts, retries, escalates, requests approval,
+  or blocks through recorded decision.
+- Agents return claimed results; harness records fresh verification evidence and
+  never accepts, retries, escalates, or approves autonomously.
+- Parallel writers need disjoint paths and isolated workspaces.
+- Without validated packet, do not dispatch subagent. Source-first routing still applies to controller work.
+
 ## Project Design Rules
 
 ### Use SSOT
@@ -100,102 +133,10 @@ Skip skill for copy-only edits, mechanical selector changes, or isolated nonvisu
 
 ## Code Intelligence
 
-Use native code tools for current files and small local changes, Serena for exact symbols and references, GitNexus for broad flows or impact, and DeepWiki for advisory orientation in unfamiliar external GitHub repositories. Do not query multiple tools for the same fact by default. Source and tests win every conflict; unavailable tools never block safe source-first work.
+Use native code tools for current files and small local changes, optional Semble MCP for broad unknown-location local concepts, `rg` for exact text, Serena for exact symbols and references, GitNexus for broad flows or impact, optional `sg` for structural preview, and DeepWiki for advisory orientation in unfamiliar external GitHub repositories. `apply_patch` remains sole source edit path. Do not query multiple tools for the same fact by default. Source and tests win every conflict; unavailable tools never block safe source-first work.
 
 - Serena runs with `--context codex --project-from-cwd`, `no-memories`, and `no-onboarding`. Never commit `.serena/` state.
 - GitNexus remains optional and private-only. Check freshness before high-trust impact or refactor use; never make refresh a universal completion gate.
 - For DeepWiki, use `read_wiki_structure` before focused `ask_question`; use `read_wiki_contents` only when full generated documentation is required. Hand off to local source and Serena before implementation, and to GitNexus before broad impact or refactoring decisions. Treat unknown-freshness output as advisory and verify against pinned upstream source.
 - Tests and CI own enforcement. `docs/architecture.md` and ADRs own durable architecture intent.
 - Detailed policy: `docs/operating_system/tooling/code-intelligence-tools.md`.
-
-<!-- BEGIN GENERATED: RUNTIME_MANIFEST -->
-## Runtime Extension Manifest (Generated)
-
-> [!IMPORTANT]
-> This section is generated. Do not edit manually.
-> Source of truth: `docs/operating_system/rules/*.md`, `.agents/skills/*/SKILL.md`.
-> Regenerate via: `scripts/sync_agent_adapters.py`.
-
-### Rules Manifest
-- `agent-memory-rule.md` — Govern conditional use of persistent project memory through MCP Memory Server.
-  - Source: `docs/operating_system/rules/agent-memory-rule.md`
-- `audit-evidence-mandate-rule.md` — Require formal audit evidence only for serious or explicitly requested incidents.
-  - Source: `docs/operating_system/rules/audit-evidence-mandate-rule.md`
-- `backend-verification-rule.md` — Require direct, backend-independent proof for material backend behavior changes.
-  - Source: `docs/operating_system/rules/backend-verification-rule.md`
-- `command-execution-rule.md` — Define command execution safety boundaries and escalation conditions.
-  - Source: `docs/operating_system/rules/command-execution-rule.md`
-- `doc-contracts-rule.md` — Enforce canonical ownership and generated-surface integrity for documentation.
-  - Source: `docs/operating_system/rules/doc-contracts-rule.md`
-- `frontend-backend-integration-rule.md` — Preserve canonical ownership and direct backend proof across frontend-backend delivery.
-  - Source: `docs/operating_system/rules/frontend-backend-integration-rule.md`
-- `frontend-ui-rule.md` — Route material front-end work through repository UI and accessibility requirements.
-  - Source: `docs/operating_system/rules/frontend-ui-rule.md`
-- `publication-boundary-rule.md` — Enforce private/public publication boundaries and controlled export workflow.
-  - Source: `docs/operating_system/rules/publication-boundary-rule.md`
-- `python-contracts-rule.md` — Enforce typing, exception, data-safety, and verification invariants for Python changes.
-  - Source: `docs/operating_system/rules/python-contracts-rule.md`
-
-### Native Skills Manifest
-- `skill-backend-verification` — Use when material backend behavior needs direct boundary, failure, state, dependency, contract, or trace proof whether or not a frontend exists.
-  - Source: `.agents/skills/skill-backend-verification/SKILL.md`
-- `skill-brainstorming` — Use when exploring or defining non-trivial behavior before implementation.
-  - Source: `.agents/skills/skill-brainstorming/SKILL.md`
-- `skill-central-config-layer` — Use when shared configuration spans multiple modules, services, agents, or pipelines.
-  - Source: `.agents/skills/skill-central-config-layer/SKILL.md`
-- `skill-code-standards` — Use when creating or modifying source code where consistency, type safety, naming, error handling, dependency discipline, or maintainability standards need explicit guidance.
-  - Source: `.agents/skills/skill-code-standards/SKILL.md`
-- `skill-creating-learning-materials` — Use when creating source-grounded questions, cards, exercises, or study materials.
-  - Source: `.agents/skills/skill-creating-learning-materials/SKILL.md`
-- `skill-dispatching-parallel-agents` — Use when two or more independent investigations or approved implementation lanes can run concurrently without shared state, hidden dependencies, or overlapping write ownership.
-  - Source: `.agents/skills/skill-dispatching-parallel-agents/SKILL.md`
-- `skill-distinctive-frontend-design` — Use when new or substantially restyled frontend work needs a distinctive aesthetic direction and current output risks generic template-like design.
-  - Source: `.agents/skills/skill-distinctive-frontend-design/SKILL.md`
-- `skill-executing-plans` — Use when executing an approved implementation plan or resuming partially completed planned work.
-  - Source: `.agents/skills/skill-executing-plans/SKILL.md`
-- `skill-finishing-a-development-branch` — Use after fresh completion verification when an explicitly authorized Git disposition is needed for a branch or worktree.
-  - Source: `.agents/skills/skill-finishing-a-development-branch/SKILL.md`
-- `skill-frontend-component-engineering` — Use when stateful frontend components or pages need decisions about component boundaries, state ownership, URL state, server data, or asynchronous UI transitions.
-  - Source: `.agents/skills/skill-frontend-component-engineering/SKILL.md`
-- `skill-full-stack-integration` — Use when frontend behavior crosses backend API contracts or routes and needs contract reconciliation, typed client wiring, or end-to-end verification.
-  - Source: `.agents/skills/skill-full-stack-integration/SKILL.md`
-- `skill-performance-optimization` — Use when measured latency, throughput, memory, query, bundle, rendering, or Core Web Vitals problems need diagnosis and verified improvement.
-  - Source: `.agents/skills/skill-performance-optimization/SKILL.md`
-- `skill-plan-document-reviewer` — Use when a specification or implementation plan needs correctness and readiness review before approval, handoff, or costly execution.
-  - Source: `.agents/skills/skill-plan-document-reviewer/SKILL.md`
-- `skill-private-public-repo-governance` — Use when separating private development truth from curated public publication.
-  - Source: `.agents/skills/skill-private-public-repo-governance/SKILL.md`
-- `skill-receiving-code-review` — Use when code review feedback must be evaluated before accepting, rejecting, clarifying, or implementing it.
-  - Source: `.agents/skills/skill-receiving-code-review/SKILL.md`
-- `skill-refactoring-assessment` — Use when assessing what code, configuration, tests, schemas, documentation, dependencies, infrastructure, or module boundaries should be refactored before specification, planning, or implementation.
-  - Source: `.agents/skills/skill-refactoring-assessment/SKILL.md`
-- `skill-requesting-code-review` — Use when completed code changes need independent review before further implementation, handoff, merge, or release.
-  - Source: `.agents/skills/skill-requesting-code-review/SKILL.md`
-- `skill-spec-drafting` — Use when a problem, approved direction, or diagnosed defect needs a precise behavioral and design specification before implementation planning.
-  - Source: `.agents/skills/skill-spec-drafting/SKILL.md`
-- `skill-subagent-driven-development` — Use when executing an approved implementation plan through sequential fresh subagents with task-level review in the current session.
-  - Source: `.agents/skills/skill-subagent-driven-development/SKILL.md`
-- `skill-systematic-debugging` — Use when diagnosing bugs, failures, or unexpected behavior before proposing fixes.
-  - Source: `.agents/skills/skill-systematic-debugging/SKILL.md`
-- `skill-test-driven-development` — Use when implementing non-trivial behavior or bug fixes with regression proof.
-  - Source: `.agents/skills/skill-test-driven-development/SKILL.md`
-- `skill-using-git-worktrees` — Use when isolated workspaces materially reduce risk for feature, parallel, or high-impact planned work.
-  - Source: `.agents/skills/skill-using-git-worktrees/SKILL.md`
-- `skill-using-superpowers` — Use when selecting relevant repository skills before acting.
-  - Source: `.agents/skills/skill-using-superpowers/SKILL.md`
-- `skill-verification-before-completion` — Use when implementation appears complete and fresh evidence is required before final status or branch-finishing handoff.
-  - Source: `.agents/skills/skill-verification-before-completion/SKILL.md`
-- `skill-writing-plans` — Use when an approved specification or direct approved scope needs an executable multi-step implementation plan.
-  - Source: `.agents/skills/skill-writing-plans/SKILL.md`
-- `skill-writing-skills` — Use when creating, editing, or validating reusable skills.
-  - Source: `.agents/skills/skill-writing-skills/SKILL.md`
-
-### Resolution Notes
-- `AGENTS.md` is the authoritative Codex root instruction surface.
-- Rules are summarized here; reusable methods stay in native skills and prompts provide wording.
-
-<!-- MANIFEST_METADATA
-version: 1
-generated_by: scripts/sync_agent_adapters.py
--->
-<!-- END GENERATED: RUNTIME_MANIFEST -->

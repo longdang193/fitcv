@@ -1,0 +1,47 @@
+- generic [ref=f3e2]:
+  - complementary "Primary navigation" [ref=f3e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f3e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f3e9]:
+        - strong [ref=f3e10]: FitCV Control Plane
+        - generic [ref=f3e11]: Local workspace
+    - navigation "Workspace" [ref=f3e12]:
+      - link "Runs" [ref=f3e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f3e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f3e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f3e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f3e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f3e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f3e32]:
+    - banner [ref=f3e33]:
+      - generic [ref=f3e34]:
+        - button "Open navigation" [ref=f3e35] [cursor=pointer]
+        - heading "Scans" [level=1] [ref=f3e41]
+      - button "Switch to light theme" [ref=f3e43] [cursor=pointer]:
+        - generic [ref=f3e47]: Light
+    - main [ref=f3e50]:
+      - generic [ref=f3e51]:
+        - generic [ref=f3e52]:
+          - paragraph [ref=f3e53]: Workspace
+          - heading "Scans" [level=2] [ref=f3e54]
+          - paragraph [ref=f3e55]: Create reusable FitCV job input from tracked companies.
+        - button "New Scan" [ref=f3e56] [cursor=pointer]
+      - generic [ref=f3e57]:
+        - tablist "Scan views" [ref=f3e58]:
+          - tab "Active 0" [ref=f3e59] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f3e60]: "0"
+          - tab "Archived 0" [selected] [ref=f3e61] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f3e62]: "0"
+        - tabpanel "Archived 0" [ref=f3e63]:
+          - status
+          - generic [ref=f3e65]:
+            - heading "No archived Scans" [level=3] [ref=f3e69]
+            - paragraph [ref=f3e70]: Archived Scans will appear here.

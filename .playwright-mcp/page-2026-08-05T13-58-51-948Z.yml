@@ -1,0 +1,90 @@
+- generic [ref=f11e2]:
+  - complementary "Primary navigation" [ref=f11e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f11e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f11e9]:
+        - strong [ref=f11e10]: FitCV Control Plane
+        - generic [ref=f11e11]: Local workspace
+    - navigation "Workspace" [ref=f11e12]:
+      - link "Runs" [ref=f11e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f11e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f11e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f11e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f11e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f11e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f11e32]:
+    - banner [ref=f11e33]:
+      - generic [ref=f11e38]:
+        - heading "Candidate Profiles" [level=1] [ref=f11e39]
+        - paragraph [ref=f11e40]: Create and review profiles used by matching runs.
+      - button "Switch to light theme" [ref=f11e42] [cursor=pointer]:
+        - generic [ref=f11e46]: Light
+    - main [ref=f11e49]:
+      - generic [ref=f11e50]:
+        - generic [ref=f11e51]:
+          - paragraph [ref=f11e52]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=f11e53]
+          - paragraph [ref=f11e54]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - button "Create Profile" [ref=f11e55] [cursor=pointer]
+      - region [ref=f11e56]:
+        - generic [ref=f11e57]:
+          - generic [ref=f11e58]:
+            - heading "Creation drafts" [level=3] [ref=f11e59]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=f11e60]: 0 drafts
+        - generic [ref=f11e62]:
+          - strong [ref=f11e63]: No creation drafts
+          - generic [ref=f11e64]: Upload Markdown, DOCX, or YAML to start one staged review.
+      - generic [ref=f11e65]:
+        - tablist "Candidate Profile views" [ref=f11e66]:
+          - tab "Active 3" [selected] [ref=f11e67] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f11e68]: "3"
+          - tab "Archived 0" [ref=f11e69] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f11e70]: "0"
+        - tabpanel "Active 3" [ref=f11e71]:
+          - table [ref=f11e74]:
+            - rowgroup [ref=f11e75]:
+              - row [ref=f11e76]:
+                - columnheader [ref=f11e77]:
+                  - checkbox "Select all visible profiles" [ref=f11e78]
+                - columnheader "Profile ID" [ref=f11e79]
+                - columnheader "Status" [ref=f11e80]
+                - columnheader "Profile Name" [ref=f11e81]
+                - columnheader "Created Time" [ref=f11e82]
+            - rowgroup [ref=f11e83]:
+              - row [ref=f11e84]:
+                - cell [ref=f11e85]:
+                  - checkbox "Select profile candidate-product-data" [ref=f11e86]
+                - cell [ref=f11e87]:
+                  - button "Open details for candidate-product-data" [ref=f11e88] [cursor=pointer]: candidate-product-data
+                - cell "Succeeded" [ref=f11e89]
+                - cell "Product Data Specialist" [ref=f11e91]
+                - cell [ref=f11e92]:
+                  - time [ref=f11e93]: Aug 5, 2026, 10:26 AM
+              - row [ref=f11e94]:
+                - cell [ref=f11e95]:
+                  - checkbox "Select profile candidate-platform" [ref=f11e96]
+                - cell [ref=f11e97]:
+                  - button "Open details for candidate-platform" [ref=f11e98] [cursor=pointer]: candidate-platform
+                - cell "Succeeded" [ref=f11e99]
+                - cell "Data Platform Engineer" [ref=f11e101]
+                - cell [ref=f11e102]:
+                  - time [ref=f11e103]: Aug 5, 2026, 10:26 AM
+              - row [ref=f11e104]:
+                - cell [ref=f11e105]:
+                  - checkbox "Select profile candidate-analytics" [ref=f11e106]
+                - cell [ref=f11e107]:
+                  - button "Open details for candidate-analytics" [ref=f11e108] [cursor=pointer]: candidate-analytics
+                - cell "Succeeded" [ref=f11e109]
+                - cell "Analytics & Operations" [ref=f11e111]
+                - cell [ref=f11e112]:
+                  - time [ref=f11e113]: Aug 5, 2026, 10:26 AM
+      - status

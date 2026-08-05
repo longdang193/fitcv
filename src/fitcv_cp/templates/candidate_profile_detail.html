@@ -5,6 +5,9 @@
 <main class="workspace-stack" data-page="candidate-profile-detail" data-header-title="Candidate Profile" data-header-description="Review source, approved facts, derived claims, traceability, and related runs." data-header-icon="candidate">
   <div class="details-page-head"><a class="details-page-back" href="{{ back_url }}">← Back to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Candidate Profile</p><h2>{{ profile.display_name }}</h2><p>Review source, approved facts, derived claims, traceability, and related Runs.</p></div></div></div>
   {% if profile.failure %}<div class="notice" role="alert">{{ profile.failure.message }}</div>{% endif %}
-  {% if canonical %}{{ render_candidate_profile(profile, canonical, field_schema, related_runs) }}{% else %}<p class="empty-state">No parsed profile data is available.</p>{% endif %}
+  {% if canonical %}{{ render_candidate_profile(profile, canonical, field_schema, related_runs, true) }}{% else %}<p class="empty-state">No parsed profile data is available.</p>{% endif %}
 </main>
+<script>
+document.querySelectorAll('[data-profile-run]').forEach(function(button) { button.addEventListener('click', function() { location.assign('/admin/runs/' + encodeURIComponent(button.dataset.profileRun)); }); });
+</script>
 {% endblock %}

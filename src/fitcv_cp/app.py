@@ -131,12 +131,14 @@ from fitcv_cp.models import (
     CandidateProfileApproveRequest,
     CandidateProfileConfirmRequest,
     CandidateProfileCreationAttemptEnvelope,
+    CandidateProfileDeleteEnvelope,
     CandidateProfileDerivedApproveRequest,
     CandidateProfileRegenerateRequest,
     CandidateProfileReviewEnvelope,
     CandidateProfileReviewPatchRequest,
     CandidateProfileRetryRequest,
     CandidateProfileSourceBlockEnvelope,
+    CandidateProfileUndoRegenerationRequest,
     CandidateProfileConfirmationEnvelope,
     PipelineRun,
     RunEvent,
@@ -3835,43 +3837,46 @@ def _decision_chain_label(value: Any) -> str | None:
 
 def _format_pipeline_outcome_detail(row: dict[str, Any]) -> str | None:
     decision_chain = row.get("decision_chain")
-    if not isinstance(decision_chain, dict):
-        return None
-
     detail_parts: list[str] = []
-    shortlist = decision_chain.get("shortlist")
-    if isinstance(shortlist, dict):
-        shortlist_status = _decision_chain_label(shortlist.get("status"))
-        if shortlist_status and shortlist_status != "not applicable":
-            detail_parts.append(f"Shortlist: {shortlist_status}")
+    if isinstance(decision_chain, dict):
+        shortlist = decision_chain.get("shortlist")
+        if isinstance(shortlist, dict):
+            shortlist_status = _decision_chain_label(shortlist.get("status"))
+            if shortlist_status and shortlist_status != "not applicable":
+                detail_parts.append(f"Shortlist: {shortlist_status}")
 
-    primary_fit = decision_chain.get("primary_fit")
-    if isinstance(primary_fit, dict):
-        fit_label = str(primary_fit.get("label") or "").strip()
-        if fit_label:
-            detail_parts.append(f"Primary fit: {fit_label}")
+        primary_fit = decision_chain.get("primary_fit")
+        if isinstance(primary_fit, dict):
+            fit_label = str(primary_fit.get("label") or "").strip()
+            if fit_label:
+                detail_parts.append(f"Primary fit: {fit_label}")
 
-    cv_analysis = decision_chain.get("cv_analysis")
-    if isinstance(cv_analysis, dict):
-        cv_analysis_status = _decision_chain_label(cv_analysis.get("status"))
-        if cv_analysis_status and cv_analysis_status not in {"not run", "ready for CV generation"}:
-            detail_parts.append(f"CV analysis: {cv_analysis_status}")
+        cv_analysis = decision_chain.get("cv_analysis")
+        if isinstance(cv_analysis, dict):
+            cv_analysis_status = _decision_chain_label(cv_analysis.get("status"))
+            if cv_analysis_status and cv_analysis_status not in {"not run", "ready for CV generation"}:
+                detail_parts.append(f"CV analysis: {cv_analysis_status}")
 
-    cv_generation = decision_chain.get("cv_generation")
-    if isinstance(cv_generation, dict):
-        cv_status = _decision_chain_label(cv_generation.get("status"))
-        if cv_status and cv_status not in {"not applicable", "not attempted", "skipped after CV analysis"}:
-            detail_parts.append(f"CV: {cv_status}")
+        cv_generation = decision_chain.get("cv_generation")
+        if isinstance(cv_generation, dict):
+            cv_status = _decision_chain_label(cv_generation.get("status"))
+            if cv_status and cv_status not in {"not applicable", "not attempted", "skipped after CV analysis"}:
+                detail_parts.append(f"CV: {cv_status}")
 
-    validation = decision_chain.get("validation")
-    if isinstance(validation, dict):
-        validation_status = _decision_chain_label(validation.get("status"))
-        if validation_status and validation_status != "not run":
-            detail_parts.append(f"Validation: {validation_status}")
+        validation = decision_chain.get("validation")
+        if isinstance(validation, dict):
+            validation_status = _decision_chain_label(validation.get("status"))
+            if validation_status and validation_status != "not run":
+                detail_parts.append(f"Validation: {validation_status}")
 
-    if not detail_parts:
-        return None
-    return " | ".join(detail_parts)
+    if detail_parts:
+        return " | ".join(detail_parts)
+    reject_reasons = row.get("reject_reasons")
+    if isinstance(reject_reasons, list):
+        detail = ", ".join(str(value).strip() for value in reject_reasons if str(value).strip())
+        if detail:
+            return detail
+    return str(row.get("stage_owned_subreason") or "").strip() or None
 
 
 def _decision_feedback_source_from_run(run: PipelineRun) -> dict[str, Any] | None:
@@ -4532,6 +4537,7 @@ def _selected_enriched_pipeline_outcomes(values: list[str] | tuple[str, ...] | N
 def _build_enriched_tab_url(
     *,
     run_id: str,
+    stage: str,
     page: int,
     page_size: int,
     filter_name: str,
@@ -4539,6 +4545,7 @@ def _build_enriched_tab_url(
     pipeline_outcomes: list[str],
 ) -> str:
     params: list[tuple[str, str]] = [
+        ("stage", stage),
         ("page", str(page)),
         ("page_size", str(page_size)),
         ("filter_name", filter_name),
@@ -4549,6 +4556,59 @@ def _build_enriched_tab_url(
         params.append(("pipeline_outcome", outcome))
     encoded = urlencode(params, doseq=True)
     return f"/admin/runs/{run_id}/tabs/enriched?{encoded}"
+
+
+_PIPELINE_RESULTS_STAGE_IDS = (
+    "all",
+    "enrichment",
+    "screening",
+    "shortlisting",
+    "ranking",
+    "cv-analysis",
+    "cv-generation",
+)
+
+
+def _normalize_pipeline_results_stage(value: str | None) -> str:
+    stage = str(value or "").strip().lower()
+    return stage if stage in _PIPELINE_RESULTS_STAGE_IDS else "shortlisting"
+
+
+def _pipeline_stage_result(
+    stage: str,
+    filter_result: dict[str, Any],
+    outcome: dict[str, Any],
+) -> tuple[bool, bool, str]:
+    filter_passed = filter_result.get("passed") is not False
+    status = str(outcome.get("status") or "").strip()
+    detail = str(outcome.get("detail") or "").strip()
+    if status in {"deduplicated_before_enrichment", "rejected_before_enrichment"}:
+        return stage in {"all", "enrichment"}, False, detail
+    if stage in {"all", "enrichment"}:
+        return True, True, detail
+    if status == "rejected_after_enrichment":
+        filter_passed = False
+    if stage == "screening":
+        return True, filter_passed, detail
+    if not filter_passed:
+        return False, False, detail
+    if stage == "shortlisting":
+        return True, status != "not_shortlisted", detail
+    if status == "not_shortlisted":
+        return False, False, detail
+    if stage == "ranking":
+        return True, status not in {"scored_not_ranked"}, detail
+    reached_late_stage = status in {
+        "ranked_with_cv",
+        "ranked_no_cv",
+        "ranked_blocked_by_reranker_fit",
+        "ranked_skipped_fit_gate",
+    }
+    if not reached_late_stage:
+        return False, False, detail
+    if stage == "cv-analysis":
+        return True, status not in {"ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}, detail
+    return True, status == "ranked_with_cv", detail
 
 def _raw_jobs_by_url_from_run_input(run: PipelineRun) -> dict[str, dict[str, Any]]:
     payload_raw = str(getattr(run, "jobs_input_json", "") or "").strip()
@@ -4607,12 +4667,14 @@ def _build_enriched_tab_context(
     *,
     run_id: str,
     client: Any,
+    stage: str,
     filter_name: str,
     query: str,
     pipeline_outcomes: list[str],
     page: int,
     page_size: int,
 ) -> dict[str, Any]:
+    normalized_stage = _normalize_pipeline_results_stage(stage)
     results_rows = _results_export_rows(run)
     decision_feedback_source = _decision_feedback_source_from_run(run)
     decision_feedback_alternatives = {
@@ -4628,7 +4690,42 @@ def _build_enriched_tab_context(
         effective_ratings = reduce_rating_events(
             _resolve_run_store(client=client).list_decision_rating_events_for_run(run_id)
         )
+    run_store = _resolve_run_store(client=client)
     enriched_jobs = list_run_structured_jobs(run_id, client=client)
+    if enriched_jobs:
+        try:
+            canonical_job_page = run_store.query_run_jobs(
+                run_id,
+                page=1,
+                page_size=10_000,
+                stage=None,
+            )
+        except Exception:
+            canonical_job_page = {}
+        canonical_jobs_by_id = {
+            str(row.get("run_job_id") or ""): row
+            for row in canonical_job_page.get("items", [])
+            if isinstance(row, dict) and str(row.get("run_job_id") or "").strip()
+        }
+        enriched_jobs = [
+            {
+                **job,
+                **{
+                    key: canonical_job[key]
+                    for key in (
+                        "rating",
+                        "rating_contract_revision",
+                        "capabilities",
+                        "current_cv_version_id",
+                    )
+                    if key in canonical_job
+                },
+            }
+            for job in enriched_jobs
+            for canonical_job in [
+                canonical_jobs_by_id.get(str(job.get("run_job_id") or ""), {})
+            ]
+        ]
     if not enriched_jobs:
         enriched_jobs = _fallback_enriched_rows_from_stage_artifacts(run)
     if not enriched_jobs:
@@ -4656,7 +4753,7 @@ def _build_enriched_tab_context(
         outcome_payload = {
             **outcome_surface,
             "status": _canonical_pipeline_outcome_status(row) or str(row.get("pipeline_status") or ""),
-            "detail": _format_pipeline_outcome_detail(row),
+            "detail": _format_pipeline_outcome_detail(row) or ", ".join(str(value) for value in (row.get("reject_reasons") or [])),
         }
         for lookup_key in _job_lookup_keys(row):
             pipeline_outcomes_by_job_url[lookup_key] = outcome_payload
@@ -4729,15 +4826,42 @@ def _build_enriched_tab_context(
     normalized_query = str(query or "").strip().lower()
     normalized_pipeline_outcomes = _normalize_pipeline_outcomes(pipeline_outcomes)
 
+    pipeline_jobs = list(enriched_jobs)
+    known_job_keys = {key for job in pipeline_jobs for key in _job_lookup_keys(job)}
+    for row in results_rows:
+        status = str(row.get("pipeline_status") or "").strip()
+        row_keys = _job_lookup_keys(row)
+        if status not in {"deduplicated_before_enrichment", "rejected_before_enrichment"} or any(key in known_job_keys for key in row_keys):
+            continue
+        pipeline_jobs.append(_with_required_skills_display({
+            "job_url": row.get("job_url"),
+            "title": row.get("job_title") or row.get("title") or row.get("job_url"),
+            "required_skills": row.get("required_skills") if isinstance(row.get("required_skills"), list) else [],
+        }))
+        known_job_keys.update(row_keys)
+
+    stage_scoped_rows: list[dict[str, Any]] = []
+    for job in pipeline_jobs:
+        filter_row = _lookup_row_by_lookup_key(filter_results_by_job_url, job)
+        outcome_row = _lookup_row_by_lookup_key(pipeline_outcomes_by_job_url, job)
+        included, passed, reason = _pipeline_stage_result(normalized_stage, filter_row, outcome_row)
+        if not included:
+            continue
+        staged_job = dict(job)
+        staged_job["stage_passed"] = passed
+        staged_job["stage_outcome_reason"] = reason
+        stage_scoped_rows.append(staged_job)
+
     filter_scoped_rows: list[dict[str, Any]] = []
-    for job in enriched_jobs:
+    for job in stage_scoped_rows:
         filter_result = _lookup_row_by_lookup_key(filter_results_by_job_url, job)
-        passed = filter_result.get("passed")
+        passed = job.get("stage_passed")
+        raw_filter_passed = filter_result.get("passed")
         if normalized_filter == "passed" and passed is not True:
             continue
         if normalized_filter == "rejected" and passed is not False:
             continue
-        if normalized_filter == "unknown" and passed is not None:
+        if normalized_filter == "unknown" and raw_filter_passed is not None:
             continue
         if normalized_pipeline_outcomes:
             outcome_row = _lookup_row_by_lookup_key(pipeline_outcomes_by_job_url, job)
@@ -4745,6 +4869,8 @@ def _build_enriched_tab_context(
             if outcome_status and outcome_status not in normalized_pipeline_outcomes:
                 continue
         filter_scoped_rows.append(job)
+
+    stage_passed_count = sum(1 for job in stage_scoped_rows if job.get("stage_passed") is True)
 
     filtered_rows: list[dict[str, Any]] = []
     for job in filter_scoped_rows:
@@ -4784,12 +4910,23 @@ def _build_enriched_tab_context(
             pipeline_outcomes_by_job_url,
             filter_results_by_job_url,
         )
+        run_job_id = str(row.get("run_job_id") or "").strip()
+        if run_job_id:
+            try:
+                cv_versions = run_store.list_cv_versions(run_job_id)
+            except Exception:
+                cv_versions = []
+            if cv_versions:
+                row["cv_review_state"] = str(
+                    cv_versions[0].get("review_state") or "none"
+                )
         visible_rows.append(row)
 
     prev_url = None
     if nav_pager["current_page"] > 1:
         prev_url = _build_enriched_tab_url(
             run_id=run_id,
+            stage=normalized_stage,
             page=nav_pager["current_page"] - 1,
             page_size=page_size,
             filter_name=normalized_filter,
@@ -4800,16 +4937,45 @@ def _build_enriched_tab_context(
     if nav_pager["current_page"] < nav_pager["total_pages"]:
         next_url = _build_enriched_tab_url(
             run_id=run_id,
+            stage=normalized_stage,
             page=nav_pager["current_page"] + 1,
             page_size=page_size,
             filter_name=normalized_filter,
             query=query,
             pipeline_outcomes=normalized_pipeline_outcomes,
         )
+    page_numbers: list[dict[str, Any]] = []
+    previous_page_number = 0
+    for page_number in sorted({
+        1,
+        nav_pager["current_page"] - 1,
+        nav_pager["current_page"],
+        nav_pager["current_page"] + 1,
+        nav_pager["total_pages"],
+    }):
+        if not 1 <= page_number <= nav_pager["total_pages"]:
+            continue
+        if page_number - previous_page_number > 1:
+            page_numbers.append({"label": "…", "url": None, "current": False})
+        page_numbers.append({
+            "label": str(page_number),
+            "url": _build_enriched_tab_url(
+                run_id=run_id,
+                stage=normalized_stage,
+                page=page_number,
+                page_size=page_size,
+                filter_name=normalized_filter,
+                query=query,
+                pipeline_outcomes=normalized_pipeline_outcomes,
+            ),
+            "current": page_number == nav_pager["current_page"],
+        })
+        previous_page_number = page_number
     download_url = (
         f"/admin/runs/{run_id}/enriched/export-filtered.zip?"
         + urlencode(
             [
+                ("stage", normalized_stage),
                 ("filter_name", normalized_filter),
                 ("q", query),
                 *[("pipeline_outcome", value) for value in normalized_pipeline_outcomes],
@@ -4820,6 +4986,16 @@ def _build_enriched_tab_context(
 
     return {
         "run": run,
+        "enriched_stage": normalized_stage,
+        "enriched_stage_options": (
+            ("all", "All Jobs"),
+            ("enrichment", "Enrichment"),
+            ("screening", "Screening"),
+            ("shortlisting", "Shortlisting"),
+            ("ranking", "Ranking"),
+            ("cv-analysis", "CV Analysis"),
+            ("cv-generation", "CV Generation"),
+        ),
         "enriched_jobs": visible_rows,
         "filter_results_by_job_url": filter_results_by_job_url,
         "pipeline_outcomes_by_job_url": pipeline_outcomes_by_job_url,
@@ -4828,7 +5004,15 @@ def _build_enriched_tab_context(
         "enriched_passed_count": enriched_passed_count,
         "enriched_rejected_count": enriched_rejected_count,
         "enriched_total_count": len(enriched_jobs),
+        "enriched_evaluated_count": len(stage_scoped_rows),
+        "enriched_stage_passed_count": stage_passed_count,
+        "enriched_stage_rejected_count": len(stage_scoped_rows) - stage_passed_count,
         "enriched_filtered_total_count": pager["total"],
+        "enriched_filtered_run_job_ids": [
+            str(job.get("run_job_id"))
+            for job in filtered_rows
+            if str(job.get("run_job_id") or "").strip()
+        ],
         "enriched_current_page": nav_pager["current_page"],
         "enriched_total_pages": nav_pager["total_pages"],
         "enriched_page_size": page_size,
@@ -4842,12 +5026,14 @@ def _build_enriched_tab_context(
         "enriched_has_next": nav_pager["current_page"] < nav_pager["total_pages"],
         "enriched_prev_url": prev_url,
         "enriched_next_url": next_url,
+        "enriched_page_numbers": page_numbers,
         "enriched_download_url": download_url,
         "decision_feedback_available": decision_feedback_source is not None,
         "decision_feedback_scale_version": str((decision_feedback_source or {}).get("rating_scale_version") or ""),
         "decision_feedback_source_fingerprint": str((decision_feedback_source or {}).get("source_stage_artifact_fingerprint") or ""),
         "decision_feedback_return_to": _build_enriched_tab_url(
             run_id=run_id,
+            stage=normalized_stage,
             page=nav_pager["current_page"],
             page_size=page_size,
             filter_name=normalized_filter,
@@ -5624,6 +5810,7 @@ class CandidateProfileCapabilities(BaseModel):
     inspect: bool
     archive: bool
     restore: bool
+    delete: bool = False
     use_for_run: bool
 
 
@@ -9531,6 +9718,7 @@ def create_app(
                 if code in {
                     "candidate_profile_attempt_not_found",
                     "candidate_profile_source_not_found",
+                    "profile_not_found",
                 }
                 else 410
                 if code in {
@@ -9545,6 +9733,9 @@ def create_app(
                     "candidate_profile_fingerprint_conflict",
                     "candidate_profile_processing_claim_conflict",
                     "candidate_profile_already_confirmed",
+                    "candidate_profile_regeneration_undo_unavailable",
+                    "candidate_profile_delete_requires_archive",
+                    "candidate_profile_delete_referenced",
                     "idempotency_conflict",
                 }
                 else 413
@@ -9782,6 +9973,44 @@ def create_app(
     ) -> dict[str, Any]:
         return _regenerate_candidate_profile_review(request, attempt_id, "derived", body)
 
+    def _undo_candidate_profile_regeneration(
+        request: Request,
+        attempt_id: str,
+        stage: str,
+        body: CandidateProfileUndoRegenerationRequest,
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_call(
+            lambda: _resolve_run_store().undo_candidate_profile_regeneration(
+                attempt_id,
+                stage,
+                expected_revision=body.expected_revision,
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/undo-regeneration",
+        response_model=CandidateProfileReviewEnvelope,
+    )
+    def undo_candidate_profile_baseline_regeneration(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileUndoRegenerationRequest,
+    ) -> dict[str, Any]:
+        return _undo_candidate_profile_regeneration(request, attempt_id, "baseline", body)
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/derived/actions/undo-regeneration",
+        response_model=CandidateProfileReviewEnvelope,
+    )
+    def undo_candidate_profile_derived_regeneration(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileUndoRegenerationRequest,
+    ) -> dict[str, Any]:
+        return _undo_candidate_profile_regeneration(request, attempt_id, "derived", body)
+
     @app.post(
         "/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/approve",
         status_code=202,
@@ -9978,6 +10207,22 @@ def create_app(
         request: Request, profile_id: str, body: CandidateProfileLifecycleRequest
     ) -> dict[str, Any]:
         return _transition_candidate_profile(request, profile_id, body, "active")
+
+    @app.post(
+        "/candidate-profiles/{profile_id}/actions/delete",
+        response_model=CandidateProfileDeleteEnvelope,
+    )
+    def delete_candidate_profile(
+        request: Request, profile_id: str, body: CandidateProfileLifecycleRequest
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_call(
+            lambda: _resolve_run_store().delete_candidate_profile(
+                profile_id,
+                expected_revision=body.expected_revision,
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
 
     @app.get("/synonym-policies/{synonym_type}", response_model=SynonymPolicyEnvelope)
     def get_synonym_policy(synonym_type: Literal["skills", "domain", "role_family"]) -> dict[str, Any]:
@@ -11948,6 +12193,11 @@ def create_app(
                 "process_console_title": "Console Log",
                 "process_console_description": "Scan lifecycle events.",
                 "process_console_simple": True,
+                "process_console_toolbar_text": "Portal retrieval, normalization, and output lifecycle events.",
+                "process_console_clear_label": "Clear",
+                "process_console_download_url": f"/scans/{scan_id}/events?limit=500",
+                "process_console_download_label": "Download",
+                "process_console_empty_message": "No Scan events in current view.",
                 "jobs": jobs,
                 "output_json": output_json,
                 "output_page": output_page,
@@ -12822,6 +13072,39 @@ def create_app(
         show_inline_review_queue = hitl_review_pending_count <= HITL_REVIEW_QUEUE_INLINE_THRESHOLD
         show_review_queue_cta = hitl_review_pending_count > HITL_REVIEW_QUEUE_INLINE_THRESHOLD
         jobs_input_sources = _project_jobs_input_sources(run.jobs_input_manifest_json)
+        candidate_profile_snapshot: dict[str, Any] = {}
+        if run.candidate_profile_json:
+            try:
+                parsed_candidate_profile = json.loads(run.candidate_profile_json)
+            except (TypeError, json.JSONDecodeError):
+                parsed_candidate_profile = None
+            if isinstance(parsed_candidate_profile, dict):
+                candidate_profile_snapshot = parsed_candidate_profile
+        candidate_profile_id = str(
+            candidate_profile_snapshot.get("candidate_profile_id")
+            or (
+                run.candidate_profile_source
+                if str(run.candidate_profile_source or "") != "default_config"
+                else ""
+            )
+            or ""
+        )
+        candidate_profile_name = "Profile unavailable"
+        candidate_profile_state = "Unavailable"
+        if candidate_profile_id:
+            candidate_profile = _resolve_run_store(client=client).get_candidate_profile(
+                candidate_profile_id
+            )
+            if candidate_profile is not None:
+                candidate_profile_name = str(
+                    candidate_profile.get("name") or candidate_profile_name
+                )
+                candidate_profile_state = (
+                    "Archived · historical reference"
+                    if candidate_profile.get("archived")
+                    or candidate_profile.get("archived_at")
+                    else "Active"
+                )
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -12830,6 +13113,9 @@ def create_app(
                 "run_status_projection": run_status_projection(run),
                 "run_mode_label": run_mode_label(run.run_mode),
                 "jobs_input_sources": jobs_input_sources,
+                "candidate_profile_id": candidate_profile_id or None,
+                "candidate_profile_name": candidate_profile_name,
+                "candidate_profile_state": candidate_profile_state,
                 "events": timeline_events,
                 "process_console": process_console,
                 "timeline_has_more": len(events) > timeline_limit,
@@ -13658,21 +13944,23 @@ def create_app(
     def admin_run_detail_tab_enriched(
         request: Request,
         run_id: str,
+        stage: str = "shortlisting",
         page: int = 1,
-        page_size: int = 25,
+        page_size: int = 10,
         filter_name: str = "all",
         q: str = "",
     ) -> HTMLResponse:
         run = require_run_or_404(run_id, detail="")
         page = _coerce_positive_int(page, default=1, minimum=1, maximum=10000)
-        page_size = _coerce_positive_int(page_size, default=25, minimum=10, maximum=100)
-        selected_pipeline_outcomes = _selected_enriched_pipeline_outcomes(
+        page_size = _coerce_positive_int(page_size, default=10, minimum=10, maximum=100)
+        selected_pipeline_outcomes = _normalize_pipeline_outcomes(
             request.query_params.getlist("pipeline_outcome")
         )
         context = _build_enriched_tab_context(
             run,
             run_id=run_id,
             client=client,
+            stage=stage,
             filter_name=filter_name,
             query=q,
             pipeline_outcomes=selected_pipeline_outcomes,
@@ -13689,17 +13977,19 @@ def create_app(
     def download_run_enriched_filtered_zip(
         request: Request,
         run_id: str,
+        stage: str = "shortlisting",
         filter_name: str = "all",
         q: str = "",
     ) -> Response:
         run = require_run_or_404(run_id, detail="")
-        selected_pipeline_outcomes = _selected_enriched_pipeline_outcomes(
+        selected_pipeline_outcomes = _normalize_pipeline_outcomes(
             request.query_params.getlist("pipeline_outcome")
         )
         context = _build_enriched_tab_context(
             run,
             run_id=run_id,
             client=client,
+            stage=stage,
             filter_name=filter_name,
             query=q,
             pipeline_outcomes=selected_pipeline_outcomes,

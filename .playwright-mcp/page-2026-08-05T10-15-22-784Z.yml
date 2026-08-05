@@ -1,0 +1,47 @@
+- generic [ref=e2]:
+  - complementary "Primary navigation" [ref=e3]:
+    - link "FitCV Control Plane Local workspace" [ref=e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=e9]:
+        - strong [ref=e10]: FitCV Control Plane
+        - generic [ref=e11]: Local workspace
+    - navigation "Workspace" [ref=e12]:
+      - link "Runs" [ref=e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=e32]:
+    - banner [ref=e33]:
+      - generic [ref=e37]:
+        - heading "Scans" [level=1] [ref=e38]
+        - paragraph [ref=e39]: Create reusable FitCV job input from tracked companies.
+      - button "Switch to dark theme" [ref=e41] [cursor=pointer]:
+        - generic [ref=e44]: Dark
+    - main [ref=e47]:
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - paragraph [ref=e50]: Workspace
+          - heading "Scans" [level=2] [ref=e51]
+          - paragraph [ref=e52]: Create reusable FitCV job input from tracked companies.
+        - button "New Scan" [ref=e53] [cursor=pointer]
+      - generic [ref=e54]:
+        - tablist "Scan views" [ref=e55]:
+          - tab "Active 0" [selected] [ref=e56] [cursor=pointer]:
+            - text: Active
+            - generic [ref=e57]: "0"
+          - tab "Archived 0" [ref=e58] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=e59]: "0"
+        - tabpanel "Active 0" [ref=e60]:
+          - status
+          - generic [ref=e62]:
+            - heading "No active Scans yet" [level=3] [ref=e66]
+            - paragraph [ref=e67]: Create a Scan to produce reusable FitCV job input.

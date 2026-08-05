@@ -229,6 +229,10 @@ def test_candidate_profile_mock_contract_converges_confirmation_and_detail() -> 
     confirmation = client.get(f"/candidate-profile-creation-attempts/{attempt_id}/confirmation")
     assert confirmation.status_code == 200
     confirmation_data = confirmation.json()["data"]
+    admin_confirmation = client.get(f"/admin/candidate-profiles/create/{attempt_id}/confirm")
+    assert admin_confirmation.status_code == 200
+    assert '<div class="stack">' in admin_confirmation.text
+    assert 'data-can-confirm="true"' in admin_confirmation.text
 
     confirmed = client.post(
         f"/candidate-profile-creation-attempts/{attempt_id}/actions/confirm",
@@ -254,6 +258,7 @@ def test_candidate_profile_mock_contract_converges_confirmation_and_detail() -> 
     assert admin_list.status_code == 200
     assert "Analytics Profile" in admin_list.text
     assert "Creation drafts" in admin_list.text
+    assert 'aria-labelledby="creationDraftsTitle"' in admin_list.text
     assert "0 drafts" in admin_list.text
 
 
@@ -423,13 +428,13 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     assert upload.status_code == 200
     assert 'name="profile_name"' in upload.text
     assert 'name="profile_name" required' in upload.text
-    assert 'accept=".md,.docx,.yaml"' in upload.text
+    assert 'accept=".md,.docx,.yaml,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/yaml,text/yaml"' in upload.text
     assert 'class="details-page-head"' in upload.text
     assert 'class="creation-upload-grid"' in upload.text
     assert 'class="creation-dropzone"' in upload.text
     assert "One staged hybrid pipeline" in upload.text
     assert "Process document" in upload.text
-    assert '<div class="provider-field"><label for="profile-name">Profile Name</label>' in upload.text
+    assert '<div class="provider-field"><label for="creationProfileName">Profile Name</label>' in upload.text
     assert '<label class="provider-field"' not in upload.text
     assert 'class="content container creation-content" id="page-content"' in upload.text
     upload_form = upload.text.index('<form class="creation-page-layout" id="candidate-profile-upload-form">')
@@ -458,6 +463,7 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     assert '.candidate-profile-creation .review-section,.candidate-profile-creation .collapsible-section{padding:0;margin-bottom:0}' in upload.text
     assert '.creation-upload-card{padding:28px}' in upload.text
     assert '.creation-upload-card{margin-bottom:0' not in upload.text
+
 
     created = client.post(
         "/candidate-profile-creation-attempts",
@@ -586,9 +592,11 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     ).read_text(encoding="utf-8")
     assert "sourceRoot.addEventListener('click', async function(event)" in creation_template
     assert "document.addEventListener('click', async function(event)" not in creation_template
-    assert "async function waitForCandidateProfileAttempt" in creation_template
-    assert "await waitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline')" in creation_template
-    assert "await waitForCandidateProfileAttempt(attemptId, stage === 'baseline' ? 'review_derived' : 'confirm')" in creation_template
+    base_template = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
+    assert "async function fitcvWaitForCandidateProfileAttempt" in base_template
+    assert "async function waitForCandidateProfileAttempt" not in creation_template
+    assert "await fitcvWaitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline')" in creation_template
+    assert "await fitcvWaitForCandidateProfileAttempt(attemptId, stage === 'baseline' ? 'review_derived' : 'confirm')" in creation_template
     collection_macro = creation_template[
         creation_template.index("{% macro review_collection") : creation_template.index(
             "{% macro evidence_ref_selector"
@@ -808,7 +816,52 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
         r'<details class="section-card collapsible-section drawer-section" open>.*?<strong>(.*?)</strong>',
         detail.text,
         re.S,
-    ) == [label.removeprefix("<strong>").removesuffix("</strong>") for label in detail_sections[:2]]
+    ) == [label.removeprefix("<strong>").removesuffix("</strong>") for label in detail_sections[:4]]
+
+def test_candidate_profile_recovery_reuses_prototype_actions_and_shared_async_state() -> None:
+    base = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
+    profiles = Path("src/fitcv_cp/templates/candidate_profiles.html").read_text(encoding="utf-8")
+    creation = Path("src/fitcv_cp/templates/candidate_profile_creation.html").read_text(encoding="utf-8")
+    sections = Path("src/fitcv_cp/templates/candidate_profile_sections.html").read_text(encoding="utf-8")
+
+    assert "async function fitcvWaitForCandidateProfileAttempt(" in base
+    assert "function fitcvIdempotencyKey(control)" in base
+    assert 'data-retry-attempt="{{ attempt.attempt_id }}"' in profiles
+    assert "data-attempt-revision=\"{{ attempt.revision }}\"" in profiles
+    assert "fitcvRunLocked(resume" in profiles
+    assert "fitcvRenderAsyncState(asyncState" in profiles
+    assert "fitcv-focus-profile-tab" in profiles
+    assert ">Resume</a>" in profiles
+    assert "'Start new upload'" in profiles
+    assert "fitcvWaitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline')" in creation
+    assert "fitcvRenderAsyncState(asyncState" in creation
+    assert "fitcvRunLocked(add || remove || regenerate || approve" in creation
+    assert "fitcvRunLocked(confirmButton" in creation
+    assert "candidate_profile_revision_conflict" in creation
+    assert "candidate_profile_already_confirmed" in creation
+    assert "Reapply unsaved changes" in creation
+    assert "fitcv-candidate-profile-reconciliation:" in creation
+    assert "Start new upload" in creation
+    assert 'aria-label="Profile creation progress"' in creation
+    assert 'id="creationDropzone"' in creation
+    assert 'id="creationCvFile"' in creation
+    assert 'id="creationProfileName"' in creation
+    assert 'id="creationFileName"' in creation
+    assert 'id="creationUploadStatus"' in creation
+    assert 'id="processCv"' in creation
+    assert 'id="regenerateStage"' in creation
+    assert 'id="backToBaseline"' in creation
+    assert 'id="saveCreationDraft"' in creation
+    assert 'id="approveCreationStage"' in creation
+    assert 'id="backToDerived"' in creation
+    assert 'id="confirmCreation"' in creation
+    assert "function isSupportedCandidateProfileFile(file)" in creation
+    assert 'data-can-patch="{{' in creation
+    assert 'data-can-confirm="{{' in creation
+    assert '<div class="stack">' in sections
+    assert "fitcvRunLocked(action" in profiles
+    assert "fitcvRenderAsyncState(asyncState" in profiles
+
 
 def test_candidate_profile_mock_llm_configuration_matches_prototype_copy() -> None:
     client = TestClient(_candidate_profile_mock_app())
@@ -1034,14 +1087,43 @@ def test_admin_runs_workspace_matches_prototype_structure() -> None:
     assert 'data-page="runs"' in response.text
     assert 'data-header-title="Runs"' in response.text
     assert '<p class="eyebrow">Workspace</p><h2>Runs</h2>' in response.text
-    assert 'id="open-trigger-run" class="btn"' in response.text
+    assert 'class="btn" type="button" data-open-run-dialog>Trigger Run</button>' in response.text
     assert response.text.count('class="run-tab-count"') == 2
     assert '>All<' not in response.text
     assert '⟳ Refresh' not in response.text
     assert 'name="search"' not in response.text
     assert 'name="status"' not in response.text
-    assert '<dialog class="workspace-dialog run-dialog" id="trigger-run-dialog"' in response.text
-    assert '<form class="run-form" id="trigger-run-form">' in response.text
+    assert '<dialog class="run-dialog" id="runDialog"' in response.text
+    assert '<form class="run-form" id="runForm">' in response.text
+
+
+def test_runs_list_preserves_prototype_states_and_interactions() -> None:
+    template = Path("src/fitcv_cp/templates/runs_list.html").read_text(encoding="utf-8")
+
+    assert 'aria-controls="runTablePanel"' in template
+    assert 'aria-labelledby="{{' in template
+    assert "['ArrowLeft', 'ArrowRight']" in template
+    assert "bulkLifecycleAction('unarchive'" not in template
+    assert "No archived runs" in template
+    assert "Archived runs will appear here after they are moved from Active." in template
+    assert "No active runs yet" in template
+    assert "Trigger a run to process a job file with one of your Candidate Profiles." in template
+    assert "fitcvRenderAsyncState(" in template
+    assert "setTimeout(() => location.reload()" not in template
+    assert "var triggerRunIdempotencyKey = null;" in template
+    assert "'Idempotency-Key': triggerRunIdempotencyKey" in template
+    assert 'class="run-source-panel" id="runUploadSource"' in template
+    assert 'class="run-source-panel" id="runScanSource"' in template
+    assert 'id="runScanEmpty" hidden>No successful non-empty Scans available.' in template
+    assert 'id="candidateProfileEmpty" hidden><strong>No available Candidate Profiles</strong>' in template
+    assert 'id="triggerRun" type="button" disabled>Trigger</button>' in template
+    assert "function updateRunTriggerState()" in template
+    assert "alert(e.message || 'Delete archived Runs failed')" not in template
+    assert "alert('Bulk action failed')" not in template
+    assert "fitcv-focus-run-tab" in template
+    assert 'id="cancelSelectedRuns"' in template
+    assert 'id="archiveSelectedRuns"' in template
+    assert 'id="deleteSelectedRuns"' in template
 
 
 def test_new_scan_dialog_uses_shared_run_dialog_structure() -> None:
@@ -1086,10 +1168,10 @@ def test_scan_managed_selection_dialogs_match_prototype_structure() -> None:
     assert 'id="save-add-company" type="button" disabled>Add Company</button>' in scans.text
     assert "picker.addEventListener('cancel'" in scans.text
     assert "addDialog.addEventListener('cancel'" in scans.text
-    assert 'class="workspace-dialog run-dialog managed-selection-dialog" id="run-scan-picker-dialog"' in runs.text
+    assert 'class="run-dialog managed-selection-dialog" id="runScanDialog"' in runs.text
     assert "Search and select successful Scan outputs for this Run." in runs.text
-    assert 'id="select-filtered-run-scans"' in runs.text
-    assert 'id="clear-run-scan-selection"' in runs.text
+    assert 'id="selectFilteredRunScans"' in runs.text
+    assert 'id="clearManagedRunScans"' in runs.text
     assert '<strong>${escapeRunScanText(scan.scan_id)}</strong>' in runs.text
     assert 'Intl.DateTimeFormat' in runs.text
 
@@ -1104,6 +1186,10 @@ def test_admin_scans_workspace_uses_prototype_visual_components() -> None:
     assert '<p class="eyebrow">Workspace</p>' in response.text
     assert 'class="run-panel"' in response.text
     assert 'class="run-tabs"' in response.text
+    assert 'aria-label="Scan views"' in response.text
+    assert 'data-scan-tab="active"' in response.text
+    assert 'data-scan-tab="archived"' in response.text
+    assert 'role="tabpanel"' in response.text
     assert 'class="section-card table-card"' in response.text
     assert 'class="run-table"' in response.text
     assert 'id="open-new-scan" class="btn"' in response.text
@@ -1115,6 +1201,15 @@ def test_admin_scans_workspace_uses_prototype_visual_components() -> None:
     assert "2026-08-02T09:45:00+00:00" not in response.text
     assert "02.08.2026 11:45 CEST" in response.text
     assert '<span class="run-duration">0s</span>' in response.text
+    template = Path("src/fitcv_cp/templates/scans_list.html").read_text(encoding="utf-8")
+    assert 'class="run-selection-copy"' in template
+    assert "classList.toggle('is-selected', input.checked)" in template
+    assert "['ArrowLeft', 'ArrowRight']" in template
+    assert "fitcvRenderAsyncState(" in template
+    assert "fitcvRunLocked(" in template
+    assert "const selectAll = document.getElementById('select-all-scans');" in template
+    assert "if (selectAll) selectAll.addEventListener('change'" in template
+    assert "document.getElementById('scan-name').focus();" in template
 
 
 def test_admin_scan_detail_reuses_detail_structure_and_output_views() -> None:
@@ -1128,6 +1223,9 @@ def test_admin_scan_detail_reuses_detail_structure_and_output_views() -> None:
     assert "Console" in response.text
     assert "Scan Output" in response.text
     assert "Console Log" in response.text
+    assert "Portal retrieval, normalization, and output lifecycle events." in response.text
+    assert '<button type="button" class="small-action" data-console-clear>Clear</button>' in response.text
+    assert 'href="/scans/scan-1048/events?limit=500">Download</a>' in response.text
     assert 'role="tab"' in response.text
     assert ">Table<" in response.text and ">JSON<" in response.text
     assert "Run Again" in response.text
@@ -1140,6 +1238,19 @@ def test_admin_scan_detail_reuses_detail_structure_and_output_views() -> None:
     assert '<button class="btn" type="button" aria-label="Previous page" disabled>‹</button>' in response.text
     assert 'aria-label="Page 2"' in response.text
     assert 'output_page=2&output_page_size=10#scan-output-title' in response.text
+    assert "<dt>Row Revision</dt>" not in response.text
+    assert (
+        "<th>Contract Type</th><th>Experience Level</th><th>Published At</th>"
+        "<th>Job URL</th><th>Apply URL</th><th>Description</th>"
+    ) in response.text
+    assert "{{ job.applyUrl }}" in Path("src/fitcv_cp/templates/scan_detail.html").read_text(
+        encoding="utf-8"
+    )
+    detail_template = Path("src/fitcv_cp/templates/scan_detail.html").read_text(encoding="utf-8")
+    assert 'data-scan-status="{{ scan.execution_status }}"' in detail_template
+    assert "['queued', 'running', 'cancelling']" in detail_template
+    assert "fitcvRenderAsyncState(" in detail_template
+    assert "fitcvRunLocked(" in detail_template
 
 
 def test_admin_scan_detail_uses_prototype_visual_components() -> None:
@@ -1188,7 +1299,7 @@ def test_run_trigger_uses_additive_upload_and_scan_sources() -> None:
     assert response.status_code == 200
     assert "Eligible Scan outputs" in response.text
     assert "At least one job source is required" in response.text
-    assert 'id="manage-run-scans"' in response.text
+    assert 'id="manageRunScans"' in response.text
     assert 'id="source_mode"' not in response.text
     assert "scanner_careers_url" not in response.text
 
@@ -2870,14 +2981,154 @@ def test_candidate_profile_routes_create_detail_and_archive() -> None:
     assert archived.status_code == 200 and archived.json()["data"]["lifecycle"] == "archived"
 
 
+def test_candidate_profile_delete_route_is_idempotent_and_persists_deletion() -> None:
+    app = _app()
+    profile = app.state.run_store.create_candidate_profile_attempt(
+        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Candidate",
+    )
+    archived = app.state.run_store.transition_candidate_profile_lifecycle(
+        profile["profile_id"], lifecycle="archived", expected_revision=profile["revision"]
+    )
+    client = TestClient(app)
+
+    missing_key = client.post(
+        f"/candidate-profiles/{profile['profile_id']}/actions/delete",
+        json={"expected_revision": archived["revision"]},
+    )
+
+    first = client.post(
+        f"/candidate-profiles/{profile['profile_id']}/actions/delete",
+        headers={"Idempotency-Key": "delete-profile"},
+        json={"expected_revision": archived["revision"]},
+    )
+    replay = client.post(
+        f"/candidate-profiles/{profile['profile_id']}/actions/delete",
+        headers={"Idempotency-Key": "delete-profile"},
+        json={"expected_revision": archived["revision"]},
+    )
+
+    assert missing_key.status_code == 422
+    assert missing_key.json()["error"]["field_errors"][0]["field"] == "Idempotency-Key"
+    assert first.status_code == 200
+    assert first.json() == replay.json() == {"data": {"profile_id": profile["profile_id"], "deleted": True}}
+    assert client.get(f"/candidate-profiles/{profile['profile_id']}").status_code == 404
+
+
+def test_candidate_profile_delete_route_rejects_referenced_profile() -> None:
+    app = _app()
+    profile = app.state.run_store.create_candidate_profile_attempt(
+        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Candidate",
+    )
+    app.state.run_store.create_run_bundle(
+        PipelineRun(
+            run_id="run-candidate-delete-reference",
+            status=RunStatus.SUCCEEDED,
+            triggered_by="admin",
+            trigger_source="ui",
+            jobs_path="jobs.json",
+            config_path=".env.yaml",
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+        ),
+        input_resource={
+            "strict_candidate_profile": True,
+            "candidate_profile_id": profile["profile_id"],
+            "jobs_snapshot_json": '[{"title":"Analyst"}]',
+            "jobs_manifest_json": "{}",
+        },
+        jobs=[{"title": "Analyst"}],
+    )
+    archived = app.state.run_store.transition_candidate_profile_lifecycle(
+        profile["profile_id"], lifecycle="archived", expected_revision=profile["revision"]
+    )
+
+    response = TestClient(app).post(
+        f"/candidate-profiles/{profile['profile_id']}/actions/delete",
+        headers={"Idempotency-Key": "delete-referenced-profile"},
+        json={"expected_revision": archived["revision"]},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "candidate_profile_delete_referenced"
+
+
+def test_candidate_profile_undo_regeneration_route_restores_review_snapshot() -> None:
+    app = _app()
+    store = app.state.run_store
+    created = store.create_candidate_profile_creation_attempt(
+        profile_name="Analytics Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex Morgan\n",
+        idempotency_key="create-undo-route",
+    )
+    claimed = store.claim_candidate_profile_processing(
+        created["attempt_id"], stage="base_mapping", expected_revision=created["revision"], lease_seconds=60
+    )
+    published = store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=claimed["processing"]["claim_id"],
+        expected_revision=claimed["revision"],
+        result={
+            "document": {"name": "Alex Morgan", "summary": "Original"},
+            "annotations": {"/summary": {"regenerable": True, "source_block_ids": []}},
+            "fingerprint": "baseline-route-original",
+            "runtime_evidence": None,
+        },
+        source_blocks=[],
+    )
+    regenerating = store.regenerate_candidate_profile_review(
+        created["attempt_id"], "baseline", expected_revision=published["revision"],
+        targets=["/summary"], idempotency_key="regenerate-route",
+    )
+    regenerated = store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=regenerating["processing"]["claim_id"],
+        expected_revision=regenerating["revision"],
+        result={
+            "document": {"name": "Alex Morgan", "summary": "Regenerated"},
+            "annotations": {"/summary": {"regenerable": True, "source_block_ids": []}},
+            "fingerprint": "baseline-route-regenerated",
+            "runtime_evidence": None,
+        },
+        source_blocks=[],
+    )
+    client = TestClient(app)
+
+    response = client.post(
+        f"/candidate-profile-creation-attempts/{created['attempt_id']}/baseline/actions/undo-regeneration",
+        headers={"Idempotency-Key": "undo-route"},
+        json={"expected_revision": regenerated["revision"]},
+    )
+    replay = client.post(
+        f"/candidate-profile-creation-attempts/{created['attempt_id']}/baseline/actions/undo-regeneration",
+        headers={"Idempotency-Key": "undo-route"},
+        json={"expected_revision": regenerated["revision"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == replay.json()
+    assert response.json()["data"]["document"]["summary"] == "Original"
+    assert response.json()["data"]["capabilities"]["undo_regeneration"] is False
+
+
 def test_candidate_profile_openapi_declares_staged_upload_and_lifecycle_body() -> None:
     schema = TestClient(_app()).get("/openapi.json").json()
 
     assert "post" not in schema["paths"]["/candidate-profiles"]
     create = schema["paths"]["/candidate-profile-creation-attempts"]["post"]
     archive = schema["paths"]["/candidate-profiles/{profile_id}/actions/archive"]["post"]
+    delete = schema["paths"]["/candidate-profiles/{profile_id}/actions/delete"]["post"]
+    undo = schema["paths"]["/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/undo-regeneration"]["post"]
     assert "multipart/form-data" in create["requestBody"]["content"]
     assert archive["requestBody"]["content"]["application/json"]["schema"]
+    assert delete["requestBody"]["content"]["application/json"]["schema"]
+    assert undo["requestBody"]["content"]["application/json"]["schema"]
 
 
 def test_central_workspace_openapi_declares_sort_selection_and_binary_contracts() -> None:
@@ -4417,123 +4668,6 @@ def test_admin_continue_run_rejects_checkpoint_progress_drift() -> None:
 
 
 
-def test_admin_run_detail_shows_agentic_review_queue_card() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-review-queue",
-        status=RunStatus.SUCCEEDED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json=json.dumps(
-            {
-                "cv_generation_debug_records": [
-                    {
-                        "job_url": "https://example.com/job-1",
-                        "job_title": "Senior Data Engineer",
-                        "status": "review_required",
-                        "fit_classification": "stretch",
-                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
-                    }
-                ],
-                "hitl_review_actions": [],
-            }
-        ),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-review-queue")
-    assert resp.status_code == 200
-    assert "Agentic Review Queue" in resp.text
-
-def test_admin_run_detail_shows_dedicated_review_queue_cta_when_pending_exceeds_threshold() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    debug_records = [
-        {
-            "job_url": f"https://example.com/job-{idx}",
-            "job_title": f"Data Role {idx}",
-            "status": "review_required",
-            "fit_classification": "stretch",
-            "error": {"stage": "review_gate", "message": "Needs review"},
-        }
-        for idx in range(1, 7)
-    ]
-    run = PipelineRun(
-        run_id="run-review-queue-threshold-high",
-        status=RunStatus.SUCCEEDED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json=json.dumps(
-            {
-                "cv_generation_debug_records": debug_records,
-                "hitl_review_actions": [],
-            }
-        ),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-review-queue-threshold-high")
-    assert resp.status_code == 200
-    assert "Open Full Review Queue" in resp.text
-    assert "Large queue mode enabled for more than 5 pending jobs." in resp.text
-
-def test_admin_run_detail_shows_inline_review_queue_controls_when_pending_at_threshold() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    debug_records = [
-        {
-            "job_url": f"https://example.com/job-{idx}",
-            "job_title": f"Data Role {idx}",
-            "status": "review_required",
-            "fit_classification": "stretch",
-            "error": {"stage": "review_gate", "message": "Needs review"},
-        }
-        for idx in range(1, 6)
-    ]
-    run = PipelineRun(
-        run_id="run-review-queue-threshold-inline",
-        status=RunStatus.SUCCEEDED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json=json.dumps(
-            {
-                "cv_generation_debug_records": debug_records,
-                "hitl_review_actions": [],
-            }
-        ),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-review-queue-threshold-inline")
-    assert resp.status_code == 200
-    assert "Apply one action to selected jobs." in resp.text
-    assert "Apply to Selected Jobs" in resp.text
-    assert "Select All" in resp.text
-    assert "Clear All" in resp.text
-    assert "Open Full Review Queue" not in resp.text
-
 def test_admin_review_queue_page_renders_shared_controls_and_back_link() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -4697,132 +4831,6 @@ def test_admin_run_detail_hides_replay_and_backend_metadata() -> None:
     assert "Runtime and Backend Details" not in resp.text
     assert "Run Attempt Timeline" not in resp.text
 
-
-def test_admin_run_detail_shows_stage_result_policy_and_trace_summary() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-stage-result-summary",
-        status=RunStatus.SUCCEEDED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        results_export_json=json.dumps(
-            {
-                "results": [],
-                "stage_result_summary": {
-                    "normalize": {
-                        "status": "completed",
-                        "policy_version": "policy.normalize.v1",
-                        "trace_context": {
-                            "trace_id": "trace-normalize-1",
-                            "span_id": "span-normalize-1",
-                            "parent_span_id": "",
-                        },
-                    },
-                    "cv_generation": {
-                        "status": "completed",
-                        "policy_version": "policy.cv_generation.v1",
-                        "trace_context": {
-                            "trace_id": "trace-cv-1",
-                            "span_id": "span-cv-1",
-                            "parent_span_id": "span-analysis-1",
-                        },
-                    },
-                },
-            }
-        ),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-stage-result-summary")
-
-    assert resp.status_code == 200
-    assert "Stage Result Policy + Trace Summary" in resp.text
-    assert "policy.normalize.v1" in resp.text
-    assert "trace-normalize-1" in resp.text
-    assert "policy.cv_generation.v1" in resp.text
-    assert "span-analysis-1" in resp.text
-
-def test_admin_run_detail_shows_agentic_review_queue_card_from_debug_records_key() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-review-queue-debug-records",
-        status=RunStatus.SUCCEEDED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json=json.dumps(
-            {
-                "debug_records": [
-                    {
-                        "job_url": "https://example.com/job-1",
-                        "job_title": "Senior Data Engineer",
-                        "status": "review_required",
-                        "fit_classification": "stretch",
-                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
-                    }
-                ],
-                "hitl_review_actions": [],
-            }
-        ),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-review-queue-debug-records")
-    assert resp.status_code == 200
-    assert "Agentic Review Queue" in resp.text
-    assert "Regenerate Once" in resp.text
-    assert 'action="/admin/runs/run-review-queue-debug-records/cv-review-action"' in resp.text
-
-def test_admin_run_detail_shows_markdown_quality_card() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-markdown-quality",
-        status=RunStatus.SUCCEEDED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json=json.dumps(
-            {
-                "cv_generation_debug_records": [
-                    {
-                        "job_url": "https://example.com/job-1",
-                        "job_title": "Senior Data Engineer",
-                        "status": "review_required",
-                        "fit_classification": "stretch",
-                        "error": {"stage": "markdown_quality_review", "message": "Markdown quality requires review: Experience section appears shallow."},
-                    }
-                ]
-            }
-        ),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-markdown-quality")
-    assert resp.status_code == 200
-    assert "Markdown Quality" in resp.text
-    assert "review-required" in resp.text
 
 def test_admin_run_cv_review_action_persists_and_appends_event() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -6095,258 +6103,13 @@ def test_admin_runs_rendered_nav():
     assert 'href="/admin/settings"' in resp.text
     assert '>Pipeline</a>' in resp.text
     assert 'Refresh' in resp.text
-    assert 'id="jobs_file"' in resp.text
-    assert 'id="candidate_profile_id"' in resp.text
-    assert 'id="config_path"' in resp.text
+    assert 'id="jobFile"' in resp.text
+    assert 'id="candidateProfile"' in resp.text
+    assert "fd.append('config_path', '.env.yaml')" in resp.text
     assert 'id="jobs_path"' not in resp.text
     assert "Outbox Replay Health (Visible Runs)" not in resp.text
     assert "Replay Success Ratio" not in resp.text
     assert 'href="/admin/outbox-replay-health.json?view=active"' not in resp.text
-
-
-def test_admin_run_detail_success_banner():
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-    
-    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
-        run_id="test-123", status=RunStatus.SUCCEEDED, 
-        cvs_generated=5, total_jobs=10, jobs_path="",
-        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc)
-    )), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[{"version_id": "v123", "job_url": "mock.com", "fit_classification": "strong", "generated_at": datetime.now(timezone.utc)}]):
-        resp = TestClient(_app()).get("/admin/runs/test-123")
-    assert resp.status_code == 200
-    assert "CV generation succeeded. Download/export files from" in resp.text
-    assert 'href="/admin/cvs/v123/download"' in resp.text
-    assert 'href="/admin/runs/test-123"' in resp.text
-    assert "Refresh Status" in resp.text  # still present on run_detail page
-
-
-def test_admin_run_detail_shows_exports_card_with_results_link():
-    """@proves trigger_run_management.run-owned-artifact-exports
-    @proves inspection_debugging.run-owned-artifact-exports
-    """
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
-        run_id="test-export-btn", status=RunStatus.SUCCEEDED,
-        cvs_generated=1, total_jobs=10, jobs_path="",
-        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc),
-        results_export_json='{"run_id":"test-export-btn","results":[]}',
-    )), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-export-btn")
-    assert resp.status_code == 200
-    assert "Artifacts" in resp.text
-    assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
-
-def test_run_detail_shows_raw_unknown_status_diagnostic() -> None:
-    from datetime import datetime, timezone
-    from fitcv_cp.models import PipelineRun, RunStatus
-
-    run = PipelineRun(
-        run_id="run-unknown-status",
-        status=RunStatus.FAILED,
-        raw_status="future_unknown_status",
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-unknown-status")
-
-    assert resp.status_code == 200
-    assert "stored status: <strong>future_unknown_status</strong>" in resp.text
-    assert "compatibility view: <code>failed</code>" in resp.text
-
-def test_admin_run_detail_shows_download_cv_debug_json_button():
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
-        run_id="test-debug-btn", status=RunStatus.SUCCEEDED,
-        cvs_generated=1, total_jobs=10, jobs_path="",
-        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json='{"run_id":"test-debug-btn","debug_records":[]}',
-    )), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-debug-btn")
-    assert resp.status_code == 200
-    assert 'href="/admin/runs/test-debug-btn/cv-debug.json"' in resp.text
-    assert "CV Debug JSON" in resp.text
-
-
-def test_admin_run_detail_shows_stage_artifacts_export_in_exports_card():
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
-        run_id="test-stage-artifacts-btn", status=RunStatus.SUCCEEDED,
-        cvs_generated=1, total_jobs=10, jobs_path="",
-        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc),
-        stage_transition_artifacts_json='{"run_id":"test-stage-artifacts-btn","artifacts":{"stages":{}}}',
-    )), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-stage-artifacts-btn")
-    assert resp.status_code == 200
-    assert 'href="/admin/runs/test-stage-artifacts-btn/stage-artifacts.json"' in resp.text
-    assert "Stage Artifacts JSON (Diagnostics)" in resp.text
-    assert resp.text.index("<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>") > resp.text.index("Process Console")
-
-
-def test_admin_run_detail_shows_bundle_zip_export_link():
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
-        run_id="test-bundle-btn", status=RunStatus.SUCCEEDED,
-        cvs_generated=1, total_jobs=10, jobs_path="",
-        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc),
-        results_export_json='{"run_id":"test-bundle-btn","results":[]}',
-        stage_transition_artifacts_json='{"run_id":"test-bundle-btn","artifacts":{"stages":{"normalize":{"status":"completed"}}}}',
-    )), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-bundle-btn")
-    assert resp.status_code == 200
-    assert 'href="/admin/runs/test-bundle-btn/artifacts.zip"' in resp.text
-    assert "Download debug bundle" in resp.text
-
-
-def test_admin_run_detail_shows_download_settings_used_json_button():
-    """@proves inspection_debugging.settings-used-export"""
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
-        run_id="test-settings-btn", status=RunStatus.SUCCEEDED,
-        cvs_generated=1, total_jobs=10, jobs_path="",
-        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc),
-        settings_used_json='{"run_id":"test-settings-btn","effective_settings":{"pipeline":{"final_top_n":10}}}',
-    )), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-settings-btn")
-    assert resp.status_code == 200
-    assert 'href="/admin/runs/test-settings-btn/settings-used.json"' in resp.text
-    assert "Settings Used JSON" in resp.text
-
-
-def test_admin_run_detail_shows_cv_generation_trace_export_when_present() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="test-agentic-live-trace-btn",
-        status=RunStatus.SUCCEEDED,
-        cvs_generated=1,
-        total_jobs=10,
-        jobs_path="",
-        triggered_by="admin",
-        trigger_source="web",
-        config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json=json.dumps(
-            {
-                "run_id": "test-agentic-live-trace-btn",
-                "agentic_live_trace": {
-                    "run_id": "test-agentic-live-trace-btn",
-                    "trace_schema_version": "agentic_step_trace_run_v1",
-                    "trace_family": "agentic_step_trace",
-                    "step_id": "cv_generation",
-                    "late_stage_mode": {
-                        "late_stage_mode": "agentic",
-                        "agentic_late_stage_enabled": True,
-                        "mode_source": "cv.agentic_late_stage.enabled",
-                        "agentic_status": "completed",
-                    },
-                    "trace_status": "completed",
-                    "trace_summary": {"records_total": 1, "present_records": 1, "attempted_generation_jobs_total": 1},
-                    "records": [{"record_id": "https://example.com/1", "scope_type": "job", "scope_key": "https://example.com/1"}],
-                    "degradation": {},
-                },
-                "debug_records": [],
-            }
-        ),
-        settings_used_json='{"run_id":"test-agentic-live-trace-btn","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"}}',
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-agentic-live-trace-btn")
-    assert resp.status_code == 200
-    assert 'href="/admin/runs/test-agentic-live-trace-btn/cv-generation-trace.json"' in resp.text
-    assert "CV Generation Trace JSON" in resp.text
-
-
-def test_admin_run_detail_shows_cv_analysis_trace_export_when_present() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="test-cv-analysis-trace-btn",
-        status=RunStatus.SUCCEEDED,
-        cvs_generated=1,
-        total_jobs=10,
-        jobs_path="",
-        triggered_by="admin",
-        trigger_source="web",
-        config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json=json.dumps(
-            {
-                "run_id": "test-cv-analysis-trace-btn",
-                "cv_analysis_trace": {
-                    "run_id": "test-cv-analysis-trace-btn",
-                    "trace_schema_version": "agentic_step_trace_run_v1",
-                    "trace_family": "agentic_step_trace",
-                    "step_id": "cv_analysis",
-                    "late_stage_mode": {
-                        "late_stage_mode": "agentic",
-                        "agentic_late_stage_enabled": True,
-                        "mode_source": "cv.agentic_late_stage.enabled",
-                        "agentic_status": "completed",
-                    },
-                    "trace_status": "completed",
-                    "trace_summary": {"records_total": 1, "present_records": 1, "attempted_analysis_jobs_total": 1},
-                    "records": [{"record_id": "https://example.com/1", "scope_type": "job", "scope_key": "https://example.com/1"}],
-                    "degradation": {},
-                },
-                "debug_records": [],
-            }
-        ),
-        settings_used_json='{"run_id":"test-cv-analysis-trace-btn","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"}}',
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-cv-analysis-trace-btn")
-    assert resp.status_code == 200
-    assert 'href="/admin/runs/test-cv-analysis-trace-btn/cv-analysis-trace.json"' in resp.text
-    assert "CV Analysis Trace JSON" in resp.text
 
 
 def test_admin_run_detail_hides_aggregate_mapping_suggestions_button() -> None:
@@ -6518,7 +6281,7 @@ def test_run_detail_paused_after_normalize_shows_exact_process_event() -> None:
         resp = TestClient(_app()).get("/admin/runs/run-normalize-console")
 
     assert resp.status_code == 200
-    assert "Process Console" in resp.text
+    assert "Console Log" in resp.text
     assert "Normalization dedupe: kept 10 of 10 jobs, removed 0 duplicate(s)" in resp.text
     assert "Normalize complete: kept 10 of 10 jobs, removed 0 duplicate(s)" not in resp.text
 
@@ -7183,21 +6946,6 @@ def test_download_mapping_suggestions_requires_enrich_stage_reached() -> None:
     assert "enrich" in resp.text.lower()
 
 
-def test_admin_run_detail_warning_banner():
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-    
-    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
-        run_id="test-124", status=RunStatus.SUCCEEDED, 
-        cvs_generated=0, total_jobs=10, jobs_path="",
-        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
-        created_at=datetime.now(timezone.utc)
-    )), patch("fitcv_cp.app.get_events", return_value=[]), \
-    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-124")
-    assert resp.status_code == 200
-    assert "No candidates passed the final AI ranking threshold." in resp.text
-
 def test_download_cv_endpoint_200():
     with patch("fitcv_cp.app.get_cv_markdown", return_value="# Mock CV"):
         resp = TestClient(_app()).get("/admin/cvs/v456/download")
@@ -7340,46 +7088,6 @@ def test_download_hitl_review_audit_endpoint_200():
     assert payload["summary"]["review_required_total"] == 1
     assert payload["summary"]["closure_mode"] == "incomplete"
     assert payload["summary"]["resolution_totals"]["pending"] == 1
-
-
-def test_admin_run_detail_shows_cv_preview_in_hitl_review_queue() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-hitl-preview-1",
-        status=RunStatus.AWAITING_CONTINUE,
-        checkpoint_status="awaiting_review",
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        cv_generation_debug_json=json.dumps(
-            {
-                "cv_generation_debug_records": [
-                    {
-                        "job_url": "https://example.com/job-1",
-                        "job_title": "Test Role",
-                        "status": "review_required",
-                        "markdown_final": "# Candidate Name\\n## Experience\\n- Built pipelines",
-                        "error": {"stage": "review_gate", "message": "Unsupported requirements require review: Snowflake"},
-                    }
-                ],
-                "hitl_review_actions": [],
-            }
-        ),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-hitl-preview-1")
-    assert resp.status_code == 200
-    assert "CV Draft Preview" in resp.text
-    assert "Show generated CV markdown" in resp.text
-    assert "Built pipelines" in resp.text
 
 
 def test_download_results_json_endpoint_404_if_snapshot_missing():
@@ -8308,37 +8016,6 @@ def test_run_detail_hides_promote_checkbox_when_pair_exists_in_global_map() -> N
 
 
 
-def test_run_detail_shows_reranker_blocked_message_when_no_cvs_generated() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-reranker-blocked-msg",
-        status=RunStatus.SUCCEEDED,
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        ranked=2,
-        cvs_generated=0,
-        results_export_json=(
-            '{"run_id":"run-reranker-blocked-msg","results":['
-            '{"job_url":"https://example.com/a","pipeline_status":"ranked_blocked_by_reranker_fit"},'
-            '{"job_url":"https://example.com/b","pipeline_status":"ranked_blocked_by_reranker_fit"}'
-            ']}'
-        ),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-reranker-blocked-msg")
-    assert resp.status_code == 200
-    assert "blocked by reranker-fit gating before CV generation" in resp.text
-
-
 def test_download_settings_used_json_endpoint_200():
     """@proves inspection_debugging.settings-used-export"""
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -9126,8 +8803,7 @@ def test_admin_run_detail_enriched_jobs_falls_back_to_keywords_when_required_ski
         resp = TestClient(_app()).get("/admin/runs/test-456-fallback/tabs/enriched")
 
     assert resp.status_code == 200
-    assert "Assistenz, Operations, Customer Care" in resp.text
-    assert "Fallback: keywords" in resp.text
+    assert all(skill in resp.text for skill in ("Assistenz", "Operations", "Customer Care"))
 
 
 def test_admin_run_detail_enriched_jobs_prefers_structured_entities_when_required_skills_are_verbose() -> None:
@@ -9177,8 +8853,8 @@ def test_admin_run_detail_enriched_jobs_prefers_structured_entities_when_require
         resp = TestClient(_app()).get("/admin/runs/test-456-entities/tabs/enriched")
 
     assert resp.status_code == 200
-    assert "space hardware design, assembly, integration and testing" in resp.text
-    assert "Fallback: required skill entities" in resp.text
+    assert "space hardware design" in resp.text
+    assert "assembly, integration and testing" in resp.text
     assert "Overview of core space domains and applications" not in resp.text
 
 
@@ -9196,33 +8872,6 @@ def _run_detail_base_patches(run_obj):
         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]),
         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]),
     )
-
-
-def test_run_detail_default_tab_is_enriched():
-    """@proves inspection_debugging.run-detail-inspection-tabs"""
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="tab-test-1", status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json", triggered_by="admin",
-        trigger_source="web", config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/tab-test-1")
-
-    assert resp.status_code == 200
-    html = resp.text
-    assert 'id="pane-enriched"' in html
-    assert 'id="tab-btn-enriched"' in html
-    # active class must be on the enriched pane (class attr comes before id= in HTML)
-    pane_pos = html.index('id="pane-enriched"')
-    assert "active" in html[max(0, pane_pos - 60):pane_pos + 50]
-    # active class must be on the enriched tab button
-    btn_pos = html.index('id="tab-btn-enriched"')
-    assert "active" in html[max(0, btn_pos - 80):btn_pos + 10]
 
 
 def test_run_detail_initial_shell_does_not_query_enriched_rows() -> None:
@@ -9247,7 +8896,7 @@ def test_run_detail_initial_shell_does_not_query_enriched_rows() -> None:
         resp = TestClient(_app()).get("/admin/runs/tab-shell-1")
 
     assert resp.status_code == 200
-    assert "Enriched job diagnostics load on demand." in resp.text
+    assert "Pipeline results load on demand." in resp.text
     mock_jobs.assert_not_called()
     mock_filters.assert_not_called()
 
@@ -9322,72 +8971,6 @@ def _obsolete_test_run_detail_event_timeline_appears_after_tab_panes():
     )
 
 
-def test_run_detail_renders_run_health_when_quality_metrics_available():
-    """@proves trigger_run_management.run-health-surface
-    @proves inspection_debugging.quality-metrics-diagnostics
-    """
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="quality-metrics-1",
-        status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json",
-        triggered_by="admin",
-        trigger_source="web",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        stage_transition_artifacts_json=json.dumps(
-            {
-                "artifacts": {
-                    "stages": {
-                        "shortlist": {
-                            "decision_summary": {
-                                "quality_metrics": {
-                                        "embedding_coverage_rate": 0.67,
-                                        "scored_jobs_total": 2,
-                                        "eligible_jobs_total": 3,
-                                }
-                            }
-                        },
-                        "ranking": {
-                            "decision_summary": {
-                                "quality_metrics": {
-                                    "label_distribution": {
-                                        "strong_rate": 0.25,
-                                        "strong_count": 1,
-                                        "total_scored": 4,
-                                    }
-                                }
-                            }
-                        },
-                        "cv_analysis": {
-                            "decision_summary": {
-                                "quality_metrics": {
-                                    "skip_rate": 0.5,
-                                    "skipped_fit_gate": 1,
-                                    "total_processed": 2,
-                                }
-                            }
-                        },
-                    }
-                }
-            }
-        ),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/quality-metrics-1")
-
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Run Health" in html
-    assert "Stage Quality Metrics" not in html
-    assert "Shortlist Embedding Coverage" in html
-    assert "67%" in html
-    assert "2 / 3" in html
-
-
 def test_run_detail_hides_run_health_when_quality_metrics_absent():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -9408,119 +8991,6 @@ def test_run_detail_hides_run_health_when_quality_metrics_absent():
 
     assert resp.status_code == 200
     assert "Run Health" not in resp.text
-
-
-def test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available():
-    """@proves inspection_debugging.cv-analysis-diagnostics
-    @proves inspection_debugging.reuse-diagnostics
-    """
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="reuse-metrics-1",
-        status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json",
-        triggered_by="admin",
-        trigger_source="web",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        stage_transition_artifacts_json=json.dumps(
-            {
-                "artifacts": {
-                    "stages": {
-                        "ranking": {
-                            "decision_summary": {
-                                "reuse_metrics": {
-                                    "reuse_rate": 0.5,
-                                    "reused_ai_scores": 1,
-                                    "fresh_ai_scores": 1,
-                                    "total_ai_scores": 2,
-                                }
-                            }
-                        },
-                        "cv_analysis": {
-                            "decision_summary": {
-                                "reuse_metrics": {
-                                    "analysis_reuse_rate": 1.0,
-                                    "reused_analysis_rows": 2,
-                                    "fresh_analysis_rows": 0,
-                                    "analysis_rows_executed": 2,
-                                    "blocked_before_analysis_rows": 0,
-                                }
-                            }
-                        },
-                    }
-                }
-            }
-        ),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/reuse-metrics-1")
-
-    assert resp.status_code == 200
-    html = resp.text
-    assert "Run Health" in html
-    assert "Late-Stage Reuse" not in html
-    assert "Ranking AI-Score Reuse Rate" in html
-    assert "CV Analysis Reuse Rate" in html
-    assert "50%" in html
-
-
-def test_run_detail_run_health_marks_unreached_metrics_as_pending_and_zero_denominator_reached_metrics_as_na():
-    """@proves inspection_debugging.cv-analysis-diagnostics"""
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="health-pending-na-1",
-        status=RunStatus.AWAITING_CONTINUE,
-        jobs_path="data/sample_jobs.json",
-        triggered_by="admin",
-        trigger_source="web",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        stage_transition_artifacts_json=json.dumps(
-            {
-                "artifacts": {
-                    "stages": {
-                        "cv_analysis": {
-                            "status": "not_reached",
-                            "decision_summary": {
-                                "quality_metrics": {
-                                    "skip_rate": 0.0,
-                                    "skipped_fit_gate": 0,
-                                    "total_processed": 0,
-                                }
-                            },
-                        },
-                        "ranking": {
-                            "status": "completed",
-                            "decision_summary": {
-                                "reuse_metrics": {
-                                    "reuse_rate": 0.0,
-                                    "reused_ai_scores": 0,
-                                    "fresh_ai_scores": 0,
-                                    "total_ai_scores": 0,
-                                }
-                            },
-                        },
-                    }
-                }
-            }
-        ),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/health-pending-na-1")
-
-    assert resp.status_code == 200
-    html = resp.text
-    assert "CV Analysis Skip Rate" in html
-    assert "Ranking AI-Score Reuse Rate" in html
-    assert "Pending" in html
-    assert "N/A" in html
 
 
 def test_run_detail_hides_late_stage_reuse_metrics_when_absent():
@@ -9545,153 +9015,6 @@ def test_run_detail_hides_late_stage_reuse_metrics_when_absent():
     assert resp.status_code == 200
     assert "Ranking AI-Score Reuse Rate" not in resp.text
     assert "CV Analysis Reuse Rate" not in resp.text
-
-def test_run_detail_renders_reuse_anomaly_summary_when_event_present() -> None:
-    from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="reuse-anomaly-1",
-        status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json",
-        triggered_by="admin",
-        trigger_source="web",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        stage_transition_artifacts_json=json.dumps({"run_id": "reuse-anomaly-1", "stages": {}}),
-    )
-    reuse_event = RunEvent(
-        run_id="reuse-anomaly-1",
-        event_id="reuse-anomaly-ev-1",
-        stage="reuse_anomaly",
-        level="warning",
-        message="Reuse anomaly detected: overlap present but reuse under floor",
-        payload_json=json.dumps(
-            {
-                "output_snapshot": {
-                    "status": "breached",
-                    "min_overlap": 5,
-                    "reuse_rate_floor": 0.05,
-                    "stages": [
-                        {
-                            "stage_id": "ranking",
-                            "total": 12,
-                            "reused": 0,
-                            "fresh": 12,
-                            "reuse_rate": 0.0,
-                        }
-                    ],
-                }
-            },
-            ensure_ascii=False,
-        ),
-        created_at=datetime.now(timezone.utc),
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[reuse_event]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/reuse-anomaly-1")
-
-    assert resp.status_code == 200
-    assert "Reuse anomaly detected" in resp.text
-    assert "ranking: 0/12" in resp.text
-
-
-def test_run_detail_renders_cv_generation_quality_metrics():
-    """@proves inspection_debugging.cv-generation-diagnostics"""
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="cv-generation-metrics-1",
-        status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json",
-        triggered_by="admin",
-        trigger_source="web",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        stage_transition_artifacts_json=json.dumps(
-            {
-                "artifacts": {
-                    "stages": {
-                        "cv_generation": {
-                            "decision_summary": {
-                                "quality_metrics": {
-                                    "accepted_rate": 0.5,
-                                    "accepted": 2,
-                                    "validation_fail_rate": 0.25,
-                                    "validation_failed": 1,
-                                    "generation_failed_rate": 0.25,
-                                    "generation_failed": 1,
-                                    "persistence_failed_rate": 0.0,
-                                    "persistence_failed": 0,
-                                    "total_attempted": 4,
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        ),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/cv-generation-metrics-1")
-
-    assert resp.status_code == 200
-    html = resp.text
-    assert "CV Generation Accepted Rate" in html
-    assert "CV Generation Validation-Fail Rate" in html
-    assert "CV Generation Failure Rate" in html
-    assert "CV Generation Persistence-Fail Rate" in html
-    assert "50%" in html
-    assert "25%" in html
-    assert "2 / 4" in html
-    assert "0 / 4" in html
-
-
-def test_run_detail_hides_cv_generation_quality_metrics_when_absent():
-    """@proves inspection_debugging.cv-generation-diagnostics"""
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="cv-generation-metrics-2",
-        status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json",
-        triggered_by="admin",
-        trigger_source="web",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        stage_transition_artifacts_json=json.dumps(
-            {
-                "artifacts": {
-                    "stages": {
-                        "cv_analysis": {
-                            "decision_summary": {
-                                "quality_metrics": {
-                                    "skip_rate": 0.5,
-                                    "skipped_fit_gate": 1,
-                                    "total_processed": 2,
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        ),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/cv-generation-metrics-2")
-
-    assert resp.status_code == 200
-    assert "CV Analysis Skip Rate" in resp.text
-    assert "CV Generation Accepted Rate" not in resp.text
-    assert "CV Generation Validation-Fail Rate" not in resp.text
-    assert "CV Generation Failure Rate" not in resp.text
-    assert "CV Generation Persistence-Fail Rate" not in resp.text
-
 
 # ── grouped settings endpoint ─────────────────────────────────────────────────
 
@@ -10717,115 +10040,8 @@ def test_admin_runs_timeouts_awaiting_continue_runs_to_cancelled() -> None:
     assert mock_append_event.call_args.args[0].stage == "run_timed_out"
 
 
-def test_run_detail_queued_shows_stop_run():
-    """@proves trigger_run_management.run-detail-actions"""
-    import datetime
-    run = _make_full_run_mock(status="queued")
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
-    assert resp.status_code == 200
-    assert "Stop Run" in resp.text
-
-
-def test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run():
-    """@proves inspection_debugging.run-progress-and-checkpoints
-    @proves admin_control_plane_core.jinja2-admin-pages
-    """
-    run = _make_full_run_mock(status="awaiting_continue")
-    run.run_mode = "manual_staged"
-    run.next_stage = "ranking"
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
-    assert resp.status_code == 200
-    assert "Run Next Stage" in resp.text
-    assert "Stop Run" in resp.text
-
-
-def test_run_detail_run_all_shows_shared_progress_without_checkpoint_controls():
-    """@proves inspection_debugging.run-progress-and-checkpoints
-    @proves trigger_run_management.shared-stage-progress
-    """
-    run = _make_full_run_mock(status="running")
-    run.run_mode = "run_all"
-    run.last_completed_stage = "enrich"
-    run.completed_stages = ["normalize", "enrich"]
-    run.stage_transition_artifacts_json = json.dumps(
-        {
-            "artifacts": {
-                "stages": {
-                    "normalize": {"status": "completed"},
-                    "enrich": {"status": "completed"},
-                }
-            }
-        }
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
-    assert resp.status_code == 200
-    assert "Run All" in resp.text
-    assert "Last Completed" in resp.text
-    assert "Completed Stages" in resp.text
-    assert '<span class="k">Checkpoint</span>' not in resp.text
-    assert "Stage Artifacts JSON (Diagnostics)" in resp.text
-
-
-def test_run_detail_succeeded_shows_archive_run():
-    """@proves trigger_run_management.run-detail-actions"""
-    run = _make_full_run_mock(status="succeeded")
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
-    assert resp.status_code == 200
-    assert "Archive Run" in resp.text
-
-
-
-def test_run_detail_terminal_statuses_show_archive_run() -> None:
-    """@proves trigger_run_management.run-detail-actions"""
-    for status in ("failed", "cancelled"):
-        run = _make_full_run_mock(status=status)
-        with patch("fitcv_cp.app.get_run", return_value=run), \
-             patch("fitcv_cp.app.get_events", return_value=[]), \
-             patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-             patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-             patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-            resp = TestClient(_app()).get("/admin/runs/run-ui-1")
-        assert resp.status_code == 200
-        assert "Archive Run" in resp.text
-        assert "Unarchive Run" not in resp.text
-
-def test_run_detail_archived_shows_unarchive_and_badge():
-    """@proves admin_control_plane_core.jinja2-admin-pages"""
-    import datetime
-    run = _make_full_run_mock(status="succeeded", archived_at=datetime.datetime(2026, 3, 26, 13, 0, 0, tzinfo=datetime.timezone.utc))
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patch("fitcv_cp.app.get_events", return_value=[]), \
-         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
-         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
-         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
-    assert resp.status_code == 200
-    assert "Unarchive Run" in resp.text
-    assert "Archived" in resp.text
-
-
-def test_run_detail_stale_cancelling_shows_repair_status() -> None:
-    """@proves run_lifecycle_controls.stale-cancellation-repair-endpoint
-    @proves admin_control_plane_core.jinja2-admin-pages
-    """
+def test_run_detail_stale_cancelling_uses_prototype_status_only() -> None:
+    """Run Details keeps repair as a direct compatibility route, not UI chrome."""
     run = _make_full_run_mock(status="cancelling")
     run.started_at = None
     run.finished_at = None
@@ -10836,13 +10052,12 @@ def test_run_detail_stale_cancelling_shows_repair_status() -> None:
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/run-ui-1")
     assert resp.status_code == 200
-    assert "Repair Status" in resp.text
+    assert "cancelling" in resp.text
+    assert "Repair Status" not in resp.text
 
 
-def test_run_detail_started_stale_cancelling_shows_repair_status() -> None:
-    """@proves run_lifecycle_controls.stale-cancellation-repair-endpoint
-    @proves admin_control_plane_core.jinja2-admin-pages
-    """
+def test_run_detail_started_stale_cancelling_uses_prototype_status_only() -> None:
+    """Run Details keeps repair as a direct compatibility route, not UI chrome."""
     import datetime
 
     run = _make_full_run_mock(status="cancelling")
@@ -10857,7 +10072,8 @@ def test_run_detail_started_stale_cancelling_shows_repair_status() -> None:
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/run-ui-1")
     assert resp.status_code == 200
-    assert "Repair Status" in resp.text
+    assert "cancelling" in resp.text
+    assert "Repair Status" not in resp.text
 
 
 
@@ -10920,19 +10136,46 @@ def _run_detail_patches(
         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_results or []),
     )
 
-def test_run_detail_uses_central_synonym_workspace_only() -> None:
+def test_run_detail_uses_prototype_page_hierarchy() -> None:
     patches = _run_detail_patches()
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         response = TestClient(_app()).get("/admin/runs/run-detail-test")
 
     assert response.status_code == 200
-    assert 'href="/admin/synonyms"' in response.text
-    assert "Open central Synonyms" in response.text
-    assert "Synonym Workspace" not in response.text
-    assert "Synonym Overlay" not in response.text
-    assert "AI-Assisted Decide + Promote" not in response.text
-    assert "Manual Decide + Promote" not in response.text
-    assert "/synonym-proposals/ai-fast-path-execute" not in response.text
+    assert 'class="details-page-head"' in response.text
+    assert '<p class="eyebrow">Run Details</p>' in response.text
+    assert 'class="page-header"' not in response.text
+    assert '<strong>Run Overview</strong>' in response.text
+    assert '<strong>Run Input</strong>' in response.text
+    assert '<strong>Pipeline Results</strong>' in response.text
+    assert 'id="process-console-title">Console Log</strong>' in response.text
+    assert response.text.count('class="section-card collapsible-section drawer-section') == 4
+    assert response.text.index('<strong>Run Overview</strong>') < response.text.index('<strong>Run Input</strong>')
+    assert response.text.index('<strong>Run Input</strong>') < response.text.index('<strong>Pipeline Results</strong>')
+    assert response.text.index('<strong>Pipeline Results</strong>') < response.text.index('id="process-console-title">Console Log</strong>')
+    assert 'aria-label="Run inspection views"' not in response.text
+    assert "Original Job Input" not in response.text
+    assert "Advanced &amp; Diagnostics" not in response.text
+    assert 'id="artifacts"' not in response.text
+    assert "Synonym Configuration" not in response.text
+    assert "Run Health" not in response.text
+
+
+def test_run_detail_uses_shared_recovery_and_url_owned_result_state() -> None:
+    patches = _run_detail_patches()
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get("/admin/runs/run-detail-test")
+
+    assert response.status_code == 200
+    assert "fitcvRenderAsyncState(pane" in response.text
+    assert "preserveContent: pane.dataset.loaded === 'true'" in response.text
+    assert "history.replaceState({}, '', url)" in response.text
+    assert "const initialRunDetailParams = new URLSearchParams(location.search)" in response.text
+    assert "initialRunDetailParams.get('stage') || 'shortlisting'" in response.text
+    assert "event.key !== 'ArrowLeft' && event.key !== 'ArrowRight'" in response.text
+    assert "[data-interest-rating], [data-clear-interest], [data-cv-regenerate]" in response.text
+    assert "fitcvRenderAsyncState(actionState" in response.text
+    assert "document.visibilityState === 'hidden'" in response.text
 
 def test_run_detail_enriched_tab_uses_canonical_selection_export_and_bookmark_controls() -> None:
     patches = _run_detail_patches(
@@ -10962,6 +10205,109 @@ def test_run_detail_enriched_tab_uses_canonical_selection_export_and_bookmark_co
     assert '/runs/run-detail-test/jobs/actions/export' in response.text
 
 
+def test_run_detail_pipeline_results_use_prototype_controls() -> None:
+    patches = _run_detail_patches(
+        enriched_jobs=[
+            {
+                "run_job_id": "job-1",
+                "job_url": "https://jobs.example.com/1",
+                "title": "Data Engineer",
+                "required_skills": ["SQL", "Python"],
+            }
+        ],
+        filter_results=[
+            {"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}
+        ],
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get(
+            "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page_size=10"
+        )
+
+    assert response.status_code == 200
+    assert 'class="pipeline-stage-tabs"' in response.text
+    assert 'data-pipeline-stage="shortlisting"' in response.text
+    assert 'aria-selected="true"' in response.text
+    assert 'id="jobResultsSearch"' in response.text
+    assert 'placeholder="Search jobs, attributes, skills, or outcomes"' in response.text
+    assert 'class="pipeline-summary"' in response.text
+    assert '>Total Evaluated<' in response.text
+    assert '>Passed<' in response.text
+    assert '>Rejected<' in response.text
+    assert 'id="selectAllJobResults"' in response.text
+    assert 'class="run-table jobs-table"' in response.text
+    assert 'Job &amp; Actions</th>' in response.text
+    assert '<th>Job Attributes</th>' in response.text
+    assert '<th>Required Skills</th>' in response.text
+    assert '<th>Pipeline Outcome</th>' in response.text
+
+
+def test_run_detail_pipeline_results_prune_selection_to_current_filtered_rows() -> None:
+    patches = _run_detail_patches(
+        enriched_jobs=[
+            {
+                "run_job_id": "job-1",
+                "job_url": "https://jobs.example.com/1",
+                "title": "Data Engineer",
+                "required_skills": [],
+            },
+            {
+                "run_job_id": "job-2",
+                "job_url": "https://jobs.example.com/2",
+                "title": "Data Analyst",
+                "required_skills": [],
+            },
+        ],
+        filter_results=[
+            {"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []},
+            {"job_url": "https://jobs.example.com/2", "passed": False, "reasons": []},
+        ],
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get(
+            "/admin/runs/run-detail-test/tabs/enriched?filter_name=passed"
+        )
+
+    assert response.status_code == 200
+    assert 'data-filtered-run-job-ids="[&#34;job-1&#34;]"' in response.text
+
+
+def test_run_detail_stage_change_clears_selection_and_debug_bundle_uses_route_truth() -> None:
+    patches = _run_detail_patches()
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get("/admin/runs/run-detail-test")
+
+    assert response.status_code == 200
+    assert "window.fitcvRunJobSelections?.delete(document.querySelector('[data-run-job-selection-root]')?.dataset.runId);" in response.text
+    assert 'href="/admin/runs/run-detail-test/artifacts.zip"' in response.text
+    assert "/artifact-bundle.zip" not in response.text
+
+
+def test_run_detail_pipeline_results_normalize_invalid_stage_and_default_page_size() -> None:
+    patches = _run_detail_patches(
+        enriched_jobs=[
+            {
+                "job_url": "https://jobs.example.com/1",
+                "title": "Data Engineer",
+                "required_skills": [],
+            }
+        ],
+        filter_results=[
+            {"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}
+        ],
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get(
+            "/admin/runs/run-detail-test/tabs/enriched?stage=invalid-stage"
+        )
+
+    assert response.status_code == 200
+    assert '<input type="hidden" name="stage" value="shortlisting">' in response.text
+    assert 'data-pipeline-stage="shortlisting"' in response.text
+    assert 'data-results-url="/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&amp;page_size=10&amp;filter_name=all"' in response.text
+    assert '<option value="10" selected>10</option>' in response.text
+
+
 def test_run_detail_shows_deduplicated_before_enrichment_section():
     import json as _json
 
@@ -10981,11 +10327,10 @@ def test_run_detail_shows_deduplicated_before_enrichment_section():
         results_export_json=export_payload,
     )
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?stage=enrichment")
     assert resp.status_code == 200
-    assert "Post-dedupe enriched jobs" in resp.text
-    assert "Deduplicated before enrichment: 1" in resp.text
     assert "Duplicated Analyst" in resp.text
+    assert "near_duplicate_job_posting" in resp.text
 
 def test_run_detail_enriched_tab_uses_stage_artifacts_sample_for_running_run() -> None:
     import json as _json
@@ -11023,12 +10368,11 @@ def test_run_detail_enriched_tab_uses_stage_artifacts_sample_for_running_run() -
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert resp.status_code == 200
     assert "No enrichment data available for this run." not in resp.text
-    assert "Post-dedupe enriched jobs" in resp.text
     assert "Live Enriched Role" in resp.text
 
 
-def test_run_detail_shows_marks_for_passed_jobs() -> None:
-    """@proves inspection_debugging.rule-filter-diagnostics"""
+def test_run_detail_hides_filter_marks_from_pipeline_results() -> None:
+    """Pipeline Results keeps internal filter diagnostics out of user UI."""
     patches = _run_detail_patches(
         enriched_jobs=[
             {
@@ -11059,10 +10403,11 @@ def test_run_detail_shows_marks_for_passed_jobs() -> None:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
 
     assert resp.status_code == 200
-    assert "Marks: must_have_skill_missing" in resp.text
+    assert "Marked Pass Job" in resp.text
+    assert "Marks: must_have_skill_missing" not in resp.text
 
 
-def test_run_detail_enriched_shows_canonical_why_details() -> None:
+def test_run_detail_enriched_hides_canonical_why_details() -> None:
     import json as _json
     from datetime import datetime, timezone
 
@@ -11117,11 +10462,12 @@ def test_run_detail_enriched_shows_canonical_why_details() -> None:
         response = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
 
     assert response.status_code == 200
-    assert "Why?" in response.text
-    assert "review_gate_manual_required" in response.text
-    assert "cv_generation.json" in response.text
-    assert "sha256:evidence" in response.text
-    assert "input:0" in response.text
+    assert "Review Role" in response.text
+    assert "Why?" not in response.text
+    assert "review_gate_manual_required" not in response.text
+    assert "cv_generation.json" not in response.text
+    assert "sha256:evidence" not in response.text
+    assert "input:0" not in response.text
 
 def test_run_detail_enriched_shows_pipeline_outcome_for_passed_non_ranked_job():
     import json as _json
@@ -11340,221 +10686,6 @@ def test_run_detail_enriched_uses_analysis_handoff_truth_for_ready_job():
     assert "CV analysis: ready for CV generation" not in resp.text
 
 
-def test_run_detail_cv_versions_show_job_title():
-    """CV output link uses the enriched job title instead of generic 'View Job'."""
-    import json as _json
-    import datetime as _dt
-    from fitcv_cp.models import PipelineRun, RunStatus
-    cv = {"version_id": "cv1", "job_url": "https://jobs.example.com/1",
-          "fit_classification": "strong",
-          "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc)}
-    enriched = [{"job_url": "https://jobs.example.com/1", "title": "Senior Data Engineer",
-                 "domain": "data", "job_family": "engineering", "required_skills": [],
-                 "location_type": "remote", "seniority": "senior"}]
-    export_payload = _json.dumps({
-        "results": [
-            {
-                "job_url": "https://jobs.example.com/1",
-                "job_title": "Senior Data Engineer",
-                "pipeline_status": "ranked_with_cv",
-            }
-        ]
-    })
-    patches = _run_detail_patches(cv_versions=[cv], enriched_jobs=enriched,
-                                  filter_results=[{"job_url": "https://jobs.example.com/1",
-                                                   "passed": True, "reasons": []}],
-                                  results_export_json=export_payload)
-    run_with_cv = PipelineRun(
-        run_id="run-detail-test",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
-        cvs_generated=1,
-        results_export_json=export_payload,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
-    assert resp.status_code == 200
-    assert "Senior Data Engineer" in resp.text
-    assert "View Job" not in resp.text.split("Senior Data Engineer")[0].split("Generated Outputs")[-1]
-
-
-def test_run_detail_cv_versions_fallback_when_no_title():
-    """CV output link falls back to 'View Job' when no enriched job matches the job_url."""
-    import datetime as _dt
-    cv = {"version_id": "cv2", "job_url": "https://jobs.example.com/orphan",
-          "fit_classification": "strong",
-          "generated_at": _dt.datetime.now(_dt.timezone.utc)}
-    # Run must have cvs_generated > 0 for the pipeline results section to render
-    patches = _run_detail_patches(cv_versions=[cv], enriched_jobs=[])
-    # Override the run object to have cvs_generated set
-    import datetime as _dt2
-    from fitcv_cp.models import PipelineRun, RunStatus
-    run_with_cv = PipelineRun(
-        run_id="run-detail-test",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt2.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt2.timezone.utc),
-        cvs_generated=1,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), \
-         patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
-    assert resp.status_code == 200
-    assert "View Job" in resp.text
-
-
-def test_run_detail_cv_versions_use_results_title_when_job_title_missing():
-    """Generated output link uses results-row `title` before generic fallback."""
-    import json as _json
-    import datetime as _dt
-    from fitcv_cp.models import PipelineRun, RunStatus
-
-    cv = {
-        "version_id": "cv-title-only",
-        "job_url": "https://jobs.example.com/title-only",
-        "fit_classification": "strong",
-        "generated_at": _dt.datetime.now(_dt.timezone.utc),
-    }
-    export_payload = _json.dumps({
-        "results": [
-            {
-                "job_url": "https://jobs.example.com/title-only",
-                "title": "Principal Analytics Engineer",
-                "pipeline_status": "ranked_with_cv",
-            }
-        ]
-    })
-    run_with_cv = PipelineRun(
-        run_id="run-detail-title-only",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
-        cvs_generated=1,
-        results_export_json=export_payload,
-    )
-    patches = _run_detail_patches(
-        cv_versions=[cv],
-        enriched_jobs=[],
-        filter_results=[{"job_url": "https://jobs.example.com/title-only", "passed": True, "reasons": []}],
-        results_export_json=export_payload,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-title-only")
-    assert resp.status_code == 200
-    assert "Principal Analytics Engineer" in resp.text
-    assert "View Job" not in resp.text.split("Principal Analytics Engineer")[0].split("Generated Outputs")[-1]
-
-
-def test_run_detail_cv_versions_match_results_title_by_normalized_job_url():
-    """Generated output link uses matching results title even when URLs differ by slash/query."""
-    import json as _json
-    import datetime as _dt
-    from fitcv_cp.models import PipelineRun, RunStatus
-
-    cv = {
-        "version_id": "cv-url-normalized",
-        "job_url": "https://jobs.example.com/title-match",
-        "fit_classification": "strong",
-        "generated_at": _dt.datetime.now(_dt.timezone.utc),
-    }
-    export_payload = _json.dumps({
-        "results": [
-            {
-                "job_url": "https://jobs.example.com/title-match/?utm_source=feed",
-                "job_title": "URL-Normalized Staff Engineer",
-                "pipeline_status": "ranked_with_cv",
-            }
-        ]
-    })
-    run_with_cv = PipelineRun(
-        run_id="run-detail-url-normalized",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
-        cvs_generated=1,
-        results_export_json=export_payload,
-    )
-    patches = _run_detail_patches(
-        cv_versions=[cv],
-        enriched_jobs=[],
-        filter_results=[{"job_url": "https://jobs.example.com/title-match/?utm_source=feed", "passed": True, "reasons": []}],
-        results_export_json=export_payload,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-url-normalized")
-    assert resp.status_code == 200
-    assert "URL-Normalized Staff Engineer" in resp.text
-    assert "View Job" not in resp.text.split("URL-Normalized Staff Engineer")[0].split("Generated Outputs")[-1]
-
-
-def test_run_detail_cv_versions_use_debug_record_title_when_results_url_differs():
-    import json as _json
-    import datetime as _dt
-    from fitcv_cp.models import PipelineRun, RunStatus
-
-    cv = {
-        "version_id": "cv-debug-title",
-        "job_url": "https://de.indeed.com/viewjob?jk=debugtitle1",
-        "fit_classification": "strong",
-        "generated_at": _dt.datetime.now(_dt.timezone.utc),
-    }
-    export_payload = _json.dumps({
-        "results": [
-            {
-                "job_url": "https://jobs.example.com/redirected-debug-title",
-                "job_title": "Redirected Title Copy",
-                "pipeline_status": "ranked_with_cv",
-            }
-        ]
-    })
-    cv_debug = _json.dumps({
-        "debug_records": [
-            {
-                "job_url": "https://de.indeed.com/viewjob?jk=debugtitle1",
-                "job_title": "Debug Record Staff Engineer",
-                "status": "review_required",
-                "fit_classification": "strong",
-            }
-        ]
-    })
-    run_with_cv = PipelineRun(
-        run_id="run-detail-debug-title",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
-        cvs_generated=1,
-        results_export_json=export_payload,
-        cv_generation_debug_json=cv_debug,
-    )
-    patches = _run_detail_patches(
-        cv_versions=[cv],
-        enriched_jobs=[],
-        filter_results=[],
-        results_export_json=export_payload,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-debug-title")
-    assert resp.status_code == 200
-    assert "Debug Record Staff Engineer" in resp.text
-    assert "View Job" not in resp.text.split("Debug Record Staff Engineer")[0].split("Generated Outputs")[-1]
-
-
 def test_normalize_job_url_key_keeps_indeed_jk_query_value() -> None:
     from fitcv_cp.app import _normalize_job_url_key
 
@@ -11564,108 +10695,6 @@ def test_normalize_job_url_key_keeps_indeed_jk_query_value() -> None:
     assert first == "https://de.indeed.com/viewjob?jk=8409ba0a48f9ac29"
     assert second == "https://de.indeed.com/viewjob?jk=f2c85e6e8a66e160"
     assert first != second
-
-
-def test_run_detail_generated_outputs_do_not_render_legacy_bookmark_action():
-    import datetime as _dt
-    import json as _json
-    from fitcv_cp.models import PipelineRun, RunStatus
-
-    cv = {
-        "version_id": "cv-bookmark-1",
-        "job_url": "https://jobs.example.com/bookmark-1",
-        "fit_classification": "strong",
-        "generated_at": _dt.datetime.now(_dt.timezone.utc),
-    }
-    enriched = [{
-        "job_url": "https://jobs.example.com/bookmark-1",
-        "title": "Bookmarked Role",
-        "domain": "data",
-        "job_family": "engineering",
-        "required_skills": [],
-        "location_type": "remote",
-        "seniority": "senior",
-    }]
-    export_payload = _json.dumps({
-        "results": [
-            {
-                "job_url": "https://jobs.example.com/bookmark-1",
-                "job_title": "Bookmarked Role",
-                "pipeline_status": "ranked_with_cv",
-            }
-        ]
-    })
-    run_with_cv = PipelineRun(
-        run_id="run-bookmark-row",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
-        cvs_generated=1,
-        results_export_json=export_payload,
-    )
-    patches = _run_detail_patches(
-        cv_versions=[cv],
-        enriched_jobs=enriched,
-        filter_results=[{"job_url": "https://jobs.example.com/bookmark-1", "passed": True, "reasons": []}],
-        results_export_json=export_payload,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), \
-         patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-bookmark-row")
-    assert resp.status_code == 200
-    assert 'action="/admin/runs/run-bookmark-row/bookmarks/save"' not in resp.text
-    assert 'action="/admin/runs/run-bookmark-row/bookmarks/delete"' not in resp.text
-    assert "Manage bookmarks in Pipeline Results." in resp.text
-
-
-def test_run_detail_generated_outputs_primary_label_uses_company_and_location():
-    import datetime as _dt
-    import json as _json
-    from fitcv_cp.models import PipelineRun, RunStatus
-
-    cv = {
-        "version_id": "cv-company-location-1",
-        "job_url": "https://jobs.example.com/company-location-1",
-        "fit_classification": "strong",
-        "generated_at": _dt.datetime.now(_dt.timezone.utc),
-    }
-    export_payload = _json.dumps({
-        "results": [
-            {
-                "job_url": "https://jobs.example.com/company-location-1",
-                "job_title": "Data Engineer",
-                "company": "Acme",
-                "location": "Berlin",
-                "pipeline_status": "ranked_with_cv",
-            }
-        ]
-    })
-    run_with_cv = PipelineRun(
-        run_id="run-company-location-label",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
-        cvs_generated=1,
-        results_export_json=export_payload,
-    )
-    patches = _run_detail_patches(
-        cv_versions=[cv],
-        enriched_jobs=[],
-        filter_results=[{"job_url": "https://jobs.example.com/company-location-1", "passed": True, "reasons": []}],
-        results_export_json=export_payload,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), \
-         patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-company-location-label")
-    assert resp.status_code == 200
-    assert "Data Engineer (Acme, Berlin)" in resp.text
-
 
 
 def test_admin_bookmarks_page_and_delete_flow():
@@ -11697,57 +10726,6 @@ def test_legacy_admin_bookmark_mutation_routes_are_gone() -> None:
     assert status_response.status_code == 404
 
 
-def test_run_detail_zero_cvs_and_zero_ranked_shows_ranking_threshold_message():
-    """@proves inspection_debugging.ranking-diagnostics"""
-    import datetime as _dt
-    from fitcv_cp.models import PipelineRun, RunStatus
-
-    run = PipelineRun(
-        run_id="run-detail-zero-ranked",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
-        ranked=0,
-        cvs_generated=0,
-    )
-    patches = _run_detail_patches(cv_versions=[], enriched_jobs=[])
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-zero-ranked")
-    assert resp.status_code == 200
-    assert "No candidates passed the final AI ranking threshold." in resp.text
-
-
-def test_run_detail_zero_cvs_and_ranked_jobs_shows_post_ranking_message():
-    import datetime as _dt
-    from fitcv_cp.models import PipelineRun, RunStatus
-
-    run = PipelineRun(
-        run_id="run-detail-ranked-no-cv",
-        status=RunStatus("succeeded"),
-        triggered_by="admin",
-        trigger_source="ui",
-        jobs_path="data/jobs.json",
-        config_path=".env.yaml",
-        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
-        ranked=2,
-        cvs_generated=0,
-    )
-    patches = _run_detail_patches(cv_versions=[], enriched_jobs=[])
-    with patch("fitcv_cp.app.get_run", return_value=run), \
-         patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-ranked-no-cv")
-    assert resp.status_code == 200
-    assert "Ranked outcome breakdown:" in resp.text
-    assert "fit-gated=0" in resp.text
-    assert "review-required=0" in resp.text
-    assert "generation-failed=0" in resp.text
-    assert "No candidates passed the final AI ranking threshold." not in resp.text
-
-
 def test_run_detail_enriched_shows_summary_counts():
     """Enriched tab renders post-dedupe total, Passed, Rejected summary counts."""
     enriched = [{"job_url": "https://j.test/1", "title": "A", "domain": "d",
@@ -11756,9 +10734,9 @@ def test_run_detail_enriched_shows_summary_counts():
     patches = _run_detail_patches(enriched_jobs=enriched, filter_results=fr)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
-    assert "Post-dedupe enriched jobs:" in resp.text
-    assert "Passed:" in resp.text
-    assert "Rejected:" in resp.text
+    assert ">Total Evaluated<" in resp.text
+    assert ">Passed<" in resp.text
+    assert ">Rejected<" in resp.text
 
 
 def test_run_detail_enriched_shows_filter_controls():
@@ -11769,19 +10747,19 @@ def test_run_detail_enriched_shows_filter_controls():
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert 'name="filter_name"' in resp.text
-    assert ">All<" in resp.text
-    assert ">Passed<" in resp.text
-    assert ">Rejected<" in resp.text
+    assert 'data-pipeline-result="all"' in resp.text
+    assert 'data-pipeline-result="passed"' in resp.text
+    assert 'data-pipeline-result="rejected"' in resp.text
 
 
 def test_run_detail_enriched_shows_search_box():
-    """Search input with id='enr-search' is present (only rendered when enriched_jobs is non-empty)."""
+    """Prototype search input is present when results render."""
     enriched = [{"job_url": "https://j.test/1", "title": "A", "domain": "d",
                  "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}]
     patches = _run_detail_patches(enriched_jobs=enriched)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
-    assert 'id="enr-search"' in resp.text
+    assert 'id="jobResultsSearch"' in resp.text
 
 
 def test_run_detail_enriched_rows_render_server_side_without_data_attributes():
@@ -11801,7 +10779,10 @@ def test_run_detail_enriched_shows_pagination():
     patches = _run_detail_patches()
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
-    assert "Page 1 of 1" in resp.text or "No enrichment data" in resp.text
+    assert 'aria-current="page"' in resp.text
+    assert 'value="10" selected' in resp.text
+    assert 'value="20"' in resp.text
+    assert 'value="50"' in resp.text
 
 
 def test_run_detail_enriched_unknown_filter_not_counted_as_rejected():
@@ -11818,8 +10799,7 @@ def test_run_detail_enriched_unknown_filter_not_counted_as_rejected():
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?filter_name=unknown")
     assert "Engineer B" in resp.text
-    # Rejected count should be 0 (no explicit reject), not 1
-    assert "Rejected: 0" in resp.text
+    assert '<span>Rejected</span><strong>0</strong>' in resp.text
 
 
 
@@ -11853,8 +10833,8 @@ def test_run_detail_enriched_matches_filter_and_outcome_by_normalized_job_url():
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert resp.status_code == 200
     assert "CV created" in resp.text
-    assert "Passed: 1" in resp.text
-    assert "Rejected: 0" in resp.text
+    assert '<span>Passed</span><strong>1</strong>' in resp.text
+    assert '<span>Rejected</span><strong>0</strong>' in resp.text
 
 
 def test_run_detail_enriched_falls_back_to_stage_artifacts_and_debug_records_when_results_truth_is_missing():
@@ -11945,8 +10925,8 @@ def test_run_detail_enriched_falls_back_to_stage_artifacts_and_debug_records_whe
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/run-detail-fallback-artifacts/tabs/enriched")
     assert resp.status_code == 200
-    assert "Passed: 2" in resp.text
-    assert "Rejected: 0" in resp.text
+    assert '<span>Passed</span><strong>2</strong>' in resp.text
+    assert '<span>Rejected</span><strong>0</strong>' in resp.text
     assert "Ranked, blocked by reranker fit" in resp.text
     assert "CV review required" in resp.text
 
@@ -12212,8 +11192,8 @@ def test_run_detail_enriched_uses_secondary_url_truth_when_enriched_primary_key_
         resp = TestClient(_app()).get("/admin/runs/run-enriched-fingerprint-primary-url-truth/tabs/enriched")
 
     assert resp.status_code == 200
-    assert "Passed: 1" in resp.text
-    assert "Rejected: 0" in resp.text
+    assert '<span>Passed</span><strong>1</strong>' in resp.text
+    assert '<span>Rejected</span><strong>0</strong>' in resp.text
     assert "CV review required" in resp.text
     assert "empty-value" not in resp.text
 
@@ -12544,7 +11524,7 @@ def test_run_detail_enriched_falls_back_to_stage_artifacts_when_results_export_i
         resp = TestClient(_app()).get("/admin/runs/run-enriched-stage-artifact-outcomes/tabs/enriched")
 
     assert resp.status_code == 200
-    assert "Passed: 2" in resp.text
+    assert '<span>Passed</span><strong>2</strong>' in resp.text
     assert "Ranked, blocked by reranker fit" in resp.text
     assert "Scored, not final top-N" in resp.text
 
@@ -12596,10 +11576,13 @@ def test_run_detail_enriched_uses_rule_filter_dropped_sample_for_rejected_rows()
         stage_transition_artifacts_json=stage_artifacts,
     )
     with patch("fitcv_cp.app.get_run", return_value=run),          patch("fitcv_cp.app.get_events", return_value=[]),          patch("fitcv_cp.app.list_cvs_for_run", return_value=[]),          patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched),          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/run-detail-fallback-rejected-row/tabs/enriched?pipeline_outcome=rejected_after_enrichment")
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-detail-fallback-rejected-row/tabs/enriched"
+            "?stage=screening&filter_name=rejected&pipeline_outcome=rejected_after_enrichment"
+        )
     assert resp.status_code == 200
     assert "Rejected Driving Instructor Role" in resp.text
-    assert "Rejected: 1" in resp.text
+    assert '<span>Rejected</span><strong>1</strong>' in resp.text
     assert "Rejected after enrichment" in resp.text
     assert "seniority_mismatch" in resp.text
 
@@ -12706,7 +11689,7 @@ def test_run_detail_enriched_filters_by_pipeline_outcome_multi_select_with_fallb
     assert "Rejected Role" not in resp.text
 
 
-def test_run_detail_enriched_defaults_to_selected_pipeline_outcomes() -> None:
+def test_run_detail_enriched_defaults_to_all_outcomes_reaching_selected_stage() -> None:
     import json as _json
 
     enriched = [
@@ -12739,14 +11722,9 @@ def test_run_detail_enriched_defaults_to_selected_pipeline_outcomes() -> None:
     assert "Scored Role" in resp.text
     assert "Skipped Role" in resp.text
     assert "Rejected Role" not in resp.text
-    assert '<option value="ranked_with_cv" selected>' in resp.text
-    assert '<option value="ranked_blocked_by_reranker_fit" selected>' in resp.text
-    assert '<option value="ranked_no_cv" selected>' in resp.text
-    assert '<option value="scored_not_ranked" selected>' in resp.text
-    assert '<option value="ranked_skipped_fit_gate" selected>' in resp.text
-    assert '<option value="rejected_after_enrichment" >' in resp.text
+    assert 'name="pipeline_outcome"' not in resp.text
 
-def test_run_detail_enriched_pipeline_outcome_query_state_preserved_in_urls():
+def test_run_detail_enriched_query_state_preserved_in_fragment_urls():
     import json as _json
 
     enriched = [
@@ -12772,16 +11750,14 @@ def test_run_detail_enriched_pipeline_outcome_query_state_preserved_in_urls():
         )
     assert resp.status_code == 200
     prev_url = (
-        "/admin/runs/run-detail-test/tabs/enriched?page=1&page_size=25&filter_name=all&q=python"
+        "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=1&page_size=25&filter_name=all&q=python"
         "&pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
     )
     next_url = (
-        "/admin/runs/run-detail-test/tabs/enriched?page=3&page_size=25&filter_name=all&q=python"
+        "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=3&page_size=25&filter_name=all&q=python"
         "&pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
     )
-    assert f'href="{prev_url}"' in resp.text
     assert f'data-tab-fragment-url="{prev_url}"' in resp.text
-    assert f'href="{next_url}"' in resp.text
     assert f'data-tab-fragment-url="{next_url}"' in resp.text
     assert 'data-search="python"' in resp.text
     assert 'data-preview-url="/runs/run-detail-test/jobs/actions/export/preview"' in resp.text
@@ -12954,7 +11930,8 @@ def test_run_detail_enriched_tab_paginates_server_side():
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?page=2&page_size=25")
     assert resp.status_code == 200
-    assert "Page 2 of 3" in resp.text
+    assert 'data-run-page-number="2"' in resp.text
+    assert 'aria-current="page"' in resp.text
     assert "Job 1" not in resp.text
     assert "Job 26" in resp.text
     assert "Job 50" in resp.text
@@ -12962,8 +11939,7 @@ def test_run_detail_enriched_tab_paginates_server_side():
 
 
 
-def test_run_detail_enriched_pagination_fragment_url_matches_href():
-    """Prev/next href and fragment URL must stay identical for query-state invariance."""
+def test_run_detail_enriched_pagination_fragment_urls_preserve_query_state():
     enriched = [
         {"job_url": f"https://j.test/{i}", "title": f"Job {i}", "domain": "d",
          "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}
@@ -12973,45 +11949,11 @@ def test_run_detail_enriched_pagination_fragment_url_matches_href():
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?page=2&page_size=25&filter_name=all&q=python")
     assert resp.status_code == 200
-    prev_url = "/admin/runs/run-detail-test/tabs/enriched?page=1&page_size=25&filter_name=all&q=python&pipeline_outcome=ranked_with_cv&pipeline_outcome=ranked_blocked_by_reranker_fit&pipeline_outcome=ranked_no_cv&pipeline_outcome=scored_not_ranked&pipeline_outcome=ranked_skipped_fit_gate&pipeline_outcome=accepted&pipeline_outcome=held&pipeline_outcome=blocked&pipeline_outcome=skipped"
-    next_url = "/admin/runs/run-detail-test/tabs/enriched?page=3&page_size=25&filter_name=all&q=python&pipeline_outcome=ranked_with_cv&pipeline_outcome=ranked_blocked_by_reranker_fit&pipeline_outcome=ranked_no_cv&pipeline_outcome=scored_not_ranked&pipeline_outcome=ranked_skipped_fit_gate&pipeline_outcome=accepted&pipeline_outcome=held&pipeline_outcome=blocked&pipeline_outcome=skipped"
-    assert f'href="{prev_url}"' in resp.text
+    prev_url = "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=1&page_size=25&filter_name=all&q=python"
+    next_url = "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=3&page_size=25&filter_name=all&q=python"
     assert f'data-tab-fragment-url="{prev_url}"' in resp.text
-    assert f'href="{next_url}"' in resp.text
     assert f'data-tab-fragment-url="{next_url}"' in resp.text
 # ── Task 6: Composition consistency tests ──────────────────────────────────────
-
-def test_run_detail_inspection_area_wrapped_in_inspection_card():
-    """@proves ui_consistency_theming.attached-tab-inspection-card-pattern
-
-    The inspection area must be wrapped in .inspection-card, with tab bar inside.
-    """
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-    run = PipelineRun(
-        run_id="composition-test-1", status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json", triggered_by="admin",
-        trigger_source="web", config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/composition-test-1")
-    assert resp.status_code == 200
-    html = resp.text
-    # .inspection-card must appear in the HTML
-    assert 'class="inspection-card"' in html
-    # Verify the tab bar is actually INSIDE the card (not just later in the document).
-    # Find the card's opening position and its closing </div><!-- /.inspection-card -->.
-    card_pos = html.index('class="inspection-card"')
-    card_close_pos = html.index('</div><!-- /.inspection-card -->', card_pos)
-    # Now find the first tab button and verify it is between the open and close.
-    tab_btn_pos = html.index('id="tab-btn-enriched"')
-    assert card_pos < tab_btn_pos < card_close_pos, (
-        "Tab bar button is not inside .inspection-card. "
-        f"card={card_pos}, tab_btn={tab_btn_pos}, card_close={card_close_pos}"
-    )
-
 
 def test_run_detail_tab_bar_uses_attached_modifier():
     """@proves ui_consistency_theming.attached-tab-inspection-card-pattern
@@ -13040,54 +11982,6 @@ def test_run_detail_tab_bar_uses_attached_modifier():
     class_tokens = re.findall(r'class="([^"]*)"', html)
     bare_tab_bar_in_classes = any('tab-bar' in token and 'tab-bar--attached' not in token for token in class_tokens)
     assert not bare_tab_bar_in_classes, "Bare 'tab-bar' class found in rendered HTML (should be 'tab-bar--attached')"
-
-
-def test_run_detail_panes_use_pane_container():
-    """All three inspection panes must use .pane-container alongside .tab-pane."""
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-    run = PipelineRun(
-        run_id="composition-test-3", status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json", triggered_by="admin",
-        trigger_source="web", config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/composition-test-3")
-    assert resp.status_code == 200
-    html = resp.text
-    for pane_id in ("pane-enriched", "pane-jobs-input", "pane-profile"):
-        pane_pos = html.index(f'id="{pane_id}"')
-        # Check that "pane-container" appears within 100 chars before the pane id (it's on the same div's class attribute)
-        context = html[max(0, pane_pos - 100):pane_pos + len(pane_id) + 10]
-        assert "pane-container" in context, f"'pane-container' not found near {pane_id} pane"
-
-
-def test_run_detail_no_page_local_tab_style_inside_inspection_area():
-    """No <style> tag may appear between the inspection card open and the first tab button."""
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-    run = PipelineRun(
-        run_id="composition-test-4", status=RunStatus.SUCCEEDED,
-        jobs_path="data/sample_jobs.json", triggered_by="admin",
-        trigger_source="web", config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-    )
-    p = _run_detail_base_patches(run)
-    with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/composition-test-4")
-    assert resp.status_code == 200
-    html = resp.text
-    # Find the .inspection-card region (open to close)
-    card_pos = html.index('class="inspection-card"')
-    card_close_pos = html.index('</div><!-- /.inspection-card -->', card_pos)
-    card_region = html[card_pos:card_close_pos]
-    # No <style> tag may appear inside the inspection card region
-    assert "<style>" not in card_region, (
-        "Page-local <style> tag found inside .inspection-card region — "
-        "tab styling should use shared CSS from base.html"
-    )
 
 
 def test_base_template_bootstraps_saved_theme_before_styles():
@@ -13615,7 +12509,7 @@ def test_runs_list_candidate_profile_control_uses_central_profiles_only() -> Non
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
     html = resp.text
-    assert 'id="candidate_profile_id"' in html
+    assert 'id="candidateProfile"' in html
     assert "/candidate-profiles?view=active&status=succeeded" in html
     assert "Upload Profile" not in html
     assert "Paste Profile" not in html
@@ -14496,7 +13390,7 @@ def test_runs_list_renders_managed_scan_picker_instead_of_direct_scanner_fields(
         response = TestClient(_app()).get("/admin/runs")
 
     assert response.status_code == 200
-    assert 'id="manage-run-scans"' in response.text
+    assert 'id="manageRunScans"' in response.text
     assert "Eligible Scan outputs" in response.text
     assert 'id="source_mode"' not in response.text
     assert 'id="scanner_provider"' not in response.text

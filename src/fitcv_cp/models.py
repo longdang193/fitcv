@@ -49,6 +49,10 @@ class CandidateProfileRegenerateRequest(BaseModel):
     targets: list[str]
 
 
+class CandidateProfileUndoRegenerationRequest(BaseModel):
+    expected_revision: int
+
+
 class CandidateProfileApproveRequest(BaseModel):
     expected_revision: int
     expected_fingerprint: str
@@ -99,6 +103,15 @@ class CandidateProfileReviewResource(BaseModel):
 
 class CandidateProfileReviewEnvelope(BaseModel):
     data: CandidateProfileReviewResource
+
+
+class CandidateProfileDeleteResource(BaseModel):
+    profile_id: str
+    deleted: bool
+
+
+class CandidateProfileDeleteEnvelope(BaseModel):
+    data: CandidateProfileDeleteResource
 
 
 class CandidateProfileConfirmationResource(BaseModel):

@@ -7,8 +7,11 @@ Use live code intelligence for discovery. Keep source, tests, and CI as truth.
 | Need | Default tool |
 |---|---|
 | Current files and small local changes | native code tools |
+| Broad unknown-location local concept search | optional Semble MCP |
+| Exact local text confirmation | `rg` |
 | Exact symbols, references, implementations, or diagnostics | Serena |
 | Execution flows, dependencies, impact analysis, or cross-repository contracts | GitNexus |
+| Repeated syntax-pattern preview | optional `sg` (ast-grep) |
 | Unfamiliar external GitHub repository structure, architecture summaries, or focused repository Q&A | DeepWiki |
 | Correctness and architecture enforcement | tests, static checks, CI |
 | Durable architecture boundaries and rationale | `docs/architecture.md`, ADRs |
@@ -22,6 +25,15 @@ Use live code intelligence for discovery. Keep source, tests, and CI as truth.
 5. Move from Serena to GitNexus only when local evidence exposes broader uncertainty.
 6. Current source and tests win every conflict.
 7. Tool absence or stale indexes never block safe source-first work.
+
+## Optional Semble And ast-grep
+
+- Semble is read-only and optional. Use only when broad local concept location
+  is unknown; fall back to native search, Serena, or GitNexus.
+- `sg` previews structural matches or JSON only. `apply_patch` remains sole
+  source edit path.
+- Semble MCP and ast-grep CLI are user-level choices, not repository or CI
+  dependencies. See `docs/operating_system/procedures/code-intelligence-tools-setup.md`.
 
 ## DeepWiki Workflow
 

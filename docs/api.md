@@ -170,9 +170,11 @@ exists.
 
 - `GET|PATCH /candidate-profile-creation-attempts/{attempt_id}/baseline`
 - `POST /candidate-profile-creation-attempts/{attempt_id}/baseline/actions/regenerate`
+- `POST /candidate-profile-creation-attempts/{attempt_id}/baseline/actions/undo-regeneration`
 - `POST /candidate-profile-creation-attempts/{attempt_id}/baseline/actions/approve`
 - `GET|PATCH /candidate-profile-creation-attempts/{attempt_id}/derived`
 - `POST /candidate-profile-creation-attempts/{attempt_id}/derived/actions/regenerate`
+- `POST /candidate-profile-creation-attempts/{attempt_id}/derived/actions/undo-regeneration`
 - `POST /candidate-profile-creation-attempts/{attempt_id}/derived/actions/approve`
 
 PATCH uses one attempt CAS revision and ID-addressed `add`, `replace`, or
@@ -180,6 +182,12 @@ PATCH uses one attempt CAS revision and ID-addressed `add`, `replace`, or
 approval requires current revision and stage fingerprint. Baseline approval
 queues controlled derivation. Derived approval also binds the approved baseline
 fingerprint.
+
+Undo restores only the snapshot retained immediately before the latest completed
+regeneration for that review stage. It requires `Idempotency-Key` and current
+`expected_revision`, clears downstream approvals, and requires review approval
+again. Server review capabilities expose `undo_regeneration` only when this
+operation is available.
 
 ### Confirmation and recovery
 
@@ -199,16 +207,21 @@ capabilities permit it.
 - `GET /candidate-profiles/{profile_id}/runs`
 - `POST /candidate-profiles/{profile_id}/actions/archive`
 - `POST /candidate-profiles/{profile_id}/actions/restore`
+- `POST /candidate-profiles/{profile_id}/actions/delete`
 
 Catalog, confirmation, and details expose the same persisted canonical profile
 resource. Archive and restore require `Idempotency-Key` plus
 `expected_revision`; archived profiles remain historically resolvable but are
-not eligible for new Runs.
+not eligible for new Runs. Delete requires `Idempotency-Key` plus
+`expected_revision`, accepts only archived succeeded profiles with no related
+Run profile or profile-revision reference, and permanently removes the profile
+and linked creation artifacts. Same-key replay returns stored deletion receipt.
 
 ### Candidate Profile errors
 
 - `404`: missing attempt, source, source block, or profile
-- `409`: stale revision/fingerprint, invalid transition, processing claim, or idempotency conflict
+- `409`: stale revision/fingerprint, invalid transition, processing claim,
+  idempotency conflict, referenced-profile deletion, or unavailable regeneration undo
 - `410`: source bytes or private review content purged after retention expiry
 - `413`: upload or bounded model input exceeds limit
 - `415`: unsupported extension or media mismatch

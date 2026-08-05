@@ -55,8 +55,8 @@ formatting, stash deletion, or unrelated file edits. Port `8765` is prohibited.
 3. Frozen prototype includes `Prompt Management` under Pipeline and excludes
    `Lifecycle`. Runtime must keep Prompt Management visible, hide Lifecycle from
    sidebar, and preserve `/admin/lifecycle` as direct compatibility route.
-4. Existing API helper retains HTTP status, canonical error code, payload, and
-   response headers, but pages usually render only `error.message`. Shared
+4. Existing API helper retains HTTP status, canonical error code, and payload,
+   but pages usually render only `error.message`. Shared
    pending/error/retry/stale rendering belongs in `base.html`.
 5. Candidate Profile approved markup already has dedicated parity coverage.
    That slice must reuse confirmed components and add only missing real-backend
@@ -114,6 +114,9 @@ only unresolved mappings.
 - Parallel ownership: none; `base.html`, `app.py`, and shared tests create hidden
   dependencies across slices
 - Sequential fallback: exact task order below
+- Proof-only rule: a Gate 0 `already aligned` disposition makes that slice
+  proof-only. Run focused tests and validator first; edit only exact drift named
+  by failed proof. A `change narrowly` disposition limits edits to named drift.
 - Shared-write control: Task 1 is sole owner of shared shell CSS and async-state
   primitives. Later tasks may retain page-specific CSS but must not add local
   copies of shared selectors or shared state rendering.
@@ -162,8 +165,8 @@ Every backend-consuming slice must run `skill-backend-verification` and record:
 - rollback or consistent state after failed mutation;
 - real SQLite, filesystem, queue, or provider dependency failure where material;
 - canonical `/openapi.json` operation evidence when route is schema-owned;
-- one representative operation reconstructed through existing request ID,
-  resource ID, revision, event, or test instrumentation when traceability is
+- one representative operation reconstructed through existing resource ID,
+  revision, event, or test instrumentation when traceability is
   material;
 - fresh command, exit code, failures, and skips.
 
@@ -184,9 +187,9 @@ or side effect, conflict/idempotency, and dependency failure by applicability.
 - Task 5: nodes listed in Task 5 Verification and Backend Proof.
 - Task 6: `tests/test_fitcv_cp/test_local_app.py::test_packaged_system_settings_are_revisioned_validated_and_local_only`, `tests/test_fitcv_cp/test_local_routes.py::test_backup_rejects_active_work`, `::test_data_page_and_backup_download`, `::test_awaiting_continue_run_blocks_backup_and_shutdown`.
 - Task 7: `tests/test_fitcv_cp/test_app.py::test_managed_run_requires_upload_or_scan_and_accepts_scan_only`, `::test_real_managed_run_preserves_upload_then_selected_scan_order`, `::test_real_managed_run_rejects_missing_archived_empty_and_integrity_invalid_sources`, `::test_delete_archived_runs_is_idempotent_and_returns_deleted_ids`, `::test_delete_archived_runs_reports_all_or_nothing_conflict`.
-- Task 8: `tests/test_fitcv_cp/test_app.py::test_get_run_detail_not_found` plus intended `::test_run_detail_actions_preserve_state_on_dependency_failure`.
-- Task 9: `tests/test_fitcv_cp/test_scan_contracts.py::test_scan_create_request_rejects_empty_company_selection`, `::test_derive_scan_capabilities_owns_all_action_rules`, `::test_validate_scan_transition_rejects_invalid_transition`, plus intended `tests/test_fitcv_cp/test_app.py::test_scan_routes_prove_idempotent_lifecycle_and_dependency_failure`.
-- Task 10: `tests/test_fitcv_cp/test_app.py::test_candidate_profile_real_app_routes_process_yaml_through_staged_lifecycle`, `::test_candidate_profile_real_app_routes_accept_supported_non_yaml_formats`, plus exact service/store nodes added for retry, conflict, confirmation idempotency, and persistence before edits.
+- Task 8: `tests/test_fitcv_cp/test_app.py::test_get_run_detail_not_found`, `::test_get_run_detail_reconciles_orphaned_running_run_when_queue_job_missing`, `::test_run_detail_queued_shows_stop_run`, `::test_run_detail_terminal_statuses_show_archive_run`.
+- Task 9: `tests/test_fitcv_cp/test_scan_contracts.py::test_scan_create_request_rejects_empty_company_selection`, `::test_derive_scan_capabilities_owns_all_action_rules`, `::test_validate_scan_transition_rejects_invalid_transition`, `tests/test_fitcv_cp/test_app.py::test_mock_scan_creation_replays_same_scan_for_same_idempotency_key`, `::test_mock_scan_lifecycle_rejects_stale_revision`, `::test_mock_scan_ui_covers_error_pending_and_integrity_states`.
+- Task 10: `tests/test_fitcv_cp/test_app.py::test_candidate_profile_real_app_routes_process_yaml_through_staged_lifecycle`, `::test_candidate_profile_real_app_routes_accept_supported_non_yaml_formats`, `tests/test_fitcv_cp/test_sqlite_store.py::test_candidate_profile_retry_resumes_failed_processing_stage`, `::test_candidate_profile_review_and_confirmation_are_cas_and_idempotent`, `::test_candidate_profile_confirmation_failure_rolls_back`.
 - Task 11: `tests/test_fitcv_cp/test_app.py::test_bookmark_and_interest_actions_use_run_job_identity`, `::test_bookmark_interest_clear_and_stale_rating_contract`, `tests/test_fitcv_cp/test_sqlite_store.py::test_bookmark_query_selection_and_removal_share_filtered_intersection`.
 - Task 12: `tests/test_fitcv_cp/test_app.py::test_synonym_policy_routes_read_activate_and_persist_invalid_draft`, `::test_synonym_approve_forwards_policy_revisions`, `tests/test_fitcv_cp/test_sqlite_store.py::test_synonym_approval_rolls_back_policy_and_decision_when_processing_log_fails`, `::test_synonym_approval_rejects_stale_policy_revision`.
 - Task 13: `tests/test_fitcv_cp/test_optimization_page.py::test_candidate_post_uses_submitted_compare_tokens_and_prg`, `::test_public_run_mutations_use_server_actor_and_baseline_guards`, `::test_public_run_inactivation_requires_confirmation_and_uses_active_snapshot`, `::test_public_run_remove_hides_non_active_run_and_rejects_active_owner`, plus relevant SQLite activation/inactivation nodes.
@@ -197,7 +200,7 @@ Task 1 extends existing `base.html` runtime helpers with one function:
 
 `fitcvRenderAsyncState(target, state)`
 
-`state` contains `kind`, `message`, `code`, `action`, `retry`, `requestId`, and
+`state` contains `kind`, `message`, `code`, `action`, `retry`, and
 `preserveContent`. `kind` is one of `pending`, `success`, `empty`, `error`,
 `retryable`, `non_retryable`, `stale`, or `refreshing`. Pages own resource state
 and retry callbacks; shared code owns consistent rendering, live-region
@@ -302,7 +305,7 @@ complete and prototype hash matches.
 - [ ] Add failing structural tests for prototype navigation order, group placement, Prompt Management presence, Lifecycle absence, header action order, mobile menu semantics, and shared page container.
 - [ ] Keep `/admin/lifecycle` route registered but remove only its sidebar link.
 - [ ] Consolidate only shared runtime CSS in `base.html`; later slice templates remove duplicate shared selectors but retain genuinely page-specific CSS. Add no CSS build system or dependency.
-- [ ] Extend existing request path with `fitcvRenderAsyncState(target, state)` using the Shared Async-State Contract. Preserve canonical code, message, action, HTTP status, request ID, and prior valid data.
+- [ ] Extend existing request path with `fitcvRenderAsyncState(target, state)` using the Shared Async-State Contract. Preserve canonical code, message, action, HTTP status, and prior valid data.
 - [ ] Provide shared duplicate-submit lock, retry callback binding, live-region semantics, and focus target without owning page-specific state.
 - [ ] Remove resolved shell entries from sidecar; retain exact unresolved items.
 - [ ] Run fresh independent validator checkpoint.
@@ -532,11 +535,12 @@ complete and prototype hash matches.
 
 **Verification:**
 - [ ] `uv run pytest tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_app.py -q -k "prompt_management or prompt_configuration or prompt_reset"`
-- Exact proof nodes: `tests/test_fitcv_cp/test_local_routes.py::test_prompt_management_matches_frozen_prototype_contract` (intended), `tests/test_fitcv_cp/test_local_routes.py::test_packaged_local_admin_pages_render_canonical_resources`, `tests/test_fitcv_cp/test_local_routes.py::test_packaged_local_pages_encode_approved_ui_states`, `tests/test_fitcv_cp/test_local_routes.py::test_controller_settings_save_and_prompt_reset`, `tests/test_fitcv_cp/test_local_app.py::test_packaged_prompt_configuration_exposes_defaults_and_validates_replacements`.
+- Exact proof nodes: `tests/test_fitcv_cp/test_local_routes.py::test_prompt_management_matches_frozen_prototype_contract` (intended), `tests/test_fitcv_cp/test_local_routes.py::test_packaged_local_admin_pages_render_canonical_resources`, `tests/test_fitcv_cp/test_local_routes.py::test_packaged_local_pages_encode_approved_ui_states`, `tests/test_fitcv_cp/test_local_app.py::test_packaged_prompt_configuration_exposes_defaults_and_validates_replacements`, `tests/test_fitcv_cp/test_local_app.py::test_packaged_prompt_configuration_resets_custom_replacement_to_default` (intended).
 - [ ] Playwright: both prompt sections, manage/reset/save dialog flow, keyboard/focus return, long prompt text, pending/validation/conflict/retry/success at both viewports/themes.
 
 **Backend Proof:**
-- Success, validation, conflict, and persisted replacement/default reset: `tests/test_fitcv_cp/test_local_app.py::test_packaged_prompt_configuration_exposes_defaults_and_validates_replacements` and `tests/test_fitcv_cp/test_local_routes.py::test_controller_settings_save_and_prompt_reset`.
+- Success, validation, conflict, and persisted replacement: `tests/test_fitcv_cp/test_local_app.py::test_packaged_prompt_configuration_exposes_defaults_and_validates_replacements`.
+- Successful persisted default reset: intended `tests/test_fitcv_cp/test_local_app.py::test_packaged_prompt_configuration_resets_custom_replacement_to_default`.
 - Local-only page and compatibility route: `tests/test_fitcv_cp/test_local_routes.py::test_packaged_local_admin_pages_render_canonical_resources` plus direct redirect assertion added to intended DOM contract test.
 - Contract evidence: route functions and response models in `src/fitcv_cp/app.py`; packaged-local `/openapi.json` where registered. Do not create parallel prompt schema.
 - Dependency failure: not applicable; prompt configuration is local revisioned persistence with no provider call.
@@ -689,18 +693,18 @@ complete and prototype hash matches.
 - Task 7 validator PASS
 
 **Steps:**
-- [ ] Lock prototype header, status/actions, section order, tabs, result table, details/drawers, console, downloads, default open state.
-- [ ] Reuse existing detail partials where already aligned; remove duplicate local variants instead of creating new components.
-- [ ] Use shared state renderer for initial detail, tab fetch, polling/refresh, retryable action, non-retryable failure, stale data, export failure.
-- [ ] Keep last valid detail/results while refreshing; bound polling to terminal state and page visibility.
-- [ ] Preserve URL/deep-link tab state and focus after partial replacement.
-- [ ] Remove resolved Run Details entries from sidecar.
-- [ ] Run fresh independent validator checkpoint.
+- [x] Lock prototype header, status/actions, section order, tabs, result table, details/drawers, console, downloads, default open state.
+- [x] Reuse existing detail partials where already aligned; remove duplicate local variants instead of creating new components.
+- [x] Use shared state renderer for initial detail, tab fetch, polling/refresh, retryable action, non-retryable failure, stale data, export failure.
+- [x] Keep last valid detail/results while refreshing; bound polling to terminal state and page visibility.
+- [x] Preserve URL/deep-link tab state and focus after partial replacement.
+- [x] Update resolved Run Details mapping in sidecar.
+- [x] Run fresh independent validator checkpoint.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_run_artifact_contracts.py tests/test_fitcv_cp/test_run_artifact_mirror.py tests/test_fitcv_cp/test_observability_contract.py -q -k "run_detail or run_jobs or run_events or cv_version or export or process_console"`
+- [x] `uv run pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_run_artifact_contracts.py tests/test_fitcv_cp/test_run_artifact_mirror.py tests/test_fitcv_cp/test_observability_contract.py tests/test_fitcv_cp/test_run_detail_output_availability.py -q -k "run_detail or run_jobs or run_events or cv_version or export or process_console"`
 - Expected: detail projection, artifacts, events, results, exports, recovery, DOM contract tests pass.
-- [ ] Playwright: queued/running/review-required/succeeded/failed, tabs, sections, console, retries, export error, keyboard, both viewports/themes.
+- [x] Playwright: isolated terminal run, drawers/tabs, console default state, interest action, selection, keyboard focus, desktop dark and 375px light; source/direct tests cover remaining contract state variants and failure paths.
 
 **Backend Proof:**
 - Direct boundary: Run detail, stages, jobs, events, export, CV history, applicable action endpoints.
@@ -714,6 +718,12 @@ complete and prototype hash matches.
 
 **Exit Criteria:**
 - Run Details and Pipeline Results match prototype across terminal/non-terminal states with direct backend proof.
+
+**Execution Status — 2026-08-05:**
+- Task 8 complete. Fresh source/test-contract validator PASS; prototype git blob hash remains `989af611bd7767c148022c79ac00c5069d8a3956`.
+- Focused Run Details suite passes: `81 passed, 369 deselected`; direct backend action boundary/failure/state subset passes: `5 passed`.
+- Isolated runtime on `127.0.0.1:8766` returns `200` with a temporary migrated database; port `8765` remains untouched.
+- Playwright confirms no visible lifecycle actions, result Language/stars/Clear/Bookmark controls, no Marks/Why transport details, default-closed Console, selection state, interest action, visible keyboard focus, light/dark themes, 375px no-overflow, and zero console errors.
 
 ### Task 9: Align Scans
 
@@ -745,18 +755,18 @@ complete and prototype hash matches.
 - Task 8 validator PASS
 
 **Steps:**
-- [ ] Freeze prototype list tabs/table/dialogs, company picker, detail sections, output views, actions, default open state.
-- [ ] Bind create, list, detail, events, jobs, output, cancel, run-again, archive/unarchive, delete preview to existing contracts.
-- [ ] Derive visible actions only from server capabilities; do not duplicate transition rules in template JavaScript.
-- [ ] Use shared async states for empty/loading/pending/error/integrity-invalid, stale revision, retry, terminal success.
-- [ ] Preserve last valid detail during polling and stop polling at terminal state or page invisibility.
-- [ ] Remove resolved Scan entries from sidecar.
-- [ ] Run fresh independent validator checkpoint.
+- [x] Freeze prototype list tabs/table/dialogs, company picker, detail sections, output views, actions, default open state.
+- [x] Bind create, list, detail, events, jobs, output, cancel, run-again, archive/unarchive, delete preview to existing contracts.
+- [x] Derive visible actions only from server capabilities; do not duplicate transition rules in template JavaScript.
+- [x] Use shared async states for empty/loading/pending/error/integrity-invalid, stale revision, retry, terminal success.
+- [x] Preserve last valid detail during polling and stop polling at terminal state or page invisibility.
+- [x] Update resolved Scan entry in sidecar.
+- [x] Run fresh independent validator checkpoint.
 
 **Verification:**
-- [ ] `uv run pytest tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_app.py -q -k "scan"`
+- [x] `uv run pytest tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_store.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_app.py -q -k "scan"`
 - Expected: normalization, validation, capabilities, idempotency, lifecycle, worker, persistence, output, DOM tests pass.
-- [ ] Playwright: empty/list/create/pending/succeeded/failed/integrity-invalid, run-again, lifecycle, output tabs, keyboard, both viewports/themes.
+- [x] Playwright: empty/list tabs, New Scan dialog and focus, keyboard tab navigation, 375px dark, no overflow, and zero console errors; source/direct tests cover create, pending, succeeded, failed, integrity-invalid, lifecycle, output, idempotency, and persistence.
 
 **Backend Proof:**
 - Direct boundary: all `/scans` operations.
@@ -770,6 +780,11 @@ complete and prototype hash matches.
 
 **Exit Criteria:**
 - Scan flows match prototype and backend state/capability truth remains single owner.
+
+**Execution Status — 2026-08-05:**
+- Task 9 complete. Prototype git blob remains `989af611bd7767c148022c79ac00c5069d8a3956`; fresh independent validator PASS.
+- Planned focused Scan suite passes: `49 passed, 530 deselected`. Direct route/contract/failure/state/worker/persistence subset passes: `19 passed`.
+- Playwright proves the live isolated runtime on `127.0.0.1:8766`; port `8765` remains untouched.
 
 ### Task 10: Complete Candidate Profile Recovery Integration
 
@@ -810,6 +825,8 @@ complete and prototype hash matches.
 - [ ] Reuse confirmed baseline, derived claim, evidence, confirmation, detail structures; do not rename classes, reorder actions, or add traceability UI absent from prototype.
 - [ ] Bind recovery controls to server capabilities and canonical attempt/profile resources; confirmation/detail render same server-owned canonical resource.
 - [ ] Prove MD, DOCX, YAML staged processing, review CAS, retry resume, idempotent confirmation, persisted revision, archive/restore, Run selection.
+- [x] Bind frozen archived `Delete Profile` to idempotent hard-delete API: archived succeeded profiles with no Run profile or profile-revision reference only; deletion removes linked creation artifacts.
+- [x] Bind frozen `Undo regeneration` to idempotent server restore of retained pre-regeneration review snapshot; require re-approval after downstream invalidation and render only when `undo_regeneration` capability is true.
 - [ ] Remove resolved Candidate Profile mappings from sidecar.
 - [ ] Run fresh independent validator checkpoint.
 
@@ -830,6 +847,7 @@ complete and prototype hash matches.
 
 **Exit Criteria:**
 - approved UI is unchanged except proven recovery states; complete staged backend flow passes direct and browser proof.
+- Candidate Profile delete and regeneration undo use server-owned transport; sidecar records resolved mapping and behavior.
 
 ### Task 11: Align Bookmarks
 

@@ -1,0 +1,22 @@
+version: 1
+roles:
+  implement:
+    writes: true
+    accepts: [low, normal, high]
+    result_kind: claimed_result
+    required_fields: [summary, changed_files]
+  investigate:
+    writes: false
+    accepts: [low, normal, high]
+    result_kind: claimed_result
+    required_fields: [summary, findings]
+  review:
+    writes: false
+    accepts: [normal, high]
+    result_kind: claimed_result
+    required_fields: [summary, findings]
+  improve:
+    writes: true
+    accepts: [normal, high]
+    result_kind: claimed_result
+    required_fields: [summary, changed_files, decision]

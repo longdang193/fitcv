@@ -1085,6 +1085,90 @@ def test_candidate_profile_regeneration_claims_same_stage_without_deleting_draft
         assert conn.execute("SELECT COUNT(*) FROM candidate_profile_baseline_snapshots").fetchone()[0] == 1
 
 
+def test_undo_candidate_profile_regeneration_restores_latest_review_snapshot(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Analytics Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex Morgan\n",
+        idempotency_key="create-undo-regeneration",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"], stage="base_mapping", expected_revision=1, lease_seconds=60,
+        database_path=database_path,
+    )
+    published = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=claimed["processing"]["claim_id"],
+        expected_revision=claimed["revision"],
+        result={
+            "document": {"name": "Alex Morgan", "summary": "Original"},
+            "annotations": {"/summary": {"regenerable": True, "source_block_ids": []}},
+            "fingerprint": "baseline-undo-original",
+            "runtime_evidence": None,
+        },
+        source_blocks=[],
+        database_path=database_path,
+    )
+    regenerating = sqlite_store.regenerate_candidate_profile_review(
+        created["attempt_id"],
+        "baseline",
+        expected_revision=published["revision"],
+        targets=["/summary"],
+        idempotency_key="regenerate-before-undo",
+        database_path=database_path,
+    )
+    regenerated = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=regenerating["processing"]["claim_id"],
+        expected_revision=regenerating["revision"],
+        result={
+            "document": {"name": "Alex Morgan", "summary": "Regenerated"},
+            "annotations": {"/summary": {"regenerable": True, "source_block_ids": []}},
+            "fingerprint": "baseline-undo-regenerated",
+            "runtime_evidence": {"status": "succeeded"},
+        },
+        source_blocks=[],
+        database_path=database_path,
+    )
+
+    assert sqlite_store.get_candidate_profile_review(
+        created["attempt_id"], "baseline", database_path=database_path
+    )["capabilities"]["undo_regeneration"] is True
+
+    undone = sqlite_store.undo_candidate_profile_regeneration(
+        created["attempt_id"],
+        "baseline",
+        expected_revision=regenerated["revision"],
+        idempotency_key="undo-regeneration",
+        database_path=database_path,
+    )
+
+    assert undone["document"]["summary"] == "Original"
+    assert undone["fingerprint"] == "baseline-undo-original"
+    assert undone["revision"] == regenerated["revision"] + 1
+    assert undone["capabilities"]["undo_regeneration"] is False
+    assert sqlite_store.undo_candidate_profile_regeneration(
+        created["attempt_id"],
+        "baseline",
+        expected_revision=regenerated["revision"],
+        idempotency_key="undo-regeneration",
+        database_path=database_path,
+    ) == undone
+    with pytest.raises(ValueError, match="candidate_profile_regeneration_undo_unavailable"):
+        sqlite_store.undo_candidate_profile_regeneration(
+            created["attempt_id"],
+            "baseline",
+            expected_revision=undone["revision"],
+            idempotency_key="undo-regeneration-again",
+            database_path=database_path,
+        )
+
+
 def _candidate_profile_v2_review_documents() -> tuple[dict[str, object], dict[str, object]]:
     import yaml
 
@@ -1961,6 +2045,117 @@ preferences: {}
             expected_revision=failed["revision"],
             database_path=database_path,
         )
+
+
+def test_delete_candidate_profile_removes_unreferenced_archived_profile(tmp_path: Path) -> None:
+    database_path = tmp_path / "profiles.sqlite3"
+    profile = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Candidate",
+        database_path=database_path,
+    )
+    with pytest.raises(ValueError, match="candidate_profile_delete_requires_archive"):
+        sqlite_store.delete_candidate_profile(
+            profile["profile_id"], expected_revision=profile["revision"], idempotency_key="delete-active", database_path=database_path,
+        )
+    archived = sqlite_store.transition_candidate_profile_lifecycle(
+        profile["profile_id"], lifecycle="archived", expected_revision=profile["revision"], database_path=database_path,
+    )
+    with pytest.raises(ValueError, match="candidate_profile_revision_conflict"):
+        sqlite_store.delete_candidate_profile(
+            profile["profile_id"], expected_revision=profile["revision"], idempotency_key="delete-stale", database_path=database_path,
+        )
+
+    deleted = sqlite_store.delete_candidate_profile(
+        profile["profile_id"], expected_revision=archived["revision"], idempotency_key="delete-unreferenced", database_path=database_path,
+    )
+
+    assert deleted == {"profile_id": profile["profile_id"], "deleted": True}
+    assert sqlite_store.delete_candidate_profile(
+        profile["profile_id"], expected_revision=archived["revision"], idempotency_key="delete-unreferenced", database_path=database_path,
+    ) == deleted
+    with pytest.raises(ValueError, match="idempotency_conflict"):
+        sqlite_store.delete_candidate_profile(
+            profile["profile_id"], expected_revision=archived["revision"] + 1, idempotency_key="delete-unreferenced", database_path=database_path,
+        )
+    assert sqlite_store.get_candidate_profile_detail(profile["profile_id"], database_path=database_path) is None
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_revisions").fetchone()[0] == 0
+
+
+def test_delete_candidate_profile_rejects_referenced_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database_path = tmp_path / "profiles.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(database_path))
+    profile = sqlite_store.create_candidate_profile_attempt(
+        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Candidate",
+        database_path=database_path,
+    )
+    sqlite_store.create_run_bundle(
+        _make_run("run-profile-delete-reference"),
+        input_resource={
+            "strict_candidate_profile": True,
+            "candidate_profile_id": profile["profile_id"],
+            "jobs_snapshot_json": '[{"title":"Analyst"}]',
+            "jobs_manifest_json": "{}",
+        },
+        jobs=[{"title": "Analyst"}],
+    )
+    with sqlite3.connect(database_path) as conn:
+        conn.execute(
+            "UPDATE run_inputs SET candidate_profile_id=NULL WHERE run_id=?",
+            ("run-profile-delete-reference",),
+        )
+        conn.commit()
+    archived = sqlite_store.transition_candidate_profile_lifecycle(
+        profile["profile_id"], lifecycle="archived", expected_revision=profile["revision"], database_path=database_path,
+    )
+
+    with pytest.raises(ValueError, match="candidate_profile_delete_referenced"):
+        sqlite_store.delete_candidate_profile(
+            profile["profile_id"], expected_revision=archived["revision"], idempotency_key="delete-referenced", database_path=database_path,
+        )
+    retained = sqlite_store.get_candidate_profile_detail(profile["profile_id"], database_path=database_path)
+    assert retained is not None
+    assert retained["related_run_count"] == 1
+    assert retained["capabilities"]["delete"] is False
+
+
+def test_delete_candidate_profile_cascades_linked_creation_artifacts(tmp_path: Path) -> None:
+    database_path = tmp_path / "profiles.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    confirmation = sqlite_store.get_candidate_profile_confirmation(
+        ready["attempt_id"], database_path=database_path
+    )
+    assert confirmation is not None
+    profile = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-delete-cascade",
+        database_path=database_path,
+    )
+    archived = sqlite_store.transition_candidate_profile_lifecycle(
+        profile["profile_id"], lifecycle="archived", expected_revision=profile["revision"], database_path=database_path,
+    )
+
+    sqlite_store.delete_candidate_profile(
+        profile["profile_id"], expected_revision=archived["revision"], idempotency_key="delete-cascade", database_path=database_path,
+    )
+
+    assert sqlite_store.get_candidate_profile_creation_attempt(
+        ready["attempt_id"], database_path=database_path
+    ) is None
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_source_documents").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_baseline_snapshots").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM candidate_profile_derived_snapshots").fetchone()[0] == 0
 
 
 def test_candidate_profile_pre_admission_validation_creates_no_rows(tmp_path: Path) -> None:

@@ -44,65 +44,21 @@ def test_output_availability_not_ready_when_run_not_succeeded() -> None:
     assert result["state"] == "not_ready"
 
 
-def test_run_detail_template_mentions_output_availability_contract() -> None:
-    template_path = "src/fitcv_cp/templates/run_detail.html"
-    content = open(template_path, encoding="utf-8").read()
-    assert 'id="outputs-action"' not in content
-    assert 'id="run-overview-core"' in content
-    assert "<h3 style=\"margin:0 0 0.35rem\">Synonym Configuration</h3>" in content
-    assert 'href="/admin/synonyms"' in content
-    assert "<h3>Pipeline Results</h3>" in content
-    assert '{% include "_process_console.html" %}' in content
-    assert "<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>" in content
-    assert "Compatibility note: outputs/download actions moved to <strong>Artifacts</strong>." in content
-    assert "output_availability." in content
-
-
-
-
-def test_run_detail_template_enforces_canonical_section_order_and_no_overview_duplication() -> None:
-    template_path = "src/fitcv_cp/templates/run_detail.html"
-    content = open(template_path, encoding="utf-8").read()
-    assert content.count(">Run Overview</h3>") == 1
-    overview_pos = content.index(">Run Overview</h3>")
-    synonym_pos = content.index(">Synonym Configuration</h3>")
-    pipeline_pos = content.index(">Pipeline Results</h3>")
+def test_run_detail_template_matches_prototype_drawers_and_profile_snapshot() -> None:
+    content = open("src/fitcv_cp/templates/run_detail.html", encoding="utf-8").read()
+    overview_pos = content.index("Run Overview")
+    input_pos = content.index("Run Input")
+    results_pos = content.index("Pipeline Results")
     console_pos = content.index('{% include "_process_console.html" %}')
-    artifacts_pos = content.index('id="artifacts"')
-    advanced_pos = content.index('id="advanced-diagnostics"')
-    assert overview_pos < synonym_pos < pipeline_pos < console_pos < artifacts_pos < advanced_pos
-    assert 'id="outputs-action"' not in content
-
-def test_advanced_diagnostics_collapsed_container_preserves_evidence_sections() -> None:
-    template_path = "src/fitcv_cp/templates/run_detail.html"
-    content = open(template_path, encoding="utf-8").read()
-    assert '<details class="card" id="advanced-diagnostics">' in content
-    assert "Advanced &amp; Diagnostics" in content
-    assert "<h3 style=\"margin:0\">Stage Result Policy + Trace Summary</h3>" in content
-    assert "<h3 style=\"margin:0\">Event Delivery Health</h3>" not in content
-    assert "<h3 style=\"margin:0\">Telemetry Export Health</h3>" not in content
-    assert "<h3 style=\"margin:0\">Langfuse Trace-Link Health</h3>" not in content
-    assert "<h3 style=\"margin:0\">Dead-letter Replay Summary</h3>" not in content
-    assert "<h3 style=\"margin:0\">Agentic Runtime Alignment</h3>" not in content
-    assert content.index('id="artifacts"') < content.index('id="advanced-diagnostics"')
-    assert "Replay Dead-letter Events" not in content
-    assert "Synonym Fingerprints" not in content
-    assert "Trace Links" not in content
-
-def test_overview_core_excludes_diagnostic_only_snippets() -> None:
-    template_path = "src/fitcv_cp/templates/run_detail.html"
-    content = open(template_path, encoding="utf-8").read()
-    start = content.index('id="run-overview-core"')
-    end = content.index(">Synonym Configuration</h3>", start)
-    overview_block = content[start:end]
-    assert "pre_run_global={{ synonym_fingerprints.pre_run_global_map_fingerprint" not in overview_block
-    assert "overlay={{ synonym_fingerprints.run_overlay_fingerprint" not in overview_block
-    assert "suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint" not in overview_block
-    assert '/admin/cvs/{{ cv.version_id }}/download' in content
-    assert '/admin/runs/{{ run.run_id }}/bookmarks/save' not in content
-    assert '/admin/runs/{{ run.run_id }}/bookmarks/delete' not in content
-    assert "Manage bookmarks in Pipeline Results." in content
-    assert 'href="#generated-outputs"' not in content
+    assert overview_pos < input_pos < results_pos < console_pos
+    assert content.count("<details") >= 3
+    assert "Profile ID" in content
+    assert "Profile State" in content
+    assert "/admin/candidate-profiles/{{ candidate_profile_id }}" in content
+    assert "Cancel Run" not in content
+    assert "Run Again" not in content
+    assert "Archive</button>" not in content
+    assert 'id="process-console"' not in content
 
 
 def test_effective_settings_delta_counter_counts_leaf_changes() -> None:
@@ -111,15 +67,25 @@ def test_effective_settings_delta_counter_counts_leaf_changes() -> None:
     assert _count_dict_leaf_differences(baseline, effective) == 2
 
 
-def test_enriched_tab_select_shell_wrappers_are_closed() -> None:
-    template_path = "src/fitcv_cp/templates/run_detail_tab_enriched.html"
-    content = open(template_path, encoding="utf-8").read()
-    assert '<span class="enr-select-shell"><select id="enr-filter"' in content
-    assert '</select></span>' in content
-    assert content.count('</select></span>') >= 2
+def test_enriched_tab_matches_prototype_job_actions_and_attributes() -> None:
+    content = open(
+        "src/fitcv_cp/templates/run_detail_tab_enriched.html", encoding="utf-8"
+    ).read()
+    assert "Application Interest" in content
+    assert "data-interest-rating" in content
+    assert "data-clear-interest" in content
+    assert "data-cv-download" in content
+    assert "data-cv-regenerate" in content
+    assert "cv-review" in content
+    assert "Language" in content
+    detail_content = open("src/fitcv_cp/templates/run_detail.html", encoding="utf-8").read()
+    assert "classList.toggle('is-selected'" in detail_content
 
 
-def test_enriched_tab_blank_links_use_noopener() -> None:
-    template_path = "src/fitcv_cp/templates/run_detail_tab_enriched.html"
-    content = open(template_path, encoding="utf-8").read()
-    assert 'target="_blank" rel="noopener"' in content
+def test_enriched_tab_matches_prototype_pagination_sizes_and_controls() -> None:
+    content = open(
+        "src/fitcv_cp/templates/run_detail_tab_enriched.html", encoding="utf-8"
+    ).read()
+    assert 'target="_blank" rel="noopener noreferrer"' in content
+    assert "(10, 20, 50)" in content
+    assert "data-run-page-number" in content

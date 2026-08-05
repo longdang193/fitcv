@@ -291,6 +291,21 @@ def test_packaged_llm_configuration_is_revisioned_and_local_only(
     assert stale.status_code == 409
     assert stale.json()["error"]["code"] == "llm_configuration_revision_conflict"
 
+    invalid = client.patch(
+        "/llm-configuration",
+        json={
+            "default_model_ref": "missing-model",
+            "expected_revision": updated.json()["data"]["revision"],
+        },
+        headers=_unsafe_headers(app),
+    )
+    assert invalid.status_code == 422
+    assert invalid.json()["error"]["code"] == "llm_configuration_invalid"
+
+    persisted = client.get("/llm-configuration").json()["data"]
+    assert persisted["revision"] == updated.json()["data"]["revision"]
+    assert persisted["default_model_ref"] is None
+
 
 def test_packaged_prompt_configuration_exposes_defaults_and_validates_replacements(
     tmp_path: Path,
@@ -346,6 +361,20 @@ def test_packaged_prompt_configuration_exposes_defaults_and_validates_replacemen
     )
     assert stale.status_code == 409
     assert stale.json()["error"]["code"] == "prompt_configuration_revision_conflict"
+
+    reset = client.patch(
+        "/prompt-configurations/enrich_extraction",
+        json={"replacement_text": None, "expected_revision": updated.json()["data"]["revision"]},
+        headers=_unsafe_headers(app),
+    )
+    assert reset.status_code == 200
+    assert reset.json()["data"]["mode"] == "default"
+    assert reset.json()["data"]["replacement_text"] is None
+
+    persisted = client.get("/prompt-configurations").json()["data"]
+    restored = next(item for item in persisted if item["task_id"] == "enrich_extraction")
+    assert restored["revision"] == reset.json()["data"]["revision"]
+    assert restored["mode"] == "default"
 
 
 def test_packaged_system_settings_are_revisioned_validated_and_local_only(

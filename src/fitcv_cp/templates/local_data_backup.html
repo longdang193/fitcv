@@ -1,28 +1,3 @@
 {% extends "base.html" %}
-{% block title %}FitCV Local Data & Backup{% endblock %}
-{% block content %}
-<h1>Data &amp; Backup</h1>
-<div class="card">
-  <p><strong>Data root:</strong> {{ storage.data_root }}</p>
-  <p><strong>Database:</strong> {{ storage.database_path }}</p>
-  <p><strong>Size:</strong> {{ storage.database_size_bytes }} bytes</p>
-  <p><strong>Integrity:</strong> {{ storage.database_integrity }}</p>
-  <p><strong>Last backup:</strong> {{ storage.last_backup_at or 'Never' }}</p>
-  <form method="post" action="/local/data/backup"><button type="submit">Download backup</button></form>
-</div>
-<div class="card">
-  <h2>Move data</h2>
-  <form method="post" action="/local/data/relocate">
-    <label>New folder <input name="destination" required></label>
-    <button type="submit">Move and restart</button>
-  </form>
-</div>
-<div class="card">
-  <h2>Import backup</h2>
-  <form method="post" action="/local/data/import" enctype="multipart/form-data">
-    <label>Backup <input type="file" name="archive" accept=".zip" required></label>
-    <label>Restore folder <input name="destination" required></label>
-    <button type="submit">Import and restart</button>
-  </form>
-</div>
-{% endblock %}
+{% block title %}Data &amp; Backup — FitCV{% endblock %}
+{% block content %}<main data-page="data-backup"><div class="page-head"><div><p class="eyebrow">Application</p><h2>Data &amp; Backup</h2><p>Download or restore the local FitCV workspace.</p></div></div><div class="system-stack">{% include "_data_backup_panel.html" %}</div></main>{% endblock %}

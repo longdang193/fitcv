@@ -526,7 +526,11 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
 
     @router.get("/data", response_class=HTMLResponse)
     async def data_and_backup(request: Request):
-        return RedirectResponse("/admin/system", status_code=302)
+        return templates.TemplateResponse(
+            request=request,
+            name="local_data_backup.html",
+            context={"data_status": local_data_status_resource(request)},
+        )
 
     @router.get("/data/status")
     async def data_status(request: Request) -> JSONResponse:

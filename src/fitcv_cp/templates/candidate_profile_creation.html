@@ -183,7 +183,7 @@
 
 {% macro creation_stepper(stage) -%}
 {% set current = {'upload': 1, 'baseline': 2, 'derived': 3, 'confirm': 4}[stage] %}
-<ol class="creation-stepper" aria-label="Candidate Profile creation progress">
+<ol class="creation-stepper" aria-label="Profile creation progress">
   {% for step_label in ['Upload', 'Baseline', 'Derived', 'Confirm'] %}
   <li class="creation-step {{ 'current' if loop.index == current else 'complete' if loop.index < current else '' }}"{% if loop.index == current %} aria-current="step"{% endif %}><span class="creation-step-index">{{ '✓' if loop.index < current else loop.index }}</span><span>{{ step_label }}</span></li>
   {% endfor %}
@@ -193,12 +193,13 @@
 {% macro creation_footer(stage) -%}
 {% set confirm_stage = stage == 'confirm' %}
 {% set derived_stage = stage == 'derived' %}
+{% set can_confirm = not confirm_stage or (attempt.capabilities.confirm and confirmation.readiness.ready) %}
 <div class="creation-footer">
   <div class="creation-footer-copy"><strong>{{ 'Ready to create profile' if confirm_stage else 'Draft saved automatically' }}</strong><p class="creation-status" role="status" aria-live="polite">{{ 'Confirmation creates one immutable Candidate Profile revision ready for Pipeline Runs.' if confirm_stage else 'Changes save automatically to this creation draft.' }}</p></div>
   <div class="creation-action-group">
-    {% if confirm_stage %}<a class="btn" href="/admin/candidate-profiles/create/{{ confirmation.attempt_id }}/derived">Back to derived review</a>{% elif derived_stage %}<a class="btn" href="/admin/candidate-profiles/create/{{ attempt.attempt_id }}/baseline">Back to baseline</a>{% endif %}
-    <a class="btn" href="/admin/candidate-profiles">Save and exit</a>
-    {% if confirm_stage %}<button class="btn primary" type="button" data-confirm-profile>Confirm and save profile</button>{% else %}<button class="btn primary" type="button" data-approve-stage>{{ 'Approve derived claims' if derived_stage else 'Approve baseline and continue' }}</button>{% endif %}
+    {% if confirm_stage %}<button class="btn" id="backToDerived" type="button" data-creation-nav="/admin/candidate-profiles/create/{{ confirmation.attempt_id }}/derived">Back to derived review</button>{% elif derived_stage %}<button class="btn" id="backToBaseline" type="button" data-creation-nav="/admin/candidate-profiles/create/{{ attempt.attempt_id }}/baseline">Back to baseline</button>{% endif %}
+    <button class="btn" id="saveCreationDraft" type="button" data-creation-nav="/admin/candidate-profiles">Save and exit</button>
+    {% if confirm_stage %}<button class="btn primary" id="confirmCreation" type="button" data-confirm-profile{% if not can_confirm %} disabled{% endif %}>Confirm and save profile</button>{% else %}<button class="btn primary" id="approveCreationStage" type="button" data-approve-stage>{{ 'Approve derived claims' if derived_stage else 'Approve baseline and continue' }}</button>{% endif %}
   </div>
 </div>
 {%- endmacro %}
@@ -212,18 +213,18 @@
     {{ creation_stepper(stage) }}
     <section class="section-card creation-upload-card">
       <div class="creation-upload-grid">
-        <label class="creation-dropzone" for="profile-file"><input class="sr-only" id="profile-file" name="profile_file" type="file" accept=".md,.docx,.yaml" required><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 15v4h16v-4"/></svg><strong>Drop candidate document here or choose file</strong><span>Markdown (.md), Word (.docx), or YAML (.yaml), one file</span></span></label>
-        <div class="creation-upload-meta"><div><h3>One staged hybrid pipeline</h3><p>Deterministic readers preserve source text and locators. AI assists only with ambiguous mapping, normalization, and controlled derivation.</p></div><div class="provider-field"><label for="profile-name">Profile Name</label><input class="field" id="profile-name" name="profile_name" required maxlength="120" autocomplete="off"><small>Workspace label only. Candidate Full name remains baseline data.</small></div><div class="creation-file-summary" id="creation-file-name">No file selected</div><p class="creation-status" id="creation-status" role="status" aria-live="polite">Choose one candidate document to continue.</p><button class="btn primary" type="submit" disabled>Process document</button></div>
+        <label class="creation-dropzone" id="creationDropzone" for="creationCvFile"><input class="sr-only" id="creationCvFile" name="profile_file" type="file" accept=".md,.docx,.yaml,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/yaml,text/yaml" required><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 15v4h16v-4"/></svg><strong>Drop candidate document here or choose file</strong><span>Markdown (.md), Word (.docx), or YAML (.yaml), one file</span></span></label>
+        <div class="creation-upload-meta"><div><h3>One staged hybrid pipeline</h3><p>Deterministic readers preserve source text and locators. AI assists only with ambiguous mapping, normalization, and controlled derivation.</p></div><div class="provider-field"><label for="creationProfileName">Profile Name</label><input class="field" id="creationProfileName" name="profile_name" required maxlength="120" autocomplete="off"><small>Workspace label only. Candidate Full name remains baseline data.</small></div><div class="creation-file-summary" id="creationFileName">No file selected</div><p class="creation-status" id="creationUploadStatus" role="status" aria-live="polite">Choose one candidate document to continue.</p><button class="btn primary" id="processCv" type="button" disabled>Process document</button></div>
       </div>
     </section>
   </div>
   </form>
 
   {% elif stage in ['baseline', 'derived'] %}
-  <div class="profile-creation" data-review-root data-attempt-id="{{ attempt.attempt_id }}" data-stage="{{ stage }}" data-revision="{{ review.revision }}" data-fingerprint="{{ review.fingerprint }}" data-baseline-fingerprint="{{ attempt.fingerprints.approved_baseline or '' }}">
+  <div class="profile-creation" data-review-root data-attempt-id="{{ attempt.attempt_id }}" data-stage="{{ stage }}" data-revision="{{ review.revision }}" data-fingerprint="{{ review.fingerprint }}" data-baseline-fingerprint="{{ attempt.fingerprints.approved_baseline or '' }}" data-can-patch="{{ 'true' if review.capabilities.patch else 'false' }}" data-can-regenerate="{{ 'true' if review.capabilities.regenerate_all else 'false' }}" data-can-undo="{{ 'true' if review.capabilities.undo_regeneration else 'false' }}" data-can-approve="{{ 'true' if review.capabilities.approve else 'false' }}">
     <div class="details-page-head"><a class="details-page-back" href="/admin/candidate-profiles">← Save and exit to Candidate Profiles</a></div>
     {{ creation_stepper(stage) }}
-    <div class="review-toolbar"><div class="review-toolbar-copy"><p class="eyebrow">{{ 'Step 2 · Evidence review' if stage == 'baseline' else 'Step 3 · Controlled derivation' }}</p><h2>{{ 'Review baseline facts' if stage == 'baseline' else 'Review derived claims' }}</h2><p>{{ 'Add any number of equivalent evidence entries. AI controls appear only where context supports inference.' if stage == 'baseline' else 'Each claim owns editable evidence refs, confidence, and origin.' }}</p></div><button class="btn" type="button" data-regenerate-target="*">Regenerate {{ 'AI-assisted fields' if stage == 'baseline' else 'all derived claims' }}</button></div>
+    <div class="review-toolbar"><div class="review-toolbar-copy"><p class="eyebrow">{{ 'Step 2 · Evidence review' if stage == 'baseline' else 'Step 3 · Controlled derivation' }}</p><h2>{{ 'Review baseline facts' if stage == 'baseline' else 'Review derived claims' }}</h2><p>{{ 'Add any number of equivalent evidence entries. AI controls appear only where context supports inference.' if stage == 'baseline' else 'Each claim owns editable evidence refs, confidence, and origin.' }}</p></div><div class="review-toolbar-actions"><button class="btn" id="regenerateStage" type="button" data-regenerate-target="*">Regenerate {{ 'AI-assisted fields' if stage == 'baseline' else 'all derived claims' }}</button>{% if review.capabilities.undo_regeneration %}<button class="btn" id="undoStage" type="button" data-undo-regeneration>Undo regeneration</button>{% endif %}</div></div>
     <div class="review-workspace"><div class="review-main">
     {% for section in sections if section.id not in ['interests', 'search_preferences'] %}
     <section class="section-card review-section">
@@ -262,7 +263,7 @@
   </div>
 
   {% else %}
-  <div class="profile-creation" data-confirm-root data-attempt-id="{{ confirmation.attempt_id }}" data-revision="{{ confirmation.revision }}" data-baseline-fingerprint="{{ confirmation.approval_fingerprints.baseline }}" data-derived-fingerprint="{{ confirmation.approval_fingerprints.derived }}" data-confirmation-fingerprint="{{ confirmation.fingerprint }}">
+  <div class="profile-creation" data-confirm-root data-attempt-id="{{ confirmation.attempt_id }}" data-revision="{{ confirmation.revision }}" data-baseline-fingerprint="{{ confirmation.approval_fingerprints.baseline }}" data-derived-fingerprint="{{ confirmation.approval_fingerprints.derived }}" data-confirmation-fingerprint="{{ confirmation.fingerprint }}" data-can-confirm="{{ 'true' if attempt.capabilities.confirm and confirmation.readiness.ready else 'false' }}">
     <div class="details-page-head"><a class="details-page-back" href="/admin/candidate-profiles">← Save and exit to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Step 4 · Idempotent confirmation</p><h2>Confirm Candidate Profile</h2><p>Review approved profile sections, then create one immutable revision for Pipeline Runs.</p></div></div></div>
     {{ creation_stepper(stage) }}
     {{ render_confirmation(confirmation, attempt, field_schema) }}
@@ -270,6 +271,7 @@
     {{ creation_footer(stage) }}
   </div>
   {% endif %}
+  <div id="candidate-profile-async-state" hidden></div>
 </main>
 
 <dialog class="workspace-dialog evidence-dialog" id="candidate-profile-dialog" aria-labelledby="candidate-profile-dialog-title" aria-describedby="candidate-profile-dialog-description">
@@ -279,45 +281,51 @@
 
 <script>
 (function() {
-  var status = document.getElementById('creation-status');
-  async function waitForCandidateProfileAttempt(attemptId, nextAction) {
-    for (var poll = 0; poll < 240; poll += 1) {
-      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId));
-      if (payload.data.next_action === nextAction) return payload.data;
-      if (payload.data.failure) throw new Error(payload.data.failure.message || 'Candidate Profile processing failed.');
-      await new Promise(function(resolve) { setTimeout(resolve, 500); });
-    }
-    throw new Error('Candidate Profile processing is still running. Save and resume from Creation drafts.');
+  var status = document.getElementById('creation-status') || document.getElementById('creationUploadStatus');
+  var asyncState = document.getElementById('candidate-profile-async-state');
+  function showCandidateProfileFailure(error, retry, nonRetryable, onStale) {
+    var stale = ['candidate_profile_revision_conflict', 'candidate_profile_fingerprint_conflict', 'candidate_profile_processing_claim_conflict', 'candidate_profile_already_confirmed'].includes(error.code);
+    var retryable = Boolean(error.retryable || (error.payload && error.payload.error && error.payload.error.retryable));
+    var fallback = nonRetryable || {action: '', retry: null};
+    fitcvRenderAsyncState(asyncState, {kind: stale ? 'stale' : retryable ? 'retryable' : 'non_retryable', code: error.code, message: stale ? 'This draft changed. Reload latest review before continuing.' : error.message, action: stale ? 'Reload latest review' : retryable ? 'Retry' : fallback.action, retry: stale ? (onStale || function() { location.reload(); }) : retryable ? retry : fallback.retry});
   }
   var uploadForm = document.getElementById('candidate-profile-upload-form');
   if (uploadForm) {
-    var uploadFile = uploadForm.querySelector('[name="profile_file"]');
-    var uploadName = uploadForm.querySelector('[name="profile_name"]');
-    var uploadSubmit = uploadForm.querySelector('[type="submit"]');
-    var uploadSummary = document.getElementById('creation-file-name');
-    var dropzone = uploadForm.querySelector('.creation-dropzone');
+    var uploadFile = document.getElementById('creationCvFile');
+    var uploadName = document.getElementById('creationProfileName');
+    var uploadSubmit = document.getElementById('processCv');
+    var uploadSummary = document.getElementById('creationFileName');
+    var dropzone = document.getElementById('creationDropzone');
+    function isSupportedCandidateProfileFile(file) { return Boolean(file && /\.(md|docx|yaml)$/i.test(file.name)); }
     function updateUpload() {
       var file = uploadFile.files && uploadFile.files[0];
+      var signature = [file && file.name, file && file.size, file && file.lastModified, uploadName.value.trim()].join('|');
+      if (uploadSubmit.dataset.fitcvUploadSignature !== signature) { uploadSubmit.dataset.fitcvUploadSignature = signature; delete uploadSubmit.dataset.fitcvIdempotencyKey; }
       uploadSummary.textContent = file ? file.name : 'No file selected';
-      uploadSubmit.disabled = !file || !uploadName.value.trim();
-      status.textContent = file ? file.name + ' selected.' : 'Choose one candidate document to continue.';
+      uploadSubmit.disabled = !isSupportedCandidateProfileFile(file) || !uploadName.value.trim();
+      status.textContent = file && !isSupportedCandidateProfileFile(file) ? 'Supported files: Markdown (.md), Word (.docx), and YAML (.yaml).' : file ? file.name + ' selected.' : 'Choose one candidate document to continue.';
     }
     uploadFile.addEventListener('change', updateUpload);
     uploadName.addEventListener('input', updateUpload);
     ['dragenter', 'dragover'].forEach(function(type) { dropzone.addEventListener(type, function(event) { event.preventDefault(); dropzone.classList.add('dragging'); }); });
     ['dragleave', 'drop'].forEach(function(type) { dropzone.addEventListener(type, function(event) { event.preventDefault(); dropzone.classList.remove('dragging'); }); });
     dropzone.addEventListener('drop', function(event) { uploadFile.files = event.dataTransfer.files; updateUpload(); });
-    uploadForm.addEventListener('submit', async function(event) {
-    event.preventDefault();
-    var submit = event.submitter;
-    submit.disabled = true;
-    status.textContent = 'Processing CV…';
-    try {
-      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts', {method: 'POST', headers: {'Idempotency-Key': crypto.randomUUID()}, body: new FormData(uploadForm)});
-      await waitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline');
-      location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(payload.data.attempt_id) + '/baseline');
-    } catch (error) { status.textContent = error.message; submit.disabled = false; }
-    });
+    function processCandidateProfileUpload() {
+      if (!isSupportedCandidateProfileFile(uploadFile.files && uploadFile.files[0]) || !uploadName.value.trim()) return updateUpload();
+      return fitcvRunLocked(uploadSubmit, async function() {
+        var uploadBody = new FormData(uploadForm);
+        uploadFile.disabled = true;
+        uploadName.readOnly = true;
+        status.textContent = 'Reading document, preserving source locators, and extracting baseline facts…';
+        try {
+          var payload = await fitcvApiRequest('/candidate-profile-creation-attempts', {method: 'POST', headers: {'Idempotency-Key': fitcvIdempotencyKey(uploadSubmit)}, body: uploadBody});
+          await fitcvWaitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline');
+          location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(payload.data.attempt_id) + '/baseline');
+        } catch (error) { uploadFile.disabled = false; uploadName.readOnly = false; status.textContent = error.message; showCandidateProfileFailure(error, processCandidateProfileUpload, {action: 'Choose another file', retry: function() { uploadFile.focus(); }}); }
+      });
+    }
+    uploadForm.addEventListener('submit', function(event) { event.preventDefault(); processCandidateProfileUpload(); });
+    uploadSubmit.addEventListener('click', processCandidateProfileUpload);
     updateUpload();
   }
 
@@ -327,15 +335,32 @@
     var stage = review.dataset.stage;
     var revision = Number(review.dataset.revision);
     var fingerprint = review.dataset.fingerprint;
+    var canPatch = review.dataset.canPatch === 'true';
+    var canRegenerate = review.dataset.canRegenerate === 'true';
+    var canApprove = review.dataset.canApprove === 'true';
     var pending = new Map();
+    var retryBatch;
     var saveTimer;
+    var reconciliationKey = 'fitcv-candidate-profile-reconciliation:' + attemptId + ':' + stage;
+    function isCandidateProfileStale(error) { return ['candidate_profile_revision_conflict', 'candidate_profile_fingerprint_conflict', 'candidate_profile_processing_claim_conflict'].includes(error.code); }
+    function persistReconciliation(operations) {
+      var stored = new Map();
+      (operations || []).concat(Array.from(pending.values())).forEach(function(operation) { stored.set(operation.path, operation); });
+      if (stored.size) sessionStorage.setItem(reconciliationKey, JSON.stringify(Array.from(stored.values())));
+    }
+    function reloadLatestReview() { persistReconciliation(retryBatch && retryBatch.operations); location.reload(); }
+    review.querySelectorAll('[data-field-path], [data-evidence-ref-path], [data-add-path], [data-remove-path]').forEach(function(control) { control.disabled = !canPatch; });
+    review.querySelectorAll('[data-regenerate-target]').forEach(function(control) { control.disabled = !canRegenerate; });
+    var approveControl = review.querySelector('[data-approve-stage]');
+    if (approveControl) approveControl.disabled = !canApprove;
+    if (!canPatch || !canRegenerate || !canApprove) fitcvRenderAsyncState(asyncState, {kind: 'pending', message: 'This review is not editable in its current server state.', preserveContent: true});
     function fieldValue(field) {
       if (field.dataset.valueKind === 'number') return field.value === '' ? null : Number(field.value);
       if (field.dataset.valueKind === 'list') return field.value.split(',').map(function(value) { return value.trim(); }).filter(Boolean);
       return field.value;
     }
-    async function patch(operations) {
-      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage, {method: 'PATCH', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify({expected_revision: revision, operations: operations})});
+    async function patch(operations, idempotencyKey) {
+      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage, {method: 'PATCH', headers: {'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey || crypto.randomUUID()}, body: JSON.stringify({expected_revision: revision, operations: operations})});
       revision = payload.data.revision;
       fingerprint = payload.data.fingerprint;
       review.dataset.revision = String(revision);
@@ -344,14 +369,16 @@
     }
     async function flush() {
       clearTimeout(saveTimer);
-      if (!pending.size) return;
-      var operations = Array.from(pending.values());
-      pending.clear();
-      status.textContent = 'Saving changes…';
-      try { await patch(operations); status.textContent = 'Draft saved.'; }
-      catch (error) { operations.forEach(function(operation) { pending.set(operation.path, operation); }); status.textContent = error.message; throw error; }
+      while (retryBatch || pending.size) {
+        var batch = retryBatch || {operations: Array.from(pending.values()), idempotencyKey: crypto.randomUUID()};
+        if (!retryBatch) pending.clear();
+        status.textContent = 'Saving changes…';
+        try { await patch(batch.operations, batch.idempotencyKey); retryBatch = null; status.textContent = 'Draft saved.'; }
+        catch (error) { retryBatch = batch; status.textContent = error.message; if (isCandidateProfileStale(error)) persistReconciliation(batch.operations); showCandidateProfileFailure(error, function() { flush().catch(function() {}); }, null, reloadLatestReview); throw error; }
+      }
     }
     function queueFieldChange(event) {
+      if (!canPatch) return;
       var field = event.target.closest('[data-field-path]');
       var evidenceRef = event.target.closest('[data-evidence-ref-path]');
       if (!field && !evidenceRef) return;
@@ -369,50 +396,74 @@
       var remove = event.target.closest('[data-remove-path]');
       var regenerate = event.target.closest('[data-regenerate-target]');
       var approve = event.target.closest('[data-approve-stage]');
-      if (!add && !remove && !regenerate && !approve) return;
+      var undo = event.target.closest('[data-undo-regeneration]');
+      if (!add && !remove && !regenerate && !approve && !undo) return;
       event.preventDefault();
       try {
-        await flush();
-        if (add) {
-          var schema = JSON.parse(add.dataset.itemSchema);
-          var value = schema.shape === 'text' ? '' : {};
-          if (!schema.shape) Object.keys(schema).forEach(function(name) {
-            var meta = schema[name];
-            value[name] = name === 'id' ? 'entry-' + crypto.randomUUID() : name === 'origin' ? 'user_asserted' : name === 'confidence' ? 1 : name === 'support_status' ? 'unsupported' : ['collection', 'source_refs', 'evidence_refs'].includes(meta.shape) ? [] : '';
-          });
-          await patch([{operation: 'add', path: add.dataset.addPath + '/-', value: value}]);
-          location.reload();
-        } else if (remove) {
-          await patch([{operation: 'remove', path: remove.dataset.removePath}]);
-          location.reload();
-        } else if (regenerate) {
-          status.textContent = 'Regenerating…';
-          await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/regenerate', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify({expected_revision: revision, targets: [regenerate.dataset.regenerateTarget]})});
-          await waitForCandidateProfileAttempt(attemptId, 'review_' + stage);
-          location.reload();
-        } else {
-          approve.disabled = true;
-          status.textContent = 'Approving ' + stage + '…';
-          var body = {expected_revision: revision, expected_fingerprint: fingerprint};
-          if (stage === 'derived') body.expected_baseline_fingerprint = review.dataset.baselineFingerprint;
-          await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/approve', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify(body)});
-          await waitForCandidateProfileAttempt(attemptId, stage === 'baseline' ? 'review_derived' : 'confirm');
-          location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(attemptId) + '/' + (stage === 'baseline' ? 'derived' : 'confirm'));
-        }
-      } catch (error) { status.textContent = error.message; if (approve) approve.disabled = false; }
+        await fitcvRunLocked(add || remove || regenerate || approve || undo, async function() {
+          await flush();
+          var mutationControl = add || remove || regenerate || approve || undo;
+          var mutationKey = fitcvIdempotencyKey(mutationControl);
+          if (add) {
+            var schema = JSON.parse(add.dataset.itemSchema);
+            var value = schema.shape === 'text' ? '' : {};
+            if (!schema.shape) Object.keys(schema).forEach(function(name) {
+              var meta = schema[name];
+              value[name] = name === 'id' ? 'entry-' + crypto.randomUUID() : name === 'origin' ? 'user_asserted' : name === 'confidence' ? 1 : name === 'support_status' ? 'unsupported' : ['collection', 'source_refs', 'evidence_refs'].includes(meta.shape) ? [] : '';
+            });
+            await patch([{operation: 'add', path: add.dataset.addPath + '/-', value: value}], mutationKey);
+            location.reload();
+          } else if (remove) {
+            await patch([{operation: 'remove', path: remove.dataset.removePath}], mutationKey);
+            location.reload();
+          } else if (regenerate) {
+            status.textContent = 'Regenerating…';
+            await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/regenerate', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': mutationKey}, body: JSON.stringify({expected_revision: revision, targets: [regenerate.dataset.regenerateTarget]})});
+            await fitcvWaitForCandidateProfileAttempt(attemptId, 'review_' + stage);
+            location.reload();
+          } else if (undo) {
+            status.textContent = 'Restoring previous review…';
+            await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/undo-regeneration', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': mutationKey}, body: JSON.stringify({expected_revision: revision})});
+            location.reload();
+          } else {
+            status.textContent = 'Approving ' + stage + '…';
+            var body = {expected_revision: revision, expected_fingerprint: fingerprint};
+            if (stage === 'derived') body.expected_baseline_fingerprint = review.dataset.baselineFingerprint;
+            await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(attemptId) + '/' + stage + '/actions/approve', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': mutationKey}, body: JSON.stringify(body)});
+            await fitcvWaitForCandidateProfileAttempt(attemptId, stage === 'baseline' ? 'review_derived' : 'confirm');
+            location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(attemptId) + '/' + (stage === 'baseline' ? 'derived' : 'confirm'));
+          }
+        });
+      } catch (error) { status.textContent = error.message; if (isCandidateProfileStale(error)) persistReconciliation(); showCandidateProfileFailure(error, function() { (add || remove || regenerate || approve || undo).click(); }, {action: 'Start new upload', retry: function() { location.assign('/admin/candidate-profiles/create'); }}, reloadLatestReview); }
     });
+    try {
+      var storedReconciliation = JSON.parse(sessionStorage.getItem(reconciliationKey) || '[]');
+      if (storedReconciliation.length) fitcvRenderAsyncState(asyncState, {kind: 'stale', message: 'Latest review loaded. Reapply preserved unsaved edits when ready.', action: 'Reapply unsaved changes', retry: function() { storedReconciliation.forEach(function(operation) { pending.set(operation.path, operation); }); sessionStorage.removeItem(reconciliationKey); flush().catch(function() {}); }, preserveContent: true});
+    } catch (_ignored) { sessionStorage.removeItem(reconciliationKey); }
   }
 
   var confirmRoot = document.querySelector('[data-confirm-root]');
   var confirmButton = document.querySelector('[data-confirm-profile]');
-  if (confirmRoot && confirmButton) confirmButton.addEventListener('click', async function() {
-    confirmButton.disabled = true;
-    status.textContent = 'Saving Candidate Profile…';
+  var confirmIdempotencyKey = crypto.randomUUID();
+  if (confirmRoot && confirmButton && confirmRoot.dataset.canConfirm === 'true') confirmButton.addEventListener('click', async function() {
     try {
-      var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(confirmRoot.dataset.attemptId) + '/actions/confirm', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()}, body: JSON.stringify({expected_revision: Number(confirmRoot.dataset.revision), expected_baseline_fingerprint: confirmRoot.dataset.baselineFingerprint, expected_derived_fingerprint: confirmRoot.dataset.derivedFingerprint, expected_confirmation_fingerprint: confirmRoot.dataset.confirmationFingerprint})});
-      location.assign('/admin/candidate-profiles/' + encodeURIComponent(payload.data.profile_id));
-    } catch (error) { status.textContent = error.message; confirmButton.disabled = false; }
+      await fitcvRunLocked(confirmButton, async function() {
+        status.textContent = 'Saving Candidate Profile…';
+        var payload = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(confirmRoot.dataset.attemptId) + '/actions/confirm', {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': confirmIdempotencyKey}, body: JSON.stringify({expected_revision: Number(confirmRoot.dataset.revision), expected_baseline_fingerprint: confirmRoot.dataset.baselineFingerprint, expected_derived_fingerprint: confirmRoot.dataset.derivedFingerprint, expected_confirmation_fingerprint: confirmRoot.dataset.confirmationFingerprint})});
+        location.assign('/admin/candidate-profiles/' + encodeURIComponent(payload.data.profile_id));
+      });
+    } catch (error) {
+      if (error.code === 'candidate_profile_already_confirmed') {
+        try {
+          var confirmedAttempt = await fitcvApiRequest('/candidate-profile-creation-attempts/' + encodeURIComponent(confirmRoot.dataset.attemptId));
+          if (confirmedAttempt.data.profile_id) { location.assign('/admin/candidate-profiles/' + encodeURIComponent(confirmedAttempt.data.profile_id)); return; }
+        } catch (_ignored) {}
+      }
+      status.textContent = error.message;
+      showCandidateProfileFailure(error, function() { confirmButton.click(); }, {action: 'Start new upload', retry: function() { location.assign('/admin/candidate-profiles/create'); }});
+    }
   });
+  document.querySelectorAll('[data-creation-nav]').forEach(function(button) { button.addEventListener('click', function() { location.assign(button.dataset.creationNav); }); });
 
   var dialog = document.getElementById('candidate-profile-dialog');
   var dialogTitle = document.getElementById('candidate-profile-dialog-title');

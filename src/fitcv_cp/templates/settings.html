@@ -3,16 +3,18 @@
 {% block content %}
 <main class="workspace-stack" id="pipeline-settings-app" data-header-title="Pipeline" data-header-description="Configure pipeline stages and output defaults." data-page="pipeline" data-section="{{ pipeline_page.id }}">
   <header class="page-head">
-    <div><p class="eyebrow">Pipeline settings</p><h2>{{ pipeline_page.title }}</h2><p>{{ pipeline_page.description }}</p></div>
-    {% if pipeline_page.id == 'overview' %}<button class="btn-secondary" id="reset-pipeline-settings" type="button" data-pipeline-mutable>Reset Pipeline Settings</button>{% endif %}
+    <div><p class="eyebrow">Pipeline</p><h2>{{ pipeline_page.title }}</h2><p>{{ pipeline_page.description }} Changes apply to future runs.</p></div>
+    <button class="btn-secondary" id="reset-pipeline-settings" type="button" data-pipeline-mutable>Restore Defaults</button>
   </header>
   {% if error %}<div class="notice" role="alert">{{ error }}</div>{% endif %}
   {% for message in group_error.values() %}{% if message %}<div class="notice" role="alert">{{ message }}</div>{% endif %}{% endfor %}
   {% for message in section_errors.values() %}{% if message %}<div class="notice" role="alert">{{ message }}</div>{% endif %}{% endfor %}
   <div id="pipeline-notice" aria-live="polite"></div>
-  <div id="pipeline-settings-sections" class="workspace-stack">
+  <div id="pipeline-settings-sections" class="stack">
     {% for section in pipeline_page.sections %}
-    <section class="section-card settings-card"><header class="section-title"><h3>{{ section.title }}</h3></header>
+    <details class="section-card collapsible-section setting-section" data-section open>
+      <summary><span class="section-heading"><strong>{{ section.title }}</strong></span></summary>
+      <div class="section-content settings-card">
       {% for row in section.rows %}
       {% set value = pipeline_resource['values'].get(row.key) if row.key else none %}
       {% set control_id = 'setting-' ~ row.id|replace('.', '-') %}
@@ -39,40 +41,52 @@
         </span>
       </div>
       {% endfor %}
-    </section>
+      </div>
+    </details>
     {% endfor %}
   </div>
 </main>
 <dialog class="workspace-dialog pipeline-dialog" id="pipeline-manage-dialog" aria-labelledby="pipeline-manage-title" aria-describedby="pipeline-manage-description">
   <div class="dialog-head"><div><h2 id="pipeline-manage-title">Manage setting</h2><p id="pipeline-manage-description"></p></div><button class="dialog-close" id="pipeline-manage-close" type="button" aria-label="Close setting dialog">×</button></div>
-  <form id="pipeline-manage-form"><div id="pipeline-manage-fields" class="weight-form"></div><p id="pipeline-dialog-status" class="weight-status" role="status" aria-live="polite"></p><div class="dialog-actions"><button class="btn-secondary" type="button" id="pipeline-manage-cancel">Cancel</button><button class="btn-primary" type="submit" data-pipeline-mutable>Save</button></div></form>
+  <form id="pipeline-manage-form"><div id="pipeline-manage-fields" class="weight-form"></div><div id="pipeline-dialog-status" class="weight-status" role="status" aria-live="polite"></div><div class="dialog-actions"><button class="btn-secondary" type="button" id="pipeline-manage-cancel">Cancel</button><button class="btn-primary" type="submit" data-pipeline-mutable>Save</button></div></form>
 </dialog>
 <script>
 (function(){
-  var resource={{ pipeline_resource|tojson }},activeRow=null,activeDetails=null,opener=null,mutating=false,pageMessage='',pageMessageError=false;
+  var resource={{ pipeline_resource|tojson }},activeRow=null,activeDetails=null,opener=null,mutating=false;
   var notice=document.getElementById('pipeline-notice'),dialog=document.getElementById('pipeline-manage-dialog'),fields=document.getElementById('pipeline-manage-fields'),dialogStatus=document.getElementById('pipeline-dialog-status');
   function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(character){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];});}
   function allRows(){return resource.schema.pages.flatMap(function(page){return page.sections.flatMap(function(section){return section.rows;});});}
   function rowById(id){return allRows().find(function(row){return row.id===id;});}
   function parsedValue(input){if(input.dataset.settingType==='bool')return input.checked;if(input.dataset.settingType==='int')return Number.parseInt(input.value,10);if(input.dataset.settingType==='float')return Number(input.value);if(input.dataset.settingType==='list[str]')return input.value.split(',').map(function(item){return item.trim();}).filter(Boolean);return input.value;}
-  function renderNotice(){notice.replaceChildren();if(pageMessage){var message=document.createElement('div');message.className=pageMessageError?'notice error':'notice';if(pageMessageError)message.setAttribute('role','alert');message.textContent=pageMessage;notice.appendChild(message);}(resource.warnings||[]).forEach(function(warning){var item=document.createElement('div');item.className='notice';item.textContent=warning.message;notice.appendChild(item);});}
-  function setPageMessage(message,isError){pageMessage=message;pageMessageError=Boolean(isError);renderNotice();}
+  function setPageState(state){fitcvRenderAsyncState(notice,state);}
+  function requestState(error,retry,target){
+    var contract=error.payload&&error.payload.error?error.payload.error:{};
+    if(error.code==='settings_revision_conflict')return fitcvRenderAsyncState(target||notice,{kind:'stale',message:error.message,code:error.code,action:'Reload Settings',retry:refreshSettings,preserveContent:true});
+    fitcvRenderAsyncState(target||notice,{kind:contract.retryable?'retryable':'error',message:error.message,code:error.code,action:contract.action,retry:retry,preserveContent:true});
+  }
   function setMutating(value){mutating=value;document.querySelectorAll('[data-pipeline-mutable]').forEach(function(control){control.disabled=value||control.dataset.serverDisabled==='true';});}
   function transactionSummary(row){var rowFields=row.fields||[];if(rowFields.length&&rowFields.every(function(field){return field.type==='bool';})){return rowFields.filter(function(field){return Boolean(resource.values[field.key]);}).length+' of '+rowFields.length+' enabled';}return rowFields.length+' settings configured';}
   function syncPage(){
     document.querySelectorAll('[data-setting-key]').forEach(function(input){var value=resource.values[input.dataset.settingKey];if(input.dataset.settingMember)input.checked=(value||[]).includes(input.dataset.settingMember);else if(input.dataset.settingType==='bool')input.checked=Boolean(value);else input.value=value;});
     document.querySelectorAll('[data-setting-value]').forEach(function(element){var value=resource.values[element.dataset.settingValue];element.textContent=Array.isArray(value)?value.join(', '):String(value==null?'':value);});
     document.querySelectorAll('[data-manage-row]').forEach(function(button){var row=rowById(button.dataset.manageRow),reason=(resource.disabled_reasons||{})[row.id]||'';button.dataset.serverDisabled=reason?'true':'false';button.disabled=mutating||Boolean(reason);var reasonElement=document.querySelector('[data-disabled-reason="'+row.id+'"]');if(reasonElement)reasonElement.textContent=reason;var summary=document.querySelector('[data-transaction-summary="'+row.id+'"]');if(summary)summary.textContent=transactionSummary(row);});
-    renderNotice();
   }
   async function patchSettings(changes){resource=(await fitcvApiRequest('/settings/pipeline',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({changes:changes,updated_by:'admin',expected_revision:resource.revision})})).data;}
+  async function refreshSettings(){
+    setMutating(true);setPageState({kind:'pending',message:'Reloading settings…'});
+    try{resource=(await fitcvApiRequest('/settings/pipeline')).data;syncPage();setPageState({kind:'success',message:'Settings reloaded.'});}
+    catch(error){requestState(error,refreshSettings);}
+    finally{setMutating(false);syncPage();}
+  }
+  async function saveDirectChanges(input,changes){
+    await fitcvRunLocked(input,async function(){setMutating(true);setPageState({kind:'pending',message:'Saving setting…'});try{await patchSettings(changes);setPageState({kind:'success',message:'Setting saved.'});}catch(error){syncPage();requestState(error,function(){saveDirectChanges(input,changes);});}finally{setMutating(false);syncPage();}});
+  }
   async function saveDirect(input){
     if(mutating)return syncPage();
     if(!input.reportValidity())return;
     var changes={};
     if(input.dataset.settingMember){var values=(resource.values[input.dataset.settingKey]||[]).filter(function(item){return item!==input.dataset.settingMember;});if(input.checked)values.push(input.dataset.settingMember);changes[input.dataset.settingKey]=values;}else changes[input.dataset.settingKey]=parsedValue(input);
-    setMutating(true);
-    try{await patchSettings(changes);setPageMessage('Setting saved.',false);}catch(error){if(error.code==='settings_revision_conflict')return location.reload();syncPage();setPageMessage(error.message,true);}finally{setMutating(false);syncPage();}
+    await saveDirectChanges(input,changes);
   }
   function fieldHtml(field){var value=resource.values[field.key],attrs=Object.entries(field.input_attrs||{}).map(function(entry){return ' '+entry[0]+'="'+escapeHtml(entry[1])+'"';}).join('');if(field.type==='bool')return '<div class="check-row"><label for="dialog-'+escapeHtml(field.key)+'">'+escapeHtml(field.label)+'</label><label class="switch"><input id="dialog-'+escapeHtml(field.key)+'" data-setting-key="'+escapeHtml(field.key)+'" data-setting-type="bool" data-pipeline-mutable type="checkbox" '+(value?'checked':'')+'><span class="track" aria-hidden="true"></span></label></div>';var type=field.type==='int'||field.type==='float'?'number':'text';var rendered=Array.isArray(value)?value.join(', '):value;return '<div class="weight-row"><div><label for="dialog-'+escapeHtml(field.key)+'">'+escapeHtml(field.label)+'</label><span>'+escapeHtml(field.description)+'</span></div><input class="field" id="dialog-'+escapeHtml(field.key)+'" data-setting-key="'+escapeHtml(field.key)+'" data-setting-type="'+escapeHtml(field.type)+'" data-pipeline-mutable type="'+type+'" value="'+escapeHtml(rendered)+'"'+attrs+' required></div>';}
   function renderDialog(){
@@ -94,8 +108,8 @@
   document.getElementById('pipeline-manage-cancel').addEventListener('click',closeDialog);
   dialog.addEventListener('cancel',function(event){event.preventDefault();closeDialog();});
   dialog.addEventListener('close',function(){fields.replaceChildren();dialogStatus.textContent='';activeRow=null;activeDetails=null;if(opener){opener.focus();opener=null;}});
-  document.getElementById('pipeline-manage-form').addEventListener('submit',async function(event){event.preventDefault();if(mutating||!event.currentTarget.reportValidity())return;var changes={};fields.querySelectorAll('[data-setting-key]').forEach(function(input){changes[input.dataset.settingKey]=parsedValue(input);});setMutating(true);try{await patchSettings(changes);setPageMessage('Settings saved.',false);closeDialog();}catch(error){if(error.code==='settings_revision_conflict')return location.reload();syncPage();dialogStatus.className='weight-status invalid';dialogStatus.textContent=error.message;}finally{setMutating(false);syncPage();}});
-  var reset=document.getElementById('reset-pipeline-settings');if(reset)reset.addEventListener('click',async function(){if(mutating||!confirm('Reset all Pipeline settings to defaults?'))return;setMutating(true);try{resource=(await fitcvApiRequest('/settings/pipeline/actions/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keys:Object.keys(resource.defaults),updated_by:'admin',expected_revision:resource.revision})})).data;setPageMessage('Pipeline settings reset.',false);}catch(error){if(error.code==='settings_revision_conflict')return location.reload();setPageMessage(error.message,true);}finally{setMutating(false);syncPage();}});
+  document.getElementById('pipeline-manage-form').addEventListener('submit',async function(event){event.preventDefault();var form=event.currentTarget,submitter=event.submitter||form.querySelector('[type="submit"]');if(mutating||!form.reportValidity())return;var changes={};fields.querySelectorAll('[data-setting-key]').forEach(function(input){changes[input.dataset.settingKey]=parsedValue(input);});await fitcvRunLocked(submitter,async function(){setMutating(true);fitcvRenderAsyncState(dialogStatus,{kind:'pending',message:'Saving settings…'});try{await patchSettings(changes);closeDialog();setPageState({kind:'success',message:'Settings saved.'});}catch(error){syncPage();requestState(error,function(){form.requestSubmit(submitter);},dialogStatus);}finally{setMutating(false);syncPage();}});});
+  var reset=document.getElementById('reset-pipeline-settings');reset.addEventListener('click',async function(){if(mutating||!confirm('Restore defaults for all Pipeline settings?'))return;await fitcvRunLocked(reset,async function(){setMutating(true);setPageState({kind:'pending',message:'Restoring defaults…'});try{resource=(await fitcvApiRequest('/settings/pipeline/actions/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keys:Object.keys(resource.defaults),updated_by:'admin',expected_revision:resource.revision})})).data;setPageState({kind:'success',message:'Pipeline defaults restored.'});}catch(error){requestState(error,function(){reset.click();});}finally{setMutating(false);syncPage();}});});
   syncPage();
 })();
 </script>

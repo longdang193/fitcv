@@ -1,0 +1,221 @@
+- generic [ref=f9e2]:
+  - complementary "Primary navigation" [ref=f9e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f9e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f9e9]:
+        - strong [ref=f9e10]: FitCV Control Plane
+        - generic [ref=f9e11]: Local workspace
+    - navigation "Workspace" [ref=f9e12]:
+      - link "Runs" [ref=f9e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f9e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f9e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f9e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f9e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f9e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f9e32]:
+    - banner [ref=f9e33]:
+      - generic [ref=f9e39]:
+        - heading "Create Candidate Profile" [level=1] [ref=f9e40]
+        - paragraph [ref=f9e41]: Upload, review baseline evidence, approve derivation, then confirm.
+      - button "Switch to dark theme" [ref=f9e43] [cursor=pointer]:
+        - generic [ref=f9e46]: Dark
+    - main [ref=f9e49]:
+      - generic [ref=f9e50]:
+        - link "← Save and exit to Candidate Profiles" [ref=f9e52] [cursor=pointer]:
+          - /url: /admin/candidate-profiles
+        - list "Profile creation progress" [ref=f9e53]:
+          - listitem [ref=f9e54]:
+            - generic [ref=f9e55]: ✓
+            - generic [ref=f9e56]: Upload
+          - listitem [ref=f9e57]:
+            - generic [ref=f9e58]: "2"
+            - generic [ref=f9e59]: Baseline
+          - listitem [ref=f9e60]:
+            - generic [ref=f9e61]: "3"
+            - generic [ref=f9e62]: Derived
+          - listitem [ref=f9e63]:
+            - generic [ref=f9e64]: "4"
+            - generic [ref=f9e65]: Confirm
+        - generic [ref=f9e66]:
+          - generic [ref=f9e67]:
+            - paragraph [ref=f9e68]: Step 2 · Evidence review
+            - heading "Review baseline facts" [level=2] [ref=f9e69]
+            - paragraph [ref=f9e70]: Add any number of equivalent evidence entries. AI controls appear only where context supports inference.
+          - generic [ref=f9e71]:
+            - button "Regenerate AI-assisted fields" [ref=f9e72] [cursor=pointer]
+            - button "Undo regeneration" [ref=f9e73] [cursor=pointer]
+        - generic [ref=f9e75]:
+          - generic [ref=f9e76]:
+            - generic [ref=f9e78]:
+              - heading "Profile" [level=3] [ref=f9e79]
+              - paragraph [ref=f9e80]: Canonical identity and profile text.
+            - generic [ref=f9e81]:
+              - generic [ref=f9e82]:
+                - generic [ref=f9e84]:
+                  - generic [ref=f9e85]: Full name
+                  - generic [ref=f9e86]:
+                    - button "About Full name" [ref=f9e87]
+                    - tooltip "Reviewed candidate display name."
+                - textbox "Full name" [ref=f9e91]: Alex Morgan
+              - generic [ref=f9e92]:
+                - generic [ref=f9e94]:
+                  - generic [ref=f9e95]: Professional headline
+                  - generic [ref=f9e96]: Optional
+                  - generic [ref=f9e97]:
+                    - button "About Professional headline" [ref=f9e98]
+                    - tooltip "Optional professional headline copied from source."
+                - textbox "Professional headline" [ref=f9e102]
+              - generic [ref=f9e103]:
+                - generic [ref=f9e104]:
+                  - generic [ref=f9e105]:
+                    - generic [ref=f9e106]: Summary
+                    - generic [ref=f9e107]: Optional
+                    - generic [ref=f9e108]:
+                      - button "About Summary" [ref=f9e109]
+                      - tooltip "Optional profile summary based on reviewed evidence."
+                  - button "Regenerate Summary" [ref=f9e114] [cursor=pointer]
+                - textbox "Summary" [ref=f9e118]: Regenerated
+          - generic [ref=f9e119]:
+            - generic [ref=f9e121]:
+              - heading "Contact" [level=3] [ref=f9e122]
+              - paragraph [ref=f9e123]: Direct contact facts; never inferred.
+            - generic [ref=f9e124]:
+              - generic [ref=f9e125]:
+                - generic [ref=f9e127]:
+                  - generic [ref=f9e128]: Email
+                  - generic [ref=f9e129]: Optional
+                  - generic [ref=f9e130]:
+                    - button "About Email" [ref=f9e131]
+                    - tooltip "Optional email address copied from source."
+                - textbox "Email" [ref=f9e135]
+              - generic [ref=f9e136]:
+                - generic [ref=f9e138]:
+                  - generic [ref=f9e139]: Phone
+                  - generic [ref=f9e140]: Optional
+                  - generic [ref=f9e141]:
+                    - button "About Phone" [ref=f9e142]
+                    - tooltip "Optional phone number copied from source."
+                - textbox "Phone" [ref=f9e146]
+              - generic [ref=f9e147]:
+                - generic [ref=f9e149]:
+                  - generic [ref=f9e150]: Location
+                  - generic [ref=f9e151]: Optional
+                  - generic [ref=f9e152]:
+                    - button "About Location" [ref=f9e153]
+                    - tooltip "Optional candidate location copied from source."
+                - textbox "Location" [ref=f9e157]
+              - generic [ref=f9e158]:
+                - generic [ref=f9e160]:
+                  - generic [ref=f9e161]: LinkedIn URL
+                  - generic [ref=f9e162]: Optional
+                  - generic [ref=f9e163]:
+                    - button "About LinkedIn URL" [ref=f9e164]
+                    - tooltip "Optional LinkedIn profile URL copied from source."
+                - textbox "LinkedIn URL" [ref=f9e168]
+              - generic [ref=f9e169]:
+                - generic [ref=f9e171]:
+                  - generic [ref=f9e172]: GitHub URL
+                  - generic [ref=f9e173]: Optional
+                  - generic [ref=f9e174]:
+                    - button "About GitHub URL" [ref=f9e175]
+                    - tooltip "Optional GitHub profile URL copied from source."
+                - textbox "GitHub URL" [ref=f9e179]
+              - generic [ref=f9e180]:
+                - generic [ref=f9e182]:
+                  - generic [ref=f9e183]: Website URL
+                  - generic [ref=f9e184]: Optional
+                  - generic [ref=f9e185]:
+                    - button "About Website URL" [ref=f9e186]
+                    - tooltip "Optional personal website URL copied from source."
+                - textbox "Website URL" [ref=f9e190]
+          - generic [ref=f9e192]:
+            - generic [ref=f9e193]:
+              - generic [ref=f9e194]:
+                - heading "Experience" [level=3] [ref=f9e195]
+                - paragraph [ref=f9e196]: One parent per company and role; each statement is separate evidence.
+              - generic [ref=f9e197]:
+                - generic [ref=f9e198]: 0 entries
+                - button "Add Experience" [ref=f9e199] [cursor=pointer]
+            - generic [ref=f9e201]:
+              - heading "No experience" [level=3] [ref=f9e202]
+              - paragraph [ref=f9e203]: Add an entry when this candidate document contains relevant evidence.
+          - generic [ref=f9e205]:
+            - generic [ref=f9e206]:
+              - generic [ref=f9e207]:
+                - heading "Education" [level=3] [ref=f9e208]
+                - paragraph [ref=f9e209]: Degrees, thesis work, seminars, courses, and academic projects use same evidence shape.
+              - generic [ref=f9e210]:
+                - generic [ref=f9e211]: 0 entries
+                - button "Add Education" [ref=f9e212] [cursor=pointer]
+            - generic [ref=f9e214]:
+              - heading "No education" [level=3] [ref=f9e215]
+              - paragraph [ref=f9e216]: Add an entry when this candidate document contains relevant evidence.
+          - generic [ref=f9e218]:
+            - generic [ref=f9e219]:
+              - generic [ref=f9e220]:
+                - heading "Projects" [level=3] [ref=f9e221]
+                - paragraph [ref=f9e222]: Academic, personal, and work projects use same parent and evidence shape.
+              - generic [ref=f9e223]:
+                - generic [ref=f9e224]: 0 entries
+                - button "Add Project" [ref=f9e225] [cursor=pointer]
+            - generic [ref=f9e227]:
+              - heading "No projects" [level=3] [ref=f9e228]
+              - paragraph [ref=f9e229]: Add an entry when this candidate document contains relevant evidence.
+          - generic [ref=f9e231]:
+            - generic [ref=f9e232]:
+              - generic [ref=f9e233]:
+                - heading "Achievements" [level=3] [ref=f9e234]
+                - paragraph [ref=f9e235]: Each achievement may contain one or more traceable statements.
+              - generic [ref=f9e236]:
+                - generic [ref=f9e237]: 0 entries
+                - button "Add Achievement" [ref=f9e238] [cursor=pointer]
+            - generic [ref=f9e240]:
+              - heading "No achievements" [level=3] [ref=f9e241]
+              - paragraph [ref=f9e242]: Add an entry when this candidate document contains relevant evidence.
+          - generic [ref=f9e244]:
+            - generic [ref=f9e245]:
+              - generic [ref=f9e246]:
+                - heading "Certifications" [level=3] [ref=f9e247]
+                - paragraph [ref=f9e248]: Each certification uses same evidence contract.
+              - generic [ref=f9e249]:
+                - generic [ref=f9e250]: 0 entries
+                - button "Add Certification" [ref=f9e251] [cursor=pointer]
+            - generic [ref=f9e253]:
+              - heading "No certifications" [level=3] [ref=f9e254]
+              - paragraph [ref=f9e255]: Add an entry when this candidate document contains relevant evidence.
+          - generic [ref=f9e257]:
+            - generic [ref=f9e258]:
+              - generic [ref=f9e259]:
+                - heading "Volunteering" [level=3] [ref=f9e260]
+                - paragraph [ref=f9e261]: Volunteer contributions compete uniformly with other evidence.
+              - generic [ref=f9e262]:
+                - generic [ref=f9e263]: 0 entries
+                - button "Add Volunteer role" [ref=f9e264] [cursor=pointer]
+            - generic [ref=f9e266]:
+              - heading "No volunteering" [level=3] [ref=f9e267]
+              - paragraph [ref=f9e268]: Add an entry when this candidate document contains relevant evidence.
+          - generic [ref=f9e270]:
+            - generic [ref=f9e271]:
+              - generic [ref=f9e272]:
+                - heading "Languages" [level=3] [ref=f9e273]
+                - paragraph [ref=f9e274]: Add each language and level separately.
+              - generic [ref=f9e275]:
+                - generic [ref=f9e276]: 0 entries
+                - button "Add Language" [ref=f9e277] [cursor=pointer]
+            - generic [ref=f9e279]:
+              - heading "No languages" [level=3] [ref=f9e280]
+              - paragraph [ref=f9e281]: Add an entry when this candidate document contains relevant evidence.
+        - status [ref=f9e282]
+        - generic [ref=f9e283]:
+          - generic [ref=f9e284]:
+            - strong [ref=f9e285]: Draft saved automatically
+            - status [ref=f9e286]: Changes save automatically to this creation draft.
+          - generic [ref=f9e287]:
+            - button "Save and exit" [ref=f9e288] [cursor=pointer]
+            - button "Approve baseline and continue" [ref=f9e289] [cursor=pointer]

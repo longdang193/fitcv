@@ -119,6 +119,24 @@ def test_packaged_local_admin_pages_render_canonical_resources(local_client: Tes
             assert marker in response.text
 
 
+def test_shared_shell_matches_frozen_prototype_and_canonical_error_contract(
+    local_client: TestClient,
+) -> None:
+    _complete_onboarding()
+
+    html = local_client.get("/admin/runs").text
+
+    assert 'href="/admin/settings/prompt-management"' in html
+    assert 'href="/admin/lifecycle"' not in html
+    assert "function fitcvRenderAsyncState(target, state)" in html
+    assert "async function fitcvRunLocked(control, operation)" in html
+    assert "data-fitcv-async-state" in html
+    assert "state.preserveContent" in html
+    assert "state.retry" in html
+    assert "existing.remove()" in html
+    assert "kind === 'retryable'" in html
+
+
 def test_provider_setup_pages_and_resources_are_available_before_onboarding_completion(
     local_client: TestClient,
 ) -> None:
@@ -135,6 +153,58 @@ def test_provider_setup_pages_and_resources_are_available_before_onboarding_comp
     blocked = local_client.get("/admin/runs", follow_redirects=False)
     assert blocked.status_code == 307
     assert blocked.headers["location"] == "/local/onboarding"
+
+
+def test_api_provider_pages_match_frozen_prototype_component_contract(
+    local_client: TestClient,
+) -> None:
+    list_html = local_client.get("/admin/api-providers").text
+    detail_html = local_client.get("/admin/api-providers/openai").text
+
+    assert '<main class="provider-section" data-page="api-providers"' in list_html
+    assert '<p class="eyebrow">Application</p>' in list_html
+    assert "Manage predefined and custom AI provider connections." in list_html
+    assert 'id="provider-search" type="search" placeholder="Search providers"' in list_html
+    assert '>Add OpenAI-compatible</button>' in list_html
+    assert '>Add Anthropic-compatible</button>' in list_html
+    assert list_html.index("Custom Providers") < list_html.index("API Key Providers")
+    assert list_html.count(
+        '<details class="section-card collapsible-section setting-section" open>'
+    ) == 2
+    assert 'class="provider-grid"' in list_html
+    assert 'class="provider-card"' in list_html
+    assert 'class="provider-monogram"' in list_html
+    assert 'class="provider-status' in list_html
+    assert "No custom providers yet. Add one from the buttons above." in list_html
+    assert ".provider-grid{display:grid;grid-template-columns:1fr;gap:0}" in list_html
+    assert ".provider-card:last-child{border-bottom:0}" in list_html
+    assert ".provider-search{width:min(360px,100%)}" in list_html
+    assert "flex:1 1 260px" not in list_html
+
+    assert '<div class="details-page-head">' in detail_html
+    assert '<p class="eyebrow">API Provider</p>' in detail_html
+    assert 'class="section-card provider-connection-card"' in detail_html
+    assert 'class="provider-detail-stack"' in detail_html
+    assert 'class="section-card provider-models' in detail_html
+    assert "API keys are never returned by FitCV." in detail_html
+
+
+def test_api_provider_mutations_use_shared_recoverable_async_contract(
+    local_client: TestClient,
+) -> None:
+    list_html = local_client.get("/admin/api-providers").text
+    detail_html = local_client.get("/admin/api-providers/openai").text
+
+    for html in (list_html, detail_html):
+        assert "fitcvRenderAsyncState(" in html
+        assert "fitcvRunLocked(" in html
+        assert "kind:'pending'" in html
+        assert "'retryable'" in html
+        assert "'stale'" in html
+    assert "location.reload()" not in Path(
+        "src/fitcv_cp/templates/api_provider_detail.html"
+    ).read_text(encoding="utf-8")
+
 
 def test_packaged_local_admin_pages_are_not_registered_in_server_mode(
     tmp_path: Path,
@@ -220,6 +290,149 @@ def test_pipeline_settings_render_prototype_component_contract(local_client: Tes
     assert 'class="weight-status"' in cv_analysis
     assert 'class="dialog-actions"' in cv_analysis
     assert 'aria-describedby="pipeline-manage-description"' in cv_analysis
+
+
+def test_pipeline_settings_pages_match_prototype_section_shell(local_client: TestClient) -> None:
+    _complete_onboarding()
+
+    for path in (
+        "/admin/settings",
+        "/admin/settings/enrichment",
+        "/admin/settings/screening",
+        "/admin/settings/shortlisting",
+        "/admin/settings/ranking",
+        "/admin/settings/cv-analysis",
+        "/admin/settings/cv-generation",
+        "/admin/settings/runtime-limits",
+        "/admin/settings/automation-reuse",
+    ):
+        html = local_client.get(path).text
+        main = html[html.index('<main'):html.index('</main>')]
+
+        assert '<p class="eyebrow">Pipeline</p>' in main
+        assert "Changes apply to future runs." in main
+        assert main.count('id="reset-pipeline-settings"') == 1
+        assert ">Restore Defaults</button>" in main
+        assert '<section class="section-card settings-card">' not in main
+        assert main.count(
+            '<details class="section-card collapsible-section setting-section" data-section open>'
+        ) >= 1
+        assert main.count('<summary><span class="section-heading"><strong>') == main.count(
+            'class="section-card collapsible-section setting-section"'
+        )
+
+
+def test_pipeline_settings_uses_shared_recoverable_async_states(local_client: TestClient) -> None:
+    _complete_onboarding()
+
+    html = local_client.get("/admin/settings").text
+    template = Path("src/fitcv_cp/templates/settings.html").read_text(encoding="utf-8")
+
+    assert "fitcvRenderAsyncState(notice" in html
+    assert "kind:'pending'" in html
+    assert "'stale'" in html
+    assert "action:'Reload Settings'" in html
+    assert "retry:refreshSettings" in html
+    assert "fitcvRunLocked" in html
+    assert "location.reload()" not in template
+
+
+def test_llm_configuration_task_dialog_matches_prototype_contract(
+    local_client: TestClient,
+) -> None:
+    _complete_onboarding()
+
+    html = local_client.get("/admin/llm-configuration").text
+
+    assert '<dialog class="run-dialog" id="llm-task-dialog"' in html
+    assert 'aria-describedby="llm-task-description"' in html
+    assert '<div class="dialog-head">' in html
+    assert '<p id="llm-task-description">Configure runtime model behavior for one AI-powered task.</p>' in html
+    assert 'id="close-llm-task" type="button" aria-label="Close Task Configuration dialog"' in html
+    assert '<form class="run-form" id="llm-task-form">' in html
+    assert html.count('<div class="run-field">') == 3
+    assert '<label for="task-model">Model</label>' in html
+    assert "Default follows the application Default Route." in html
+    assert '<label for="task-timeout">Timeout (seconds)</label>' in html
+    assert '<label for="task-temperature">Temperature</label>' in html
+    assert html.index('id="cancel-llm-task"') < html.index('id="save-llm-task"')
+    assert '</form><div class="dialog-actions">' in html
+
+
+def test_llm_configuration_uses_shared_recoverable_async_contract(
+    local_client: TestClient,
+) -> None:
+    _complete_onboarding()
+
+    html = local_client.get("/admin/llm-configuration").text
+    template = Path("src/fitcv_cp/templates/llm_configuration.html").read_text(encoding="utf-8")
+
+    assert "fitcvRenderAsyncState(" in html
+    assert "fitcvRunLocked(" in html
+    assert "kind:'pending'" in html
+    assert "'stale'" in html
+    assert "'Reload Configuration'" in html
+    assert "refreshConfiguration" in html
+    assert "dialog.addEventListener('close'" in html
+    assert "activeTrigger.focus()" in html
+    assert "if(target===dialogStatus){dialog.close();fitcvRenderAsyncState(status" in html
+    assert "location.reload()" not in template
+
+
+def test_prompt_management_matches_frozen_prototype_contract(
+    local_client: TestClient,
+) -> None:
+    _complete_onboarding()
+
+    html = local_client.get("/admin/settings/prompt-management").text
+
+    assert '<p class="eyebrow">Pipeline</p>' in html
+    assert "Manage reusable behavioral instructions separately from runtime model settings." in html
+    assert html.index(">Pipeline Prompts</h3>") < html.index(">Synonym Prompts</h3>")
+    assert html.count('class="section-card llm-config-card"') == 2
+    assert 'class="llm-route-row"' in html
+    assert ">Manage Prompt</button>" in html
+    assert '<dialog class="run-dialog llm-prompt-dialog" id="prompt-dialog"' in html
+    assert '<form class="run-form" id="prompt-form">' in html
+    assert '<label for="prompt-mode">Prompt Type</label>' in html
+    assert '<textarea class="stage-prompt-editor" id="prompt-text"' in html
+    assert html.index('id="cancel-prompt"') < html.index('id="save-prompt"')
+    assert '</form><div class="dialog-actions">' in html
+    assert "fitcvRenderAsyncState(" in html
+    assert "fitcvRunLocked(save,savePrompt)" in html
+    assert "'Reload Prompt Configuration'" in html
+    assert "activeTrigger.focus()" in html
+    assert "active.display_name+' Prompt'" in html
+    assert "location.reload()" not in Path(
+        "src/fitcv_cp/templates/prompt_management.html"
+    ).read_text(encoding="utf-8")
+
+
+def test_system_and_data_backup_match_frozen_prototype_contract(
+    local_client: TestClient,
+) -> None:
+    _complete_onboarding()
+
+    system = local_client.get("/admin/system")
+    compatibility = local_client.get("/local/data", follow_redirects=False)
+
+    assert system.status_code == 200
+    assert compatibility.status_code == 200
+    assert '<p class="eyebrow">Application</p>' in system.text
+    assert "Manage local data, retry behavior, and worker recovery." in system.text
+    assert system.text.index('class="section-card data-backup-card"') < system.text.index(">Request Retry</strong>")
+    assert system.text.index(">Request Retry</strong>") < system.text.index(">Worker Recovery</strong>")
+    assert '<details class="section-card collapsible-section" open>' in system.text
+    assert '<details class="section-card collapsible-section"><summary' in system.text
+    assert 'id="download-workspace-backup"' in system.text
+    assert 'id="choose-workspace-backup"' in system.text
+    assert 'id="restore-workspace-backup"' in system.text
+    assert 'class="backup-file"' in system.text
+    assert system.text.count('data-backup-component') == 1
+    assert compatibility.text.count('data-backup-component') == 1
+    assert "Move data" not in compatibility.text
+    assert ".data-backup-card{padding:24px}" in system.text
+    assert ".backup-file{display:none}" in system.text
 
 
 def test_runtime_limits_route_renders_shared_pacing_and_concurrency_only(local_client: TestClient) -> None:

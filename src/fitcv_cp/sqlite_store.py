@@ -2280,10 +2280,17 @@ def get_candidate_profile_review(
             f"SELECT document_json, annotations_json, runtime_evidence_json FROM {table} WHERE attempt_id=? AND fingerprint=?",
             (attempt_id, attempt["fingerprint"]),
         ).fetchone()
+        expected_status = "base_review" if stage == "baseline" else "derived_review"
+        editable = attempt["creation_status"] == expected_status
+        latest_batch = conn.execute(
+            """SELECT operations_json FROM candidate_profile_review_batches
+               WHERE attempt_id=? AND stage=? ORDER BY rowid DESC LIMIT 1""",
+            (attempt_id, stage),
+        ).fetchone()
+        latest_operations = json.loads(latest_batch["operations_json"]) if latest_batch else None
+        undo_regeneration = editable and isinstance(latest_operations, dict) and "regeneration_targets" in latest_operations
     if snapshot is None:
         raise RuntimeError("candidate_profile_snapshot_missing")
-    expected_status = "base_review" if stage == "baseline" else "derived_review"
-    editable = attempt["creation_status"] == expected_status
     return {
         "attempt_id": attempt_id,
         "stage": stage,
@@ -2300,6 +2307,7 @@ def get_candidate_profile_review(
         "capabilities": {
             "patch": editable,
             "regenerate_all": editable,
+            "undo_regeneration": undo_regeneration,
             "approve": editable,
         },
     }
@@ -2535,6 +2543,13 @@ def _candidate_profile_review_resource_in_transaction(
     snapshot = _candidate_profile_snapshot(conn, attempt_id, stage, str(attempt["fingerprint"] or ""))
     expected_status = "base_review" if stage == "baseline" else "derived_review"
     editable = attempt["creation_status"] == expected_status
+    latest_batch = conn.execute(
+        """SELECT operations_json FROM candidate_profile_review_batches
+           WHERE attempt_id=? AND stage=? ORDER BY rowid DESC LIMIT 1""",
+        (attempt_id, stage),
+    ).fetchone()
+    latest_operations = json.loads(latest_batch["operations_json"]) if latest_batch else None
+    undo_regeneration = editable and isinstance(latest_operations, dict) and "regeneration_targets" in latest_operations
     return {
         "attempt_id": attempt_id,
         "stage": stage,
@@ -2544,7 +2559,12 @@ def _candidate_profile_review_resource_in_transaction(
         "annotations": snapshot["annotations"],
         "runtime_evidence": snapshot["runtime_evidence"],
         "validation": {"field_errors": []},
-        "capabilities": {"patch": editable, "regenerate_all": editable, "approve": editable},
+        "capabilities": {
+            "patch": editable,
+            "regenerate_all": editable,
+            "undo_regeneration": undo_regeneration,
+            "approve": editable,
+        },
     }
 
 
@@ -2766,6 +2786,107 @@ def regenerate_candidate_profile_review(
             )
             response = _candidate_profile_attempt_resource(conn, attempt_id)
             assert response is not None
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
+
+
+def undo_candidate_profile_regeneration(
+    attempt_id: str,
+    stage: str,
+    *,
+    expected_revision: int,
+    idempotency_key: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    _, fingerprint_column = _candidate_profile_snapshot_table(stage)
+    scope = f"candidate_profile:{attempt_id}:{stage}:undo-regeneration"
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {"expected_revision": expected_revision}
+    )
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            attempt = conn.execute(
+                f"SELECT revision, creation_status, {fingerprint_column} AS fingerprint "
+                "FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            if int(attempt["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if attempt["creation_status"] != ("base_review" if stage == "baseline" else "derived_review"):
+                raise ValueError("candidate_profile_invalid_transition")
+            batch = conn.execute(
+                """SELECT review_batch_id, operations_json, result_fingerprint
+                   FROM candidate_profile_review_batches
+                   WHERE attempt_id=? AND stage=? ORDER BY rowid DESC LIMIT 1""",
+                (attempt_id, stage),
+            ).fetchone()
+            operations = json.loads(batch["operations_json"]) if batch is not None else None
+            if not isinstance(operations, dict) or "regeneration_targets" not in operations:
+                raise ValueError("candidate_profile_regeneration_undo_unavailable")
+            restored_fingerprint = str(batch["result_fingerprint"])
+            _candidate_profile_snapshot(conn, attempt_id, stage, restored_fingerprint)
+            if stage == "baseline":
+                conn.execute(
+                    """UPDATE candidate_profile_creation_attempts
+                       SET revision=revision+1, baseline_fingerprint=?, approved_baseline_fingerprint=NULL,
+                           derived_fingerprint=NULL, approved_derived_fingerprint=NULL,
+                           confirmation_fingerprint=NULL, creation_status='base_review',
+                           next_action='review_baseline', updated_at=?
+                       WHERE attempt_id=?""",
+                    (restored_fingerprint, now, attempt_id),
+                )
+            else:
+                conn.execute(
+                    """UPDATE candidate_profile_creation_attempts
+                       SET revision=revision+1, derived_fingerprint=?, approved_derived_fingerprint=NULL,
+                           confirmation_fingerprint=NULL, creation_status='derived_review',
+                           next_action='review_derived', updated_at=?
+                       WHERE attempt_id=?""",
+                    (restored_fingerprint, now, attempt_id),
+                )
+            conn.execute(
+                """INSERT INTO candidate_profile_review_batches (
+                       review_batch_id, attempt_id, stage, expected_revision,
+                       operations_json, result_fingerprint, created_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    f"review_{uuid.uuid4().hex}",
+                    attempt_id,
+                    stage,
+                    expected_revision,
+                    json.dumps({"undo_regeneration": batch["review_batch_id"]}, separators=(",", ":")),
+                    restored_fingerprint,
+                    now,
+                ),
+            )
+            response = _candidate_profile_review_resource_in_transaction(conn, attempt_id, stage)
             _record_candidate_profile_idempotent_result(
                 conn,
                 scope=scope,
@@ -3334,7 +3455,12 @@ def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> di
     active = row["lifecycle"] == "active"
     related_run_count = int(
         conn.execute(
-            "SELECT COUNT(*) FROM run_inputs WHERE candidate_profile_id = ?", (profile_id,)
+            """SELECT COUNT(*) FROM run_inputs WHERE candidate_profile_id=?
+               OR candidate_profile_revision_id IN (
+                   SELECT profile_revision_id FROM candidate_profile_revisions
+                   WHERE candidate_profile_id=?
+               )""",
+            (profile_id, profile_id),
         ).fetchone()[0]
     )
     attempt_row = conn.execute(
@@ -3368,6 +3494,7 @@ def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> di
             "inspect": True,
             "archive": succeeded and active,
             "restore": succeeded and not active,
+            "delete": succeeded and not active and related_run_count == 0,
             "use_for_run": succeeded and active,
         },
         "revision": row["revision"],
@@ -3582,6 +3709,72 @@ def transition_candidate_profile_lifecycle(
     return resource
 
 
+def delete_candidate_profile(
+    profile_id: str,
+    *,
+    expected_revision: int,
+    idempotency_key: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    scope = f"candidate_profile:{profile_id}:delete"
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {"expected_revision": expected_revision}
+    )
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            profile = conn.execute(
+                """SELECT creation_status, lifecycle, revision FROM candidate_profiles
+                   WHERE candidate_profile_id=?""",
+                (profile_id,),
+            ).fetchone()
+            if profile is None:
+                raise ValueError("profile_not_found")
+            if int(profile["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if profile["creation_status"] != "succeeded" or profile["lifecycle"] != "archived":
+                raise ValueError("candidate_profile_delete_requires_archive")
+            if conn.execute(
+                """SELECT 1 FROM run_inputs WHERE candidate_profile_id=?
+                   OR candidate_profile_revision_id IN (
+                       SELECT profile_revision_id FROM candidate_profile_revisions
+                       WHERE candidate_profile_id=?
+                   ) LIMIT 1""",
+                (profile_id, profile_id),
+            ).fetchone() is not None:
+                raise ValueError("candidate_profile_delete_referenced")
+            conn.execute("DELETE FROM candidate_profile_creation_attempts WHERE profile_id=?", (profile_id,))
+            conn.execute("DELETE FROM candidate_profile_revisions WHERE candidate_profile_id=?", (profile_id,))
+            conn.execute("DELETE FROM candidate_profiles WHERE candidate_profile_id=?", (profile_id,))
+            response = {"profile_id": profile_id, "deleted": True}
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
+
+
 def query_candidate_profile_runs(
     profile_id: str,
     *,
@@ -3594,7 +3787,12 @@ def query_candidate_profile_runs(
         conn.row_factory = sqlite3.Row
         total = int(
             conn.execute(
-                "SELECT COUNT(*) FROM run_inputs WHERE candidate_profile_id = ?", (profile_id,)
+                """SELECT COUNT(*) FROM run_inputs WHERE candidate_profile_id=?
+                   OR candidate_profile_revision_id IN (
+                       SELECT profile_revision_id FROM candidate_profile_revisions
+                       WHERE candidate_profile_id=?
+                   )""",
+                (profile_id, profile_id),
             ).fetchone()[0]
         )
         rows = conn.execute(
@@ -3603,10 +3801,14 @@ def query_candidate_profile_runs(
             FROM run_inputs AS i
             JOIN pipeline_runs AS r ON r.run_id = i.run_id
             WHERE i.candidate_profile_id = ?
+               OR i.candidate_profile_revision_id IN (
+                   SELECT profile_revision_id FROM candidate_profile_revisions
+                   WHERE candidate_profile_id=?
+               )
             ORDER BY r.created_at DESC, r.run_id DESC
             LIMIT ? OFFSET ?
             """,
-            (profile_id, page_size, (max(1, page) - 1) * page_size),
+            (profile_id, profile_id, page_size, (max(1, page) - 1) * page_size),
         ).fetchall()
     return {"items": [dict(row) for row in rows], "total": total, "page": max(1, page), "page_size": page_size}
 

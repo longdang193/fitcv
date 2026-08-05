@@ -1,399 +1,69 @@
-<style>
-  .application-interest-stars {
-    display: inline-flex;
-    gap: 0.05rem;
-  }
-
-  .application-interest-star,
-  .application-interest-star[aria-pressed] {
-    appearance: none;
-    background: transparent;
-    border: 0;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 1.35rem;
-    line-height: 1;
-    padding: 0.15rem;
-  }
-
-  .application-interest-star.is-filled {
-    color: #f59e0b;
-  }
-
-  .application-interest-stars:hover .application-interest-star {
-    color: var(--text-muted);
-  }
-
-  .application-interest-stars:has(.application-interest-star:nth-child(1):hover) .application-interest-star:nth-child(-n+1),
-  .application-interest-stars:has(.application-interest-star:nth-child(2):hover) .application-interest-star:nth-child(-n+2),
-  .application-interest-stars:has(.application-interest-star:nth-child(3):hover) .application-interest-star:nth-child(-n+3),
-  .application-interest-stars:has(.application-interest-star:nth-child(4):hover) .application-interest-star:nth-child(-n+4),
-  .application-interest-stars:has(.application-interest-star:nth-child(5):hover) .application-interest-star:nth-child(-n+5) {
-    color: #f59e0b;
-  }
-
-  .application-interest-star:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-
-  .fit-context-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-</style>
-
-{% if enriched_total_count %}
-{% if decision_feedback_available %}
-<p class="meta" style="padding:0.75rem 1.25rem;margin:0;border-bottom:1px solid var(--accent)">Application-interest ratings capture personal interest after eligibility. They do not record an application.</p>
-{% else %}
-<p class="meta" style="padding:0.75rem 1.25rem;margin:0;border-bottom:1px solid var(--accent)">Application-interest ratings unavailable: this run lacks immutable results_job_ledger_v4 feedback evidence.</p>
-{% endif %}
-<div style="display:flex;gap:1rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
-  <span class="meta">Post-dedupe enriched jobs: <strong>{{ enriched_total_count }}</strong></span>
-  <span class="badge badge-success" style="padding:0.2rem 0.6rem;font-size:0.8rem">Passed: {{ enriched_passed_count }}</span>
-  <span class="badge badge-error" style="padding:0.2rem 0.6rem;font-size:0.8rem">Rejected: {{ enriched_rejected_count }}</span>
-  {% if deduplicated_before_enrichment %}
-  <span class="badge badge-warning" style="padding:0.2rem 0.6rem;font-size:0.8rem">Deduplicated before enrichment: {{ deduplicated_before_enrichment | length }}</span>
-  {% endif %}
-  <span class="meta" style="margin-left:auto">
-    {% if enriched_filtered_total_count != enriched_total_count %}
-      Showing {{ enriched_page_start }}-{{ enriched_page_end }} of {{ enriched_filtered_total_count }} filtered rows
-    {% else %}
-      Showing {{ enriched_page_start }}-{{ enriched_page_end }} of {{ enriched_total_count }}
-    {% endif %}
-  </span>
+<div class="results-filters">
+  <div class="stage-filter">
+    <div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">
+      {% for stage_id, stage_label in enriched_stage_options %}
+      <button class="btn" type="button" role="tab" data-pipeline-stage="{{ stage_id }}" data-results-url="/admin/runs/{{ run.run_id }}/tabs/enriched?stage={{ stage_id }}&amp;page_size={{ enriched_page_size }}&amp;filter_name=all" aria-selected="{{ 'true' if stage_id == enriched_stage else 'false' }}" tabindex="{{ '0' if stage_id == enriched_stage else '-1' }}">{{ stage_label }}</button>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
-<form method="get" action="/admin/runs/{{ run.run_id }}/tabs/enriched" onsubmit="return submitRunDetailTabForm(event, 'enriched', this)" class="enr-toolbar">
+<form method="get" action="/admin/runs/{{ run.run_id }}/tabs/enriched" class="results-toolbar" data-run-results-form>
+  <input type="hidden" name="stage" value="{{ enriched_stage }}">
   <input type="hidden" name="page" value="1">
-
-  <div class="enr-toolbar-group">
-    <label class="meta enr-toolbar-label" for="enr-filter">Filter</label>
-    <span class="enr-select-shell"><select id="enr-filter" name="filter_name" class="enr-toolbar-select enr-filter-select enr-select-caret">
-      <option value="all" {% if enriched_filter == 'all' %}selected{% endif %}>All</option>
-      <option value="passed" {% if enriched_filter == 'passed' %}selected{% endif %}>Passed</option>
-      <option value="rejected" {% if enriched_filter == 'rejected' %}selected{% endif %}>Rejected</option>
-      <option value="unknown" {% if enriched_filter == 'unknown' %}selected{% endif %}>Unknown</option>
-    </select></span>
+  <input type="hidden" name="page_size" value="{{ enriched_page_size }}">
+  <input type="hidden" name="filter_name" value="{{ enriched_filter }}" data-run-result-value>
+  <input class="field results-search" id="jobResultsSearch" name="q" type="search" value="{{ enriched_query }}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results">
+  <div class="results-toolbar-actions">
+    <div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter">
+      <button class="summary-card" type="button" role="tab" data-pipeline-result="all" aria-selected="{{ 'true' if enriched_filter == 'all' else 'false' }}" tabindex="{{ '0' if enriched_filter == 'all' else '-1' }}"><span>Total Evaluated</span><strong>{{ enriched_evaluated_count }}</strong></button>
+      <button class="summary-card" type="button" role="tab" data-pipeline-result="passed" aria-selected="{{ 'true' if enriched_filter == 'passed' else 'false' }}" tabindex="{{ '0' if enriched_filter == 'passed' else '-1' }}"><span>Passed</span><strong>{{ enriched_stage_passed_count }}</strong></button>
+      <button class="summary-card" type="button" role="tab" data-pipeline-result="rejected" aria-selected="{{ 'true' if enriched_filter == 'rejected' else 'false' }}" tabindex="{{ '0' if enriched_filter == 'rejected' else '-1' }}"><span>Rejected</span><strong>{{ enriched_stage_rejected_count }}</strong></button>
+    </div>
+    <button class="btn" id="exportRunResults" type="button" data-run-job-export disabled>Export</button>
   </div>
-
-  <input id="enr-search" type="search" name="q" value="{{ enriched_query }}" placeholder="Search title, domain, job family…" class="enr-toolbar-search">
-
-  <div class="enr-toolbar-group enr-toolbar-outcome" data-multiselect-root="pipeline-outcome">
-    <label class="meta enr-toolbar-label" for="enr-pipeline-outcome-toggle">Pipeline Outcome</label>
-    <details data-multiselect-details class="enr-multiselect-details">
-      <summary
-        id="enr-pipeline-outcome-toggle"
-        class="enr-multiselect-toggle"
-      >
-        <span data-multiselect-summary>All outcomes</span>
-        <span class="enr-caret" aria-hidden="true">▾</span>
-      </summary>
-      <div data-multiselect-panel class="enr-multiselect-panel">
-        <input type="search" placeholder="Search outcomes..." data-multiselect-search class="enr-multiselect-search">
-        <label class="enr-multiselect-row enr-multiselect-select-all">
-          <input type="checkbox" data-multiselect-select-all>
-          <span>(Select all)</span>
-        </label>
-        <div data-multiselect-options class="enr-multiselect-options">
-          {% for outcome in enriched_pipeline_outcome_options %}
-          <label data-multiselect-option-row class="enr-multiselect-row">
-            <input
-              type="checkbox"
-              data-multiselect-option
-              value="{{ outcome.value }}"
-              data-label="{{ outcome.label }}"
-              {% if outcome.value in enriched_selected_pipeline_outcomes %}checked{% endif %}
-            >
-            <span>{{ outcome.label }}</span>
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-    </details>
-    <select id="enr-pipeline-outcome" name="pipeline_outcome" multiple class="enr-hidden-multiselect" aria-hidden="true" tabindex="-1">
-      {% for outcome in enriched_pipeline_outcome_options %}
-      <option value="{{ outcome.value }}" {% if outcome.value in enriched_selected_pipeline_outcomes %}selected{% endif %}>{{ outcome.label }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="enr-toolbar-group">
-    <label class="meta enr-toolbar-label" for="enr-page-size">Rows</label>
-    <span class="enr-select-shell"><select id="enr-page-size" name="page_size" class="enr-toolbar-select enr-rows-select enr-select-caret">
-      {% for size in (25, 50, 100) %}
-      <option value="{{ size }}" {% if enriched_page_size == size %}selected{% endif %}>{{ size }}</option>
-      {% endfor %}
-    </select></span>
-  </div>
-
-  <button type="submit" class="btn-secondary">Apply</button>
 </form>
 
 <div
-  class="selection-toolbar"
   data-run-job-selection-root
   data-run-id="{{ run.run_id }}"
-  data-stage="enrichment"
+  data-stage="{{ enriched_stage }}"
   data-result="{% if enriched_filter in ('passed', 'rejected') %}{{ enriched_filter }}{% endif %}"
   data-search="{{ enriched_query }}"
+  data-filtered-run-job-ids="{{ enriched_filtered_run_job_ids | tojson | forceescape }}"
   data-preview-url="/runs/{{ run.run_id }}/jobs/actions/export/preview"
   data-export-url="/runs/{{ run.run_id }}/jobs/actions/export"
 >
-  <label><input type="checkbox" data-run-job-select-all> Select visible</label>
-  <strong data-run-job-selected-count>0 selected</strong>
-  <button class="btn-primary" type="button" data-run-job-export disabled>Export</button>
+  <div class="run-selection" data-run-job-selection-summary hidden>
+    <div class="run-selection-copy"><strong data-run-job-selected-count>0 jobs selected</strong><span>Export applies only to selected jobs in the current stage and filters.</span></div>
+  </div>
   <span class="meta" data-run-job-notice aria-live="polite"></span>
-</div>
-
-<div class="table-shell">
-  <table class="enr-table">
-    <thead>
-      <tr>
-        <th><span class="sr-only">Select</span></th>
-        <th>Job</th>
-        <th>Fit Context</th>
-        <th>Required Skills (top 5)</th>
-        <th>Filter</th>
-        <th>Pipeline Outcome</th>
-        <th>Application Interest</th>
-        <th>Bookmark</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for job in enriched_jobs %}
-      {% set filter_lookup_key = job.filter_result_lookup_key or job.job_url_lookup_key or job.job_url %}
-      {% set outcome_lookup_key = job.pipeline_outcome_lookup_key or job.job_url_lookup_key or job.job_url %}
-      {% set fr = filter_results_by_job_url.get(filter_lookup_key) %}
-      {% set outcome = pipeline_outcomes_by_job_url.get(outcome_lookup_key) %}
-      {% set actual_location = job.actual_location or {} %}
-      {% set language_requirements = job.language_requirements or [] %}
-      {% if not language_requirements and fr and fr.fit_factor_results %}
-        {% set language_fit = fr.fit_factor_results.get('language_fit') or {} %}
-        {% set language_evaluation = language_fit.get('evaluation') or {} %}
-        {% set language_evidence = language_evaluation.get('evidence') or {} %}
-        {% set language_requirements = language_evidence.get('requirements') or [] %}
-      {% endif %}
-      <tr>
-        <td>
-          {% if job.run_job_id %}
-          <input type="checkbox" data-run-job-id="{{ job.run_job_id }}" aria-label="Select {{ job.title or job.job_url }}">
-          {% else %}
-          <span class="meta" title="Selection unavailable for legacy row">—</span>
-          {% endif %}
-        </td>
-        <td><a href="{{ job.job_url }}" target="_blank" rel="noopener">{{ job.title or job.job_url }}</a></td>
-        <td class="meta">
-          <div class="fit-context-stack">
-            <span><strong>Location:</strong> {{ actual_location.raw_text or job.location or '—' }}</span>
-            <span><strong>Work Mode:</strong> {{ job.location_type or '—' }}</span>
-            <span><strong>Language:</strong>
-              {% if language_requirements %}
-                {% for requirement in language_requirements %}
-                  {{ requirement.language or '—' }} ({% if requirement.expected_level and requirement.expected_level != 'unspecified' %}{{ requirement.expected_level | upper }}{% else %}level unspecified{% endif %}{% if requirement.requirement_type %}; {{ requirement.requirement_type }}{% endif %}){% if not loop.last %}, {% endif %}
-                {% endfor %}
-              {% else %}
-                —
-              {% endif %}
-            </span>
-            <span><strong>Seniority:</strong> {{ job.seniority or '—' }}</span>
-            <span><strong>Family:</strong> {{ job.job_family or '—' }}</span>
-            <span><strong>Domain:</strong> {{ job.domain or '—' }}</span>
-          </div>
-        </td>
-        <td class="meta">
-          {% if job.required_skills_display %}
-            {{ job.required_skills_display[:5] | join(', ') }}{% if job.required_skills_display | length > 5 %}, <em class="meta">+{{ job.required_skills_display | length - 5 }} more</em>{% endif %}
-            {% if job.required_skills_display_source and job.required_skills_display_source != 'required_skills' %}
-            <div class="meta" style="margin-top:0.3rem">Fallback: {{ job.required_skills_display_source | replace('_', ' ') }}</div>
-            {% endif %}
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td style="white-space:nowrap">
-          {% if fr is not none %}
-            {% if fr.passed %}
-              <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
-              {% if fr.marks %}
-              <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">
-                Marks: {{ fr.marks | map(attribute='code') | join(', ') }}
-              </div>
-              {% endif %}
-            {% else %}
-              <span class="badge badge-error" title="{{ fr.reasons | join(', ') }}">&#10007; reject</span>
-              <div class="field-error" style="margin-top:0.3rem">{{ fr.reasons | join(', ') }}</div>
-              {% if fr.marks %}
-              <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">
-                Marks: {{ fr.marks | map(attribute='code') | join(', ') }}
-              </div>
-              {% endif %}
-            {% endif %}
-          {% else %}
-            <span class="empty-value">—</span>
-          {% endif %}
-        </td>
-        <td style="white-space:nowrap">
-          {% if outcome is not none %}
-            <span class="badge {{ outcome.badge_class }}" {% if outcome.detail %}title="{{ outcome.detail }}"{% endif %}>{{ outcome.label }}</span>
-            {% if outcome.detail %}
-            <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">{{ outcome.detail }}</div>
-            {% endif %}
-            {% if outcome.why %}
-            <details class="meta" style="margin-top:0.4rem;max-width:24rem;white-space:normal">
-              <summary style="cursor:pointer;font-weight:600">Why?</summary>
-              <div style="margin-top:0.35rem"><strong>Reason:</strong> {{ outcome.reason_label }} (<code>{{ outcome.reason_code }}</code>)</div>
-              <div><strong>Stage:</strong> {{ outcome.stage }} / {{ outcome.why.stage_status }}</div>
-              {% if outcome.why.reason_facts %}<div><strong>Facts:</strong> <code>{{ outcome.why.reason_facts | tojson }}</code></div>{% endif %}
-              {% if outcome.why.policy_version %}<div><strong>Policy:</strong> <code>{{ outcome.why.policy_version }}</code></div>{% endif %}
-              {% if outcome.why.attempt_id %}<div><strong>Attempt:</strong> <code>{{ outcome.why.attempt_id }}</code></div>{% endif %}
-              {% if outcome.why.trace_id %}<div><strong>Trace:</strong> <code>{{ outcome.why.trace_id }}</code></div>{% endif %}
-              <div><strong>Evidence:</strong> <code>{{ outcome.why.evidence_ref.artifact }}</code> / <code>{{ outcome.why.evidence_ref.record_key }}</code></div>
-              <div><strong>Fingerprint:</strong> <code>{{ outcome.why.evidence_ref.fingerprint }}</code></div>
-              <div><strong>Compatibility:</strong> {{ outcome.projection_status }}</div>
-            </details>
-            {% endif %}
-          {% else %}
-            <span class="empty-value">—</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if job.decision_feedback_alternative %}
-          <form method="post" action="/admin/runs/{{ run.run_id }}/decision-feedback/{{ job.decision_feedback_alternative.alternative_id }}">
-            <input type="hidden" name="rating_scale_version" value="{{ decision_feedback_scale_version }}">
-            <input type="hidden" name="source_stage_artifact_fingerprint" value="{{ decision_feedback_source_fingerprint }}">
-            <input type="hidden" name="return_to" value="{{ decision_feedback_return_to }}">
-            <fieldset style="border:0;padding:0;margin:0">
-              <legend class="meta">Personal application interest after eligibility</legend>
-              <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
-                <div class="application-interest-stars">
-                  {% for rating in (1, 2, 3, 4, 5) %}
-                  <button type="submit" name="rating" value="{{ rating }}" class="btn-secondary application-interest-star{% if job.decision_rating in (1, 2, 3, 4, 5) and rating <= job.decision_rating %} is-filled{% endif %}" aria-label="Set application interest to {{ rating }} of 5 stars" aria-pressed="{{ 'true' if job.decision_rating == rating else 'false' }}" title="{{ rating }} stars">★</button>
-                  {% endfor %}
-                </div>
-                <button type="submit" name="action" value="clear_rating" class="btn-secondary">Clear</button>
-              </div>
-            </fieldset>
-          </form>
-          {% else %}
-            <span class="meta">Unrated</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if job.run_job_id %}
-          <button
-            type="button"
-            class="btn-secondary"
-            data-bookmark-toggle
-            data-run-job-id="{{ job.run_job_id }}"
-            data-bookmarked="{{ 'true' if job.bookmarked else 'false' }}"
-            aria-pressed="{{ 'true' if job.bookmarked else 'false' }}"
-          >{% if job.bookmarked %}Remove bookmark{% else %}Bookmark{% endif %}</button>
-          {% else %}
-          <span class="meta">Unavailable</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-      {% if not enriched_jobs %}
-      <tr class="empty-row"><td colspan="8">No jobs match the current controls.</td></tr>
-      {% endif %}
-    </tbody>
-  </table>
-</div>
-
-{% if enriched_total_pages > 1 %}
-<div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1.25rem;justify-content:flex-end">
-  {% if enriched_has_prev %}
-    <a href="{{ enriched_prev_url | safe }}"
-     class="btn-secondary"
-     data-tab-fragment-url="{{ enriched_prev_url | safe }}"
-     data-tab-id="enriched">← Prev</a>
-  {% endif %}
-  <span class="meta">Page {{ enriched_current_page }} of {{ enriched_total_pages }}</span>
-  {% if enriched_has_next %}
-    <a href="{{ enriched_next_url | safe }}"
-     class="btn-secondary"
-     data-tab-fragment-url="{{ enriched_next_url | safe }}"
-     data-tab-id="enriched">Next →</a>
-  {% endif %}
-</div>
-{% endif %}
-{% else %}
-<div class="card">
-  <p class="meta" style="text-align:center;padding:1.5rem">No enrichment data available for this run.</p>
-</div>
-{% endif %}
-
-{% if pre_enrichment_rejects %}
-<div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
-  <details>
-    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;user-select:none">
-      <span class="badge badge-error">&#10007; Rejected before enrichment</span>
-      <span class="badge badge-error" style="border-radius:999px">{{ pre_enrichment_rejects | length }}</span>
-      <span class="meta" style="margin-left:auto">Screened out by global filters before enrichment step.</span>
-    </summary>
-    <table>
-      <thead>
-        <tr>
-          <th>Job URL</th>
-          <th>Reject Reasons</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in pre_enrichment_rejects %}
-        <tr>
-          <td><a href="{{ row.job_url }}" target="_blank" rel="noopener" class="meta">{{ row.job_url }}</a></td>
-          <td class="field-error">{{ row.reasons | join(', ') }}</td>
-        </tr>
+  <div class="table-card">
+    <div class="table-scroll">
+      <table class="run-table jobs-table">
+        <thead><tr><th><input id="selectAllJobResults" type="checkbox" data-run-job-select-all aria-label="Select all visible job results"> Job &amp; Actions</th><th>Job Attributes</th><th>Required Skills</th><th>Pipeline Outcome</th></tr></thead>
+        <tbody>
+        {% for job in enriched_jobs %}
+          {% set filter_lookup_key = job.filter_result_lookup_key or job.job_url_lookup_key or job.job_url %}
+          {% set outcome_lookup_key = job.pipeline_outcome_lookup_key or job.job_url_lookup_key or job.job_url %}
+          {% set fr = filter_results_by_job_url.get(filter_lookup_key) %}
+          {% set outcome = pipeline_outcomes_by_job_url.get(outcome_lookup_key) %}
+          {% set actual_location = job.actual_location or {} %}
+          <tr>
+            <td><div class="job-primary"><div class="job-title-row">{% if job.run_job_id %}<input type="checkbox" data-run-job-id="{{ job.run_job_id }}" aria-label="Select {{ job.title or job.job_url }}">{% endif %} <a class="job-title-link" href="{{ job.job_url }}" target="_blank" rel="noopener noreferrer">{{ job.title or job.job_url }}</a></div>{% if job.run_job_id %}<div class="interest-rating" aria-label="Application Interest for {{ job.title or job.job_url }}">{% for rating in range(1, 6) %}<button class="star-btn" type="button" data-interest-rating="{{ rating }}" data-run-job-id="{{ job.run_job_id }}" aria-label="Rate {{ rating }} of 5" aria-pressed="{{ 'true' if job.rating and rating <= job.rating else 'false' }}">★</button>{% endfor %}<button class="small-action clear-rating" type="button" data-clear-interest data-run-job-id="{{ job.run_job_id }}" {% if not job.rating %}disabled{% endif %}>Clear</button><button type="button" class="small-action bookmark-btn" data-bookmark-toggle data-run-job-id="{{ job.run_job_id }}" data-bookmarked="{{ 'true' if job.bookmarked else 'false' }}" aria-pressed="{{ 'true' if job.bookmarked else 'false' }}">{{ 'Remove bookmark' if job.bookmarked else 'Bookmark' }}</button></div>{% endif %}<div class="job-action-row">{% if enriched_stage == 'cv-generation' and job.run_job_id and job.capabilities.download_cv %}<a class="small-action" data-cv-download href="/cv-versions/{{ job.current_cv_version_id }}/download">Download CV</a>{% endif %}{% if enriched_stage == 'cv-generation' and job.run_job_id and job.capabilities.regenerate_cv %}<button type="button" class="small-action" data-cv-regenerate data-run-job-id="{{ job.run_job_id }}" data-parent-cv-version-id="{{ job.current_cv_version_id }}">Regenerate CV</button>{% endif %}</div></div></td>
+            <td><div class="job-attributes"><div class="job-attribute"><span>Location</span><strong>{{ actual_location.raw_text or job.location or '—' }}</strong></div><div class="job-attribute"><span>Work Mode</span><strong>{{ job.location_type or '—' }}</strong></div><div class="job-attribute"><span>Language</span><strong>{{ job.language or '—' }}</strong></div><div class="job-attribute"><span>Seniority</span><strong>{{ job.seniority or '—' }}</strong></div><div class="job-attribute"><span>Job Family</span><strong>{{ job.job_family or '—' }}</strong></div><div class="job-attribute"><span>Domain</span><strong>{{ job.domain or '—' }}</strong></div></div></td>
+            <td><div class="skill-list">{% for skill in job.required_skills_display[:5] %}<span class="skill-chip">{{ skill }}</span>{% endfor %}{% if job.required_skills_display|length > 5 %}<span class="skill-chip">+{{ job.required_skills_display|length - 5 }} more</span>{% endif %}</div></td>
+            <td><div class="pipeline-outcome"><span class="badge {{ outcome.badge_class if outcome else ('badge-success' if job.stage_passed else 'badge-error') }}">{{ outcome.label if outcome else ('Passed' if job.stage_passed else 'Rejected') }}</span>{% if outcome and outcome.detail %}<span class="outcome-reason">{{ outcome.detail }}</span>{% elif job.stage_outcome_reason %}<span class="outcome-reason">{{ job.stage_outcome_reason }}</span>{% endif %}{% if job.cv_review_state == 'stretch' %}<span class="cv-review" data-review="stretch">Stretch review</span>{% endif %}</div></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4"><div class="jobs-empty">No jobs match current filters.</div></td></tr>
         {% endfor %}
-      </tbody>
-    </table>
-  </details>
+        </tbody>
+      </table>
+    </div>
+    <div class="run-pagination">
+      <span>Showing <strong>{{ enriched_page_start }}</strong> to <strong>{{ enriched_page_end }}</strong> of <strong>{{ enriched_filtered_total_count }}</strong> results</span>
+      <div class="run-pagination-controls"><label class="run-page-size" for="jobResultsPageSize">Rows:<select class="field" id="jobResultsPageSize" data-run-page-size>{% for size in (10, 20, 50) %}<option value="{{ size }}" {% if enriched_page_size == size %}selected{% endif %}>{{ size }}</option>{% endfor %}</select></label><div class="run-page-numbers" aria-label="Job results pagination"><button class="btn" type="button" {% if enriched_has_prev %}data-tab-fragment-url="{{ enriched_prev_url|safe }}" data-tab-id="enriched"{% else %}disabled{% endif %} aria-label="Previous page">‹</button>{% for page_item in enriched_page_numbers %}{% if page_item.url %}<button class="btn" type="button" data-run-page-number="{{ page_item.label }}" data-tab-fragment-url="{{ page_item.url|safe }}" data-tab-id="enriched" {% if page_item.current %}aria-current="page"{% endif %} aria-label="Page {{ page_item.label }}">{{ page_item.label }}</button>{% else %}<span class="run-page-gap" aria-hidden="true">{{ page_item.label }}</span>{% endif %}{% endfor %}<button class="btn" type="button" {% if enriched_has_next %}data-tab-fragment-url="{{ enriched_next_url|safe }}" data-tab-id="enriched"{% else %}disabled{% endif %} aria-label="Next page">›</button></div></div>
+    </div>
+  </div>
 </div>
-{% endif %}
-
-{% if deduplicated_before_enrichment %}
-<div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
-  <details>
-    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;user-select:none">
-      <span class="badge badge-warning">↺ Deduplicated before enrichment</span>
-      <span class="badge badge-warning" style="border-radius:999px">{{ deduplicated_before_enrichment | length }}</span>
-      <span class="meta" style="margin-left:auto">Removed during normalization before enrichment/filtering.</span>
-    </summary>
-    <table>
-      <thead>
-        <tr>
-          <th>Job</th>
-          <th>Reason</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in deduplicated_before_enrichment %}
-        <tr>
-          <td>
-            {% if row.job_url %}
-            <a href="{{ row.job_url }}" target="_blank" rel="noopener" class="meta">{{ row.job_title or row.job_url }}</a>
-            {% else %}
-            <span class="meta">{{ row.job_title or 'Unknown job' }}</span>
-            {% endif %}
-          </td>
-          <td class="field-error">{{ row.reasons | join(', ') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </details>
-</div>
-{% endif %}
-
-
-
-
-
-
-
-
-

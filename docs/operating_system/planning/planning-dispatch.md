@@ -11,8 +11,9 @@ Use this decision table only when artifact choice is unclear. Create the smalles
 | Behavior, interfaces, or invariants need durable definition without prototype work | Use `skill-spec-drafting` |
 | Approved design or direct approved scope needs multiple implementation steps | Use `skill-writing-plans` |
 | Several outcomes need coordinated direction | Use the optional roadmap; create specs or plans only where needed |
-| Isolation materially reduces execution risk | Use `skill-using-git-worktrees`, then execute plan |
-| Approved plan exists | Use `skill-executing-plans` |
+| Parallel writable lanes selected | Use `skill-using-git-worktrees`, then execute isolated lanes |
+| Approved plan exists | Use `skill-executing-plans`; use harness-selected subagent mode only when packet permits it |
+| Recurring verified friction needs harness change | Use `skill-improve-harness` and one harness-improvement artifact |
 | Final completion proof is needed | Use `skill-verification-before-completion` |
 | Verified work needs an authorized Git disposition | Use `skill-finishing-a-development-branch` |
 

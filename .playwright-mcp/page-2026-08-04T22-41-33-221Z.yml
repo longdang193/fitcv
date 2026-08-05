@@ -1,0 +1,80 @@
+- generic [ref=f4e2]:
+  - complementary "Primary navigation" [ref=f4e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f4e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f4e9]:
+        - strong [ref=f4e10]: FitCV Control Plane
+        - generic [ref=f4e11]: Local workspace
+    - navigation "Workspace" [ref=f4e12]:
+      - link "Runs" [ref=f4e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f4e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f4e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f4e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f4e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f4e31]:
+        - generic "Pipeline ›" [ref=f4e32] [cursor=pointer]
+        - generic [ref=f4e35]:
+          - link "Overview" [ref=f4e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f4e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f4e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f4e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f4e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f4e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f4e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f4e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f4e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f4e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f4e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f4e47]:
+        - generic "Application ›" [ref=f4e48] [cursor=pointer]
+        - generic [ref=f4e52]:
+          - link "API Providers" [ref=f4e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f4e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f4e55] [cursor=pointer]:
+            - /url: /admin/system
+  - generic [ref=f4e56]:
+    - banner [ref=f4e57]:
+      - generic [ref=f4e58]:
+        - button "Open navigation" [ref=f4e136] [cursor=pointer]
+        - heading "Runs" [level=1] [ref=f4e62]
+      - generic [ref=f4e64]:
+        - button "Switch to light theme" [active] [ref=f4e139] [cursor=pointer]:
+          - generic [ref=f4e68]: Light
+        - button "Shutdown FitCV" [ref=f4e69] [cursor=pointer]
+    - main [ref=f4e116]:
+      - generic [ref=f4e117]:
+        - generic [ref=f4e118]:
+          - paragraph [ref=f4e119]: Workspace
+          - heading "Runs" [level=2] [ref=f4e120]
+          - paragraph [ref=f4e121]: Trigger and monitor FitCV pipeline runs.
+        - button "Trigger Run" [ref=f4e122] [cursor=pointer]
+      - generic [ref=f4e123]:
+        - tablist "Run views" [ref=f4e124]:
+          - tab "Active 0" [ref=f4e125] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f4e126]: "0"
+          - tab "Archived 0" [selected] [ref=f4e127] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f4e128]: "0"
+        - tabpanel "Archived 0" [ref=f4e129]:
+          - generic [ref=f4e131]:
+            - heading "No archived runs" [level=3] [ref=f4e134]
+            - paragraph [ref=f4e135]: Archived runs will appear here after they are moved from Active.

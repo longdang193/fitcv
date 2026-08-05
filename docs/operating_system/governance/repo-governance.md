@@ -110,6 +110,7 @@ Detailed policy lives in `docs/operating_system/publication/public-repo-publicat
 Keep only configuration with an active consumer. `repo_config/` currently owns:
 
 - `planning_artifact_schema.yaml`
+- `harness.yaml`
 - `publication-config.json`
 - `starter-kit-manifest.json`
 

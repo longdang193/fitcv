@@ -1,31 +1,49 @@
 {% extends "base.html" %}
 {% block title %}API Providers — FitCV{% endblock %}
 {% block content %}
-<main class="workspace-stack" data-page="api-providers" data-resource-url="/api-providers">
-  <header class="page-header"><div><h1>API Providers</h1><p class="meta">Manage one verified connection per provider.</p></div><button class="btn-primary" id="open-custom-provider" type="button">Add Custom Provider</button></header>
-  <div id="provider-list-status" aria-live="polite"></div>
-  <section class="section-card">
-    <h2>Custom Providers</h2>
-    {% for provider in custom_providers %}
-    <a class="settings-row" href="/admin/api-providers/{{ provider.provider_id }}"><span><strong>{{ provider.display_name }}</strong><span class="meta">{{ provider.compatibility|capitalize }}-compatible</span></span><span>{{ 'Connected' if provider.connection_status == 'verified' else 'No connection' }} ›</span></a>
-    {% else %}<p class="empty-state">No custom providers.</p>{% endfor %}
-  </section>
-  <section class="section-card">
-    <h2>API Key Providers</h2>
-    {% for provider in predefined_providers %}
-    <a class="settings-row" href="/admin/api-providers/{{ provider.provider_id }}"><span><strong>{{ provider.display_name }}</strong><span class="meta">{{ provider.compatibility|capitalize }}-compatible</span></span><span>{{ 'Connected' if provider.connection_status == 'verified' else 'No connection' }} ›</span></a>
-    {% endfor %}
-  </section>
+<style>
+  .provider-section{display:grid;gap:14px}.provider-page-actions,.provider-add-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.provider-page-actions{justify-content:space-between}.provider-search{width:min(360px,100%)}.provider-search .field{width:100%}.provider-grid{display:grid;grid-template-columns:1fr;gap:0}.provider-card{display:flex;min-height:72px;align-items:center;gap:14px;padding:14px 16px;border:0;border-bottom:1px solid var(--border-soft);border-radius:0;background:var(--surface);color:var(--text);box-shadow:none;text-decoration:none}.provider-card:last-child{border-bottom:0}.provider-card[hidden]{display:none}.provider-card:hover{background:var(--surface-2);text-decoration:none}.provider-monogram{display:grid;width:44px;height:44px;flex:0 0 44px;place-items:center;border-radius:11px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:800;letter-spacing:.04em}.provider-card-copy{min-width:0;flex:1}.provider-card-copy strong{display:block;font-size:16px}.provider-card-copy span{display:block;margin-top:4px;color:var(--muted);font-size:13px}.provider-status{display:inline-flex;width:max-content;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:11px;font-weight:700;white-space:nowrap}.provider-status.connected{background:color-mix(in srgb,#22c55e 13%,var(--surface));color:#15803d}.provider-status::before{width:7px;height:7px;border-radius:50%;background:currentColor;content:""}.provider-chevron{color:var(--muted);font-size:22px}.provider-empty{padding:22px;color:var(--muted);text-align:center}.provider-dialog-form{display:grid;gap:16px;padding:22px}.provider-dialog-form .dialog-head{margin:-22px -22px 0}.provider-dialog-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}@media(max-width:640px){.provider-page-actions,.provider-add-actions{align-items:stretch;flex-direction:column}.provider-search,.provider-search .field,.provider-add-actions .btn{width:100%;max-width:none}.provider-card{align-items:flex-start}.provider-status{margin-left:auto}}
+</style>
+<main class="provider-section" data-page="api-providers" data-resource-url="/api-providers">
+  <div class="page-head"><div><p class="eyebrow">Application</p><h2>API Providers</h2><p>Manage predefined and custom AI provider connections. Each provider supports one connection.</p></div></div>
+  <div class="provider-page-actions">
+    <label class="provider-field provider-search"><span class="sr-only">Search providers</span><input class="field" id="provider-search" type="search" placeholder="Search providers" aria-label="Search API providers"></label>
+    <div class="provider-add-actions"><button class="btn" type="button" data-add-custom-provider="openai">Add OpenAI-compatible</button><button class="btn" type="button" data-add-custom-provider="anthropic">Add Anthropic-compatible</button></div>
+  </div>
+  <div id="provider-list-status" aria-live="polite" hidden></div>
+  <details class="section-card collapsible-section setting-section" open>
+    <summary><span class="section-heading"><strong>Custom Providers</strong><span>Connect OpenAI-compatible or Anthropic-compatible endpoints.</span></span></summary>
+    <div class="section-content settings-card">
+      {% if custom_providers %}<div class="provider-grid">
+      {% for provider in custom_providers %}<a class="provider-card" href="/admin/api-providers/{{ provider.provider_id }}" data-provider-card data-provider-search="{{ provider.display_name|lower }} {{ provider.compatibility|lower }}"><span class="provider-monogram" aria-hidden="true">{{ provider.display_name[:2]|upper }}</span><span class="provider-card-copy"><strong>{{ provider.display_name }}</strong><span>{{ 'Anthropic-compatible' if provider.compatibility == 'anthropic' else 'OpenAI-compatible' }}</span></span><span class="provider-status{{ ' connected' if provider.connection_status == 'verified' else '' }}">{{ 'Connected' if provider.connection_status == 'verified' else 'No connection' }}</span><span class="provider-chevron" aria-hidden="true">›</span></a>{% endfor %}
+      </div>{% else %}<div class="provider-empty">No custom providers yet. Add one from the buttons above.</div>{% endif %}
+    </div>
+  </details>
+  <details class="section-card collapsible-section setting-section" open>
+    <summary><span class="section-heading"><strong>API Key Providers</strong><span>Predefined API-key providers supplied by FitCV.</span></span></summary>
+    <div class="section-content settings-card"><div class="provider-grid">
+      {% for provider in predefined_providers %}<a class="provider-card" href="/admin/api-providers/{{ provider.provider_id }}" data-provider-card data-provider-search="{{ provider.display_name|lower }} {{ provider.compatibility|lower }}"><span class="provider-monogram" aria-hidden="true">{{ provider.display_name[:2]|upper }}</span><span class="provider-card-copy"><strong>{{ provider.display_name }}</strong><span>{{ 'Anthropic-compatible' if provider.compatibility == 'anthropic' else 'OpenAI-compatible' }}</span></span><span class="provider-status{{ ' connected' if provider.connection_status == 'verified' else '' }}">{{ 'Connected' if provider.connection_status == 'verified' else 'No connection' }}</span><span class="provider-chevron" aria-hidden="true">›</span></a>{% endfor %}
+    </div></div>
+  </details>
 </main>
-<dialog class="workspace-dialog" id="custom-provider-dialog" aria-labelledby="custom-provider-title">
-  <form id="custom-provider-form"><h2 id="custom-provider-title">Add Custom Provider</h2><label>Display name<input name="display_name" required maxlength="120"></label><label>Compatibility<select name="compatibility"><option value="openai">OpenAI-compatible</option><option value="anthropic">Anthropic-compatible</option></select></label><p id="custom-provider-status" class="meta" role="status" aria-live="polite"></p><div class="selection-toolbar"><button class="btn-primary" type="submit">Add Provider</button><button class="btn-secondary" id="cancel-custom-provider" type="button">Cancel</button></div></form>
+<dialog class="workspace-dialog pipeline-dialog" id="custom-provider-dialog" aria-labelledby="custom-provider-title">
+  <form id="custom-provider-form" class="provider-dialog-form">
+    <div class="dialog-head"><div><h2 id="custom-provider-title">Add Provider</h2><p id="custom-provider-description">Create a custom provider connection.</p></div><button class="dialog-close" id="close-custom-provider" type="button" aria-label="Close">×</button></div>
+    <label class="provider-field"><span>Display Name</span><input class="field" name="display_name" required maxlength="120"></label>
+    <input name="compatibility" type="hidden">
+    <div id="custom-provider-status" aria-live="polite" hidden></div>
+    <div class="provider-dialog-actions"><button class="btn" id="cancel-custom-provider" type="button">Cancel</button><button class="btn primary" type="submit">Add Provider</button></div>
+  </form>
 </dialog>
 <script>
 (function(){
-  var dialog=document.getElementById('custom-provider-dialog'),open=document.getElementById('open-custom-provider'),cancel=document.getElementById('cancel-custom-provider'),form=document.getElementById('custom-provider-form'),status=document.getElementById('custom-provider-status');
-  open.addEventListener('click',function(){dialog.showModal();form.elements.display_name.focus();});
-  cancel.addEventListener('click',function(){dialog.close();open.focus();});
-  form.addEventListener('submit',async function(event){event.preventDefault();var submit=event.submitter;submit.disabled=true;status.textContent='Saving…';try{var data=new FormData(form);var result=await fitcvApiRequest('/api-providers',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({display_name:data.get('display_name'),compatibility:data.get('compatibility')})});location.assign('/admin/api-providers/'+encodeURIComponent(result.data.provider_id));}catch(error){status.textContent=error.message;submit.disabled=false;}});
+  var dialog=document.getElementById('custom-provider-dialog'),form=document.getElementById('custom-provider-form'),status=document.getElementById('custom-provider-status'),title=document.getElementById('custom-provider-title'),description=document.getElementById('custom-provider-description'),lastTrigger=null;
+  document.getElementById('provider-search').addEventListener('input',function(){var query=this.value.trim().toLowerCase();document.querySelectorAll('[data-provider-card]').forEach(function(card){card.hidden=Boolean(query&&!card.dataset.providerSearch.includes(query));});});
+  function closeDialog(){dialog.close();if(lastTrigger)lastTrigger.focus();}
+  document.querySelectorAll('[data-add-custom-provider]').forEach(function(button){button.addEventListener('click',function(){lastTrigger=button;var compatibility=button.dataset.addCustomProvider;form.reset();form.elements.compatibility.value=compatibility;title.textContent=compatibility==='anthropic'?'Add Anthropic-compatible Provider':'Add OpenAI-compatible Provider';description.textContent='Name this provider, then configure its connection.';status.hidden=true;dialog.showModal();form.elements.display_name.focus();});});
+  document.getElementById('cancel-custom-provider').addEventListener('click',closeDialog);document.getElementById('close-custom-provider').addEventListener('click',closeDialog);
+  async function createProvider(){var submit=form.querySelector('[type="submit"]'),payload={display_name:form.elements.display_name.value.trim(),compatibility:form.elements.compatibility.value};fitcvRenderAsyncState(status,{kind:'pending',message:'Adding provider…'});try{var result=await fitcvApiRequest('/api-providers',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify(payload)});location.assign('/admin/api-providers/'+encodeURIComponent(result.data.provider_id));}catch(error){var stale=error.status===409;fitcvRenderAsyncState(status,{kind:stale?'stale':'retryable',message:error.message,code:error.code,action:'Retry',retry:function(){fitcvRunLocked(submit,createProvider);}});}}
+  form.addEventListener('submit',function(event){event.preventDefault();var submit=event.submitter;fitcvRunLocked(submit,createProvider);});
 })();
 </script>
 {% endblock %}

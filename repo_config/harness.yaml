@@ -1,0 +1,106 @@
+version: 2
+defaults:
+  workspace: current
+  approval_gates: []
+states:
+  classified: [planned, blocked]
+  planned: [running, awaiting_decision, blocked]
+  running: [observed, awaiting_decision, blocked]
+  observed: [verifying, running, blocked]
+  verifying: [awaiting_decision, accepted, blocked]
+  awaiting_decision: [awaiting_decision, planned, accepted, blocked]
+  accepted: []
+  blocked: []
+retry_policies:
+  bounded:
+    max_attempts: 2
+    retryable_reasons: [check_failed, dispatch_failed, claim_invalid, verification_failed, review_required]
+    exhaustion: block
+    approval_resume: successor_attempt
+    approval_ttl_seconds: 3600
+checks:
+  diff:
+    command: [git, diff, --check]
+tools:
+  shell:
+    optional: false
+  serena:
+    optional: true
+  semble_codebase_search:
+    optional: true
+    fallback: [shell, serena]
+  ast_grep_preview:
+    optional: true
+    fallback: [shell]
+approval_gates:
+  protected_policy:
+    paths: [agents/**, repo_config/harness.yaml, docs/operating_system/rules/**]
+orchestration:
+  single_agent:
+    max_parallel_writers: 1
+    workspace_mode: current
+    review_required: false
+    rules: []
+  sequential_agents:
+    max_parallel_writers: 1
+    workspace_mode: current
+    review_required: true
+    rules: [multi-agent-orchestration-rule]
+  parallel_lanes:
+    max_parallel_writers: 4
+    workspace_mode: isolated
+    review_required: true
+    rules: [multi-agent-orchestration-rule]
+routes:
+  local_change:
+    template: normal
+    role: implement
+    rules: [command-execution-rule, python-contracts-rule]
+    skills: [skill-code-standards, skill-test-driven-development]
+    tools: [shell, serena, ast_grep_preview]
+    workspace: current
+    checks: [diff]
+    approval_gates: [protected_policy]
+    retry_policy: bounded
+    execution_modes: [single_agent, sequential_agents, parallel_lanes]
+  debugging:
+    template: normal
+    role: investigate
+    rules: [command-execution-rule]
+    skills: [skill-systematic-debugging]
+    tools: [shell, serena, ast_grep_preview]
+    workspace: current
+    checks: [diff]
+    retry_policy: bounded
+    execution_modes: [single_agent, sequential_agents]
+  research:
+    template: low
+    role: investigate
+    rules: [command-execution-rule]
+    skills: [skill-brainstorming]
+    tools: [shell, semble_codebase_search]
+    workspace: current
+    checks: [diff]
+    retry_policy: bounded
+    execution_modes: [single_agent, parallel_lanes]
+  plan_review:
+    template: high
+    role: review
+    rules: [doc-contracts-rule]
+    skills: [skill-plan-document-reviewer]
+    tools: [shell, serena]
+    workspace: current
+    checks: [diff]
+    retry_policy: bounded
+    execution_modes: [single_agent, sequential_agents]
+  harness_improvement:
+    template: high
+    role: improve
+    rules: [command-execution-rule, doc-contracts-rule]
+    skills: [skill-improve-harness, skill-writing-skills]
+    tools: [shell, serena]
+    workspace: current
+    checks: [diff]
+    approval_gates: [protected_policy]
+    retry_policy: bounded
+    execution_modes: [single_agent, sequential_agents]

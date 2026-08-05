@@ -26,7 +26,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 import json
 from pathlib import Path
-import re
 import sys
 
 import yaml
@@ -43,8 +42,6 @@ class Mapping:
 GENERATED_BY = "scripts/sync_agent_adapters.py"
 ROOT_INSTRUCTION_SOURCE = "docs/operating_system/templates/agents/root-AGENTS.template.md"
 ROOT_INSTRUCTION_DESTINATION = "AGENTS.md"
-MANIFEST_BEGIN = "<!-- BEGIN GENERATED: RUNTIME_MANIFEST -->"
-MANIFEST_END = "<!-- END GENERATED: RUNTIME_MANIFEST -->"
 
 
 def _render_json_from_yaml(text: str) -> str:
@@ -69,109 +66,6 @@ def _codex_rules_filename(path: Path) -> str:
     if name.endswith(".md"):
         return f"{name[:-3]}.rules"
     return f"{name}.rules"
-
-
-def _strip_extension(name: str) -> str:
-    return name[:-3] if name.endswith(".md") else name
-
-
-def _title_from_name(name: str) -> str:
-    return _strip_extension(name).replace("-", " ").replace("_", " ").strip().title()
-
-
-def _extract_title_and_summary(path: Path, *, body: str | None = None) -> tuple[str, str]:
-    raw = body if body is not None else path.read_text(encoding="utf-8")
-    text = _strip_generated_block(raw.replace("\r\n", "\n"))
-    title = ""
-    summary = ""
-    if text.startswith("---\n"):
-        parts = text.split("---\n", 2)
-        if len(parts) >= 3:
-            payload = yaml.safe_load(parts[1]) or {}
-            if isinstance(payload, dict):
-                title = str(payload.get("name") or "").strip()
-                desc = payload.get("description")
-                if isinstance(desc, str):
-                    summary = " ".join(desc.split())
-            text = parts[2].lstrip("\n")
-    if not title:
-        for line in text.splitlines():
-            if line.startswith("# "):
-                title = line[2:].strip()
-                break
-    if not summary:
-        for line in text.splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or stripped.startswith(">"):
-                continue
-            summary = stripped
-            break
-    if not title:
-        title = _title_from_name(path.name)
-    if not summary:
-        summary = title
-    return title, summary.rstrip(".") + "."
-
-
-def _render_manifest(root: Path, platform: str) -> str:
-    rules_root = root / "docs" / "operating_system" / "rules"
-    skills_root = root / ".agents" / "skills"
-    lines = [
-        MANIFEST_BEGIN,
-        "## Runtime Extension Manifest (Generated)",
-        "",
-        "> [!IMPORTANT]",
-        "> This section is generated. Do not edit manually.",
-        "> Source of truth: `docs/operating_system/rules/*.md`, `.agents/skills/*/SKILL.md`.",
-        "> Regenerate via: `scripts/sync_agent_adapters.py`.",
-        "",
-        "### Rules Manifest",
-    ]
-    for path in sorted(rules_root.glob("*.md")):
-        title, summary = _extract_title_and_summary(path)
-        lines.append(f"- `{path.name}` — {summary}")
-        lines.append(f"  - Source: `docs/operating_system/rules/{path.name}`")
-    lines.extend(["", "### Native Skills Manifest"])
-    for path in sorted(skills_root.glob("*/SKILL.md")):
-        title, summary = _extract_title_and_summary(path)
-        skill_name = path.parent.name
-        lines.append(f"- `{skill_name}` — {summary}")
-        lines.append(f"  - Source: `.agents/skills/{skill_name}/SKILL.md`")
-    lines.extend(["", "### Resolution Notes"])
-    if platform == "codex":
-        lines.extend([
-            "- `AGENTS.md` is the authoritative Codex root instruction surface.",
-            "- Rules are summarized here; reusable methods stay in native skills and prompts provide wording.",
-        ])
-    elif platform == "claude":
-        lines.extend([
-            "- `CLAUDE.md` complements provider-native rules and skills surfaces.",
-            "- Reusable methods deploy through native skills; prompts remain wording-only.",
-        ])
-    else:
-        lines.extend([
-            "- `GEMINI.md` is the primary guaranteed root instruction surface.",
-            "- Skills under `antigravity/skills/*/SKILL.md` are the runtime-critical execution surface.",
-        ])
-    lines.extend([
-        "",
-        "<!-- MANIFEST_METADATA",
-        "version: 1",
-        f"generated_by: {GENERATED_BY}",
-        "-->",
-        MANIFEST_END,
-        "",
-    ])
-    return "\n".join(lines)
-
-
-def _inject_manifest(text: str, *, manifest: str) -> str:
-    normalized = text.replace("\r\n", "\n").rstrip("\n")
-    pattern = re.compile(r"\n?" + re.escape(MANIFEST_BEGIN) + r".*?" + re.escape(MANIFEST_END), re.S)
-    if pattern.search(normalized):
-        replaced = pattern.sub("\n" + manifest.rstrip("\n"), normalized, count=1)
-        return replaced.strip() + "\n"
-    return normalized + "\n\n" + manifest.rstrip("\n") + "\n"
 
 
 def repo_root() -> Path:
@@ -390,7 +284,7 @@ def _find_orphan_generated_surfaces(root: Path, mappings: list[Mapping]) -> list
     return orphans
 
 
-def _sync_file(root: Path, mapping: Mapping, *, platform: str, check: bool) -> list[str]:
+def _sync_file(root: Path, mapping: Mapping, *, check: bool) -> list[str]:
     src = root / mapping.source
     dst = root / mapping.destination
     if not src.exists():
@@ -400,11 +294,8 @@ def _sync_file(root: Path, mapping: Mapping, *, platform: str, check: bool) -> l
     if mapping.mode == "render_json_from_yaml":
         payload = _inject_json_generated_metadata(yaml.safe_load(src_text) or {}, source_rel=source_rel)
         rendered = json.dumps(payload, indent=2) + "\n"
-    elif mapping.mode == "render_root_doc_with_manifest":
-        rendered = _inject_manifest(
-            _render_with_header(src_text, source_rel=source_rel, prefix=mapping.comment_prefix),
-            manifest=_render_manifest(root, platform),
-        )
+    elif mapping.mode == "render_root_doc":
+        rendered = _render_with_header(src_text, source_rel=source_rel, prefix=mapping.comment_prefix)
     elif mapping.mode == "render_codex_rule_file":
         body = _strip_markdown_frontmatter(src_text)
         rendered = _render_with_header(
@@ -508,11 +399,10 @@ def _sync_root_instruction(root: Path, *, check: bool) -> list[str]:
         Mapping(
             source=ROOT_INSTRUCTION_SOURCE,
             destination=ROOT_INSTRUCTION_DESTINATION,
-            mode="render_root_doc_with_manifest",
+            mode="render_root_doc",
             comment_prefix="#",
             include_glob=None,
         ),
-        platform="codex",
         check=check,
     )
 
@@ -593,7 +483,7 @@ def run() -> int:
                     )
                 )
             else:
-                issues.extend(_sync_file(root, mapping, platform=platform, check=args.check))
+                issues.extend(_sync_file(root, mapping, check=args.check))
         print(f"Processed adapter: {platform}")
     if args.check and not selected_platforms:
         issues.extend(

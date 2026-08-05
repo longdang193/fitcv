@@ -1,0 +1,77 @@
+- generic [ref=f7e2]:
+  - complementary "Primary navigation" [ref=f7e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f7e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f7e9]:
+        - strong [ref=f7e10]: FitCV Control Plane
+        - generic [ref=f7e11]: Local workspace
+    - navigation "Workspace" [ref=f7e12]:
+      - link "Runs" [ref=f7e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f7e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f7e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f7e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f7e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f7e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f7e32]:
+    - banner [ref=f7e33]:
+      - generic [ref=f7e38]:
+        - heading "Candidate Profiles" [level=1] [ref=f7e39]
+        - paragraph [ref=f7e40]: Create and review profiles used by matching runs.
+      - button "Switch to dark theme" [ref=f7e42] [cursor=pointer]:
+        - generic [ref=f7e45]: Dark
+    - main [ref=f7e48]:
+      - generic [ref=f7e49]:
+        - generic [ref=f7e50]:
+          - paragraph [ref=f7e51]: Workspace
+          - heading "Candidate Profiles" [level=2] [ref=f7e52]
+          - paragraph [ref=f7e53]: Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
+        - button "Create Profile" [ref=f7e54] [cursor=pointer]
+      - region [ref=f7e55]:
+        - generic [ref=f7e56]:
+          - generic [ref=f7e57]:
+            - heading "Creation drafts" [level=3] [ref=f7e58]
+            - text: Paused and failed attempts are not available to Runs.
+          - generic [ref=f7e59]: 0 drafts
+        - generic [ref=f7e61]:
+          - strong [ref=f7e62]: No creation drafts
+          - generic [ref=f7e63]: Upload Markdown, DOCX, or YAML to start one staged review.
+      - generic [ref=f7e64]:
+        - tablist "Candidate Profile views" [ref=f7e65]:
+          - tab "Active 0" [ref=f7e66] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f7e67]: "0"
+          - tab "Archived 1" [selected] [ref=f7e68] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f7e69]: "1"
+        - tabpanel "Archived 1" [ref=f7e70]:
+          - generic [ref=f7e93]:
+            - generic [ref=f7e94]:
+              - strong [ref=f7e95]: 1 archived profile selected
+              - generic [ref=f7e96]: Delete permanently only profiles with no related Runs.
+            - button "Delete Profile" [ref=f7e98] [cursor=pointer]
+          - table [ref=f7e73]:
+            - rowgroup [ref=f7e74]:
+              - row [ref=f7e75]:
+                - columnheader [ref=f7e76]:
+                  - checkbox "Select all visible profiles" [checked] [ref=f7e77]
+                - columnheader "Profile ID" [ref=f7e78]
+                - columnheader "Status" [ref=f7e79]
+                - columnheader "Profile Name" [ref=f7e80]
+                - columnheader "Created Time" [ref=f7e81]
+            - rowgroup [ref=f7e82]:
+              - row [ref=f7e83]:
+                - cell [ref=f7e84]:
+                  - checkbox "Select profile profile-a57a1617fc11400a93d18dc68899d371" [checked] [active] [ref=f7e85]
+                - cell [ref=f7e86]:
+                  - button "Open details for profile-a57a1617fc11400a93d18dc68899d371" [ref=f7e87] [cursor=pointer]: profile-a57a1617fc11400a93d18dc68899d371
+                - cell "Succeeded" [ref=f7e88]
+                - cell "Browser Delete Profile" [ref=f7e90]
+                - cell [ref=f7e91]:
+                  - time [ref=f7e92]: Aug 5, 2026, 3:33 PM
+      - status

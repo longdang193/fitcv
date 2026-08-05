@@ -1,0 +1,81 @@
+- generic [ref=f4e2] [box=0,0,1425,1361]:
+  - complementary "Primary navigation" [ref=f4e3] [box=0,0,288,1361]:
+    - link "FitCV Control Plane Local workspace" [ref=f4e4] [cursor=pointer] [box=0,0,287,88]:
+      - /url: /admin/settings
+      - generic [ref=f4e9] [box=74,24,161,42]:
+        - strong [ref=f4e10] [box=74,24,161,25]: FitCV Control Plane
+        - generic [ref=f4e11] [box=74,49,161,17]: Local workspace
+    - navigation "Workspace" [ref=f4e12] [box=0,88,287,862]:
+      - link "Runs" [ref=f4e13] [cursor=pointer] [box=16,90,255,36]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f4e16] [cursor=pointer] [box=16,128,255,36]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f4e20] [cursor=pointer] [box=16,166,255,36]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f4e24] [cursor=pointer] [box=16,204,255,36]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f4e27] [cursor=pointer] [box=16,242,255,36]:
+        - /url: /admin/synonyms
+      - group [ref=f4e31] [box=16,282,255,462]:
+        - generic "Pipeline ›" [ref=f4e32] [cursor=pointer] [box=16,282,255,42]
+        - generic [ref=f4e35] [box=16,324,255,420]:
+          - link "Overview" [ref=f4e36] [cursor=pointer] [box=28,328,243,36]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f4e37] [cursor=pointer] [box=28,366,243,36]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f4e38] [cursor=pointer] [box=28,404,243,36]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f4e39] [cursor=pointer] [box=28,442,243,36]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f4e40] [cursor=pointer] [box=28,480,243,36]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f4e41] [cursor=pointer] [box=28,518,243,36]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f4e42] [cursor=pointer] [box=28,556,243,36]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f4e43] [cursor=pointer] [box=28,594,243,36]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f4e44] [cursor=pointer] [box=28,632,243,36]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f4e45] [cursor=pointer] [box=28,670,243,36]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f4e46] [cursor=pointer] [box=28,708,243,36]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f4e47] [box=16,756,255,158]:
+        - generic "Application ›" [ref=f4e48] [cursor=pointer] [box=16,756,255,42]
+        - generic [ref=f4e52] [box=16,798,255,116]:
+          - link "API Providers" [ref=f4e53] [cursor=pointer] [box=28,802,243,36]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f4e54] [cursor=pointer] [box=28,840,243,36]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f4e55] [cursor=pointer] [box=28,878,243,36]:
+            - /url: /admin/system
+  - generic [ref=f4e56] [box=288,0,1137,1361]:
+    - banner [ref=f4e57] [box=288,0,1137,72]:
+      - generic [ref=f4e61] [box=353,9,245,53]:
+        - heading "Runs" [level=1] [ref=f4e62] [box=353,9,245,32]
+        - paragraph [ref=f4e63] [box=353,43,245,19]: Trigger and monitor FitCV pipeline runs.
+      - generic [ref=f4e64] [box=1311,17,82,38]:
+        - button "Switch to dark theme" [ref=f4e65] [cursor=pointer] [box=1311,17,38,38]:
+          - generic [ref=f4e68] [box=1329,35,1,1]: Dark
+        - button "Shutdown FitCV" [ref=f4e69] [cursor=pointer] [box=1355,17,38,38]
+    - main [ref=f4e74] [box=376,112,960,1209]:
+      - generic [ref=f4e75] [box=376,112,960,87]:
+        - generic [ref=f4e76] [box=376,112,827,87]:
+          - paragraph [ref=f4e77] [box=376,118,560,16]: Workspace
+          - heading "Runs" [level=2] [ref=f4e78] [box=376,134,827,39]
+          - paragraph [ref=f4e79] [box=376,179,560,20]: Trigger and monitor FitCV pipeline runs.
+        - button "Trigger Run" [ref=f4e80] [cursor=pointer] [box=1227,112,109,38]
+      - generic [ref=f4e81] [box=376,221,960,1099]:
+        - tablist "Run views" [ref=f4e82] [box=376,221,960,38]:
+          - tab "Active 0" [selected] [ref=f4e83] [cursor=pointer] [box=376,221,86,38]:
+            - text: Active
+            - generic [ref=f4e84] [box=440,234,8,12]: "0"
+          - tab "Archived 0" [ref=f4e85] [cursor=pointer] [box=471,221,105,38]:
+            - text: Archived
+            - generic [ref=f4e86] [box=553,234,8,12]: "0"
+        - tabpanel "Active 0" [ref=f4e87] [box=376,273,960,1047]:
+          - generic [ref=f4e89] [box=377,274,958,1046]:
+            - heading "No active runs yet" [level=3] [ref=f4e92] [box=409,1206,894,24]
+            - paragraph [ref=f4e93] [box=409,1229,894,20]: Trigger a run to process a job file with one of your Candidate Profiles.
+            - button "Trigger Run" [ref=f4e94] [cursor=pointer] [box=802,1250,109,38]

@@ -56,6 +56,7 @@ class RunStore(Protocol):
     def get_candidate_profile_review(self, attempt_id: str, stage: str) -> dict[str, Any] | None: ...
     def patch_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
     def regenerate_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
+    def undo_candidate_profile_regeneration(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
     def approve_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
     def get_candidate_profile_confirmation(self, attempt_id: str) -> dict[str, Any] | None: ...
     def confirm_candidate_profile_creation_attempt(self, attempt_id: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -67,6 +68,7 @@ class RunStore(Protocol):
     def get_candidate_profile_detail(self, profile_id: str) -> dict[str, Any] | None: ...
     def query_candidate_profile_runs(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def transition_candidate_profile_lifecycle(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def delete_candidate_profile(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def get_synonym_policy(self, synonym_type: str) -> dict[str, Any]: ...
     def save_synonym_policy_draft(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]: ...
     def activate_synonym_policy_bundle(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -225,6 +227,7 @@ class ControlPlaneStore:
     get_candidate_profile_review_fn: Any | None = None
     patch_candidate_profile_review_fn: Any | None = None
     regenerate_candidate_profile_review_fn: Any | None = None
+    undo_candidate_profile_regeneration_fn: Any | None = None
     approve_candidate_profile_review_fn: Any | None = None
     get_candidate_profile_confirmation_fn: Any | None = None
     confirm_candidate_profile_creation_attempt_fn: Any | None = None
@@ -236,6 +239,7 @@ class ControlPlaneStore:
     get_candidate_profile_detail_fn: Any | None = None
     query_candidate_profile_runs_fn: Any | None = None
     transition_candidate_profile_lifecycle_fn: Any | None = None
+    delete_candidate_profile_fn: Any | None = None
     get_synonym_policy_fn: Any | None = None
     save_synonym_policy_draft_fn: Any | None = None
     activate_synonym_policy_bundle_fn: Any | None = None
@@ -624,6 +628,15 @@ class ControlPlaneStore:
             self._call(self.regenerate_candidate_profile_review_fn, sqlite_store.regenerate_candidate_profile_review, attempt_id, stage, **kwargs),
         )
 
+    def undo_candidate_profile_regeneration(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.undo_candidate_profile_regeneration_fn,
+            sqlite_store.undo_candidate_profile_regeneration,
+            attempt_id,
+            stage,
+            **kwargs,
+        )
+
     def approve_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]:
         return cast(
             dict[str, Any],
@@ -706,6 +719,14 @@ class ControlPlaneStore:
         return self._call_dict(
             self.transition_candidate_profile_lifecycle_fn,
             sqlite_store.transition_candidate_profile_lifecycle,
+            profile_id,
+            **kwargs,
+        )
+
+    def delete_candidate_profile(self, profile_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.delete_candidate_profile_fn,
+            sqlite_store.delete_candidate_profile,
             profile_id,
             **kwargs,
         )

@@ -1,0 +1,47 @@
+- generic [ref=f2e2]:
+  - complementary "Primary navigation" [ref=f2e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f2e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f2e9]:
+        - strong [ref=f2e10]: FitCV Control Plane
+        - generic [ref=f2e11]: Local workspace
+    - navigation "Workspace" [ref=f2e12]:
+      - link "Runs" [ref=f2e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f2e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f2e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f2e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f2e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f2e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f2e32]:
+    - banner [ref=f2e33]:
+      - generic [ref=f2e37]:
+        - heading "Scans" [level=1] [ref=f2e38]
+        - paragraph [ref=f2e39]: Create reusable FitCV job input from tracked companies.
+      - button "Switch to dark theme" [ref=f2e41] [cursor=pointer]:
+        - generic [ref=f2e44]: Dark
+    - main [ref=f2e47]:
+      - generic [ref=f2e48]:
+        - generic [ref=f2e49]:
+          - paragraph [ref=f2e50]: Workspace
+          - heading "Scans" [level=2] [ref=f2e51]
+          - paragraph [ref=f2e52]: Create reusable FitCV job input from tracked companies.
+        - button "New Scan" [ref=f2e53] [cursor=pointer]
+      - generic [ref=f2e54]:
+        - tablist "Scan views" [ref=f2e55]:
+          - tab "Active 0" [selected] [ref=f2e56] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f2e57]: "0"
+          - tab "Archived 0" [ref=f2e58] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f2e59]: "0"
+        - tabpanel "Active 0" [ref=f2e60]:
+          - status
+          - generic [ref=f2e62]:
+            - heading "No active Scans yet" [level=3] [ref=f2e66]
+            - paragraph [ref=f2e67]: Create a Scan to produce reusable FitCV job input.

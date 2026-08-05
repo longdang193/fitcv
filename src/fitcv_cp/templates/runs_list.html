@@ -5,70 +5,62 @@
 <main data-page="runs" data-header-title="Runs" data-header-description="Trigger and monitor FitCV pipeline runs.">
   <div class="page-head">
     <div><p class="eyebrow">Workspace</p><h2>Runs</h2><p>Trigger and monitor FitCV pipeline runs.</p></div>
-    <button id="open-trigger-run" class="btn" type="button">Trigger Run</button>
+    <button class="btn" type="button" data-open-run-dialog>Trigger Run</button>
   </div>
   <div class="run-panel">
     <div class="run-tabs" role="tablist" aria-label="Run views">
-      <a class="btn" role="tab" tabindex="{{ '0' if view == 'active' else '-1' }}" href="/admin/runs?view=active&page_size={{ page_size }}" aria-selected="{{ 'true' if view == 'active' else 'false' }}">Active <span class="run-tab-count">{{ active_count }}</span></a>
-      <a class="btn" role="tab" tabindex="{{ '0' if view == 'archived' else '-1' }}" href="/admin/runs?view=archived&page_size={{ page_size }}" aria-selected="{{ 'true' if view == 'archived' else 'false' }}">Archived <span class="run-tab-count">{{ archived_count }}</span></a>
+      <a class="btn" id="activeRunsTab" role="tab" aria-controls="runTablePanel" tabindex="{{ '0' if view == 'active' else '-1' }}" href="/admin/runs?view=active&page_size={{ page_size }}" aria-selected="{{ 'true' if view == 'active' else 'false' }}">Active<span class="run-tab-count">{{ active_count }}</span></a>
+      <a class="btn" id="archivedRunsTab" role="tab" aria-controls="runTablePanel" tabindex="{{ '0' if view == 'archived' else '-1' }}" href="/admin/runs?view=archived&page_size={{ page_size }}" aria-selected="{{ 'true' if view == 'archived' else 'false' }}">Archived<span class="run-tab-count">{{ archived_count }}</span></a>
     </div>
-    <div id="runTablePanel" role="tabpanel">
-      <div id="bulk-action-bar" class="run-selection" hidden>
-        <div class="run-selection-copy"><strong id="selected-run-count">0 selected</strong><span>Changes apply to selected Runs on this page.</span></div>
-        <div class="run-selection-actions">
-          {% if view == 'active' %}<button type="button" class="btn" onclick="bulkLifecycleAction('cancel', this)">Cancel Run</button><button type="button" class="btn" onclick="bulkLifecycleAction('archive', this)">Archive Run</button>{% else %}<button type="button" class="btn" onclick="bulkLifecycleAction('unarchive', this)">Unarchive Run</button><button type="button" class="btn danger" onclick="bulkDeleteArchivedRuns(this)">Delete Run</button>{% endif %}
-        </div>
-      </div>
+    <div id="runTablePanel" role="tabpanel" aria-labelledby="{{ 'activeRunsTab' if view == 'active' else 'archivedRunsTab' }}">
       {% if runs %}
       <div class="section-card table-card">
         <div class="table-scroll">
           <table class="run-table runs-table">
             <thead><tr><th><input type="checkbox" id="select-all-runs" aria-label="Select visible Runs" onchange="toggleSelectAllRuns(this)"></th><th>Run ID</th><th>Status</th><th>Job Name</th><th>Created Time</th><th>Duration</th></tr></thead>
-            <tbody>{% for run in runs %}{% set status_projection = run_status_projection.get(run.run_id, {}) %}<tr><td><input type="checkbox" name="selected_run_ids" value="{{ run.run_id }}" data-archived-at="{{ run.archived_at.isoformat() if run.archived_at else '' }}" aria-label="Select {{ run.run_id }}" onchange="updateBulkActionBar()"></td><td><a class="run-id run-id-link" href="/admin/runs/{{ run.run_id }}?return_to={{ current_url|urlencode }}">{{ run.run_id }}</a></td><td><span class="badge run-status" data-status="{{ run.status.value|replace('_',' ')|title }}">{{ run.status.value|replace('_',' ')|title }}</span>{% if status_projection.is_archived %} <span class="badge run-status">Archived</span>{% endif %}</td><td><span class="run-job">{{ run.run_name or run.jobs_path_display or run.jobs_path }}</span></td><td><span class="run-created">{{ run_created_display.get(run.run_id, '—') }}</span></td><td><span class="run-duration">{{ run_duration_display.get(run.run_id, '—') }}</span></td></tr>{% endfor %}</tbody>
+            <tbody>{% for run in runs %}{% set status_projection = run_status_projection.get(run.run_id, {}) %}<tr><td><input type="checkbox" name="selected_run_ids" value="{{ run.run_id }}" data-status="{{ run.status.value }}" data-archived-at="{{ run.archived_at.isoformat() if run.archived_at else '' }}" aria-label="Select {{ run.run_id }}" onchange="updateBulkActionBar()"></td><td><a class="run-id run-id-link" href="/admin/runs/{{ run.run_id }}?return_to={{ current_url|urlencode }}">{{ run.run_id }}</a></td><td><span class="badge run-status" data-status="{{ run.status.value|replace('_',' ')|title }}">{{ run.status.value|replace('_',' ')|title }}</span>{% if status_projection.is_archived %} <span class="badge run-status">Archived</span>{% endif %}</td><td><span class="run-job">{{ run.run_name or run.jobs_path_display or run.jobs_path }}</span></td><td><span class="run-created">{{ run_created_display.get(run.run_id, '—') }}</span></td><td><span class="run-duration">{{ run_duration_display.get(run.run_id, '—') }}</span></td></tr>{% endfor %}</tbody>
           </table>
         </div>
-        {% if total_items > 10 %}<div class="run-pagination"><span>Showing <strong>{{ (page - 1) * page_size + 1 }}</strong> to <strong>{{ [page * page_size, total_items]|min }}</strong> of <strong>{{ total_items }}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size">Rows:<select class="field" onchange="location.href='/admin/runs?view={{ view }}&page_size='+this.value+'&page=1'">{% for size in [10,20,50] %}<option value="{{ size }}" {{ 'selected' if page_size == size else '' }}>{{ size }}</option>{% endfor %}</select></label><div class="run-page-numbers" aria-label="Run table pagination">{% if page > 1 %}<a class="btn" href="/admin/runs?{{ page_query }}&page={{ page - 1 }}" aria-label="Previous page">‹</a>{% endif %}<span class="btn" aria-current="page">{{ page }}</span>{% if page < total_pages %}<a class="btn" href="/admin/runs?{{ page_query }}&page={{ page + 1 }}" aria-label="Next page">›</a>{% endif %}</div></div></div>{% endif %}
+        {% if total_items > 10 %}<div class="run-pagination"><span>Showing <strong>{{ (page - 1) * page_size + 1 }}</strong> to <strong>{{ [page * page_size, total_items]|min }}</strong> of <strong>{{ total_items }}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size" for="runPageSize">Rows:<select class="field" id="runPageSize" onchange="location.href='/admin/runs?view={{ view }}&page_size='+this.value+'&page=1'">{% for size in [10,20,50] %}<option value="{{ size }}" {{ 'selected' if page_size == size else '' }}>{{ size }}</option>{% endfor %}</select></label><div class="run-page-numbers" aria-label="Run table pagination">{% if page > 1 %}<a class="btn" href="/admin/runs?{{ page_query }}&page={{ page - 1 }}" aria-label="Previous page">‹</a>{% endif %}<span class="btn" aria-current="page">{{ page }}</span>{% if page < total_pages %}<a class="btn" href="/admin/runs?{{ page_query }}&page={{ page + 1 }}" aria-label="Next page">›</a>{% endif %}</div></div></div>{% endif %}
       </div>
-      {% else %}<div class="section-card table-card"><div class="empty-state"><h3>No {{ 'Archived' if view == 'archived' else 'Active' }} Runs</h3><p>{{ 'Archived Runs appear here.' if view == 'archived' else 'Trigger a Run to process job input.' }}</p></div></div>{% endif %}
+      {% else %}<div class="section-card table-card"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg><h3>{{ 'No archived runs' if view == 'archived' else 'No active runs yet' }}</h3><p>{{ 'Archived runs will appear here after they are moved from Active.' if view == 'archived' else 'Trigger a run to process a job file with one of your Candidate Profiles.' }}</p>{% if view == 'active' %}<button class="btn" type="button" data-open-run-dialog>Trigger Run</button>{% endif %}</div></div>{% endif %}
     </div>
   </div>
 </main>
 
-<dialog class="workspace-dialog run-dialog" id="trigger-run-dialog" aria-labelledby="trigger-run-title" aria-describedby="trigger-run-description">
-  <div class="dialog-head"><div><h2 id="trigger-run-title">Trigger Run</h2><p id="trigger-run-description">Add a job data file, select eligible Scan outputs, or use both.</p></div><button class="dialog-close" id="close-trigger-run" type="button" aria-label="Close Trigger Run dialog">×</button></div>
-  <form class="run-form" id="trigger-run-form">
-    <div class="run-field"><label for="jobs_file">Job data file <span class="supporting-text">Optional</span></label><input class="field file-input" type="file" id="jobs_file" accept=".json,.jsonl,application/json,application/x-ndjson" aria-describedby="job-source-requirement"><small>Supported: JSON and JSONL.</small></div>
-    <div class="run-field"><label id="eligible-scans-label">Eligible Scan outputs <span class="supporting-text">Optional</span></label><div class="field managed-selection-field" role="group" aria-labelledby="eligible-scans-label" aria-describedby="job-source-requirement"><span class="managed-selection-copy managed-selection-field-copy"><span id="selected-run-scans-summary">No Scan outputs selected.</span><small id="selected-run-scans-preview">Use Manage to search and select successful non-empty Scans.</small></span><button class="btn" id="manage-run-scans" type="button">Manage</button></div></div>
-    <div class="run-field"><small id="job-source-requirement">At least one job source is required. Upload a file, select one or more eligible Scan outputs, or use both.</small></div>
-    <div class="run-field"><label for="candidate_profile_id">Candidate Profile</label><select class="field" id="candidate_profile_id" required aria-describedby="candidate-profile-status candidate-profile-empty-link"><option value="">Loading Candidate Profiles…</option></select><small id="candidate-profile-status" aria-live="polite"></small><a id="candidate-profile-empty-link" href="/admin/candidate-profiles" class="support-link" hidden>Create a Candidate Profile before triggering a Run.</a></div>
-    <div class="run-field"><label for="run_name">Run Name <span class="supporting-text">Optional</span></label><input class="field" type="text" id="run_name" maxlength="120" autocomplete="off" placeholder="Uses combined job input when empty"><small>Shown as Job Name in the run table.</small></div>
-    <input type="hidden" id="config_path" value=".env.yaml">
+<dialog class="run-dialog" id="runDialog" aria-labelledby="runDialogTitle" aria-describedby="runDialogDescription">
+  <div class="dialog-head"><div><h2 id="runDialogTitle">Trigger Run</h2><p id="runDialogDescription">Add a job data file, select eligible Scan outputs, or use both.</p></div><button class="dialog-close" id="closeRunDialog" type="button" aria-label="Close Trigger Run dialog">×</button></div>
+  <form class="run-form" id="runForm">
+    <div class="run-source-panel" id="runUploadSource"><div class="run-field"><label for="jobFile">Job data file <span class="supporting-text">Optional</span></label><input class="field file-input" id="jobFile" type="file" accept=".json,.jsonl,application/json,application/x-ndjson" aria-describedby="jobFileHelp runJobSourceRequirement"><small id="jobFileHelp">Supported: JSON and JSONL.</small></div></div>
+    <div class="run-source-panel" id="runScanSource"><div class="run-field"><label id="runScansLabel">Eligible Scan outputs <span class="supporting-text">Optional</span></label><div class="field managed-selection-field" role="group" aria-labelledby="runScansLabel" aria-describedby="runJobSourceRequirement"><span class="managed-selection-field-copy"><span id="runScanSummary">No Scan outputs selected.</span><small id="runScanPreview">Use Manage to search and select eligible Scans.</small></span><button class="btn" id="manageRunScans" type="button">Manage</button></div><div class="run-source-empty" id="runScanEmpty" hidden>No successful non-empty Scans available. You can still upload a job data file. <a class="support-link" href="/admin/scans">Manage Scans</a></div></div></div>
+    <div class="run-field"><small id="runJobSourceRequirement">At least one job source is required. Upload a job data file, select one or more eligible Scan outputs, or use both.</small></div>
+    <div class="run-field"><label for="candidateProfile">Candidate Profile</label><select class="field" id="candidateProfile" aria-describedby="candidateProfileHelp" required><option value="">Select a Candidate Profile</option></select><small id="candidateProfileHelp">Shows Active, Succeeded profiles from Candidate Profiles. <a class="support-link" href="/admin/candidate-profiles">Manage Candidate Profiles</a></small><div class="run-empty-profile" id="candidateProfileEmpty" hidden><strong>No available Candidate Profiles</strong>Create or restore an Active, Succeeded profile before triggering a run.</div></div>
+    <div class="run-field"><label for="runName">Run Name <span class="supporting-text">Optional</span></label><input class="field" id="runName" type="text" maxlength="120" autocomplete="off" placeholder="Uses combined job input when empty"><small>Shown as Job Name in the run table.</small></div>
   </form>
-  <p id="trigger-status" class="run-dialog-status" role="status" aria-live="polite">Choose job input and a Candidate Profile.</p>
-  <div class="dialog-actions"><button class="btn" id="cancel-trigger-run" type="button">Cancel</button><button type="button" id="trigger-btn" class="btn primary" onclick="triggerRun()">Trigger</button></div>
+  <div class="run-dialog-status" id="runDialogStatus" role="status" aria-live="polite">Choose job input and a Candidate Profile.</div>
+  <div class="dialog-actions"><button class="btn" id="cancelRunDialog" type="button">Cancel</button><button class="btn primary" id="triggerRun" type="button" disabled>Trigger</button></div>
 </dialog>
 
-<dialog class="workspace-dialog run-dialog managed-selection-dialog" id="run-scan-picker-dialog" aria-labelledby="run-scan-picker-title" aria-describedby="run-scan-picker-description">
-  <div class="dialog-head"><div><h2 id="run-scan-picker-title">Manage Eligible Scan Outputs</h2><p id="run-scan-picker-description">Search and select successful Scan outputs for this Run.</p></div><button class="dialog-close" id="close-run-scan-picker" type="button" aria-label="Close Scan output selection dialog">×</button></div>
-  <div class="run-form"><div class="managed-selection-toolbar"><label class="managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="run-scan-picker-search" type="search" autocomplete="off" placeholder="Search Scan ID, name, or company" aria-label="Search eligible Scan outputs"></label></div><div class="managed-selection-actions"><button class="btn" id="select-filtered-run-scans" type="button">Select all filtered</button><button class="btn" id="clear-run-scan-selection" type="button">Clear selection</button><span class="managed-selection-summary" id="run-scan-picker-count">0 selected</span></div><div class="managed-selection-list" id="run-scan-picker-list" aria-live="polite"><p class="empty-state">Loading eligible Scans…</p></div></div>
-  <p id="run-scan-picker-status" class="run-dialog-status" role="status" aria-live="polite"></p>
-  <div class="dialog-actions"><button class="btn" id="cancel-run-scan-selection" type="button">Cancel</button><button class="btn primary" id="apply-run-scan-selection" type="button">Apply</button></div>
+<dialog class="run-dialog managed-selection-dialog" id="runScanDialog" aria-labelledby="runScanDialogTitle" aria-describedby="runScanDialogDescription">
+  <div class="dialog-head"><div><h2 id="runScanDialogTitle">Manage Eligible Scan Outputs</h2><p id="runScanDialogDescription">Search and select successful Scan outputs for this Run.</p></div><button class="dialog-close" id="closeRunScanDialog" type="button" aria-label="Close Scan output selection dialog">×</button></div>
+  <div class="run-form"><div class="managed-selection-toolbar"><label class="search managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="runScanSearch" type="search" autocomplete="off" placeholder="Search Scan ID, name, or company" aria-label="Search eligible Scan outputs"></label></div><div class="managed-selection-actions"><button class="btn" id="selectFilteredRunScans" type="button">Select all filtered</button><button class="btn" id="clearManagedRunScans" type="button">Clear selection</button><span class="managed-selection-summary" id="runScanSelectionSummary">0 selected</span></div><div class="managed-selection-list" id="runScanPickerList" aria-live="polite"><p class="empty-state">Loading eligible Scans…</p></div></div>
+  <p class="run-dialog-status" id="runScanDialogStatus" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button class="btn" id="cancelRunScanDialog" type="button">Cancel</button><button class="btn primary" id="applyRunScans" type="button">Apply</button></div>
 </dialog>
 
 <script>
 async function refreshCandidateProfiles() {
-  const select = document.getElementById('candidate_profile_id');
-  const status = document.getElementById('candidate-profile-status');
-  const emptyLink = document.getElementById('candidate-profile-empty-link');
+  const select = document.getElementById('candidateProfile');
+  const status = document.getElementById('candidateProfileHelp');
+  const emptyState = document.getElementById('candidateProfileEmpty');
   const preserved = select.value;
   select.disabled = true;
   select.innerHTML = '<option value="">Loading Candidate Profiles…</option>';
-  status.textContent = '';
-  emptyLink.hidden = true;
+  emptyState.hidden = true;
   try {
     const payload = await fitcvApiRequest('/candidate-profiles?view=active&status=succeeded&page=1&page_size=50');
     const profiles = Array.isArray(payload.data) ? payload.data : [];
-    select.innerHTML = '<option value="">Select Candidate Profile</option>';
+    select.innerHTML = '<option value="">Select a Candidate Profile</option>';
     profiles.forEach(profile => {
       const option = document.createElement('option');
       option.value = profile.profile_id;
@@ -76,20 +68,43 @@ async function refreshCandidateProfiles() {
       option.selected = option.value === preserved;
       select.appendChild(option);
     });
-    status.textContent = profiles.length ? `${profiles.length} available` : 'No Active, Succeeded Candidate Profiles.';
-    emptyLink.hidden = profiles.length > 0;
+    status.innerHTML = 'Shows Active, Succeeded profiles from Candidate Profiles. <a class="support-link" href="/admin/candidate-profiles">Manage Candidate Profiles</a>';
+    emptyState.hidden = profiles.length > 0;
   } catch (error) {
     select.innerHTML = '<option value="">Candidate Profiles unavailable</option>';
     status.textContent = error.message;
+    emptyState.hidden = false;
   } finally {
     select.disabled = false;
+    updateRunTriggerState();
   }
 }
 
 var eligibleRunScans = [];
 var selectedRunScanIds = [];
 var draftRunScanIds = [];
+var triggerRunIdempotencyKey = null;
+var archivedDeleteIdempotencyKey = null;
+var bulkLifecycleIdempotencyKeys = {};
 var runScanTimeFormatter = new Intl.DateTimeFormat(undefined, {dateStyle:'medium', timeStyle:'short'});
+
+function updateRunTriggerState() {
+  const hasInput = Boolean(document.getElementById('jobFile').files[0] || selectedRunScanIds.length);
+  const hasProfile = Boolean(document.getElementById('candidateProfile').value);
+  const availableProfiles = document.getElementById('candidateProfile').options.length > 1;
+  const sourceCount = Number(Boolean(document.getElementById('jobFile').files[0])) + selectedRunScanIds.length;
+  const trigger = document.getElementById('triggerRun');
+  trigger.disabled = !(hasInput && hasProfile);
+  if (!availableProfiles) {
+    document.getElementById('runDialogStatus').textContent = 'Create or restore an Active, Succeeded Candidate Profile before triggering a run.';
+  } else if (!hasInput) {
+    document.getElementById('runDialogStatus').textContent = document.getElementById('runJobSourceRequirement').textContent;
+  } else if (!hasProfile) {
+    document.getElementById('runDialogStatus').textContent = 'Select an available Candidate Profile to enable Trigger.';
+  } else {
+    document.getElementById('runDialogStatus').textContent = `Ready to trigger with ${sourceCount} job source${sourceCount === 1 ? '' : 's'}. Current Pipeline Settings and Synonyms will be captured.`;
+  }
+}
 
 function escapeRunScanText(value) {
   return String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -102,143 +117,136 @@ function formatRunScanTime(value) {
 
 function updateRunScanSummary() {
   const selected = selectedRunScanIds.map(id => eligibleRunScans.find(scan => scan.scan_id === id) || {scan_id:id, scan_name:'Unavailable selected Scan'});
-  document.getElementById('selected-run-scans-summary').textContent = selected.length ? `${selected.length} selected` : 'No Scan outputs selected.';
-  document.getElementById('selected-run-scans-preview').textContent = selected.length ? selected.slice(0, 3).map(scan => `${scan.scan_id} · ${scan.scan_name}`).join(', ') : 'Use Manage to search and select successful non-empty Scans.';
+  document.getElementById('runScanSummary').textContent = selected.length ? `${selected.length} selected` : 'No Scan outputs selected.';
+  document.getElementById('runScanPreview').textContent = selected.length ? selected.slice(0, 3).map(scan => `${scan.scan_id} · ${scan.scan_name}`).join(', ') : 'Use Manage to search and select eligible Scans.';
+  updateRunTriggerState();
 }
 
 function renderRunScanPicker() {
-  const query = document.getElementById('run-scan-picker-search').value.trim().toLowerCase();
+  const query = document.getElementById('runScanSearch').value.trim().toLowerCase();
   const filtered = eligibleRunScans.filter(scan => !query || `${scan.scan_id} ${scan.scan_name} ${(scan.company_snapshots || []).map(company => company.company_name).join(' ')}`.toLowerCase().includes(query));
   const unavailable = draftRunScanIds.filter(id => !eligibleRunScans.some(scan => scan.scan_id === id));
-  const list = document.getElementById('run-scan-picker-list');
+  const list = document.getElementById('runScanPickerList');
   const unavailableRows = unavailable.map(id => `<label class="managed-selection-item"><input type="checkbox" value="${escapeRunScanText(id)}" checked><span class="managed-selection-item-copy"><strong>${escapeRunScanText(id)}</strong><small>Unavailable selected Scan · remove before retrying</small></span></label>`).join('');
   const eligibleRows = filtered.map(scan => `<label class="managed-selection-item"><input type="checkbox" value="${escapeRunScanText(scan.scan_id)}" ${draftRunScanIds.includes(scan.scan_id) ? 'checked' : ''}><span class="managed-selection-item-copy"><strong>${escapeRunScanText(scan.scan_id)}</strong><small>${escapeRunScanText(scan.scan_name)} · ${(scan.company_snapshots || []).length} companies · ${Number(scan.output_record_count || 0)} jobs · ${escapeRunScanText(formatRunScanTime(scan.finished_at || scan.created_at))}</small></span></label>`).join('');
   list.innerHTML = unavailableRows + eligibleRows || '<p class="empty-state">No successful non-empty Scans available. Upload remains available. <a href="/admin/scans">Manage Scans</a></p>';
   list.querySelectorAll('input[type="checkbox"]').forEach(input => input.addEventListener('change', () => {
     draftRunScanIds = input.checked ? [...draftRunScanIds, input.value] : draftRunScanIds.filter(id => id !== input.value);
-    document.getElementById('run-scan-picker-count').textContent = `${draftRunScanIds.length} selected`;
+    document.getElementById('runScanSelectionSummary').textContent = `${draftRunScanIds.length} selected`;
   }));
-  document.getElementById('run-scan-picker-count').textContent = `${draftRunScanIds.length} selected`;
-  document.getElementById('run-scan-picker-status').textContent = `${filtered.length} eligible ${filtered.length === 1 ? 'Scan' : 'Scans'} shown.`;
+  document.getElementById('runScanSelectionSummary').textContent = `${draftRunScanIds.length} selected`;
+  document.getElementById('runScanDialogStatus').textContent = `${filtered.length} eligible ${filtered.length === 1 ? 'Scan' : 'Scans'} shown.`;
 }
 
 async function refreshEligibleRunScans() {
   const payload = await fitcvApiRequest('/scans?lifecycle=active&usable_for_run=true&page=1&page_size=50');
   eligibleRunScans = payload.data || [];
+  document.getElementById('runScanEmpty').hidden = eligibleRunScans.length > 0;
   updateRunScanSummary();
 }
 
 async function openRunScanPicker() {
-  const dialog = document.getElementById('run-scan-picker-dialog');
+  const dialog = document.getElementById('runScanDialog');
   draftRunScanIds = [...selectedRunScanIds];
-  document.getElementById('trigger-run-dialog').close();
+  document.getElementById('runDialog').close();
   dialog.showModal();
-  document.getElementById('run-scan-picker-list').innerHTML = '<p class="empty-state">Loading eligible Scans…</p>';
+  document.getElementById('runScanPickerList').innerHTML = '<p class="empty-state">Loading eligible Scans…</p>';
   try {
     await refreshEligibleRunScans();
     renderRunScanPicker();
   } catch (error) {
-    document.getElementById('run-scan-picker-list').innerHTML = `<p class="empty-state">${escapeRunScanText(error.message)}</p>`;
+    fitcvRenderAsyncState(document.getElementById('runScanPickerList'), {kind: 'retryable', message: error.message, code: error.code, action: 'Retry', retry: openRunScanPicker});
   }
 }
 
 async function triggerRun() {
-  const btn = document.getElementById('trigger-btn');
-  const status = document.getElementById('trigger-status');
-  btn.disabled = true; btn.textContent = 'Triggering…'; status.textContent = '';
-
-  try {
-    const fd = new FormData();
-    const jobsFile = document.getElementById('jobs_file').files[0];
-    if (!jobsFile && !selectedRunScanIds.length) {
-      status.textContent = 'At least one job source is required.';
-      document.getElementById('jobs_file').focus();
-      return;
+  const btn = document.getElementById('triggerRun');
+  const status = document.getElementById('runDialogStatus');
+  await fitcvRunLocked(btn, async () => {
+    fitcvRenderAsyncState(status, {kind: 'pending', message: 'Triggering run…'});
+    try {
+      const fd = new FormData();
+      const jobsFile = document.getElementById('jobFile').files[0];
+      if (!jobsFile && !selectedRunScanIds.length) {
+        fitcvRenderAsyncState(status, {kind: 'error', message: 'At least one job source is required.'});
+        document.getElementById('jobFile').focus();
+        return;
+      }
+      if (jobsFile) fd.append('jobs_file', jobsFile);
+      selectedRunScanIds.forEach(scanId => fd.append('scan_ids', scanId));
+      fd.append('config_path', '.env.yaml');
+      fd.append('run_name', document.getElementById('runName').value);
+      const candidateProfile = document.getElementById('candidateProfile');
+      if (!candidateProfile.checkValidity()) { candidateProfile.reportValidity(); return; }
+      fd.append('profile_id', candidateProfile.value);
+      triggerRunIdempotencyKey ||= crypto.randomUUID();
+      await fitcvApiRequest('/runs', {
+        method: 'POST',
+        headers: {'Idempotency-Key': triggerRunIdempotencyKey},
+        body: fd,
+      });
+      persistLifecycleNotice('Run queued.', 'success');
+      triggerRunIdempotencyKey = null;
+      location.href = '/admin/runs?view=active&page_size={{ page_size }}';
+    } catch (error) {
+      if (error.code === 'candidate_profile_unavailable') await refreshCandidateProfiles();
+      if (error.code === 'scan_not_usable' || error.code === 'scan_output_integrity_failed') {
+        try { await refreshEligibleRunScans(); } catch (_refreshError) {}
+      }
+      fitcvRenderAsyncState(status, {kind: 'retryable', message: error.message, code: error.code, action: 'Retry', retry: triggerRun});
     }
-    if (jobsFile) fd.append('jobs_file', jobsFile);
-    selectedRunScanIds.forEach(scanId => fd.append('scan_ids', scanId));
-    fd.append('config_path', document.getElementById('config_path').value);
-    fd.append('run_name', document.getElementById('run_name').value);
-    const candidateProfile = document.getElementById('candidate_profile_id');
-    if (!candidateProfile.checkValidity()) { candidateProfile.reportValidity(); return; }
-    fd.append('profile_id', candidateProfile.value);
-    await fitcvApiRequest('/runs', {
-      method: 'POST',
-      headers: {'Idempotency-Key': crypto.randomUUID()},
-      body: fd,
-    });
-    status.textContent = 'Run queued.';
-    setTimeout(() => location.reload(), 800);
-  } catch (error) {
-    status.textContent = error.code ? `${error.code}: ${error.message}` : error.message;
-    if (error.code === 'candidate_profile_unavailable') await refreshCandidateProfiles();
-    if (error.code === 'scan_not_usable' || error.code === 'scan_output_integrity_failed') {
-      try { await refreshEligibleRunScans(); } catch (_refreshError) {}
-    }
-  } finally {
-    btn.disabled = false; btn.textContent = 'Trigger Run';
-  }
+  });
 }
 
 initializeFitCVPage(() => {
   refreshCandidateProfiles();
-  const triggerDialog = document.getElementById('trigger-run-dialog');
-  const runScanPicker = document.getElementById('run-scan-picker-dialog');
-  const returnToTriggerRun = () => { runScanPicker.close(); triggerDialog.showModal(); document.getElementById('manage-run-scans').focus(); };
-  document.getElementById('open-trigger-run').addEventListener('click', () => triggerDialog.showModal());
-  document.getElementById('close-trigger-run').addEventListener('click', () => triggerDialog.close());
-  document.getElementById('cancel-trigger-run').addEventListener('click', () => triggerDialog.close());
-  document.getElementById('manage-run-scans').addEventListener('click', openRunScanPicker);
-  document.getElementById('close-run-scan-picker').addEventListener('click', returnToTriggerRun);
+  const triggerDialog = document.getElementById('runDialog');
+  const runScanPicker = document.getElementById('runScanDialog');
+  const openTriggerRunDialog = () => { triggerRunIdempotencyKey ||= crypto.randomUUID(); triggerDialog.showModal(); };
+  const closeTriggerRunDialog = () => { triggerRunIdempotencyKey = null; triggerDialog.close(); };
+  const returnToTriggerRun = () => { runScanPicker.close(); triggerDialog.showModal(); document.getElementById('manageRunScans').focus(); };
+  document.querySelectorAll('[data-open-run-dialog]').forEach(button => button.addEventListener('click', openTriggerRunDialog));
+  document.getElementById('closeRunDialog').addEventListener('click', closeTriggerRunDialog);
+  document.getElementById('cancelRunDialog').addEventListener('click', closeTriggerRunDialog);
+  document.querySelectorAll('.run-tabs [role="tab"]').forEach(tab => tab.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    const tabs = Array.from(document.querySelectorAll('.run-tabs [role="tab"]'));
+    const nextTab = tabs[(tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    sessionStorage.setItem('fitcv-focus-run-tab', nextTab.id);
+    nextTab.click();
+  }));
+  const focusTabId = sessionStorage.getItem('fitcv-focus-run-tab');
+  if (focusTabId) {
+    sessionStorage.removeItem('fitcv-focus-run-tab');
+    setTimeout(() => document.getElementById(focusTabId)?.focus(), 0);
+  }
+  document.getElementById('jobFile').addEventListener('change', updateRunTriggerState);
+  document.getElementById('candidateProfile').addEventListener('change', updateRunTriggerState);
+  document.getElementById('triggerRun').addEventListener('click', triggerRun);
+  document.getElementById('manageRunScans').addEventListener('click', openRunScanPicker);
+  document.getElementById('closeRunScanDialog').addEventListener('click', returnToTriggerRun);
   runScanPicker.addEventListener('cancel', event => { event.preventDefault(); returnToTriggerRun(); });
-  document.getElementById('run-scan-picker-search').addEventListener('input', renderRunScanPicker);
-  document.getElementById('select-filtered-run-scans').addEventListener('click', () => {
-    const query = document.getElementById('run-scan-picker-search').value.trim().toLowerCase();
+  document.getElementById('runScanSearch').addEventListener('input', renderRunScanPicker);
+  document.getElementById('selectFilteredRunScans').addEventListener('click', () => {
+    const query = document.getElementById('runScanSearch').value.trim().toLowerCase();
     eligibleRunScans.filter(scan => !query || `${scan.scan_id} ${scan.scan_name} ${(scan.company_snapshots || []).map(company => company.company_name).join(' ')}`.toLowerCase().includes(query)).forEach(scan => { if (!draftRunScanIds.includes(scan.scan_id)) draftRunScanIds.push(scan.scan_id); });
     renderRunScanPicker();
   });
-  document.getElementById('clear-run-scan-selection').addEventListener('click', () => { draftRunScanIds = []; renderRunScanPicker(); });
-  document.getElementById('apply-run-scan-selection').addEventListener('click', () => {
+  document.getElementById('clearManagedRunScans').addEventListener('click', () => { draftRunScanIds = []; renderRunScanPicker(); });
+  document.getElementById('applyRunScans').addEventListener('click', () => {
     selectedRunScanIds = [...draftRunScanIds];
     runScanPicker.close();
     triggerDialog.showModal();
     updateRunScanSummary();
-    document.getElementById('manage-run-scans').focus();
+    document.getElementById('manageRunScans').focus();
   });
-  document.getElementById('cancel-run-scan-selection').addEventListener('click', returnToTriggerRun);
+  document.getElementById('cancelRunScanDialog').addEventListener('click', returnToTriggerRun);
+  refreshEligibleRunScans().catch(() => { document.getElementById('runScanEmpty').hidden = false; });
 });
 
-function showLifecycleBanner(message, kind = 'info') {
-  let banner = document.getElementById('lifecycle-error-banner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'lifecycle-error-banner';
-    banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);padding:0.75rem 1.5rem;border-radius:8px;z-index:9999;font-size:0.9rem;border:1px solid transparent';
-    document.body.appendChild(banner);
-  }
-  const styles = {
-    success: {
-      background: 'var(--badge-success-bg)',
-      color: 'var(--badge-success-fg)',
-      border: 'var(--badge-success-fg)',
-    },
-    error: {
-      background: 'var(--badge-error-bg)',
-      color: 'var(--badge-error-fg)',
-      border: 'var(--badge-error-fg)',
-    },
-    info: {
-      background: 'var(--badge-info-bg)',
-      color: 'var(--badge-info-fg)',
-      border: 'var(--badge-info-fg)',
-    },
-  };
-  const tone = styles[kind] || styles.info;
-  banner.style.background = tone.background;
-  banner.style.color = tone.color;
-  banner.style.borderColor = tone.border;
-  banner.textContent = message;
-  setTimeout(() => { if (banner) banner.remove(); }, 4000);
+function renderRunListState(state) {
+  fitcvRenderAsyncState(document.getElementById('runTablePanel'), {...state, preserveContent: true});
 }
 
 function persistLifecycleNotice(message, kind = 'success') {
@@ -258,7 +266,7 @@ function restoreLifecycleNotice() {
     sessionStorage.removeItem('fitcv-run-list-lifecycle-notice');
     const parsed = JSON.parse(raw);
     if (parsed && parsed.message) {
-      showLifecycleBanner(parsed.message, parsed.kind || 'success');
+      fitcvRenderAsyncState(document.getElementById('runTablePanel'), {kind: parsed.kind || 'success', message: parsed.message, preserveContent: true});
     }
   } catch (e) {
     // Ignore malformed or unavailable storage.
@@ -275,17 +283,43 @@ function selectedRunIds() {
     .map((checkbox) => checkbox.value);
 }
 
+function ensureBulkActionBar() {
+  let bar = document.getElementById('bulk-action-bar');
+  if (bar) return bar;
+  bar = document.createElement('div');
+  bar.id = 'bulk-action-bar';
+  bar.className = 'run-selection';
+  bar.innerHTML = `<div class="run-selection-copy"><strong id="selected-run-count"></strong><span id="selected-run-help"></span></div><div class="run-selection-actions">{% if view == 'active' %}<button type="button" id="cancelSelectedRuns" class="btn" onclick="bulkLifecycleAction('cancel', this)" disabled>Cancel Run</button><button type="button" id="archiveSelectedRuns" class="btn" onclick="bulkLifecycleAction('archive', this)">Archive Run</button>{% else %}<button type="button" id="deleteSelectedRuns" class="btn primary" onclick="bulkDeleteArchivedRuns(this)">Delete Run</button>{% endif %}</div>`;
+  document.getElementById('runTablePanel').prepend(bar);
+  return bar;
+}
+
 function updateBulkActionBar() {
   const checkboxes = selectedRunCheckboxes();
-  const selected = selectedRunIds();
-  const bar = document.getElementById('bulk-action-bar');
+  const selectedCheckboxes = checkboxes.filter((checkbox) => checkbox.checked);
+  const selected = selectedCheckboxes.map((checkbox) => checkbox.value);
+  const bar = selected.length ? ensureBulkActionBar() : document.getElementById('bulk-action-bar');
   const count = document.getElementById('selected-run-count');
+  const help = document.getElementById('selected-run-help');
+  const cancel = document.getElementById('cancelSelectedRuns');
   const selectAll = document.getElementById('select-all-runs');
+  const archived = new URLSearchParams(location.search).get('view') === 'archived';
+  const runningCount = selectedCheckboxes.filter((checkbox) => checkbox.dataset.status === 'running').length;
   if (count) {
-    count.textContent = selected.length === 1 ? '1 selected' : `${selected.length} selected`;
+    count.textContent = archived
+      ? `${selected.length} archived run${selected.length === 1 ? '' : 's'} selected`
+      : `${selected.length} run${selected.length === 1 ? '' : 's'} selected`;
   }
+  if (help) {
+    help.textContent = archived
+      ? 'Delete permanently removes selected runs.'
+      : runningCount
+        ? `Cancel Run applies to ${runningCount} Running selection${runningCount === 1 ? '' : 's'}.`
+        : 'Cancel Run is disabled because no selected run is Running.';
+  }
+  if (cancel) cancel.disabled = runningCount === 0;
   if (bar) {
-    bar.hidden = selected.length === 0;
+    if (!selected.length) bar.remove();
   }
   if (selectAll) {
     selectAll.checked = checkboxes.length > 0 && selected.length === checkboxes.length;
@@ -311,6 +345,7 @@ async function bulkDeleteArchivedRuns(btn) {
   btn.disabled = true;
   btn.textContent = '…';
   try {
+    renderRunListState({kind: 'pending', message: 'Checking archived Runs…'});
     const previewEnvelope = await fitcvApiRequest('/runs/actions/delete-archived/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -318,12 +353,13 @@ async function bulkDeleteArchivedRuns(btn) {
     });
     const preview = previewEnvelope.data;
     const confirmMessage = `Delete ${preview.eligible_run_ids.length} archived Run(s)?\n\n${preview.bookmark_count} bookmark(s) will also be deleted. This cannot be undone.`;
-    if (!confirm(confirmMessage)) return;
+    if (!confirm(confirmMessage)) { archivedDeleteIdempotencyKey = null; return; }
+    archivedDeleteIdempotencyKey ||= crypto.randomUUID();
     const resultEnvelope = await fitcvApiRequest('/runs/actions/delete-archived', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Idempotency-Key': crypto.randomUUID(),
+        'Idempotency-Key': archivedDeleteIdempotencyKey,
       },
       body: JSON.stringify({
         run_ids: runIds,
@@ -332,10 +368,11 @@ async function bulkDeleteArchivedRuns(btn) {
     });
     const result = resultEnvelope.data;
     const summary = `Deleted ${result.deleted_count} archived Run(s) and ${result.deleted_bookmark_count} bookmark(s).`;
+    archivedDeleteIdempotencyKey = null;
     persistLifecycleNotice(summary, result.filesystem_cleanup_failed_run_ids.length ? 'info' : 'success');
     location.href = '/admin/runs?view=archived';
   } catch (e) {
-    alert(e.message || 'Delete archived Runs failed');
+    renderRunListState({kind: 'retryable', message: e.message || 'Delete archived Runs failed', code: e.code, action: 'Retry', retry: () => bulkDeleteArchivedRuns(btn)});
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
@@ -355,6 +392,7 @@ async function bulkLifecycleAction(action, btn) {
     unarchive: 'unarchive',
   }[action] || action;
   if (!confirm(`Apply "${actionLabel}" to ${runIds.length} selected run(s)?`)) {
+    delete bulkLifecycleIdempotencyKeys[action];
     return;
   }
 
@@ -363,16 +401,13 @@ async function bulkLifecycleAction(action, btn) {
   btn.textContent = '…';
   const currentView = new URLSearchParams(location.search).get('view') || 'active';
   try {
-    const resp = await fetch(`/admin/runs/bulk/${action}`, {
+    renderRunListState({kind: 'pending', message: `Applying ${actionLabel}…`});
+    bulkLifecycleIdempotencyKeys[action] ||= crypto.randomUUID();
+    const body = await fitcvApiRequest(`/admin/runs/bulk/${action}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': bulkLifecycleIdempotencyKeys[action] },
       body: JSON.stringify({ run_ids: runIds }),
     });
-    const body = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      alert(body.detail || 'Bulk action failed');
-      return;
-    }
     const skipped = Number(body.skipped || 0);
     const processed = Number(body.processed || 0);
     const actionLabel = {
@@ -383,10 +418,11 @@ async function bulkLifecycleAction(action, btn) {
     const summary = skipped > 0
       ? `${actionLabel} ${processed} run(s); skipped ${skipped}.`
       : `${actionLabel} ${processed} run(s).`;
+    delete bulkLifecycleIdempotencyKeys[action];
     persistLifecycleNotice(summary, skipped > 0 ? 'info' : 'success');
     location.href = '/admin/runs?view=' + currentView;
   } catch (e) {
-    alert('Bulk action failed');
+    renderRunListState({kind: 'retryable', message: e.message || 'Bulk action failed', action: 'Retry', retry: () => bulkLifecycleAction(action, btn)});
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;

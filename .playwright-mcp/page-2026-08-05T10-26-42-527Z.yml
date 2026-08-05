@@ -1,0 +1,91 @@
+- generic [ref=f5e2]:
+  - complementary "Primary navigation" [ref=f5e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f5e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f5e9]:
+        - strong [ref=f5e10]: FitCV Control Plane
+        - generic [ref=f5e11]: Local workspace
+    - navigation "Workspace" [ref=f5e12]:
+      - link "Runs" [ref=f5e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f5e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f5e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f5e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f5e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - link "Pipeline" [ref=f5e31] [cursor=pointer]:
+        - /url: /admin/settings
+  - generic [ref=f5e32]:
+    - banner [ref=f5e33]:
+      - generic [ref=f5e34]:
+        - button "Open navigation" [ref=f5e35] [cursor=pointer]
+        - heading "Scans" [level=1] [ref=f5e41]
+      - button "Switch to light theme" [ref=f5e43] [cursor=pointer]:
+        - generic [ref=f5e47]: Light
+    - generic [ref=f5e49]:
+      - main [ref=f5e50]:
+        - generic [ref=f5e51]:
+          - generic [ref=f5e52]:
+            - paragraph [ref=f5e53]: Workspace
+            - heading "Scans" [level=2] [ref=f5e54]
+            - paragraph [ref=f5e55]: Create reusable FitCV job input from tracked companies.
+          - button "New Scan" [ref=f5e56] [cursor=pointer]
+        - generic [ref=f5e57]:
+          - tablist "Scan views" [ref=f5e58]:
+            - tab "Active 0" [selected] [ref=f5e59] [cursor=pointer]:
+              - text: Active
+              - generic [ref=f5e60]: "0"
+            - tab "Archived 0" [ref=f5e61] [cursor=pointer]:
+              - text: Archived
+              - generic [ref=f5e62]: "0"
+          - tabpanel "Active 0" [ref=f5e63]:
+            - status
+            - generic [ref=f5e65]:
+              - heading "No active Scans yet" [level=3] [ref=f5e69]
+              - paragraph [ref=f5e70]: Create a Scan to produce reusable FitCV job input.
+      - dialog [ref=f5e71]:
+        - generic [ref=f5e72]:
+          - generic [ref=f5e73]:
+            - heading "New Scan" [level=2] [ref=f5e74]
+            - paragraph [ref=f5e75]: Choose tracked companies and optional job filters.
+          - button "Close New Scan dialog" [active] [ref=f5e76] [cursor=pointer]: ×
+        - generic [ref=f5e77]:
+          - generic [ref=f5e78]:
+            - generic [ref=f5e79]: Scan Name Optional
+            - textbox "Scan Name Optional" [ref=f5e80]:
+              - /placeholder: Germany data engineering roles
+          - generic [ref=f5e81]:
+            - generic [ref=f5e82]: Tracked Companies
+            - group "Tracked Companies" [ref=f5e83]:
+              - generic [ref=f5e84]:
+                - generic [ref=f5e85]: No companies selected.
+                - generic [ref=f5e86]: Use Manage to search and select active companies.
+              - button "Manage" [ref=f5e87] [cursor=pointer]
+          - generic [ref=f5e88]:
+            - generic [ref=f5e89]: Job Titles Optional
+            - textbox "Job Titles Optional" [ref=f5e90]:
+              - /placeholder: Data Engineer, Analytics Engineer
+          - generic [ref=f5e91]:
+            - generic [ref=f5e92]: Job Locations Optional
+            - textbox "Job Locations Optional" [ref=f5e93]:
+              - /placeholder: Berlin, Germany
+          - generic [ref=f5e94]:
+            - generic [ref=f5e95]: Published At
+            - combobox "Published At" [ref=f5e96]:
+              - option "Any time" [selected]
+              - option "Past 12 hours"
+              - option "Past 24 hours"
+              - option "Past week"
+              - option "Past month"
+              - option "Past 6 months"
+            - generic [ref=f5e97]: Rolling window resolved when the Scan starts.
+          - generic [ref=f5e98]:
+            - generic [ref=f5e99]: Total Rows
+            - spinbutton "Total Rows" [ref=f5e100]: "50"
+        - status [ref=f5e101]: Select at least one tracked company.
+        - generic [ref=f5e102]:
+          - button "Cancel" [ref=f5e103] [cursor=pointer]
+          - button "Start Scan" [disabled]
