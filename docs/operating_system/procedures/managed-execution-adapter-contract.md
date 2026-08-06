@@ -4,11 +4,25 @@
 
 `scripts/harness_task.py` owns packet resolution, run records, authorization,
 verification, outcomes, and controller decisions. Host owns actual agent and
-workspace operations. Generic CLI has no host adapter.
+workspace operations. Generic CLI has no host adapter and exposes
+`run-unavailable` only for explicit unavailable-adapter proof.
 
 Managed work starts only when host calls `run_managed(root, request, adapter)`.
 No packet or `.harness/runs/<run-id>/run.json` means source-first local work,
 not harness-managed work.
+
+## Generic CLI Retry Boundary
+
+`uv run python scripts/harness_task.py run-unavailable --task <request.json>`
+may create immutable packet and mutable `run.json` only to prove that no host
+adapter is available. It cannot prepare a workspace, dispatch writer or
+validator lanes, run packet checks, or retry managed work.
+
+Retry needs provider-host invocation of
+`run_managed(root, request, adapter)` with selected mode enforced. Until host
+exposes that adapter capability, controller records `block`; it must not waive
+or replace missing host evidence with local commands, agent claims, or browser
+proof.
 
 Packet owns role-derived claim schema for every executable lane. Host prompts
 and core claim validation consume that same immutable schema.
