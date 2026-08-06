@@ -41,20 +41,13 @@ workspace, or `run.json`. Failure returns `preflight_failed`; start provider
 only after endpoint recovery, then create successor request. Successful managed
 attempt records `host_preflight` protocol and server URI in `run.json`.
 
+Start endpoint with `codex app-server --listen ws://127.0.0.1:4500`. It runs in
+foreground; keep terminal open. Windows has no supported `codex app-server
+daemon`; restart listener after reboot or process exit, then rerun `preflight`.
+
 Do not use `run-unavailable` for retry. It proves generic CLI lacks injected
 adapter and is terminal evidence for that invocation only. Preserve that
 blocked run; create successor request with new `run_id` for provider-host retry.
-
-Controller records the resulting `block`, `retry`, or other allowed decision
-through a JSON file, not inline text:
-
-```powershell
-uv run python scripts/harness_task.py decision --run-id <run-id> --decision <decision.json>
-```
-
-`<decision.json>` contains `{"kind":"block","reason":"..."}` or another
-policy-allowed decision. This records controller disposition only; it cannot
-replace provider-host writer, check, or validator evidence.
 
 Packet owns role-derived claim schema for every executable lane. Host prompts
 and core claim validation consume that same immutable schema.
