@@ -58,6 +58,7 @@
 {% include "_process_console.html" %}
 
 <script>
+initializeFitCVPage(() => {
 function syncRunResultsUrl(fragmentUrl) {
   const params = new URL(fragmentUrl, location.origin).searchParams;
   const url = new URL(location.href);
@@ -385,6 +386,7 @@ ensureTabLoaded('enriched', '/admin/runs/{{ run.run_id }}/tabs/enriched?' + init
 
   scheduleNextPoll();
 })();
+});
 </script>
 
 {% endblock %}

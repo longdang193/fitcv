@@ -121,6 +121,8 @@ def test_packaged_local_admin_pages_render_canonical_resources(local_client: Tes
 
 def test_shared_shell_matches_frozen_prototype_and_canonical_error_contract(
     local_client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _complete_onboarding()
 
@@ -135,6 +137,45 @@ def test_shared_shell_matches_frozen_prototype_and_canonical_error_contract(
     assert "state.retry" in html
     assert "existing.remove()" in html
     assert "kind === 'retryable'" in html
+
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    database_path = tmp_path / "server.sqlite3"
+    initialize_control_plane_database(database_path, tmp_path / "profile.yaml")
+    server_app = create_app(
+        redis_url="",
+        backend_runtime=BackendRuntime(backend_type="sqlite", sqlite_path=str(database_path)),
+    )
+    with TestClient(server_app) as server_client:
+        server_html = server_client.get("/admin/runs").text
+
+    sidebar = server_html[
+        server_html.index('<aside class="sidebar app-sidebar"') : server_html.index("</aside>")
+    ]
+    navigation = sidebar[sidebar.index("<nav"):]
+    expected_hrefs = (
+        "/admin/runs",
+        "/admin/scans",
+        "/admin/candidate-profiles",
+        "/admin/bookmarks",
+        "/admin/synonyms",
+        "/admin/settings",
+        "/admin/settings/prompt-management",
+        "/admin/api-providers",
+        "/admin/llm-configuration",
+        "/admin/system",
+    )
+    assert [navigation.index(f'href="{path}"') for path in expected_hrefs] == sorted(
+        navigation.index(f'href="{path}"') for path in expected_hrefs
+    )
+    assert navigation.count('<details class="nav-group" open>') == 2
+    assert navigation.index(">Pipeline</summary>") < navigation.index(">Application</summary>")
+    assert 'href="/admin/lifecycle"' not in navigation
+    assert 'id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"' in server_html
+    assert 'id="page-content" tabindex="-1"' in server_html
+    assert 'id="theme-toggle"' in html
+    assert html.index('id="theme-toggle"') < html.index('id="open-shutdown-dialog"')
+    assert "if (event.key !== 'Escape' || !sidebar.classList.contains('open')) return;" in server_html
+    assert "menu.focus();" in server_html
 
 
 def test_provider_setup_pages_and_resources_are_available_before_onboarding_completion(
@@ -463,10 +504,9 @@ def test_packaged_local_pages_encode_approved_ui_states(local_client: TestClient
     assert 'id="provider-api-type"' in provider
     assert 'id="test-provider-connection"' in provider
     assert 'id="save-provider-connection" type="submit" disabled' in provider
-    assert "A verified connection is required" in provider
     assert 'id="open-add-model" type="button" disabled' in provider
     assert 'id="add-model-dialog"' in provider
-    assert 'data-model-test=' in provider or "No models added." in provider
+    assert 'data-model-test=' in provider or "Test and add a connection to manage models." in provider
     assert "provider_revision_conflict" in provider
 
     llm = local_client.get("/admin/llm-configuration").text

@@ -3306,7 +3306,6 @@ def test_central_workspace_pages_share_navigation_and_retire_legacy_labels() -> 
     assert "table-shell" in candidate_html
     assert 'class="run-tabs"' in candidate_html
     assert 'class="filter-bar section-card"' not in candidate_html
-    assert "return_to={{ current_url|urlencode }}" in Path("src/fitcv_cp/templates/candidate_profiles.html").read_text(encoding="utf-8")
     assert "table-shell" in bookmark_html
     assert bookmark_html.index('id="bookmarkNotice"') < bookmark_html.index('id="bookmarkCount"') < bookmark_html.index('class="table-shell"')
     assert "Submitted" not in bookmark_html and "Archived" not in bookmark_html

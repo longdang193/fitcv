@@ -13,6 +13,9 @@ Controller task packet selects one route. Rules stay mandatory. Agents return cl
 | --- | --- | --- | --- | --- | --- |
 | `local_change` | `normal` | `implement` | `skill-code-standards`, `skill-test-driven-development` | `shell`, `serena`, `ast_grep_preview` | `diff` |
 | `debugging` | `normal` | `investigate` | `skill-systematic-debugging` | `shell`, `serena`, `ast_grep_preview` | `diff` |
-| `research` | `low` | `investigate` | `skill-brainstorming` | `shell`, `semble_codebase_search` | `diff` |
+| `research` | `low` | `investigate` | `skill-repository-research` | `shell`, `semble_codebase_search` | `diff` |
 | `plan_review` | `high` | `review` | `skill-plan-document-reviewer` | `shell`, `serena` | `diff` |
-| `harness_improvement` | `high` | `improve` | `skill-improve-harness`, `skill-writing-skills` | `shell`, `serena` | `diff` |
+| `design_exploration` | `high` | `investigate` | `skill-brainstorming` | `shell`, `semble_codebase_search` | `diff` |
+| `plan_writing` | `high` | `implement` | `skill-writing-plans` | `shell`, `serena` | `diff` |
+| `skill_authoring` | `high` | `implement` | `skill-writing-skills`, `skill-test-driven-development`, `skill-verification-before-completion` | `shell`, `serena` | `diff` |
+| `harness_improvement` | `high` | `improve` | `skill-improve-harness`, `skill-code-standards`, `skill-test-driven-development`, `skill-verification-before-completion` | `shell`, `serena` | `diff` |

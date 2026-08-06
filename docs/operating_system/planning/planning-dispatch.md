@@ -10,6 +10,7 @@ Use this decision table only when artifact choice is unclear. Create the smalles
 | Draft behavior is approved | Promote same file to `detailed-specification` and `status: active` |
 | Behavior, interfaces, or invariants need durable definition without prototype work | Use `skill-spec-drafting` |
 | Approved design or direct approved scope needs multiple implementation steps | Use `skill-writing-plans` |
+| Git-tracked active plan needs multi-session recovery or coordination-heavy execution | Add optional `coordination` frontmatter; use plan-linked managed request |
 | Several outcomes need coordinated direction | Use the optional roadmap; create specs or plans only where needed |
 | Parallel writable lanes selected | Use `skill-using-git-worktrees`, then execute isolated lanes |
 | Approved plan exists | Use `skill-executing-plans`; use harness-selected subagent mode only when packet permits it |
@@ -27,3 +28,20 @@ Use this decision table only when artifact choice is unclear. Create the smalles
 
 No artifact is required merely to connect two other artifacts. Source, tests,
 configuration, and validators remain executable truth.
+
+## Coordinated Plans
+
+Use optional `coordination` only for Git-tracked active plans. Its manifest is
+static coordination SSOT: target branch, base ref, task IDs, dependencies,
+canonical topology, and planned write paths. Each prose task names one
+`Coordination ID`.
+
+Packet binds immutable `plan_ref`, `plan_task_id`, and normalized manifest
+digest. `run.json` derives `ready`, `active`, `blocked`, and `done`, and owns
+handoff, evidence, and controller decision. Do not write run links, task state,
+or handoff into plan.
+
+Controller activation is serialized. `single_work_lane`,
+`sequential_work_lanes`, and `parallel_work_lanes` use same plan/run contract;
+parallelism stays packet-internal. No locks, leases, scheduler, queue, or host
+thread resume exists. Changed manifest or base creates successor attempt.

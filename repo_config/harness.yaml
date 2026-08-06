@@ -1,4 +1,4 @@
-version: 2
+version: 3
 defaults:
   workspace: current
   approval_gates: []
@@ -8,8 +8,9 @@ states:
   running: [observed, awaiting_decision, blocked]
   observed: [verifying, running, blocked]
   verifying: [awaiting_decision, accepted, blocked]
-  awaiting_decision: [awaiting_decision, planned, accepted, blocked]
+  awaiting_decision: [awaiting_decision, planned, accepted, unvalidated, blocked]
   accepted: []
+  unvalidated: []
   blocked: []
 retry_policies:
   bounded:
@@ -24,31 +25,63 @@ checks:
 tools:
   shell:
     optional: false
+    host_kind: app_server_shell
+    writer_access: workspace_write
+    validator_access: read_only
+    root_probe: shell_root_probe
   serena:
     optional: true
+    host_kind: local_serena
+    writer_access: workspace_write
+    validator_access: read_only
+    root_probe: serena_root_probe
   semble_codebase_search:
     optional: true
     fallback: [shell, serena]
+    host_kind: local_semble
+    writer_access: read_only
+    validator_access: read_only
+    root_probe: semble_root_probe
   ast_grep_preview:
     optional: true
     fallback: [shell]
+    host_kind: local_ast_grep
+    writer_access: read_only
+    validator_access: read_only
+    root_probe: ast_grep_root_probe
+runtime_providers:
+  codex_app_server:
+    contract_version: 1
+friction_policy:
+  event_version: 1
+  minimum_distinct_runs: 3
+  window_days: 14
 approval_gates:
   protected_policy:
-    paths: [agents/**, repo_config/harness.yaml, docs/operating_system/rules/**]
+    paths: [agents/**, .agents/skills/**, repo_config/harness.yaml, docs/operating_system/rules/**]
 orchestration:
-  single_agent:
+  single_work_lane:
+    aliases: [single_agent]
+    work_scheduling: single
     max_parallel_writers: 1
-    workspace_mode: current
+    workspace_mode: isolated
+    validator_role: validate
     review_required: false
     rules: []
-  sequential_agents:
+  sequential_work_lanes:
+    aliases: [sequential_agents]
+    work_scheduling: sequential
     max_parallel_writers: 1
-    workspace_mode: current
+    workspace_mode: isolated
+    validator_role: validate
     review_required: true
     rules: [multi-agent-orchestration-rule]
-  parallel_lanes:
+  parallel_work_lanes:
+    aliases: [parallel_lanes]
+    work_scheduling: parallel
     max_parallel_writers: 4
     workspace_mode: isolated
+    validator_role: validate
     review_required: true
     rules: [multi-agent-orchestration-rule]
 routes:
@@ -62,7 +95,9 @@ routes:
     checks: [diff]
     approval_gates: [protected_policy]
     retry_policy: bounded
-    execution_modes: [single_agent, sequential_agents, parallel_lanes]
+    execution_modes: [single_work_lane, sequential_work_lanes, parallel_work_lanes]
+    runtime_providers: [codex_app_server]
+    default_runtime_provider: codex_app_server
   debugging:
     template: normal
     role: investigate
@@ -72,17 +107,21 @@ routes:
     workspace: current
     checks: [diff]
     retry_policy: bounded
-    execution_modes: [single_agent, sequential_agents]
+    execution_modes: [single_work_lane, sequential_work_lanes]
+    runtime_providers: [codex_app_server]
+    default_runtime_provider: codex_app_server
   research:
     template: low
     role: investigate
     rules: [command-execution-rule]
-    skills: [skill-brainstorming]
+    skills: [skill-repository-research]
     tools: [shell, semble_codebase_search]
     workspace: current
     checks: [diff]
     retry_policy: bounded
-    execution_modes: [single_agent, parallel_lanes]
+    execution_modes: [single_work_lane, parallel_work_lanes]
+    runtime_providers: [codex_app_server]
+    default_runtime_provider: codex_app_server
   plan_review:
     template: high
     role: review
@@ -92,15 +131,56 @@ routes:
     workspace: current
     checks: [diff]
     retry_policy: bounded
-    execution_modes: [single_agent, sequential_agents]
-  harness_improvement:
+    execution_modes: [single_work_lane, sequential_work_lanes]
+    runtime_providers: [codex_app_server]
+    default_runtime_provider: codex_app_server
+  design_exploration:
     template: high
-    role: improve
+    role: investigate
+    rules: [command-execution-rule]
+    skills: [skill-brainstorming]
+    tools: [shell, semble_codebase_search]
+    workspace: current
+    checks: [diff]
+    retry_policy: bounded
+    execution_modes: [single_work_lane, sequential_work_lanes]
+    runtime_providers: [codex_app_server]
+    default_runtime_provider: codex_app_server
+  plan_writing:
+    template: high
+    role: implement
+    rules: [doc-contracts-rule]
+    skills: [skill-writing-plans]
+    tools: [shell, serena]
+    workspace: current
+    checks: [diff]
+    retry_policy: bounded
+    execution_modes: [single_work_lane, sequential_work_lanes]
+    runtime_providers: [codex_app_server]
+    default_runtime_provider: codex_app_server
+  skill_authoring:
+    template: high
+    role: implement
     rules: [command-execution-rule, doc-contracts-rule]
-    skills: [skill-improve-harness, skill-writing-skills]
+    skills: [skill-writing-skills, skill-test-driven-development, skill-verification-before-completion]
     tools: [shell, serena]
     workspace: current
     checks: [diff]
     approval_gates: [protected_policy]
     retry_policy: bounded
-    execution_modes: [single_agent, sequential_agents]
+    execution_modes: [single_work_lane, sequential_work_lanes]
+    runtime_providers: [codex_app_server]
+    default_runtime_provider: codex_app_server
+  harness_improvement:
+    template: high
+    role: improve
+    rules: [command-execution-rule, doc-contracts-rule]
+    skills: [skill-improve-harness, skill-code-standards, skill-test-driven-development, skill-verification-before-completion]
+    tools: [shell, serena]
+    workspace: current
+    checks: [diff]
+    approval_gates: [protected_policy]
+    retry_policy: bounded
+    execution_modes: [single_work_lane, sequential_work_lanes]
+    runtime_providers: [codex_app_server]
+    default_runtime_provider: codex_app_server

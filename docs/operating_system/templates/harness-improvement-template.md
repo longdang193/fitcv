@@ -3,6 +3,7 @@ template_id: harness-improvement
 target_globs:
   - docs/superpowers/plans/harness-improvements/*.md
 required_sections:
+  - Friction Candidate
   - Representative Job
   - Baseline
   - Earliest Gap
@@ -17,6 +18,12 @@ distribution_tier: starter_kit
 ---
 
 # Harness Improvement
+
+## Friction Candidate
+
+- Fingerprint:
+- Baseline event IDs:
+- Distinct runs:
 
 ## Representative Job
 
@@ -34,4 +41,4 @@ distribution_tier: starter_kit
 
 ## Decision
 
-Use only `keep`, `revise`, `remove`, or `pending fresh rerun`.
+Use only `keep`, `revise`, `remove`, or `pending`.

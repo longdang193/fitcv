@@ -15,6 +15,13 @@ roles:
     accepts: [normal, high]
     result_kind: claimed_result
     required_fields: [summary, findings]
+  validate:
+    writes: false
+    accepts: [low, normal, high]
+    result_kind: claimed_result
+    required_fields: [summary, findings, verdict]
+    field_constraints:
+      verdict: [pass, fail]
   improve:
     writes: true
     accepts: [normal, high]

@@ -43,6 +43,7 @@ from planning_artifact_schema import (
     get_required_fields,
     get_required_values,
 )
+from plan_coordination import PlanCoordinationError, load_plan_coordination
 
 
 @dataclass(frozen=True)
@@ -146,6 +147,11 @@ def validate_artifact(root: Path, path: Path, artifact_type: str) -> list[Findin
                     f"parent_spec does not resolve: `{parent_spec_value}`",
                 )
             )
+    if artifact_type == "plan" and "coordination" in payload:
+        try:
+            load_plan_coordination(root, rel)
+        except PlanCoordinationError as exc:
+            findings.append(Finding("planning_coordination_error", rel, str(exc)))
     return findings
 
 

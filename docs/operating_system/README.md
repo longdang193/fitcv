@@ -7,6 +7,7 @@ This folder holds repo governance, execution routing, runtime guidance, reusable
 - [Repository governance](./governance/repo-governance.md)
 - [Planning dispatch](./planning/planning-dispatch.md)
 - [Harness routing](./tooling/harness-routing.generated.md)
+- [Managed execution adapter contract](./procedures/managed-execution-adapter-contract.md)
 
 ## Sections
 

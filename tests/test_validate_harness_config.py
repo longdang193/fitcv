@@ -47,7 +47,13 @@ def write_harness_root(root: Path) -> None:
                         "accepts": ["low", "normal", "high"],
                         "result_kind": "claimed_result",
                         "required_fields": ["changed_files"],
-                    }
+                    },
+                    "validate": {
+                        "writes": False,
+                        "accepts": ["low", "normal", "high"],
+                        "result_kind": "claimed_result",
+                        "required_fields": ["summary", "findings", "verdict"],
+                    },
                 },
             },
             sort_keys=False,
@@ -73,15 +79,16 @@ def write_harness_root(root: Path) -> None:
         "repo_config/harness.yaml",
         yaml.safe_dump(
             {
-                "version": 2,
+                "version": 3,
                 "states": {
                     "classified": ["planned", "blocked"],
                     "planned": ["running", "awaiting_decision", "blocked"],
                     "running": ["observed", "awaiting_decision", "blocked"],
                     "observed": ["verifying", "running", "blocked"],
                     "verifying": ["awaiting_decision", "accepted", "blocked"],
-                    "awaiting_decision": ["awaiting_decision", "planned", "accepted", "blocked"],
+                    "awaiting_decision": ["awaiting_decision", "planned", "accepted", "unvalidated", "blocked"],
                     "accepted": [],
+                    "unvalidated": [],
                     "blocked": [],
                 },
                 "retry_policies": {
@@ -94,17 +101,39 @@ def write_harness_root(root: Path) -> None:
                     }
                 },
                 "checks": {"diff": {"command": ["git", "diff", "--check"]}},
-                "tools": {"shell": {"optional": False}},
+                "tools": {
+                    "shell": {
+                        "optional": False,
+                        "host_kind": "app_server_shell",
+                        "writer_access": "workspace_write",
+                        "validator_access": "read_only",
+                        "root_probe": "shell_root_probe",
+                    }
+                },
+                "runtime_providers": {
+                    "codex_app_server": {"contract_version": 1},
+                },
+                "friction_policy": {
+                    "event_version": 1,
+                    "minimum_distinct_runs": 3,
+                    "window_days": 14,
+                },
                 "orchestration": {
-                    "single_agent": {
+                    "single_work_lane": {
+                        "aliases": ["single_agent"],
+                        "work_scheduling": "single",
                         "max_parallel_writers": 1,
-                        "workspace_mode": "current",
+                        "workspace_mode": "isolated",
+                        "validator_role": "validate",
                         "review_required": False,
                         "rules": [],
                     },
-                    "sequential_agents": {
+                    "sequential_work_lanes": {
+                        "aliases": ["sequential_agents"],
+                        "work_scheduling": "sequential",
                         "max_parallel_writers": 1,
-                        "workspace_mode": "current",
+                        "workspace_mode": "isolated",
+                        "validator_role": "validate",
                         "review_required": True,
                         "rules": ["multi-agent-orchestration-rule"],
                     },
@@ -119,7 +148,9 @@ def write_harness_root(root: Path) -> None:
                         "workspace": "current",
                         "checks": ["diff"],
                         "retry_policy": "bounded",
-                        "execution_modes": ["single_agent", "sequential_agents"],
+                        "execution_modes": ["single_work_lane", "sequential_work_lanes"],
+                        "runtime_providers": ["codex_app_server"],
+                        "default_runtime_provider": "codex_app_server",
                     }
                 },
             },
@@ -133,6 +164,27 @@ def test_valid_harness_config_passes(tmp_path: Path) -> None:
     write_harness_root(tmp_path)
 
     assert validator.validate(tmp_path) == []
+
+
+def test_unknown_route_runtime_provider_fails(tmp_path: Path) -> None:
+    validator = load_validator()
+    write_harness_root(tmp_path)
+    config = yaml.safe_load((tmp_path / "repo_config/harness.yaml").read_text())
+    config["routes"]["local_change"]["runtime_providers"] = ["missing"]
+    config["routes"]["local_change"]["default_runtime_provider"] = "missing"
+    (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    assert "route `local_change` has unknown runtime provider `missing`" in validator.validate(tmp_path)
+
+
+def test_route_runtime_provider_default_must_be_allowed(tmp_path: Path) -> None:
+    validator = load_validator()
+    write_harness_root(tmp_path)
+    config = yaml.safe_load((tmp_path / "repo_config/harness.yaml").read_text())
+    config["routes"]["local_change"]["default_runtime_provider"] = "missing"
+    (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    assert "route `local_change` default_runtime_provider must be allowed" in validator.validate(tmp_path)
 
 
 def test_missing_template_fails(tmp_path: Path) -> None:
@@ -219,10 +271,24 @@ def test_parallel_writers_require_isolated_workspace(tmp_path: Path) -> None:
     validator = load_validator()
     write_harness_root(tmp_path)
     config = yaml.safe_load((tmp_path / "repo_config/harness.yaml").read_text())
-    config["orchestration"]["sequential_agents"]["max_parallel_writers"] = 2
+    config["orchestration"]["sequential_work_lanes"]["max_parallel_writers"] = 2
     (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
 
-    assert "orchestration `sequential_agents` with parallel writers requires isolated workspace" in validator.validate(tmp_path)
+    assert "orchestration `sequential_work_lanes` non-parallel scheduling requires one writer" in validator.validate(tmp_path)
+
+
+def test_ambiguous_alias_and_unknown_topology_field_fail(tmp_path: Path) -> None:
+    validator = load_validator()
+    write_harness_root(tmp_path)
+    config = yaml.safe_load((tmp_path / "repo_config/harness.yaml").read_text())
+    config["orchestration"]["single_work_lane"]["aliases"].append("sequential_agents")
+    config["orchestration"]["single_work_lane"]["unexpected"] = True
+    (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    errors = validator.validate(tmp_path)
+
+    assert "orchestration `single_work_lane` has unknown fields: unexpected" in errors
+    assert "orchestration alias `sequential_agents` is ambiguous" in errors
 
 
 def test_invalid_state_transition_fails(tmp_path: Path) -> None:
@@ -273,3 +339,13 @@ def test_invalid_retry_policy_approval_ttl_fails(tmp_path: Path) -> None:
     (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
 
     assert "retry policy `bounded` approval_ttl_seconds must be a positive integer" in validator.validate(tmp_path)
+
+
+def test_invalid_friction_policy_fails(tmp_path: Path) -> None:
+    validator = load_validator()
+    write_harness_root(tmp_path)
+    config = yaml.safe_load((tmp_path / "repo_config/harness.yaml").read_text())
+    config["friction_policy"]["window_days"] = 0
+    (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    assert "friction policy `window_days` must be a positive integer" in validator.validate(tmp_path)

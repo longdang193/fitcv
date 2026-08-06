@@ -1,0 +1,146 @@
+- generic [ref=f1e2]:
+  - complementary "Primary navigation" [ref=f1e3]:
+    - link "FitCV Control Plane Local workspace" [ref=f1e4] [cursor=pointer]:
+      - /url: /admin/settings
+      - generic [ref=f1e9]:
+        - strong [ref=f1e10]: FitCV Control Plane
+        - generic [ref=f1e11]: Local workspace
+    - navigation "Workspace" [ref=f1e12]:
+      - link "Runs" [ref=f1e13] [cursor=pointer]:
+        - /url: /admin/runs
+      - link "Scans" [ref=f1e16] [cursor=pointer]:
+        - /url: /admin/scans
+      - link "Candidate Profiles" [ref=f1e20] [cursor=pointer]:
+        - /url: /admin/candidate-profiles
+      - link "Bookmarks" [ref=f1e24] [cursor=pointer]:
+        - /url: /admin/bookmarks
+      - link "Synonyms" [ref=f1e27] [cursor=pointer]:
+        - /url: /admin/synonyms
+      - group [ref=f1e31]:
+        - generic "Pipeline ›" [ref=f1e32] [cursor=pointer]
+        - generic [ref=f1e35]:
+          - link "Overview" [ref=f1e36] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Enrichment" [ref=f1e37] [cursor=pointer]:
+            - /url: /admin/settings/enrichment
+          - link "Screening" [ref=f1e38] [cursor=pointer]:
+            - /url: /admin/settings/screening
+          - link "Shortlisting" [ref=f1e39] [cursor=pointer]:
+            - /url: /admin/settings/shortlisting
+          - link "Ranking" [ref=f1e40] [cursor=pointer]:
+            - /url: /admin/settings/ranking
+          - link "Preference Optimization" [ref=f1e41] [cursor=pointer]:
+            - /url: /admin/optimization
+          - link "CV Analysis" [ref=f1e42] [cursor=pointer]:
+            - /url: /admin/settings/cv-analysis
+          - link "CV Generation" [ref=f1e43] [cursor=pointer]:
+            - /url: /admin/settings/cv-generation
+          - link "Runtime & Limits" [ref=f1e44] [cursor=pointer]:
+            - /url: /admin/settings/runtime-limits
+          - link "Automation & Reuse" [ref=f1e45] [cursor=pointer]:
+            - /url: /admin/settings/automation-reuse
+          - link "Prompt Management" [ref=f1e46] [cursor=pointer]:
+            - /url: /admin/settings/prompt-management
+      - group [ref=f1e47]:
+        - generic "Application ›" [ref=f1e48] [cursor=pointer]
+        - generic [ref=f1e52]:
+          - link "API Providers" [ref=f1e53] [cursor=pointer]:
+            - /url: /admin/api-providers
+          - link "LLM Configuration" [ref=f1e54] [cursor=pointer]:
+            - /url: /admin/llm-configuration
+          - link "System" [ref=f1e55] [cursor=pointer]:
+            - /url: /admin/system
+  - generic [ref=f1e56]:
+    - banner [ref=f1e57]:
+      - generic [ref=f1e58]:
+        - button "Open navigation" [ref=f1e159] [cursor=pointer]
+        - heading "Runs" [level=1] [ref=f1e62]
+      - button "Switch to dark theme" [active] [ref=f1e163] [cursor=pointer]:
+        - generic [ref=f1e69]: Dark
+    - main [ref=f1e72]:
+      - generic [ref=f1e73]:
+        - generic [ref=f1e74]:
+          - paragraph [ref=f1e75]: Workspace
+          - heading "Runs" [level=2] [ref=f1e76]
+          - paragraph [ref=f1e77]: Trigger and monitor FitCV pipeline runs.
+        - button "Trigger Run" [ref=f1e78] [cursor=pointer]
+      - generic [ref=f1e79]:
+        - tablist "Run views" [ref=f1e80]:
+          - tab "Active 6" [selected] [ref=f1e81] [cursor=pointer]:
+            - text: Active
+            - generic [ref=f1e82]: "6"
+          - tab "Archived 0" [ref=f1e83] [cursor=pointer]:
+            - text: Archived
+            - generic [ref=f1e84]: "0"
+        - tabpanel "Active 6" [ref=f1e85]:
+          - table [ref=f1e88]:
+            - rowgroup [ref=f1e89]:
+              - row [ref=f1e90]:
+                - columnheader [ref=f1e91]:
+                  - checkbox "Select visible Runs" [ref=f1e92]
+                - columnheader "Run ID" [ref=f1e93]
+                - columnheader "Status" [ref=f1e94]
+                - columnheader "Job Name" [ref=f1e95]
+                - columnheader "Created Time" [ref=f1e96]
+                - columnheader "Duration" [ref=f1e97]
+            - rowgroup [ref=f1e98]:
+              - row [ref=f1e99]:
+                - cell [ref=f1e100]:
+                  - checkbox "Select task8-browser-canonical" [ref=f1e101]
+                - cell [ref=f1e102]:
+                  - link "task8-browser-canonical" [ref=f1e103] [cursor=pointer]:
+                    - /url: /admin/runs/task8-browser-canonical?return_to=/admin/runs%3Fview%3Dactive%26page_size%3D20%26page%3D1
+                - cell "Succeeded" [ref=f1e104]
+                - cell "browser-canonical" [ref=f1e106]
+                - cell "05.08.2026 11:35 CEST" [ref=f1e107]
+                - cell "—" [ref=f1e108]
+              - row [ref=f1e109]:
+                - cell [ref=f1e110]:
+                  - checkbox "Select task8-browser-running" [ref=f1e111]
+                - cell [ref=f1e112]:
+                  - link "task8-browser-running" [ref=f1e113] [cursor=pointer]:
+                    - /url: /admin/runs/task8-browser-running?return_to=/admin/runs%3Fview%3Dactive%26page_size%3D20%26page%3D1
+                - cell "Failed" [ref=f1e114]
+                - cell "sample_jobs" [ref=f1e116]
+                - cell "05.08.2026 10:53 CEST" [ref=f1e117]
+                - cell "75m 18s" [ref=f1e118]
+              - row [ref=f1e119]:
+                - cell [ref=f1e120]:
+                  - checkbox "Select task8-browser-review" [ref=f1e121]
+                - cell [ref=f1e122]:
+                  - link "task8-browser-review" [ref=f1e123] [cursor=pointer]:
+                    - /url: /admin/runs/task8-browser-review?return_to=/admin/runs%3Fview%3Dactive%26page_size%3D20%26page%3D1
+                - cell "Cancelled" [ref=f1e124]
+                - cell "sample_jobs" [ref=f1e126]
+                - cell "05.08.2026 10:53 CEST" [ref=f1e127]
+                - cell "574m 59s" [ref=f1e128]
+              - row [ref=f1e129]:
+                - cell [ref=f1e130]:
+                  - checkbox "Select task8-browser-queued" [ref=f1e131]
+                - cell [ref=f1e132]:
+                  - link "task8-browser-queued" [ref=f1e133] [cursor=pointer]:
+                    - /url: /admin/runs/task8-browser-queued?return_to=/admin/runs%3Fview%3Dactive%26page_size%3D20%26page%3D1
+                - cell "Cancelled" [ref=f1e134]
+                - cell "sample_jobs" [ref=f1e136]
+                - cell "05.08.2026 10:53 CEST" [ref=f1e137]
+                - cell "—" [ref=f1e138]
+              - row [ref=f1e139]:
+                - cell [ref=f1e140]:
+                  - checkbox "Select task8-browser-failed" [ref=f1e141]
+                - cell [ref=f1e142]:
+                  - link "task8-browser-failed" [ref=f1e143] [cursor=pointer]:
+                    - /url: /admin/runs/task8-browser-failed?return_to=/admin/runs%3Fview%3Dactive%26page_size%3D20%26page%3D1
+                - cell "Failed" [ref=f1e144]
+                - cell "sample_jobs" [ref=f1e146]
+                - cell "05.08.2026 10:53 CEST" [ref=f1e147]
+                - cell "0s" [ref=f1e148]
+              - row [ref=f1e149]:
+                - cell [ref=f1e150]:
+                  - checkbox "Select task8-browser-run" [ref=f1e151]
+                - cell [ref=f1e152]:
+                  - link "task8-browser-run" [ref=f1e153] [cursor=pointer]:
+                    - /url: /admin/runs/task8-browser-run?return_to=/admin/runs%3Fview%3Dactive%26page_size%3D20%26page%3D1
+                - cell "Succeeded" [ref=f1e154]
+                - cell "sample_jobs" [ref=f1e156]
+                - cell "05.08.2026 10:41 CEST" [ref=f1e157]
+                - cell "0s" [ref=f1e158]

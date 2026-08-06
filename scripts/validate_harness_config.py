@@ -40,11 +40,24 @@ ROUTE_FIELDS = {
     "checks",
     "retry_policy",
     "execution_modes",
+    "runtime_providers",
+    "default_runtime_provider",
 }
 ROLE_FIELDS = {"writes", "accepts", "result_kind", "required_fields"}
-ORCHESTRATION_FIELDS = {"max_parallel_writers", "workspace_mode", "review_required", "rules"}
+ORCHESTRATION_FIELDS = {
+    "aliases",
+    "work_scheduling",
+    "max_parallel_writers",
+    "workspace_mode",
+    "validator_role",
+    "review_required",
+    "rules",
+}
 RETRY_POLICY_FIELDS = {"max_attempts", "retryable_reasons", "exhaustion", "approval_resume", "approval_ttl_seconds"}
-REQUIRED_STATES = {"classified", "planned", "running", "observed", "verifying", "awaiting_decision", "accepted", "blocked"}
+TOOL_FIELDS = {"optional", "fallback", "host_kind", "writer_access", "validator_access", "root_probe"}
+REQUIRED_STATES = {"classified", "planned", "running", "observed", "verifying", "awaiting_decision", "accepted", "unvalidated", "blocked"}
+RUNTIME_PROVIDER_FIELDS = {"contract_version"}
+FRICTION_POLICY_FIELDS = {"event_version", "minimum_distinct_runs", "window_days"}
 
 
 def load_yaml(path: Path) -> Any:
@@ -102,6 +115,14 @@ def validate(root: Path) -> list[str]:
             errors.append(f"role `{name}` result_kind must be a non-empty string")
         if not valid_string_list(role.get("required_fields")):
             errors.append(f"role `{name}` required_fields must be a list of strings")
+        constraints = role.get("field_constraints")
+        if constraints is not None:
+            if not isinstance(constraints, dict):
+                errors.append(f"role `{name}` field_constraints must be a mapping")
+            else:
+                for field, values in constraints.items():
+                    if field not in role.get("required_fields", []) or not valid_string_list(values):
+                        errors.append(f"role `{name}` field constraint `{field}` must target a required string field")
 
     if not isinstance(policy, dict):
         return [*errors, "harness policy must be a mapping"]
@@ -121,7 +142,7 @@ def validate(root: Path) -> list[str]:
                 errors.append(f"state `{state}` references unknown state `{next_state}`")
     for state in sorted(REQUIRED_STATES - states.keys()):
         errors.append(f"missing required state `{state}`")
-    for state in ("accepted", "blocked"):
+    for state in ("accepted", "unvalidated", "blocked"):
         if states.get(state) not in ([], None):
             errors.append(f"state `{state}` must be terminal")
 
@@ -138,6 +159,59 @@ def validate(root: Path) -> list[str]:
     if not isinstance(tools, dict):
         errors.append("tools must be a mapping")
         tools = {}
+    for name, tool in tools.items():
+        if not isinstance(tool, dict):
+            errors.append(f"tool `{name}` must be a mapping")
+            continue
+        missing = {"host_kind", "writer_access", "validator_access", "root_probe"} - tool.keys()
+        unknown = set(tool) - TOOL_FIELDS
+        if missing:
+            errors.append(f"tool `{name}` missing fields: {', '.join(sorted(missing))}")
+        if unknown:
+            errors.append(f"tool `{name}` has unknown fields: {', '.join(sorted(unknown))}")
+        if not isinstance(tool.get("host_kind"), str) or not tool["host_kind"]:
+            errors.append(f"tool `{name}` host_kind must be a non-empty string")
+        if tool.get("writer_access") not in {"workspace_write", "read_only"}:
+            errors.append(f"tool `{name}` writer_access must be `workspace_write` or `read_only`")
+        if tool.get("validator_access") != "read_only":
+            errors.append(f"tool `{name}` validator_access must be `read_only`")
+        if not isinstance(tool.get("root_probe"), str) or not tool["root_probe"]:
+            errors.append(f"tool `{name}` root_probe must be a non-empty string")
+
+    runtime_providers = policy.get("runtime_providers")
+    if not isinstance(runtime_providers, dict) or not runtime_providers:
+        errors.append("runtime_providers must be a non-empty mapping")
+        runtime_providers = {}
+    for provider_id, provider in runtime_providers.items():
+        if not isinstance(provider_id, str) or not provider_id or not isinstance(provider, dict):
+            errors.append("runtime_providers must map non-empty IDs to mappings")
+            continue
+        missing = RUNTIME_PROVIDER_FIELDS - provider.keys()
+        unknown = set(provider) - RUNTIME_PROVIDER_FIELDS
+        if missing:
+            errors.append(f"runtime provider `{provider_id}` missing fields: {', '.join(sorted(missing))}")
+        if unknown:
+            errors.append(f"runtime provider `{provider_id}` has unknown fields: {', '.join(sorted(unknown))}")
+        version = provider.get("contract_version")
+        if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+            errors.append(f"runtime provider `{provider_id}` contract_version must be a positive integer")
+
+    friction_policy = policy.get("friction_policy")
+    if not isinstance(friction_policy, dict):
+        errors.append("friction_policy must be a mapping")
+    else:
+        missing = FRICTION_POLICY_FIELDS - friction_policy.keys()
+        unknown = set(friction_policy) - FRICTION_POLICY_FIELDS
+        if missing:
+            errors.append(f"friction policy missing fields: {', '.join(sorted(missing))}")
+        if unknown:
+            errors.append(f"friction policy has unknown fields: {', '.join(sorted(unknown))}")
+        if friction_policy.get("event_version") != 1:
+            errors.append("friction policy `event_version` must be 1")
+        for name in ("minimum_distinct_runs", "window_days"):
+            value = friction_policy.get(name)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+                errors.append(f"friction policy `{name}` must be a positive integer")
 
     gates = policy.get("approval_gates", {})
     if not isinstance(gates, dict):
@@ -177,21 +251,42 @@ def validate(root: Path) -> list[str]:
     if not isinstance(orchestration, dict) or not orchestration:
         errors.append("orchestration must be a non-empty mapping")
         orchestration = {}
+    aliases: dict[str, str] = {}
     for name, mode in orchestration.items():
         if not isinstance(mode, dict):
             errors.append(f"orchestration `{name}` must be a mapping")
             continue
         missing = ORCHESTRATION_FIELDS - mode.keys()
+        unknown = set(mode) - ORCHESTRATION_FIELDS
         if missing:
             errors.append(f"orchestration `{name}` missing fields: {', '.join(sorted(missing))}")
             continue
+        if unknown:
+            errors.append(f"orchestration `{name}` has unknown fields: {', '.join(sorted(unknown))}")
+        if not valid_string_list(mode["aliases"]):
+            errors.append(f"orchestration `{name}` aliases must be a non-empty list of strings")
+        else:
+            for alias in mode["aliases"]:
+                if alias in orchestration or alias in aliases:
+                    errors.append(f"orchestration alias `{alias}` is ambiguous")
+                aliases[alias] = name
+        scheduling = mode["work_scheduling"]
+        if scheduling not in {"single", "sequential", "parallel"}:
+            errors.append(f"orchestration `{name}` work_scheduling must be `single`, `sequential`, or `parallel`")
         writers = mode["max_parallel_writers"]
         if not isinstance(writers, int) or isinstance(writers, bool) or writers < 1:
             errors.append(f"orchestration `{name}` max_parallel_writers must be a positive integer")
-        if mode["workspace_mode"] not in {"current", "isolated"}:
-            errors.append(f"orchestration `{name}` workspace_mode must be `current` or `isolated`")
-        elif writers > 1 and mode["workspace_mode"] != "isolated":
-            errors.append(f"orchestration `{name}` with parallel writers requires isolated workspace")
+        if scheduling != "parallel" and writers != 1:
+            errors.append(f"orchestration `{name}` non-parallel scheduling requires one writer")
+        if scheduling == "parallel" and writers < 2:
+            errors.append(f"orchestration `{name}` parallel scheduling requires at least two writers")
+        if mode["workspace_mode"] != "isolated":
+            errors.append(f"orchestration `{name}` workspace_mode must be `isolated`")
+        validator_role = mode["validator_role"]
+        if validator_role not in roles:
+            errors.append(f"orchestration `{name}` has unknown validator role `{validator_role}`")
+        elif roles[validator_role].get("writes") is not False:
+            errors.append(f"orchestration `{name}` validator role `{validator_role}` must not write")
         if not isinstance(mode["review_required"], bool):
             errors.append(f"orchestration `{name}` review_required must be a boolean")
         if not isinstance(mode["rules"], list) or not all(isinstance(rule, str) and rule for rule in mode["rules"]):
@@ -241,9 +336,19 @@ def validate(root: Path) -> list[str]:
         for mode in route["execution_modes"]:
             if mode not in orchestration:
                 errors.append(f"unknown execution mode `{mode}`")
-        for field in ("rules", "skills", "tools", "checks", "execution_modes"):
+        for field in ("rules", "skills", "tools", "checks", "execution_modes", "runtime_providers"):
             if not valid_string_list(route[field]):
                 errors.append(f"route `{name}` {field} must be a non-empty list of strings")
+            elif len(set(route[field])) != len(route[field]):
+                errors.append(f"route `{name}` {field} must not contain duplicates")
+        for provider_id in route["runtime_providers"]:
+            if provider_id not in runtime_providers:
+                errors.append(f"route `{name}` has unknown runtime provider `{provider_id}`")
+        default_provider = route["default_runtime_provider"]
+        if not isinstance(default_provider, str) or not default_provider:
+            errors.append(f"route `{name}` default_runtime_provider must be a non-empty string")
+        elif default_provider not in route["runtime_providers"]:
+            errors.append(f"route `{name}` default_runtime_provider must be allowed")
         if not isinstance(route["workspace"], str) or not route["workspace"]:
             errors.append(f"route `{name}` workspace must be a non-empty string")
     return errors

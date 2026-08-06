@@ -36,12 +36,34 @@ Describe another concrete implementation result this plan must deliver, such as 
 
 ## Execution Approach
 
-- Mode: `inline sequential | harness sequential_agents | harness parallel_lanes`
+- Mode: `inline sequential | single_work_lane | sequential_work_lanes | parallel_work_lanes`
 - Required skills: `<exact skill names or none>`
 - Isolation: `<current workspace | isolated worktree for parallel writers>`
 - Commit policy: `<external authorization | no commits during execution>`
 - Parallel ownership: `<disjoint files/symbols or none>`
 - Sequential fallback: `<ordered fallback when parallel work is unsafe>`
+
+## Optional Coordination Manifest
+
+Use only for Git-tracked, coordination-heavy plans. Keep static coordination in
+frontmatter; keep task prose, runtime state, evidence, and handoff out of it.
+
+```yaml
+coordination:
+  target_branch: main
+  base_ref: HEAD
+  tasks:
+    - id: task-1
+      depends_on: []
+      execution_mode: single_work_lane
+      planned_write_paths: [scripts/**]
+```
+
+Every prose `### Task` section then contains exactly one
+`**Coordination ID:** \`task-id\``. Use only canonical topology names. The
+manifest owns target branch, base ref, dependencies, mode, and paths; immutable
+packet owns `plan_ref`, task ID, and normalized digest; `run.json` owns state,
+handoff, evidence, and controller decisions.
 
 ## Task Breakdown
 
@@ -65,6 +87,8 @@ Prefer one smallest valuable vertical capability per task. Do not create isolate
 Do not duplicate final artifact verification commands here unless a command is truly both task-local and final.
 
 ### Task 1: <short task title>
+
+**Coordination ID:** `<task-id when coordination manifest is present>`
 
 **Purpose:**
 - <bounded outcome this task delivers>
