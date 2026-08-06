@@ -77,6 +77,9 @@ or malformed capability produces `execution_mode_unavailable` before workspace
 preparation or dispatch. For an enforced mode, core compares `identity()` with
 immutable packet `runtime_provider` before workspace preparation or dispatch.
 Core never substitutes a different provider after identity or capability failure.
+An unavailable adapter may expose a non-empty `unavailable_detail` string. Core
+persists it in the outcome so generic CLI fallback cannot be misreported as a
+provider capability failure.
 
 ## Adapter-Owned Workspace Boundary
 
