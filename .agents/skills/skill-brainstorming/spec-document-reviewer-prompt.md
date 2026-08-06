@@ -49,4 +49,3 @@ Task agent (`normal` or `high`):
 ```
 
 **Reviewer returns:** Status, Issues (if any), Recommendations
-
