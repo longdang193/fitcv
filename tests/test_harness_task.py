@@ -903,7 +903,7 @@ def test_unavailable_managed_run_requires_explicit_unvalidated_waiver(tmp_path: 
         shutil.rmtree(run_dir, ignore_errors=True)
 
 
-def test_generic_cli_records_unvalidated_waiver(tmp_path: Path) -> None:
+def test_generic_cli_records_unavailable_adapter_proof(tmp_path: Path) -> None:
     harness = load_module()
     run_id = tmp_path.name
     run_dir = ROOT / ".harness" / "runs" / run_id
@@ -915,7 +915,7 @@ def test_generic_cli_records_unvalidated_waiver(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     try:
-        assert harness.main(["--repo-root", str(ROOT), "run", "--task", str(task_path)]) == 1
+        assert harness.main(["--repo-root", str(ROOT), "run-unavailable", "--task", str(task_path)]) == 1
         assert harness.main(
             ["--repo-root", str(ROOT), "decision", "--run-id", run_id, "--decision", str(decision_path)]
         ) == 1
@@ -923,6 +923,25 @@ def test_generic_cli_records_unvalidated_waiver(tmp_path: Path) -> None:
         run = json.loads((run_dir / "run.json").read_text())
         assert run["state"] == "unvalidated"
         assert run["attempts"][0]["outcome"]["reason"] == "execution_mode_unavailable"
+        assert run["attempts"][0]["outcome"]["detail"] == (
+            "Generic harness CLI has no injected host adapter; use a provider host entrypoint."
+        )
+    finally:
+        shutil.rmtree(run_dir, ignore_errors=True)
+
+
+def test_generic_cli_rejects_managed_run_command(tmp_path: Path) -> None:
+    harness = load_module()
+    run_dir = ROOT / ".harness" / "runs" / tmp_path.name
+    task_path = tmp_path / "task.json"
+    task_path.write_text(json.dumps(managed_request(run_id=tmp_path.name)), encoding="utf-8")
+    shutil.rmtree(run_dir, ignore_errors=True)
+    try:
+        with pytest.raises(SystemExit) as error:
+            harness.main(["--repo-root", str(ROOT), "run", "--task", str(task_path)])
+
+        assert error.value.code == 2
+        assert not (run_dir / "run.json").exists()
     finally:
         shutil.rmtree(run_dir, ignore_errors=True)
 
@@ -964,6 +983,37 @@ def test_run_managed_records_evidence_then_controller_accepts(tmp_path: Path) ->
         assert [item["state"] for item in run["state_history"]] == [
             "classified", "planned", "running", "observed", "verifying", "awaiting_decision", "accepted"
         ]
+    finally:
+        shutil.rmtree(run_dir, ignore_errors=True)
+
+
+def test_run_managed_records_host_preflight_evidence(tmp_path: Path) -> None:
+    harness = load_module()
+
+    class PreflightAdapter(FakeAdapter):
+        def preflight_evidence(self):
+            return {
+                "protocol": "initialize",
+                "server_uri": "ws://127.0.0.1:4500",
+            }
+
+    run_id = tmp_path.name
+    run_dir = ROOT / ".harness" / "runs" / run_id
+    try:
+        result = harness.run_managed(
+            ROOT,
+            managed_request(run_id=run_id),
+            PreflightAdapter({"single_work_lane": "enforced"}),
+            run_check=lambda command: (0, "ok", ""),
+            collect_changes=lambda root, base_commit: [],
+        )
+
+        assert result["state"] == "awaiting_decision"
+        run = json.loads((run_dir / "run.json").read_text())
+        assert run["attempts"][0]["host_preflight"] == {
+            "protocol": "initialize",
+            "server_uri": "ws://127.0.0.1:4500",
+        }
     finally:
         shutil.rmtree(run_dir, ignore_errors=True)
 

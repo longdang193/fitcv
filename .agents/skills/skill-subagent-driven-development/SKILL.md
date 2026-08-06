@@ -28,8 +28,13 @@ ordinary direct execution.
 - Harness records outcome after dispatch, claim collection, and verification.
   Controller alone calls `apply_controller_decision` to accept, retry,
   escalate, request approval, or block. Commit policy remains separate.
-- Generic CLI has no platform agent adapter. It must return
-  `execution_mode_unavailable`, not claim dispatch occurred.
+- Generic CLI has no managed `run` command. `run-unavailable` records explicit
+  `execution_mode_unavailable` proof; it never claims dispatch occurred.
+- For `runtime_provider_id: codex_app_server`, controller runs provider host
+  from its installed source root: `uv run codex-harness-host run --harness-root
+  <repo-root> --server-uri ws://127.0.0.1:4500 --request <request.json>`.
+  Check `uv run codex-harness-host capabilities` first. Do not retry through
+  `run-unavailable`; preserve that terminal proof and create successor request.
 - Controller may record `waive` only with reason. Waived work is terminal
   `unvalidated`; local proof remains local and cannot become managed acceptance.
 - Independent validator evidence requires host dispatch of a separate enforced,

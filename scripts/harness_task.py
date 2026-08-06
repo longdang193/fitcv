@@ -1130,8 +1130,17 @@ def _active_attempt(run: dict[str, Any]) -> dict[str, Any]:
     return run["attempts"][-1]
 
 
-def _set_outcome(attempt: dict[str, Any], reason: str, allowed_decisions: list[str], evidence_refs: list[str]) -> dict[str, Any]:
+def _set_outcome(
+    attempt: dict[str, Any],
+    reason: str,
+    allowed_decisions: list[str],
+    evidence_refs: list[str],
+    *,
+    detail: str | None = None,
+) -> dict[str, Any]:
     outcome = {"reason": reason, "allowed_decisions": allowed_decisions, "evidence_refs": evidence_refs}
+    if detail:
+        outcome["detail"] = detail
     attempt["outcome"] = outcome
     return outcome
 
@@ -1158,6 +1167,11 @@ def _adapter_capabilities(adapter: Any, canonical_modes: set[str]) -> dict[str, 
     return capabilities
 
 
+def _adapter_unavailable_detail(adapter: Any) -> str | None:
+    detail = adapter.get("unavailable_detail") if isinstance(adapter, dict) else getattr(adapter, "unavailable_detail", None)
+    return detail if isinstance(detail, str) and detail else None
+
+
 def _adapter_identity(adapter: Any, runtime_provider: dict[str, Any]) -> dict[str, Any]:
     identity = _adapter_call(adapter, "identity")
     if (
@@ -1173,6 +1187,20 @@ def _adapter_identity(adapter: Any, runtime_provider: dict[str, Any]) -> dict[st
     if identity != runtime_provider:
         raise HarnessError("host adapter identity conflicts with packet runtime provider")
     return copy.deepcopy(identity)
+
+
+def _record_host_preflight(attempt: dict[str, Any], adapter: Any) -> None:
+    method = adapter.get("preflight_evidence") if isinstance(adapter, dict) else getattr(adapter, "preflight_evidence", None)
+    if method is None:
+        return
+    if not callable(method):
+        raise HarnessError("host adapter preflight evidence must be callable")
+    evidence = method()
+    if not isinstance(evidence, dict):
+        raise HarnessError("host adapter preflight evidence must be an object")
+    protocol = _required_string(evidence.get("protocol"), "host adapter preflight protocol")
+    server_uri = _required_string(evidence.get("server_uri"), "host adapter preflight server_uri")
+    attempt["host_preflight"] = {"protocol": protocol, "server_uri": server_uri}
 
 
 def _record_tool_binding_evidence(
@@ -1684,6 +1712,7 @@ def _execute_attempt(
         return _record_failure(root, run, policy, attempt, "dispatch_failed", str(exc), phase="dispatch")
     mode = packet["orchestration"]["name"]
     if capabilities.get(mode) != "enforced":
+        detail = _adapter_unavailable_detail(adapter)
         _record_attempt_friction(
             root,
             run,
@@ -1694,7 +1723,13 @@ def _execute_attempt(
             code="execution_mode_unavailable",
             evidence_ref="capabilities",
         )
-        _set_outcome(attempt, "execution_mode_unavailable", ["waive", "block"], ["capabilities"])
+        _set_outcome(
+            attempt,
+            "execution_mode_unavailable",
+            ["waive", "block"],
+            ["capabilities"],
+            detail=detail,
+        )
         _transition(run, policy["states"], "awaiting_decision", "execution_mode_unavailable")
         _write_run(root, run)
         return _managed_result(run)
@@ -1866,6 +1901,11 @@ def run_managed(
                 _transition(run, policy["states"], "awaiting_decision", "plan_binding_changed")
                 _write_run(root, run)
                 return _managed_result(run)
+    try:
+        _record_host_preflight(_active_attempt(run), adapter)
+    except Exception as exc:
+        return _record_failure(root, run, policy, _active_attempt(run), "dispatch_failed", str(exc), phase="dispatch")
+    _write_run(root, run)
     collector = collect_changes or _collect_changes
     return _execute_attempt(root, run, policy, adapter, run_check=run_check, collect_changes=collector, now=now or datetime.now(UTC))
 
@@ -1945,7 +1985,7 @@ def main(argv: list[str] | None = None) -> int:
         command.add_argument("--task", required=True)
         if name == "verify":
             command.add_argument("--claim", required=True)
-    run_command = subparsers.add_parser("run")
+    run_command = subparsers.add_parser("run-unavailable")
     run_command.add_argument("--task")
     run_command.add_argument("--run-id")
     decision_command = subparsers.add_parser("decision")
@@ -1968,11 +2008,19 @@ def main(argv: list[str] | None = None) -> int:
             result = resolve_task(root, _load_json(Path(args.task)))
         elif args.command == "verify":
             result = verify_task(root, _load_json(Path(args.task)), _load_json(Path(args.claim)))
-        elif args.command == "run":
+        elif args.command == "run-unavailable":
             if not args.task and not args.run_id:
-                raise HarnessError("run requires --task or --run-id")
+                raise HarnessError("run-unavailable requires --task or --run-id")
             task = _load_json(Path(args.task)) if args.task else None
-            result = run_managed(root, task, {"capabilities": lambda: {}}, run_id=args.run_id)
+            result = run_managed(
+                root,
+                task,
+                {
+                    "capabilities": lambda: {},
+                    "unavailable_detail": "Generic harness CLI has no injected host adapter; use a provider host entrypoint.",
+                },
+                run_id=args.run_id,
+            )
         elif args.command == "friction-report":
             result = friction_report(root)
         elif args.command == "friction-resolve":

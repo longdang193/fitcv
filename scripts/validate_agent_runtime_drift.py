@@ -82,9 +82,15 @@ def _resolve_platform_selection(root: Path, args: argparse.Namespace) -> tuple[l
     return ["codex"], "default"
 
 
+def _is_consume_only_kit(root: Path) -> bool:
+    return not (root / "adapters").is_dir() and not (root / "scripts" / "deploy_agent_runtime.py").is_file()
+
 def main() -> int:
     args = parse_args()
     root = Path(args.repo_root).resolve()
+    if _is_consume_only_kit(root):
+        print("SKIP: runtime drift checks unavailable in consume-only kit.")
+        return 0
     py = sys.executable
     steps = [
         [py, str(root / "scripts" / "sync_agent_adapters.py"), "--check"],

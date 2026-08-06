@@ -7,6 +7,11 @@ verification, outcomes, and controller decisions. Host owns actual agent and
 workspace operations. Generic CLI has no host adapter and exposes
 `run-unavailable` only for explicit unavailable-adapter proof.
 
+Host runtime dependencies must cover every non-stdlib import in core scripts it
+loads. Target virtual environments, dev groups, and `requirements.txt` do not
+satisfy host `uv run` resolution. Provider admission requires bare host-process
+core-load proof before capability claims may authorize dispatch.
+
 Managed work starts only when host calls `run_managed(root, request, adapter)`.
 No packet or `.harness/runs/<run-id>/run.json` means source-first local work,
 not harness-managed work.
@@ -26,8 +31,15 @@ source root, verify capability and dispatch same request through provider host:
 
 ```powershell
 uv run codex-harness-host capabilities
+uv run codex-harness-host preflight --server-uri ws://127.0.0.1:4500
 uv run codex-harness-host run --harness-root <repo-root> --server-uri ws://127.0.0.1:4500 --request <request.json>
 ```
+
+`preflight` opens configured App Server WebSocket and completes `initialize`.
+`run` repeats this liveness proof before it loads core or creates packet,
+workspace, or `run.json`. Failure returns `preflight_failed`; start provider
+only after endpoint recovery, then create successor request. Successful managed
+attempt records `host_preflight` protocol and server URI in `run.json`.
 
 Do not use `run-unavailable` for retry. It proves generic CLI lacks injected
 adapter and is terminal evidence for that invocation only. Preserve that
