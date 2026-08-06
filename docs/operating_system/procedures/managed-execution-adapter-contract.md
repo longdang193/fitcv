@@ -18,11 +18,31 @@ may create immutable packet and mutable `run.json` only to prove that no host
 adapter is available. It cannot prepare a workspace, dispatch writer or
 validator lanes, run packet checks, or retry managed work.
 
-Retry needs provider-host invocation of
-`run_managed(root, request, adapter)` with selected mode enforced. Until host
-exposes that adapter capability, controller records `block`; it must not waive
-or replace missing host evidence with local commands, agent claims, or browser
-proof.
+## Codex Provider Invocation
+
+`runtime_provider_id: codex_app_server` selects provider identity; it does not
+make generic core CLI a provider host. From installed `codex-harness-host`
+source root, verify capability and dispatch same request through provider host:
+
+```powershell
+uv run codex-harness-host capabilities
+uv run codex-harness-host run --harness-root <repo-root> --server-uri ws://127.0.0.1:4500 --request <request.json>
+```
+
+Do not use `run-unavailable` for retry. It proves generic CLI lacks injected
+adapter and is terminal evidence for that invocation only. Preserve that
+blocked run; create successor request with new `run_id` for provider-host retry.
+
+Controller records the resulting `block`, `retry`, or other allowed decision
+through a JSON file, not inline text:
+
+```powershell
+uv run python scripts/harness_task.py decision --run-id <run-id> --decision <decision.json>
+```
+
+`<decision.json>` contains `{"kind":"block","reason":"..."}` or another
+policy-allowed decision. This records controller disposition only; it cannot
+replace provider-host writer, check, or validator evidence.
 
 Packet owns role-derived claim schema for every executable lane. Host prompts
 and core claim validation consume that same immutable schema.
