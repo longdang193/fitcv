@@ -1,0 +1,46 @@
+{
+  "version": 5,
+  "run_id": "fitcv-local-system-redirect-admin-system-20260809-successor9",
+  "task_type": "local_change",
+  "user_request": "Execute only ready task local-system-redirect-admin-system-successor9. Use TDD: add focused TestClient regressions, run red before source change, then make minimal redirect change and run green. Change GET /local/system to return 302 Location /admin/system. Preserve fixed-location query behavior and GET /local/lifecycle/status. After direct backend proof, emit claimed_result immediately; do not run diagnostics or inspect historical .harness evidence. Do not edit outside packet paths.",
+  "plan_ref": "docs/superpowers/plans/2026-08-09-local-system-redirect-admin-system-successor9-plan.md",
+  "plan_task_id": "local-system-redirect-admin-system-successor9",
+  "skill_set_selections": [
+    {
+      "id": "backend_verification",
+      "reason": "HTTP route behavior changes"
+    }
+  ],
+  "lanes": [
+    {
+      "lane_id": "writer",
+      "role": "implement",
+      "allowed_paths": [
+        "src/fitcv_cp/local_routes.py",
+        "tests/test_fitcv_cp/test_local_routes.py"
+      ],
+      "dependencies": [],
+      "workspace_mode": "isolated",
+      "write_capable": true
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "diff",
+      "kind": "check",
+      "check": "diff"
+    },
+    {
+      "id": "local-system-redirect-admin-system-successor9-scope",
+      "kind": "change_set",
+      "paths": [
+        "src/fitcv_cp/local_routes.py",
+        "tests/test_fitcv_cp/test_local_routes.py"
+      ]
+    },
+    {
+      "id": "validator",
+      "kind": "validator"
+    }
+  ]
+}

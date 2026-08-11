@@ -139,7 +139,7 @@ class FakeAdapter:
         self.claim_payload = claim_payload
         self.validator_claim = validator_claim
         self.dispatch_error = dispatch_error
-        self.identity_value = identity or {"provider_id": "codex_app_server", "contract_version": 1}
+        self.identity_value = identity or {"provider_id": "codex_app_server", "contract_version": 2}
         self.workspace_root = str(workspace_root or ROOT)
         self.calls = []
 
@@ -341,7 +341,13 @@ def test_resolve_managed_packet_normalizes_v2_alias_to_v3_lane_dag() -> None:
 
     assert packet["version"] == 3
     assert packet["user_request"] == "Update managed harness fixture."
-    assert packet["runtime_provider"] == {"provider_id": "codex_app_server", "contract_version": 1}
+    assert packet["runtime_provider"] == {"provider_id": "codex_app_server", "contract_version": 2}
+    assert packet["execution_budget"] == {
+        "profile": "default",
+        "turn_timeout_seconds": 300,
+        "timeout_decisions": ["escalate", "block"],
+        "escalation_profile": "extended",
+    }
     assert packet["agent_identity"] == {
         "template": "normal",
         "model_provider": "9router",
@@ -676,7 +682,7 @@ def test_resolve_managed_packet_accepts_allowed_runtime_provider() -> None:
         attempt_id="attempt-1",
     )
 
-    assert packet["runtime_provider"] == {"provider_id": "codex_app_server", "contract_version": 1}
+    assert packet["runtime_provider"] == {"provider_id": "codex_app_server", "contract_version": 2}
 
 
 @pytest.mark.parametrize(("task_type", "template", "model"), [
@@ -866,7 +872,7 @@ def test_adapter_identity_mismatch_blocks_before_workspace_preparation(tmp_path:
     harness = load_module()
     adapter = FakeAdapter(
         {"single_work_lane": "enforced"},
-        identity={"provider_id": "other", "contract_version": 1},
+        identity={"provider_id": "codex_app_server", "contract_version": 1},
     )
     run_dir = ROOT / ".harness" / "runs" / tmp_path.name
     try:
@@ -1050,6 +1056,13 @@ def test_unverified_packet_tool_blocks_before_writer_dispatch(tmp_path: Path) ->
 
         assert result["state"] == "awaiting_decision"
         assert result["outcome"]["reason"] == "dispatch_failed"
+        assert result["outcome"]["detail"] == "packet-scoped native tool roots unavailable: serena"
+        run = json.loads((run_dir / "run.json").read_text())
+        assert run["attempts"][0]["evidence"]["failure"] == {
+            "detail": "packet-scoped native tool roots unavailable: serena",
+            "phase": "dispatch",
+            "reason": "dispatch_failed",
+        }
         assert adapter.calls == ["capabilities", "prepare_workspace", "verify_tool_bindings"]
     finally:
         shutil.rmtree(run_dir, ignore_errors=True)
@@ -1421,7 +1434,7 @@ def test_retry_creates_immutable_successor_then_exhausts(tmp_path: Path) -> None
         assert len(run["attempts"]) == 2
         assert run["attempts"][0]["packet"]["runtime_provider"] == {
             "provider_id": "codex_app_server",
-            "contract_version": 1,
+            "contract_version": 2,
         }
         assert run["attempts"][1]["packet"]["runtime_provider"] == run["attempts"][0]["packet"]["runtime_provider"]
         assert run["attempts"][0]["packet"] == before
@@ -1510,6 +1523,48 @@ def test_managed_dispatch_failure_becomes_retryable_outcome(tmp_path: Path) -> N
         shutil.rmtree(run_dir, ignore_errors=True)
 
 
+def test_timeout_escalation_uses_packet_named_budget_profile(tmp_path: Path) -> None:
+    harness = load_module()
+    run_id = tmp_path.name
+    run_dir = ROOT / ".harness" / "runs" / run_id
+
+    class TimedOutTurn(RuntimeError):
+        timeout_evidence = {
+            "lane_id": "primary",
+            "turn_timeout_seconds": 300,
+            "elapsed_seconds": 300.0,
+            "terminal_status": "interrupted",
+            "event_summary": ["turn/completed"],
+            "last_tool_call": "shell",
+            "completed_command_count": 1,
+        }
+
+    try:
+        result = harness.run_managed(
+            ROOT,
+            managed_request(run_id=run_id),
+            FakeAdapter({"single_work_lane": "enforced"}, dispatch_error=TimedOutTurn("turn timed out")),
+        )
+
+        assert result["outcome"] == {
+            "reason": "dispatch_timeout",
+            "allowed_decisions": ["escalate", "block"],
+            "evidence_refs": ["friction_event_ids", "evidence.failure", "evidence.timeout"],
+            "detail": "turn timed out",
+        }
+        with pytest.raises(harness.HarnessError, match="decision `retry` is not allowed"):
+            harness.apply_controller_decision(ROOT, run_id, {"kind": "retry"})
+
+        resumed = harness.apply_controller_decision(ROOT, run_id, {"kind": "escalate"})
+        run = json.loads((run_dir / "run.json").read_text())
+
+        assert resumed["state"] == "planned"
+        assert run["attempts"][0]["packet"]["execution_budget"]["profile"] == "default"
+        assert run["attempts"][1]["packet"]["execution_budget"]["profile"] == "extended"
+    finally:
+        shutil.rmtree(run_dir, ignore_errors=True)
+
+
 def test_failed_integration_skips_validator_dispatch(tmp_path: Path) -> None:
     harness = load_module()
     run_id = tmp_path.name
@@ -1594,7 +1649,7 @@ def test_friction_report_uses_distinct_runs_and_accepted_resolution(tmp_path: Pa
     shutil.copy2(ROOT / "repo_config" / "harness.yaml", root / "repo_config" / "harness.yaml")
     packet = {
         "task_type": "local_change",
-        "runtime_provider": {"provider_id": "codex_app_server", "contract_version": 1},
+        "runtime_provider": {"provider_id": "codex_app_server", "contract_version": 2},
         "orchestration": {"name": "single_work_lane"},
     }
     now = datetime(2026, 8, 6, tzinfo=UTC)

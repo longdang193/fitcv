@@ -27,6 +27,10 @@ Receive from `skill-executing-plans`:
 
 If required implementation remains, return to `skill-executing-plans`.
 
+For package-backed harnesses, verify packet `core_identity`, consumer
+`harness_core.request_api`, adapter `host_api`, and launcher environment result
+where applicable. Do not treat legacy shim output as independent core proof.
+
 For managed terminal failure, report exact evidence without editing routes,
 skills, or policy. Core owns friction capture; controller considers improvement
 only after `friction-report` identifies a recurring candidate.

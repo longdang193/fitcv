@@ -10,7 +10,7 @@ required_sections:
   - Correct Owner
   - Smallest Intervention
   - Native Validation
-  - Fresh-Agent Rerun
+  - Fresh Successor Verification
   - Decision
 required_frontmatter:
   artifact_type: harness-improvement
@@ -37,7 +37,16 @@ distribution_tier: starter_kit
 
 ## Native Validation
 
-## Fresh-Agent Rerun
+## Fresh Successor Verification
+
+- prior terminal run or friction evidence preserved:
+- fresh approved successor plan/task and request identity:
+- imported host module and committed runtime provenance, when host changed:
+- fresh provider capabilities and preflight:
+- focused representative outcome and verification evidence:
+
+Never resume a terminal blocked product run. A fresh agent never changes the
+prior run's immutable packet or terminal evidence.
 
 ## Decision
 

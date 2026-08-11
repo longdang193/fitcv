@@ -33,7 +33,7 @@ configuration, and validators remain executable truth.
 
 Use optional `coordination` only for Git-tracked active plans. Its manifest is
 static coordination SSOT: target branch, base ref, task IDs, dependencies,
-canonical topology, and planned write paths. Each prose task names one
+canonical topology, allowed paths, and planned write paths. Each prose task names one
 `Coordination ID`.
 
 Packet binds immutable `plan_ref`, `plan_task_id`, and normalized manifest
@@ -44,4 +44,6 @@ or handoff into plan.
 Controller activation is serialized. `single_work_lane`,
 `sequential_work_lanes`, and `parallel_work_lanes` use same plan/run contract;
 parallelism stays packet-internal. No locks, leases, scheduler, queue, or host
-thread resume exists. Changed manifest or base creates successor attempt.
+thread resume exists. Changed manifest or base creates successor attempt. A
+terminal coordinated failure remains blocked and requires approved successor
+plan/task identity before a fresh request.

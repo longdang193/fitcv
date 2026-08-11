@@ -1,0 +1,4 @@
+{
+  "kind": "block",
+  "reason": "Task 1 exhausted packet-defined default and extended budgets. Writer completed nine shell commands but did not return a claim within 900 seconds; terminal interrupt succeeded. Investigate managed writer completion before another Task 1 packet."
+}

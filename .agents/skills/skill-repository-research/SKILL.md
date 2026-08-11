@@ -12,7 +12,7 @@ Produce evidence, not designs, plans, or edits.
 1. State question, repository boundary, and needed evidence.
 2. Use native file inspection and `rg` for exact names, paths, and text.
 3. Use packet Semble MCP (`packet_semble_search`) only when broad local concept location is unknown. Confirm hits in source.
-4. Use packet Serena only after exact symbols or references are known. Use GitNexus only when packet selects it and broad flow or impact remains unknown.
+4. Use packet Serena only after exact symbols or references are known. Use private controller-side GitNexus when broad flow or impact remains unknown and fresh; managed lanes use only packet-selected tools.
 5. Use `sg` only for read-only structural preview. `apply_patch` remains sole edit path; this route does not edit.
 6. Separate verified facts, source paths, unknowns, and next handoff: design, plan, implementation, or stop.
 

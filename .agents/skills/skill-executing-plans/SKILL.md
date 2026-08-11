@@ -17,18 +17,60 @@ This skill owns plan execution. It does not own design decisions, planning struc
 Before editing, confirm:
 
 - an approved implementation plan or explicit approved task sequence exists
-- behavioral and interface decisions needed for the next task are settled
+- behavioral and interface decisions needed for the next task are settled; do
+  not create a write-capable packet while required product facts remain unknown
 - workspace path, creation mechanism, branch or detached state, base branch, base commit, and current HEAD are understood
 - staged, unstaged, untracked, and unrelated user changes are understood and preserved
 - required credentials, dependencies, and external services for the next task are available, or the plan identifies a safe fallback
 
 For active plan-linked coordination, read `coordination-status` before run.
-Dispatch only a `ready` task through its immutable packet. Resume matching
-packet only when plan digest and base commit still match; otherwise record
-handoff and create successor attempt. Never infer host-thread resume or write
-run state into plan.
+Dispatch only a `ready` task through its immutable packet. Resume matching run
+with `--run-id` only when its run state is `planned` and plan digest and base
+commit still match; otherwise record handoff and create successor attempt. A
+terminal coordinated task failure is `blocked`: preserve its evidence and
+require approved successor plan/task identity before a fresh request. Never
+infer host-thread resume or write run state into plan.
 
 If the plan has a blocking design gap, stop and return it to `skill-spec-drafting` or `skill-writing-plans`. Do not invent design during execution.
+
+When source can resolve an unknown product fact, dispatch bounded read-only
+research before implementation. When it cannot, block for a requirements or
+specification decision. Do not use an implementer lane for open-ended discovery.
+
+## Package Harness Runtime
+
+For package-backed harnesses, use installed `harness-core` commands or a
+provider host, never copied consumer logic. Confirm `harness_core.request_api`
+and adapter `host_api` before packet work. Package, release tag, or provider
+absence is a blocker, not a local fallback.
+For `codex_app_server`, run `harness-core-launcher doctor`, `capabilities`, and
+`preflight` before packet work. Its active pointer selects the verified host
+release profile. Host-owned trusted user configuration selects the registered
+launcher or explicit external endpoint; never copy endpoint, launch-command, or
+credential values into repository guidance or packets. Never invoke bare
+`codex-harness-host`; PATH can resolve stale user-level tools and cannot prove
+the managed runtime.
+After host-source fix, follow
+[`managed-execution-adapter-contract.md`](../../../docs/operating_system/procedures/managed-execution-adapter-contract.md#committed-runtime-provenance)
+before product packet dispatch. `preflight` alone is insufficient; prove only
+changed imported runtime module is committed. Preserve unrelated host changes.
+
+Host returns baseline evidence before lane dispatch: root and parallel lanes use
+`packet_base` at exact packet base with a clean checkout; sequential dependents
+use `predecessor` only for direct materialized predecessor state. Core validates
+this evidence. `workspace_baseline_invalid` is a host/environment failure:
+preserve its evidence and repair workspace materialization, never reinterpret
+it as product scope or agent behavior.
+
+For current leased packets, core issues one finite lease before `running`. Host
+owns provider processes and returns packet-declared terminal evidence. Core
+finalizes external signed and legacy evidence through `terminalize_attempt(envelope)`;
+personal-local closure uses `harness-core-launcher close`. Evidence records
+`attempt_outcome/v2`; core auto-finalizes one-decision terminal outcomes and
+requires signed controller authority for ambiguous terminal outcomes. Core
+atomically records receipt, lease release, state history, and `run.json`. Do not
+write terminal state from a host or repair an `orphaned` attempt through retry
+or resume.
 
 ## Conditional References
 
@@ -183,6 +225,7 @@ When all required plan tasks appear complete:
 5. let that skill run fresh final proof, reconcile outcomes, tasks, deviations, and repository state, then set final plan status only when it returns `verified`
 
 Commit, push, merge, publish, delete, or clean worktrees only with explicit authorization.
+Do not stage files or emit a Git staging directive for blocked or unaccepted work.
 
 ## Handoff
 

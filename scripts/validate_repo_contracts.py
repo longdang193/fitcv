@@ -40,6 +40,17 @@ import json
 
 STARTER_KIT_CLASSIFICATION_ENFORCEMENT = "fail"
 STARTER_KIT_DISTRIBUTION_TIER = "starter_kit"
+HARNESS_SHIM_IMPORTS = {
+    "scripts/harness_task.py": "harness_core_launcher",
+    "scripts/plan_coordination.py": "harness_core.coordination",
+    "scripts/planning_artifact_schema.py": "harness_core.planning_schema",
+    "scripts/validate_harness_config.py": "harness_core_launcher",
+}
+PACKAGE_RUNTIME_SCRIPT_NAMES = {
+    "validate_harness_config.py",
+    "validate_planning_lifecycle.py",
+    "validate_template_required_sections.py",
+}
 
 
 @dataclass(frozen=True)
@@ -47,6 +58,20 @@ class ValidationIssue:
     category: str
     path: str
     message: str
+
+
+def validate_harness_shims(root: Path) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    forbidden = re.compile(r"\bdef\s+(?:run_managed|resolve_managed_packet|resolve_task|verify_task|validate)\b|importlib\.util")
+    for relative, expected_import in HARNESS_SHIM_IMPORTS.items():
+        path = root / relative
+        if not path.is_file():
+            issues.append(ValidationIssue("harness_shim", relative, "missing shim"))
+            continue
+        source = path.read_text(encoding="utf-8")
+        if expected_import not in source or forbidden.search(source):
+            issues.append(ValidationIssue("harness_shim", relative, "must delegate to package without core implementation"))
+    return issues
 
 
 def repo_root() -> Path:
@@ -163,6 +188,10 @@ def run_step(command: list[str], *, cwd: Path) -> int:
     return completed.returncode
 
 
+def harness_core_python() -> list[str]:
+    return ["uv", "run", "--package", "harness-core", "python"]
+
+
 def build_subprocess_steps(
     *,
     root: Path,
@@ -181,9 +210,12 @@ def build_subprocess_steps(
     env_gitignore_contract_script = str(root / "scripts" / "validate_env_gitignore_contract.py")
     agent_runtime_drift_script = str(root / "scripts" / "validate_agent_runtime_drift.py")
 
+    def package_runtime(script: str) -> list[str]:
+        return [*harness_core_python(), script]
+
     steps: list[list[str]] = [
-        [python_executable, planning_lifecycle_script],
-        [python_executable, template_sections_script],
+        package_runtime(planning_lifecycle_script),
+        package_runtime(template_sections_script),
         [python_executable, learning_format_script],
         [python_executable, prompt_metadata_schema_script],
         [python_executable, agent_metadata_schema_script],
@@ -192,7 +224,7 @@ def build_subprocess_steps(
         [python_executable, agent_runtime_drift_script, "--skip-deploy-check"],
     ]
     steps.append([python_executable, repo_config_script])
-    steps.append([python_executable, harness_config_script, "--repo-root", str(root)])
+    steps.append([*package_runtime(harness_config_script), "--repo-root", str(root)])
     steps.append([python_executable, harness_routing_script, "--repo-root", str(root), "--check"])
     if not fast:
         pytest_targets = [
@@ -202,7 +234,7 @@ def build_subprocess_steps(
         ]
         steps.append(
             [
-                python_executable,
+                *harness_core_python(),
                 "-m",
                 "pytest",
                 "--basetemp",
@@ -425,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
         if patched:
             print(f"Starter-kit distribution tier sync patched {patched} file(s).")
 
-    classification_issues = validate_starter_kit_classification(root)
+    classification_issues = [*validate_starter_kit_classification(root), *validate_harness_shims(root)]
 
     if classification_issues:
         if STARTER_KIT_CLASSIFICATION_ENFORCEMENT == "fail":

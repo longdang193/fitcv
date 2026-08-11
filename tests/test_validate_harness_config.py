@@ -100,6 +100,20 @@ def write_harness_root(root: Path) -> None:
                         "approval_ttl_seconds": 3600,
                     }
                 },
+                "execution_budgets": {
+                    "max_turn_timeout_seconds": 900,
+                    "profiles": {
+                        "default": {
+                            "turn_timeout_seconds": 300,
+                            "timeout_decisions": ["escalate", "block"],
+                            "escalation_profile": "extended",
+                        },
+                        "extended": {
+                            "turn_timeout_seconds": 900,
+                            "timeout_decisions": ["block"],
+                        },
+                    },
+                },
                 "checks": {"diff": {"command": ["git", "diff", "--check"]}},
                 "tools": {
                     "shell": {
@@ -111,7 +125,7 @@ def write_harness_root(root: Path) -> None:
                     }
                 },
                 "runtime_providers": {
-                    "codex_app_server": {"contract_version": 1},
+                    "codex_app_server": {"contract_version": 2},
                 },
                 "friction_policy": {
                     "event_version": 1,
@@ -148,6 +162,7 @@ def write_harness_root(root: Path) -> None:
                         "workspace": "current",
                         "checks": ["diff"],
                         "retry_policy": "bounded",
+                        "execution_budget_profile": "default",
                         "execution_modes": ["single_work_lane", "sequential_work_lanes"],
                         "runtime_providers": ["codex_app_server"],
                         "default_runtime_provider": "codex_app_server",
@@ -339,6 +354,27 @@ def test_invalid_retry_policy_approval_ttl_fails(tmp_path: Path) -> None:
     (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
 
     assert "retry policy `bounded` approval_ttl_seconds must be a positive integer" in validator.validate(tmp_path)
+
+
+def test_unknown_route_execution_budget_profile_fails(tmp_path: Path) -> None:
+    validator = load_validator()
+    write_harness_root(tmp_path)
+    config = yaml.safe_load((tmp_path / "repo_config/harness.yaml").read_text())
+    config["routes"]["local_change"]["execution_budget_profile"] = "missing"
+    (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    assert "route `local_change` has unknown execution budget profile `missing`" in validator.validate(tmp_path)
+
+
+def test_execution_budget_escalation_cycle_fails(tmp_path: Path) -> None:
+    validator = load_validator()
+    write_harness_root(tmp_path)
+    config = yaml.safe_load((tmp_path / "repo_config/harness.yaml").read_text())
+    config["execution_budgets"]["profiles"]["extended"]["timeout_decisions"] = ["escalate", "block"]
+    config["execution_budgets"]["profiles"]["extended"]["escalation_profile"] = "default"
+    (tmp_path / "repo_config/harness.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    assert "execution budget profiles contain escalation cycle at `default`" in validator.validate(tmp_path)
 
 
 def test_invalid_friction_policy_fails(tmp_path: Path) -> None:

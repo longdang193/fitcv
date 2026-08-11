@@ -1,0 +1,4 @@
+{
+  "kind": "block",
+  "reason": "Host run adapter exposes no enforced sequential_work_lanes capability, so writer and enforced read-only validator cannot dispatch."
+}

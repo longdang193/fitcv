@@ -1,0 +1,4 @@
+{
+  "kind": "escalate",
+  "reason": "Task 1 reached a verified dispatch timeout under default 300-second budget. Use packet-defined extended budget once; do not create another same-sized request."
+}

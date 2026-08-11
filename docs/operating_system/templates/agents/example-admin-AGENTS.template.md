@@ -7,4 +7,5 @@ This directory owns operator-facing or admin-facing orchestration behavior.
 - Keep operator-facing behavior aligned with the underlying contracts and artifacts.
 - Update routes, templates, and serialization together when an operator workflow changes.
 - Preserve clear distinctions between private operating workflow and product-facing UX.
-- Keep governance and publication rules in `docs/operating_system/` and `.codex/rules/`, not in UI docs.
+- Keep governance and publication guidance in `docs/operating_system/`; keep
+  machine-enforced policy in `repo_config/`, not UI docs.

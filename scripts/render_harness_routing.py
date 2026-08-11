@@ -42,19 +42,39 @@ def render(root: Path) -> str:
         "",
         "# Harness Routing",
         "",
-        "Controller task packet selects one route. Rules stay mandatory. Agents return claimed results; harness returns verification evidence.",
+        "Controller task packet selects one route. Core resolves authority, toolset, and verification profiles. Agents return claimed results; harness returns verification evidence.",
         "",
-        "| Task Type | Template | Role | Skills | Tools | Checks |",
+        "| Task Type | Template | Role | Required Skills | Allowed Skill Sets | Operating Profiles | Artifact Handoff Profiles |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
     for name, route in policy["routes"].items():
+        if "required_skill_sets" in route:
+            required_sets = route["required_skill_sets"]
+            required_skill_cell = ", ".join(
+                f"`{set_name}`: {', '.join(f'`{skill}`' for skill in policy['skill_sets'][set_name]['skills'])}"
+                for set_name in required_sets
+            )
+            allowed_sets = route["allowed_skill_sets"]
+            profiles = route["allowed_operating_profiles"]
+            template = policy["operating_profiles"][route["default_operating_profile"]].get("template", "inherited")
+        else:
+            required_skill_cell = ", ".join(f"`{skill}`" for skill in route["skills"])
+            allowed_sets = []
+            profiles = []
+            template = route["template"]
+        handoff_profiles = route.get("artifact_handoff_profiles", [])
+        default_handoff_profile = route.get("default_artifact_handoff_profile")
         cells = [
             f"`{name}`",
-            f"`{route['template']}`",
+            f"`{template}`",
             f"`{route['role']}`",
-            ", ".join(f"`{skill}`" for skill in route["skills"]),
-            ", ".join(f"`{tool}`" for tool in route["tools"]),
-            ", ".join(f"`{check}`" for check in route["checks"]),
+            required_skill_cell,
+            ", ".join(f"`{skill_set}`" for skill_set in allowed_sets),
+            ", ".join(f"`{profile}`" for profile in profiles),
+            ", ".join(
+                f"`{profile}`" + (" (default)" if profile == default_handoff_profile else "")
+                for profile in handoff_profiles
+            ),
         ]
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines) + "\n"

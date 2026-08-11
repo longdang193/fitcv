@@ -56,14 +56,19 @@ coordination:
     - id: task-1
       depends_on: []
       execution_mode: single_work_lane
+      allowed_paths: [scripts/**]
       planned_write_paths: [scripts/**]
 ```
 
 Every prose `### Task` section then contains exactly one
 `**Coordination ID:** \`task-id\``. Use only canonical topology names. The
-manifest owns target branch, base ref, dependencies, mode, and paths; immutable
+manifest owns target branch, base ref, dependencies, mode, allowed paths, and planned paths; immutable
 packet owns `plan_ref`, task ID, and normalized digest; `run.json` owns state,
 handoff, evidence, and controller decisions.
+
+A terminal coordinated failure requires newly approved successor plan/task
+identity and a fresh request. Do not reuse its mutable run state or add it to
+the manifest.
 
 ## Task Breakdown
 

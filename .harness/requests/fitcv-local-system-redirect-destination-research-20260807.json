@@ -1,0 +1,12 @@
+{
+  "version": 4,
+  "run_id": "fitcv-local-system-redirect-destination-research-20260807",
+  "task_type": "research",
+  "runtime_provider_id": "codex_app_server",
+  "plan_ref": "docs/superpowers/plans/2026-08-07-local-system-redirect-destination-research-plan.md",
+  "plan_task_id": "local-system-redirect-destination-research",
+  "user_request": "Read-only bounded research only. Do not modify files. Use only these sources: src/fitcv_cp/local_routes.py, src/fitcv_cp/app.py, tests/test_fitcv_cp/test_local_routes.py, docs/fitcv-settings-ui-prototype.integration.md, docs/usage.md. Use at most five packet tool calls total. Determine one explicit intended destination for GET /local/system only when current route registry, nearby routes, existing tests, and current product docs support it without conflict. Do not use historical plans or old run claims as authority. Return one JSON claimed_result. Required fields: kind=claimed_result, summary, findings. Also include changed_files: [], status: resolved|blocked, destination: string|null, and sources: [{path, lines, fact}]. For absent or conflicting evidence return status=blocked, destination=null, and list every missing/conflicting source. Do not guess.",
+  "acceptance_criteria": [
+    {"id": "diff", "kind": "check", "check": "diff"}
+  ]
+}

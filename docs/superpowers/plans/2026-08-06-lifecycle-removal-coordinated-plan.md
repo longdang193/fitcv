@@ -9,19 +9,29 @@ coordination:
     - id: lifecycle-local-system-redirect
       depends_on: []
       execution_mode: sequential_work_lanes
-      planned_write_paths:
+      allowed_paths:
         - src/fitcv_cp/local_routes.py
         - tests/test_fitcv_cp/test_local_routes.py
+      planned_write_paths:
+          - src/fitcv_cp/local_routes.py
+          - tests/test_fitcv_cp/test_local_routes.py
     - id: lifecycle-admin-route-removal
       depends_on: [lifecycle-local-system-redirect]
       execution_mode: sequential_work_lanes
-      planned_write_paths:
+      allowed_paths:
         - src/fitcv_cp/app.py
         - src/fitcv_cp/templates/lifecycle.html
         - tests/test_fitcv_cp/test_lifecycle_removal.py
+      planned_write_paths:
+          - src/fitcv_cp/app.py
+          - src/fitcv_cp/templates/lifecycle.html
+          - tests/test_fitcv_cp/test_lifecycle_removal.py
     - id: lifecycle-contract-documentation
       depends_on: [lifecycle-admin-route-removal]
       execution_mode: sequential_work_lanes
+      allowed_paths:
+        - docs/fitcv-settings-ui-prototype.integration.md
+        - docs/superpowers/plans/2026-08-04-16-00-fitcv-prototype-runtime-parity-and-full-stack-integration-patch-plan.md
       planned_write_paths:
         - docs/fitcv-settings-ui-prototype.integration.md
         - docs/superpowers/plans/2026-08-04-16-00-fitcv-prototype-runtime-parity-and-full-stack-integration-patch-plan.md

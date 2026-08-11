@@ -21,20 +21,76 @@ This file is repo-wide instruction layer. More specific directory instructions o
 
 ## Subagent Routing
 
-`repo_config/harness.yaml` owns route selection. For managed execution,
-controller starts version-3 request through host-supplied `run_managed` adapter
-boundary. `run.json` owns mutable run state; each attempt owns immutable packet.
-Packet owns template, role, rules, skills, allowed tools, workspace, checks,
-approval gates, planned write paths, resolved base commit, and orchestration
-mode. Generic CLI has no managed `run` command. Its `run-unavailable` proof
+`repo_config/harness.yaml` owns route selection and `harness_core.request_api`.
+Installed `harness-core` owns packet resolution and lifecycle; legacy consumer
+scripts are package bridges only. For managed execution, controller submits a
+typed request through host-supplied `run_managed` adapter boundary. Core resolves a dispatchable request, packet, and host compatibility profile from current policy; never force a legacy API version. `run.json` owns mutable run state; each attempt owns immutable packet.
+Packet owns template, role, rules, skills, selected authority, toolset,
+verification profile, resolved tools/checks, workspace, approval gates, planned
+write paths, resolved base commit, and orchestration mode plus resolved
+`execution_budget`. Generic CLI has no managed `run` command. Its `run-unavailable` proof
 command reports unavailable mode instead of claiming dispatch.
-For `runtime_provider_id: codex_app_server`, controller invokes provider host
-from its installed source root: `uv run codex-harness-host run --harness-root
-<repo-root> --server-uri ws://127.0.0.1:4500 --request <request.json>`.
+For current leased packets, core issues one finite execution lease before `planned` enters
+`running`. Host owns provider lifecycle and bounded
+packet-declared terminal-observation production only; it never writes `run.json`.
+Host binds every observation to run, attempt, packet digest, lease, and host
+instance identity. Expired live or unverified process state is `orphaned`, not
+retryable work. Windows containment uses one unnamed kill-on-close Job Object
+per lease; no PID-tree, process-group, `taskkill`, or reopened-job fallback.
+Host emits one terminal observation for every provider action, including packet
+checks. If completed stop proof exists but core rejects claim, check, or
+verification semantics, core records `core_failure` then terminalizes the same
+attempt; never fabricate `provider_failure` or leave the lease active.
+`stdio` plus `host_spawn` requires Windows Job containment and rejects
+unsupported hosts before child creation. Preflight owns temporary containment;
+leased lanes borrow containment. A host `terminal_recording_failed` payload
+means cleanup proof is incomplete: preserve it for controller recovery, never
+fabricate lane evidence, retry, or terminalize from host output.
+Core records every finalization subject as `attempt_outcome/v2`.
+`terminalize_attempt(envelope)` records evidence or applies detached signed
+outcome authorization. Personal-local `harness-core-launcher close` resolves one
+fixed authority and invokes same core finalizer. Core writes final state,
+decision, and `attempt_terminal_receipt/v3` atomically.
+Host returns baseline evidence before lane dispatch: root and parallel lanes use
+`packet_base` at exact packet base with a clean checkout; sequential dependents
+use `predecessor` only for direct materialized predecessor state. Core validates
+this evidence. `workspace_baseline_invalid` is host/environment failure, not
+product scope evidence; preserve run proof and repair workspace materialization.
+Before creating a write-capable packet, controller must establish every product
+fact needed to implement and verify behavior. If source can resolve a missing
+fact, dispatch bounded read-only research first; otherwise block for a
+requirements or specification decision. Never send unknown behavior into an
+unbounded writer discovery loop.
+Admission order: launcher package load, request API, adapter host API, provider
+preflight, packet resolution, workspace, dispatch. Unsupported APIs create no
+packet. Unreadable historical packet cannot resume; controller creates a
+successor without changing its evidence.
+An awaiting historical run with an incompatible request API may record an
+outcome-authorized non-successor decision. A terminal `block` uses no request
+admission, packet resolution, or dispatch. `retry` and `escalate` create
+successor packets and must reject incompatible historical request APIs.
+For `runtime_provider_id: codex_app_server`, controller invokes only active
+pointer-selected runtime through `harness-core-launcher`: run
+`harness-core-launcher capabilities`, then `harness-core-launcher preflight`,
+then `harness-core-launcher run --harness-root <repo-root> --request <request.json>`.
+Host reads transport only from trusted user configuration at
+`~/.codex/harness-providers.toml`.
+Never dispatch bare `codex-harness-host`: PATH can resolve stale user-level tool
+code instead of the locked source host.
+Do not invoke bare `codex-harness-host`, and do not put endpoint, launch-command, or credential values in repository policy,
+requests, packets, or generated guidance. Host configuration admits only a
+registered launcher ID or an explicit external endpoint; it rejects arbitrary
+commands and secret fields.
+Use `--run-id <run-id>` instead of `--request` only when run state is `planned`
+for an existing dispatchable attempt. A terminal coordinated task failure is
+`blocked`; preserve its evidence and require approved successor plan/task
+identity before a fresh request. Historical packet compatibility is owned by
+installed `harness-core`; preserve evidence and create a successor only when
+core declines dispatch.
 Never use generic `run-unavailable` to retry a managed packet.
 
 For Git-tracked active coordination plans, frontmatter owns static target
-branch, base ref, task dependencies, canonical mode, and planned paths. Packet
+branch, base ref, task dependencies, canonical mode, allowed scope, and planned paths. Packet
 adds immutable `plan_ref`, `plan_task_id`, and normalized digest; `run.json`
 owns derived task state, handoff, evidence, and decisions. Use
 `coordination-status` for recovery. Manifest or base change requires successor
@@ -55,19 +111,82 @@ When spawning a subagent:
 - Managed host must dispatch packet `agent_identity` without model fallback and
   record app-server-confirmed model provider, model, and reasoning effort.
 - Do not select unnamed or other agent types.
-- Subagents must not spawn other agents.
+- Subagents may create child agents only when immutable packet grants
+  `harness.delegate` and selects `read_only_research`. Core enforces child
+  authority, paths, depth, budget, and read-only workspace.
+- A delegated child is not an independent attempt. Core projects its parent
+  active lease only into host dispatch; stored child packet remains immutable
+  and lease-free. Host borrows the parent containment.
+- In every other packet, subagents must not spawn child agents.
 - If task scope or needed capability changes, controller creates successor
   attempt and regenerates immutable packet.
+- Host consumes only packet `execution_budget`: normal work gets
+  `turn_timeout_seconds - finalization_reserve_seconds`, full lane lifecycle
+  gets `lane_timeout_seconds`, and native probes/checks get
+  `check_timeout_seconds`. Reserve is one policy-owned slice used only for one
+  read-only final claim turn after interruption or empty final text. Transport
+  preflight has separate short bound.
+- For current leased packets, core may authorize one unusable-claim repair only
+  after completed work. Host must reuse exact open provider session and original
+  thread ID, consume only finalization reserve, use read-only with no tools, then
+  close session before terminal evidence. No fresh session, repair thread, retry,
+  resume, validation, or product work is allowed.
 - Harness dispatches only mode intersection of route policy and enforced host
-  capability. Controller alone accepts, retries, escalates, requests approval,
-  or blocks through recorded decision.
+  capability. Detached finalization uses `terminalize_attempt`; personal local
+  finalization uses `harness-core-launcher close`. Retry, escalation, and
+  approval request remain nonterminal decisions and `retry`/`escalate` stay
+  host-bound `harness-core-launcher decision` operations.
 - Agents return claimed results; harness records fresh verification evidence and
   never accepts, retries, escalates, or approves autonomously.
 - Work is managed only after host adapter creates a packet and `run.json`.
   Never call unpacketed work managed, validated, or accepted.
 - When selected managed mode returns `execution_mode_unavailable`, block it or
-  record controller `waive` decision with a reason. A waived run is terminal
+  finalize signed controller-authorized `waive`. A waived run is terminal
   `unvalidated`; local proof cannot become managed acceptance.
+- For `dispatch_timeout`, controller may only escalate through immutable packet
+  `escalation_profile` or block. Never retry timeout or accept caller-selected
+  budget. Resume an already planned attempt with provider `--run-id`.
+- `recover-stranded` is controller-only non-replay recovery for a `running` attempt
+  with no claim, node observation, evidence, outcome, or decision after host
+  terminal recording failed. It requires exact run/attempt identity and bounded
+  external host evidence with code `terminal_recording_failed`; it records a
+  block-only outcome and policy auto-finalizes. It never dispatches. Product
+  evidence, missing evidence, mismatched identity, or ordinary running work
+  must be rejected.
+- Active unleased historical attempts are isolated from dispatch and resume but
+  do not block new leased-packet admission. Their only closure path is signed
+  `legacy_cleanup_attestation/v1` through core `terminalize_attempt(evidence)`.
+  External operator signs with an Ed25519 private key outside repository and
+  agent workspace; trusted public records live only in
+  `~/.codex/harness-authorities.toml`. `migrate-harness-authorities` is explicit;
+  current validation never falls back to the old registry. Controller submits
+  canonical `harness-core-launcher terminalize-attempt --input <envelope.json>`;
+  temporary `--evidence`
+  accepts only policy-defined historical legacy evidence. `--auto-block` is retired.
+  Legacy cleanup produces one block-only outcome and policy auto-finalizes one
+  receipt. Personal local ambiguous closure runs `harness-core-launcher
+  controller-init` once, then `harness-core-launcher close` with run ID,
+  terminal decision, and reason. Fixed private key stays at
+  `~/.codex/harness-controller/controller-ed25519.pem`; public trust remains
+  `~/.codex/harness-authorities.toml`. Any process under same OS user that can
+  invoke launcher can close an eligible outcome, so exclude shared-machine and
+  production use. Detached external `controller_authorization/v1` remains
+  advanced compatibility path; agents may transport evidence but cannot mint,
+  broaden, or terminalize it. Host has no legacy cleanup or process-action
+  fallback. Direct legacy abandonment is retired.
+- `writer_completion_missing` means a write-capable lane completed commands
+  without a final claim after its packet-owned finalization reserve is exhausted.
+  Block it without retry, escalation, or resume. Host records prior bounded
+  terminal observation plus read-only finalizer identity in lane evidence; a
+  finalizer never writes, runs diagnostics, or authorizes product work. When
+  `friction-report` returns its policy-owned
+  follow-up with route-required immutable `readonly_artifacts`, dispatch fresh
+  read-only `harness_diagnosis` without an owner decision. Missing required
+  artifacts blocks diagnosis before dispatch; never mount ambient `.harness`
+  state into packet workspace.
+- For current dispatchable packet API, host re-reads trusted provider configuration before every
+  lane. A changed runtime binding returns `provider_configuration_changed`
+  before provider or product work; no transport fallback is allowed.
 - Independent validator claims exist only when host advertises and dispatches
   an enforced read-only validator lane. Do not infer validator evidence from
   local checks or an implementer claim.

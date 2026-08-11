@@ -17,17 +17,10 @@ distribution_tier: starter_kit
 Keep private-source surfaces out of public outputs and require the governed
 publication workflow for mirror/export actions.
 
-## Forbidden Paths For Public Publication
+## Canonical Policy
 
-- `.agents/`
-- `.cursor/`
-- source-only generation machinery and private build inputs
-- `.codex/rules/`
-- `docs/operating_system/`
-- `docs/superpowers/`
-- `logs/`
-- `sample/`
-- `.worktrees/`
+Repository publication configuration owns exact public, forbidden, required,
+generated, and scrubbed paths. Do not copy its path lists into rules or prompts.
 
 ## Prompt Before Execute
 

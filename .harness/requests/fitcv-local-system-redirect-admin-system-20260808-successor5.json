@@ -1,0 +1,46 @@
+{
+  "version": 4,
+  "run_id": "fitcv-local-system-redirect-admin-system-20260808-successor5",
+  "task_type": "local_change",
+  "user_request": "Execute only ready task local-system-redirect-admin-system-successor5. Change GET /local/system to return 302 Location /admin/system. Source proves existing route does not forward query parameters; retain fixed-location redirect semantics. Preserve GET /local/lifecycle/status. Add focused regression first. Do not edit outside packet paths. Return claimed result with changed files and focused proof.",
+  "plan_ref": "docs/superpowers/plans/2026-08-08-local-system-redirect-admin-system-successor5-plan.md",
+  "plan_task_id": "local-system-redirect-admin-system-successor5",
+  "skill_set_selections": [
+    {
+      "id": "backend_verification",
+      "reason": "HTTP route behavior changes"
+    }
+  ],
+  "lanes": [
+    {
+      "lane_id": "writer",
+      "role": "implement",
+      "allowed_paths": [
+        "src/fitcv_cp/local_routes.py",
+        "tests/test_fitcv_cp/test_local_routes.py"
+      ],
+      "dependencies": [],
+      "workspace_mode": "isolated",
+      "write_capable": true
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "diff",
+      "kind": "check",
+      "check": "diff"
+    },
+    {
+      "id": "local-system-redirect-admin-system-successor5-scope",
+      "kind": "change_set",
+      "paths": [
+        "src/fitcv_cp/local_routes.py",
+        "tests/test_fitcv_cp/test_local_routes.py"
+      ]
+    },
+    {
+      "id": "validator",
+      "kind": "validator"
+    }
+  ]
+}

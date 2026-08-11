@@ -1,24 +1,171 @@
-version: 3
+version: 10
+harness_core:
+  request_api: 5
+context_limits:
+  objective_max_bytes: 4096
+  fact_max_bytes: 16384
+  max_facts: 16
+  max_artifacts: 16
+  artifact_max_bytes: 4096
+  outcome_summary_max_bytes: 4096
+evidence_artifacts:
+  catalog:
+    terminal_observation:
+      schema_id: host_terminal_observation/v3
+      producer: host
+      retention: terminal
+      byte_limit: 4096
+    sanitized_command_trace:
+      schema_id: sanitized_command_trace/v1
+      producer: writer
+      retention: writer_retained
+      byte_limit: 4096
+  profiles:
+    direct_terminal_diagnosis:
+      lineage_mode: direct
+      allowed_kinds: [terminal_observation, sanitized_command_trace]
+      required_kinds: [terminal_observation]
+      kind_priority: [terminal_observation, sanitized_command_trace]
+      base_compatibility: exact_packet_base
+      count_limit: 2
+      total_byte_limit: 8192
+    friction_terminal_diagnosis:
+      lineage_mode: source_set
+      allowed_kinds: [terminal_observation, sanitized_command_trace]
+      required_kinds: [terminal_observation]
+      kind_priority: [terminal_observation, sanitized_command_trace]
+      base_compatibility: same_repository
+      count_limit: 6
+      total_byte_limit: 24576
+delegation_profiles:
+  disabled:
+    max_depth: 0
+    max_children: 0
+    max_concurrent_children: 0
+    per_child_timeout_seconds: 0
+    total_child_timeout_seconds: 0
+    allowed_roles: []
+    capability_ceiling: []
+    workspace_write_access: read_only
+    verification: none
+  read_only_research:
+    max_depth: 2
+    max_children: 2
+    max_concurrent_children: 2
+    per_child_timeout_seconds: 120
+    total_child_timeout_seconds: 240
+    allowed_roles: [investigate, review]
+    capability_ceiling: [repo.read, code.search, docs.query, harness.delegate]
+    workspace_write_access: read_only
+    verification: schema
 defaults:
-  workspace: current
+  source_workspace: current_repo
+  runtime_provider: codex_app_server
+  retry_policy: bounded
+  execution_budget_profile: default
   approval_gates: []
-states:
-  classified: [planned, blocked]
-  planned: [running, awaiting_decision, blocked]
-  running: [observed, awaiting_decision, blocked]
-  observed: [verifying, running, blocked]
-  verifying: [awaiting_decision, accepted, blocked]
-  awaiting_decision: [awaiting_decision, planned, accepted, unvalidated, blocked]
-  accepted: []
-  unvalidated: []
-  blocked: []
+authorities:
+  read_only:
+    capabilities: [repo.read, code.search, docs.query]
+    workspace_write_access: read_only
+  read_only_delegation:
+    capabilities: [repo.read, code.search, docs.query, harness.delegate]
+    workspace_write_access: read_only
+  workspace_write:
+    capabilities: [repo.read, repo.write, code.search]
+    workspace_write_access: workspace_write
+toolsets:
+  code: [shell, serena, ast_grep_preview]
+  shell_serena: [shell, serena]
+  shell_only: [shell]
+  research: [shell, semble_codebase_search]
+verification_profiles:
+  read_only:
+    postconditions: [workspace_unchanged]
+    checks: []
+  write:
+    postconditions: []
+    checks: [diff]
 retry_policies:
   bounded:
     max_attempts: 2
-    retryable_reasons: [check_failed, dispatch_failed, claim_invalid, verification_failed, review_required]
+    retryable_reasons: [check_failed, dispatch_failed, claim_invalid, verification_failed, review_required, provider_configuration_changed]
     exhaustion: block
     approval_resume: successor_attempt
     approval_ttl_seconds: 3600
+execution_budgets:
+  max_turn_timeout_seconds: 1200
+  finalization_reserve_seconds: 60
+  lease_duration_model:
+    id: codex_app_server.v1
+    max_turns_per_lane: 2
+    per_turn_overhead_seconds: 15
+    stop_proof_seconds: 30
+    check_timeout_seconds: 60
+    core_verification_seconds: 45
+    cleanup_grace_seconds: 30
+  profiles:
+    default:
+      turn_timeout_seconds: 300
+      timeout_decisions: [escalate, block]
+      escalation_profile: extended
+    extended:
+      turn_timeout_seconds: 1200
+      timeout_decisions: [block]
+claim_repair:
+  max_repairs_per_lane: 1
+  admissible_subcodes: [missing_final_claim, claim_not_json, claim_not_object, claim_kind_mismatch, claim_field_missing, claim_field_type_invalid, claim_field_constraint_invalid]
+  required_host_capability: claim_repair_same_session
+terminalization:
+  auto_finalize_single_terminal_outcome: true
+  pending_outcome_ttl_seconds: 3600
+  allowed_controller_roles: [controller_approver]
+  max_authorization_age_seconds: 900
+  max_authorization_lifetime_seconds: 900
+  max_clock_skew_seconds: 60
+  max_authorization_bytes: 8192
+  allow_same_issuer_evidence_and_authorization: false
+legacy_cleanup:
+  enabled: true
+  historical_packet_max_api: 8
+  allowed_cleanup_scopes: [operator_discovered_provider_tree, operator_attested_no_provider_process]
+  allowed_discovery_methods: [windows_parent_chain/v1, windows_no_process_observation/v1]
+  max_attestation_age_seconds: 900
+  max_attestation_lifetime_seconds: 900
+  max_clock_skew_seconds: 60
+  max_total_bytes: 8192
+  max_identifier_bytes: 128
+  max_creation_id_bytes: 256
+  max_reason_length: 4096
+  max_process_identities: 32
+  allowed_attester_roles: [managed_cleanup_operator]
+skill_sets:
+  local_change_base:
+    skills: [skill-code-standards, skill-executing-plans, skill-test-driven-development]
+    selection_guidance: Use for every approved planned code change.
+  backend_verification:
+    skills: [skill-backend-verification]
+    selection_guidance: Select for material backend behavior or contract changes.
+  frontend_component_engineering:
+    skills: [skill-frontend-component-engineering]
+    selection_guidance: Select for material stateful frontend component or page changes.
+  frontend_design:
+    skills: [skill-distinctive-frontend-design]
+    selection_guidance: Select for new or materially restyled frontend work.
+  full_stack_integration:
+    skills: [skill-full-stack-integration]
+    selection_guidance: Select when frontend behavior crosses backend contracts or routes.
+operating_profiles:
+  local_change_standard:
+    template: normal
+    authority: workspace_write
+    toolset: code
+    verification_profile: write
+    runtime_provider: codex_app_server
+    execution_budget_profile: default
+  local_change_extended:
+    extends: local_change_standard
+    execution_budget_profile: extended
 checks:
   diff:
     command: [git, diff, --check]
@@ -37,25 +184,27 @@ tools:
     root_probe: serena_root_probe
   semble_codebase_search:
     optional: true
-    fallback: [shell, serena]
     host_kind: local_semble
     writer_access: read_only
     validator_access: read_only
     root_probe: semble_root_probe
   ast_grep_preview:
     optional: true
-    fallback: [shell]
     host_kind: local_ast_grep
     writer_access: read_only
     validator_access: read_only
     root_probe: ast_grep_root_probe
 runtime_providers:
   codex_app_server:
-    contract_version: 1
+    terminal_observation_capability: host_terminal_observation_v3
+    execution_lease_duration_model_id: codex_app_server.v1
 friction_policy:
   event_version: 1
   minimum_distinct_runs: 3
   window_days: 14
+  follow_up_routes:
+    writer_completion_missing: harness_diagnosis
+    claim_repair_failed: harness_diagnosis
 approval_gates:
   protected_policy:
     paths: [agents/**, .agents/skills/**, repo_config/harness.yaml, docs/operating_system/rules/**]
@@ -63,124 +212,123 @@ orchestration:
   single_work_lane:
     aliases: [single_agent]
     work_scheduling: single
+    max_parallel_lanes: 1
     max_parallel_writers: 1
     workspace_mode: isolated
     validator_role: validate
-    review_required: false
     rules: []
   sequential_work_lanes:
     aliases: [sequential_agents]
     work_scheduling: sequential
+    max_parallel_lanes: 1
     max_parallel_writers: 1
     workspace_mode: isolated
     validator_role: validate
-    review_required: true
     rules: [multi-agent-orchestration-rule]
   parallel_work_lanes:
     aliases: [parallel_lanes]
     work_scheduling: parallel
+    max_parallel_lanes: 4
     max_parallel_writers: 4
     workspace_mode: isolated
     validator_role: validate
-    review_required: true
     rules: [multi-agent-orchestration-rule]
 routes:
   local_change:
-    template: normal
     role: implement
     rules: [command-execution-rule, python-contracts-rule]
-    skills: [skill-code-standards, skill-test-driven-development]
-    tools: [shell, serena, ast_grep_preview]
-    workspace: current
-    checks: [diff]
+    required_skill_sets: [local_change_base]
+    allowed_skill_sets: [backend_verification, frontend_component_engineering, frontend_design, full_stack_integration]
+    default_operating_profile: local_change_standard
+    allowed_operating_profiles: [local_change_standard, local_change_extended]
+    escalation_transitions:
+      - from: local_change_standard
+        "on": dispatch_timeout
+        to: local_change_extended
+    delegation_profile: disabled
     approval_gates: [protected_policy]
-    retry_policy: bounded
     execution_modes: [single_work_lane, sequential_work_lanes, parallel_work_lanes]
-    runtime_providers: [codex_app_server]
-    default_runtime_provider: codex_app_server
   debugging:
     template: normal
     role: investigate
     rules: [command-execution-rule]
     skills: [skill-systematic-debugging]
-    tools: [shell, serena, ast_grep_preview]
-    workspace: current
-    checks: [diff]
-    retry_policy: bounded
+    authority: read_only
+    toolset: code
+    verification_profile: read_only
+    delegation_profile: disabled
     execution_modes: [single_work_lane, sequential_work_lanes]
-    runtime_providers: [codex_app_server]
-    default_runtime_provider: codex_app_server
+  harness_diagnosis:
+    template: high
+    role: investigate
+    rules: [command-execution-rule]
+    skills: [skill-improve-harness, skill-systematic-debugging, skill-repository-research, skill-verification-before-completion]
+    authority: read_only
+    toolset: shell_only
+    verification_profile: read_only
+    delegation_profile: disabled
+    artifact_handoff_profiles: [direct_terminal_diagnosis, friction_terminal_diagnosis]
+    default_artifact_handoff_profile: direct_terminal_diagnosis
+    execution_modes: [single_work_lane, sequential_work_lanes]
   research:
     template: low
     role: investigate
     rules: [command-execution-rule]
     skills: [skill-repository-research]
-    tools: [shell, semble_codebase_search]
-    workspace: current
-    checks: [diff]
-    retry_policy: bounded
+    authority: read_only_delegation
+    toolset: research
+    verification_profile: read_only
+    delegation_profile: read_only_research
     execution_modes: [single_work_lane, parallel_work_lanes]
-    runtime_providers: [codex_app_server]
-    default_runtime_provider: codex_app_server
   plan_review:
     template: high
     role: review
     rules: [doc-contracts-rule]
     skills: [skill-plan-document-reviewer]
-    tools: [shell, serena]
-    workspace: current
-    checks: [diff]
-    retry_policy: bounded
+    authority: read_only
+    toolset: shell_serena
+    verification_profile: read_only
+    delegation_profile: disabled
     execution_modes: [single_work_lane, sequential_work_lanes]
-    runtime_providers: [codex_app_server]
-    default_runtime_provider: codex_app_server
   design_exploration:
     template: high
     role: investigate
     rules: [command-execution-rule]
     skills: [skill-brainstorming]
-    tools: [shell, semble_codebase_search]
-    workspace: current
-    checks: [diff]
-    retry_policy: bounded
+    authority: read_only
+    toolset: research
+    verification_profile: read_only
+    delegation_profile: disabled
     execution_modes: [single_work_lane, sequential_work_lanes]
-    runtime_providers: [codex_app_server]
-    default_runtime_provider: codex_app_server
   plan_writing:
     template: high
     role: implement
     rules: [doc-contracts-rule]
     skills: [skill-writing-plans]
-    tools: [shell, serena]
-    workspace: current
-    checks: [diff]
-    retry_policy: bounded
+    authority: workspace_write
+    toolset: shell_serena
+    verification_profile: write
+    delegation_profile: disabled
     execution_modes: [single_work_lane, sequential_work_lanes]
-    runtime_providers: [codex_app_server]
-    default_runtime_provider: codex_app_server
   skill_authoring:
     template: high
     role: implement
     rules: [command-execution-rule, doc-contracts-rule]
     skills: [skill-writing-skills, skill-test-driven-development, skill-verification-before-completion]
-    tools: [shell, serena]
-    workspace: current
-    checks: [diff]
+    authority: workspace_write
+    toolset: shell_serena
+    verification_profile: write
+    delegation_profile: disabled
     approval_gates: [protected_policy]
-    retry_policy: bounded
     execution_modes: [single_work_lane, sequential_work_lanes]
-    runtime_providers: [codex_app_server]
-    default_runtime_provider: codex_app_server
   harness_improvement:
     template: high
     role: improve
     rules: [command-execution-rule, doc-contracts-rule]
     skills: [skill-improve-harness, skill-code-standards, skill-test-driven-development, skill-verification-before-completion]
-    tools: [shell, serena]
-    workspace: current
-    checks: [diff]
+    authority: workspace_write
+    toolset: shell_serena
+    verification_profile: write
+    delegation_profile: disabled
     approval_gates: [protected_policy]
-    retry_policy: bounded
     execution_modes: [single_work_lane, sequential_work_lanes]
-    runtime_providers: [codex_app_server]
-    default_runtime_provider: codex_app_server

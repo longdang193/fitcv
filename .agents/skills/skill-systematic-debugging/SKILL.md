@@ -56,6 +56,39 @@ Use for ANY technical issue:
 - Use `skill-dispatching-parallel-agents` only after evidence separates failures into independent problem domains.
 - Each dispatched investigator follows this debugging method inside its assigned domain.
 - Keep possibly shared-cause failures together until root-cause evidence proves independence.
+- For a current leased-packet timeout, inspect packet `execution_budget` and
+  `execution_lease`, attempt `execution_lease`, normalized
+  `host_terminal_observations`, `terminal_record`, retained-artifact evidence,
+  and host lane evidence before changing policy. Controller invokes only
+  `terminalize_attempt(envelope)` for external signed or legacy evidence;
+  personal-local closure uses `harness-core-launcher close`. Evidence records
+  outcome, and finalization records receipt. Host never writes `run.json`. Expired live or unverified
+  process state is `orphaned`, so retry and resume stay blocked.
+  Distinguish provider lifecycle failure from core semantic failure: a completed
+  stop proof followed by claim, check, or verification rejection is
+  `core_failure`, not `provider_failure`. Verify one terminal observation per
+  lane or host-run check, then verify core terminalization releases the same
+  lease.
+  A read-only diagnosis may consume only
+  immutable packet `readonly_artifacts`; never inspect an ambient `.harness`
+  directory from a clean clone. Missing route-required artifacts blocks
+  diagnosis before dispatch.
+  Distinguish short transport preflight from packet turn timeout. Resume a
+  planned attempt through provider `--run-id`; only controller escalation may
+  create budget-profile successor. Timeout never means retry.
+- For package-backed managed failures, inspect in admission order:
+  `uv run --locked harness-core --identity`,
+  `uv run --locked harness-core validate --repo-root <repo-root>`, then
+  `harness-core-launcher doctor`, `capabilities`, and `preflight`. Classify
+  missing or invalid host user configuration as `provider_runtime_unavailable`,
+  configured transport/authentication failure as `preflight_failed`, and current
+  dispatchable packet runtime-config drift as `provider_configuration_changed`;
+  do not add endpoint or launch-command values to repository policy. Classify
+  package loader failure as environment, unsupported request or host API as
+  release compatibility, and only later failures as provider admission or
+  dispatch. `--run-id` resumes only run state `planned`; terminal coordinated
+  failure needs approved successor plan/task identity before fresh request.
+  Never patch legacy consumer bridges to repair package or host compatibility.
 
 ## Code Intelligence
 

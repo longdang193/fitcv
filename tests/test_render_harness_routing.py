@@ -29,7 +29,11 @@ def test_rendered_routing_matches_policy() -> None:
 
     rendered = renderer.render(ROOT)
 
-    assert "| `local_change` | `normal` | `implement` |" in rendered
+    assert "| Task Type | Template | Role | Required Skills | Allowed Skill Sets | Operating Profiles | Artifact Handoff Profiles |" in rendered
+    assert "`local_change_base`" in rendered
+    assert "`local_change_standard`" in rendered
+    assert "| `debugging` | `normal` | `investigate` | `skill-systematic-debugging` |  |  |" in rendered
+    assert "`direct_terminal_diagnosis` (default), `friction_terminal_diagnosis`" in rendered
     assert "DO NOT EDIT" in rendered
 
 

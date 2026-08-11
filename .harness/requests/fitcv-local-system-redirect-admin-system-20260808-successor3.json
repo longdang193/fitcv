@@ -1,0 +1,41 @@
+{
+  "version": 4,
+  "run_id": "fitcv-local-system-redirect-admin-system-20260808-successor3",
+  "runtime_provider_id": "codex_app_server",
+  "task_type": "local_change",
+  "plan_ref": "docs/superpowers/plans/2026-08-08-local-system-redirect-admin-system-successor3-plan.md",
+  "plan_task_id": "local-system-redirect-admin-system-successor3",
+  "user_request": "Execute only ready task local-system-redirect-admin-system-successor3. Approved target: GET /local/system must redirect to /admin/system. Use skill-executing-plans and skill-test-driven-development: add a focused failing regression first, then make smallest redirect-only change. Preserve current query parameters and redirect semantics unless current route contract proves otherwise. Use skill-backend-verification with direct proof for 302 Location /admin/system and preserved /local/lifecycle/status. Do not edit outside packet paths. Return claimed_result with changed files and focused proof.",
+  "lanes": [
+    {
+      "lane_id": "writer",
+      "role": "implement",
+      "allowed_paths": [
+        "src/fitcv_cp/local_routes.py",
+        "tests/test_fitcv_cp/test_local_routes.py"
+      ],
+      "dependencies": [],
+      "workspace_mode": "isolated",
+      "write_capable": true
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "diff",
+      "kind": "check",
+      "check": "diff"
+    },
+    {
+      "id": "local-system-redirect-admin-system-successor3-scope",
+      "kind": "change_set",
+      "paths": [
+        "src/fitcv_cp/local_routes.py",
+        "tests/test_fitcv_cp/test_local_routes.py"
+      ]
+    },
+    {
+      "id": "validator",
+      "kind": "validator"
+    }
+  ]
+}

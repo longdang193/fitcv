@@ -23,7 +23,7 @@ Do not treat both repos as equal day-to-day development sources.
 Use these docs as governing references for publication boundaries:
 
 - `docs/operating_system/publication/public-repo-publication-policy.md`
-- `docs/operating_system/publication/public-repo-publishing.md`
+- `docs/operating_system/procedures/publication-procedure.md`
 - `docs/operating_system/publication/public-safe-doc-rewrite-guide.md`
 
 Precedence rule:

@@ -48,8 +48,7 @@ Commands:
 
 ```powershell
 py -3 scripts/validate_repo_config.py
-py -3 scripts/build_starter_kit.py
-py -3 scripts/validate_starter_kit.py
+py -3 scripts/sync_starter_kit.py
 ```
 
 Optional focused regression commands:

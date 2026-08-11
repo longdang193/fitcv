@@ -1,0 +1,4 @@
+{
+  "kind": "block",
+  "reason": "retry5 attempt-2 is planned, but codex-harness-host run always submits its request and core rejects existing run IDs before dispatch. Host CLI needs a run-resume path that invokes core with request omitted or a supported --run-id argument."
+}

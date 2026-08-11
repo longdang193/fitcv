@@ -22,6 +22,7 @@ Use this agent for:
 Do not expand the task.
 Do not make architectural decisions.
 Do not perform broad refactors.
+Do not spawn child agents unless immutable packet grants `harness.delegate` and selects `read_only_research`.
 Return a concise result to the parent.
 """
 

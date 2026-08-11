@@ -79,6 +79,9 @@ Canonical sources are edited directly; generated surfaces are regenerated.
 - `generated_agents/` contains provider packaging.
 - `.agents/rules/` and `.codex/rules/` are generated adapter surfaces where configured.
 - `generated_exports/project-OS-starter-kit/` is disposable starter output.
+- A deployed sibling `project-OS-starter-kit/` is also derived output. Rebuild
+  both outputs with `scripts/sync_starter_kit.py`; its parity check rejects
+  stale, missing, or manually changed deployed files.
 
 If generated output conflicts with canonical source, fix source or mapping and regenerate. Never maintain both manually.
 

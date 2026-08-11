@@ -84,12 +84,12 @@ def parse_args() -> argparse.Namespace:
         "--platform",
         action="append",
         default=[],
-        help="Platform to sync (repeatable). Overrides mode-driven defaults unless --all-platforms is set.",
+        help="Platform to sync (repeatable). Restricts the default all-platform selection.",
     )
     parser.add_argument(
         "--all-platforms",
         action="store_true",
-        help="Process all adapter mappings.",
+        help="Explicitly process all adapter mappings.",
     )
     return parser.parse_args()
 
@@ -236,7 +236,7 @@ def _resolve_platform_selection(root: Path, args: argparse.Namespace) -> tuple[s
     selected = {item.strip() for item in args.platform if item.strip()}
     if selected:
         return selected, "explicit"
-    return {"codex"}, "default"
+    return set(), "all-platforms"
 
 
 

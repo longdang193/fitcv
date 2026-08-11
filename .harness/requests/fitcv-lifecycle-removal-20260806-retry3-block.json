@@ -1,0 +1,4 @@
+{
+  "kind": "block",
+  "reason": "codex-harness-host proved enforced sequential_work_lanes capability, but dispatch to ws://127.0.0.1:4500 failed. Start or expose the Codex App Server endpoint, then create a successor retry."
+}

@@ -1,0 +1,4 @@
+{
+  "kind": "retry",
+  "reason": "Writer dispatch has verified host failure evidence and reached terminal interrupted status after timeout. Retry once under packet policy before escalating."
+}
