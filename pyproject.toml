@@ -9,8 +9,6 @@ requires-python = ">=3.11"
 description = "End-to-end pipeline for ingesting job postings, matching against a candidate profile, and generating tailored CVs."
 license = { text = "MIT" }
 dependencies = [
-    "harness-core",
-    "harness-core-launcher",
     "pydantic>=2.0",
 ]
 
@@ -39,10 +37,6 @@ warn_unused_ignores = false
 [tool.pyright]
 include = ["src", "scripts", "tests"]
 extraPaths = ["src", "scripts"]
-
-[tool.uv.sources]
-harness-core = { git = "https://github.com/longdang193/project-OS-starter.git", subdirectory = "packages/harness-core", rev = "harness-core-v0.1.13" }
-harness-core-launcher = { git = "https://github.com/longdang193/project-OS-starter.git", subdirectory = "packages/harness-core-launcher", rev = "harness-core-launcher-v0.1.0" }
 
 [dependency-groups]
 build = [
