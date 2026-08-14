@@ -57,11 +57,15 @@ jobs:
 
       - name: Fail on untracked generated outputs
         run: |
-          $paths = @(
-            (Get-Content -Raw repo_config/agent-adapter-mappings.json | ConvertFrom-Json | ForEach-Object {
-              $_.destination
-            })
-          )
+          $paths = @()
+          if (Test-Path repo_config/agent-adapter-mappings.json) {
+            $paths = @(
+              (Get-Content -Raw repo_config/agent-adapter-mappings.json | ConvertFrom-Json | ForEach-Object {
+                $_.destination
+              })
+            )
+          }
+          if (-not $paths) { exit 0 }
           $untracked = git ls-files --others --exclude-standard -- $paths
           if ($untracked) {
             Write-Host "Untracked generated outputs detected:"
