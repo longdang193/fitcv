@@ -898,6 +898,15 @@ def test_candidate_profile_mock_llm_configuration_matches_prototype_copy() -> No
     assert patched_llm.status_code == 200
     assert patched_llm.json()["data"]["tasks"]["candidate_profile_derived_claims"]["temperature"] == 0.3
 
+def test_llm_route_styles_are_owned_by_base_template() -> None:
+    root = Path(__file__).resolve().parents[2]
+    base = (root / "src" / "fitcv_cp" / "templates" / "base.html").read_text(encoding="utf-8")
+    llm_configuration = (root / "src" / "fitcv_cp" / "templates" / "llm_configuration.html").read_text(encoding="utf-8")
+
+    shared_style = ".llm-config-grid{display:grid;gap:16px}"
+    assert shared_style in base
+    assert shared_style not in llm_configuration
+
 
 def _seed_active_profile() -> str:
     resource = sqlite_store.create_candidate_profile_attempt(
@@ -1079,9 +1088,7 @@ def test_admin_scans_workspace_matches_managed_scan_intent() -> None:
 
 
 def test_admin_runs_workspace_matches_prototype_structure() -> None:
-    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
-
-    response = TestClient(create_mock_app()).get("/admin/runs")
+    response = TestClient(_app()).get("/admin/runs")
 
     assert response.status_code == 200
     assert 'data-page="runs"' in response.text
@@ -1124,6 +1131,8 @@ def test_runs_list_preserves_prototype_states_and_interactions() -> None:
     assert 'id="cancelSelectedRuns"' in template
     assert 'id="archiveSelectedRuns"' in template
     assert 'id="deleteSelectedRuns"' in template
+    assert "fitcvRenderAsyncState(status" in template
+    assert "status.textContent = error.message" not in template
 
 
 def test_new_scan_dialog_uses_shared_run_dialog_structure() -> None:
@@ -1328,6 +1337,58 @@ def test_client_navigated_page_scripts_use_shared_ready_initializer() -> None:
     assert "var selectedRunScanIds = [];" in runs_template
     assert "var draftRunScanIds = [];" in runs_template
     assert "var runScanTimeFormatter = new Intl.DateTimeFormat" in runs_template
+
+def test_shared_shell_api_error_boundaries_are_canonical(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda _run_id: None
+    client = TestClient(app)
+
+    success = client.get("/runs?view=active")
+    validation = client.get("/runs?view=invalid")
+    missing = client.get("/runs/missing")
+    current = client.get("/settings/pipeline")
+    revision = current.json()["data"]["revision"]
+    saved = client.patch(
+        "/settings/pipeline",
+        json={"changes": {"pipeline.final_top_n": 8}, "expected_revision": revision},
+    )
+    stale = client.patch(
+        "/settings/pipeline",
+        json={"changes": {"pipeline.final_top_n": 7}, "expected_revision": revision},
+    )
+    persisted = client.get("/settings/pipeline")
+
+    assert success.status_code == 200 and "data" in success.json()
+    assert validation.status_code == 422
+    assert missing.status_code == 404
+    assert saved.status_code == 200
+    assert stale.status_code == 409
+    for response in (validation, missing, stale):
+        assert set(response.json()["error"]) == {
+            "code", "message", "field_errors", "retryable", "action"
+        }
+    assert validation.json()["error"]["code"] == "validation_failed"
+    assert missing.json()["error"]["code"] == "run_not_found"
+    assert stale.json()["error"]["code"] == "settings_revision_conflict"
+    assert persisted.json()["data"]["values"]["pipeline.final_top_n"] == 8
+
+
+def test_shared_async_helpers_preserve_canonical_api_error_contract() -> None:
+    base = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
+
+    assert "requestError.code = error.code || 'request_failed';" in base
+    assert "requestError.action = error.action" in base
+    assert "requestError.status = response.status" in base
+    assert "requestError.payload = payload" in base
+    assert "var supportedKinds = ['pending', 'success', 'empty', 'error', 'retryable', 'non_retryable', 'stale', 'refreshing'];" in base
+    assert "notice.setAttribute('aria-live', isError ? 'assertive' : 'polite');" in base
+    assert "if (state.action && typeof state.retry === 'function')" in base
+    assert "if (isFocusable) notice.focus();" in base
+    assert "if (!state.preserveContent) target.replaceChildren();" in base
+    assert base.count("function initializePageForms(root)") == 1
+    assert "window.fetch = function(input, init)" in base
+
 
 def test_direct_page_load_defines_shared_initializer_before_page_scripts() -> None:
     response = TestClient(_app()).get("/admin/runs")
@@ -2144,6 +2205,61 @@ def test_get_run_detail_reconciles_orphaned_running_run_when_queue_job_missing()
     assert resp.json()["data"]["status"] == "failed"
     assert mock_update_status.called
 
+
+def test_get_run_detail_reconciles_orphaned_running_direct_store_detail() -> None:
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-direct-store-orphaned-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="rq-direct-store-missing-1",
+        run_mode="run_all",
+    )
+    failed = PipelineRun(
+        run_id=running.run_id,
+        status=RunStatus.FAILED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path=running.jobs_path,
+        config_path=running.config_path,
+        created_at=running.created_at,
+        started_at=running.started_at,
+        finished_at=datetime.now(timezone.utc),
+        error_message="Queue job rq-direct-store-missing-1 missing while run remained RUNNING",
+        run_mode="run_all",
+    )
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda _run_id: {
+        "run_id": running.run_id,
+        "status": "running",
+        "backend_status": "running",
+        "queue_job_id": running.queue_job_id,
+    }
+
+    with patch("fitcv_cp.app.get_run", side_effect=[running, failed]), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app.get_queue_job_status", return_value="missing"):
+        response = TestClient(app).get(f"/runs/{running.run_id}")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "failed"
+    assert mock_update_status.called
+
+
+def test_run_detail_poll_reads_canonical_data_envelope() -> None:
+    template = Path("src/fitcv_cp/templates/run_detail.html").read_text(encoding="utf-8")
+
+    assert "const run = payload.data || {};" in template
+    assert "const nextStatus = run.status || '';" in template
+
+
 def test_get_run_detail_keeps_running_for_inline_started_job_status() -> None:
     from fitcv_cp.models import PipelineRun
     from datetime import datetime, timezone
@@ -2674,6 +2790,7 @@ def test_trigger_runtime_envelope_snapshots_prompt_metadata_without_text(
         "build_prompt_configuration_snapshot",
         lambda: prompt_snapshot,
     )
+    monkeypatch.setattr(app_module, "resolve_openai_compatible_api_key", lambda: None)
 
     effective = app_module._apply_trigger_runtime_envelope(
         {},
@@ -2707,6 +2824,7 @@ def test_trigger_runtime_envelope_snapshots_system_retry_resource(
     monkeypatch.setattr(app_module, "load_system_settings", lambda: system_snapshot)
     monkeypatch.setattr(app_module, "build_packaged_llm_configuration_snapshot", lambda: {"revision": 1, "tasks": {}})
     monkeypatch.setattr(app_module, "build_prompt_configuration_snapshot", lambda: {"tasks": {}})
+    monkeypatch.setattr(app_module, "resolve_openai_compatible_api_key", lambda: None)
 
     effective = app_module._apply_trigger_runtime_envelope(
         {},
@@ -2930,6 +3048,108 @@ def test_get_run_detail_not_found():
             "action": "Return to Runs and select an existing Run.",
         }
     }
+
+
+def test_run_detail_queued_shows_stop_run() -> None:
+    from fitcv_cp.models import PipelineRun
+
+    run = PipelineRun(
+        run_id="run-detail-queued-stop",
+        status=RunStatus.QUEUED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(_app()).get(f"/admin/runs/{run.run_id}")
+
+    assert response.status_code == 200
+    assert "Stop Run" in response.text
+    assert f'data-run-lifecycle-action="stop" data-run-id="{run.run_id}"' in response.text
+    assert "Archive Run" not in response.text
+
+
+def test_run_detail_terminal_statuses_show_archive_run() -> None:
+    for status in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED):
+        run = PipelineRun(
+            run_id=f"run-detail-{status.value}-archive",
+            status=status,
+            triggered_by="admin",
+            trigger_source="web",
+            jobs_path="data/sample_jobs.json",
+            config_path=".env.yaml",
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+        )
+        with patch("fitcv_cp.app.get_run", return_value=run):
+            response = TestClient(_app()).get(f"/admin/runs/{run.run_id}")
+
+        assert response.status_code == 200
+        assert "Archive Run" in response.text
+        assert f'data-run-lifecycle-action="archive" data-run-id="{run.run_id}"' in response.text
+        assert "Stop Run" not in response.text
+
+
+def test_run_detail_export_uses_shared_request_decoder_and_retry_state() -> None:
+    template = Path("src/fitcv_cp/templates/run_detail.html").read_text(encoding="utf-8")
+
+    assert "fitcvRunLocked(exportButton" in template
+    assert "fitcvApiRequest(root.dataset.exportUrl" in template
+    assert "new Blob([csv], {type: 'text/csv;charset=utf-8'})" in template
+    assert "fetch(root.dataset.exportUrl" not in template
+    assert "Export failed" not in template
+    assert "fitcvRenderAsyncState(notice" in template
+
+
+def test_run_detail_tab_loader_uses_shared_request_decoder() -> None:
+    template = Path("src/fitcv_cp/templates/run_detail.html").read_text(encoding="utf-8")
+
+    assert "const fragment = await fitcvApiRequest(url, {" in template
+    assert "const resp = await fetch(url" not in template
+    assert "Failed to load tab" not in template
+    assert "const activeElement = document.activeElement" in template
+    assert "const activeId = activeElement?.id || ''" in template
+    assert "CSS.escape(activeId)" in template
+    assert "focus({preventScroll: true})" in template
+
+
+def test_run_detail_poll_uses_shared_request_decoder_and_state() -> None:
+    template = Path("src/fitcv_cp/templates/run_detail.html").read_text(encoding="utf-8")
+
+    assert "const payload = await fitcvApiRequest('/runs/' + runId, {" in template
+    assert "const resp = await fetch('/runs/' + runId" not in template
+    assert "id=\"run-detail-poll-state\"" in template
+    assert "fitcvRenderAsyncState(pollState" in template
+    assert "Keep polling quiet" not in template
+
+
+def test_run_detail_bookmark_failure_uses_shared_retry_state() -> None:
+    template = Path("src/fitcv_cp/templates/run_detail.html").read_text(encoding="utf-8")
+
+    assert "fitcvRunLocked(button, async () =>" in template
+    assert "fitcvRenderAsyncState(notice" in template
+    assert "notice.textContent = error.message" not in template
+
+
+def test_synonym_details_restore_focus_to_opener() -> None:
+    template = Path("src/fitcv_cp/templates/synonyms.html").read_text(encoding="utf-8")
+
+    assert "suggestionOpener=b" in template
+    assert "detailsDialog.addEventListener('close'" in template
+    assert "suggestionOpener.focus()" in template
+
+
+def test_synonyms_use_shared_async_renderer_and_mutation_locks() -> None:
+    template = Path("src/fitcv_cp/templates/synonyms.html").read_text(encoding="utf-8")
+
+    assert "function guarded(control,operation" in template
+    assert "fitcvRenderAsyncState(notice" in template
+    assert "fitcvRunLocked(control,async" in template
+    assert "guarded(button,async" in template
+    assert "fitcvIdempotencyKey(button)" in template
+    assert ".catch(showError)" not in template
+    assert "Promise.all([loadPolicy(),loadSuggestions(),loadLog()])" not in template
 
 
 def _candidate_profile_resource() -> dict[str, object]:
@@ -3315,10 +3535,26 @@ def test_central_workspace_pages_share_navigation_and_retire_legacy_labels() -> 
     assert "'Declined '+x.declined_count" in synonym_html
     assert "'Pending '+x.pending_count" in synonym_html
     assert "'Added '+x.successfully_added_count" in synonym_html
+    assert "function guarded(control,operation" in synonym_html
+    assert "fitcvRenderAsyncState(notice" in synonym_html
+    assert ".catch(showError)" not in synonym_html
     assert "Synonym Overlay" not in runs_html
     assert "synonym_overlay_file" not in runs_html
     assert "fitcvApiRequest('/runs'" in runs_html
     assert "fd.append('profile_id'" in runs_html
+
+
+def test_synonym_page_routes_all_async_failures_to_canonical_error_state() -> None:
+    synonym_html = TestClient(_app()).get("/admin/synonyms").text
+
+    for operation in (
+        "function guarded(control,operation",
+        "fitcvRenderAsyncState(notice",
+        "fitcvRunLocked(control,async",
+        "Could not import synonym backup.",
+    ):
+        assert operation in synonym_html
+    assert ".catch(showError)" not in synonym_html
 
 
 def test_synonym_suggestion_detail_forwards_evidence_pagination() -> None:
@@ -3542,6 +3778,8 @@ def test_delete_archived_runs_reports_all_or_nothing_conflict() -> None:
         "bookmark_count": 0,
         "state_tokens": ["state:run-1"],
     }
+    deleted: list[list[str]] = []
+    app.state.run_store.delete_archived_runs_fn = lambda _age, run_ids, **_kwargs: deleted.append(run_ids)
 
     resp = TestClient(app).post(
         "/runs/actions/delete-archived",
@@ -3551,6 +3789,34 @@ def test_delete_archived_runs_reports_all_or_nothing_conflict() -> None:
 
     assert resp.status_code == 409
     assert resp.json()["error"]["code"] == "delete_preview_stale"
+    assert deleted == []
+
+
+def test_delete_archived_runs_replays_success_after_selection_is_deleted() -> None:
+    response = {"action_id": "delete-action-1", "deleted_count": 1, "deleted_run_ids": ["run-1"]}
+    app = _app()
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "delete-action-1",
+        "replayed": True,
+        "response": response,
+    }
+    app.state.run_store.preview_delete_archived_runs_fn = lambda run_ids: {
+        "requested_run_ids": run_ids,
+        "eligible_run_ids": [],
+        "blocked_run_ids": [],
+        "missing_run_ids": run_ids,
+        "bookmark_count": 0,
+        "state_tokens": [],
+    }
+
+    resp = TestClient(app).post(
+        "/runs/actions/delete-archived",
+        headers={"Idempotency-Key": "delete-1"},
+        json={"run_ids": ["run-1"], "preview_revision": "unused"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["data"] == response
 
 
 def test_cancel_and_unarchive_repeats_are_idempotent() -> None:
@@ -4788,7 +5054,7 @@ def test_admin_review_queue_resolved_rows_render_locked_non_actionable_state() -
         run_detail_resp = TestClient(_app()).get("/admin/runs/run-review-queue-resolved-lock")
     assert run_detail_resp.status_code == 200
     assert "Row is resolved." not in run_detail_resp.text
-    assert "No pending review rows shown here. Open dedicated review queue page for resolved history." in run_detail_resp.text
+    assert 'action="/admin/runs/run-review-queue-resolved-lock/cv-review-action"' not in run_detail_resp.text
 
 
 
@@ -6100,8 +6366,8 @@ def test_admin_runs_rendered_nav():
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
     assert 'href="/admin/settings"' in resp.text
-    assert '>Pipeline</a>' in resp.text
-    assert 'Refresh' in resp.text
+    assert 'Pipeline</summary>' in resp.text
+    assert 'Refresh' not in resp.text
     assert 'id="jobFile"' in resp.text
     assert 'id="candidateProfile"' in resp.text
     assert "fd.append('config_path', '.env.yaml')" in resp.text
@@ -9678,6 +9944,7 @@ def test_admin_bulk_cancel_mixed_eligibility_returns_processed_and_skipped_summa
          patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).post(
             "/admin/runs/bulk/cancel",
+            headers={"Idempotency-Key": "bulk-cancel-mixed-1"},
             json={"run_ids": ["run-bulk-1", "run-bulk-2"]},
         )
 
@@ -9704,6 +9971,7 @@ def test_admin_bulk_cancel_awaiting_continue_run_directly_cancels():
          patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).post(
             "/admin/runs/bulk/cancel",
+            headers={"Idempotency-Key": "bulk-cancel-awaiting-1"},
             json={"run_ids": ["run-bulk-awaiting"]},
         )
 
@@ -9729,6 +9997,7 @@ def test_admin_bulk_archive_terminal_runs_only():
          patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).post(
             "/admin/runs/bulk/archive",
+            headers={"Idempotency-Key": "bulk-archive-terminal-1"},
             json={"run_ids": ["run-archive-1", "run-archive-2"]},
         )
 
@@ -9760,6 +10029,7 @@ def test_admin_bulk_unarchive_archived_runs_only():
          patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).post(
             "/admin/runs/bulk/unarchive",
+            headers={"Idempotency-Key": "bulk-unarchive-terminal-1"},
             json={"run_ids": ["run-unarchive-1", "run-unarchive-2"]},
         )
 
@@ -9783,6 +10053,7 @@ def test_admin_bulk_lifecycle_rejects_unknown_run_ids():
     with patch("fitcv_cp.app.get_run", return_value=None):
         resp = TestClient(_app()).post(
             "/admin/runs/bulk/archive",
+            headers={"Idempotency-Key": "bulk-archive-missing-1"},
             json={"run_ids": ["missing-run"]},
         )
     assert resp.status_code == 200
@@ -9790,6 +10061,81 @@ def test_admin_bulk_lifecycle_rejects_unknown_run_ids():
     assert body["processed"] == 0
     assert body["skipped"] == 1
     assert body["skipped_items"] == [{"run_id": "missing-run", "reason": "not_found"}]
+
+
+def test_admin_bulk_archive_replays_without_duplicate_mutation_or_events():
+    run = _make_full_run_mock(status="succeeded", run_id="run-archive-replay")
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.archive_run") as mock_archive_run, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        client = TestClient(_app())
+        first = client.post(
+            "/admin/runs/bulk/archive",
+            headers={"Idempotency-Key": "bulk-archive-replay-1"},
+            json={"run_ids": [run.run_id]},
+        )
+        replay = client.post(
+            "/admin/runs/bulk/archive",
+            headers={"Idempotency-Key": "bulk-archive-replay-1"},
+            json={"run_ids": [run.run_id]},
+        )
+
+    assert first.status_code == 200
+    assert replay.status_code == 200
+    assert replay.json() == first.json()
+    mock_archive_run.assert_called_once()
+    assert mock_append_event.call_count == 1
+
+
+def test_admin_bulk_lifecycle_rejects_idempotency_conflict():
+    run = _make_full_run_mock(status="succeeded", run_id="run-archive-conflict")
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.archive_run"), \
+         patch("fitcv_cp.app.append_event"):
+        client = TestClient(_app())
+        first = client.post(
+            "/admin/runs/bulk/archive",
+            headers={"Idempotency-Key": "bulk-lifecycle-conflict-1"},
+            json={"run_ids": [run.run_id]},
+        )
+        conflict = client.post(
+            "/admin/runs/bulk/cancel",
+            headers={"Idempotency-Key": "bulk-lifecycle-conflict-1"},
+            json={"run_ids": ["different-run"]},
+        )
+
+    assert first.status_code == 200
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "idempotency_conflict"
+
+
+def test_admin_bulk_lifecycle_requires_idempotency_key():
+    run = _make_full_run_mock(status="succeeded", run_id="run-archive-key")
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.archive_run") as mock_archive_run:
+        response = TestClient(_app()).post(
+            "/admin/runs/bulk/archive",
+            json={"run_ids": [run.run_id]},
+        )
+
+    assert response.status_code == 422
+    mock_archive_run.assert_not_called()
+
+
+def test_admin_bulk_lifecycle_openapi_declares_idempotency_header():
+    paths = TestClient(_app()).get("/openapi.json").json()["paths"]
+    for path in (
+        "/admin/runs/bulk/cancel",
+        "/admin/runs/bulk/archive",
+        "/admin/runs/bulk/unarchive",
+    ):
+        parameters = paths[path]["post"]["parameters"]
+        assert any(
+            parameter.get("name") == "Idempotency-Key"
+            and parameter.get("in") == "header"
+            and parameter.get("required") is True
+            for parameter in parameters
+        )
 
 
 def _obsolete_test_admin_bulk_delete_archived_runs_returns_deleted_summary():
@@ -9891,7 +10237,8 @@ def test_runs_list_renders_bulk_action_bar_hooks():
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
     html = resp.text
-    assert 'id="bulk-action-bar"' in html
+    assert "ensureBulkActionBar()" in html
+    assert "bar.id = 'bulk-action-bar'" in html
     assert "Cancel Run" in html
     assert "Archive Run" in html
     assert "Unarchive Run" not in html
@@ -9907,9 +10254,9 @@ def test_runs_list_shows_archived_selection_actions_only_in_archived_view() -> N
         archived_resp = TestClient(_app()).get("/admin/runs?view=archived")
     assert archived_resp.status_code == 200
     archived_html = archived_resp.text
-    assert "Unarchive Run" in archived_html
+    assert "Unarchive Run" not in archived_html
     assert "Delete Run" in archived_html
-    assert "Cancel Run" not in archived_html
+    assert 'id="cancelSelectedRuns"' not in archived_html
 
     with patch("fitcv_cp.app.list_runs", return_value=[archived_run]):
         active_resp = TestClient(_app()).get("/admin/runs?view=active")
@@ -9934,6 +10281,22 @@ def test_runs_list_archived_delete_controls_use_preview_and_explicit_selection()
     assert "deleted_bookmark_count" in html
     assert "Idempotency-Key" in html
     assert "bulkDeleteArchivedRuns(this)" in html
+
+
+def test_runs_list_bulk_lifecycle_retries_with_same_idempotency_key() -> None:
+    run = _make_full_run_mock(status="queued", run_id="run-bulk-idempotency-ui")
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "var bulkLifecycleIdempotencyKeys = {};" in html
+    assert "bulkLifecycleIdempotencyKeys[action] ||= crypto.randomUUID();" in html
+    assert "'Idempotency-Key': bulkLifecycleIdempotencyKeys[action]" in html
+    assert "retry: () => bulkLifecycleAction(action, btn)" in html
+    assert "delete bulkLifecycleIdempotencyKeys[action];" in html
+    assert "code: e.code" in html
+
+
 def test_runs_list_shows_core_operational_columns_only():
     run = _make_full_run_mock(status="queued", run_id="run-compact-actions")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
@@ -10703,6 +11066,11 @@ def test_admin_bookmarks_page_and_delete_flow():
     assert "/bookmarks?stage=" in page_resp.text
     assert "/bookmarks/actions/remove" in page_resp.text
     assert "/bookmarks/actions/export/preview" in page_resp.text
+    assert "fitcvApiRequest('/bookmarks/actions/export'" in page_resp.text
+    assert 'id="bookmarkResult"' not in page_resp.text
+    assert "fitcvRenderAsyncState" in page_resp.text
+    assert page_resp.text.count("fitcvRunLocked") >= 2
+    assert "function failure(error,retry)" in page_resp.text
     assert "table-shell" in page_resp.text
     assert "Submitted" not in page_resp.text
     assert "Archived" not in page_resp.text
@@ -11049,6 +11417,7 @@ def test_build_enriched_tab_context_does_not_guess_passed_for_unknown_rows() -> 
             run,
             run_id=run.run_id,
             client = None,
+            stage="all",
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -11113,6 +11482,7 @@ def test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_ur
             run,
             run_id=run.run_id,
             client = None,
+            stage="all",
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -11335,6 +11705,7 @@ def test_build_enriched_tab_context_overrides_stale_review_required_with_termina
             run,
             run_id=run.run_id,
             client=object(),
+            stage="all",
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -11414,6 +11785,7 @@ def test_build_enriched_tab_context_overrides_stale_review_required_with_termina
             run,
             run_id=run.run_id,
             client=object(),
+            stage="all",
             filter_name="all",
             query="",
             pipeline_outcomes=[],
@@ -13110,9 +13482,9 @@ def test_decision_feedback_post_and_no_js_form() -> None:
     assert ':has(.application-interest-star:nth-child(5):hover)' in page.text
     assert 'aria-label="Set application interest to 5 of 5 stars"' in page.text
     assert "flex-direction: column" in page.text
-    assert "Location:</strong> Munich, Bavaria, Germany" in page.text
-    assert "Work Mode:</strong> hybrid" in page.text
-    assert "Language:</strong>" in page.text
+    assert "<span>Location</span><strong>Munich, Bavaria, Germany</strong>" in page.text
+    assert "<span>Work Mode</span><strong>hybrid</strong>" in page.text
+    assert "<span>Language</span><strong>" in page.text
     assert "English" in page.text
     assert "level unspecified" in page.text
     assert "onclick=" not in page.text

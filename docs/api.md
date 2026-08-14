@@ -235,11 +235,12 @@ checksum, timestamps, and failure diagnostics remain inspectable.
 
 ### `POST /runs`
 
-Prototype upload trigger uses `multipart/form-data` plus `Idempotency-Key`:
+Managed Runs trigger uses `multipart/form-data` plus `Idempotency-Key`:
 
 - `jobs_file`: exactly one non-empty UTF-8 `.json` or `.jsonl` file, maximum
   50 MB
-- `candidate_profile_id`: required active profile
+- `profile_id`: required active profile for upload, scan, and combined managed Runs
+  submissions
 - `run_name`: optional, defaults to filename stem, maximum 120 characters
 - `config_path`: optional, defaults to `.env.yaml`
 - `triggered_by`: optional, defaults to `admin`
@@ -368,3 +369,8 @@ action derived from availability.
 artifact/review routes remain compatibility surfaces for current operators.
 They must delegate to shared stores/services where behavior overlaps; the
 prototype frontend does not parse their HTML or artifacts for lifecycle truth.
+`POST /admin/runs/bulk/cancel`, `/admin/runs/bulk/archive`, and
+`/admin/runs/bulk/unarchive` require `Idempotency-Key`; same-key replay returns
+the stored summary and a different payload returns `409 idempotency_conflict`.
+The legacy `/admin/upload-trigger` form keeps its separate
+`candidate_profile_id` field contract; it is not the managed `/runs` form.

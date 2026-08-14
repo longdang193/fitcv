@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Run {{ run.run_id[:8] }} — FitCV Admin{% endblock %}
 {% block content %}
+<style>.tab-loading-state{display:flex;min-height:8rem;align-items:center;justify-content:center;text-align:center}</style>
 {% import "_icons.html" as icons %}
 {% import "_jobs_input_sources.html" as job_sources %}
 
@@ -10,7 +11,15 @@
   <div><p class="eyebrow">Run Details</p><h2>Run {{ run.run_id }}</h2><p>Review run inputs and pipeline results.</p></div>
 </div>
 {% if run.status.value == 'failed' and run.error_message %}<div class="scan-notice error">{{ run.error_message }}</div>{% endif %}
-<div id="run-detail-action-state" hidden></div></div>
+<div class="page-actions">
+  {% if run_status_projection.is_active or run_status_projection.is_awaiting_continue %}
+    <button type="button" class="btn danger" data-run-lifecycle-action="stop" data-run-id="{{ run.run_id }}">Stop Run</button>
+  {% elif run_status_projection.is_terminal and not run_status_projection.is_archived %}
+    <button type="button" class="btn" data-run-lifecycle-action="archive" data-run-id="{{ run.run_id }}">Archive Run</button>
+  {% endif %}
+  </div>
+  <div id="run-detail-action-state" hidden></div>
+  <div id="run-detail-poll-state" hidden aria-live="polite"></div></div>
 
 <!-- ── Run Overview (canonical single summary block) ─────────────────────── -->
 <details class="section-card collapsible-section drawer-section" id="run-overview-core" open>
@@ -76,19 +85,27 @@ async function ensureTabLoaded(id, overrideUrl = null) {
   const url = overrideUrl || pane.dataset.tabUrl;
   if (!url || pane.dataset.loading === 'true') return;
   if (!overrideUrl && pane.dataset.loaded === 'true') return;
+  const activeElement = document.activeElement;
+  const activeId = activeElement?.id || '';
+  const activeRunJobId = activeElement?.dataset?.runJobId || '';
   pane.dataset.loading = 'true';
   if (pane.dataset.loaded !== 'true') {
     fitcvRenderAsyncState(pane, {kind: 'pending', message: 'Loading results…'});
   }
   try {
-    const resp = await fetch(url, {
+    const fragment = await fitcvApiRequest(url, {
       headers: { 'Accept': 'text/html', 'X-Requested-With': 'fitcv-tab-fragment' },
       cache: 'no-store',
     });
-    if (!resp.ok) throw new Error('Failed to load tab');
-    pane.innerHTML = await resp.text();
+    pane.innerHTML = fragment;
     initRunJobSelection(pane);
     pane.dataset.loaded = 'true';
+    const focusTarget = activeId
+      ? pane.querySelector('#' + CSS.escape(activeId))
+      : activeRunJobId
+        ? pane.querySelector('[data-run-job-id="' + CSS.escape(activeRunJobId) + '"]')
+        : pane.querySelector('[autofocus], button, a, input, select, textarea');
+    if (focusTarget) focusTarget.focus({preventScroll: true});
     syncRunResultsUrl(url);
   } catch (err) {
     fitcvRenderAsyncState(pane, {
@@ -147,55 +164,68 @@ function initRunJobSelection(scope = document) {
     sync();
   });
   scope.querySelectorAll('[data-bookmark-toggle]').forEach((button) => {
-    button.addEventListener('click', async () => {
+    button.addEventListener('click', () => {
       const bookmarked = button.dataset.bookmarked === 'true';
-      button.disabled = true;
-      try {
-        await fitcvApiRequest(`/runs/${encodeURIComponent(root.dataset.runId)}/jobs/${encodeURIComponent(button.dataset.runJobId)}/bookmark`, {
-          method: bookmarked ? 'DELETE' : 'PUT',
-        });
-        button.dataset.bookmarked = bookmarked ? 'false' : 'true';
-        button.setAttribute('aria-pressed', bookmarked ? 'false' : 'true');
-        button.textContent = bookmarked ? 'Bookmark' : 'Remove bookmark';
-        notice.textContent = bookmarked ? 'Bookmark removed.' : 'Bookmark saved.';
-      } catch (error) {
-        notice.textContent = error.message;
-      } finally {
-        button.disabled = false;
-      }
+      void fitcvRunLocked(button, async () => {
+        try {
+          await fitcvApiRequest(`/runs/${encodeURIComponent(root.dataset.runId)}/jobs/${encodeURIComponent(button.dataset.runJobId)}/bookmark`, {
+            method: bookmarked ? 'DELETE' : 'PUT',
+          });
+          button.dataset.bookmarked = bookmarked ? 'false' : 'true';
+          button.setAttribute('aria-pressed', bookmarked ? 'false' : 'true');
+          button.textContent = bookmarked ? 'Bookmark' : 'Remove bookmark';
+          notice.textContent = bookmarked ? 'Bookmark removed.' : 'Bookmark saved.';
+        } catch (error) {
+          fitcvRenderAsyncState(notice, {
+            kind: error.status === 409 ? 'stale' : 'retryable',
+            message: error.message || 'Could not update bookmark.',
+            code: error.code,
+            action: 'Retry',
+            retry: () => button.click(),
+            preserveContent: true,
+          });
+        }
+      });
     });
   });
-  exportButton.addEventListener('click', async () => {
-    exportButton.disabled = true;
-    try {
-      const exportContext = context();
-      const preview = (await fitcvApiRequest(root.dataset.previewUrl, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(exportContext),
-      })).data;
-      notice.textContent = `Export summary: ${preview.matched_count} matched, ${preview.excluded_count} excluded.`;
-      if (!confirm(`Export ${preview.matched_count} selected jobs matching current stage and filters? ${preview.excluded_count} selected jobs will be excluded.`)) return;
-      const response = await fetch(root.dataset.exportUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': crypto.randomUUID(),
-        },
-        body: JSON.stringify({...exportContext, preview_revision: preview.preview_revision}),
-      });
-      if (!response.ok) throw new Error('Export failed');
-      const blob = await response.blob();
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `fitcv-run-${root.dataset.runId}-jobs.csv`;
-      link.click();
-      URL.revokeObjectURL(link.href);
-    } catch (error) {
-      notice.textContent = error.message;
-    } finally {
-      sync();
-    }
+  exportButton.addEventListener('click', () => {
+    void fitcvRunLocked(exportButton, async () => {
+      try {
+        const exportContext = context();
+        const preview = (await fitcvApiRequest(root.dataset.previewUrl, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(exportContext),
+        })).data;
+        notice.textContent = `Export summary: ${preview.matched_count} matched, ${preview.excluded_count} excluded.`;
+        if (!confirm(`Export ${preview.matched_count} selected jobs matching current stage and filters? ${preview.excluded_count} selected jobs will be excluded.`)) return;
+        const csv = await fitcvApiRequest(root.dataset.exportUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': fitcvIdempotencyKey(exportButton),
+          },
+          body: JSON.stringify({...exportContext, preview_revision: preview.preview_revision}),
+        });
+        const blob = new Blob([csv], {type: 'text/csv;charset=utf-8'});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `fitcv-run-${root.dataset.runId}-jobs.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      } catch (error) {
+        fitcvRenderAsyncState(notice, {
+          kind: error.status === 409 ? 'stale' : 'retryable',
+          message: error.message || 'Could not export selected jobs.',
+          code: error.code,
+          action: 'Retry',
+          retry: () => exportButton.click(),
+          preserveContent: true,
+        });
+      } finally {
+        sync();
+      }
+    });
   });
   sync();
 }
@@ -349,18 +379,23 @@ ensureTabLoaded('enriched', '/admin/runs/{{ run.run_id }}/tabs/enriched?' + init
       return;
     }
     inFlight = true;
+    const pollState = document.getElementById('run-detail-poll-state');
     try {
-      const resp = await fetch('/runs/' + runId, {
+      const payload = await fitcvApiRequest('/runs/' + runId, {
         headers: { 'Accept': 'application/json' },
         cache: 'no-store',
       });
-      if (!resp.ok) return;
-      const payload = await resp.json();
-      const nextStatus = payload.status || '';
-      const nextLastCompleted = payload.last_completed_stage || '';
-      const nextNextStage = payload.next_stage || '';
-      const nextCheckpoint = payload.checkpoint_status || '';
-      const nextFinishedAt = payload.finished_at || '';
+      if (pollState) {
+        pollState.replaceChildren();
+        pollState.hidden = true;
+        pollState.removeAttribute('data-fitcv-async-state');
+      }
+      const run = payload.data || {};
+      const nextStatus = run.status || '';
+      const nextLastCompleted = run.last_completed_stage || '';
+      const nextNextStage = run.next_stage || '';
+      const nextCheckpoint = run.checkpoint_status || '';
+      const nextFinishedAt = run.finished_at || '';
       if (
         nextStatus !== currentStatus ||
         nextLastCompleted !== currentLastCompleted ||
@@ -370,8 +405,15 @@ ensureTabLoaded('enriched', '/admin/runs/{{ run.run_id }}/tabs/enriched?' + init
       ) {
         window.location.reload();
       }
-    } catch (e) {
-      // Keep polling quiet; manual refresh remains available.
+    } catch (error) {
+      fitcvRenderAsyncState(pollState, {
+        kind: error.status === 409 ? 'stale' : 'retryable',
+        message: error.message || 'Could not refresh Run Details.',
+        code: error.code,
+        action: 'Retry',
+        retry: () => scheduleNextPoll(0),
+        preserveContent: true,
+      });
     } finally {
       inFlight = false;
       scheduleNextPoll();

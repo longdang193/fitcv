@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-prototype-runtime-parity-and-full-stack-integration-patch
 parent_spec: none
@@ -61,8 +61,8 @@ coordination:
     - id: task-7-runs-list-and-trigger
       depends_on: [task-6-system-and-data-backup]
       execution_mode: inline_sequential
-      allowed_paths: [docs/fitcv-settings-ui-prototype.integration.md, docs/superpowers/plans/2026-08-04-16-00-fitcv-prototype-runtime-parity-and-full-stack-integration-patch-plan.md, src/fitcv_cp/templates/runs_list.html, tests/test_fitcv_cp/test_app.py]
-      planned_write_paths: [docs/fitcv-settings-ui-prototype.integration.md, docs/superpowers/plans/2026-08-04-16-00-fitcv-prototype-runtime-parity-and-full-stack-integration-patch-plan.md, src/fitcv_cp/templates/runs_list.html, tests/test_fitcv_cp/test_app.py]
+      allowed_paths: [docs/api.md, docs/fitcv-settings-ui-prototype.integration.md, docs/superpowers/plans/2026-08-04-16-00-fitcv-prototype-runtime-parity-and-full-stack-integration-patch-plan.md, src/fitcv_cp/app.py, src/fitcv_cp/templates/runs_list.html, tests/test_fitcv_cp/test_app.py]
+      planned_write_paths: [docs/api.md, docs/fitcv-settings-ui-prototype.integration.md, docs/superpowers/plans/2026-08-04-16-00-fitcv-prototype-runtime-parity-and-full-stack-integration-patch-plan.md, src/fitcv_cp/app.py, src/fitcv_cp/templates/runs_list.html, tests/test_fitcv_cp/test_app.py]
     - id: task-8-run-details-and-results
       depends_on: [task-7-runs-list-and-trigger]
       execution_mode: inline_sequential
@@ -229,30 +229,46 @@ only unresolved mappings.
 - Coordination owner: `single lead controller`
 - Branch: `main`
 - Base commit: `488914851a072a362187f7c785665e4b05bb5b65`
-- Active task(s): `Task 1`
+- Active task(s): none; final verification complete; all 13 slice validators passed.
 - Expected workspace: preserve all existing launcher, governance, skill, and
   test changes outside this plan; this plan is current controller-owned change.
 - Checkpoint: `none`; no task-local acceptance commit exists.
-- Next action: run Task 1 test-first against only
-  `task-1-shared-shell-and-lifecycle-removal` planned paths.
-- Blockers: `none`; current local proof is evidence only and does not replace
-  Task 1 fresh proof or an independent validator when one is selected.
+- Next action: controller Git disposition only; do not commit, merge, push, clean,
+  or delete worktrees without separate authorization.
+- Blockers: none for this closed lane. Approved deferral: prototype Pipeline
+  hash-section/deep-link parity (`#screening`, `#ranking`, and related sections)
+  remains for the upcoming plan; current lane does not claim that work complete.
+  Fresh final evidence: declared suite `1046 passed, 2 skipped`;
+  Task 7 lifecycle/frontend focused suite `11 passed, 436 deselected`; Task 7
+  declared suite `34 passed, 578 deselected`; normal and packaged-local OpenAPI
+  `200`, each with `131` paths and required `Idempotency-Key` on all three bulk
+  lifecycle routes; prototype hash
+  `989af611bd7767c148022c79ac00c5069d8a3956`; `compileall` and
+  `git diff --check` passed. Packaged-local browser evidence covered all 14
+  navigation routes at `1440x900` and `375x812`, light/dark themes, titles/H1s,
+  no horizontal overflow, Active/Archived URL state, empty states, Trigger Run
+  dialog, disabled submit, Escape focus return, and zero console errors.
+- Residual risk: deferred settings section parity remains unresolved by design;
+  aggregate evidence does not replace each task's required
+  validator; browser evidence covers declared route matrix and interactions,
+  not every slice-specific async/error/retry state or a source-to-prototype
+  structural diff for every component; no claim of universal no-drift is made.
 
 | Task | State | Executor Profile | Validator Profile | Depends On | Required Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Task 1 | `active` | `normal` | `high` | none | shell + Lifecycle route tests, direct backend proof, browser shell matrix, fresh validator |
-| Task 2 | `pending` | `normal` | `high` | Task 1 | settings route/store proof, browser matrix, fresh validator |
-| Task 3 | `pending` | `normal` | `high` | Task 2 | provider boundary proof, browser matrix, fresh validator |
-| Task 4 | `pending` | `normal` | `high` | Task 3 | LLM boundary proof, browser matrix, fresh validator |
-| Task 5 | `pending` | `normal` | `high` | Task 4 | prompt boundary proof, browser matrix, fresh validator |
-| Task 6 | `pending` | `normal` | `high` | Task 5 | system/backup boundary proof, browser matrix, fresh validator |
-| Task 7 | `pending` | `normal` | `high` | Task 6 | run boundary/queue/store proof, browser matrix, fresh validator |
-| Task 8 | `pending` | `normal` | `high` | Task 7 | run-detail artifact proof, browser matrix, fresh validator |
-| Task 9 | `pending` | `normal` | `high` | Task 8 | scan state-machine proof, browser matrix, fresh validator |
-| Task 10 | `pending` | `normal` | `high` | Task 9 | Candidate Profile staged recovery proof, browser matrix, fresh validator |
-| Task 11 | `pending` | `normal` | `high` | Task 10 | bookmark boundary/store proof, browser matrix, fresh validator |
-| Task 12 | `pending` | `normal` | `high` | Task 11 | synonym policy boundary proof, browser matrix, fresh validator |
-| Task 13 | `pending` | `normal` | `high` | Task 12 | optimization lifecycle proof, browser matrix, fresh validator |
+| Task 1 | `complete` | `normal` | `high` | none | focused lifecycle/local-route/shell proof: `17 passed, 451 deselected`; validator PASS; prototype hash matches |
+| Task 2 | `complete` | `normal` | `high` | Task 1 | focused settings proof: `260 passed, 1 skipped, 395 deselected`; validator PASS; prototype hash matches |
+| Task 3 | `complete` | `normal` | `xhigh` | Task 2 | focused provider proof: `7 passed, 476 deselected`; validator PASS; prototype hash matches |
+| Task 4 | `complete` | `normal` | `xhigh` | Task 3 | focused async UI proof: `1 passed, 37 deselected`; backend node: `1 passed`; validator PASS; prototype hash matches |
+| Task 5 | `complete` | `high` | `xhigh` | Task 4 | focused proof: `3 passed, 480 deselected`; duplicate-style and compatibility-redirect regression: `2 passed`; validator PASS; prototype hash matches |
+| Task 6 | `complete` | `high` | `xhigh` | Task 5 | focused backend/import proof: `7 passed, 48 deselected`; validator PASS; prototype hash matches |
+| Task 7 | `complete` | `high` | `xhigh` | Task 6 | declared suite: `34 passed, 578 deselected`; lifecycle/frontend focused suite: `11 passed, 436 deselected`; backend and frontend xhigh validators PASS; OpenAPI header contract PASS |
+| Task 8 | `complete` | `high` | `xhigh` | Task 7 | run-detail action/reconciliation proof: `3 passed`; validator PASS |
+| Task 9 | `complete` | `high` | `xhigh` | Task 8 | scan proof: `32 passed, 413 deselected`; validator PASS |
+| Task 10 | `complete` | `high` | `xhigh` | Task 9 | candidate-profile proof: `6 passed, 543 deselected`; validator PASS |
+| Task 11 | `complete` | `high` | `xhigh` | Task 10 | bookmark/interest proof: `3 passed, 546 deselected`; validator PASS |
+| Task 12 | `complete` | `high` | `xhigh` | Task 11 | synonym-policy proof: `13 passed, 576 deselected`; validator PASS |
+| Task 13 | `complete` | `high` | `xhigh` | Task 12 | optimization proof: `4 passed`; validator PASS; prototype hash matches |
 
 Task IDs, dependencies, canonical execution mode, and planned paths are in
 frontmatter. This ledger owns only static controller task state. Git owns
@@ -762,7 +778,7 @@ complete and prototype hash matches.
 - Inspect: `src/fitcv_cp/store.py`, `src/fitcv_cp/sqlite_store.py`, `src/fitcv_cp/queue.py`
 - Modify: `src/fitcv_cp/templates/runs_list.html`
 - Modify: `tests/test_fitcv_cp/test_app.py`
-- Verify: `tests/test_fitcv_cp/test_queue.py`, `tests/test_fitcv_cp/test_store.py`, `tests/test_fitcv_cp/test_sqlite_store.py`, `docs/api.md`
+- Modify/Verify: `tests/test_fitcv_cp/test_queue.py`, `tests/test_fitcv_cp/test_store.py`, `tests/test_fitcv_cp/test_sqlite_store.py`, `docs/api.md`
 
 **Dependencies:**
 - Task 6 validator PASS
@@ -785,6 +801,8 @@ complete and prototype hash matches.
 - Direct boundary: `POST /runs`, `GET /runs`, lifecycle and delete-preview routes.
 - Failure: missing source validation, unavailable scan, local busy conflict, persistence failure, queue/enqueue failure.
 - State: run inserted before enqueue; failed bundle persistence leaves consistent state; duplicate submission does not create duplicate run.
+- Bulk lifecycle idempotency: `tests/test_fitcv_cp/test_app.py::test_admin_bulk_archive_replays_without_duplicate_mutation_or_events`, `::test_admin_bulk_lifecycle_rejects_idempotency_conflict`, `::test_admin_bulk_lifecycle_requires_idempotency_key`.
+- Frontend retry contract: `tests/test_fitcv_cp/test_app.py::test_runs_list_bulk_lifecycle_retries_with_same_idempotency_key`.
 - Contract evidence: `docs/api.md`, `/openapi.json`, route/store tests.
 - Trace: reconstruct created run through run ID and queue job ID.
 

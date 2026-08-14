@@ -37,7 +37,7 @@ from urllib.parse import unquote, urlencode, urlparse
 from zoneinfo import ZoneInfo
 
 import yaml
-from fastapi import FastAPI, Header, HTTPException, Request, UploadFile, File, Form
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile, File, Form
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -4900,6 +4900,15 @@ def _build_enriched_tab_context(
             row,
             filter_results_by_job_url,
         )
+        filter_row = _lookup_row_by_lookup_key(filter_results_by_job_url, row)
+        if not row.get("language_requirements") and isinstance(filter_row, dict):
+            fit_factor_results = filter_row.get("fit_factor_results")
+            language_fit = fit_factor_results.get("language_fit") if isinstance(fit_factor_results, dict) else None
+            language_evaluation = language_fit.get("evaluation") if isinstance(language_fit, dict) else None
+            language_evidence = language_evaluation.get("evidence") if isinstance(language_evaluation, dict) else None
+            language_requirements = language_evidence.get("requirements") if isinstance(language_evidence, dict) else None
+            if isinstance(language_requirements, list):
+                row["language_requirements"] = language_requirements
         row["pipeline_outcome_lookup_key"] = _best_lookup_key_for_row(
             row,
             pipeline_outcomes_by_job_url,
@@ -6446,6 +6455,27 @@ def _required_idempotency_key(request: Request) -> str:
     return key
 
 
+def _required_idempotency_header(
+    idempotency_key: str = Header(alias="Idempotency-Key"),
+) -> str:
+    key = str(idempotency_key or "").strip()
+    if not key:
+        raise ApiError(
+            422,
+            "validation_failed",
+            "Idempotency-Key header is required.",
+            field_errors=[
+                {
+                    "field": "Idempotency-Key",
+                    "code": "required",
+                    "message": "Provide a stable idempotency key.",
+                }
+            ],
+            action="Retry with an Idempotency-Key header.",
+        )
+    return key
+
+
 def _request_fingerprint(payload: Any) -> str:
     encoded = _json.dumps(
         payload,
@@ -6942,7 +6972,6 @@ def create_app(
         from fitcv_cp.local_routes import (
             build_local_router,
             local_data_status_resource,
-            local_lifecycle_status_resource,
             local_readiness_status,
             onboarding_is_complete,
         )
@@ -7553,13 +7582,6 @@ def create_app(
                 },
             )
 
-        @app.get("/admin/lifecycle", response_class=HTMLResponse)
-        def admin_lifecycle(request: Request) -> HTMLResponse:
-            return templates.TemplateResponse(
-                request=request,
-                name="lifecycle.html",
-                context={"lifecycle": local_lifecycle_status_resource(request)},
-            )
     baseline_config = load_config()
     runtime_settings_schema = settings_schema_with_runtime_defaults(baseline_config)
     schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
@@ -10643,17 +10665,21 @@ def create_app(
 
     @app.get("/runs/{run_id}")
     def get_run_detail(run_id: str) -> dict:
-        detail = _resolve_run_store().get_run_detail(run_id)
-        if detail is None:
-            legacy_run = get_run(run_id, client=client)
-            if legacy_run is None:
-                raise ApiError(
-                    404,
-                    "run_not_found",
-                    "Run not found.",
-                    action="Return to Runs and select an existing Run.",
-                )
-            detail = _run_to_dict(_reconcile_orphaned_run(legacy_run))
+        store = _resolve_run_store()
+        detail = store.get_run_detail(run_id)
+        legacy_run = get_run(run_id, client=client)
+        if legacy_run is None:
+            if detail is not None:
+                return _data_response(detail)
+            raise ApiError(
+                404,
+                "run_not_found",
+                "Run not found.",
+                action="Return to Runs and select an existing Run.",
+            )
+        reconciled_run = _reconcile_orphaned_run(legacy_run)
+        if detail is None or reconciled_run.status != legacy_run.status:
+            detail = _run_to_dict(reconciled_run)
         return _data_response(detail)
 
     @app.get("/runs/{run_id}/stages")
@@ -10822,6 +10848,19 @@ def create_app(
         request: Request,
     ) -> dict[str, Any]:
         store = _resolve_run_store()
+        key = _required_idempotency_key(request)
+        fingerprint = _request_fingerprint(body.model_dump())
+        try:
+            action = store.reserve_idempotent_action("runs.delete_archived", key, fingerprint)
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "idempotency_conflict",
+                "Idempotency key was already used for a different request.",
+                action="Retry with a new Idempotency-Key.",
+            ) from exc
+        if action.get("replayed") and action.get("response") is not None:
+            return _data_response(action["response"])
         preview = store.preview_delete_archived_runs(body.run_ids)
         if preview["blocked_run_ids"] or preview["missing_run_ids"]:
             raise ApiError(
@@ -10839,19 +10878,6 @@ def create_app(
             error_code="delete_preview_stale",
             error_message="Run deletion preview changed or expired.",
         )
-        key = _required_idempotency_key(request)
-        fingerprint = _request_fingerprint(body.model_dump())
-        try:
-            action = store.reserve_idempotent_action("runs.delete_archived", key, fingerprint)
-        except ValueError as exc:
-            raise ApiError(
-                409,
-                "idempotency_conflict",
-                "Idempotency key was already used for a different request.",
-                action="Retry with a new Idempotency-Key.",
-            ) from exc
-        if action.get("replayed") and action.get("response") is not None:
-            return _data_response(action["response"])
         try:
             result = store.delete_archived_runs(
                 "all",
@@ -12538,8 +12564,47 @@ def create_app(
         )
         return {"status": "cancelling", "run_id": run_id}
 
+    def _reserve_admin_bulk_run_action(
+        action: str,
+        idempotency_key: str,
+        payload: BulkRunActionRequest,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        try:
+            reservation = _resolve_run_store().reserve_idempotent_action(
+                "admin.runs.bulk",
+                idempotency_key,
+                _request_fingerprint({"action": action, "run_ids": payload.run_ids}),
+            )
+        except ValueError as exc:
+            if str(exc) == "idempotency_conflict":
+                raise ApiError(
+                    409,
+                    "idempotency_conflict",
+                    "Idempotency-Key was already used for a different request.",
+                    action="Use a new Idempotency-Key.",
+                ) from exc
+            raise
+        if reservation.get("replayed"):
+            response = reservation.get("response")
+            if not isinstance(response, dict):
+                raise ApiError(
+                    409,
+                    "idempotency_incomplete",
+                    "A previous bulk lifecycle request did not finish recording its result.",
+                    retryable=True,
+                    action="Refresh Runs and retry with a new Idempotency-Key.",
+                )
+            return reservation, response
+        return reservation, None
+
     @app.post("/admin/runs/bulk/cancel")
-    def admin_bulk_cancel_runs(payload: BulkRunActionRequest) -> dict[str, Any]:
+    def admin_bulk_cancel_runs(
+        payload: BulkRunActionRequest,
+        idempotency_key: str = Depends(_required_idempotency_header),
+    ) -> dict[str, Any]:
+        reservation, replay = _reserve_admin_bulk_run_action("cancel", idempotency_key, payload)
+        if replay is not None:
+            return replay
         processed_run_ids: list[str] = []
         skipped_items: list[dict[str, str]] = []
         for run_id in payload.run_ids:
@@ -12597,7 +12662,7 @@ def create_app(
             )
             processed_run_ids.append(run_id)
 
-        return {
+        response = {
             "action": "cancel",
             "requested": len(payload.run_ids),
             "processed": len(processed_run_ids),
@@ -12605,9 +12670,17 @@ def create_app(
             "processed_run_ids": processed_run_ids,
             "skipped_items": skipped_items,
         }
+        _resolve_run_store().complete_idempotent_action(str(reservation["action_id"]), response)
+        return response
 
     @app.post("/admin/runs/bulk/archive")
-    def admin_bulk_archive_runs(payload: BulkRunActionRequest) -> dict[str, Any]:
+    def admin_bulk_archive_runs(
+        payload: BulkRunActionRequest,
+        idempotency_key: str = Depends(_required_idempotency_header),
+    ) -> dict[str, Any]:
+        reservation, replay = _reserve_admin_bulk_run_action("archive", idempotency_key, payload)
+        if replay is not None:
+            return replay
         processed_run_ids: list[str] = []
         skipped_items: list[dict[str, str]] = []
         for run_id in payload.run_ids:
@@ -12633,7 +12706,7 @@ def create_app(
             )
             processed_run_ids.append(run_id)
 
-        return {
+        response = {
             "action": "archive",
             "requested": len(payload.run_ids),
             "processed": len(processed_run_ids),
@@ -12641,9 +12714,17 @@ def create_app(
             "processed_run_ids": processed_run_ids,
             "skipped_items": skipped_items,
         }
+        _resolve_run_store().complete_idempotent_action(str(reservation["action_id"]), response)
+        return response
 
     @app.post("/admin/runs/bulk/unarchive")
-    def admin_bulk_unarchive_runs(payload: BulkRunActionRequest) -> dict[str, Any]:
+    def admin_bulk_unarchive_runs(
+        payload: BulkRunActionRequest,
+        idempotency_key: str = Depends(_required_idempotency_header),
+    ) -> dict[str, Any]:
+        reservation, replay = _reserve_admin_bulk_run_action("unarchive", idempotency_key, payload)
+        if replay is not None:
+            return replay
         processed_run_ids: list[str] = []
         skipped_items: list[dict[str, str]] = []
         for run_id in payload.run_ids:
@@ -12669,7 +12750,7 @@ def create_app(
             )
             processed_run_ids.append(run_id)
 
-        return {
+        response = {
             "action": "unarchive",
             "requested": len(payload.run_ids),
             "processed": len(processed_run_ids),
@@ -12677,6 +12758,8 @@ def create_app(
             "processed_run_ids": processed_run_ids,
             "skipped_items": skipped_items,
         }
+        _resolve_run_store().complete_idempotent_action(str(reservation["action_id"]), response)
+        return response
 
     @app.post("/admin/runs/{run_id}/continue")
     def admin_continue_run(request: Request, run_id: str) -> dict:
@@ -13982,7 +14065,7 @@ def create_app(
         q: str = "",
     ) -> Response:
         run = require_run_or_404(run_id, detail="")
-        selected_pipeline_outcomes = _normalize_pipeline_outcomes(
+        selected_pipeline_outcomes = _selected_enriched_pipeline_outcomes(
             request.query_params.getlist("pipeline_outcome")
         )
         context = _build_enriched_tab_context(
