@@ -31,7 +31,7 @@ jobs:
             python -m pip install pytest pytest-httpx
           }
           if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
-            python -m pip install -e .
+            python -m pip install -e ".[local]"
           }
 
       - name: Sync adapter outputs
@@ -98,7 +98,7 @@ jobs:
             python -m pip install pytest pytest-httpx
           }
           if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
-            python -m pip install -e .
+            python -m pip install -e ".[local]"
           }
 
       - name: Run focused pytest smoke suite
@@ -127,7 +127,7 @@ jobs:
             python -m pip install pytest pytest-httpx
           }
           if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
-            python -m pip install -e .
+            python -m pip install -e ".[local]"
           }
 
       - name: Verify architecture generator output when configured
@@ -161,7 +161,7 @@ jobs:
             python -m pip install pytest pytest-httpx
           }
           if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
-            python -m pip install -e .
+            python -m pip install -e ".[local]"
           }
 
       - name: Run publication boundary dry check
