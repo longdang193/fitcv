@@ -50,6 +50,7 @@ canonical: true
         var detail = payload && payload.detail ? payload.detail : '';
         var requestError = new Error(error.message || (Array.isArray(detail) ? detail.join(', ') : detail) || String(payload || response.statusText));
         requestError.code = error.code || 'request_failed';
+        requestError.action = error.action;
         requestError.status = response.status;
         requestError.payload = payload;
         throw requestError;
