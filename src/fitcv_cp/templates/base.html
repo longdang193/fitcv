@@ -99,7 +99,8 @@ canonical: true
   function fitcvRenderAsyncState(target, state) {
     if (!target) return;
     state = state || {};
-    var kind = state.kind || 'empty';
+    var supportedKinds = ['pending', 'success', 'empty', 'error', 'retryable', 'non_retryable', 'stale', 'refreshing'];
+    var kind = supportedKinds.includes(state.kind) ? state.kind : 'empty';
     target.setAttribute('data-fitcv-async-state', kind);
     target.hidden = false;
     if (!state.preserveContent) target.replaceChildren();
@@ -109,7 +110,10 @@ canonical: true
     }
     var notice = document.createElement('div');
     notice.className = 'notice fitcv-async-state fitcv-async-state-' + kind;
-    notice.setAttribute('role', kind === 'error' || kind === 'retryable' || kind === 'non_retryable' ? 'alert' : 'status');
+    var isError = kind === 'error' || kind === 'retryable' || kind === 'non_retryable' || kind === 'stale';
+    var isFocusable = isError;
+    notice.setAttribute('role', isError ? 'alert' : 'status');
+    notice.setAttribute('aria-live', isError ? 'assertive' : 'polite');
     notice.tabIndex = -1;
     var message = document.createElement('span');
     message.textContent = state.message || '';
@@ -128,7 +132,7 @@ canonical: true
       notice.appendChild(retry);
     }
     target.appendChild(notice);
-    if (kind === 'error' || kind === 'retryable' || kind === 'non_retryable' || kind === 'stale') notice.focus();
+    if (isFocusable) notice.focus();
   }
   </script>
   <title>{% block title %}FitCV Admin{% endblock %}</title>
