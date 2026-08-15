@@ -22,9 +22,6 @@ To update: edit canonical source, then run sync.
 # Multi-Agent Orchestration Rule
 
 - Installed `harness-core` owns managed packet lifecycle and authorization.
-  Consumer `scripts/harness_task.py` and `scripts/validate_harness_config.py`
-  only bridge to installed package commands; they never own runtime policy or
-  dispatch.
 - Package loader failure is `harness_core_environment_unavailable`. Unsupported
   consumer request API or host API is a release-compatibility failure. All
   three block before packet creation; do not patch a consumer bridge, reroute,

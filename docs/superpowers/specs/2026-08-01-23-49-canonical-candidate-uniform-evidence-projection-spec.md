@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: active
 template_id: detailed-specification
 name: canonical-candidate-creation-uniform-evidence-projection
 targets:

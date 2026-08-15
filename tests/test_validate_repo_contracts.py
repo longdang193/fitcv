@@ -81,7 +81,7 @@ def test_main_propagates_subprocess_failure(monkeypatch) -> None:
     assert status == 1
 
 
-def test_build_subprocess_steps_excludes_retired_metadata_validators() -> None:
+def test_build_subprocess_steps_includes_active_metadata_validators() -> None:
     steps = VALIDATOR.build_subprocess_steps(
         root=REPO_ROOT,
         python_executable="python",
@@ -94,29 +94,11 @@ def test_build_subprocess_steps_excludes_retired_metadata_validators() -> None:
     assert any("validate_prompt_metadata_schema.py" in step for step in rendered)
     assert any("validate_env_gitignore_contract.py" in step for step in rendered)
     assert any("validate_repo_config.py" in step for step in rendered)
-    assert any("validate_harness_config.py" in step for step in rendered)
-    assert any("render_harness_routing.py" in step for step in rendered)
     assert not any("validate_adoption_shape.py" in step for step in rendered)
     assert not any("validate_python_meta_headers.py" in step for step in rendered)
 
 
-def test_package_dependent_validators_run_through_core_workspace() -> None:
-    steps = VALIDATOR.build_subprocess_steps(
-        root=REPO_ROOT,
-        python_executable="python",
-        fast=True,
-    )
-
-    package_steps = [
-        step for step in steps
-        if any(Path(part).name in VALIDATOR.PACKAGE_RUNTIME_SCRIPT_NAMES for part in step)
-    ]
-
-    assert package_steps
-    assert all(step[:5] == ["uv", "run", "--package", "harness-core", "python"] for step in package_steps)
-
-
-def test_full_contract_pytest_uses_core_runtime_resolver() -> None:
+def test_full_contract_pytest_uses_current_python_resolver() -> None:
     steps = VALIDATOR.build_subprocess_steps(
         root=REPO_ROOT,
         python_executable="python",
@@ -124,9 +106,8 @@ def test_full_contract_pytest_uses_core_runtime_resolver() -> None:
     )
     pytest_steps = [step for step in steps if "pytest" in step]
 
-    assert pytest_steps
     assert pytest_steps == [[
-        *VALIDATOR.harness_core_python(),
+        "python",
         "-m",
         "pytest",
         "--basetemp",
@@ -136,19 +117,6 @@ def test_full_contract_pytest_uses_core_runtime_resolver() -> None:
         "tests/test_validate_repo_contracts.py",
         "-q",
     ]]
-
-
-def test_harness_shim_validation_rejects_core_implementation(tmp_path: Path) -> None:
-    for relative_path, import_path in VALIDATOR.HARNESS_SHIM_IMPORTS.items():
-        write_text(tmp_path / relative_path, f"from {import_path} import thing\n")
-
-    assert VALIDATOR.validate_harness_shims(tmp_path) == []
-
-    write_text(tmp_path / "scripts" / "harness_task.py", "def run_managed():\n    pass\n")
-
-    issues = VALIDATOR.validate_harness_shims(tmp_path)
-
-    assert any(issue.path == "scripts/harness_task.py" and "must delegate" in issue.message for issue in issues)
 
 
 def test_starter_kit_classification_constants_match_contract() -> None:

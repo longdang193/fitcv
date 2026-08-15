@@ -132,6 +132,4 @@ differs from loaded `policy_schema_version`, before packet creation.
 | `cleanup_pending: true` | obsolete profile cleanup could not finish | Active profile already switched. Close process holding obsolete profile; next upgrade retries cleanup. |
 | `execution_mode_unavailable` | provider host capability | Block or finalize controller-authorized waiver with reason. Do not use generic CLI as fallback. |
 
-Legacy `python scripts/harness_task.py ...` remains supported during migration,
-but new automation uses installed `harness-core` commands or provider-host
-entrypoints.
+Automation uses installed `harness-core` commands or provider-host entrypoints.

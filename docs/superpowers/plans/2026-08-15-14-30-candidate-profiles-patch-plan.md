@@ -179,6 +179,8 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Active task: `task-7-remove-deprecated-harness-consumers`
 - Next eligible task: `task-6-isolated-end-to-end-verification` after Task 7 acceptance
 - Last accepted checkpoint: `93baf43b6f522518281b1e21d8f09cff352d7c14`
+- Task 7 proof: `PASS` — deprecated harness consumers and stale coordination shim/tests removed; template/coordination checks pass; no tracked references to `harness_core_launcher`, `harness_task.py`, `validate_harness_config.py`, or `plan_coordination` remain.
+- Repository gate: `BLOCKED` outside Task 7 — full suite reports `2524 passed, 1 skipped, 2 failed`; failures are learning-format validation in `docs/learning` and unrelated `test_ai_score.py` behavior.
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
@@ -198,7 +200,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 | `task-4-candidate-profile-ui-contract` | task 3 | completed | `dcode-project --role normal` | Codex |
 | `task-5-settings-output-propagation` | task 4 | completed | `dcode-project --role normal` | Codex |
 | `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | blocked | `dcode-project --role xhigh` | Codex |
-| `task-7-remove-deprecated-harness-consumers` | none | active | `dcode-project --role normal` | Codex |
+| `task-7-remove-deprecated-harness-consumers` | none | completed | `dcode-project --role normal` | Codex |
 
 ## Constraints and Decisions
 
@@ -387,18 +389,25 @@ py -m pytest -q tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/
 **Purpose:** Remove stale harness-core consumers that import absent deprecated runtime code and block repository verification.
 
 **Files:**
-- `scripts/harness_task.py`
-- `scripts/validate_harness_config.py`
-- `tests/test_harness_task.py`
 - `tests/test_validate_repo_contracts.py`
-- `tests/test_plan_coordination.py`
+- `scripts/validate_template_required_sections.py`
+- `tests/test_validate_template_required_sections.py`
+- `docs/superpowers/specs/2026-08-01-19-49-fitcv-managed-scan-lifecycle-spec.md`
+- `docs/superpowers/specs/2026-08-01-23-49-canonical-candidate-uniform-evidence-projection-spec.md`
+- `docs/superpowers/plans/2026-08-15-14-30-candidate-profiles-patch-plan.md`
 
 **Changes:**
 1. Delete deprecated harness consumer scripts and remove tests/contracts whose sole purpose is validating those retired entrypoints.
 2. Preserve current `dcode-project` coordination, plan validation, and repository contract checks; do not restore `scripts/harness_core_launcher.py`.
-3. Remove stale documentation or manifest references only when directly tied to deleted consumers; do not alter Candidate Profile implementation files.
+3. Remove stale plan references to deleted consumers; do not alter Candidate Profile implementation files.
+4. Repair template validation metadata and required-section checks without weakening active coordination state.
 
-**Verification:** Targeted remaining harness/plan/contract tests pass; Candidate Profile lane remains green; full suite no longer fails from missing `harness_core_launcher` imports; `git diff --check` passes.
+## Verification
+
+- `py -m pytest tests/test_validate_template_required_sections.py tests/test_validate_repo_contracts.py -q`
+- `py scripts/validate_template_required_sections.py --repo-root .`
+- `git diff --check`
+
 
 **Acceptance:** No tracked file imports absent `harness_core_launcher`; deprecated harness entrypoints and their obsolete tests are removed; current DeepAgents coordination checks remain valid.
 
