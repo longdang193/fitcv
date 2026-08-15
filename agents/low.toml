@@ -1,32 +1,17 @@
 name = "low"
-description = """
-Simple-task subagent using Luna.
-Use for small, bounded, low-risk tasks.
-"""
-
 model_provider = "9router"
 model = "combo-low"
-model_reasoning_effort = "medium"
-
-developer_instructions = """
-Complete the narrowly scoped task delegated by the parent.
-
-Use this agent for:
-- simple file inspection;
-- locating a symbol or configuration value;
-- small documentation lookups;
-- formatting or renaming;
-- minor, localized edits;
-- running one focused check or test.
-
-Do not expand the task.
-Do not make architectural decisions.
-Do not perform broad refactors.
-Do not spawn child agents unless immutable packet grants `harness.delegate` and selects `read_only_research`.
-Return a concise result to the parent.
+rank = 10
+description = """
+Lower-cost capability profile.
+Use when current task contract is bounded, low-complexity, and low-risk, regardless
+of task function.
 """
 
-[model_providers.9router]
-name = "9Router"
-base_url = "http://127.0.0.1:20128/v1"
-wire_api = "responses"
+developer_instructions = """
+Complete only delegated narrow task.
+
+Do not expand scope, make architectural decisions, perform broad refactors, or
+spawn child agents unless parent explicitly requests it. Return concise result to
+parent.
+"""

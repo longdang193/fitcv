@@ -46,3 +46,5 @@ artifacts/live_run_*/
 artifacts/stash_overlap/
 artifacts/tmp_*
 tmp/fitcv-local-*/
+
+.deepagents/
