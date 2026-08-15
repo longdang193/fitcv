@@ -181,7 +181,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Last accepted checkpoint: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
-- Task 3 latest attempt: `BLOCKED` — direct-only run hit provider `RateLimitError` before proof; one unaccepted edit remains in `src/fitcv_cp/sqlite_store.py` and requires direct-only reconciliation.
+- Task 3 latest attempt: `BLOCKED` — direct-only retry exceeded bounded runtime and stopped before proof; unaccepted edits remain only in `src/fitcv_cp/sqlite_store.py` and require direct-only reconciliation.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
