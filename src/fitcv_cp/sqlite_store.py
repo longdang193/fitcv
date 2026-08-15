@@ -309,6 +309,18 @@ def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
     _safe_pragma("PRAGMA busy_timeout=30000;", "busy_timeout")
     _safe_pragma("PRAGMA foreign_keys=ON;", "foreign_keys")
 
+def _ensure_run_inputs_snapshot_columns(conn: sqlite3.Connection) -> None:
+    columns = {
+        str(row[1]) for row in conn.execute("PRAGMA table_info(run_inputs)")
+    }
+    for column in (
+        "candidate_profile_schema_version",
+        "candidate_profile_checksum",
+    ):
+        if column not in columns:
+            conn.execute(f"ALTER TABLE run_inputs ADD COLUMN {column} TEXT")
+
+
 def _persist_initial_profile_state(
     conn: sqlite3.Connection,
     candidate_profiles: list[dict[str, Any]],
@@ -568,6 +580,8 @@ def _ensure_control_plane_schema(
         candidate_profile_id TEXT REFERENCES candidate_profiles(candidate_profile_id) ON DELETE RESTRICT,
         candidate_profile_revision_id TEXT REFERENCES candidate_profile_revisions(profile_revision_id) ON DELETE RESTRICT,
         candidate_profile_revision INTEGER,
+        candidate_profile_schema_version TEXT,
+        candidate_profile_checksum TEXT,
         candidate_profile_name TEXT NOT NULL,
         candidate_profile_json TEXT NOT NULL CHECK (json_valid(candidate_profile_json)),
         settings_revision TEXT NOT NULL,
@@ -1018,6 +1032,7 @@ def _ensure_control_plane_schema(
         for statement in schema.split(";"):
             if statement.strip():
                 conn.execute(statement)
+        _ensure_run_inputs_snapshot_columns(conn)
         if version == 4:
             _migrate_candidate_profiles_v4_to_v5(conn)
         if candidate_profiles is not None:
@@ -8927,7 +8942,8 @@ def create_run_bundle(
             if strict_profile:
                 profile_row = conn.execute(
                     """SELECT cp.candidate_profile_id, cp.profile_name, cp.revision,
-                              pr.profile_revision_id, pr.profile_json, pr.checksum
+                                                              pr.profile_revision_id, pr.profile_json, pr.checksum,
+                                pr.schema_revision
                        FROM candidate_profiles cp
                        JOIN candidate_profile_revisions pr
                          ON pr.candidate_profile_id = cp.candidate_profile_id
@@ -8946,6 +8962,8 @@ def create_run_bundle(
                     "candidate_profile_revision": int(profile_row[2]),
                     "candidate_profile_revision_id": str(profile_row[3]),
                     "candidate_profile_json": str(profile_row[4]),
+                    "candidate_profile_checksum": str(profile_row[5]),
+                    "candidate_profile_schema_version": str(profile_row[6]),
                 }
 
                 from fitcv_cp.settings_schema import merge_and_validate_settings
@@ -9016,11 +9034,12 @@ def create_run_bundle(
                     run_id, original_filename, media_type, byte_length, sha256, record_count,
                     jobs_snapshot_json, jobs_manifest_json, candidate_profile_id,
                     candidate_profile_revision_id, candidate_profile_revision,
+                    candidate_profile_schema_version, candidate_profile_checksum,
                     candidate_profile_name, candidate_profile_json, settings_revision,
                     settings_snapshot_json, synonym_policy_bundle_revision_id,
                     synonym_policy_bundle_checksum, synonym_policy_bundle_snapshot_json,
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     run.run_id,
@@ -9034,6 +9053,8 @@ def create_run_bundle(
                     candidate_profile_id,
                     candidate_profile_revision_id,
                     input_resource.get("candidate_profile_revision"),
+                    input_resource.get("candidate_profile_schema_version"),
+                    input_resource.get("candidate_profile_checksum"),
                     str(input_resource.get("candidate_profile_name") or ""),
                     str(input_resource.get("candidate_profile_json") or "{}"),
                     str(input_resource.get("settings_revision") or _settings_revision(run)),

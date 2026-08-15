@@ -3422,6 +3422,7 @@ def test_results_export_v4_freezes_decision_feedback_source() -> None:
             "inverse_optimization": {
                 "optimizer_version": "latent-residual-v1",
                 "learned_alpha": 0.05,
+                  "learned_alpha_bounds": {"minimum": 0.01, "maximum": 0.10, "step": 0.01},
                 "preference_margin": 0.02,
                 "preference_regularization": 1.0,
                 "preference_vector_norm_bound": 1.0,
