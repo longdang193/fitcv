@@ -176,15 +176,15 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Branch: `main`
 - Base commit: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Plan status: `active`
-- Active task: `task-6-isolated-end-to-end-verification`
-- Next eligible task: `none` after Task 6 acceptance
+- Active task: `task-7-remove-deprecated-harness-consumers`
+- Next eligible task: `task-6-isolated-end-to-end-verification` after Task 7 acceptance
 - Last accepted checkpoint: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
 - Task 4 accepted proof: `PASS` — template, app, and local route suites passed `489 tests`; clean Git diff.
 - Task 5 accepted proof: `PASS` — settings suites passed `218 passed, 1 skipped`; compile and diff checks passed.
-- Task 6 latest attempt: `BLOCKED` — Candidate Profile lane passed `968 passed, 1 skipped`; full repository suite is blocked by missing out-of-lane `scripts/harness_core_launcher.py` (`105` harness/contract-test import failures); no repository changes were produced, and browser/live-service evidence remains unavailable to DeepAgents.
+- Task 6 latest attempt: `BLOCKED` — Candidate Profile lane passed `968 passed, 1 skipped`; full repository suite is blocked by deprecated harness consumers importing absent `scripts/harness_core_launcher.py` (`105` harness/contract-test import failures); no repository changes were produced, and browser/live-service evidence remains unavailable to DeepAgents.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
@@ -197,7 +197,8 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 | `task-3-job-pipeline-snapshot-contract` | task 2 | completed | `dcode-project --role high` | Codex |
 | `task-4-candidate-profile-ui-contract` | task 3 | completed | `dcode-project --role normal` | Codex |
 | `task-5-settings-output-propagation` | task 4 | completed | `dcode-project --role normal` | Codex |
-| `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | active | `dcode-project --role xhigh` | Codex |
+| `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | blocked | `dcode-project --role xhigh` | Codex |
+| `task-7-remove-deprecated-harness-consumers` | none | active | `dcode-project --role normal` | Codex |
 
 ## Constraints and Decisions
 
@@ -378,6 +379,28 @@ py -m pytest -q tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/
 **Verification:** Run focused suites from Tasks 2-5, affected full suite, then hand off browser/live-like flow to Codex controller when DeepAgents lacks required capability. Record direct backend evidence, request IDs, fixture hashes, cleanup proof, and every `BLOCKED` capability.
 
 **Acceptance:** Both CVs produce canonical profile output ready for selected Job Pipeline runs; failure paths leave no partial persisted state; user CV hashes and user runtime data remain unchanged.
+
+### Task 7: Remove deprecated harness consumers
+
+**Coordination ID:** `task-7-remove-deprecated-harness-consumers`
+
+**Purpose:** Remove stale harness-core consumers that import absent deprecated runtime code and block repository verification.
+
+**Files:**
+- `scripts/harness_task.py`
+- `scripts/validate_harness_config.py`
+- `tests/test_harness_task.py`
+- `tests/test_validate_repo_contracts.py`
+- `tests/test_plan_coordination.py`
+
+**Changes:**
+1. Delete deprecated harness consumer scripts and remove tests/contracts whose sole purpose is validating those retired entrypoints.
+2. Preserve current `dcode-project` coordination, plan validation, and repository contract checks; do not restore `scripts/harness_core_launcher.py`.
+3. Remove stale documentation or manifest references only when directly tied to deleted consumers; do not alter Candidate Profile implementation files.
+
+**Verification:** Targeted remaining harness/plan/contract tests pass; Candidate Profile lane remains green; full suite no longer fails from missing `harness_core_launcher` imports; `git diff --check` passes.
+
+**Acceptance:** No tracked file imports absent `harness_core_launcher`; deprecated harness entrypoints and their obsolete tests are removed; current DeepAgents coordination checks remain valid.
 
 ## Completion Criteria
 
