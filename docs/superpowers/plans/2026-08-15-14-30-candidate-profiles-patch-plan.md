@@ -181,7 +181,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Last accepted checkpoint: `c587aa47ad11d75c67f82c94b63bcb0546b96d26`
 - Task 7 proof: `PASS` — deprecated harness consumers and stale coordination shim/tests removed; template/coordination checks pass; no tracked references to `harness_core_launcher`, `harness_task.py`, `validate_harness_config.py`, or `plan_coordination` remain.
 - Repository gate: `BLOCKED` outside Task 7 — full suite reports `2524 passed, 1 skipped, 2 failed`; failures are learning-format validation in `docs/learning` and unrelated `test_ai_score.py` behavior.
-- Task 6 latest attempt: `BLOCKED` — xhigh verified focused Candidate Profile/backend proof and confirmed the former harness blocker is gone; browser/live-service probes remain unavailable under the DeepAgents tool contract, so end-to-end UI/live evidence cannot be accepted.
+- Task 6 latest attempt: `BLOCKED` — local FitCV service started and browser reached Candidate Profiles on August 15, 2026. Uploading `2026-06-24-Munich_Electrification-CV.md` created a failed draft, then returned `candidate_profile_llm_unavailable`; LLM Configuration showed no validated models and every provider showed `No connection`. Beiersdorf live generation remains blocked by the same provider prerequisite.
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
