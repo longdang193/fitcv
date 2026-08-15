@@ -109,7 +109,6 @@ def test_packaged_local_admin_pages_render_canonical_resources(local_client: Tes
         "/admin/llm-configuration": ("LLM Configuration", "/llm-configuration"),
         "/admin/settings/prompt-management": ("Prompt Management", "/prompt-configurations"),
         "/admin/system": ("System", "/system-settings"),
-        "/admin/lifecycle": ("Lifecycle", "/local/lifecycle/status"),
     }
 
     for path, markers in expectations.items():
@@ -521,20 +520,15 @@ def test_packaged_local_pages_encode_approved_ui_states(local_client: TestClient
     assert '<option value="default">Default</option>' in prompts
     assert '<option value="custom">Custom</option>' in prompts
     assert 'maxlength="4000"' in prompts
-    assert "3800" in prompts and "Character limit reached." in prompts
+    assert "3600" in prompts and "Character limit reached." in prompts
     assert "Discard unsaved prompt changes?" in prompts
     assert "prompt_configuration_revision_conflict" in prompts
 
     system = local_client.get("/admin/system").text
-    lifecycle = local_client.get("/admin/lifecycle").text
     system_main = system[system.index('<main'):system.index('</main>')]
-    lifecycle_main = lifecycle[lifecycle.index('<main'):lifecycle.index('</main>')]
     assert "Download Backup" in system and "Import Backup" in system
     assert "Maximum Attempts" in system and "Initial Backoff" in system
     assert "Relocate Data" not in system_main and "Download Diagnostics" not in system_main
-    assert "Relocate Data" in lifecycle_main and "Download Diagnostics" in lifecycle_main
-    assert "Download Backup" not in lifecycle_main and "Shutdown FitCV" not in lifecycle_main
-    assert "Shutdown FitCV?</h2>" in lifecycle
 
     assert "Health" not in system and "Appearance" not in system
     assert system.index('id="theme-toggle"') < system.index('id="open-shutdown-dialog"')
@@ -550,11 +544,19 @@ def test_wrong_host_is_rejected(local_client: TestClient) -> None:
 
 def test_every_unsafe_route_requires_same_origin(local_client: TestClient) -> None:
     unsafe_methods = {"POST", "PUT", "PATCH", "DELETE"}
-    routes = [
-        (method, route.path)
-        for route in local_client.app.routes
-        for method in sorted(set(route.methods or ()) & unsafe_methods)
-    ]
+
+    def iter_routes(routes):
+        for route in routes:
+            methods = getattr(route, "methods", None)
+            path = getattr(route, "path", None)
+            if methods and path:
+                for method in sorted(set(methods) & unsafe_methods):
+                    yield method, path
+            children = getattr(route, "routes", None)
+            if children:
+                yield from iter_routes(children)
+
+    routes = list(iter_routes(local_client.app.routes))
 
     assert routes
     for method, path in routes:

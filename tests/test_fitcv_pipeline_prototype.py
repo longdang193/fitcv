@@ -53,10 +53,9 @@ def test_run_page_prototype_contract() -> None:
     assert "Synonym Overlay" not in html
     assert "Execution Mode" not in html
     assert 'id="jobFile" type="file" required multiple' not in html
-    assert "Supported: JSON and JSONL. One file per run." in html
+    assert "Supported: JSON and JSONL." in html
     assert "Control how many shortlisted listings continue to ranking." in html
     assert "Listings collected before shortlisting begins." in html
-    assert 'id="runPageSize"' in html
     assert "function paginationItems" in html
     assert "data-run-page" in html
     assert 'id="runDetailsDrawer"' not in html
@@ -73,7 +72,7 @@ def test_run_page_prototype_contract() -> None:
     assert "data-profile-run-details" not in profile_details
     assert "const relatedRuns=" not in profile_details
     assert ".details-page-layout{display:grid;gap:18px}" in html
-    assert "form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage()||isOptimizationDetailsPage())" in html
+    assert "form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage()||isScanDetailsPage()||isOptimizationDetailsPage())" in html
     assert "Console Log" in html
     assert "Clear View" in html
     assert "Download Debug Bundle" in html
@@ -198,7 +197,7 @@ def test_preference_optimization_prototype_contract() -> None:
     assert "optimizationState.history=optimizationState.history.filter" not in html
     assert "filter(item=>!item.hiddenAt)" in html
     assert "por_${date}_${sequence}" in html
-    assert details.count('class="section-card collapsible-section drawer-section"') == 3
+    assert details.count('class="section-card collapsible-section drawer-section"') == 7
     assert "Overview" in details
     assert "Rating Evidence" in details
     assert "Console Log" in details

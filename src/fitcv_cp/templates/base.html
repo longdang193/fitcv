@@ -44,12 +44,13 @@ canonical: true
     try {
       var response = await fetch(url, Object.assign({}, options, {headers: headers, signal: controller.signal}));
       var contentType = response.headers.get('content-type') || '';
-      var payload = contentType.includes('json') ? await response.json() : await response.text();
+      var payload = !response.ok ? (contentType.includes('json') ? await response.json() : await response.text()) : options.responseType === 'blob' ? await response.blob() : (contentType.includes('json') ? await response.json() : await response.text());
       if (!response.ok) {
         var error = payload && payload.error ? payload.error : {};
         var detail = payload && payload.detail ? payload.detail : '';
         var requestError = new Error(error.message || (Array.isArray(detail) ? detail.join(', ') : detail) || String(payload || response.statusText));
         requestError.code = error.code || 'request_failed';
+        requestError.action = error.action;
         requestError.status = response.status;
         requestError.payload = payload;
         throw requestError;
@@ -98,7 +99,8 @@ canonical: true
   function fitcvRenderAsyncState(target, state) {
     if (!target) return;
     state = state || {};
-    var kind = state.kind || 'empty';
+    var supportedKinds = ['pending', 'success', 'empty', 'error', 'retryable', 'non_retryable', 'stale', 'refreshing'];
+    var kind = supportedKinds.includes(state.kind) ? state.kind : 'empty';
     target.setAttribute('data-fitcv-async-state', kind);
     target.hidden = false;
     if (!state.preserveContent) target.replaceChildren();
@@ -108,7 +110,10 @@ canonical: true
     }
     var notice = document.createElement('div');
     notice.className = 'notice fitcv-async-state fitcv-async-state-' + kind;
-    notice.setAttribute('role', kind === 'error' || kind === 'retryable' || kind === 'non_retryable' ? 'alert' : 'status');
+    var isError = kind === 'error' || kind === 'retryable' || kind === 'non_retryable' || kind === 'stale';
+    var isFocusable = isError;
+    notice.setAttribute('role', isError ? 'alert' : 'status');
+    notice.setAttribute('aria-live', isError ? 'assertive' : 'polite');
     notice.tabIndex = -1;
     var message = document.createElement('span');
     message.textContent = state.message || '';
@@ -127,7 +132,7 @@ canonical: true
       notice.appendChild(retry);
     }
     target.appendChild(notice);
-    if (kind === 'error' || kind === 'retryable' || kind === 'non_retryable' || kind === 'stale') notice.focus();
+    if (isFocusable) notice.focus();
   }
   </script>
   <title>{% block title %}FitCV Admin{% endblock %}</title>
@@ -433,7 +438,7 @@ canonical: true
     }
     .btn-danger:hover { filter: brightness(0.9); }
 
-    /* Secondary — supporting actions (Refresh, theme toggle, mode tabs) */
+    /* Secondary — supporting actions (reload, theme toggle, mode tabs) */
     .btn-secondary {
       background: transparent;
       color: var(--text-secondary);

@@ -72,7 +72,14 @@ async function refreshCandidateProfiles() {
     emptyState.hidden = profiles.length > 0;
   } catch (error) {
     select.innerHTML = '<option value="">Candidate Profiles unavailable</option>';
-    status.textContent = error.message;
+    fitcvRenderAsyncState(status, {
+      kind: error.status === 409 ? 'stale' : 'retryable',
+      message: error.message || 'Candidate Profiles are unavailable.',
+      code: error.code,
+      action: 'Retry',
+      retry: refreshCandidateProfiles,
+      preserveContent: true,
+    });
     emptyState.hidden = false;
   } finally {
     select.disabled = false;
@@ -422,7 +429,7 @@ async function bulkLifecycleAction(action, btn) {
     persistLifecycleNotice(summary, skipped > 0 ? 'info' : 'success');
     location.href = '/admin/runs?view=' + currentView;
   } catch (e) {
-    renderRunListState({kind: 'retryable', message: e.message || 'Bulk action failed', action: 'Retry', retry: () => bulkLifecycleAction(action, btn)});
+    renderRunListState({kind: 'retryable', message: e.message || 'Bulk action failed', code: e.code, action: 'Retry', retry: () => bulkLifecycleAction(action, btn)});
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;

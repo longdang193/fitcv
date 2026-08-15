@@ -21,177 +21,80 @@ This file is repo-wide instruction layer. More specific directory instructions o
 
 ## Subagent Routing
 
-`repo_config/harness.yaml` owns route selection and `harness_core.request_api`.
-Installed `harness-core` owns packet resolution and lifecycle; legacy consumer
-scripts are package bridges only. For managed execution, controller submits a
-typed request through host-supplied `run_managed` adapter boundary. Core resolves a dispatchable request, packet, and host compatibility profile from current policy; never force a legacy API version. `run.json` owns mutable run state; each attempt owns immutable packet.
-Packet owns template, role, rules, skills, selected authority, toolset,
-verification profile, resolved tools/checks, workspace, approval gates, planned
-write paths, resolved base commit, and orchestration mode plus resolved
-`execution_budget`. Generic CLI has no managed `run` command. Its `run-unavailable` proof
-command reports unavailable mode instead of claiming dispatch.
-For current leased packets, core issues one finite execution lease before `planned` enters
-`running`. Host owns provider lifecycle and bounded
-packet-declared terminal-observation production only; it never writes `run.json`.
-Host binds every observation to run, attempt, packet digest, lease, and host
-instance identity. Expired live or unverified process state is `orphaned`, not
-retryable work. Windows containment uses one unnamed kill-on-close Job Object
-per lease; no PID-tree, process-group, `taskkill`, or reopened-job fallback.
-Host emits one terminal observation for every provider action, including packet
-checks. If completed stop proof exists but core rejects claim, check, or
-verification semantics, core records `core_failure` then terminalizes the same
-attempt; never fabricate `provider_failure` or leave the lease active.
-`stdio` plus `host_spawn` requires Windows Job containment and rejects
-unsupported hosts before child creation. Preflight owns temporary containment;
-leased lanes borrow containment. A host `terminal_recording_failed` payload
-means cleanup proof is incomplete: preserve it for controller recovery, never
-fabricate lane evidence, retry, or terminalize from host output.
-Core records every finalization subject as `attempt_outcome/v2`.
-`terminalize_attempt(envelope)` records evidence or applies detached signed
-outcome authorization. Personal-local `harness-core-launcher close` resolves one
-fixed authority and invokes same core finalizer. Core writes final state,
-decision, and `attempt_terminal_receipt/v3` atomically.
-Host returns baseline evidence before lane dispatch: root and parallel lanes use
-`packet_base` at exact packet base with a clean checkout; sequential dependents
-use `predecessor` only for direct materialized predecessor state. Core validates
-this evidence. `workspace_baseline_invalid` is host/environment failure, not
-product scope evidence; preserve run proof and repair workspace materialization.
-Before creating a write-capable packet, controller must establish every product
-fact needed to implement and verify behavior. If source can resolve a missing
-fact, dispatch bounded read-only research first; otherwise block for a
-requirements or specification decision. Never send unknown behavior into an
-unbounded writer discovery loop.
-Admission order: launcher package load, request API, adapter host API, provider
-preflight, packet resolution, workspace, dispatch. Unsupported APIs create no
-packet. Unreadable historical packet cannot resume; controller creates a
-successor without changing its evidence.
-An awaiting historical run with an incompatible request API may record an
-outcome-authorized non-successor decision. A terminal `block` uses no request
-admission, packet resolution, or dispatch. `retry` and `escalate` create
-successor packets and must reject incompatible historical request APIs.
-For `runtime_provider_id: codex_app_server`, controller invokes only active
-pointer-selected runtime through `harness-core-launcher`: run
-`harness-core-launcher capabilities`, then `harness-core-launcher preflight`,
-then `harness-core-launcher run --harness-root <repo-root> --request <request.json>`.
-Host reads transport only from trusted user configuration at
-`~/.codex/harness-providers.toml`.
-Never dispatch bare `codex-harness-host`: PATH can resolve stale user-level tool
-code instead of the locked source host.
-Do not invoke bare `codex-harness-host`, and do not put endpoint, launch-command, or credential values in repository policy,
-requests, packets, or generated guidance. Host configuration admits only a
-registered launcher ID or an explicit external endpoint; it rejects arbitrary
-commands and secret fields.
-Use `--run-id <run-id>` instead of `--request` only when run state is `planned`
-for an existing dispatchable attempt. A terminal coordinated task failure is
-`blocked`; preserve its evidence and require approved successor plan/task
-identity before a fresh request. Historical packet compatibility is owned by
-installed `harness-core`; preserve evidence and create a successor only when
-core declines dispatch.
-Never use generic `run-unavailable` to retry a managed packet.
+Use only these template profiles:
 
-For Git-tracked active coordination plans, frontmatter owns static target
-branch, base ref, task dependencies, canonical mode, allowed scope, and planned paths. Packet
-adds immutable `plan_ref`, `plan_task_id`, and normalized digest; `run.json`
-owns derived task state, handoff, evidence, and decisions. Use
-`coordination-status` for recovery. Manifest or base change requires successor
-attempt. No simultaneous-controller guarantee, lock, queue, scheduler, or host
-thread resume exists.
+- `low`: lower-cost profile for bounded, low-complexity, low-risk work.
+- `normal`: default profile for ordinary complexity and risk.
+- `high`: high-capability profile for material complexity, ambiguity, or risk.
+- `xhigh`: highest-capability profile for deep reasoning, complex multi-step work,
+  or validation of `high` work.
 
-Use only packet-selected agent types:
+Profile order: `xhigh > high > normal > low`.
+In validator-executor setups, validator profile must rank above executor profile.
+Example: `high` executor requires `xhigh` validator. `xhigh` is profile ceiling;
+do not use it as executor when a separate profile-based validator is required.
 
-- `low`: small, narrow, low-risk work.
-- `normal`: routine implementation, testing, exploration, and focused analysis.
-- `high`: difficult reasoning, architecture, broad debugging, or high-risk work.
+Template profile and task function are separate. Task function is open-ended and
+defined by current task contract; it may include debugging, research, plan
+review, design exploration, plan writing, implementation, validation,
+orchestration, or another required function. Never maintain a fixed mapping from
+functions to profiles.
 
 When spawning a subagent:
 
 - Select the template through the platform's agent-type selector; task names only label work.
 - Use a fresh-context fork when selecting a different agent type.
 - Never override the template's model or reasoning effort.
-- Managed host must dispatch packet `agent_identity` without model fallback and
-  record app-server-confirmed model provider, model, and reasoning effort.
 - Do not select unnamed or other agent types.
-- Subagents may create child agents only when immutable packet grants
-  `harness.delegate` and selects `read_only_research`. Core enforces child
-  authority, paths, depth, budget, and read-only workspace.
-- A delegated child is not an independent attempt. Core projects its parent
-  active lease only into host dispatch; stored child packet remains immutable
-  and lease-free. Host borrows the parent containment.
-- In every other packet, subagents must not spawn child agents.
-- If task scope or needed capability changes, controller creates successor
-  attempt and regenerates immutable packet.
-- Host consumes only packet `execution_budget`: normal work gets
-  `turn_timeout_seconds - finalization_reserve_seconds`, full lane lifecycle
-  gets `lane_timeout_seconds`, and native probes/checks get
-  `check_timeout_seconds`. Reserve is one policy-owned slice used only for one
-  read-only final claim turn after interruption or empty final text. Transport
-  preflight has separate short bound.
-- For current leased packets, core may authorize one unusable-claim repair only
-  after completed work. Host must reuse exact open provider session and original
-  thread ID, consume only finalization reserve, use read-only with no tools, then
-  close session before terminal evidence. No fresh session, repair thread, retry,
-  resume, validation, or product work is allowed.
-- Harness dispatches only mode intersection of route policy and enforced host
-  capability. Detached finalization uses `terminalize_attempt`; personal local
-  finalization uses `harness-core-launcher close`. Retry, escalation, and
-  approval request remain nonterminal decisions and `retry`/`escalate` stay
-  host-bound `harness-core-launcher decision` operations.
-- Agents return claimed results; harness records fresh verification evidence and
-  never accepts, retries, escalates, or approves autonomously.
-- Work is managed only after host adapter creates a packet and `run.json`.
-  Never call unpacketed work managed, validated, or accepted.
-- When selected managed mode returns `execution_mode_unavailable`, block it or
-  finalize signed controller-authorized `waive`. A waived run is terminal
-  `unvalidated`; local proof cannot become managed acceptance.
-- For `dispatch_timeout`, controller may only escalate through immutable packet
-  `escalation_profile` or block. Never retry timeout or accept caller-selected
-  budget. Resume an already planned attempt with provider `--run-id`.
-- `recover-stranded` is controller-only non-replay recovery for a `running` attempt
-  with no claim, node observation, evidence, outcome, or decision after host
-  terminal recording failed. It requires exact run/attempt identity and bounded
-  external host evidence with code `terminal_recording_failed`; it records a
-  block-only outcome and policy auto-finalizes. It never dispatches. Product
-  evidence, missing evidence, mismatched identity, or ordinary running work
-  must be rejected.
-- Active unleased historical attempts are isolated from dispatch and resume but
-  do not block new leased-packet admission. Their only closure path is signed
-  `legacy_cleanup_attestation/v1` through core `terminalize_attempt(evidence)`.
-  External operator signs with an Ed25519 private key outside repository and
-  agent workspace; trusted public records live only in
-  `~/.codex/harness-authorities.toml`. `migrate-harness-authorities` is explicit;
-  current validation never falls back to the old registry. Controller submits
-  canonical `harness-core-launcher terminalize-attempt --input <envelope.json>`;
-  temporary `--evidence`
-  accepts only policy-defined historical legacy evidence. `--auto-block` is retired.
-  Legacy cleanup produces one block-only outcome and policy auto-finalizes one
-  receipt. Personal local ambiguous closure runs `harness-core-launcher
-  controller-init` once, then `harness-core-launcher close` with run ID,
-  terminal decision, and reason. Fixed private key stays at
-  `~/.codex/harness-controller/controller-ed25519.pem`; public trust remains
-  `~/.codex/harness-authorities.toml`. Any process under same OS user that can
-  invoke launcher can close an eligible outcome, so exclude shared-machine and
-  production use. Detached external `controller_authorization/v1` remains
-  advanced compatibility path; agents may transport evidence but cannot mint,
-  broaden, or terminalize it. Host has no legacy cleanup or process-action
-  fallback. Direct legacy abandonment is retired.
-- `writer_completion_missing` means a write-capable lane completed commands
-  without a final claim after its packet-owned finalization reserve is exhausted.
-  Block it without retry, escalation, or resume. Host records prior bounded
-  terminal observation plus read-only finalizer identity in lane evidence; a
-  finalizer never writes, runs diagnostics, or authorizes product work. When
-  `friction-report` returns its policy-owned
-  follow-up with route-required immutable `readonly_artifacts`, dispatch fresh
-  read-only `harness_diagnosis` without an owner decision. Missing required
-  artifacts blocks diagnosis before dispatch; never mount ambient `.harness`
-  state into packet workspace.
-- For current dispatchable packet API, host re-reads trusted provider configuration before every
-  lane. A changed runtime binding returns `provider_configuration_changed`
-  before provider or product work; no transport fallback is allowed.
-- Independent validator claims exist only when host advertises and dispatches
-  an enforced read-only validator lane. Do not infer validator evidence from
-  local checks or an implementer claim.
-- Parallel writers need disjoint paths and isolated workspaces.
-- Without validated packet, do not dispatch subagent. Source-first routing still applies to controller work.
+- Subagents must not spawn other agents unless explicitly requested.
+
+Select profile from required reasoning depth, ambiguity, scope, risk, and cost.
+Use lowest profile that can reliably complete current task contract. If scope or
+risk grows beyond selected profile, stop and delegate again using suitable
+profile. Function name alone never determines profile.
+
+## Native Personal-Local Work
+
+Ordinary trusted one-user work follows `native-personal-local` in
+`docs/operating_system/procedures/personal-local-worktree-procedure.md`:
+native Git plus selected local executor, Codex or DeepAgents. Codex is default
+when plan omits executor. Reuse a clean checkout for small reversible work; use
+a native Git worktree only when existing worktree guidance selects isolation.
+Git owns workspace identity, change evidence, and authorized branch disposition.
+For DeepAgents, use user-local `dcode-project`; it derives ignored project role
+views from `agents/*.toml` and local provider endpoint and credentials. Do not track
+`.deepagents/`, invent provider fallback, runtime state, or cleanup commands.
+DeepAgents auto-loads this root `AGENTS.md` and discovers `.agents/skills` as
+project skills. It does not auto-load `.agents/rules`; those are generated
+platform-adapter views. For a detailed rule outside this root prompt, name and
+read its canonical `docs/operating_system/rules/*.md` source in bounded task
+scope. Do not duplicate rules in `.deepagents/AGENTS.md`.
+DeepAgents setup rejects user-local `.deepagents/.mcp.json`; keep direct
+DeepAgents MCP configuration absent so Codex remains sole MCP authority.
+Current launcher forces `--no-mcp`, binds DeepAgents to selected Git root, and
+does not project Codex MCP servers, approval, sandbox, profile, or thread
+settings. It gives native DeepAgents fixed launcher-owned built-ins: filesystem
+tools plus `git` and `py` shell commands. Task input cannot widen this set.
+Codex controller owns MCP calls and passes only validated
+`codex.mcp.handoff.v1` facts through user-local `dcode-project` handoff files.
+`--mcp-select` narrows provenance only. DeepAgents task launch requires
+`dcode-project --role <low|normal|high|xhigh>`; launcher resolves the selected
+canonical source model while top-level Codex model remains controller default.
+Do not pass raw `--stdin` or pipe task text to `dcode-project`; only validated
+`--handoff-file` launches create DeepAgents stdin. DeepAgents built-in file tools
+receive exact native file-tool root in every bounded task. On Windows it looks
+like `/Users/<user>/repos/<repo>`; append repository-relative paths to that
+root. Never guess `/workspace/...` or use Windows drive syntax. Read only named
+source, test, and text files with filesystem tools; never read database, binary,
+archive, or runtime artifacts. For SQLite evidence, use launcher-authorized `py`
+with stdlib `sqlite3` read-only URI mode. Run `py` directly; do not prefix it
+with `cd`, shell operators, or wrappers. For `py -c`, use one expression; never
+use `;`. Ask for repository-relative `path:line` evidence. When a task needs an
+acceptance decision, require `PASS`, `FAIL`, or `BLOCKED` first. Do not assume
+interpreter, web, or MCP access; if a task needs unavailable capability, return
+`BLOCKED`.
+Name `low`, `normal`, `high`, or `xhigh` in bounded DeepAgents `task`
+delegation; do not use `dcode --agent` or `dcode -r` for project coordination.
 
 ## Project Design Rules
 
@@ -252,7 +155,7 @@ Prefer one consistent system that works for all equivalent cases.
 
 ## Agent Memory
 
-Use configured MCP Memory Server only when current work can benefit from reusable project knowledge. Fetch memory for shared workflows, known invariants, recurring failures, resumed work, or high-risk changes. Store only verified, reusable lessons; never store transient progress, guesses, secrets, personal data, or facts already obvious from authoritative sources.
+Use configured MCP Memory Server only when current work can benefit from reusable project knowledge and active executor exposes it. Fetch memory for shared workflows, known invariants, recurring failures, resumed work, or high-risk changes. For DeepAgents, Codex controller performs required memory calls and passes only validated handoff facts. Store only verified, reusable lessons; never store transient progress, guesses, secrets, personal data, or facts already obvious from authoritative sources.
 
 Memory informs work but never overrides explicit instructions, source code, tests, ADRs, or current governance. If memory tools are unavailable, continue source-first without recreating repository-file memory.
 
@@ -268,16 +171,16 @@ For material UI, UX, accessibility, responsive-layout, or visual-design work, us
 
 When work crosses frontend behavior and backend contracts or routes, use `skill-full-stack-integration`. Matching `*.integration.md` notes own temporary contract-to-UI mapping, unresolved mismatches, and acceptance evidence, not transport schemas. Canonical schemas, generated clients, backend routes, and tests establish current behavior. Report conflicts and affected owners before implementation.
 
-When browser MCPs are available, use Playwright MCP for repeatable user flows, accessibility snapshots, viewport checks, and screenshots; use Chrome DevTools MCP for console, network, computed layout and styles, Lighthouse, and performance diagnosis. Use both only when their roles differ. Browser evidence does not replace committed regression tests.
+When `browser.test` is available, use it for repeatable user flows, accessibility snapshots, viewport checks, and screenshots. `browser.diagnose` is not available yet. Browser evidence does not replace committed regression tests.
 
 Skip skill for copy-only edits, mechanical selector changes, or isolated nonvisual logic. If unavailable, follow existing product design system and `docs/operating_system/rules/frontend-ui-rule.md`; do not block safe local fix.
 
 ## Code Intelligence
 
-Use native code tools for current files and small local changes, optional Semble MCP for broad unknown-location local concepts, `rg` for exact text, Serena for exact symbols and references, GitNexus for broad flows or impact, optional `sg` for structural preview, and DeepWiki for advisory orientation in unfamiliar external GitHub repositories. `apply_patch` remains sole source edit path. Do not query multiple tools for the same fact by default. Source and tests win every conflict; unavailable tools never block safe source-first work.
+Use native code tools for current files and small local changes, Serena for exact symbols and references, `semble_codebase_search` for unknown-location code discovery, and `ast_grep_preview` for structural preview when available. Use private read-only GitNexus only when available and broad flow or impact remains unknown. Use DeepWiki only for advisory orientation in unfamiliar external GitHub repositories. Do not query multiple tools for the same fact by default. Source and tests win every conflict; unavailable tools never block safe source-first work.
 
 - Serena runs with `--context codex --project-from-cwd`, `no-memories`, and `no-onboarding`. Never commit `.serena/` state.
-- GitNexus remains optional and private-only. Check freshness before high-trust impact or refactor use; never make refresh a universal completion gate.
+- GitNexus remains optional and private-only. Limit use to `query`, `context`, `impact`, and `api_impact`; check freshness before high-trust impact or refactor use; never make refresh a universal completion gate.
 - For DeepWiki, use `read_wiki_structure` before focused `ask_question`; use `read_wiki_contents` only when full generated documentation is required. Hand off to local source and Serena before implementation, and to GitNexus before broad impact or refactoring decisions. Treat unknown-freshness output as advisory and verify against pinned upstream source.
 - Tests and CI own enforcement. `docs/architecture.md` and ADRs own durable architecture intent.
 - Detailed policy: `docs/operating_system/tooling/code-intelligence-tools.md`.

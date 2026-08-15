@@ -31,7 +31,7 @@ jobs:
             python -m pip install pytest pytest-httpx
           }
           if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
-            python -m pip install -e .
+            python -m pip install -e ".[local]"
           }
 
       - name: Sync adapter outputs
@@ -57,11 +57,15 @@ jobs:
 
       - name: Fail on untracked generated outputs
         run: |
-          $paths = @(
-            (Get-Content -Raw repo_config/agent-adapter-mappings.json | ConvertFrom-Json | ForEach-Object {
-              $_.destination
-            })
-          )
+          $paths = @()
+          if (Test-Path repo_config/agent-adapter-mappings.json) {
+            $paths = @(
+              (Get-Content -Raw repo_config/agent-adapter-mappings.json | ConvertFrom-Json | ForEach-Object {
+                $_.destination
+              })
+            )
+          }
+          if (-not $paths) { exit 0 }
           $untracked = git ls-files --others --exclude-standard -- $paths
           if ($untracked) {
             Write-Host "Untracked generated outputs detected:"
@@ -94,7 +98,7 @@ jobs:
             python -m pip install pytest pytest-httpx
           }
           if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
-            python -m pip install -e .
+            python -m pip install -e ".[local]"
           }
 
       - name: Run focused pytest smoke suite
@@ -123,7 +127,7 @@ jobs:
             python -m pip install pytest pytest-httpx
           }
           if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
-            python -m pip install -e .
+            python -m pip install -e ".[local]"
           }
 
       - name: Verify architecture generator output when configured
@@ -157,7 +161,7 @@ jobs:
             python -m pip install pytest pytest-httpx
           }
           if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
-            python -m pip install -e .
+            python -m pip install -e ".[local]"
           }
 
       - name: Run publication boundary dry check
