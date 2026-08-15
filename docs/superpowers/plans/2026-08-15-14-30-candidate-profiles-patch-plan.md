@@ -181,7 +181,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Last accepted checkpoint: `c587aa47ad11d75c67f82c94b63bcb0546b96d26`
 - Task 7 proof: `PASS` — deprecated harness consumers and stale coordination shim/tests removed; template/coordination checks pass; no tracked references to `harness_core_launcher`, `harness_task.py`, `validate_harness_config.py`, or `plan_coordination` remain.
 - Repository gate: `BLOCKED` outside Task 7 — full suite reports `2524 passed, 1 skipped, 2 failed`; failures are learning-format validation in `docs/learning` and unrelated `test_ai_score.py` behavior.
-- Task 6 retry: `active` — Task 7 removed deprecated harness consumers; xhigh must independently reclassify remaining end-to-end and live-service blockers.
+- Task 6 latest attempt: `BLOCKED` — xhigh verified focused Candidate Profile/backend proof and confirmed the former harness blocker is gone; browser/live-service probes remain unavailable under the DeepAgents tool contract, so end-to-end UI/live evidence cannot be accepted.
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
@@ -200,7 +200,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 | `task-3-job-pipeline-snapshot-contract` | task 2 | completed | `dcode-project --role high` | Codex |
 | `task-4-candidate-profile-ui-contract` | task 3 | completed | `dcode-project --role normal` | Codex |
 | `task-5-settings-output-propagation` | task 4 | completed | `dcode-project --role normal` | Codex |
-| `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | active | `dcode-project --role xhigh` | Codex |
+| `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | blocked | `dcode-project --role xhigh` | Codex |
 | `task-7-remove-deprecated-harness-consumers` | none | completed | `dcode-project --role normal` | Codex |
 
 ## Constraints and Decisions
