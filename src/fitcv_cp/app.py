@@ -412,6 +412,9 @@ def get_process_events(
 
 
 def update_run_status(run_id: str, status: RunStatus, *_compat_args: Any, **kwargs: Any) -> dict[str, str]:
+    store = kwargs.pop("store", None)
+    if store is not None:
+        return dict(store.update_run_status(run_id, status, **kwargs))
     return dict(_resolve_run_store().update_run_status(run_id, status, **kwargs))
 
 
@@ -8662,8 +8665,9 @@ def create_app(
             next_stage="normalize" if run_mode == "manual_staged" else None,
             completed_stages=[],
         )
+        run_store = app.state.run_store
         if (
-            _CP_STORE is not None
+            run_store is not None
             and jobs_input_json
             and candidate_profile_source
             and candidate_profile_source != "default_config"
@@ -8672,7 +8676,7 @@ def create_app(
                 parsed_run_jobs = _json.loads(jobs_input_json)
                 if not isinstance(parsed_run_jobs, list):
                     raise ValueError("jobs_input_invalid")
-                _CP_STORE.create_run_bundle(
+                run_store.create_run_bundle(
                     run,
                     input_resource={
                         "strict_candidate_profile": True,
@@ -8710,6 +8714,7 @@ def create_app(
                 run_id,
                 RunStatus.FAILED,
                 client=client,
+                store=run_store,
                 finished_at=datetime.datetime.now(datetime.timezone.utc),
                 error_message=str(exc),
                 error_stage="orchestration_enqueue",
