@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from fitcv.candidate import candidate_profile_field_schema
+from fitcv.candidate import candidate_profile_field_schema, converge_candidate_profile_for_runtime
 from fitcv_cp.app import create_app
 from fitcv_cp.candidate_profile_seeds import CANDIDATE_PROFILE_SEEDS
 
@@ -91,6 +91,7 @@ def _baseline_document() -> dict[str, Any]:
                 "filename": "candidate.md",
                 "media_type": "text/markdown",
                 "checksum": _SOURCE_CHECKSUM,
+                "sha256": _SOURCE_CHECKSUM,
                 "parser": {"name": "fitcv-mock", "version": "1"},
             }
         ],
@@ -945,7 +946,10 @@ class CandidateProfileMockState:
             raise ValueError("profile_not_found")
         if int(kwargs["expected_revision"]) != int(profile["revision"]):
             raise ValueError("candidate_profile_revision_conflict")
+        current = str(profile["lifecycle"])
         lifecycle = str(kwargs["lifecycle"])
+        if (current, lifecycle) not in {("active", "archived"), ("archived", "active")}:
+            raise ValueError("candidate_profile_invalid_transition")
         profile["lifecycle"] = lifecycle
         profile["archived_at"] = _NOW if lifecycle == "archived" else None
         profile["revision"] += 1
@@ -958,7 +962,32 @@ class CandidateProfileMockState:
         return copy.deepcopy(profile)
 
 
-def create_candidate_profile_mock_app():
+def candidate_profile_fixture_expectations() -> dict[str, Any]:
+    """Shared Task 1 fixtures: V2, V1, invalid, lifecycle, and snapshot cases."""
+    canonical_v2 = CandidateProfileMockState._canonical(_baseline_document(), _derived_document())
+    legacy_v1 = copy.deepcopy(canonical_v2)
+    legacy_v1.pop("schema_version", None)
+    legacy_v1["preferences"] = legacy_v1.pop("search_preferences")
+    invalid = copy.deepcopy(canonical_v2)
+    invalid["skills"][0]["evidence_refs"] = ["missing-evidence"]
+    return {
+        "canonical_v2": canonical_v2,
+        "legacy_v1": legacy_v1,
+        "invalid": invalid,
+        "active": {"lifecycle": "active", "use_for_run": True},
+        "archived": {"lifecycle": "archived", "use_for_run": False},
+        "immutable_run_snapshot": {
+            "candidate_profile_revision_id": "revision-profile-1",
+            "candidate_profile_json": json.dumps(canonical_v2, sort_keys=True),
+        },
+        "legacy_empty_snapshot": {
+            "candidate_profile_revision_id": None,
+            "candidate_profile_json": None,
+        },
+    }
+
+
+def create_candidate_profile_mock_app() -> Any:
     root = Path(tempfile.mkdtemp(prefix="fitcv-candidate-profile-mock-"))
     os.environ["FITCV_CP_SQLITE_PATH"] = str(root / "mock.sqlite3")
     app = create_app(redis_url="redis://localhost:6379/0")

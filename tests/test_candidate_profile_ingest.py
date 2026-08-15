@@ -7,10 +7,16 @@ import pytest
 import yaml
 
 from fitcv.candidate import canonical_candidate_checksum, validate_candidate_profile_v2
-from fitcv.candidate_ingest import CandidateIngestError, ingest_candidate_source
+from fitcv.candidate_ingest import DOCX_MEDIA_TYPE, CandidateIngestError, ingest_candidate_source
 
 
-DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+def test_candidate_profile_fixture_formats_and_legacy_convergence() -> None:
+    from test_fitcv_cp.candidate_profile_fixtures import candidate_profile_fixture_expectations
+
+    fixtures = candidate_profile_fixture_expectations()
+    assert fixtures["canonical_v2"]["schema_version"] == "candidate-profile.v2"
+    assert "preferences" in fixtures["legacy_v1"]
+    assert fixtures["invalid"]["skills"][0]["evidence_refs"] == ["missing-evidence"]
 
 
 def _docx_bytes(*, include_unsafe_entry: bool = False) -> bytes:

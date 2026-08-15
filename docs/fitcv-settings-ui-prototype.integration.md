@@ -42,7 +42,30 @@ Canonical field owner: `docs/superpowers/specs/2026-08-01-23-49-canonical-candid
 State and error owner: `docs/superpowers/specs/2026-08-01-23-49-canonical-candidate-uniform-evidence-projection-spec.md#state-transition-contract` and `#error-contract`
 Status: mock-backed frontend approved August 3, 2026; backend Tasks 5-10 authorized against frozen frontend contract
 
-## UI Intent
+## Candidate Profile Task 1 Contract Freeze
+
+### Prototype-to-server-template parity matrix
+
+| Surface | Prototype contract | Server/template acceptance contract |
+| --- | --- | --- |
+| Creation fields | Profile name plus source upload | `profile_name` plus one non-empty `profile_file`; canonical fields render from field schema |
+| Accepted source formats | Markdown, DOCX, YAML | `.md`, `.docx`, `.yaml`; media type and content validated at boundary; one ingest path |
+| Draft/review/resume | Upload processing, Baseline, Controlled Derivation, Confirmation; Save and exit resumes attempt | Attempt resource owns `creation_status`, `revision`, `next_action`, fingerprints, failure, and retry capability |
+| Active/Archived views | Candidate Profiles table switches views | `GET /candidate-profiles?view=active|archived`; lifecycle is server-owned and archive/restore controls are capability-gated |
+| Detail traceability | Candidate Details shows canonical values and source evidence | Detail returns immutable canonical revision, input metadata, source refs, and source-block IDs; Source uses creation-attempt route |
+| Lifecycle controls | Archive, restore, inspect, use for Run | Only `active -> archived` and `archived -> active`; each mutation requires revision CAS; archived profile cannot start Candidate Profile-selected run |
+| Related runs | Details exposes related run count and list | `GET /candidate-profiles/{profile_id}/runs`; run rows reference persisted profile revision, not mutable current profile |
+| Async states | Processing, retryable error, non-retryable error, stale conflict | Attempt exposes processing lease, failure diagnostics, retry capability, and `409` revision/fingerprint conflicts |
+
+### Frozen revision and trigger rules
+
+- Creation is one staged flow. `converge_candidate_profile_for_runtime()` is sole V1/V2 compatibility adapter; no second adapter.
+- Source block request is `GET /candidate-profile-creation-attempts/{attempt_id}/source-blocks/{source_block_id}`. Response `data` contains `source_block_id`, `text`, `kind`, `locator`, `source_document`, and content `checksum`. No profile-level alias.
+- Successor revision update input: `expected_revision` CAS plus ordered ID-addressed review operations. Server validates canonical V2, computes canonical checksum, and persists new immutable `profile_revision_id`; prior revision and run snapshots remain unchanged. Response returns `profile_id`, new `profile_revision_id`, `revision`, `checksum`, `lifecycle`, `canonical`, and capabilities.
+- Active/archived rules: archive and restore are symmetric successor-revision lifecycle mutations; no in-place confirmed-profile overwrite; active only permits Run selection.
+- JSON trigger: historical `POST /runs` JSON body remains compatibility delegate. Managed multipart trigger: `POST /runs` requires active `profile_id`; `/admin/upload-trigger` remains legacy form with separate `candidate_profile_id`. Candidate Profile-selected runs require persisted active profile. Legacy `default_config` is allowed only for explicit legacy requests and is documented/tested as a run with no profile selection; it is not a Candidate Profile-selected run.
+- Run input/profile/settings snapshots are persisted once at trigger time. Legacy empty snapshots remain inspectable and render “No immutable ... snapshot”; no parallel snapshot source.
+
 
 - prototype and shared components: `docs/fitcv-settings-ui-prototype.html`
 - field labels, descriptions, controls, requirements, kinds, date grammar, and section order load from `getCandidateProfileFieldSchema`

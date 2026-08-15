@@ -144,7 +144,24 @@ and returns the refreshed Settings resource and `ETag`.
 `GET /settings` remains a compatibility read surface. Prototype code uses only
 the `/settings/pipeline` resource.
 
-## Candidate Profiles
+### Candidate Profile contract freeze
+
+- `POST /candidate-profile-creation-attempts` stages `.md`, `.docx`, or `.yaml` ingestion. No direct `POST /candidate-profiles` route.
+- Sole source-block route: `GET /candidate-profile-creation-attempts/{attempt_id}/source-blocks/{source_block_id}`. Missing attempt or block returns `404`; no profile-level alias.
+- Confirming or updating profile data uses immutable successor revisions. Request includes `expected_revision` CAS and ordered review operations. Server uses `converge_candidate_profile_for_runtime()`, validates canonical V2, computes canonical checksum, and writes new `profile_revision_id`; confirmed revisions never overwrite. CAS mismatch returns `409`; malformed references return `422`.
+- Success `data` includes `profile_id`, `profile_revision_id`, `revision`, `checksum`, `lifecycle`, `canonical`, and capabilities. Historical revisions and run snapshots remain unchanged.
+- Lifecycle allows only `active -> archived` and `archived -> active`; each mutation requires revision CAS. Archived profiles remain resolvable for history but cannot start new profile-selected runs.
+
+#### Run trigger inventory
+
+| Trigger | Contract | Profile rule |
+| --- | --- | --- |
+| JSON `POST /runs` | Compatibility delegate for historical JSON body | Explicit legacy `default_config` remains supported; profile-selected JSON requires persisted active `profile_id` |
+| Managed multipart `POST /runs` | Multipart upload, `Idempotency-Key`, active `profile_id` | Missing, malformed, stale, archived, or disallowed selected profile fails closed |
+| `POST /admin/upload-trigger` | Legacy compatibility form; separate `candidate_profile_id` field | Preserves legacy behavior; does not alias managed multipart contract |
+
+Run records persist one authoritative `run_inputs` snapshot at trigger time, including selected profile revision when present. Null or empty legacy snapshots remain historical records and display as such; never backfill from current settings.
+
 
 ### Field schema
 

@@ -116,7 +116,23 @@ def _candidate_profile_mock_app():
     [_candidate_profile_mock_app, _app],
     ids=["deterministic-fixture", "sqlite"],
 )
-def test_candidate_profile_route_contract_matches_fixture_and_real_app(app_factory) -> None:
+def test_candidate_profile_fixture_contract_covers_formats_lifecycle_and_snapshots(app_factory) -> None:
+    from test_fitcv_cp.candidate_profile_fixtures import candidate_profile_fixture_expectations
+    from fitcv.candidate import converge_candidate_profile_for_runtime
+
+    fixtures = candidate_profile_fixture_expectations()
+    assert "preferences" in fixtures["legacy_v1"]
+    with pytest.raises(ValueError):
+        converge_candidate_profile_for_runtime(fixtures["invalid"])
+    assert fixtures["active"]["use_for_run"] is True
+    assert fixtures["archived"]["use_for_run"] is False
+    assert fixtures["immutable_run_snapshot"]["candidate_profile_revision_id"]
+    assert fixtures["legacy_empty_snapshot"] == {
+        "candidate_profile_revision_id": None,
+        "candidate_profile_json": None,
+    }
+
+
     routes = {
         (route.path, method)
         for route in app_factory().routes
@@ -3201,6 +3217,23 @@ def test_candidate_profile_routes_create_detail_and_archive() -> None:
     assert client.post("/candidate-profiles").status_code == 405
     assert detail.status_code == 200 and detail.json()["data"]["overview"] == {"skills": []}
     assert archived.status_code == 200 and archived.json()["data"]["lifecycle"] == "archived"
+
+
+def test_candidate_profile_lifecycle_rejects_noop_and_stale_revision() -> None:
+    state = _candidate_profile_mock_app().state.candidate_profile_mock_state
+    profile_id = "candidate-product-data"
+    active = state.get_profile(profile_id)
+    assert active is not None
+    with pytest.raises(ValueError, match="candidate_profile_invalid_transition"):
+        state.transition_profile(profile_id, lifecycle="active", expected_revision=active["revision"])
+    with pytest.raises(ValueError, match="candidate_profile_revision_conflict"):
+        state.transition_profile(profile_id, lifecycle="archived", expected_revision=999)
+
+
+def test_candidate_profile_source_block_route_has_no_alias() -> None:
+    paths = {route.path for route in _app().routes}
+    assert "/candidate-profile-creation-attempts/{attempt_id}/source-blocks/{source_block_id}" in paths
+    assert "/candidate-profiles/{profile_id}/source-blocks/{source_block_id}" not in paths
 
 
 def test_candidate_profile_delete_route_is_idempotent_and_persists_deletion() -> None:
