@@ -1,4 +1,4 @@
-"""Tests for canonical retry/recovery settings."""
+import pytest
 
 from fitcv_cp.retry_settings import load_retry_settings
 
@@ -31,6 +31,22 @@ def test_load_retry_settings_reads_packaged_local_system_resource(
     assert settings.reconciler_interval_seconds == 15
     assert settings.error_detail_limit == 4096
     assert settings.revision == updated["revision"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected"),
+    [
+        ("maximum_attempts", "bad", 3),
+        ("maximum_attempts", 0, 1),
+        ("maximum_attempts", 999, 10),
+        ("initial_backoff_seconds", -1, 0),
+        ("error_detail_limit", 999999, 100000),
+    ],
+)
+def test_load_retry_settings_coerces_and_bounds_values(field, value, expected, monkeypatch) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    settings = load_retry_settings({"fitcv_cp": {"retry": {field: value}}})
+    assert getattr(settings, field) == expected
 
 
 def test_load_retry_settings_uses_explicit_non_local_defaults(monkeypatch) -> None:

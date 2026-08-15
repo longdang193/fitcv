@@ -83,7 +83,19 @@ def test_load_active_editable_settings_excludes_metadata_only_keys() -> None:
     }
 
 
-def test_load_active_settings_falls_back_to_older_valid_row_when_latest_is_invalid() -> None:
+def test_load_active_settings_ignores_corrupt_json_row() -> None:
+    save_setting("pipeline.final_top_n", 7, updated_by="admin")
+    sqlite_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            "INSERT INTO pipeline_settings (setting_key, setting_value_json, updated_by, updated_at) VALUES (?, ?, ?, ?)",
+            ("pipeline.final_top_n", "{broken", "admin", "9999-01-01T00:00:00+00:00"),
+        )
+        conn.commit()
+
+    assert load_active_settings()["pipeline.final_top_n"] == 7
+
+
     save_setting("pipeline.final_top_n", 7, updated_by="admin")
     with pytest.raises(ValueError):
         save_setting("pipeline.final_top_n", "not-an-int", updated_by="admin")

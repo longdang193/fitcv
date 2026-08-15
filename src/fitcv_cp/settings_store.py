@@ -197,7 +197,7 @@ def _decode_active_settings_rows(
             raw = json.loads(raw_value_json)
             result[canonical_key] = coerce_value(canonical_key, raw)
             seen_valid.add(canonical_key)
-        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
             invalid_rows.append((original_key, raw_value_json))
             logger.info("Removing stale invalid setting key=%s: %s", original_key, exc)
     return result, invalid_rows

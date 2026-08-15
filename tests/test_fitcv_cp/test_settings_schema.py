@@ -701,7 +701,19 @@ def test_merge_and_validate_rejects_semantic_weights_while_disabled() -> None:
         )
 
 
-def test_pipeline_projection_owns_supported_rows_only() -> None:
+def test_pipeline_projection_marks_editable_readonly_and_hidden_rows() -> None:
+    projection = pipeline_settings_projection({})
+    rows = {
+        row["id"]: row
+        for page in projection["pages"]
+        for section in page["sections"]
+        for row in section["rows"]
+    }
+    assert rows["cv_analysis.semantic_alignment.enabled"]["kind"] == "direct"
+    assert rows["cv_analysis.semantic_alignment.model"]["kind"] == "readonly"
+    assert "cv_generation_model" not in rows
+
+
     projection = pipeline_settings_projection({})
     pages = {page["id"]: page for page in projection["pages"]}
     assert list(pages) == [

@@ -176,13 +176,14 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Branch: `main`
 - Base commit: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Plan status: `active`
-- Active task: `task-5-settings-output-propagation`
-- Next eligible task: `task-6-isolated-end-to-end-verification` after Task 5 acceptance
+- Active task: `task-6-isolated-end-to-end-verification`
+- Next eligible task: `none` after Task 6 acceptance
 - Last accepted checkpoint: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
 - Task 4 accepted proof: `PASS` — template, app, and local route suites passed `489 tests`; clean Git diff.
+- Task 5 accepted proof: `PASS` — settings suites passed `218 passed, 1 skipped`; compile and diff checks passed.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
@@ -194,8 +195,8 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 | `task-2-canonical-profile-lifecycle-api` | task 1 | completed | `dcode-project --role high` | Codex |
 | `task-3-job-pipeline-snapshot-contract` | task 2 | completed | `dcode-project --role high` | Codex |
 | `task-4-candidate-profile-ui-contract` | task 3 | completed | `dcode-project --role normal` | Codex |
-| `task-5-settings-output-propagation` | task 4 | active | `dcode-project --role normal` | Codex |
-| `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | proposed | `dcode-project --role xhigh` | Codex |
+| `task-5-settings-output-propagation` | task 4 | completed | `dcode-project --role normal` | Codex |
+| `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | active | `dcode-project --role xhigh` | Codex |
 
 ## Constraints and Decisions
 
