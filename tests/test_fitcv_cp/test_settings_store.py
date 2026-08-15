@@ -21,11 +21,13 @@ from pathlib import Path
 
 import pytest
 from fitcv_cp.backend_runtime import set_backend_runtime
+from fitcv_cp import settings_store as ss
 
 from fitcv_cp.settings_store import (
     SettingsRevisionConflict,
     load_active_editable_settings,
     load_active_settings,
+    load_llm_configuration,
     mutate_settings_atomically,
     save_setting,
     save_settings_group,
@@ -42,8 +44,67 @@ def _sqlite_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     set_backend_runtime(None)
 
 
+def test_load_llm_configuration_hydrates_missing_declared_tasks(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    load_llm_configuration()
+    with sqlite3.connect(tmp_path / "settings.sqlite3") as conn:
+        value, revision = conn.execute(
+            "SELECT resource_json, revision FROM configuration_resources WHERE resource_name = ?",
+            ("llm_configuration",),
+        ).fetchone()
+        configuration = json.loads(value)
+        configuration["tasks"].pop("candidate_profile_base_mapping")
+        configuration["tasks"].pop("candidate_profile_derived_claims")
+        conn.execute(
+            "UPDATE configuration_resources SET resource_json = ?, revision = ? WHERE resource_name = ?",
+            (json.dumps(configuration), revision + 3, "llm_configuration"),
+        )
+        conn.commit()
+
+    hydrated = load_llm_configuration()
+
+    assert set(hydrated["tasks"]) == set(ss.LLM_TASK_IDS)
+    assert hydrated["revision"] == revision + 3
+    assert hydrated["tasks"]["candidate_profile_base_mapping"] == {
+        "model_ref": None,
+        "timeout_seconds": 120,
+        "temperature": 0.2,
+    }
+
+
+def test_load_llm_configuration_preserves_existing_task_values(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    load_llm_configuration()
+    with sqlite3.connect(tmp_path / "settings.sqlite3") as conn:
+        value, revision = conn.execute(
+            "SELECT resource_json, revision FROM configuration_resources WHERE resource_name = ?",
+            ("llm_configuration",),
+        ).fetchone()
+        configuration = json.loads(value)
+        configuration["tasks"].pop("candidate_profile_base_mapping")
+        configuration["tasks"].pop("candidate_profile_derived_claims")
+        configuration["tasks"]["enrich_extraction"] = {
+            "model_ref": "existing-model",
+            "timeout_seconds": 45,
+            "temperature": 0.7,
+        }
+        conn.execute(
+            "UPDATE configuration_resources SET resource_json = ?, revision = ? WHERE resource_name = ?",
+            (json.dumps(configuration), revision, "llm_configuration"),
+        )
+        conn.commit()
+
+    hydrated = load_llm_configuration()
+
+    assert hydrated["revision"] == revision
+    assert hydrated["tasks"]["enrich_extraction"] == {
+        "model_ref": "existing-model",
+        "timeout_seconds": 45,
+        "temperature": 0.7,
+    }
+
+
 def test_save_setting_persists_sqlite_row() -> None:
-    """@proves settings_system.sqlite-backed-pipeline-settings-store"""
     save_setting("pipeline.final_top_n", 5, updated_by="admin")
 
     result = load_active_settings()

@@ -12,6 +12,7 @@ tags:
   - ci-safe
 """
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -192,6 +193,36 @@ def test_local_settings_save_recovers_after_first_disk_io_error(tmp_path, monkey
 
     active = ss.load_active_settings()
     assert active["pipeline.final_top_n"] == 15
+
+
+def test_configuration_resources_hydrate_legacy_llm_tasks(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    ss.load_llm_configuration()
+    with sqlite3.connect(tmp_path / "settings.sqlite3") as conn:
+        value, revision = conn.execute(
+            "SELECT resource_json, revision FROM configuration_resources WHERE resource_name = ?",
+            ("llm_configuration",),
+        ).fetchone()
+        configuration = json.loads(value)
+        configuration["tasks"].pop("candidate_profile_base_mapping")
+        configuration["tasks"].pop("candidate_profile_derived_claims")
+        configuration["tasks"]["enrich_extraction"]["model_ref"] = "kept-model"
+        conn.execute(
+            "UPDATE configuration_resources SET resource_json = ?, revision = ? WHERE resource_name = ?",
+            (json.dumps(configuration), revision, "llm_configuration"),
+        )
+        conn.commit()
+
+    hydrated = ss.load_llm_configuration()
+
+    assert set(hydrated["tasks"]) == set(ss.LLM_TASK_IDS)
+    assert hydrated["tasks"]["enrich_extraction"]["model_ref"] == "kept-model"
+    assert hydrated["tasks"]["candidate_profile_derived_claims"] == {
+        "model_ref": None,
+        "timeout_seconds": 120,
+        "temperature": 0.2,
+    }
+    assert hydrated["revision"] == revision
 
 
 def test_configuration_resources_have_independent_revisions(tmp_path, monkeypatch):

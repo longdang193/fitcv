@@ -15,7 +15,37 @@ tags:
 import pytest
 
 from fitcv.config import load_control_plane_config
+from fitcv.runtime_routing import resolve_llm_routing
 from fitcv_cp.adapters.contracts import resolve_part_routing
+
+
+def test_resolve_llm_routing_resolves_hydrated_candidate_profile_task(monkeypatch) -> None:
+    monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
+    snapshot = {
+        "revision": 3,
+        "tasks": {
+            "candidate_profile_base_mapping": {
+                "provider": "openai_compatible",
+                "base_url": "http://localhost:1234/v1",
+                "wire_api": "responses",
+                "model": "candidate-model",
+                "model_record_id": "model-ref",
+                "timeout_seconds": 120,
+                "temperature": 0.2,
+            }
+        },
+    }
+
+    with monkeypatch.context() as context:
+        context.setattr(
+            "fitcv.runtime_routing.build_packaged_llm_configuration_snapshot",
+            lambda: snapshot,
+        )
+        route = resolve_llm_routing("candidate_profile_base_mapping")
+
+    assert route.model == "candidate-model"
+    assert route.model_record_id == "model-ref"
+    assert route.configuration_revision == 3
 
 
 def test_resolve_part_routing_reads_provider_and_model_from_control_plane() -> None:

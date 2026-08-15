@@ -385,6 +385,16 @@ def _ensure_configuration_schema(conn: sqlite3.Connection) -> None:
     _ensure_control_plane_schema(conn)
 
 
+def _hydrate_llm_configuration_tasks(value: dict[str, Any]) -> dict[str, Any]:
+    tasks = value.get("tasks")
+    if not isinstance(tasks, dict):
+        return value
+    for task_id in LLM_TASK_IDS:
+        if task_id not in tasks:
+            tasks[task_id] = copy.deepcopy(CONFIGURATION_RESOURCE_DEFAULTS["llm_configuration"]["tasks"][task_id])
+    return value
+
+
 def _load_configuration_resource(resource_name: str) -> dict[str, Any]:
     db_path = _local_sqlite_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -400,7 +410,10 @@ def _load_configuration_resource(resource_name: str) -> dict[str, Any]:
         ).fetchone()
     if row is None:
         raise KeyError(resource_name)
-    return _resource_result(resource_name, json.loads(str(row[0])), int(row[1]), str(row[2]))
+    value = json.loads(str(row[0]))
+    if resource_name == "llm_configuration":
+        value = _hydrate_llm_configuration_tasks(value)
+    return _resource_result(resource_name, value, int(row[1]), str(row[2]))
 
 
 def _patch_configuration_resource(
