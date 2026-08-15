@@ -1,5 +1,7 @@
 ---
-roadmap_id: fitcv-master-workstream-roadmap
+layer: intent
+artifact_type: roadmap
+name: master-workstream-roadmap
 status: active
 registered_workstreams:
   - workstream-fitcv-semantic-spine

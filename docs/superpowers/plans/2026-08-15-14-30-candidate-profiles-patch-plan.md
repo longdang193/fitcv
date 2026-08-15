@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: candidate-profiles-prototype-integration-pipeline-compatibility
 parent_spec: none
@@ -174,11 +174,11 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 
 - Coordination owner: `Codex lead controller`
 - Branch: `main`
-- Base commit: `6ac172f920ea7d2ee03f2050ea702fd092516773`
-- Plan status: `proposed`; change to `active` before first task execution
-- Active task: `none`
-- Next eligible task: `task-1-freeze-candidate-profile-contracts`
-- Last accepted checkpoint: `none`
+- Base commit: `93baf43b6f522518281b1e21d8f09cff352d7c14`
+- Plan status: `active`
+- Active task: `task-1-freeze-candidate-profile-contracts`
+- Next eligible task: `task-2-canonical-profile-lifecycle-api` after Task 1 acceptance
+- Last accepted checkpoint: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
@@ -186,7 +186,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 
 | Task ID | Depends on | Status | Executor | Proof owner |
 | --- | --- | --- | --- | --- |
-| `task-1-freeze-candidate-profile-contracts` | none | proposed | `dcode-project --role normal` | Codex |
+| `task-1-freeze-candidate-profile-contracts` | none | active | `dcode-project --role normal` | Codex |
 | `task-2-canonical-profile-lifecycle-api` | task 1 | proposed | `dcode-project --role high` | Codex |
 | `task-3-job-pipeline-snapshot-contract` | task 2 | proposed | `dcode-project --role high` | Codex |
 | `task-4-candidate-profile-ui-contract` | task 3 | proposed | `dcode-project --role normal` | Codex |
