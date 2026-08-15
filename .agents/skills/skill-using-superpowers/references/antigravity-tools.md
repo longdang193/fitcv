@@ -14,7 +14,7 @@ Skills speak in actions ("dispatch a subagent", "create a todo", "read a file").
 | Fetch a URL | `read_url_content` |
 | Search the web | `search_web` |
 | Pose a structured question to the user | `ask_question` |
-| Dispatch a subagent (harness-selected project template) | `invoke_subagent` |
+| Dispatch a subagent (`Subagent (general-purpose):` template) | `invoke_subagent` |
 | Multiple parallel dispatches | Multiple entries in one `invoke_subagent` call |
 | Task tracking ("create a todo", "mark complete") | A task artifact written with `write_to_file` |
 

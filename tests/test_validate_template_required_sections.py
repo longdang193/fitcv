@@ -574,7 +574,7 @@ Verified work.
         rmtree(root, ignore_errors=True)
 
 
-def test_active_plan_accepts_template_initial_status() -> None:
+def test_superseded_plan_accepts_template_initial_status() -> None:
     root = make_test_root()
     try:
         write_text(
@@ -592,17 +592,17 @@ required_frontmatter:
 """,
         )
         write_text(
-            root / "docs" / "superpowers" / "plans" / "active-plan.md",
+            root / "docs" / "superpowers" / "plans" / "superseded-plan.md",
             """---
 artifact_type: plan
 template_id: implementation-plan
-status: active
+status: superseded
 ---
 
-# Active Plan
+# Superseded Plan
 
 ## Goal
-Managed coordination.
+Replaced by current plan.
 """,
         )
         rules, findings = VALIDATOR.discover_template_rules(root)
@@ -628,3 +628,14 @@ def test_shipped_planning_templates_cover_schema_required_frontmatter() -> None:
         assert all(required_frontmatter[key] == value for key, value in required_values.items())
         for field in ("status", "layer"):
             assert required_frontmatter[field] in SCHEMA.get_allowed_values(REPO_ROOT, field, artifact_type)
+
+
+def test_implementation_plan_template_documents_optional_executor_and_coordination() -> None:
+    template = (
+        REPO_ROOT / "docs" / "operating_system" / "templates" / "implementation-plan-template.md"
+    ).read_text(encoding="utf-8")
+
+    assert "Executor: `codex | deepagents`" in template
+    assert "current DeepAgents launcher uses no MCP" in template
+    assert "## Coordination State (Optional)" in template
+    assert "Allowed states: `pending`, `active`, `blocked`, `completed`." in template

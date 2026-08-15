@@ -32,4 +32,6 @@ Back up `MEMORY_FILE_PATH` like any other private local data. Never commit memor
 
 To remove server, delete `[mcp_servers.memory]` and `[mcp_servers.memory.env]` from client configuration, restart client, then archive or delete local memory file as intended.
 
-Other MCP clients use same package and environment variable; adapt only client configuration syntax.
+This starter configures Memory in Codex only. For DeepAgents work, Codex handles
+required memory calls and passes validated handoff facts; do not add a direct
+DeepAgents MCP configuration.

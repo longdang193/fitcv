@@ -6,4 +6,4 @@ distribution_tier: starter_kit
 
 # Publication Prompt
 
-Read publication policy. Build curated output, validate allowlists and exclusions, inspect private tooling and agent-core leakage, run dry-run parity checks, and publish only with explicit authorization.
+Read publication policy. Build curated output, validate allowlists and exclusions, inspect private tooling leakage, run dry-run parity checks, and publish only with explicit authorization.

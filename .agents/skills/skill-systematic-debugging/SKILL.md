@@ -56,43 +56,10 @@ Use for ANY technical issue:
 - Use `skill-dispatching-parallel-agents` only after evidence separates failures into independent problem domains.
 - Each dispatched investigator follows this debugging method inside its assigned domain.
 - Keep possibly shared-cause failures together until root-cause evidence proves independence.
-- For a current leased-packet timeout, inspect packet `execution_budget` and
-  `execution_lease`, attempt `execution_lease`, normalized
-  `host_terminal_observations`, `terminal_record`, retained-artifact evidence,
-  and host lane evidence before changing policy. Controller invokes only
-  `terminalize_attempt(envelope)` for external signed or legacy evidence;
-  personal-local closure uses `harness-core-launcher close`. Evidence records
-  outcome, and finalization records receipt. Host never writes `run.json`. Expired live or unverified
-  process state is `orphaned`, so retry and resume stay blocked.
-  Distinguish provider lifecycle failure from core semantic failure: a completed
-  stop proof followed by claim, check, or verification rejection is
-  `core_failure`, not `provider_failure`. Verify one terminal observation per
-  lane or host-run check, then verify core terminalization releases the same
-  lease.
-  A read-only diagnosis may consume only
-  immutable packet `readonly_artifacts`; never inspect an ambient `.harness`
-  directory from a clean clone. Missing route-required artifacts blocks
-  diagnosis before dispatch.
-  Distinguish short transport preflight from packet turn timeout. Resume a
-  planned attempt through provider `--run-id`; only controller escalation may
-  create budget-profile successor. Timeout never means retry.
-- For package-backed managed failures, inspect in admission order:
-  `uv run --locked harness-core --identity`,
-  `uv run --locked harness-core validate --repo-root <repo-root>`, then
-  `harness-core-launcher doctor`, `capabilities`, and `preflight`. Classify
-  missing or invalid host user configuration as `provider_runtime_unavailable`,
-  configured transport/authentication failure as `preflight_failed`, and current
-  dispatchable packet runtime-config drift as `provider_configuration_changed`;
-  do not add endpoint or launch-command values to repository policy. Classify
-  package loader failure as environment, unsupported request or host API as
-  release compatibility, and only later failures as provider admission or
-  dispatch. `--run-id` resumes only run state `planned`; terminal coordinated
-  failure needs approved successor plan/task identity before fresh request.
-  Never patch legacy consumer bridges to repair package or host compatibility.
 
 ## Code Intelligence
 
-Use native tools for local failures, Serena for exact symbol/reference tracing, and GitNexus for broad flows when fresh. Source, tests, and reproduction evidence remain authoritative.
+Use native tools for local failures, Serena for exact symbol/reference tracing, `semble_codebase_search` for unknown-location discovery, and private read-only GitNexus for broad flows when available and fresh. Source, tests, and reproduction evidence remain authoritative.
 
 When failure depends on an unfamiliar external GitHub repository, consult `docs/operating_system/tooling/code-intelligence-tools.md` before using DeepWiki for advisory orientation.
 
@@ -115,12 +82,12 @@ You MUST complete each phase before proceeding to the next.
    - What are the exact steps?
    - Does it happen every time?
    - If not reproducible → gather more data, don't guess
-   - For browser-visible failures, use Playwright MCP to reproduce repeatable flows and capture semantic state; use Chrome DevTools MCP to inspect console, network, computed layout and styles, runtime behavior, Lighthouse, and performance evidence
-   - When both are needed, reproduce with Playwright MCP, diagnose with Chrome DevTools MCP, then verify the corrected flow with Playwright MCP; do not duplicate the same inspection
-   - Browser MCP replay is diagnostic evidence, not committed regression coverage; preserve the failure in the existing browser test suite before fixing when practical
+   - For browser-visible failures, use `browser.test` when available to reproduce repeatable flows and capture semantic state
+   - `browser.diagnose` is not available yet; use existing browser-test output and native logs before adding a new diagnostic path
+   - Browser replay is diagnostic evidence, not committed regression coverage; preserve the failure in the existing browser test suite before fixing when practical
 
 3. **Check Failure Memory When The Issue Looks Familiar**
-   - If the failure appears repeated, method-related, or suspiciously similar to a previous repo-operating issue, search configured MCP memory for matching symptoms, confirmed causes, and fixes
+   - If the failure appears repeated, method-related, or suspiciously similar to a previous repo-operating issue, search configured MCP memory when active executor exposes it; under DeepAgents, request validated Codex handoff facts
    - Use it to recognize known failure modes earlier
    - Do not skip direct investigation just because something looks familiar
 

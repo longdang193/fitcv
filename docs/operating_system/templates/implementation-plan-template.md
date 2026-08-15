@@ -36,39 +36,44 @@ Describe another concrete implementation result this plan must deliver, such as 
 
 ## Execution Approach
 
-- Mode: `inline sequential | single_work_lane | sequential_work_lanes | parallel_work_lanes`
+- Mode: `inline sequential | subagent-ready | parallel-capable`
+- Executor: `codex | deepagents` (optional; Codex default; selects local runtime only; current DeepAgents launcher uses no MCP, so required MCP work stays with Codex and passes validated handoff facts)
 - Required skills: `<exact skill names or none>`
-- Isolation: `<current workspace | isolated worktree for parallel writers>`
-- Commit policy: `<external authorization | no commits during execution>`
+- Isolation: `<current workspace | optional worktree>`
+- Commit policy: `<verified per-task checkpoint commits preauthorized | no commits during execution>`
+- Preauthorized local actions: `<edits, declared checks, configured MCP reads, approved workspace isolation, bounded DeepAgents execution>`
+- User-approval actions: `<push, merge, publication, external writes, destructive recovery, discard, cleanup>`
 - Parallel ownership: `<disjoint files/symbols or none>`
 - Sequential fallback: `<ordered fallback when parallel work is unsafe>`
 
-## Optional Coordination Manifest
+## Coordination State (Optional)
 
-Use only for Git-tracked, coordination-heavy plans. Keep static coordination in
-frontmatter; keep task prose, runtime state, evidence, and handoff out of it.
+Use only for Git-tracked active multi-task work. One lead controller owns this
+section and task ledger. Git owns workspace and change evidence; executor
+thread state never becomes repository state.
 
-```yaml
-coordination:
-  target_branch: main
-  base_ref: HEAD
-  tasks:
-    - id: task-1
-      depends_on: []
-      execution_mode: single_work_lane
-      allowed_paths: [scripts/**]
-      planned_write_paths: [scripts/**]
-```
+- Coordination owner: `single lead controller`
+- Branch: `<target branch>`
+- Base commit: `<commit>`
+- Active task(s): `<Task N[, Task M] | none>`
+- Expected workspace: `<clean or named preserved changes>`
+- Next action: `<one dependency-ready action>`
+- Blockers: `<none or concrete blocker>`
 
-Every prose `### Task` section then contains exactly one
-`**Coordination ID:** \`task-id\``. Use only canonical topology names. The
-manifest owns target branch, base ref, dependencies, mode, allowed paths, and planned paths; immutable
-packet owns `plan_ref`, task ID, and normalized digest; `run.json` owns state,
-handoff, evidence, and controller decisions.
+| Task | State | Executor | Depends On | Evidence |
+| --- | --- | --- | --- | --- |
+| Task 1 | `pending` | `codex` | none | pending |
 
-A terminal coordinated failure requires newly approved successor plan/task
-identity and a fresh request. Do not reuse its mutable run state or add it to
-the manifest.
+Allowed states: `pending`, `active`, `blocked`, `completed`. `inline sequential`
+and `subagent-ready` modes permit one active task. `parallel-capable` mode may
+have multiple active tasks only in current dependency-ready wave with proven
+independence and declared ownership. One lead controller remains sole ledger
+writer. When `Commit policy` preauthorizes it, completed task changes and ledger
+update share one checkpoint commit after task-local proof. Git owns checkpoint
+identity: derive it from the commit containing the latest ledger transition;
+never copy that commit SHA into the plan. Push, merge,
+publication, external writes, destructive recovery, discard, and cleanup still
+need explicit user authorization.
 
 ## Task Breakdown
 
@@ -77,10 +82,14 @@ Use `Wave` only when plan truly needs orchestration across multiple related task
 
 Within each task:
 - `Purpose` owns bounded outcome
+- `Task Function` names current open-ended function without mapping it to a profile
+- `Template Profile` records controller-selected `xhigh`, `high`, `normal`, or `low` plus selection basis
+- `Validator Profile` records an optional separate validator and its selection basis
 - `Specification Coverage` maps approved requirements or direct scope
 - `Required Skills` names only methods needed for this task
 - `Files And Symbols` owns exact touched surfaces
 - `Dependencies` owns prerequisites and prior task requirements
+- `Authority` owns task-local preauthorized actions and escalation boundary
 - `Steps` owns execution sequence
 - `Verification` owns task-local proof
 - `Exit Criteria` owns task completion gate
@@ -93,10 +102,22 @@ Do not duplicate final artifact verification commands here unless a command is t
 
 ### Task 1: <short task title>
 
-**Coordination ID:** `<task-id when coordination manifest is present>`
-
 **Purpose:**
 - <bounded outcome this task delivers>
+
+**Task Function:**
+- <task-specific function; do not select from a fixed taxonomy>
+
+**Template Profile:**
+- Controller-selected: `<xhigh | high | normal | low>`
+- Selection basis: <reasoning depth, ambiguity, scope, risk, and cost>
+
+**Validator Profile (optional):**
+- Controller-selected: `<none | xhigh | high | normal>`
+- Profile order: `xhigh > high > normal > low`
+- In validator-executor setups, validator profile must rank above executor profile.
+  `high` executor therefore uses `xhigh` validator. Do not pair `xhigh` executor
+  with a profile-based validator because no higher profile exists.
 
 **Specification Coverage:**
 - <requirement, decision, invariant, or approved direct scope>
@@ -111,6 +132,10 @@ Do not duplicate final artifact verification commands here unless a command is t
 
 **Dependencies:**
 - <upstream dependency, source-first fact, or prior task result>
+
+**Authority:**
+- Preauthorized local actions: <subset of plan-level actions>
+- Stop for: <scope or base changes; external or destructive action; none>
 
 **Steps:**
 - [ ] Step 1: <first bounded action>
@@ -129,6 +154,18 @@ Do not duplicate final artifact verification commands here unless a command is t
 **Purpose:**
 - <bounded outcome this task delivers>
 
+**Task Function:**
+- <task-specific function; do not select from a fixed taxonomy>
+
+**Template Profile:**
+- Controller-selected: `<xhigh | high | normal | low>`
+- Selection basis: <reasoning depth, ambiguity, scope, risk, and cost>
+
+**Validator Profile (optional):**
+- Controller-selected: `<none | xhigh | high | normal>`
+- Profile order: `xhigh > high > normal > low`
+- In validator-executor setups, validator profile must rank above executor profile.
+
 **Specification Coverage:**
 - <requirement, decision, invariant, or approved direct scope>
 
@@ -143,6 +180,10 @@ Do not duplicate final artifact verification commands here unless a command is t
 **Dependencies:**
 - Task 1 complete
 - <any additional dependency>
+
+**Authority:**
+- Preauthorized local actions: <subset of plan-level actions>
+- Stop for: <scope or base changes; external or destructive action; none>
 
 **Steps:**
 - [ ] Step 1: <first bounded action>

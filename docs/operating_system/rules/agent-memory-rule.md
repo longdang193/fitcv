@@ -8,7 +8,7 @@ distribution_tier: starter_kit
 
 # Agent Memory Rule
 
-- Use configured MCP Memory Server as persistent agent-memory surface. Do not create parallel repository-file memory layer.
+- Use configured MCP Memory Server as persistent agent-memory surface only when active executor exposes it. Under `dcode-project`, Codex handles required memory calls and passes only validated handoff facts; do not create direct DeepAgents MCP configuration or repository-file memory.
 - Fetch memory before work only when task touches shared workflows, architecture or publication invariants, resumed work, recurring failures, or high-risk cross-cutting changes.
 - Do not fetch memory for isolated, obvious, low-risk edits.
 - Store only verified reusable decisions, invariants, failure causes, operational constraints, or lessons costly to rediscover.

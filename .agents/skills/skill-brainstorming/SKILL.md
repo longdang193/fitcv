@@ -34,7 +34,7 @@ This skill produces design artifacts only.
 
 ## Code Intelligence
 
-Use native tools for local evidence, Serena for exact symbols and references, and GitNexus for broad flow or impact when fresh. Do not query both by default. Optional tool failure never blocks source-first design.
+Use native tools for local evidence, Serena for exact symbols and references, `semble_codebase_search` for unknown-location discovery, and private read-only GitNexus for broad flow or impact when available and fresh. Do not query multiple tools for the same fact by default. Optional tool failure never blocks source-first design.
 
 ## Brainstorming Process
 

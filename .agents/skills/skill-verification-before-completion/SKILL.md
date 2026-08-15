@@ -27,14 +27,6 @@ Receive from `skill-executing-plans`:
 
 If required implementation remains, return to `skill-executing-plans`.
 
-For package-backed harnesses, verify packet `core_identity`, consumer
-`harness_core.request_api`, adapter `host_api`, and launcher environment result
-where applicable. Do not treat legacy shim output as independent core proof.
-
-For managed terminal failure, report exact evidence without editing routes,
-skills, or policy. Core owns friction capture; controller considers improvement
-only after `friction-report` identifies a recurring candidate.
-
 ## Conditional References
 
 Read only what supports current claims:
@@ -42,11 +34,11 @@ Read only what supports current claims:
 - active plan and completion criteria
 - linked specification acceptance criteria and preserved invariants
 - affected validators, tests, schemas, generated procedures, and maintained documentation
-- fresh rendered or browser evidence for material visual changes, following `docs/operating_system/rules/frontend-ui-rule.md` for Playwright MCP and Chrome DevTools MCP selection and covering relevant viewports, supported themes, affected states, keyboard use, focus, contrast, and reduced motion
+- fresh rendered or browser evidence for material visual changes, following `docs/operating_system/rules/frontend-ui-rule.md` for `browser.test` selection when available and covering relevant viewports, supported themes, affected states, keyboard use, focus, contrast, and reduced motion
 - stateful-route evidence for in-scope deep links, refresh, browser Back/Forward, failed mutations, retry, duplicate submission prevention, and optimistic rollback
 - audit rule only when its failure trigger applies
 - publication rules only when reporting publication readiness
-- configured MCP memory only after meaningful retries, debugging, or reusable failure discovery; store lessons only after fresh evidence confirms them
+- configured MCP memory only after meaningful retries, debugging, or reusable failure discovery when active executor exposes it; under DeepAgents, use validated Codex handoff facts and store lessons through Codex after fresh evidence confirms them
 
 Do not require retired architecture-sync scripts, persistent context packs, or missing reconciliation prompts.
 
@@ -131,7 +123,7 @@ Run first:
 
 Read full output, exit code, failure count, and skipped checks.
 
-For browser-verified work, record the browser tool used, routes, viewports or containers, interactions exercised, console or runtime findings, issues corrected, and any unverified states. Browser MCP evidence does not replace committed regression tests.
+For browser-verified work, record the browser operation used, routes, viewports or containers, interactions exercised, result findings, issues corrected, and any unverified states. Browser evidence does not replace committed regression tests.
 
 ### 6. Run Required Broad Proof
 

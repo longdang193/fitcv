@@ -43,7 +43,7 @@ stop and use `skill-spec-drafting`.
 - Read the approved specification in full when one exists.
 - Use `docs/operating_system/templates/implementation-plan-template.md` when saving a canonical plan.
 - Read governance only when ownership, generation, publication, or repository boundaries affect execution.
-- Use native tools for local file mapping, Serena for exact symbols and references, and GitNexus for broad flow or impact when fresh and materially useful. Do not query both by default.
+- Use native tools for local file mapping, Serena for exact symbols and references, `semble_codebase_search` for unknown-location discovery, and private read-only GitNexus for broad flow or impact only when available, fresh, and materially useful. Do not query multiple tools for the same fact by default.
 - Read related execution skills only when the chosen execution approach requires them.
 - Name `ui-ux-pro-max` only for tasks requiring material visual or interaction judgment, and include rendered viewport, theme, and accessibility proof for those tasks.
 - Name `skill-performance-optimization` only for explicit performance requirements or measured regressions. Performance tasks must identify baseline command or evidence source, representative workload and environment, target metric, threshold owner, and regression proof.
@@ -51,6 +51,11 @@ stop and use `skill-spec-drafting`.
 - Name `skill-full-stack-integration` when a task crosses frontend behavior and backend contracts or routes. Identify matching sidecar, canonical contract owner, route impact, generated consumers, focused backend and frontend proof, browser flow, and sidecar removal condition.
 
 Source and tests remain authoritative when documents or optional tools disagree.
+
+When a plan names `deepagents` as executor, record only executor choice and
+task role. Do not treat it as a tool-permission grant. Current `dcode-project`
+forces `--no-mcp`; plan required MCP research or verification under Codex, then
+pass only validated `codex.mcp.handoff.v1` facts to DeepAgents.
 
 ## Artifact Boundaries
 
@@ -62,19 +67,6 @@ Source and tests remain authoritative when documents or optional tools disagree.
 - branch-finishing skill: explicitly authorized Git disposition
 
 No artifact is required merely to connect two other artifacts.
-
-## Coordinated Plans
-
-For Git-tracked coordination-heavy plans, add optional `coordination`
-frontmatter only after approved scope is stable. Manifest owns static target
-branch, base ref, task IDs, dependencies, canonical topology, and planned write
-paths. Every prose task has exactly one `Coordination ID` matching manifest.
-
-Do not store run status, run IDs, evidence, controller handoff, or decisions in
-plan. Packet binds immutable plan reference, task ID, and normalized digest;
-`run.json` owns runtime truth. Use one of `single_work_lane`,
-`sequential_work_lanes`, or `parallel_work_lanes`; parallelism stays inside a
-packet. Simultaneous controllers are unsupported.
 
 ## Planning Process
 
@@ -118,9 +110,15 @@ Also state:
 
 - required skills per task or lane
 - optional worktree need
-- commit policy; commits remain separate from subagent dispatch and review
+- commit policy; `skill-subagent-driven-development` requires explicit per-task commit authorization
 - shared files or symbols that force serialization
 - sequential fallback when delegation or parallel execution is unavailable
+
+Use existing owners instead of adding parallel-phase metadata: `Mode` and waves
+own parallel grouping; task `Dependencies` and `Files And Symbols` own immutable
+inputs; `Parallel ownership` and task paths own write ownership; dependency order
+owns fan-in barrier; task and final `Verification` own post-fan-in validation.
+This applies equally to Codex and DeepAgents execution.
 
 Do not create a separate orchestration artifact. Plan owns this decision.
 
@@ -159,7 +157,9 @@ Merge tasks when they:
 - exist only to mirror document sections
 
 Use waves only when several tasks share a real prerequisite. Do not use fixed
-task counts or time quotas.
+task counts or time quotas. Tasks in one wave must be mutually independent.
+Dependent review or validation belongs in later wave after all required producer
+tasks complete.
 
 ### 8. Write Task Contracts
 
@@ -169,10 +169,13 @@ Each task must include:
 ### Task N: <bounded outcome>
 
 **Purpose:**
+**Task Function:**
+**Template Profile:**
 **Specification Coverage:**
 **Required Skills:**
 **Files And Symbols:**
 **Dependencies:**
+**Authority:**
 **Steps:**
 **Verification:**
 **Exit Criteria:**
@@ -181,7 +184,16 @@ Each task must include:
 Name exact paths, symbols, commands, expected results, and generated consumers.
 If a symbol does not yet exist, name its intended owner and contract. Steps
 must be executable actions, not restated goals. Add task-level execution mode
-only when it differs from the plan-level `Execution Approach`.
+only when it differs from the plan-level `Execution Approach`. `Authority` names
+task-local preauthorized actions plus stop conditions for external, destructive,
+or scope-changing actions. It never grants permissions beyond active Codex
+configuration. `Task Function` is open-ended. `Template Profile` records
+controller-selected `xhigh`, `high`, `normal`, or `low` based on reasoning
+depth, ambiguity, scope, risk, and cost; never define fixed function-to-profile
+maps. Profile order is `xhigh > high > normal > low`. In validator-executor
+setups, record a validator profile that ranks above executor profile; `high`
+executor therefore uses `xhigh` validator. Do not assign `xhigh` executor to a
+separate profile-based validator pair because no higher profile exists.
 
 ### 9. Define Verification Strategy
 

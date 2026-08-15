@@ -35,15 +35,7 @@ def make_test_root() -> Path:
         REPO_ROOT / "repo_config" / "planning_artifact_schema.yaml",
         root / "repo_config" / "planning_artifact_schema.yaml",
     )
-    copy2(
-        REPO_ROOT / "repo_config" / "harness.yaml",
-        root / "repo_config" / "harness.yaml",
-    )
     return root
-
-
-def initialize_git(root: Path) -> None:
-    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
 
 
 def write_text(path: Path, text: str) -> None:
@@ -115,24 +107,21 @@ def test_existing_spec_and_linked_plan_pass() -> None:
         rmtree(root, ignore_errors=True)
 
 
-def test_coordination_plan_uses_shared_manifest_validator() -> None:
+def test_readme_pointers_are_not_planning_artifacts() -> None:
     root = make_test_root()
     try:
-        initialize_git(root)
-        plan = root / "docs" / "superpowers" / "plans" / "demo-plan.md"
         write_text(
-            plan,
-            "---\nartifact_type: plan\nstatus: proposed\nlayer: change\ncoordination:\n"
-            "  target_branch: main\n  base_ref: HEAD\n  tasks:\n"
-            "    - id: task-1\n      depends_on: []\n"
-            "      execution_mode: single_agent\n      planned_write_paths: [scripts/**]\n"
-            "---\n# Plan\n\n### Task 1: Fixture\n\n**Coordination ID:** `task-1`\n",
+            root / "docs" / "superpowers" / "specs" / "README.md",
+            "Archived specifications.\n",
         )
-        subprocess.run(["git", "add", plan.relative_to(root).as_posix()], cwd=root, check=True)
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "README.md",
+            "Archived plans.\n",
+        )
 
         result = run_validator(root)
 
-        assert result.returncode == 1
-        assert "unknown execution mode `single_agent`" in result.stdout
+        assert result.returncode == 0
+        assert "passed" in result.stdout.lower()
     finally:
         rmtree(root, ignore_errors=True)

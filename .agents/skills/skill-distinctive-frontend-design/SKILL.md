@@ -28,7 +28,7 @@ Skip for copy changes, mechanical CSS fixes, isolated frontend logic, or product
 4. Choose one signature device: typography, composition, navigation, illustration, texture, data treatment, or motion.
 5. Reuse existing components and tokens. Change primitives only when the concept cannot work without it.
 6. Implement consistently. Complexity must match the direction: restrained concepts need precision; expressive concepts may justify richer layout or motion.
-7. After the first meaningful pass and substantial visual changes, run `render → inspect → compare → correct` on the target route using Playwright MCP or Chrome DevTools MCP according to the browser-tool routing in the repository frontend rule. Fix systemic differences through shared components and semantic tokens.
+7. After the first meaningful pass and substantial visual changes, run `render → inspect → compare → correct` on the target route using `browser.test` when available, according to the repository frontend rule. Fix systemic differences through shared components and semantic tokens.
 8. Verify through the repository frontend rule. Do not trade accessibility, content resilience, or interaction clarity for novelty.
 9. Treat prototypes and rendered comparisons as evidence for specification approval, not as canonical product behavior.
 

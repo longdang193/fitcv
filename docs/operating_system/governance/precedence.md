@@ -13,7 +13,8 @@ Runtime precedence is provider-native first. Canonical repo sources generate the
 
 ## Provider Notes
 
-- Codex: `AGENTS.md` is authoritative; generated rule mirrors are not behavioral dependencies unless runtime support is verified.
+- Codex: `AGENTS.md` and deployed skills are runtime surfaces; canonical rules remain source material.
+- DeepAgents: root `AGENTS.md` and `.agents/skills` are runtime surfaces; canonical rules are named and read when task scope requires them. Tool boundary remains in `docs/operating_system/tooling/code-intelligence-tools.md`.
 - Claude: `CLAUDE.md`, rules, and skills are provider-native runtime surfaces.
 - Antigravity/Gemini: `GEMINI.md` and deployed skills are primary runtime surfaces; rule mirrors are informational unless verified.
 

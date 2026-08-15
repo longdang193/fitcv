@@ -47,14 +47,14 @@ Reference request and response schemas; do not copy them.
 3. Choose one code-intelligence path:
    - native tools for known local scope
    - Serena for exact symbols, references, implementations, and diagnostics
-   - fresh GitNexus for unknown broad flow, route consumers, or cross-repo impact
-4. Before changing an API route handler, use GitNexus `api_impact` when available and fresh. Use `route_map` only when route ownership or consumers remain unclear; use `shape_check` only when response fields change. Fall back to source search when unavailable.
+   - private read-only GitNexus for unknown broad flow, route consumers, or cross-repo impact only when available and fresh
+4. Before changing an API route handler, use GitNexus `api_impact` only when private read-only GitNexus is available and fresh. Fall back to source search when unavailable.
 5. Implement smallest complete slice: canonical contract when applicable, backend validation and authorization, narrow route or service change, existing client generation command, frontend query or mutation, and mapped UI states. Reuse existing mocks; do not add mock infrastructure by default.
 6. Use `skill-backend-verification` for direct boundary, business/failure, state, dependency, contract, representative-operation, and automated backend evidence before accepting consumer proof.
-7. Use Specmatic only when canonical OpenAPI exists, for contract discovery, examples, mocks, or conformance before and after real backend integration. Use Context7 only for version-specific library questions.
-8. Run focused frontend checks. Use Playwright MCP for repeatable user flows and accessibility state. Use Chrome DevTools MCP only for network, console, payload, or runtime diagnosis; do not duplicate same check.
+7. Use Context7 only when active executor exposes it and pinned local sources do not answer a version-specific library question; under DeepAgents, use validated Codex handoff facts. Treat output as advisory.
+8. Run focused frontend checks. When `browser.test` is available, use it for repeatable user flows and accessibility state. `browser.diagnose` is not available yet.
 9. Remove sidecar when all acceptance evidence passes. If blocked, delete completed items and retain only exact unresolved work.
-10. Hand final claims to `skill-verification-before-completion`. Store MCP Memory only for a verified recurring invariant or costly failure not already owned by source or documentation. Never store task progress, payloads, credentials, or user data.
+10. Hand final claims to `skill-verification-before-completion`. Store MCP Memory only for a verified recurring invariant or costly failure not already owned by source or documentation when active executor exposes it; under DeepAgents, use validated Codex handoff facts. Never store task progress, payloads, credentials, or user data.
 
 ## Common Mistakes
 
@@ -63,4 +63,4 @@ Reference request and response schemas; do not copy them.
 - changing shared authorization or error mapping without consumer impact
 - adding OpenAPI, MSW, registries, validators, or status systems not already needed
 - keeping completed sidecars as permanent parallel documentation
-- treating browser MCP evidence as replacement for committed tests
+- treating browser evidence as replacement for committed tests

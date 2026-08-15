@@ -15,7 +15,7 @@ Skills speak in actions ("dispatch a subagent", "create a todo", "read a file").
 | Fetch a URL | `WebFetch` |
 | Search the web | `WebSearch` |
 | Invoke a skill | `Skill` |
-| Dispatch a subagent (harness-selected project template) | `Agent` (older releases named this `Task`) |
+| Dispatch a subagent (`Subagent (general-purpose):` template) | `Agent` (older releases named this `Task`) |
 | Multiple parallel dispatches | Multiple `Agent` calls in one response |
 | Task tracking ("create a todo", "mark complete") | `TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet`; `TodoWrite` in `claude -p` / Agent SDK unless `CLAUDE_CODE_ENABLE_TASKS=1` is set |
 | Background-process / subagent lifecycle (read output, cancel) | `TaskOutput`, `TaskStop` |

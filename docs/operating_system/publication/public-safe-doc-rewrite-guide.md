@@ -149,7 +149,7 @@ Do not publish docs that still depend on:
 
 Examples of private-source docs:
 
-- `docs/adoption_guide.md`
+- `docs/operating_system/adoption/project-adoption-migration-guide.md`
 - starter migration runbooks
 - starter bootstrap checklists
 - internal publication workflow guidance

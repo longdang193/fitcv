@@ -20,7 +20,6 @@ Rebuild the starter kit after changing any shipped source-owned surface such as:
 - shipped root instruction docs (`GEMINI.md`, `CLAUDE.md`)
 - `.agents/skills/`
 - shipped `docs/operating_system/` docs
-- shipped `README.md`
 - shipped `repo_config/` starter inputs
 - shipped validator scripts or shipped tests
 - `repo_config/starter-kit-manifest.json`
@@ -37,6 +36,10 @@ generated_exports/project-OS-starter-kit/
 
 Treat that tree as disposable generated output.
 
+Use this generated path directly as starter-kit distribution. Do not maintain or
+sync a separate sibling `project-OS-starter-kit` folder. Rebuild this output
+from `project-OS-starter` before creating or refreshing a consumer repository.
+
 ## Rebuild Steps
 
 1. validate repo config inputs
@@ -48,7 +51,8 @@ Commands:
 
 ```powershell
 py -3 scripts/validate_repo_config.py
-py -3 scripts/sync_starter_kit.py
+py -3 scripts/build_starter_kit.py
+py -3 scripts/validate_starter_kit.py
 ```
 
 Optional focused regression commands:
@@ -76,9 +80,9 @@ Keep these procedures separate:
 - starter-kit procedure -> build consume-only clone-ready starter output
 - public mirror procedure -> curate product-facing public export
 - source-only adapter regeneration procedure -> maintain private factory/runtime
-  generation surfaces
+  generation surfaces outside starter output
 - private runtime-bundle procedures -> maintain local provider/runtime deployment
-  surfaces when applicable
+  surfaces outside starter output
 
 The starter kit ships final root instruction files for downstream use, but it
 must not ship downstream adapter-regeneration machinery.

@@ -8,21 +8,15 @@ Skills speak in actions ("dispatch a subagent", "create a todo", "read a file").
 | Create / edit / delete a file | `apply_patch` |
 | Run a shell command | `functions.exec_command` |
 | Search file contents | `functions.exec_command` with `rg` or `grep` |
-| Broad unknown-location local concept search | Semble MCP `search`, then inspect source or use Serena for exact symbols |
-| Preview repeated syntax-pattern matches | `sg` (ast-grep); preview candidates, then edit only with `apply_patch` |
 | Find files by name | `functions.exec_command` with `rg --files`, `find`, or `ls` |
 | Fetch a URL | `functions.exec_command` with `curl` / `wget`, or `web.open` when browsing is appropriate |
 | Search the web | `web.search_query` |
 | Invoke a skill | Skills load natively — just follow the instructions |
-| Dispatch a subagent (harness-selected `low`, `normal`, or `high`) | `spawn_agent` |
+| Dispatch a subagent (`Subagent (general-purpose):` template) | `spawn_agent` |
 | Multiple parallel dispatches | Multiple `spawn_agent` calls in one response |
 | Wait for subagent result | `wait_agent` |
 | Free up subagent slot when done | `close_agent` |
 | Task tracking ("create a todo", "mark complete") | `update_plan` |
-
-Use `docs/operating_system/tooling/code-intelligence-tools.md` for tool order,
-fallbacks, and no-duplicate-query rules. Semble and `sg` are optional; their
-absence never blocks safe source-first work.
 
 ## Instructions file
 

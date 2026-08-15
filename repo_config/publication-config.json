@@ -7,7 +7,6 @@
     ".agents",
     ".codex",
     ".cursor",
-    "agent-core",
     "docs/AGENTS.md",
     "docs/features",
     "docs/generated",

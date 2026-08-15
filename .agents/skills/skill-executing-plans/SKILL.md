@@ -17,60 +17,13 @@ This skill owns plan execution. It does not own design decisions, planning struc
 Before editing, confirm:
 
 - an approved implementation plan or explicit approved task sequence exists
-- behavioral and interface decisions needed for the next task are settled; do
-  not create a write-capable packet while required product facts remain unknown
+- behavioral and interface decisions needed for the next task are settled
 - workspace path, creation mechanism, branch or detached state, base branch, base commit, and current HEAD are understood
 - staged, unstaged, untracked, and unrelated user changes are understood and preserved
 - required credentials, dependencies, and external services for the next task are available, or the plan identifies a safe fallback
-
-For active plan-linked coordination, read `coordination-status` before run.
-Dispatch only a `ready` task through its immutable packet. Resume matching run
-with `--run-id` only when its run state is `planned` and plan digest and base
-commit still match; otherwise record handoff and create successor attempt. A
-terminal coordinated task failure is `blocked`: preserve its evidence and
-require approved successor plan/task identity before a fresh request. Never
-infer host-thread resume or write run state into plan.
+- for Git-tracked coordinated work, static Coordination State and task ledger match current Git evidence before editing; do not recover progress from thread or session state
 
 If the plan has a blocking design gap, stop and return it to `skill-spec-drafting` or `skill-writing-plans`. Do not invent design during execution.
-
-When source can resolve an unknown product fact, dispatch bounded read-only
-research before implementation. When it cannot, block for a requirements or
-specification decision. Do not use an implementer lane for open-ended discovery.
-
-## Package Harness Runtime
-
-For package-backed harnesses, use installed `harness-core` commands or a
-provider host, never copied consumer logic. Confirm `harness_core.request_api`
-and adapter `host_api` before packet work. Package, release tag, or provider
-absence is a blocker, not a local fallback.
-For `codex_app_server`, run `harness-core-launcher doctor`, `capabilities`, and
-`preflight` before packet work. Its active pointer selects the verified host
-release profile. Host-owned trusted user configuration selects the registered
-launcher or explicit external endpoint; never copy endpoint, launch-command, or
-credential values into repository guidance or packets. Never invoke bare
-`codex-harness-host`; PATH can resolve stale user-level tools and cannot prove
-the managed runtime.
-After host-source fix, follow
-[`managed-execution-adapter-contract.md`](../../../docs/operating_system/procedures/managed-execution-adapter-contract.md#committed-runtime-provenance)
-before product packet dispatch. `preflight` alone is insufficient; prove only
-changed imported runtime module is committed. Preserve unrelated host changes.
-
-Host returns baseline evidence before lane dispatch: root and parallel lanes use
-`packet_base` at exact packet base with a clean checkout; sequential dependents
-use `predecessor` only for direct materialized predecessor state. Core validates
-this evidence. `workspace_baseline_invalid` is a host/environment failure:
-preserve its evidence and repair workspace materialization, never reinterpret
-it as product scope or agent behavior.
-
-For current leased packets, core issues one finite lease before `running`. Host
-owns provider processes and returns packet-declared terminal evidence. Core
-finalizes external signed and legacy evidence through `terminalize_attempt(envelope)`;
-personal-local closure uses `harness-core-launcher close`. Evidence records
-`attempt_outcome/v2`; core auto-finalizes one-decision terminal outcomes and
-requires signed controller authority for ambiguous terminal outcomes. Core
-atomically records receipt, lease release, state history, and `run.json`. Do not
-write terminal state from a host or repair an `orphaned` attempt through retry
-or resume.
 
 ## Conditional References
 
@@ -80,24 +33,24 @@ Read only what the current task needs:
 - linked specification sections governing the active task
 - `skill-plan-document-reviewer` when a costly or high-risk plan has not received readiness review
 - `skill-using-git-worktrees` when isolation materially reduces risk
-- `skill-subagent-driven-development` when controller selects validated sequential-agent execution for separable approved tasks
+- `skill-subagent-driven-development` when approved tasks are separable, same-session sequential delegation is useful, and per-task commits are authorized
 - `skill-dispatching-parallel-agents` when two or more lanes have disjoint write ownership
 - `skill-systematic-debugging` after unexpected failures or unexplained behavior
 - `skill-test-driven-development` for non-trivial behavior changes or bug fixes
 - governance or publication rules only when those boundaries are in scope
-- configured MCP memory only when the task touches a known reusable workflow or repeats a recorded failure mode; follow `docs/operating_system/rules/agent-memory-rule.md`
+- configured MCP memory only when active executor exposes it and task touches a known reusable workflow or repeats a recorded failure mode; follow `docs/operating_system/rules/agent-memory-rule.md`
+
+When plan selects `deepagents`, its executor choice does not project Codex MCP
+tools, approval, sandbox, or shell policy. Current `dcode-project` forces
+`--no-mcp`. Keep task scope and Git acceptance executor-neutral; call required
+MCP through Codex and pass only validated `codex.mcp.handoff.v1` facts to
+DeepAgents.
 
 Do not load every linked document or skill by default.
 
-## Managed Friction Handoff
-
-For a managed terminal failure, return exact evidence and leave routes, skills,
-and policy unchanged. Core records friction; controller considers
-`skill-improve-harness` only after `friction-report` finds a recurring candidate.
-
 ## Code Intelligence
 
-Use native tools for direct file inspection and local search. Use Serena for exact symbols and references. Use GitNexus for broad flows or impact when fresh and materially useful. Do not query both by default. Source and tests remain authoritative.
+Use native tools for direct file inspection and local search. Use Serena for exact symbols and references. Use `semble_codebase_search` for unknown-location discovery. Use private read-only GitNexus for broad flows or impact only when available, fresh, and materially useful. Do not query multiple tools for the same fact by default. Source and tests remain authoritative.
 
 Before modifying a shared symbol, route, validator, generator, or orchestration function, inspect its direct consumers and affected tests. Fix root cause at the narrowest shared owner.
 
@@ -224,8 +177,10 @@ When all required plan tasks appear complete:
 4. invoke `skill-verification-before-completion`
 5. let that skill run fresh final proof, reconcile outcomes, tasks, deviations, and repository state, then set final plan status only when it returns `verified`
 
-Commit, push, merge, publish, delete, or clean worktrees only with explicit authorization.
-Do not stage files or emit a Git staging directive for blocked or unaccepted work.
+Create a local checkpoint commit only when active plan `Commit policy` explicitly
+preauthorizes verified per-task checkpoints. Push, merge, publish, delete,
+discard, destructive recovery, or clean worktrees only with explicit user
+authorization.
 
 ## Handoff
 

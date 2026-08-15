@@ -102,6 +102,5 @@ artifacts:
       - targets
       - related_features
       - related_stages
-      - coordination
     required_values:
       artifact_type: plan

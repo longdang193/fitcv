@@ -7,33 +7,24 @@ Use live code intelligence for discovery. Keep source, tests, and CI as truth.
 | Need | Default tool |
 |---|---|
 | Current files and small local changes | native code tools |
-| Broad unknown-location local concept search | optional Semble MCP |
-| Exact local text confirmation | `rg` |
 | Exact symbols, references, implementations, or diagnostics | Serena |
+| Unknown-location code concept or similar implementation | `semble_codebase_search` |
+| Structural search or safe edit preview | `ast_grep_preview` |
 | Execution flows, dependencies, impact analysis, or cross-repository contracts | GitNexus |
-| Repeated syntax-pattern preview | optional `sg` (ast-grep) |
 | Unfamiliar external GitHub repository structure, architecture summaries, or focused repository Q&A | DeepWiki |
 | Correctness and architecture enforcement | tests, static checks, CI |
 | Durable architecture boundaries and rationale | `docs/architecture.md`, ADRs |
 
 ## Handoff
 
-1. Do not query Serena and GitNexus for the same fact by default.
-2. Start with Serena when exact symbol scope is known.
-3. Start with GitNexus when broad flow or impact is unknown.
-4. Move from GitNexus to Serena only for exact identified symbols.
-5. Move from Serena to GitNexus only when local evidence exposes broader uncertainty.
-6. Current source and tests win every conflict.
-7. Tool absence or stale indexes never block safe source-first work.
-
-## Optional Semble And ast-grep
-
-- Semble is read-only and optional. Use only when broad local concept location
-  is unknown; fall back to native search, Serena, or GitNexus.
-- `sg` previews structural matches or JSON only. `apply_patch` remains sole
-  source edit path.
-- Semble MCP and ast-grep CLI are user-level choices, not repository or CI
-  dependencies. See `docs/operating_system/procedures/code-intelligence-tools-setup.md`.
+1. Start with native tools for current files and bounded scope.
+2. Use Serena when exact symbol scope is known.
+3. Use `semble_codebase_search` when location is unknown or similar code is needed.
+4. Use `ast_grep_preview` only for structural preview; source remains edit truth.
+5. Use optional GitNexus only when read-only private binding is available and broader flow or impact remains unknown.
+6. Do not query Serena, Semble, and GitNexus for the same fact by default.
+7. Current source and tests win every conflict.
+8. Tool absence or stale indexes never block safe source-first work.
 
 ## DeepWiki Workflow
 
@@ -52,9 +43,17 @@ Use live code intelligence for discovery. Keep source, tests, and CI as truth.
 - Keep dashboard disabled unless troubleshooting locally.
 - Never commit `.serena/`, memories, indexes, onboarding output, or generated wikis.
 
+## Semble And AST-Grep
+
+- Use `semble_codebase_search` for broad unknown-location code discovery or similar implementation lookup.
+- Use `ast_grep_preview` for structural matching or edit preview before a source edit.
+- Neither replaces Serena for exact references or native source inspection for current behavior.
+- Both are optional; fall back to `rg`, source inspection, and tests when unavailable.
+
 ## GitNexus
 
-- Keep GitNexus private-only and optional.
+- GitNexus is not a starter default. Use it only through a private read-only binding when one is available.
+- Limit use to `query`, `context`, `impact`, and `api_impact`; do not use `rename`, `group_sync`, or write operations.
 - Check freshness with `scripts/get_gitnexus_freshness.ps1` before high-trust impact or refactor use.
 - Refresh only when graph evidence materially helps.
 - Never make GitNexus refresh a universal completion gate.
@@ -91,3 +90,16 @@ Do not associate DeepWiki with execution, verification, testing, code-review, or
 No code-intelligence tool owns architecture or runtime behavior. Use `docs/architecture.md`
 for durable system shape, ADRs for significant decisions, and native tests/CI
 for enforceable boundaries.
+
+## Executor Boundary
+
+Tool IDs and permissions belong to active executor. Do not assume a Codex MCP
+tool, allowlist, approval setting, or result shape exists in DeepAgents. Current
+`dcode-project` runs DeepAgents with `--no-mcp`; available native capabilities
+depend on launch mode and task context, and current launcher grants no
+runtime-authority flags. Call required MCP through Codex, write
+`codex.mcp.handoff.v1` under user-local handoff root, then pass its path to
+`dcode-project --handoff-file`; launcher validates file and injects sanitized
+facts into task text. `--mcp-select` narrows Codex provenance only;
+it does not project tools into DeepAgents. Never paste credentials, raw tool
+configuration, cookies, headers, or approval authority into an executor prompt.

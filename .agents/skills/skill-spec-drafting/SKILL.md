@@ -33,7 +33,7 @@ Possible inputs include:
 - debugging reproduction, root cause, and regression boundary
 - existing code, tests, configuration, schemas, interfaces, and maintained docs
 - repository governance or publication constraints when in scope
-- external system state from relevant MCP or native tools
+- external system state from relevant native tools or MCP exposed by active executor; under DeepAgents, use validated Codex handoff facts
 
 Treat brainstorming as exploratory evidence until accepted decisions are restated in specification. Treat debugging symptom separately from verified root cause.
 
@@ -65,8 +65,9 @@ Implementation plan owns exact files, task order, commands, dependencies, rollou
 
 - Use native tools for direct file inspection, local search, configuration, tests, and repository state.
 - Use Serena for exact symbols, definitions, callers, references, implementations, and diagnostics.
-- Use GitNexus for broad flows, dependency impact, duplication, or ownership analysis when fresh and materially useful.
-- Use domain MCP tools for external services, databases, models, reports, or platform state.
+- Use `semble_codebase_search` for unknown-location code discovery or similar implementations.
+- Use private read-only GitNexus for broad flows, dependency impact, duplication, or ownership analysis only when available, fresh, and materially useful.
+- Use domain MCP tools exposed by active executor for external services, databases, models, reports, or platform state. Under DeepAgents, Codex supplies validated handoff facts.
 - Do not query every tool by default. Source and tests remain authoritative.
 
 ### Evidence Discipline

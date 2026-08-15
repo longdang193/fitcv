@@ -284,7 +284,6 @@ function Assert-NoPrivateReferences {
         '\.agents/',
         '\.codex/',
         '\.cursor/',
-        'agent-core/',
         'docs/operating_system/',
         'docs/superpowers/',
         '/[A-Za-z]:/',
@@ -489,7 +488,6 @@ function Remove-PrivateReferenceLines {
         'AGENTS\.md',
         'docs/superpowers/',
         'docs/operating_system/',
-        'agent-core/',
         '\.codex/',
         '\.agents/',
         '\.cursor/'

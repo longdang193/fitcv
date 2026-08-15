@@ -26,11 +26,26 @@ Require a fresh `verified` result from `skill-verification-before-completion` co
 
 If verification is missing, stale, incomplete, or blocked, stop.
 
+## Delegated Executor Boundary
+
+When verified work used DeepAgents or another delegated executor:
+
+- Treat executor output as claims. Require current Git evidence and the verified
+  handoff from `skill-verification-before-completion` before disposition.
+- Never stage executor-local runtime state, `.deepagents/`, credentials,
+  provider bindings, or user-local handoff artifacts. Canonical in-scope
+  repository configuration such as `agents/*.toml` remains eligible.
+- `BLOCKED`, `FAIL`, missing proof, or workspace mismatch prevents completion
+  disposition. Preserve current changes and return the required controller
+  decision.
+- This skill does not launch, resume, or clean executor runtime state. Run only
+  repository-declared generated-surface checks required by the verified handoff.
+
 ## Authorization Rule
 
 Verification makes closure actions eligible. User authorization selects action.
 
-Do not commit, fetch, pull, create branch, rebase, merge, push, create or update pull request, apply or drop stash, delete branch, prune metadata, or remove worktree without explicit authorization for that action.
+Do not commit, fetch, pull, create branch, rebase, merge, push, create or update pull request, apply or drop stash, delete branch, prune metadata, or remove worktree without explicit authorization for that action. Exception: execution may create a verified local checkpoint commit when active approved plan explicitly preauthorizes it; this closing skill does not create that checkpoint.
 
 Never infer a file is “superseded.” Before reconciliation can remove or overwrite
 content, show every overlapping file with hashes and diff summary, then require an

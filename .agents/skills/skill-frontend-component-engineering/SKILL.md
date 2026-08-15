@@ -47,7 +47,7 @@ A searchable table whose filters, sort, page, and tab must survive refresh and s
 - verify pending, retry, duplicate submission, failure restoration, and server reconciliation for mutations
 - add the smallest focused regression check using existing test tooling
 - follow `docs/operating_system/rules/frontend-ui-rule.md` for browser and accessibility evidence
-- use Context7 only for version-specific framework or accessibility-library questions not answered by pinned project sources
+- use Context7 only when active executor exposes it for version-specific framework or accessibility-library questions not answered by pinned project sources; under DeepAgents, use validated Codex handoff facts
 
 ## Common Mistakes
 

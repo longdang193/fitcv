@@ -123,3 +123,17 @@ def test_validator_allows_missing_starter_kit_manifest_file() -> None:
         assert "repo config validation passed" in result.stdout.lower()
     finally:
         rmtree(test_root, ignore_errors=True)
+
+
+def test_deepagents_runtime_state_is_ignored() -> None:
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", ".deepagents/config.toml"],
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    assert ignored.returncode == 0
+    assert subprocess.run(
+        ["git", "check-ignore", "--no-index", "-q", ".deepagents/agents/generated/AGENTS.md"],
+        cwd=REPO_ROOT,
+        check=False,
+    ).returncode == 0

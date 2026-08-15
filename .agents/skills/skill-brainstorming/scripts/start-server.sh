@@ -98,9 +98,9 @@ fi
 
 cd "$SCRIPT_DIR"
 
-# Resolve the harness PID (grandparent of this script).
-# $PPID is the ephemeral shell the harness spawned to run us — it dies
-# when this script exits. The harness itself is $PPID's parent.
+# Resolve parent process PID (grandparent of this script).
+# $PPID is ephemeral shell that started this script — it dies
+# when this script exits. Parent process is $PPID's parent.
 OWNER_PID="$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ')"
 if [[ -z "$OWNER_PID" || "$OWNER_PID" == "1" ]]; then
   OWNER_PID="$PPID"

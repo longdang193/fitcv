@@ -12,7 +12,9 @@ Define durable ownership boundaries for private development, reusable agent meth
 
 ### Starter Kit
 
-`project-OS-starter-kit` is generated consume-only output. Build it from `repo_config/starter-kit-manifest.json`; do not author changes directly in generated output.
+`generated_exports/project-OS-starter-kit` is generated consume-only output.
+Build it from `repo_config/starter-kit-manifest.json`; do not author changes
+directly in generated output or maintain a separate sibling kit copy.
 
 ### Public Repository
 
@@ -77,23 +79,20 @@ Canonical sources are edited directly; generated surfaces are regenerated.
 - `.agents/skills/` is canonical skill source.
 - `docs/operating_system/rules/` and rules are canonical governance sources.
 - `generated_agents/` contains provider packaging.
-- `.agents/rules/` and `.codex/rules/` are generated adapter surfaces where configured.
+- `.agents/rules/` is generated from canonical rules for supported local runtimes.
 - `generated_exports/project-OS-starter-kit/` is disposable starter output.
-- A deployed sibling `project-OS-starter-kit/` is also derived output. Rebuild
-  both outputs with `scripts/sync_starter_kit.py`; its parity check rejects
-  stale, missing, or manually changed deployed files.
 
 If generated output conflicts with canonical source, fix source or mapping and regenerate. Never maintain both manually.
 
 ## Code Intelligence
 
-Use native tools for local work, Serena for exact symbols and references, and GitNexus for broad flows or impact when fresh. Do not query both by default. Source and tests win every conflict; optional tooling never blocks safe work.
+Use native tools for local work, Serena for exact symbols and references, `semble_codebase_search` for unknown-location code discovery, and `ast_grep_preview` for structural preview when available. Use private read-only GitNexus for broad flows or impact only when available and fresh. Do not query multiple tools for the same fact by default. Source and tests win every conflict; optional tooling never blocks safe work.
 
 Detailed policy lives in `docs/operating_system/tooling/code-intelligence-tools.md`.
 
 ## Agent Memory
 
-Configured MCP Memory Server stores verified reusable lessons outside repository. Use it conditionally for recorded invariants, recurring failures, resumed work, or known operational constraints. Memory never overrides source, tests, ADRs, current governance, or explicit instructions.
+Configured MCP Memory Server stores verified reusable lessons outside repository when active executor exposes it. Under `dcode-project`, Codex handles required memory calls and passes validated handoff facts. Use it conditionally for recorded invariants, recurring failures, resumed work, or known operational constraints. Memory never overrides source, tests, ADRs, current governance, or explicit instructions.
 
 Canonical policy: `docs/operating_system/rules/agent-memory-rule.md`.
 
@@ -113,7 +112,6 @@ Detailed policy lives in `docs/operating_system/publication/public-repo-publicat
 Keep only configuration with an active consumer. `repo_config/` currently owns:
 
 - `planning_artifact_schema.yaml`
-- `harness.yaml`
 - `publication-config.json`
 - `starter-kit-manifest.json`
 

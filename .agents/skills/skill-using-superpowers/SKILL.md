@@ -28,13 +28,7 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 ## How to Access Skills
 
-Use platform skill loader when available. Do not force a skill-announcement step.
-
-**In Claude Code:** Use the `Skill` tool. Follow loaded instructions.
-
-**In Codex:** Skills load natively. Follow activated skill instructions.
-
-**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins.
+**Never read skill files manually with file tools** — always use your platform's skill-loading mechanism so the skill is properly activated.`r`n`r`n**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly.`r`n`r`n**In Codex:** Skills load natively. Follow the instructions presented when a skill activates.`r`n`r`n**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins.
 
 **In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
 
@@ -45,12 +39,6 @@ Use platform skill loader when available. Do not force a skill-announcement step
 Skills speak in actions ("dispatch a subagent", "create a todo", "read a file") rather than naming any one runtime's tools. For per-platform tool equivalents and instructions-file conventions, see `references/claude-code-tools.md`, `references/codex-tools.md`, `references/copilot-tools.md`, `references/gemini-tools.md`, `references/pi-tools.md`, and `references/antigravity-tools.md`. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
 
 # Using Skills
-
-## Harness Packets
-
-When controller provides validated harness packet, use only its selected skills.
-Rules remain mandatory. A new skill request requires controller reroute and packet regeneration.
-Without packet, keep source-first skill discovery.
 
 ## The Rule
 
@@ -110,7 +98,7 @@ These thoughts mean STOP—you're rationalizing:
 When multiple skills could apply, use this order:
 
 1. **Process skills first** (skill-brainstorming, systematic-debugging) - these determine HOW to approach the task
-2. **Implementation skills second** (skill-distinctive-frontend-design, ui-ux-pro-max, mcp-builder) - these guide execution
+2. **Implementation skills second** (for example `skill-distinctive-frontend-design` or `ui-ux-pro-max`) - these guide execution
 
 "Let's build X" → skill-brainstorming first, then implementation skills.
 "Fix this bug" → debugging first, then domain-specific skills.

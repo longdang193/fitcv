@@ -40,17 +40,6 @@ import json
 
 STARTER_KIT_CLASSIFICATION_ENFORCEMENT = "fail"
 STARTER_KIT_DISTRIBUTION_TIER = "starter_kit"
-HARNESS_SHIM_IMPORTS = {
-    "scripts/harness_task.py": "harness_core_launcher",
-    "scripts/plan_coordination.py": "harness_core.coordination",
-    "scripts/planning_artifact_schema.py": "harness_core.planning_schema",
-    "scripts/validate_harness_config.py": "harness_core_launcher",
-}
-PACKAGE_RUNTIME_SCRIPT_NAMES = {
-    "validate_harness_config.py",
-    "validate_planning_lifecycle.py",
-    "validate_template_required_sections.py",
-}
 
 
 @dataclass(frozen=True)
@@ -58,20 +47,6 @@ class ValidationIssue:
     category: str
     path: str
     message: str
-
-
-def validate_harness_shims(root: Path) -> list[ValidationIssue]:
-    issues: list[ValidationIssue] = []
-    forbidden = re.compile(r"\bdef\s+(?:run_managed|resolve_managed_packet|resolve_task|verify_task|validate)\b|importlib\.util")
-    for relative, expected_import in HARNESS_SHIM_IMPORTS.items():
-        path = root / relative
-        if not path.is_file():
-            issues.append(ValidationIssue("harness_shim", relative, "missing shim"))
-            continue
-        source = path.read_text(encoding="utf-8")
-        if expected_import not in source or forbidden.search(source):
-            issues.append(ValidationIssue("harness_shim", relative, "must delegate to package without core implementation"))
-    return issues
 
 
 def repo_root() -> Path:
@@ -126,8 +101,6 @@ IN_PROCESS_SCRIPT_NAMES = {
     "validate_generated_header_format.py",
     "validate_agent_runtime_drift.py",
     "validate_repo_config.py",
-    "validate_harness_config.py",
-    "render_harness_routing.py",
 }
 
 @lru_cache(maxsize=64)
@@ -188,10 +161,6 @@ def run_step(command: list[str], *, cwd: Path) -> int:
     return completed.returncode
 
 
-def harness_core_python() -> list[str]:
-    return ["uv", "run", "--package", "harness-core", "python"]
-
-
 def build_subprocess_steps(
     *,
     root: Path,
@@ -203,29 +172,24 @@ def build_subprocess_steps(
     learning_format_script = str(root / "scripts" / "validate_learning_materials_format.py")
     prompt_metadata_schema_script = str(root / "scripts" / "validate_prompt_metadata_schema.py")
     repo_config_script = str(root / "scripts" / "validate_repo_config.py")
-    harness_config_script = str(root / "scripts" / "validate_harness_config.py")
-    harness_routing_script = str(root / "scripts" / "render_harness_routing.py")
     agent_metadata_schema_script = str(root / "scripts" / "validate_agent_metadata_schema.py")
-    generated_header_script = str(root / "scripts" / "validate_generated_header_format.py")
     env_gitignore_contract_script = str(root / "scripts" / "validate_env_gitignore_contract.py")
-    agent_runtime_drift_script = str(root / "scripts" / "validate_agent_runtime_drift.py")
-
-    def package_runtime(script: str) -> list[str]:
-        return [*harness_core_python(), script]
 
     steps: list[list[str]] = [
-        package_runtime(planning_lifecycle_script),
-        package_runtime(template_sections_script),
+        [python_executable, planning_lifecycle_script],
+        [python_executable, template_sections_script],
         [python_executable, learning_format_script],
         [python_executable, prompt_metadata_schema_script],
         [python_executable, agent_metadata_schema_script],
-        [python_executable, generated_header_script],
         [python_executable, env_gitignore_contract_script],
-        [python_executable, agent_runtime_drift_script, "--skip-deploy-check"],
     ]
+    generated_header_script = root / "scripts" / "validate_generated_header_format.py"
+    if generated_header_script.is_file():
+        steps.append([python_executable, str(generated_header_script)])
+    agent_runtime_drift_script = root / "scripts" / "validate_agent_runtime_drift.py"
+    if agent_runtime_drift_script.is_file():
+        steps.append([python_executable, str(agent_runtime_drift_script), "--skip-deploy-check"])
     steps.append([python_executable, repo_config_script])
-    steps.append([*package_runtime(harness_config_script), "--repo-root", str(root)])
-    steps.append([python_executable, harness_routing_script, "--repo-root", str(root), "--check"])
     if not fast:
         pytest_targets = [
             "tests/test_validate_repo_config.py",
@@ -234,7 +198,7 @@ def build_subprocess_steps(
         ]
         steps.append(
             [
-                *harness_core_python(),
+                python_executable,
                 "-m",
                 "pytest",
                 "--basetemp",
@@ -262,17 +226,30 @@ def _is_metadata_capable(path: Path) -> bool:
 def _analyze_metadata_file(path: Path) -> tuple[bool, bool]:
     text = path.read_text(encoding="utf-8", errors="ignore")
     is_metadata_capable = False
+    metadata_text = ""
     if path.suffix == ".py":
-        is_metadata_capable = "@meta" in "\n".join(text.splitlines()[:30])
+        metadata_text = "\n".join(text.splitlines()[:30])
+        is_metadata_capable = "@meta" in metadata_text
+        if is_metadata_capable:
+            meta_offset = metadata_text.index("@meta")
+            for delimiter in ('"""', "'''"):
+                start = metadata_text.rfind(delimiter, 0, meta_offset)
+                end = metadata_text.find(delimiter, meta_offset)
+                if start != -1 and end != -1:
+                    metadata_text = metadata_text[start:end]
+                    break
     elif path.suffix == ".md":
-        is_metadata_capable = text.startswith("---\n")
+        marker_end = text.find("\n---", 3)
+        is_metadata_capable = text.startswith("---\n") and marker_end != -1
+        if is_metadata_capable:
+            metadata_text = text[: marker_end + 4]
     has_starter_kit_tier = False
     if is_metadata_capable:
         pattern = re.compile(
             rf"^\s*(?:#\s*)?distribution_tier:\s*{re.escape(STARTER_KIT_DISTRIBUTION_TIER)}\s*$",
             re.MULTILINE,
         )
-        has_starter_kit_tier = bool(pattern.search(text))
+        has_starter_kit_tier = bool(pattern.search(metadata_text))
     return is_metadata_capable, has_starter_kit_tier
 
 
@@ -289,8 +266,10 @@ def _iter_files_pruned(root: Path) -> list[Path]:
     }
     files: list[Path] = []
     for current_root, dirnames, filenames in os.walk(root):
-        dirnames[:] = [name for name in dirnames if name not in excluded_dirs]
         current_path = Path(current_root)
+        if current_path == root / ".agents":
+            dirnames[:] = [name for name in dirnames if name != "rules"]
+        dirnames[:] = [name for name in dirnames if name not in excluded_dirs]
         for filename in filenames:
             files.append(current_path / filename)
     return files
@@ -457,7 +436,7 @@ def main(argv: list[str] | None = None) -> int:
         if patched:
             print(f"Starter-kit distribution tier sync patched {patched} file(s).")
 
-    classification_issues = [*validate_starter_kit_classification(root), *validate_harness_shims(root)]
+    classification_issues = validate_starter_kit_classification(root)
 
     if classification_issues:
         if STARTER_KIT_CLASSIFICATION_ENFORCEMENT == "fail":
