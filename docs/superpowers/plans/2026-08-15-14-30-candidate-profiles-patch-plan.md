@@ -179,6 +179,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Active task: `task-1-freeze-candidate-profile-contracts`
 - Next eligible task: `task-2-canonical-profile-lifecycle-api` after Task 1 acceptance
 - Last accepted checkpoint: `93baf43b6f522518281b1e21d8f09cff352d7c14`
+- Task 1 latest attempt: `FAIL` — `tests/test_candidate_profile_ingest.py` collection raised `NameError: DOCX_MEDIA_TYPE is not defined`; retry must restore existing upload-test constant and rerun focused proof.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
