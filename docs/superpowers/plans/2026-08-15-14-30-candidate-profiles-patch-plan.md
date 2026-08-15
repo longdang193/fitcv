@@ -184,7 +184,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
 - Task 4 accepted proof: `PASS` — template, app, and local route suites passed `489 tests`; clean Git diff.
 - Task 5 accepted proof: `PASS` — settings suites passed `218 passed, 1 skipped`; compile and diff checks passed.
-- Task 6 latest attempt: `BLOCKED` — isolated lifecycle proof passed `13 tests`, supplied CV hashes stayed unchanged, but affected full suite returned `10 failed, 1827 passed, 1 skipped`; browser/live-service evidence remains unavailable to DeepAgents.
+- Task 6 latest attempt: `BLOCKED` — isolated lifecycle proof completed in `86.46s`, but affected full suite returned `106 failed, 2522 passed, 1 skipped`; no repository changes were produced, and browser/live-service evidence remains unavailable to DeepAgents.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
