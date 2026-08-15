@@ -37,6 +37,7 @@ from fitcv_cp.models import (
 )
 from fitcv_cp.orchestrator import RunSubmission
 from fitcv_cp import sqlite_store
+from fitcv_cp.backend_runtime import set_backend_runtime
 
 _TEST_DATABASE_ROOT = tempfile.TemporaryDirectory(prefix="fitcv-cp-app-tests-")
 
@@ -76,6 +77,7 @@ def test_candidate_profile_review_patch_uses_ordered_id_addressed_operations() -
 
 def _app():
     os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
+    set_backend_runtime(None)
     database_path = Path(_TEST_DATABASE_ROOT.name) / f"{uuid.uuid4()}.sqlite3"
     os.environ["FITCV_CP_SQLITE_PATH"] = str(database_path)
     sqlite_store.initialize_control_plane_database(

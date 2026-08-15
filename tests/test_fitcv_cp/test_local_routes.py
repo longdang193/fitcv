@@ -544,11 +544,19 @@ def test_wrong_host_is_rejected(local_client: TestClient) -> None:
 
 def test_every_unsafe_route_requires_same_origin(local_client: TestClient) -> None:
     unsafe_methods = {"POST", "PUT", "PATCH", "DELETE"}
-    routes = [
-        (method, route.path)
-        for route in local_client.app.routes
-        for method in sorted(set(route.methods or ()) & unsafe_methods)
-    ]
+
+    def iter_routes(routes):
+        for route in routes:
+            methods = getattr(route, "methods", None)
+            path = getattr(route, "path", None)
+            if methods and path:
+                for method in sorted(set(methods) & unsafe_methods):
+                    yield method, path
+            children = getattr(route, "routes", None)
+            if children:
+                yield from iter_routes(children)
+
+    routes = list(iter_routes(local_client.app.routes))
 
     assert routes
     for method, path in routes:
