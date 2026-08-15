@@ -104,6 +104,15 @@ coordination:
         - tests/test_fitcv_cp/test_worker_job.py
         - tests/test_pipeline_checkpoint_contract.py
         - tests/test_pipeline_stage_resume_parity.py
+    - id: task-8-hydrate-candidate-profile-llm-tasks
+      depends_on: [task-5-settings-output-propagation]
+      execution_mode: inline_sequential
+      dcode_role: normal
+      allowed_paths:
+        - src/fitcv_cp/settings_store.py
+        - tests/test_fitcv_cp/test_settings_store.py
+        - tests/test_fitcv_cp/test_settings_store_sqlite.py
+        - tests/test_fitcv_cp/test_provider_routing.py
 targets:
   - docs/fitcv-settings-ui-prototype.integration.md
   - docs/api.md
@@ -176,14 +185,15 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Branch: `main`
 - Base commit: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Plan status: `active`
-- Active task: `task-6-isolated-end-to-end-verification`
-- Next eligible task: `none` — Task 6 is blocked on validated provider/model availability for live generation
-- Last accepted checkpoint: `b5b2a8ff2cdb6e4fbbee2a28f2ebe06fadb5de06`
+- Active task: `task-8-hydrate-candidate-profile-llm-tasks`
+- Next eligible task: `task-8-hydrate-candidate-profile-llm-tasks`
+- Last accepted checkpoint: `2574e540`
 - Task 7 proof: `PASS` — deprecated harness consumers and stale coordination shim/tests removed; template/coordination checks pass; no tracked references to `harness_core_launcher`, `harness_task.py`, `validate_harness_config.py`, or `plan_coordination` remain.
 - Repository gate: `BLOCKED` outside Task 7 — full suite reports `2524 passed, 1 skipped, 2 failed`; failures are learning-format validation in `docs/learning` and unrelated `test_ai_score.py` behavior.
 - Task 6 latest attempt: `BLOCKED` — local FitCV service started and browser reached Candidate Profiles on August 15, 2026. Uploading `2026-06-24-Munich_Electrification-CV.md` created a failed draft, then returned `candidate_profile_llm_unavailable`; LLM Configuration showed no validated models and every provider showed `No connection`. Beiersdorf live generation remains blocked by the same provider prerequisite.
 - Task 6 DeepAgents diagnosis: `BLOCKED` — bounded `dcode-project --role normal` read-only diagnosis made no file changes and stopped on `UnicodeDecodeError` while reading an unrelated non-UTF-8 file; no repository evidence supports resolving provider readiness without configured credentials or a validated local model.
 - Task 6 xhigh provider audit: `BLOCKED` — credential-free local generation is unsupported; eligible models require verified connection, configured credential, validated model, and matching connection revision (`src/fitcv_cp/provider_registry.py:125-132`, `src/fitcv_cp/provider_registry.py:156-170`). Real-provider setup requires connection test, persisted verified connection, model test, and model registration through the API Provider detail flow (`src/fitcv_cp/templates/api_provider_detail.html:42-51`).
+- Task 6 live configuration proof: `BLOCKED` — provider connection and `cx/gpt-5.4-mini` model validate, but the persisted LLM configuration snapshot contains only four tasks and omits `candidate_profile_base_mapping` and `candidate_profile_derived_claims`; runtime routing therefore returns `LLM routing is unavailable for candidate_profile_base_mapping`. Repository DB `data/fitcv_cp.sqlite3` reports schema `0`, while local FitCV DB reports schema `5`; no source files changed during probe.
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
@@ -204,6 +214,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 | `task-5-settings-output-propagation` | task 4 | completed | `dcode-project --role normal` | Codex |
 | `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | blocked | `dcode-project --role xhigh` | Codex |
 | `task-7-remove-deprecated-harness-consumers` | none | completed | `dcode-project --role normal` | Codex |
+| `task-8-hydrate-candidate-profile-llm-tasks` | task 5 | in_progress | `dcode-project --role normal` | Codex |
 
 ## Constraints and Decisions
 
