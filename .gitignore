@@ -30,6 +30,13 @@ data/*dataset_linkedin-jobs-scraper*.json
 *.local.*
 
 # SQLite WAL/SHM sidecars (created when WAL enabled)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
 *.sqlite3-wal
 *.sqlite3-shm
 
