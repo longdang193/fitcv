@@ -1,4 +1,0 @@
-command: .\\scripts\\smoke_fitcv_local.ps1 -BundlePath .\\dist\\fitcv-local
-status: passed
-elapsed_seconds: 4.069
-build_id: packaged-prompt-timeout-fix

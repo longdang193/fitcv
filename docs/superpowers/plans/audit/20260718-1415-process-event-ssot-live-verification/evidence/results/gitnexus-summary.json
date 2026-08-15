@@ -1,7 +1,0 @@
-{
-  "risk_level": "critical",
-  "affected_symbols": 53,
-  "changed_symbols": 139,
-  "changed_files": 16,
-  "disposition": "review required before final branch closure"
-}

@@ -1,5 +1,0 @@
-Captured At: 2026-07-17T13:14:17+02:00
-Producer: user manual launch
-Command: dist\fitcv-local\fitcv-local.exe
-Expected: browser opens usable FitCV Local page; executable/installer shows FitCV icon.
-Actual: browser opened http://127.0.0.1:63864/ and returned 404 {"detail":"Not Found"}; PyInstaller and Inno Setup had no configured application icon. System tray screenshot contains no FitCV entry because tray integration is not part of approved distribution scope.

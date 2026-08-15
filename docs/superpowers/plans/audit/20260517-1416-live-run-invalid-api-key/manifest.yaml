@@ -1,7 +1,0 @@
-audit_id: 20260517-1416-live-run-invalid-api-key
-title: Live run degraded due to invalid OpenAI API key
-status: open
-created_at: 2026-05-17
-scope: workflow-live-run-debugging cv_generation provider boundary
-fingerprint: openai-401-invalid-api-key-agentic-live-provider
-

@@ -1,9 +1,0 @@
-{
-  "ok": true,
-  "failure_code": null,
-  "http_status": null,
-  "elapsed_seconds": 2.955,
-  "provider": "9router",
-  "model": "cx/gpt-5.4-mini",
-  "wire_api": "chat_completions"
-}

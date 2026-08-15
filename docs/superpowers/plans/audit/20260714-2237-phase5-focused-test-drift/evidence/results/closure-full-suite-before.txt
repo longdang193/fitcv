@@ -1,8 +1,0 @@
-Captured: 2026-07-15T11:16:32+02:00
-Command: python -m pytest -q
-Result: failed
-Summary: 1 failed, 1930 passed, 3 skipped
-Failure: tests/test_fitcv_cp/test_main.py::test_build_app_defaults_to_inline_when_no_redis_url_is_set
-Expected: FITCV_CP_INLINE_EXECUTION == "1" when Windows startup has no REDIS_URL
-Actual: FITCV_CP_INLINE_EXECUTION == "false"
-Root cause: build_app reloaded the false-like dotenv value, and the Windows safety guard treated any non-empty value as authoritative even though no queue backend was configured.
