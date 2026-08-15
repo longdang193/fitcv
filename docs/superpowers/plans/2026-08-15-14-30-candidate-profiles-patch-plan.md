@@ -180,6 +180,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Next eligible task: `task-3-job-pipeline-snapshot-contract` after Task 2 acceptance
 - Last accepted checkpoint: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
+- Task 2 latest attempt: `BLOCKED` — run cancelled before edits after prohibited nested delegation attempt; direct-only retry required.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
