@@ -42,6 +42,8 @@ stop and use `skill-spec-drafting`.
 
 - Read the approved specification in full when one exists.
 - Use `docs/operating_system/templates/implementation-plan-template.md` when saving a canonical plan.
+- Read `docs/operating_system/rules/git-tracked-coordination-rule.md` when
+  execution needs durable multi-task coordination or recovery.
 - Read governance only when ownership, generation, publication, or repository boundaries affect execution.
 - Use native tools for local file mapping, Serena for exact symbols and references, `semble_codebase_search` for unknown-location discovery, and private read-only GitNexus for broad flow or impact only when available, fresh, and materially useful. Do not query multiple tools for the same fact by default.
 - Read related execution skills only when the chosen execution approach requires them.
@@ -106,11 +108,21 @@ Select one:
 - `subagent-ready`: tasks have clear ownership and can be delegated independently
 - `parallel-capable`: two or more lanes have disjoint write sets and no hidden ordering dependency
 
+Select coordination separately:
+
+- `none`: small reversible execution that does not need durable multi-task resume
+- `git-tracked`: multi-task, delegated, checkpointed, or parallel-writer work
+
+For `git-tracked`, initialize Coordination State and task ledger before
+execution. Record one coordination owner, branch and base expectations,
+workspace ownership, dependencies, required proof, blockers, and next action.
+
 Also state:
 
 - required skills per task or lane
-- optional worktree need
-- commit policy; `skill-subagent-driven-development` requires explicit per-task commit authorization
+- required isolation: current workspace, task-specific isolated worktree, or
+  per-writer isolated worktrees
+- commit policy; checkpoint commits are created by the lead after acceptance
 - shared files or symbols that force serialization
 - sequential fallback when delegation or parallel execution is unavailable
 

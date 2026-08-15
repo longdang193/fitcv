@@ -1,19 +1,19 @@
 ---
 name: skill-subagent-driven-development
-description: Use when executing an approved implementation plan through sequential fresh subagents with task-level review in the current session.
+description: Use when executing an approved implementation plan through sequential fresh subagents with task-level review in the selected lead session.
 required_reads: []
 distribution_tier: starter_kit
 ---
 # Subagent-Driven Development
 
-Execute an approved plan by dispatching a fresh implementer subagent per task, reviewing spec compliance and code quality after each task, then requesting a broad whole-branch review.
+Execute an approved plan by dispatching a fresh implementer subagent per task, reviewing spec compliance and code quality after each task, then requesting a broad whole-branch review. The lead controller owns durable plan transitions and checkpoint commits.
 
 **Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
 
 **Core principle:** Fresh subagent per task + task review (spec + quality) + broad final review = bounded context with early defect detection
 
-**Narration:** between tool calls, narrate at most one short line — the
-ledger and the tool results carry the record.
+**Narration:** between tool calls, narrate at most one short line — the plan
+ledger and tool results carry the record.
 
 **Continuous execution:** Do not pause to check in with your human partner between tasks. Execute all tasks from the plan without stopping. The only reasons to stop are: BLOCKED status you cannot resolve, ambiguity that genuinely prevents progress, or all tasks complete. "Should I continue?" prompts and progress summaries waste their time — they asked you to execute the plan, so execute it.
 
@@ -23,7 +23,8 @@ ledger and the tool results carry the record.
 - For Git-tracked coordinated work, static Coordination State and task ledger own recovery. Before dispatch, one lead controller reconciles them with plan-plus-Git evidence under `docs/operating_system/procedures/personal-local-worktree-procedure.md`.
 - When dispatching subagents, follow the active `Subagent Routing` policy. Select the agent type explicitly and never override its template model or reasoning effort.
 - Tasks must be separable enough for isolated briefs, but implementers remain sequential in one workspace.
-- Explicit authorization for per-task commits is required because `scripts/review-package` uses recorded commit ranges. Without that authorization, use `skill-executing-plans` directly.
+- Implementers do not create checkpoint commits. The lead reviews the working
+  tree and accepted proof, then creates any authorized checkpoint commit.
 - Use `skill-using-git-worktrees` when isolation materially reduces risk; an already-safe workspace does not require a new worktree.
 - Use `skill-dispatching-parallel-agents` instead when independent lanes should run concurrently with disjoint write ownership.
 - When plan selects `deepagents`, delegate through one bounded built-in `task` and
@@ -68,7 +69,7 @@ digraph when_to_use {
 ```
 
 **vs. Executing Plans (direct or handoff execution):**
-- Same session (no context switch)
+- Fresh implementer and reviewer context per task
 - Fresh subagent per task (no context pollution)
 - Review after each task (spec compliance + code quality), broad review at the end
 - Review loop stays in one coordinating session
@@ -84,30 +85,30 @@ digraph process {
         "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
         "Implementer subagent asks questions?" [shape=diamond];
         "Answer questions, provide context" [shape=box];
-        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Implementer subagent implements, tests, self-reviews" [shape=box];
         "Write diff file, dispatch task reviewer subagent (./task-reviewer-prompt.md)" [shape=box];
         "Task reviewer reports spec ✅ and quality approved?" [shape=diamond];
         "Dispatch fix subagent for Critical/Important findings" [shape=box];
-        "Mark task complete in todo list and progress ledger" [shape=box];
+        "Lead accepts proof and updates plan task ledger" [shape=box];
     }
 
-    "Read plan, note context and global constraints, create todos" [shape=box];
+    "Read plan, note context and global constraints; use disposable checklist only if useful" [shape=box];
     "More tasks remain?" [shape=diamond];
     "Dispatch final code reviewer subagent (../skill-requesting-code-review/code-reviewer.md)" [shape=box];
     "Use skill-verification-before-completion" [shape=box style=filled fillcolor=lightgreen];
     "Use skill-finishing-a-development-branch when authorized" [shape=box];
 
-    "Read plan, note context and global constraints, create todos" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Read plan, note context and global constraints; use disposable checklist only if useful" -> "Dispatch implementer subagent (./implementer-prompt.md)";
     "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
     "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
     "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
-    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
-    "Implementer subagent implements, tests, commits, self-reviews" -> "Write diff file, dispatch task reviewer subagent (./task-reviewer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, self-reviews" -> "Write diff file, dispatch task reviewer subagent (./task-reviewer-prompt.md)";
     "Write diff file, dispatch task reviewer subagent (./task-reviewer-prompt.md)" -> "Task reviewer reports spec ✅ and quality approved?";
     "Task reviewer reports spec ✅ and quality approved?" -> "Dispatch fix subagent for Critical/Important findings" [label="no"];
     "Dispatch fix subagent for Critical/Important findings" -> "Write diff file, dispatch task reviewer subagent (./task-reviewer-prompt.md)" [label="re-review"];
-    "Task reviewer reports spec ✅ and quality approved?" -> "Mark task complete in todo list and progress ledger" [label="yes"];
-    "Mark task complete in todo list and progress ledger" -> "More tasks remain?";
+    "Task reviewer reports spec ✅ and quality approved?" -> "Lead accepts proof and updates plan task ledger" [label="yes"];
+    "Lead accepts proof and updates plan task ledger" -> "More tasks remain?";
     "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
     "More tasks remain?" -> "Dispatch final code reviewer subagent (../skill-requesting-code-review/code-reviewer.md)" [label="no"];
     "Dispatch final code reviewer subagent (../skill-requesting-code-review/code-reviewer.md)" -> "Use skill-verification-before-completion";
@@ -144,7 +145,7 @@ Do not hard-code provider tiers or require an override for every dispatch. Revie
 ## Handling Implementer Status
 Implementer subagents report one of four statuses. Handle each appropriately:
 
-**DONE:** Generate the review package (`scripts/review-package BASE HEAD`, from this skill's directory — it prints the unique file path it wrote; BASE is the commit you recorded before dispatching the implementer — never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
+**DONE:** Generate the review package (`scripts/review-package BASE`, from this skill's directory — it prints the unique file path it wrote; BASE is the commit recorded before dispatching the implementer), then dispatch the task reviewer with the printed path. The package includes committed, staged, unstaged, and untracked changes.
 
 **DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
 
@@ -190,7 +191,7 @@ final whole-branch review. When you fill a reviewer template:
   test hygiene, review method) — the constraints block is for what THIS
   project's spec demands.
 - Hand the reviewer its diff as a file: run this skill's
-  `scripts/review-package BASE HEAD` and pass the reviewer the file path
+  `scripts/review-package BASE` and pass the reviewer the file path
   it prints (or, without bash: `git log --oneline`, `git diff --stat`,
   and `git diff -U10` for the range, redirected to one uniquely named
   file). The output never enters your own context, and the reviewer sees
@@ -203,7 +204,7 @@ final whole-branch review. When you fill a reviewer template:
   was pasted history. A fresh subagent needs its task, the interfaces it
   touches, and the global constraints. Nothing else.
 - Dispatch fix subagents for Critical and Important findings. Record Minor
-  findings in the progress ledger as you go, and point the final
+  findings in the plan task ledger as you go, and point the final
   whole-branch review at that list so it can triage which must be fixed
   before merge. A roll-up nobody reads is a silent discard.
 - A finding labeled plan-mandated — or any finding that conflicts with
@@ -247,7 +248,7 @@ and is re-read on every later turn. Hand artifacts over as files:
 - **Report file:** name the implementer's report file after the brief
   (brief `…/task-N-brief.md` → report `…/task-N-report.md`) and put it in
   the dispatch prompt. The implementer writes the full report there and
-  returns only status, commits, a one-line test summary, and concerns.
+  returns only status, a one-line test summary, and concerns.
 - **Reviewer inputs:** the task reviewer gets three paths — the same brief
   file, the report file, and the review package — plus the global
   constraints that bind the task.
@@ -259,13 +260,16 @@ and is re-read on every later turn. Hand artifacts over as files:
 Conversation memory does not survive compaction. For Git-tracked coordinated
 work, static plan Coordination State and task ledger plus Git are recovery map.
 
+Temporary todos, if used, are disposable local mirrors only; they are not
+coordination state. The lead creates the checkpoint commit after acceptance.
+
 - Before dispatch or resume, one lead controller reconciles branch, base, `HEAD`,
   status, worktrees, active task, dependencies, proof, and blockers.
 - After task-local proof, only lead controller updates plan state and ledger.
 - Do not create `.superpowers/sdd/progress.md` or recover from Codex or
   DeepAgents thread/session state.
-- For uncoordinated same-session work, approved plan task state plus Git is
-  sufficient; do not create a second persistent progress ledger.
+- For uncoordinated work, approved plan task state plus Git is sufficient; do
+  not create another durable coordination record.
 
 ## Prompt Templates
 
@@ -345,7 +349,7 @@ Done!
 - Subagent can ask questions (before AND during work)
 
 **vs. Executing Plans:**
-- Same session (no handoff)
+- Same lead session when selected; session state is never recovery state
 - Continuous progress (no waiting)
 - Review checkpoints automatic
 
@@ -386,11 +390,11 @@ Done!
   dispatch prompt ("treat it as Minor at most") — the plan's example code is
   a starting point, not evidence that its weaknesses were chosen
 - Dispatch a task reviewer without a diff file — generate it first
-  (`scripts/review-package BASE HEAD`) and name the printed path in the
+  (`scripts/review-package BASE`) and name the printed path in the
   prompt
 - Move to next task while the review has open Critical/Important issues
-- Re-dispatch a task the progress ledger already marks complete — check
-  the ledger (and `git log`) after any compaction or resume
+- Re-dispatch a task the plan ledger already marks complete — reconcile the
+  ledger with Git and accepted proof after any compaction or resume
 
 **If subagent asks questions:**
 - Answer clearly and completely

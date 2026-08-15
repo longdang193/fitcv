@@ -92,7 +92,11 @@ Each agent gets:
 
 ### 3. Dispatch in Parallel
 
-Use the platform-native parallel dispatch facility. Issue all independent spawn calls in the same round when supported; dispatching one and waiting before the next is sequential.
+Before dispatch, record the dependency-ready wave, branch and isolated worktree
+for each writer, exact disjoint write ownership, and required lane proof in the
+active plan. Then use the platform-native parallel dispatch facility. Issue all
+independent spawn calls in the same round when supported; dispatching one and
+waiting before the next is sequential.
 
 ```text
 Subagent: "Fix agent-tool-abort.test.ts failures"
@@ -107,9 +111,12 @@ If the platform has no concurrent agent support, run lanes sequentially and repo
 
 When agents return:
 - Read each summary
-- Verify fixes don't conflict
-- Run full test suite
-- Integrate all changes
+- inspect each lane's Git state and diff
+- verify declared lane proof
+- accept or reject each lane
+- integrate only through authorized Git actions
+- run the combined verification declared by the plan
+- let the lead update plan state after accepted fan-in
 
 ## Agent Prompt Structure
 

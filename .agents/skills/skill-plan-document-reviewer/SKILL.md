@@ -39,6 +39,8 @@ Skip for tiny, local, reversible tasks with settled behavior and obvious proof.
 
 - Read target specification or plan in full.
 - Read linked specification when reviewing a plan.
+- Read `docs/operating_system/rules/git-tracked-coordination-rule.md` when the
+  plan declares or requires Git-tracked coordination.
 - Inspect named source, tests, configuration, schemas, and scripts needed to verify material claims.
 - Read `references/technical-review-checklist.md` when proposal has substantial software, API, data, analytics, ML, optimization, storage, integration, platform, starter, or publication implications.
 - Search configured MCP memory only when active executor exposes it and proposal resembles a known reusable failure mode; follow `docs/operating_system/rules/agent-memory-rule.md`.
@@ -106,6 +108,11 @@ For an implementation plan:
 - generated outputs derive from named canonical inputs
 - execution approach, dependency order, and shared-write ownership are explicit when they affect safe execution
 - final verification can prove every completion criterion
+- when coordination is `git-tracked`, a fresh lead controller with no prior
+  session can recover workspace, branch, base, active task, dependencies,
+  ownership, proof, blockers, and next action from plan plus Git alone
+- exactly one coordination owner writes plan state; active writers obey mode,
+  dependency, and worktree constraints
 
 ### 5. Classify Findings
 

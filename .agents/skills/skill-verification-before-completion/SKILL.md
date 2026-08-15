@@ -174,9 +174,13 @@ Set plan status to `completed` only when:
 - required focused and broad checks pass
 - maintained and generated truth surfaces are aligned
 - no unresolved required task, failed required check, stale status, or unrecorded scope deviation remains
+- no task remains active and no required blocker remains unresolved
+- task ledger, branch, base, `HEAD`, worktrees, and accepted proof reconcile
+- no unresolved parallel writer lane or out-of-scope change remains
 
-Return `verified` when these conditions pass, then update plan status. A checked
-box is progress state, not completion proof.
+Return `verified` with evidence when these conditions pass. The lead controller,
+not a delegated validator, performs the durable plan-status transition. A
+checked box is progress state, not completion proof.
 
 Plan `completed` means implementation and verification are complete. It does not mean branch merged, pushed, published, or cleaned.
 

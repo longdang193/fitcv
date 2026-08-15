@@ -87,6 +87,14 @@ interpreter, web, or MCP access; if a task needs unavailable capability, return
 `BLOCKED`.
 Name `low`, `normal`, `high`, or `xhigh` in bounded DeepAgents `task`
 delegation; do not use `dcode --agent` or `dcode -r` for project coordination.
+Use `skill-deepagents-executing-plans` when an approved Git-tracked plan is
+executed through DeepAgents with bounded delegated work.
+
+Git-tracked coordinated work follows
+`docs/operating_system/rules/git-tracked-coordination-rule.md`: Git owns
+workspace and repository state; the active plan owns workflow state; one lead
+controller updates coordination state; runtime thread or session state is never
+the recovery source.
 
 ## Project Design Rules
 

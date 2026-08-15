@@ -72,6 +72,15 @@ work may move directly from approved intent to execution and verification.
 No persistent planning-lineage generator is required. Historical completed
 plans remain evidence, not active instructions.
 
+## Git-Tracked Coordination
+
+Git-tracked multi-task work uses the active plan plus Git as durable recovery
+state. Runtime threads, agent sessions, and temporary progress artifacts never
+become repository coordination authority.
+
+Canonical policy:
+`docs/operating_system/rules/git-tracked-coordination-rule.md`.
+
 ## Generated Surfaces
 
 Canonical sources are edited directly; generated surfaces are regenerated.

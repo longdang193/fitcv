@@ -30,10 +30,14 @@ If the plan has a blocking design gap, stop and return it to `skill-spec-draftin
 Read only what the current task needs:
 
 - the implementation plan in full before execution starts
+- `docs/operating_system/rules/git-tracked-coordination-rule.md` when the plan
+  selects Git-tracked coordination
 - linked specification sections governing the active task
 - `skill-plan-document-reviewer` when a costly or high-risk plan has not received readiness review
 - `skill-using-git-worktrees` when isolation materially reduces risk
 - `skill-subagent-driven-development` when approved tasks are separable, same-session sequential delegation is useful, and per-task commits are authorized
+- `skill-deepagents-executing-plans` when the plan selects DeepAgents and bounded
+  delegated execution materially benefits the active Git-tracked task
 - `skill-dispatching-parallel-agents` when two or more lanes have disjoint write ownership
 - `skill-systematic-debugging` after unexpected failures or unexplained behavior
 - `skill-test-driven-development` for non-trivial behavior changes or bug fixes
@@ -60,7 +64,9 @@ Before modifying a shared symbol, route, validator, generator, or orchestration 
 
 1. Read the full plan and any approved specification governing it.
 2. Inspect workspace path, creation mechanism, branch or detached state, base branch and commit, current HEAD, repository status, and existing diffs.
-3. Identify completed, active, blocked, and remaining plan tasks from repository evidence rather than plan checkboxes alone.
+3. Read workflow state from the plan, then reconcile it against Git and accepted
+   proof. Plan owns workflow state; Git proves repository reality. Block on
+   mismatch instead of silently inferring another task state from files.
 4. Record preserved invariants and explicit out-of-scope work.
 5. Identify generated outputs, publication surfaces, or local mirrors that derive from canonical files in scope.
 
@@ -80,6 +86,9 @@ Before the first edit, check:
 For a small correctable mismatch, update the plan and continue. For changed scope, unresolved design, unsafe deletion, or missing acceptance criteria, stop for plan or specification revision.
 
 ### 3. Select Next Action
+
+For Git-tracked coordination, the lead changes plan status from `proposed` to
+`active` before activating the first task.
 
 Choose the smallest unblocked action from approved scope:
 
@@ -103,7 +112,7 @@ For each task:
 5. remove superseded behavior when replacement is proven
 6. run focused verification immediately
 7. inspect diff for accidental scope growth
-8. update plan task state when repository evidence supports it
+8. update plan task state only after Git and required proof support the planned transition
 
 A task is complete only when its requested output exists, preserved behavior remains intact, and task-local verification passes.
 
@@ -178,7 +187,9 @@ When all required plan tasks appear complete:
 5. let that skill run fresh final proof, reconcile outcomes, tasks, deviations, and repository state, then set final plan status only when it returns `verified`
 
 Create a local checkpoint commit only when active plan `Commit policy` explicitly
-preauthorizes verified per-task checkpoints. Push, merge, publish, delete,
+preauthorizes verified per-task checkpoints. The lead creates it after accepting
+task proof and updating the task ledger, so implementation and accepted workflow
+state share one checkpoint. Push, merge, publish, delete,
 discard, destructive recovery, or clean worktrees only with explicit user
 authorization.
 
@@ -211,7 +222,8 @@ Continue source-first when optional analysis tools are unavailable.
 ## Red Flags
 
 - editing before reading the full plan
-- trusting plan checkboxes over repository evidence
+- trusting either plan state or repository evidence without reconciling both;
+  block on mismatch
 - implementing unresolved design choices
 - changing generated output instead of canonical source
 - broad refactoring during a bounded task

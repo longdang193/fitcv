@@ -10,6 +10,8 @@ Use this decision table only when artifact choice is unclear. Create the smalles
 | Draft behavior is approved | Promote same file to `detailed-specification` and `status: active` |
 | Behavior, interfaces, or invariants need durable definition without prototype work | Use `skill-spec-drafting` |
 | Approved design or direct approved scope needs multiple implementation steps | Use `skill-writing-plans` |
+| Multi-task execution needs durable resume or delegated checkpoints | Select `git-tracked` coordination |
+| Parallel writers are required | Select `git-tracked` coordination with isolated worktrees and disjoint ownership |
 | Several outcomes need coordinated direction | Use the optional roadmap; create specs or plans only where needed |
 | Isolation materially reduces execution risk | Use `skill-using-git-worktrees`, then execute plan |
 | Approved plan exists | Use `skill-executing-plans` |

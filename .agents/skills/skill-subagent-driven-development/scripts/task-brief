@@ -5,7 +5,7 @@
 #
 # Usage: task-brief PLAN_FILE TASK_NUMBER [OUTFILE]
 # Default OUTFILE: <repo-root>/.superpowers/sdd/task-<N>-brief.md
-# (per worktree; concurrent runs in the same working tree share it).
+# (per worktree; artifacts are disposable and not coordination state).
 set -euo pipefail
 
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then

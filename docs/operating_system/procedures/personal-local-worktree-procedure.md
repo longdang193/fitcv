@@ -7,6 +7,10 @@ does not change task paths, Git acceptance, or user approval. It can change
 host-enforced tool containment; current DeepAgents containment is not a Codex
 permission projection.
 
+Git-tracked coordinated work follows
+`docs/operating_system/rules/git-tracked-coordination-rule.md`. This procedure
+owns commands and recovery mechanics; the rule owns coordination invariants.
+
 ## Start
 
 Before work, record task objective, repository-relative allowed paths, base
@@ -74,8 +78,9 @@ and `--no-mcp`; Codex MCP servers, their tool allowlists, approval policy,
 sandbox mode, and shell policy do not transfer. The top-level Codex model remains
 controller default; it does not select a DeepAgents role model.
 DeepAgents capabilities depend on launch mode and task context. Current
-`dcode-project` does not grant shell, filesystem, interpreter, web, or other
-runtime-authority flags. Never assume a delegated `task` has those capabilities;
+`dcode-project` supplies a fixed launcher-owned bounded tool surface; callers
+cannot widen it through task text or runtime-authority flags. Never assume a
+delegated `task` inherits any capability beyond the explicit launcher and task contract;
 provide required immutable inputs and verify returned evidence. Web search needs
 user-local `TAVILY_API_KEY`; its absence disables web search and does not fall
 back to Codex browser or web MCPs.

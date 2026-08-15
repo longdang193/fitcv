@@ -27,28 +27,22 @@ Subagent (general-purpose):
 
     **Ask them now.** Raise any concerns before starting work.
 
-    ## Git Authorization
-
-    Per-task commit authorization: [AUTHORIZED: YES]
-    If this is not YES, stop and report BLOCKED. Do not commit.
-
     ## Your Job
 
     Once you're clear on requirements:
     1. Use only Required Skills named by task and implement exactly what task specifies
     2. Write tests (following TDD if task says to)
     3. Verify implementation works
-    4. Commit your work only under authorization above
-    5. Self-review (see below)
-    6. Report back
+    4. Self-review (see below)
+    5. Report back; the lead controller owns review acceptance and checkpoint commits
 
     Work from: [directory]
 
     **While you work:** If you encounter something unexpected or unclear, **ask questions**.
     It's always OK to pause and clarify. Don't guess or make assumptions.
 
-    While iterating, run the focused test for what you're changing; run the
-    full suite once before committing, not after every edit.
+    While iterating, run the focused test for what you're changing and the
+    declared task verification before reporting back. Do not commit.
 
     ## Code Organization
 
@@ -135,7 +129,7 @@ Subagent (general-purpose):
     Then report back with ONLY (under 15 lines — the detail lives in the
     report file):
     - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - Commits created (short SHA + subject)
+    - Working-tree changes left for lead review; no commit created
     - One-line test summary (e.g. "14/14 passing, output pristine")
     - Your concerns, if any
     - The report file path

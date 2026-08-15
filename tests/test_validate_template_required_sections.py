@@ -630,12 +630,14 @@ def test_shipped_planning_templates_cover_schema_required_frontmatter() -> None:
             assert required_frontmatter[field] in SCHEMA.get_allowed_values(REPO_ROOT, field, artifact_type)
 
 
-def test_implementation_plan_template_documents_optional_executor_and_coordination() -> None:
+def test_implementation_plan_template_documents_executor_and_coordination() -> None:
     template = (
         REPO_ROOT / "docs" / "operating_system" / "templates" / "implementation-plan-template.md"
     ).read_text(encoding="utf-8")
 
     assert "Executor: `codex | deepagents`" in template
+    assert "Coordination: `git-tracked | none`" in template
+    assert "Required when `Execution Approach > Coordination` is `git-tracked`" in template
     assert "current DeepAgents launcher uses no MCP" in template
-    assert "## Coordination State (Optional)" in template
+    assert "## Coordination State" in template
     assert "Allowed states: `pending`, `active`, `blocked`, `completed`." in template

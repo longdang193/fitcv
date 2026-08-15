@@ -4,6 +4,106 @@ artifact_type: plan
 status: proposed
 template_id: implementation-plan
 name: candidate-profiles-prototype-integration-pipeline-compatibility
+parent_spec: none
+coordination:
+  controller: codex
+  executor: dcode-project
+  target_branch: main
+  base_ref: 6ac172f920ea7d2ee03f2050ea702fd092516773
+  mode: inline_sequential
+  task_state_owner: codex
+  runtime_state: ephemeral
+  tasks:
+    - id: task-1-freeze-candidate-profile-contracts
+      depends_on: []
+      execution_mode: inline_sequential
+      dcode_role: normal
+      allowed_paths:
+        - docs/fitcv-settings-ui-prototype.integration.md
+        - docs/api.md
+        - tests/test_fitcv_cp/candidate_profile_fixtures.py
+        - tests/test_candidate_profile_ingest.py
+        - tests/test_fitcv_cp/test_app.py
+    - id: task-2-canonical-profile-lifecycle-api
+      depends_on: [task-1-freeze-candidate-profile-contracts]
+      execution_mode: inline_sequential
+      dcode_role: high
+      allowed_paths:
+        - src/fitcv/candidate.py
+        - src/fitcv_cp/candidate_profile_service.py
+        - src/fitcv_cp/candidate_profile_seeds.py
+        - src/fitcv_cp/sqlite_store.py
+        - src/fitcv_cp/app.py
+        - data/candidate_profile.template.yaml
+        - tests/test_candidate_profile_ingest.py
+        - tests/test_fitcv_cp/test_candidate_profile_service.py
+        - tests/test_fitcv_cp/test_sqlite_store.py
+        - tests/test_fitcv_cp/test_app.py
+    - id: task-3-job-pipeline-snapshot-contract
+      depends_on: [task-2-canonical-profile-lifecycle-api]
+      execution_mode: inline_sequential
+      dcode_role: high
+      allowed_paths:
+        - src/fitcv_cp/app.py
+        - src/fitcv_cp/sqlite_store.py
+        - src/fitcv_cp/worker_job.py
+        - src/fitcv_cp/worker_run_support.py
+        - src/fitcv_cp/run_artifact_contracts.py
+        - src/fitcv_cp/run_artifact_mirror.py
+        - src/fitcv_cp/run_lifecycle.py
+        - tests/test_fitcv_cp/test_app.py
+        - tests/test_fitcv_cp/test_worker_job.py
+        - tests/test_fitcv_cp/test_run_lifecycle.py
+        - tests/test_pipeline_checkpoint_contract.py
+        - tests/test_pipeline_stage_resume_parity.py
+    - id: task-4-candidate-profile-ui-contract
+      depends_on: [task-3-job-pipeline-snapshot-contract]
+      execution_mode: inline_sequential
+      dcode_role: normal
+      allowed_paths:
+        - src/fitcv_cp/templates/candidate_profiles.html
+        - src/fitcv_cp/templates/candidate_profile_creation.html
+        - src/fitcv_cp/templates/candidate_profile_detail.html
+        - src/fitcv_cp/templates/candidate_profile_sections.html
+        - src/fitcv_cp/templates/run_detail.html
+        - src/fitcv_cp/templates/run_detail_tab_profile.html
+        - src/fitcv_cp/templates/_run_detail_snapshot_tab.html
+        - tests/test_candidate_profile_template_contract.py
+        - tests/test_fitcv_cp/test_app.py
+        - tests/test_fitcv_cp/test_local_routes.py
+    - id: task-5-settings-output-propagation
+      depends_on: [task-4-candidate-profile-ui-contract]
+      execution_mode: inline_sequential
+      dcode_role: normal
+      allowed_paths:
+        - src/fitcv_cp/settings_schema.py
+        - src/fitcv_cp/settings_store.py
+        - src/fitcv_cp/retry_settings.py
+        - src/fitcv_cp/templates/settings.html
+        - tests/test_fitcv_cp/test_settings_schema.py
+        - tests/test_fitcv_cp/test_settings_store.py
+        - tests/test_fitcv_cp/test_settings_store_sqlite.py
+        - tests/test_fitcv_cp/test_retry_settings.py
+    - id: task-6-isolated-end-to-end-verification
+      depends_on: [task-4-candidate-profile-ui-contract, task-5-settings-output-propagation]
+      execution_mode: inline_sequential
+      dcode_role: xhigh
+      allowed_paths:
+        - data/2026-06-24-Munich_Electrification-CV.md
+        - data/2026-06-27-Beiersdorf-CV.md
+        - tests/test_candidate_profile_ingest.py
+        - tests/test_candidate_profile_template_contract.py
+        - tests/test_fitcv_cp/test_app.py
+        - tests/test_fitcv_cp/test_candidate_profile_service.py
+        - tests/test_fitcv_cp/test_local_app.py
+        - tests/test_fitcv_cp/test_local_routes.py
+        - tests/test_fitcv_cp/test_run_lifecycle.py
+        - tests/test_fitcv_cp/test_settings_schema.py
+        - tests/test_fitcv_cp/test_settings_store.py
+        - tests/test_fitcv_cp/test_settings_store_sqlite.py
+        - tests/test_fitcv_cp/test_worker_job.py
+        - tests/test_pipeline_checkpoint_contract.py
+        - tests/test_pipeline_stage_resume_parity.py
 targets:
   - docs/fitcv-settings-ui-prototype.integration.md
   - docs/api.md
@@ -54,12 +154,44 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 
 ## Execution Approach
 
-- Mode: `sequential_work_lanes`
-- Required skills: `skill-backend-verification`, `skill-full-stack-integration`, `ui-ux-pro-max`, `skill-test-driven-development`, `skill-verification-before-completion`
-- Isolation: follow `docs/operating_system/procedures/personal-local-worktree-procedure.md`; use temporary SQLite and artifact roots for all integration probes
-- Commit policy: external
-- Parallel ownership: only disjoint test/documentation work after Task 2 contract tests pass
-- Sequential fallback: Tasks 1 through 6 remain ordered because API, persistence, Pipeline, and UI contracts depend on predecessor behavior
+- Mode: `inline_sequential`
+- Required skills: `skill-deepagents-executing-plans`, `skill-executing-plans`, `skill-backend-verification`, `skill-full-stack-integration`, `ui-ux-pro-max`, `skill-test-driven-development`, `skill-verification-before-completion`
+- Isolation: execute one bounded task at a time through `dcode-project --role <low|normal|high|xhigh> --handoff-file <validated-file>` against exact native repository root; use temporary SQLite and artifact roots for integration probes
+- Commit policy: Codex lead creates checkpoint commits only after task proof is accepted and the task ledger is updated in the same commit
+- Parallel ownership: none; same-workspace writers remain sequential; DeepAgents cannot edit coordination state, commit, push, or spawn nested agents
+- Sequential fallback: Tasks 1 through 6 remain one deterministic dependency chain; no task may advance while an earlier task lacks accepted proof
+
+## DeepAgents Handoff Contract
+
+- Codex is sole coordination controller, plan writer, MCP authority, Git authority, and acceptance owner.
+- Each handoff contains task ID, plan name, target branch, base ref, current `HEAD`, clean/dirty status, dependency result, exact `allowed_paths`, required proof commands, and acceptance criteria.
+- Handoffs use validated `codex.mcp.handoff.v1` facts through a handoff file. Never pass raw `--stdin`, shell-piped task text, secrets, runtime state, or database paths.
+- DeepAgents reads and writes only named source, test, and text files. It must not read databases, binaries, archives, runtime artifacts, `.deepagents/`, or credentials.
+- Every task result starts with `PASS`, `FAIL`, or `BLOCKED`, then lists changed files, `path:line` evidence, commands and results, remaining risks, and unresolved blockers.
+- DeepAgents output is a claim. Codex reconciles it against Plan plus Git, rejects out-of-scope changes, accepts proof, updates the ledger, and only then selects the next task.
+
+## Coordination State
+
+- Coordination owner: `Codex lead controller`
+- Branch: `main`
+- Base commit: `6ac172f920ea7d2ee03f2050ea702fd092516773`
+- Plan status: `proposed`; change to `active` before first task execution
+- Active task: `none`
+- Next eligible task: `task-1-freeze-candidate-profile-contracts`
+- Last accepted checkpoint: `none`
+- Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
+- Workspace rule: same-workspace writers execute sequentially
+
+## Task Ledger
+
+| Task ID | Depends on | Status | Executor | Proof owner |
+| --- | --- | --- | --- | --- |
+| `task-1-freeze-candidate-profile-contracts` | none | proposed | `dcode-project --role normal` | Codex |
+| `task-2-canonical-profile-lifecycle-api` | task 1 | proposed | `dcode-project --role high` | Codex |
+| `task-3-job-pipeline-snapshot-contract` | task 2 | proposed | `dcode-project --role high` | Codex |
+| `task-4-candidate-profile-ui-contract` | task 3 | proposed | `dcode-project --role normal` | Codex |
+| `task-5-settings-output-propagation` | task 4 | proposed | `dcode-project --role normal` | Codex |
+| `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | proposed | `dcode-project --role xhigh` | Codex |
 
 ## Constraints and Decisions
 
@@ -73,6 +205,8 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 ## Task Breakdown
 
 ### Task 1: Freeze Candidate Profile contracts and compatibility policy
+
+**Coordination ID:** `task-1-freeze-candidate-profile-contracts`
 
 **Purpose:** Establish executable acceptance contracts before changing route, schema, or UI behavior.
 
@@ -97,6 +231,8 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 **Acceptance:** No later task invents a second V1/V2 adapter, snapshot record, source-block route alias, or confirmed-profile overwrite path.
 
 ### Task 2: Repair canonical schema, review validation, lifecycle persistence, and API
+
+**Coordination ID:** `task-2-canonical-profile-lifecycle-api`
 
 **Purpose:** Make profile resource behavior authoritative before Pipeline or UI wiring.
 
@@ -128,6 +264,8 @@ py -m pytest -q tests/test_candidate_profile_ingest.py tests/test_fitcv_cp/test_
 **Acceptance:** Valid profiles serialize as canonical V2, invalid review data returns field-specific errors, lifecycle operations survive concurrent retries correctly, and previous confirmed revisions remain immutable.
 
 ### Task 3: Make existing `run_inputs` snapshot contract authoritative
+
+**Coordination ID:** `task-3-job-pipeline-snapshot-contract`
 
 **Purpose:** Preserve downstream Job Pipeline compatibility without mutable-profile drift.
 
@@ -161,6 +299,8 @@ py -m pytest -q tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_
 
 ### Task 4: Wire prototype-aligned Candidate Profile UI to stabilized contracts
 
+**Coordination ID:** `task-4-candidate-profile-ui-contract`
+
 **Purpose:** Complete end-user workflows after backend and Pipeline behavior are fixed.
 
 **Files:**
@@ -189,6 +329,8 @@ py -m pytest -q tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_
 
 ### Task 5: Prove settings projection and profile-output propagation
 
+**Coordination ID:** `task-5-settings-output-propagation`
+
 **Purpose:** Prevent Candidate Profile settings UI from claiming effects absent from canonical generated profiles.
 
 **Files:**
@@ -215,6 +357,8 @@ py -m pytest -q tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/
 
 ### Task 6: Run isolated end-to-end and live-like verification
 
+**Coordination ID:** `task-6-isolated-end-to-end-verification`
+
 **Purpose:** Prove whole workflow without writing user data or depending on current local runtime state.
 
 **Files:** Existing test/browser harnesses only; do not persist artifacts under repository `data`, user runtime roots, or supplied CV paths.
@@ -223,8 +367,9 @@ py -m pytest -q tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/
 1. Configure temporary SQLite and artifact roots. Record paths, request IDs, response status, fixture hashes, and cleanup proof.
 2. Exercise create, source-block inspect, failed retry, review/update, confirm, run selection, immutable snapshot inspection, archive, restore, and eligible delete.
 3. Use both supplied CVs from `data/2026-06-24-Munich_Electrification-CV.md` and `data/2026-06-27-Beiersdorf-CV.md` as immutable inputs only. Hash before/after, retain clean Git diff except those two pre-existing untracked files, and delete temporary runtime data.
+4. DeepAgents may run only native filesystem, `git`, and `py` proof available through `dcode-project`. It must return `BLOCKED` for unavailable browser, web, MCP, or live-service evidence; Codex controller owns any post-task browser proof and records it separately.
 
-**Verification:** Run focused suites from Tasks 2-5, affected full suite, then browser/live-like flow with direct HTTP/backend boundary evidence.
+**Verification:** Run focused suites from Tasks 2-5, affected full suite, then hand off browser/live-like flow to Codex controller when DeepAgents lacks required capability. Record direct backend evidence, request IDs, fixture hashes, cleanup proof, and every `BLOCKED` capability.
 
 **Acceptance:** Both CVs produce canonical profile output ready for selected Job Pipeline runs; failure paths leave no partial persisted state; user CV hashes and user runtime data remain unchanged.
 

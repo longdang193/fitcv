@@ -52,6 +52,36 @@ def run_validator(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def git_tracked_plan(*, status: str = "active", mode: str = "subagent-ready", ledger: str) -> str:
+    return f"""---
+artifact_type: plan
+status: {status}
+layer: change
+parent_spec: none
+---
+# Plan
+
+## Execution Approach
+
+- Mode: `{mode}`
+- Coordination: `git-tracked`
+
+## Coordination State
+
+- Coordination owner: `lead-controller`
+- Branch: `main`
+- Base commit: `abc123`
+- Active task(s): `Task 1`
+- Expected workspace: `current`
+- Next action: `Complete Task 1`
+- Blockers: `none`
+
+| Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+{ledger}
+"""
+
+
 def test_empty_repo_does_not_require_roadmap() -> None:
     root = make_test_root()
     try:
@@ -123,5 +153,97 @@ def test_readme_pointers_are_not_planning_artifacts() -> None:
 
         assert result.returncode == 0
         assert "passed" in result.stdout.lower()
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_git_tracked_plan_requires_coordination_state_and_ledger() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            """---
+artifact_type: plan
+status: active
+layer: change
+parent_spec: none
+---
+# Plan
+
+## Execution Approach
+
+- Mode: `subagent-ready`
+- Coordination: `git-tracked`
+""",
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "requires `## Coordination State`" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_sequential_git_tracked_plan_rejects_multiple_active_tasks() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            git_tracked_plan(
+                ledger="\n".join(
+                    (
+                        "| Task 1 | `active` | current | codex | none | `test-one` | pending |",
+                        "| Task 2 | `active` | current | codex | none | `test-two` | pending |",
+                    )
+                )
+            ),
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "permits at most one active task" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_active_task_requires_completed_dependencies() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            git_tracked_plan(
+                ledger="\n".join(
+                    (
+                        "| Task 1 | `pending` | current | codex | none | `test-one` | pending |",
+                        "| Task 2 | `active` | current | codex | Task 1 | `test-two` | pending |",
+                    )
+                )
+            ).replace("- Active task(s): `Task 1`", "- Active task(s): `Task 2`"),
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "depends on non-completed task `Task 1`" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_completed_task_requires_recorded_evidence() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            git_tracked_plan(
+                ledger="| Task 1 | `completed` | current | codex | none | `test-one` | pending |"
+            ).replace("- Active task(s): `Task 1`", "- Active task(s): `none`"),
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "completed task `Task 1` requires recorded evidence" in result.stdout
     finally:
         rmtree(root, ignore_errors=True)

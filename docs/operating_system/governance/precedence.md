@@ -1,15 +1,17 @@
 # Precedence
 
-Runtime precedence is provider-native first. Canonical repo sources generate the runtime surfaces each provider loads.
+Canonical repository sources own policy. Provider-native files are generated or
+deployed runtime projections of that policy.
 
 ## Rule Order
 
 1. emergency deny/block rules
 2. root runtime instructions (`AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`)
-3. provider-native skills when deployed
-4. provider-native rule files when directly supported
-5. canonical shared rules as source material
-6. personal preferences
+3. canonical hard invariants under `docs/operating_system/rules/`
+4. procedures
+5. provider-native skills when deployed
+6. templates and examples
+7. personal preferences
 
 ## Provider Notes
 
@@ -20,6 +22,7 @@ Runtime precedence is provider-native first. Canonical repo sources generate the
 
 ## Conflict Policy
 
+- no procedure, skill, template, example, or generated projection may weaken a canonical hard invariant
 - fail on duplicate rule or prompt names in same layer
 - fail on missing `required_reads` targets
 - fail on broken prompt metadata references

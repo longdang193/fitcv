@@ -37,6 +37,7 @@ Describe another concrete implementation result this plan must deliver, such as 
 ## Execution Approach
 
 - Mode: `inline sequential | subagent-ready | parallel-capable`
+- Coordination: `git-tracked | none`
 - Executor: `codex | deepagents` (optional; Codex default; selects local runtime only; current DeepAgents launcher uses no MCP, so required MCP work stays with Codex and passes validated handoff facts)
 - Required skills: `<exact skill names or none>`
 - Isolation: `<current workspace | optional worktree>`
@@ -46,11 +47,12 @@ Describe another concrete implementation result this plan must deliver, such as 
 - Parallel ownership: `<disjoint files/symbols or none>`
 - Sequential fallback: `<ordered fallback when parallel work is unsafe>`
 
-## Coordination State (Optional)
+## Coordination State
 
-Use only for Git-tracked active multi-task work. One lead controller owns this
-section and task ledger. Git owns workspace and change evidence; executor
-thread state never becomes repository state.
+Required when `Execution Approach > Coordination` is `git-tracked`. Omit for
+ordinary uncoordinated execution. One lead controller owns this section and
+task ledger. Git owns workspace and change evidence; executor thread state
+never becomes repository state.
 
 - Coordination owner: `single lead controller`
 - Branch: `<target branch>`
@@ -60,9 +62,9 @@ thread state never becomes repository state.
 - Next action: `<one dependency-ready action>`
 - Blockers: `<none or concrete blocker>`
 
-| Task | State | Executor | Depends On | Evidence |
-| --- | --- | --- | --- | --- |
-| Task 1 | `pending` | `codex` | none | pending |
+| Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| Task 1 | `pending` | current | `codex` | none | `<command>` | pending |
 
 Allowed states: `pending`, `active`, `blocked`, `completed`. `inline sequential`
 and `subagent-ready` modes permit one active task. `parallel-capable` mode may
@@ -83,7 +85,7 @@ Use `Wave` only when plan truly needs orchestration across multiple related task
 Within each task:
 - `Purpose` owns bounded outcome
 - `Task Function` names current open-ended function without mapping it to a profile
-- `Template Profile` records controller-selected `xhigh`, `high`, `normal`, or `low` plus selection basis
+- `Template Profile` records controller-selected `xhigh`, `high`, `normal`, or`n  `low` plus selection basis for delegated work, or `none (lead controller)` for`n  inline controller work
 - `Validator Profile` records an optional separate validator and its selection basis
 - `Specification Coverage` maps approved requirements or direct scope
 - `Required Skills` names only methods needed for this task
