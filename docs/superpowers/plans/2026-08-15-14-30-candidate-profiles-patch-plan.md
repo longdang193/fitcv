@@ -176,18 +176,19 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Branch: `main`
 - Base commit: `93baf43b6f522518281b1e21d8f09cff352d7c14`
 - Plan status: `active`
-- Active task: `task-7-remove-deprecated-harness-consumers`
-- Next eligible task: `task-6-isolated-end-to-end-verification` after Task 7 acceptance
-- Last accepted checkpoint: `c587aa47ad11d75c67f82c94b63bcb0546b96d26`
+- Active task: `task-6-isolated-end-to-end-verification`
+- Next eligible task: `none` — Task 6 is blocked on validated provider/model availability for live generation
+- Last accepted checkpoint: `b5b2a8ff2cdb6e4fbbee2a28f2ebe06fadb5de06`
 - Task 7 proof: `PASS` — deprecated harness consumers and stale coordination shim/tests removed; template/coordination checks pass; no tracked references to `harness_core_launcher`, `harness_task.py`, `validate_harness_config.py`, or `plan_coordination` remain.
 - Repository gate: `BLOCKED` outside Task 7 — full suite reports `2524 passed, 1 skipped, 2 failed`; failures are learning-format validation in `docs/learning` and unrelated `test_ai_score.py` behavior.
 - Task 6 latest attempt: `BLOCKED` — local FitCV service started and browser reached Candidate Profiles on August 15, 2026. Uploading `2026-06-24-Munich_Electrification-CV.md` created a failed draft, then returned `candidate_profile_llm_unavailable`; LLM Configuration showed no validated models and every provider showed `No connection`. Beiersdorf live generation remains blocked by the same provider prerequisite.
+- Task 6 DeepAgents diagnosis: `BLOCKED` — bounded `dcode-project --role normal` read-only diagnosis made no file changes and stopped on `UnicodeDecodeError` while reading an unrelated non-UTF-8 file; no repository evidence supports resolving provider readiness without configured credentials or a validated local model.
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
 - Task 4 accepted proof: `PASS` — template, app, and local route suites passed `489 tests`; clean Git diff.
 - Task 5 accepted proof: `PASS` — settings suites passed `218 passed, 1 skipped`; compile and diff checks passed.
-- Task 6 latest attempt: `BLOCKED` — Candidate Profile lane passed `968 passed, 1 skipped`; full repository suite is blocked by deprecated harness consumers importing absent `scripts/harness_core_launcher.py` (`105` harness/contract-test import failures); no repository changes were produced, and browser/live-service evidence remains unavailable to DeepAgents.
+- Task 6 backend proof: `PASS` — Candidate Profile lane passed `968 passed, 1 skipped`; live/browser proof remains blocked by the validated provider prerequisite recorded above.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
