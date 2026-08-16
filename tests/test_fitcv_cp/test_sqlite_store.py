@@ -380,7 +380,7 @@ def test_control_plane_schema_v4_migration_failure_rolls_back(tmp_path: Path, mo
 
 
 def test_candidate_profile_reconciliation_marks_abandoned_and_purges_expired_source(tmp_path: Path) -> None:
-    database_path = tmp_path / "fitcv.sqlite3"
+    database_path = Path(sqlite_store._local_sqlite_path())
     created = sqlite_store.create_candidate_profile_creation_attempt(
         profile_name="Profile",
         original_filename="candidate.md",
@@ -1265,6 +1265,127 @@ def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, 
         database_path=database_path,
     )
     return approved_derived, patched
+
+
+def test_update_candidate_profile_creates_immutable_successor_with_cas_and_replay(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    with sqlite_store._sqlite_connection(database_path) as conn:
+        confirmation = sqlite_store._candidate_profile_confirmation_in_transaction(conn, ready["attempt_id"])
+    confirmed = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=ready["fingerprints"]["approved_baseline"],
+        expected_derived_fingerprint=ready["fingerprints"]["approved_derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-successor-test",
+        database_path=database_path,
+    )
+    current = sqlite_store.get_candidate_profile_detail(confirmed["profile_id"], database_path=database_path)
+    assert current is not None
+    canonical = dict(current["profile"]["canonical"])
+    canonical["headline"] = "Updated Analytics Engineer"
+
+    updated = sqlite_store.update_candidate_profile(
+        confirmed["profile_id"],
+        canonical=canonical,
+        expected_revision=confirmed["revision"],
+        idempotency_key="successor-update",
+        profile_name="Updated Analytics Profile",
+        database_path=database_path,
+    )
+    assert updated["revision"] == confirmed["revision"] + 1
+    assert updated["profile"]["canonical"]["headline"] == "Updated Analytics Engineer"
+    assert sqlite_store.update_candidate_profile(
+        confirmed["profile_id"],
+        canonical=canonical,
+        expected_revision=confirmed["revision"],
+        idempotency_key="successor-update",
+        profile_name="Updated Analytics Profile",
+        database_path=database_path,
+    ) == updated
+
+    with pytest.raises(ValueError, match="candidate_profile_revision_conflict"):
+        sqlite_store.update_candidate_profile(
+            confirmed["profile_id"],
+            canonical=canonical,
+            expected_revision=confirmed["revision"],
+            idempotency_key="stale-successor-update",
+            database_path=database_path,
+        )
+
+    archived = sqlite_store.transition_candidate_profile_lifecycle(
+        confirmed["profile_id"],
+        lifecycle="archived",
+        expected_revision=updated["revision"],
+        database_path=database_path,
+    )
+    with pytest.raises(ValueError, match="candidate_profile_archived"):
+        sqlite_store.update_candidate_profile(
+            confirmed["profile_id"],
+            canonical=canonical,
+            expected_revision=archived["revision"],
+            idempotency_key="archived-successor-update",
+            database_path=database_path,
+        )
+
+    with sqlite3.connect(database_path) as conn:
+        revisions = conn.execute(
+            "SELECT revision, profile_json FROM candidate_profile_revisions WHERE candidate_profile_id=? ORDER BY revision",
+            (confirmed["profile_id"],),
+        ).fetchall()
+    assert revisions[0][0] == confirmed["revision"]
+    assert "Updated Analytics Engineer" not in revisions[0][1]
+
+
+def test_update_candidate_profile_preserves_existing_run_snapshot(tmp_path: Path) -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    with sqlite_store._sqlite_connection(database_path) as conn:
+        confirmation = sqlite_store._candidate_profile_confirmation_in_transaction(conn, ready["attempt_id"])
+    profile = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=ready["fingerprints"]["approved_baseline"],
+        expected_derived_fingerprint=ready["fingerprints"]["approved_derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-snapshot-test",
+        database_path=database_path,
+    )
+    current = sqlite_store.get_candidate_profile_detail(profile["profile_id"], database_path=database_path)
+    assert current is not None
+    canonical = dict(current["profile"]["canonical"])
+    run = _make_run("run-profile-update-snapshot")
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "strict_candidate_profile": True,
+            "candidate_profile_id": profile["profile_id"],
+            "jobs_snapshot_json": "[{\"title\":\"Analyst\"}]",
+            "jobs_manifest_json": "{}",
+        },
+        jobs=[{"title": "Analyst"}],
+    )
+    with sqlite3.connect(database_path) as connection:
+        before = connection.execute(
+            "SELECT candidate_profile_id, candidate_profile_revision_id, candidate_profile_json FROM run_inputs WHERE run_id=?",
+            (run.run_id,),
+        ).fetchone()
+
+    canonical["headline"] = "Changed After Run"
+    sqlite_store.update_candidate_profile(
+        profile["profile_id"],
+        canonical=canonical,
+        expected_revision=profile["revision"],
+        idempotency_key="snapshot-preservation-update",
+        database_path=database_path,
+    )
+    with sqlite3.connect(database_path) as connection:
+        after = connection.execute(
+            "SELECT candidate_profile_id, candidate_profile_revision_id, candidate_profile_json FROM run_inputs WHERE run_id=?",
+            (run.run_id,),
+        ).fetchone()
+    assert after == before
 
 
 def test_candidate_profile_attempt_exposes_approval_timestamps(tmp_path: Path) -> None:

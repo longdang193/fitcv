@@ -828,7 +828,10 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     assert '<dt>Website URL</dt>' in detail.text
     assert '<dt>Format</dt><dd>Markdown</dd>' in detail.text
     assert ">2026-08-02T12:00:00+00:00<" not in detail.text
-    assert 'data-profile-action=' not in detail.text
+    assert 'id="candidate-profile-controls"' in detail.text
+    assert 'data-profile-action="edit"' in detail.text
+    assert 'data-profile-action="archive"' in detail.text
+    assert 'data-update-url="/candidate-profiles/' in detail.text
     assert detail.text.count('class="section-card collapsible-section drawer-section"') == 6
     assert re.findall(
         r'<details class="section-card collapsible-section drawer-section" open>.*?<strong>(.*?)</strong>',
@@ -840,6 +843,7 @@ def test_candidate_profile_recovery_reuses_prototype_actions_and_shared_async_st
     base = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
     profiles = Path("src/fitcv_cp/templates/candidate_profiles.html").read_text(encoding="utf-8")
     creation = Path("src/fitcv_cp/templates/candidate_profile_creation.html").read_text(encoding="utf-8")
+    detail = Path("src/fitcv_cp/templates/candidate_profile_detail.html").read_text(encoding="utf-8")
     sections = Path("src/fitcv_cp/templates/candidate_profile_sections.html").read_text(encoding="utf-8")
 
     assert "async function fitcvWaitForCandidateProfileAttempt(" in base
@@ -853,6 +857,16 @@ def test_candidate_profile_recovery_reuses_prototype_actions_and_shared_async_st
     assert "'Start new upload'" in profiles
     assert "fitcvWaitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline')" in creation
     assert "fitcvRenderAsyncState(asyncState" in creation
+    assert 'id="candidate-profile-controls"' in detail
+    assert 'data-profile-action="archive"' in detail
+    assert 'data-profile-action="restore"' in detail
+    assert 'data-profile-action="delete"' in detail
+    assert 'data-profile-action="edit"' in detail
+    assert 'data-profile-action="cancel-edit"' in detail
+    assert "indexOf('conflict')" in detail
+    assert "var busy = false" in detail
+    assert "fitcvRenderAsyncState" in detail
+    assert "location.assign('{{ back_url }}')" in detail
     assert "fitcvRunLocked(add || remove || regenerate || approve" in creation
     assert "fitcvRunLocked(confirmButton" in creation
     assert "candidate_profile_revision_conflict" in creation
@@ -3201,7 +3215,56 @@ def test_candidate_profiles_returns_collection_envelope() -> None:
     }
 
 
-def test_candidate_profile_routes_create_detail_and_archive() -> None:
+def test_candidate_profile_update_route_forwards_cas_and_idempotency() -> None:
+    app = _app()
+    captured: dict[str, object] = {}
+
+    def update(profile_id: str, **kwargs: object) -> dict[str, object]:
+        captured["profile_id"] = profile_id
+        captured.update(kwargs)
+        return {**_candidate_profile_resource(), "revision": 2, "profile_name": "Updated"}
+
+    app.state.run_store.update_candidate_profile_fn = update
+    response = TestClient(app).put(
+        "/candidate-profiles/profile-1",
+        headers={"Idempotency-Key": "profile-update-route"},
+        json={
+            "expected_revision": 1,
+            "profile_name": "Updated",
+            "canonical": {"schema_version": "candidate-profile.v2"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["revision"] == 2
+    assert captured == {
+        "profile_id": "profile-1",
+        "canonical": {"schema_version": "candidate-profile.v2"},
+        "expected_revision": 1,
+        "profile_name": "Updated",
+        "idempotency_key": "profile-update-route",
+    }
+
+
+
+def test_candidate_profile_update_route_passes_cas_and_idempotency() -> None:
+    app = _app()
+    resource = _candidate_profile_resource()
+    calls = []
+    app.state.run_store.update_candidate_profile_fn = lambda profile_id, **kwargs: calls.append((profile_id, kwargs)) or {
+        **resource, "revision": 2, "overview": kwargs["canonical"], "profile_name": kwargs["profile_name"]
+    }
+    response = TestClient(app).put(
+        "/candidate-profiles/profile-1",
+        headers={"Idempotency-Key": "update-route"},
+        json={"canonical": {"skills": ["Python"]}, "expected_revision": 1, "profile_name": "Updated"},
+    )
+    assert response.status_code == 200
+    assert calls == [("profile-1", {
+        "canonical": {"skills": ["Python"]}, "expected_revision": 1,
+        "profile_name": "Updated", "idempotency_key": "update-route",
+    })]
+
     app = _app()
     resource = _candidate_profile_resource()
     app.state.run_store.get_candidate_profile_detail_fn = lambda _profile_id: resource

@@ -440,6 +440,10 @@ py -m pytest -q tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/
 
 **Coordination ID:** `task-9-confirmed-profile-lifecycle-controls`
 
+**Status:** `completed` — xhigh DeepAgents validation returned `PASS` after independent review.
+
+**Evidence:** `690 passed` across Candidate Profile, lifecycle, worker, and pipeline parity suites; `py_compile` passed; `git diff --check` passed. Direct proof covers successor update, CAS conflict, idempotent replay, archived rejection, immutable prior revision, unchanged `run_inputs` snapshot, API forwarding, UI lifecycle hooks, async/stale handling, duplicate-submit locking, and canonical run navigation.
+
 **Purpose:** Close live-verification gap where persistence and lifecycle APIs exist but confirmed-profile successor updates and complete profile-detail/list controls are not executable end-to-end.
 
 **Changes:**

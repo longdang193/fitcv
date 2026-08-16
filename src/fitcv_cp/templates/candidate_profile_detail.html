@@ -3,7 +3,7 @@
 {% block title %}Candidate Profile {{ profile.profile_id }} — FitCV{% endblock %}
 {% block content %}
 <main>
-  <div><a href="{{ back_url }}">← Back to Candidate Profiles</a><div><div><p>Candidate Profile</p><h2>{{ profile.display_name }}</h2><p>Review source, approved facts, derived claims, traceability, and related Runs.</p></div></div></div>
+  <div class="details-page-head"><a href="{{ back_url }}">← Back to Candidate Profiles</a><div><div><p>Candidate Profile</p><h2>{{ profile.display_name }}</h2><p>Review source, approved facts, derived claims, traceability, and related Runs.</p></div></div></div>
   {% if profile.failure %}<div role="alert">{{ profile.failure.message }}</div>{% endif %}
   {% if profile.capabilities.archive or profile.capabilities.restore or profile.capabilities.delete or profile.capabilities.use_for_run %}
   <section id="candidate-profile-controls" data-profile-id="{{ profile.profile_id }}" data-revision="{{ profile.revision }}" data-update-url="/candidate-profiles/{{ profile.profile_id }}" data-archive-url="/candidate-profiles/{{ profile.profile_id }}/actions/archive" data-restore-url="/candidate-profiles/{{ profile.profile_id }}/actions/restore" data-delete-url="/candidate-profiles/{{ profile.profile_id }}/actions/delete" aria-labelledby="candidate-profile-actions-title">
