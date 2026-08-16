@@ -85,7 +85,7 @@ coordination:
         - tests/test_fitcv_cp/test_settings_store_sqlite.py
         - tests/test_fitcv_cp/test_retry_settings.py
     - id: task-6-isolated-end-to-end-verification
-      depends_on: [task-4-candidate-profile-ui-contract, task-5-settings-output-propagation]
+      depends_on: [task-4-candidate-profile-ui-contract, task-5-settings-output-propagation, task-8-hydrate-candidate-profile-llm-tasks, task-9-confirmed-profile-lifecycle-controls]
       execution_mode: inline_sequential
       dcode_role: xhigh
       allowed_paths:
@@ -113,6 +113,23 @@ coordination:
         - tests/test_fitcv_cp/test_settings_store.py
         - tests/test_fitcv_cp/test_settings_store_sqlite.py
         - tests/test_fitcv_cp/test_provider_routing.py
+    - id: task-9-confirmed-profile-lifecycle-controls
+      depends_on: [task-5-settings-output-propagation, task-8-hydrate-candidate-profile-llm-tasks]
+      execution_mode: inline_sequential
+      dcode_role: high
+      allowed_paths:
+        - src/fitcv_cp/app.py
+        - src/fitcv_cp/candidate_profile_service.py
+        - src/fitcv_cp/sqlite_store.py
+        - src/fitcv_cp/templates/candidate_profiles.html
+        - src/fitcv_cp/templates/candidate_profile_detail.html
+        - src/fitcv_cp/templates/candidate_profile_sections.html
+        - docs/api.md
+        - docs/fitcv-settings-ui-prototype.integration.md
+        - tests/test_fitcv_cp/test_app.py
+        - tests/test_fitcv_cp/test_candidate_profile_service.py
+        - tests/test_fitcv_cp/test_sqlite_store.py
+        - tests/test_fitcv_cp/test_local_routes.py
 targets:
   - docs/fitcv-settings-ui-prototype.integration.md
   - docs/api.md
@@ -193,13 +210,14 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Task 6 latest attempt: `BLOCKED` — local FitCV service started and browser reached Candidate Profiles on August 15, 2026. Uploading `2026-06-24-Munich_Electrification-CV.md` created a failed draft, then returned `candidate_profile_llm_unavailable`; LLM Configuration showed no validated models and every provider showed `No connection`. Beiersdorf live generation remains blocked by the same provider prerequisite.
 - Task 6 DeepAgents diagnosis: `BLOCKED` — bounded `dcode-project --role normal` read-only diagnosis made no file changes and stopped on `UnicodeDecodeError` while reading an unrelated non-UTF-8 file; no repository evidence supports resolving provider readiness without configured credentials or a validated local model.
 - Task 6 xhigh provider audit: `BLOCKED` — credential-free local generation is unsupported; eligible models require verified connection, configured credential, validated model, and matching connection revision (`src/fitcv_cp/provider_registry.py:125-132`, `src/fitcv_cp/provider_registry.py:156-170`). Real-provider setup requires connection test, persisted verified connection, model test, and model registration through the API Provider detail flow (`src/fitcv_cp/templates/api_provider_detail.html:42-51`).
-- Task 6 live configuration proof: `BLOCKED` — provider connection and `cx/gpt-5.4-mini` model validate, but the persisted LLM configuration snapshot contains only four tasks and omits `candidate_profile_base_mapping` and `candidate_profile_derived_claims`; runtime routing therefore returns `LLM routing is unavailable for candidate_profile_base_mapping`. Repository DB `data/fitcv_cp.sqlite3` reports schema `0`, while local FitCV DB reports schema `5`; no source files changed during probe. Superseded by Task 8 hydration fix; Task 6 is eligible for retry after its checkpoint.
+- Task 6 live configuration proof: `BLOCKED` — provider connection and `cx/gpt-5.4-mini` model validate, but the persisted LLM configuration snapshot contains only four tasks and omits `candidate_profile_base_mapping` and `candidate_profile_derived_claims`; runtime routing therefore returns `LLM routing is unavailable for candidate_profile_base_mapping`. Repository DB `data/fitcv_cp.sqlite3` reports schema `0`, while local FitCV DB reports schema `5`; no source files changed during probe. Superseded by Task 8 hydration fix; Task 6 remains blocked until Task 9 adds the missing confirmed-profile lifecycle controls and successor-revision update proof.
 - Task 1 accepted proof: `PASS` — `465 passed in 78.14s` from `tests/test_candidate_profile_ingest.py` and `tests/test_fitcv_cp/test_app.py`; compile and diff checks passed.
 - Task 2 accepted proof: `PASS` — `592 passed` from Candidate Profile ingest, service, store, and app suites; clean Git diff.
 - Task 3 accepted proof: `PASS` — four regressions passed independently; full Task 3 suite passed `567 tests`; `git diff --check` passed.
 - Task 4 accepted proof: `PASS` — template, app, and local route suites passed `489 tests`; clean Git diff.
 - Task 5 accepted proof: `PASS` — settings suites passed `218 passed, 1 skipped`; compile and diff checks passed.
 - Task 8 accepted proof: `PASS` — `30 passed` from settings, SQLite hydration, and provider-routing suites; high-profile DeepAgents validator confirmed default hydration, preservation of existing values and revision semantics, and no scope creep.
+- Task 6 lifecycle review: `FAIL` — xhigh DeepAgents review ran the named lifecycle and pipeline suites with `747 passed in 125.28s`, but confirmed no executable proof for a confirmed-profile successor-update route or full profile-detail archive/restore/delete controls. Task 9 is opened to remediate these gaps before Task 6 reruns.
 - Task 6 backend proof: `PASS` — Candidate Profile lane passed `968 passed, 1 skipped`; live/browser proof remains blocked by the validated provider prerequisite recorded above.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
@@ -213,9 +231,10 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 | `task-3-job-pipeline-snapshot-contract` | task 2 | completed | `dcode-project --role high` | Codex |
 | `task-4-candidate-profile-ui-contract` | task 3 | completed | `dcode-project --role normal` | Codex |
 | `task-5-settings-output-propagation` | task 4 | completed | `dcode-project --role normal` | Codex |
-| `task-6-isolated-end-to-end-verification` | tasks 4 and 5 | in_progress | `dcode-project --role xhigh` | Codex |
+| `task-6-isolated-end-to-end-verification` | tasks 4, 5, 8, and 9 | blocked | `dcode-project --role xhigh` | Codex |
 | `task-7-remove-deprecated-harness-consumers` | none | completed | `dcode-project --role normal` | Codex |
 | `task-8-hydrate-candidate-profile-llm-tasks` | task 5 | completed | `dcode-project --role normal` | Codex |
+| `task-9-confirmed-profile-lifecycle-controls` | tasks 5 and 8 | in_progress | `dcode-project --role high` | Codex |
 
 ## Constraints and Decisions
 
@@ -416,6 +435,27 @@ py -m pytest -q tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/
 2. Preserve current `dcode-project` coordination, plan validation, and repository contract checks; do not restore `scripts/harness_core_launcher.py`.
 3. Remove stale plan references to deleted consumers; do not alter Candidate Profile implementation files.
 4. Repair template validation metadata and required-section checks without weakening active coordination state.
+
+### Task 9: Restore confirmed-profile lifecycle controls
+
+**Coordination ID:** `task-9-confirmed-profile-lifecycle-controls`
+
+**Purpose:** Close live-verification gap where persistence and lifecycle APIs exist but confirmed-profile successor updates and complete profile-detail/list controls are not executable end-to-end.
+
+**Changes:**
+1. Add one canonical confirmed-profile successor-revision update action. Require current-revision CAS, validate complete canonical V2 payload, preserve prior confirmed revision, reject stale or archived updates, make idempotent replay safe, and return refreshed successor envelope without changing existing run snapshots.
+2. Expose active-profile edit/update, archive, and related-run controls on detail page. Expose archived-profile restore and eligible delete controls in same list/detail interaction model; keep delete restricted to archived, unreferenced, CAS-current profiles.
+3. Reuse existing lifecycle API error envelopes, idempotency keys, async/stale/error state renderer, focus restoration, duplicate-submit locking, and canonical run-detail links. Do not add route aliases or second profile/snapshot source of truth.
+4. Update API/integration documentation and add regression tests for backend success/failure/CAS/idempotency/snapshot preservation plus frontend initial/loading/success/empty/error/stale/disabled states.
+
+**Verification:**
+```powershell
+py -m pytest -q tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_candidate_profile_service.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_local_routes.py
+py -m pytest -q tests/test_fitcv_cp/test_run_lifecycle.py tests/test_fitcv_cp/test_worker_job.py tests/test_pipeline_checkpoint_contract.py tests/test_pipeline_stage_resume_parity.py
+git diff --check
+```
+
+**Acceptance:** Confirmed-profile update creates immutable successor revision under CAS; archive, restore, and delete work from UI and API with direct proof; existing and historical Job Pipeline snapshots remain byte-for-byte unchanged; all required UI async states and canonical links are covered; no unplanned file changes.
 
 ## Verification
 
