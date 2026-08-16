@@ -63,7 +63,7 @@ from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION,
     SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION,
 )
-from fitcv.candidate import candidate_profile_field_schema
+from fitcv.candidate import candidate_profile_field_schema, validate_candidate_profile_v2
 from fitcv.decision_feedback import (
     DecisionRatingEvent,
     RatingEventType,
@@ -5813,6 +5813,12 @@ class CandidateProfileLifecycleRequest(BaseModel):
     expected_revision: int
 
 
+class CandidateProfileUpdateRequest(BaseModel):
+    canonical: dict[str, Any]
+    expected_revision: int
+    profile_name: str | None = None
+
+
 class CandidateProfileFailure(BaseModel):
     code: str
     message: str
@@ -7114,7 +7120,9 @@ def create_app(
                 if str(exc) == "idempotency_conflict":
                     raise ApiError(
                         409,
-                        "idempotency_conflict",
+                          "candidate_profile_archived",
+                      "candidate_profile_update_unavailable",
+                      "candidate_profile_validation_failed",
                         "Idempotency-Key was already used for a different request.",
                         action="Use a new Idempotency-Key.",
                     ) from exc
@@ -9763,7 +9771,8 @@ def create_app(
                     "candidate_profile_regeneration_undo_unavailable",
                     "candidate_profile_delete_requires_archive",
                     "candidate_profile_delete_referenced",
-                    "idempotency_conflict",
+                      "candidate_profile_archived",
+                      "candidate_profile_update_unavailable",                    "idempotency_conflict",
                 }
                 else 413
                 if code in {
@@ -10185,7 +10194,21 @@ def create_app(
             raise ApiError(404, "candidate_profile_not_found", "Candidate Profile not found.")
         return _data_response(resource)
 
-    @app.get("/candidate-profiles/{profile_id}/runs", response_model=CandidateProfileRunsEnvelope)
+    @app.put("/candidate-profiles/{profile_id}", response_model=CandidateProfileEnvelope)
+    def update_candidate_profile(
+        request: Request, profile_id: str, body: CandidateProfileUpdateRequest
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_call(
+            lambda: _resolve_run_store().update_candidate_profile(
+                profile_id,
+                canonical=body.canonical,
+                expected_revision=body.expected_revision,
+                profile_name=body.profile_name,
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
+
     def get_candidate_profile_runs(
         profile_id: str, page: int = 1, page_size: int = 20
     ) -> dict[str, Any]:

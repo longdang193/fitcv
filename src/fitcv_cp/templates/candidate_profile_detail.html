@@ -2,12 +2,82 @@
 {% from "candidate_profile_sections.html" import render_candidate_profile %}
 {% block title %}Candidate Profile {{ profile.profile_id }} — FitCV{% endblock %}
 {% block content %}
-<main class="workspace-stack" data-page="candidate-profile-detail" data-header-title="Candidate Profile" data-header-description="Review source, approved facts, derived claims, traceability, and related runs." data-header-icon="candidate">
-  <div class="details-page-head"><a class="details-page-back" href="{{ back_url }}">← Back to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Candidate Profile</p><h2>{{ profile.display_name }}</h2><p>Review source, approved facts, derived claims, traceability, and related Runs.</p></div></div></div>
-  {% if profile.failure %}<div class="notice" role="alert">{{ profile.failure.message }}</div>{% endif %}
-  {% if canonical %}{{ render_candidate_profile(profile, canonical, field_schema, related_runs, true) }}{% else %}<p class="empty-state">No parsed profile data is available.</p>{% endif %}
+<main>
+  <div><a href="{{ back_url }}">← Back to Candidate Profiles</a><div><div><p>Candidate Profile</p><h2>{{ profile.display_name }}</h2><p>Review source, approved facts, derived claims, traceability, and related Runs.</p></div></div></div>
+  {% if profile.failure %}<div role="alert">{{ profile.failure.message }}</div>{% endif %}
+  {% if profile.capabilities.archive or profile.capabilities.restore or profile.capabilities.delete or profile.capabilities.use_for_run %}
+  <section id="candidate-profile-controls" data-profile-id="{{ profile.profile_id }}" data-revision="{{ profile.revision }}" data-update-url="/candidate-profiles/{{ profile.profile_id }}" data-archive-url="/candidate-profiles/{{ profile.profile_id }}/actions/archive" data-restore-url="/candidate-profiles/{{ profile.profile_id }}/actions/restore" data-delete-url="/candidate-profiles/{{ profile.profile_id }}/actions/delete" aria-labelledby="candidate-profile-actions-title">
+    <h3 id="candidate-profile-actions-title">Profile actions</h3>
+    <p id="candidate-profile-action-status" role="status" aria-live="polite"></p>
+    <div>
+      {% if profile.capabilities.archive %}<button type="button" data-profile-action="archive">Archive Profile</button>{% endif %}
+      {% if profile.capabilities.restore %}<button type="button" data-profile-action="restore">Restore Profile</button>{% endif %}
+      {% if profile.capabilities.delete %}<button type="button" data-profile-action="delete">Delete Profile</button>{% endif %}
+      {% if profile.capabilities.use_for_run %}<button type="button" data-profile-action="edit">Edit Profile</button>{% endif %}
+    </div>
+    {% if profile.capabilities.use_for_run %}
+    <form id="candidate-profile-edit" hidden>
+      <label for="candidate-profile-name">Profile name</label>
+      <input id="candidate-profile-name" name="profile_name" value="{{ profile.profile_name or '' }}">
+      <label for="candidate-profile-canonical">Canonical profile JSON</label>
+      <textarea id="candidate-profile-canonical" name="canonical" rows="20">{{ canonical|tojson }}</textarea>
+      <button type="submit">Save successor revision</button>
+      <button type="button" data-profile-action="cancel-edit">Cancel</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% if canonical %}{{ render_candidate_profile(profile, canonical, field_schema, related_runs, true) }}{% else %}<p>No parsed profile data is available.</p>{% endif %}
 </main>
 <script>
-document.querySelectorAll('[data-profile-run]').forEach(function(button) { button.addEventListener('click', function() { location.assign('/admin/runs/' + encodeURIComponent(button.dataset.profileRun)); }); });
+(function () {
+  var root = document.getElementById('candidate-profile-controls');
+  if (!root) return;
+  var status = document.getElementById('candidate-profile-action-status');
+  var edit = document.getElementById('candidate-profile-edit');
+  var busy = false;
+  function setBusy(value) {
+    busy = value;
+    root.querySelectorAll('button, input, textarea').forEach(function (control) { control.disabled = value; });
+  }
+  function showError(error) {
+    var message = error && error.message ? error.message : 'Profile action failed.';
+    status.textContent = message;
+    if (typeof fitcvRenderAsyncState === 'function') fitcvRenderAsyncState(status, {kind: error && error.code && error.code.indexOf('conflict') >= 0 ? 'stale' : 'non_retryable', message: message, action: 'Reload', retry: function () { location.reload(); }});
+  }
+  async function run(action, body, control) {
+    if (busy) return;
+    var focused = document.activeElement;
+    setBusy(true);
+    status.textContent = action === 'update' ? 'Saving successor revision…' : action.charAt(0).toUpperCase() + action.slice(1) + 'ing profile…';
+    if (typeof fitcvRenderAsyncState === 'function') fitcvRenderAsyncState(status, {kind: 'pending', message: status.textContent, preserveContent: true});
+    try {
+      var options = {method: action === 'update' ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': fitcvIdempotencyKey(control || root)}};
+      options.body = JSON.stringify(Object.assign({expected_revision: Number(root.dataset.revision)}, body || {}));
+      await fitcvApiRequest(root.dataset[action + 'Url'], options);
+      if (action === 'delete') { location.assign('{{ back_url }}'); return; }
+      location.reload();
+    } catch (error) {
+      showError(error);
+      setBusy(false);
+      if (focused && focused.focus) focused.focus();
+    }
+  }
+  root.addEventListener('click', function (event) {
+    var control = event.target.closest('[data-profile-action]');
+    if (!control) return;
+    var action = control.dataset.profileAction;
+    if (action === 'edit') { edit.hidden = false; control.hidden = true; edit.querySelector('input').focus(); return; }
+    if (action === 'cancel-edit') { edit.hidden = true; root.querySelector('[data-profile-action="edit"]').hidden = false; return; }
+    if (action === 'delete' && !window.confirm('Delete this archived Candidate Profile?')) return;
+    run(action, null, control);
+  });
+  if (edit) edit.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var canonical;
+    try { canonical = JSON.parse(edit.querySelector('textarea').value); } catch (error) { showError({message: 'Canonical profile JSON is invalid.'}); return; }
+    run('update', {canonical: canonical, profile_name: edit.querySelector('input').value}, edit.querySelector('button[type="submit"]'));
+  });
+})();
 </script>
 {% endblock %}

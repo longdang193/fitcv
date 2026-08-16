@@ -51,6 +51,7 @@ from fitcv.preference_policy import (
 from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.candidate_profile_seeds import build_candidate_profile_seeds
+from fitcv.candidate import canonical_candidate_checksum, validate_candidate_profile_v2
 from fitcv_cp.models import (
     JobStageStatus,
     PipelineRun,
@@ -3458,6 +3459,7 @@ def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> di
         FROM candidate_profiles AS cp
         LEFT JOIN candidate_profile_revisions AS pr
           ON pr.candidate_profile_id = cp.candidate_profile_id
+               AND pr.revision = cp.revision
         WHERE cp.candidate_profile_id = ?
         """,
         (profile_id,),
@@ -3782,6 +3784,84 @@ def delete_candidate_profile(
                 request_fingerprint=request_fingerprint,
                 response=response,
                 now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
+
+
+
+
+def update_candidate_profile(
+    profile_id: str,
+    *,
+    canonical: dict[str, Any],
+    expected_revision: int,
+    idempotency_key: str,
+    profile_name: str | None = None,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    errors = validate_candidate_profile_v2(canonical)
+    if errors:
+        raise ValueError("candidate_profile_validation_failed")
+    scope = f"candidate_profile:{profile_id}:update"
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {"canonical": canonical, "expected_revision": expected_revision, "profile_name": profile_name}
+    )
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn, scope=scope, idempotency_key=idempotency_key, request_fingerprint=request_fingerprint
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            row = conn.execute(
+                "SELECT creation_status, lifecycle, revision, profile_name FROM candidate_profiles WHERE candidate_profile_id=?",
+                (profile_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("profile_not_found")
+            if int(row["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if row["creation_status"] != "succeeded":
+                raise ValueError("candidate_profile_update_unavailable")
+            if row["lifecycle"] != "active":
+                raise ValueError("candidate_profile_archived")
+            next_revision = expected_revision + 1
+            revision_id = f"profile_revision_{uuid.uuid4().hex}"
+            checksum = canonical_candidate_checksum(canonical)
+            conn.execute(
+                """INSERT INTO candidate_profile_revisions (
+                    profile_revision_id, candidate_profile_id, revision, profile_json,
+                    checksum, schema_revision, created_at
+                ) VALUES (?, ?, ?, ?, ?, 'candidate-profile.v2', ?)""",
+                (
+                    revision_id, profile_id, next_revision,
+                    json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    checksum, now,
+                ),
+            )
+            conn.execute(
+                """UPDATE candidate_profiles
+                   SET profile_name=COALESCE(?, profile_name), updated_at=?, revision=?
+                   WHERE candidate_profile_id=? AND lifecycle='active' AND creation_status='succeeded' AND revision=?""",
+                (profile_name.strip() if profile_name and profile_name.strip() else None, now, next_revision, profile_id, expected_revision),
+            )
+            if conn.execute("SELECT changes()").fetchone()[0] != 1:
+                raise ValueError("candidate_profile_revision_conflict")
+            response = _candidate_profile_resource(conn, profile_id)
+            assert response is not None
+            _record_candidate_profile_idempotent_result(
+                conn, scope=scope, idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint, response=response, now=now,
             )
             conn.commit()
         except Exception:
@@ -8947,6 +9027,7 @@ def create_run_bundle(
                        FROM candidate_profiles cp
                        JOIN candidate_profile_revisions pr
                          ON pr.candidate_profile_id = cp.candidate_profile_id
+               AND pr.revision = cp.revision
                        WHERE cp.candidate_profile_id = ?
                          AND cp.creation_status = 'succeeded'
                          AND cp.lifecycle = 'active'
@@ -10992,4 +11073,3 @@ def persist_pipeline_snapshot(
             conn.rollback()
             raise
     return {"run_id": run_id, "status": run_status.value}
-

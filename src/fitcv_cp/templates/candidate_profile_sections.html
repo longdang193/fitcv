@@ -117,5 +117,5 @@
   {% call details_section('Baseline Facts', 'Approved direct facts and repeatable evidence entries.', confirmation) %}{{ baseline_facts(canonical, field_schema) }}{% endcall %}
   {% call details_section('Derived Claims', 'Each claim owns evidence refs, confidence, and origin.', confirmation) %}{{ derived_claims(canonical, field_schema) }}{% endcall %}
   {% call details_section('Traceability', 'Baseline source locators and claim-level evidence refs.') %}{{ traceability(canonical, field_schema) }}{% endcall %}
-  {% call details_section('Related Runs', 'Runs that used this immutable profile snapshot.') %}{% if related_runs %}<p>{% for run in related_runs %}<button class="run-id run-id-link" type="button" data-profile-run="{{ run.run_id }}">{{ run.run_id }}</button>{{ ', ' if not loop.last else '' }}{% endfor %}</p>{% else %}<p>No related Runs yet.</p>{% endif %}{% endcall %}
+  {% call details_section('Related Runs', 'Runs that used this immutable profile snapshot.') %}{% if related_runs %}<p>{% for run in related_runs %}<a href="/admin/runs/{{ run.run_id }}"><code>{{ run.run_id }}</code></a>{{ ', ' if not loop.last else '' }}{% endfor %}</p>{% else %}<p>No related Runs yet.</p>{% endif %}{% endcall %}
 {%- endmacro %}

@@ -69,6 +69,7 @@ class RunStore(Protocol):
     def query_candidate_profile_runs(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def transition_candidate_profile_lifecycle(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def delete_candidate_profile(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def update_candidate_profile(self, profile_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def get_synonym_policy(self, synonym_type: str) -> dict[str, Any]: ...
     def save_synonym_policy_draft(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]: ...
     def activate_synonym_policy_bundle(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -240,6 +241,7 @@ class ControlPlaneStore:
     query_candidate_profile_runs_fn: Any | None = None
     transition_candidate_profile_lifecycle_fn: Any | None = None
     delete_candidate_profile_fn: Any | None = None
+    update_candidate_profile_fn: Any | None = None
     get_synonym_policy_fn: Any | None = None
     save_synonym_policy_draft_fn: Any | None = None
     activate_synonym_policy_bundle_fn: Any | None = None
@@ -731,11 +733,18 @@ class ControlPlaneStore:
             **kwargs,
         )
 
+    def update_candidate_profile(self, profile_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.update_candidate_profile_fn,
+            sqlite_store.update_candidate_profile,
+            profile_id,
+            **kwargs,
+        )
+
     def get_synonym_policy(self, synonym_type: str) -> dict[str, Any]:
         return self._call_dict(
             self.get_synonym_policy_fn, sqlite_store.get_synonym_policy, synonym_type
         )
-
     def save_synonym_policy_draft(self, synonym_type: str, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(
             self.save_synonym_policy_draft_fn,
@@ -1415,7 +1424,6 @@ class ControlPlaneStore:
             sqlite_store.insert_cv_version_row,
             row,
         )
-
 
 
 
