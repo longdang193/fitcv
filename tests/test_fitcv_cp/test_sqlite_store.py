@@ -1267,6 +1267,91 @@ def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, 
     return approved_derived, patched
 
 
+def test_candidate_profile_baseline_approval_rejects_empty_evidence_atomically(
+    tmp_path: Path,
+) -> None:
+    from fitcv_cp.candidate_profile_service import _BASELINE_COLLECTIONS, approve_review
+
+    baseline, _ = _candidate_profile_v2_review_documents()
+    empty_baseline = dict(baseline)
+    for section in _BASELINE_COLLECTIONS:
+        empty_baseline[section] = []
+
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Empty Evidence Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Empty Evidence\n",
+        idempotency_key="create-empty-evidence",
+        database_path=tmp_path / "fitcv_cp.sqlite3",
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"],
+        stage="base_mapping",
+        expected_revision=created["revision"],
+        lease_seconds=60,
+        database_path=tmp_path / "fitcv_cp.sqlite3",
+    )
+    published = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=claimed["processing"]["claim_id"],
+        expected_revision=claimed["revision"],
+        result={
+            "document": empty_baseline,
+            "annotations": {},
+            "fingerprint": approve_review(
+                "baseline", empty_baseline, expected_fingerprint=None
+            )["fingerprint"],
+            "runtime_evidence": None,
+        },
+        source_blocks=[],
+        database_path=tmp_path / "fitcv_cp.sqlite3",
+    )
+    with sqlite3.connect(tmp_path / "fitcv_cp.sqlite3") as conn:
+        before = conn.execute(
+            """
+            SELECT revision, creation_status, approved_baseline_fingerprint,
+                   processing_stage, processing_claim_id, processing_attempt,
+                   lease_expires_at, next_action
+            FROM candidate_profile_creation_attempts
+            WHERE attempt_id=?
+            """,
+            (created["attempt_id"],),
+        ).fetchone()
+
+    with pytest.raises(ValueError, match="candidate_profile_no_evidence"):
+        sqlite_store.approve_candidate_profile_review(
+            created["attempt_id"],
+            "baseline",
+            expected_revision=published["revision"],
+            expected_fingerprint=published["fingerprints"]["baseline_draft"],
+            idempotency_key="approve-empty-evidence",
+            database_path=tmp_path / "fitcv_cp.sqlite3",
+        )
+
+    with sqlite3.connect(tmp_path / "fitcv_cp.sqlite3") as conn:
+        after = conn.execute(
+            """
+            SELECT revision, creation_status, approved_baseline_fingerprint,
+                   processing_stage, processing_claim_id, processing_attempt,
+                   lease_expires_at, next_action
+            FROM candidate_profile_creation_attempts
+            WHERE attempt_id=?
+            """,
+            (created["attempt_id"],),
+        ).fetchone()
+        idempotent_rows = conn.execute(
+            "SELECT COUNT(*) FROM idempotent_actions WHERE action_scope=? AND idempotency_key=?",
+            (
+                f"candidate_profile:{created['attempt_id']}:baseline:approve",
+                "approve-empty-evidence",
+            ),
+        ).fetchone()[0]
+    assert after == before
+    assert idempotent_rows == 0
+
+
 def test_update_candidate_profile_creates_immutable_successor_with_cas_and_replay(tmp_path: Path) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
     ready, _ = _candidate_profile_ready_to_confirm(database_path)

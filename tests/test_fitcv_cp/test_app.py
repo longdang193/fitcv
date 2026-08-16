@@ -362,6 +362,61 @@ def test_candidate_profile_real_app_routes_process_yaml_through_staged_lifecycle
         files={"profile_file": ("candidate.yaml", source, "application/yaml")},
     ).status_code == 405
 
+
+def test_candidate_profile_baseline_approval_returns_no_evidence_api_error() -> None:
+    from fitcv_cp.candidate_profile_service import approve_review
+
+    app = _app()
+    app.state.enqueue_candidate_profile_stage = MagicMock()
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Empty Evidence Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Empty Evidence\n",
+        idempotency_key="api-create-empty-evidence",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"],
+        stage="base_mapping",
+        expected_revision=created["revision"],
+        lease_seconds=60,
+        database_path=database_path,
+    )
+    baseline = {"name": "Empty Evidence"}
+    published = sqlite_store.publish_candidate_profile_stage_result(
+        created["attempt_id"],
+        stage="baseline",
+        claim_id=claimed["processing"]["claim_id"],
+        expected_revision=claimed["revision"],
+        result={
+            "document": baseline,
+            "annotations": {},
+            "fingerprint": approve_review(
+                "baseline", baseline, expected_fingerprint=None
+            )["fingerprint"],
+            "runtime_evidence": None,
+        },
+        source_blocks=[],
+        database_path=database_path,
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/candidate-profile-creation-attempts/{created['attempt_id']}/baseline/actions/approve",
+            headers={"Idempotency-Key": "api-approve-empty-evidence"},
+            json={
+                "expected_revision": published["revision"],
+                "expected_fingerprint": published["fingerprints"]["baseline_draft"],
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "candidate_profile_no_evidence"
+    assert response.json()["error"]["retryable"] is False
+    app.state.enqueue_candidate_profile_stage.assert_not_called()
+
 @pytest.mark.parametrize(
     ("filename", "media_type", "content"),
     [

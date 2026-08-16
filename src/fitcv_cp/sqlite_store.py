@@ -2969,6 +2969,16 @@ def approve_candidate_profile_review(
             if stage == "derived" and attempt["approved_baseline_fingerprint"] != expected_baseline_fingerprint:
                 raise ValueError("candidate_profile_fingerprint_conflict")
             if stage == "baseline":
+                from fitcv_cp.candidate_profile_service import _evidence_ids
+
+                baseline_snapshot = _candidate_profile_snapshot(
+                    conn,
+                    attempt_id,
+                    "baseline",
+                    expected_fingerprint,
+                )
+                if not _evidence_ids(baseline_snapshot["document"]):
+                    raise ValueError("candidate_profile_no_evidence")
                 conn.execute(
                     """
                     UPDATE candidate_profile_creation_attempts

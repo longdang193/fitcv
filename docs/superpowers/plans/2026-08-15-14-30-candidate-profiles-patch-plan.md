@@ -207,7 +207,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Last accepted checkpoint: `2574e540`
 - Task 7 proof: `PASS` — deprecated harness consumers and stale coordination shim/tests removed; template/coordination checks pass; no tracked references to `harness_core_launcher`, `harness_task.py`, `validate_harness_config.py`, or `plan_coordination` remain.
 - Repository gate: `BLOCKED` outside Task 7 — full suite reports `2524 passed, 1 skipped, 2 failed`; failures are learning-format validation in `docs/learning` and unrelated `test_ai_score.py` behavior.
-- Task 6 latest attempt: `BLOCKED` — local FitCV service started and browser reached Candidate Profiles on August 15, 2026. Uploading `2026-06-24-Munich_Electrification-CV.md` created a failed draft, then returned `candidate_profile_llm_unavailable`; LLM Configuration showed no validated models and every provider showed `No connection`. Beiersdorf live generation remains blocked by the same provider prerequisite.
+- Task 6 latest attempt: `BLOCKED` — live browser proof on August 16, 2026 reached Candidate Profiles with both immutable CV inputs. Munich failed baseline generation with `candidate_profile_llm_output_invalid` because the provider response omitted valid `source_block_ids`; fresh Beiersdorf proof after Task 10 stopped at baseline with `candidate_profile_no_evidence`, HTTP `422`, visible status and retry alert, and no Derived transition. Provider-output validation remains unresolved; strict validation was not weakened. Both CV hashes remained unchanged: Munich `fc5c96b2c06263d726d645b187374999e0aec9d6f0413aa98859c814601db85a`; Beiersdorf `e4c9b089b8e5075b3bc2df513fbcc2fe07a7fef31439e12af0ed11308726f27a`.
 - Task 6 DeepAgents diagnosis: `BLOCKED` — bounded `dcode-project --role normal` read-only diagnosis made no file changes and stopped on `UnicodeDecodeError` while reading an unrelated non-UTF-8 file; no repository evidence supports resolving provider readiness without configured credentials or a validated local model.
 - Task 6 xhigh provider audit: `BLOCKED` — credential-free local generation is unsupported; eligible models require verified connection, configured credential, validated model, and matching connection revision (`src/fitcv_cp/provider_registry.py:125-132`, `src/fitcv_cp/provider_registry.py:156-170`). Real-provider setup requires connection test, persisted verified connection, model test, and model registration through the API Provider detail flow (`src/fitcv_cp/templates/api_provider_detail.html:42-51`).
 - Task 6 live configuration proof: `BLOCKED` — provider connection and `cx/gpt-5.4-mini` model validate, but the persisted LLM configuration snapshot contains only four tasks and omits `candidate_profile_base_mapping` and `candidate_profile_derived_claims`; runtime routing therefore returns `LLM routing is unavailable for candidate_profile_base_mapping`. Repository DB `data/fitcv_cp.sqlite3` reports schema `0`, while local FitCV DB reports schema `5`; no source files changed during probe. Superseded by Task 8 hydration fix; Task 6 remains blocked until Task 9 adds the missing confirmed-profile lifecycle controls and successor-revision update proof.
@@ -218,7 +218,7 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 - Task 5 accepted proof: `PASS` — settings suites passed `218 passed, 1 skipped`; compile and diff checks passed.
 - Task 8 accepted proof: `PASS` — `30 passed` from settings, SQLite hydration, and provider-routing suites; high-profile DeepAgents validator confirmed default hydration, preservation of existing values and revision semantics, and no scope creep.
 - Task 6 lifecycle review: `FAIL` — xhigh DeepAgents review ran the named lifecycle and pipeline suites with `747 passed in 125.28s`, but confirmed no executable proof for a confirmed-profile successor-update route or full profile-detail archive/restore/delete controls. Task 9 is opened to remediate these gaps before Task 6 reruns.
-- Task 6 backend proof: `PASS` — Candidate Profile lane passed `968 passed, 1 skipped`; live/browser proof remains blocked by the validated provider prerequisite recorded above.
+- Task 6 backend proof: `PASS` — Candidate Profile lane passed `968 passed, 1 skipped`; DeepAgents native verification passed `503`; live/browser proof remains blocked by provider-output validation and no-runnable-evidence behavior recorded above.
 - Runtime state: `ephemeral`; never use DeepAgents or Codex session state for recovery
 - Workspace rule: same-workspace writers execute sequentially
 
@@ -234,7 +234,8 @@ Focused direct backend, contract, browser, and isolated live-like checks cover b
 | `task-6-isolated-end-to-end-verification` | tasks 4, 5, 8, and 9 | blocked | `dcode-project --role xhigh` | Codex |
 | `task-7-remove-deprecated-harness-consumers` | none | completed | `dcode-project --role normal` | Codex |
 | `task-8-hydrate-candidate-profile-llm-tasks` | task 5 | completed | `dcode-project --role normal` | Codex |
-| `task-9-confirmed-profile-lifecycle-controls` | tasks 5 and 8 | in_progress | `dcode-project --role high` | Codex |
+| `task-9-confirmed-profile-lifecycle-controls` | tasks 5 and 8 | completed | `dcode-project --role high` | Codex |
+| `task-10-early-candidate-profile-evidence-gate` | tasks 2, 4, 6, and 9 | completed | `dcode-project --role normal` | Codex |
 
 ## Constraints and Decisions
 
@@ -460,6 +461,29 @@ git diff --check
 ```
 
 **Acceptance:** Confirmed-profile update creates immutable successor revision under CAS; archive, restore, and delete work from UI and API with direct proof; existing and historical Job Pipeline snapshots remain byte-for-byte unchanged; all required UI async states and canonical links are covered; no unplanned file changes.
+
+### Task 10: Reject empty Candidate Profile evidence before stage transition
+
+**Coordination ID:** `task-10-early-candidate-profile-evidence-gate`
+
+**Status:** `completed` — xhigh DeepAgents validation returned `PASS` after proof correction.
+
+**Purpose:** Prevent empty provider output from advancing through baseline and failing later at confirmation with a non-actionable dead-end.
+
+**Files:**
+- `src/fitcv_cp/sqlite_store.py`
+- `tests/test_fitcv_cp/test_candidate_profile_service.py`
+- `tests/test_fitcv_cp/test_sqlite_store.py`
+- `tests/test_fitcv_cp/test_app.py`
+
+**Changes:**
+1. Keep strict `source_block_ids` validation unchanged; reject baseline approval in the persistence path when the approved baseline contains no runnable evidence, using existing `candidate_profile_no_evidence` error handling.
+2. Preserve existing frontend failure, retry, stale-state, and draft-preservation behavior; add direct service and API regression proof that no empty baseline advances to Derived.
+3. Re-run focused Candidate Profile backend/frontend suites and repeat the Beiersdorf browser probe to verify failure occurs at baseline with actionable status and no partial profile persistence.
+
+**Evidence:** Fresh browser proof stopped Beiersdorf at baseline with visible `candidate_profile_no_evidence` status/alert and no Derived transition; focused regression/API proof passed `14 tests`, targeted validation passed `6 tests`, `py_compile` and `git diff --check` passed; xhigh DeepAgents validator returned `PASS`.
+
+**Acceptance:** Empty or provider-invalid baseline cannot advance to Derived; valid evidence-backed baseline behavior remains unchanged; existing error envelope and UI retry path render the exact failure; no profile revision or Job Pipeline snapshot is persisted on rejection.
 
 ## Verification
 
