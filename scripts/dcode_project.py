@@ -676,6 +676,8 @@ def _find_dcode() -> str | None:
 
 def _runtime_environment(base_url: str, api_key: str) -> dict[str, str]:
     environment = os.environ.copy()
+    environment["PYTHONUTF8"] = "1"
+    environment["PYTHONIOENCODING"] = "utf-8"
     environment["DEEPAGENTS_CODE_OPENAI_BASE_URL"] = base_url
     environment["DEEPAGENTS_CODE_OPENAI_API_KEY"] = api_key
     environment["OPENAI_BASE_URL"] = base_url
