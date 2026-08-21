@@ -24,6 +24,7 @@ Q: shortlist stage - Techniques used: What algorithms, patterns, heuristics, or 
 A: Reusable candidate-query embedding and signature/fingerprint-gated embedding reuse.
 
 E: Source-grounded fact: See docs/stages/shortlist.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 2026-05-19-16-45-runtime-throughput-ssot-symmetry-invariance-optimization-spec.md

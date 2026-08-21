@@ -25,6 +25,7 @@ A: Weighting, preference calibration, alignment, fallback intent, threshold-to-l
 
 E: Source-grounded fact: See docs/stages/ranking.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736122-->
+
 EEND
 
 

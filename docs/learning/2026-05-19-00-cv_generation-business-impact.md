@@ -25,6 +25,7 @@ A: Produces actionable outputs with explicit failure classes for fast triage and
 
 E: Source-grounded fact: See docs/stages/cv_generation.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736272-->
+
 EEND
 
 

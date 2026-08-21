@@ -24,6 +24,7 @@ Q: normalize stage - Dependencies: What does this stage rely on from earlier sta
 A: Relies on trigger input integrity; all downstream stages rely on normalized deduped pool.
 
 E: Source-grounded fact: See docs/stages/normalize.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

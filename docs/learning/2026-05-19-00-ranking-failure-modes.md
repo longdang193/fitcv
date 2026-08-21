@@ -25,6 +25,7 @@ A: Label instability, stale reuse, threshold drift; detect via fit/reuse/quality
 
 E: Source-grounded fact: See docs/stages/ranking.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736138-->
+
 EEND
 
 

@@ -3520,3 +3520,13 @@ def test_verify_jobs_input_projection_preserves_legacy_runs() -> None:
     from fitcv_cp.worker_job import _verify_jobs_input_projection
 
     _verify_jobs_input_projection(SimpleNamespace(jobs_input_json=None), "missing.json")
+
+
+def test_verify_jobs_input_projection_fails_closed_for_incomplete_managed_run() -> None:
+    from types import SimpleNamespace
+    from fitcv_cp.worker_job import JobsInputIntegrityError, _verify_jobs_input_projection
+
+    run = SimpleNamespace(run_input_contract_version="managed_v1", jobs_input_json=None)
+
+    with pytest.raises(JobsInputIntegrityError, match="managed run input snapshot"):
+        _verify_jobs_input_projection(run, "missing.json")

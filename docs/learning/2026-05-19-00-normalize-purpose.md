@@ -24,6 +24,7 @@ Q: normalize stage - Purpose: What does this stage do, and why does it exist?
 A: Normalize raw inputs into stable deduplicated rows; boundary where raw job shape ends.
 
 E: Source-grounded fact: See docs/stages/normalize.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

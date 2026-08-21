@@ -25,6 +25,7 @@ A: Fit labels are upstream truth and ranked selection rationale must be explaina
 
 E: Source-grounded fact: See docs/stages/ranking.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736126-->
+
 EEND
 
 

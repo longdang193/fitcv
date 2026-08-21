@@ -588,8 +588,11 @@ class JobsInputIntegrityError(RuntimeError):
 
 
 def _verify_jobs_input_projection(run_record: Any, jobs_path: str) -> None:
+    contract_version = getattr(run_record, "run_input_contract_version", None)
     snapshot_value = getattr(run_record, "jobs_input_json", None)
     if not isinstance(snapshot_value, str) or not snapshot_value:
+        if contract_version == "managed_v1":
+            raise JobsInputIntegrityError("managed run input snapshot is missing")
         return
 
     persisted_path_value = getattr(run_record, "jobs_path", None)

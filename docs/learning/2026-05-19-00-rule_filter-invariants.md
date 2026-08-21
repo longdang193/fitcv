@@ -25,6 +25,7 @@ A: Deterministic pass/reject authority and finalized reject reasons remain in th
 
 E: Source-grounded fact: See docs/stages/rule_filter.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736084-->
+
 EEND
 
 

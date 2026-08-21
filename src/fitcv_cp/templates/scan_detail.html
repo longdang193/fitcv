@@ -113,8 +113,32 @@
   tableTab?.addEventListener('click', () => selectOutput('table'));
   jsonTab?.addEventListener('click', () => selectOutput('json'));
   if (['queued', 'running', 'cancelling'].includes(root.dataset.scanStatus)) {
-    const poll = window.setTimeout(() => { if (!document.hidden) location.reload(); }, 5000);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) window.clearTimeout(poll); }, {once:true});
+    let pollTimer = null;
+    let eventCursor = null;
+    const poll = async () => {
+      if (document.hidden) return;
+      try {
+        const [resourceResponse, eventsResponse] = await Promise.all([
+          fetch(`/scans/${encodeURIComponent(scanId)}`),
+          fetch(`/scans/${encodeURIComponent(scanId)}/events?limit=50${eventCursor ? `&cursor=${encodeURIComponent(eventCursor)}` : ''}`),
+        ]);
+        if (!resourceResponse.ok || !eventsResponse.ok) throw new Error('Scan status refresh failed.');
+        const resource = (await resourceResponse.json()).data;
+        const events = (await eventsResponse.json()).data;
+        eventCursor = events.next_cursor || eventCursor;
+        const latestStatus = String(resource.execution_status || '');
+        root.dataset.scanStatus = latestStatus;
+        document.querySelectorAll('.run-status[data-status]').forEach(badge => {
+          badge.dataset.status = latestStatus.replaceAll('_', ' ');
+          badge.textContent = latestStatus.replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase());
+        });
+        if (Array.isArray(events.events) && events.events.length) status.textContent = `${events.events.length} new Scan event${events.events.length === 1 ? '' : 's'}.`;
+        if (!['queued', 'running', 'cancelling'].includes(latestStatus)) { location.reload(); return; }
+      } catch (error) { status.textContent = error.message; }
+      pollTimer = window.setTimeout(poll, 5000);
+    };
+    pollTimer = window.setTimeout(poll, 5000);
+    document.addEventListener('visibilitychange', () => { if (document.hidden && pollTimer) window.clearTimeout(pollTimer); }, {once:true});
   }
 })();
 </script>

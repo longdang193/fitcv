@@ -24,6 +24,7 @@ Q: cv_generation stage - Invariants: What must always remain true before, during
 A: Generation/validation/repair/persistence owned here; evidence retrieval and fit gate remain upstream.
 
 E: Source-grounded fact: See docs/stages/cv_generation.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

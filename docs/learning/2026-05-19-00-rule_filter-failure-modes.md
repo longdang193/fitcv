@@ -25,6 +25,7 @@ A: Over-rejection or under-rejection; detect with ratio/reason drift and downstr
 
 E: Source-grounded fact: See docs/stages/rule_filter.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736096-->
+
 EEND
 
 

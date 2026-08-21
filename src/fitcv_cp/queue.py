@@ -321,10 +321,29 @@ def _run_inline_scan(job_id: str, scan_id: str) -> None:
 def enqueue_scan_with_job_id(
     scan_id: str, redis_url: str = "redis://redis:6379/0"
 ) -> str:
+    from fitcv_cp import sqlite_store
+
+    try:
+        existing_job_id = sqlite_store.get_scan_queue_job_id(scan_id)
+    except sqlite_store.DatabaseSchemaIncompatibleError:
+        existing_job_id = None
+    if existing_job_id:
+        return existing_job_id
     job_id = f"scan:{scan_id}"
     if _inline_execution_enabled():
         _INLINE_JOB_STATUS[job_id] = "queued"
-        get_local_job_executor().submit(_run_inline_scan, job_id, scan_id)
+        try:
+            get_local_job_executor().submit(_run_inline_scan, job_id, scan_id)
+            try:
+                sqlite_store.bind_scan_queue_job(scan_id, job_id)
+            except (ValueError, sqlite_store.DatabaseSchemaIncompatibleError) as exc:
+                if isinstance(exc, sqlite_store.DatabaseSchemaIncompatibleError):
+                    return job_id
+                if str(exc) != "scan_not_found":
+                    raise
+        except Exception:
+            _INLINE_JOB_STATUS.pop(job_id, None)
+            raise
         return job_id
     from fitcv_cp import scan_worker
 
@@ -334,7 +353,15 @@ def enqueue_scan_with_job_id(
         job_id=job_id,
         job_timeout=3600,
     )
-    return str(job.id)
+    queue_job_id = str(job.id)
+    try:
+        sqlite_store.bind_scan_queue_job(scan_id, queue_job_id)
+    except (ValueError, sqlite_store.DatabaseSchemaIncompatibleError) as exc:
+        if isinstance(exc, sqlite_store.DatabaseSchemaIncompatibleError):
+            return queue_job_id
+        if str(exc) != "scan_not_found":
+            raise
+    return queue_job_id
 
 
 def _run_inline_candidate_profile_stage(

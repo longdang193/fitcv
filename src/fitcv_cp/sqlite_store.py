@@ -75,6 +75,7 @@ from fitcv_cp.run_lifecycle import (
     run_stage_status_from_pipeline,
 )
 from fitcv_cp.scan_contracts import derive_scan_capabilities, resolve_publication_cutoff
+from fitcv.ingest import canonicalize_jobs
 from fitcv_cp.synonym_policy_io import (
     compile_global_synonym_map,
     load_global_synonym_map,
@@ -317,9 +318,22 @@ def _ensure_run_inputs_snapshot_columns(conn: sqlite3.Connection) -> None:
     for column in (
         "candidate_profile_schema_version",
         "candidate_profile_checksum",
+        "run_input_contract_version",
     ):
         if column not in columns:
             conn.execute(f"ALTER TABLE run_inputs ADD COLUMN {column} TEXT")
+
+def _ensure_scan_execution_columns(conn: sqlite3.Connection) -> None:
+    columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(scans)")}
+    definitions = {
+        "queue_job_id": "TEXT",
+        "claim_id": "TEXT",
+        "heartbeat_at": "TEXT",
+        "recovery_state": "TEXT NOT NULL DEFAULT 'none'",
+    }
+    for column, definition in definitions.items():
+        if column not in columns:
+            conn.execute(f"ALTER TABLE scans ADD COLUMN {column} {definition}")
 
 
 def _persist_initial_profile_state(
@@ -592,6 +606,7 @@ def _ensure_control_plane_schema(
         synonym_policy_bundle_snapshot_json TEXT CHECK (
             synonym_policy_bundle_snapshot_json IS NULL OR json_valid(synonym_policy_bundle_snapshot_json)
         ),
+        run_input_contract_version TEXT,
         created_at TEXT NOT NULL
     );
 
@@ -621,6 +636,10 @@ def _ensure_control_plane_schema(
         finished_at TEXT,
         archived_at TEXT,
         cancel_requested_at TEXT,
+        queue_job_id TEXT,
+        claim_id TEXT,
+        heartbeat_at TEXT,
+        recovery_state TEXT NOT NULL DEFAULT 'none',
         rerun_of_scan_id TEXT REFERENCES scans(scan_id) ON DELETE SET NULL,
         failure_code TEXT,
         failure_message TEXT,
@@ -1034,6 +1053,7 @@ def _ensure_control_plane_schema(
             if statement.strip():
                 conn.execute(statement)
         _ensure_run_inputs_snapshot_columns(conn)
+        _ensure_scan_execution_columns(conn)
         if version == 4:
             _migrate_candidate_profiles_v4_to_v5(conn)
         if candidate_profiles is not None:
@@ -4004,7 +4024,17 @@ def _scan_resource(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]
     if output_row is not None:
         raw = str(output_row["output_json"]).encode("utf-8")
         digest = hashlib.sha256(raw).hexdigest()
-        integrity_valid = digest == str(output_row["sha256"]) and len(raw) == int(output_row["byte_length"])
+        try:
+            canonical = canonicalize_jobs(json.loads(str(output_row["output_json"])))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            canonical = None
+        integrity_valid = bool(
+            canonical is not None
+            and canonical.json_text == str(output_row["output_json"])
+            and digest == str(output_row["sha256"])
+            and len(raw) == int(output_row["byte_length"])
+            and len(canonical.jobs) == int(output_row["record_count"])
+        )
         output_manifest = {
             "sha256": str(output_row["sha256"]),
             "byte_length": int(output_row["byte_length"]),
@@ -4032,6 +4062,9 @@ def _scan_resource(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]
         "finished_at": row["finished_at"],
         "archived_at": row["archived_at"],
         "cancel_requested_at": row["cancel_requested_at"],
+        "queue_job_id": row["queue_job_id"],
+        "heartbeat_at": row["heartbeat_at"],
+        "recovery_state": row["recovery_state"],
         "rerun_of_scan_id": row["rerun_of_scan_id"],
         "failure_code": row["failure_code"],
         "failure_message": row["failure_message"],
@@ -4067,6 +4100,54 @@ def query_tracked_companies(
             (*params, page_size, (max(1, page) - 1) * page_size),
         ).fetchall()
     return {"items": [dict(row) for row in rows], "total": total}
+
+def get_scan_queue_job_id(scan_id: str, *, database_path: Path | None = None) -> str | None:
+    with _scan_store_connection(database_path) as conn:
+        row = conn.execute(
+            "SELECT queue_job_id FROM scans WHERE scan_id = ?", (scan_id,)
+        ).fetchone()
+    return str(row[0]) if row is not None and row[0] else None
+
+def bind_scan_queue_job(
+    scan_id: str, queue_job_id: str, *, database_path: Path | None = None
+) -> bool:
+    normalized_job_id = str(queue_job_id or "").strip()
+    if not normalized_job_id:
+        raise ValueError("scan_queue_job_id_required")
+    with _scan_store_connection(database_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = conn.execute(
+                "SELECT queue_job_id FROM scans WHERE scan_id = ?", (scan_id,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("scan_not_found")
+            existing = str(row[0] or "").strip()
+            if existing and existing != normalized_job_id:
+                raise ValueError("scan_queue_binding_conflict")
+            if existing == normalized_job_id:
+                conn.commit()
+                return False
+            cursor = conn.execute(
+                """
+                UPDATE scans
+                SET queue_job_id=?, recovery_state='enqueued', row_revision=row_revision+1
+                WHERE scan_id=? AND (queue_job_id IS NULL OR queue_job_id=?)
+                """,
+                (normalized_job_id, scan_id, normalized_job_id),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return cursor.rowcount == 1
+
+def get_scan_claim_id(scan_id: str, *, database_path: Path | None = None) -> str | None:
+    with _scan_store_connection(database_path) as conn:
+        row = conn.execute(
+            "SELECT claim_id FROM scans WHERE scan_id = ?", (scan_id,)
+        ).fetchone()
+    return str(row[0]) if row is not None and row[0] else None
 
 def create_tracked_company(
     *, company_name: str, careers_url: str, provider_id: str, provider_label: str | None = None,
@@ -4184,12 +4265,60 @@ def request_scan_cancel(
 def claim_scan_execution(scan_id: str, *, database_path: Path | None = None) -> bool:
     with _scan_store_connection(database_path) as conn:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        claim_id = f"claim-{uuid.uuid4().hex}"
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            cursor = conn.execute(
+                """
+                UPDATE scans
+                SET execution_status='running', started_at=?, claim_id=?, heartbeat_at=?, recovery_state='claimed', row_revision=row_revision+1
+                WHERE scan_id=? AND execution_status='queued' AND lifecycle='active'
+                """,
+                (now, claim_id, now, scan_id),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        return cursor.rowcount == 1
+
+def update_scan_heartbeat(
+    scan_id: str, *, claim_id: str, database_path: Path | None = None
+) -> bool:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _scan_store_connection(database_path) as conn:
         cursor = conn.execute(
-            "UPDATE scans SET execution_status='running', started_at=?, row_revision=row_revision+1 WHERE scan_id=? AND execution_status='queued' AND lifecycle='active'",
-            (now, scan_id),
+            "UPDATE scans SET heartbeat_at=? WHERE scan_id=? AND execution_status='running' AND claim_id=?",
+            (now, scan_id, claim_id),
         )
         conn.commit()
         return cursor.rowcount == 1
+
+def recover_stale_scan_execution(
+    scan_id: str, *, stale_after_seconds: int = 300, database_path: Path | None = None
+) -> bool:
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        seconds=max(1, int(stale_after_seconds))
+    )
+    with _scan_store_connection(database_path) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE scans
+            SET execution_status='failed', failure_code='scan_stale_recovered',
+                failure_message='Scan worker heartbeat expired.', finished_at=?,
+                claim_id=NULL, heartbeat_at=NULL, recovery_state='stale_recovered',
+                row_revision=row_revision+1
+            WHERE scan_id=? AND execution_status='running'
+              AND heartbeat_at IS NOT NULL AND heartbeat_at < ?
+            """,
+            (
+                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                scan_id,
+                cutoff.isoformat(),
+            ),
+        )
+        conn.commit()
+    return cursor.rowcount == 1
 
 def fail_scan_execution(
     scan_id: str, *, error_code: str, error_message: str, database_path: Path | None = None
@@ -4197,7 +4326,7 @@ def fail_scan_execution(
     with _scan_store_connection(database_path) as conn:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         conn.execute(
-            "UPDATE scans SET execution_status='failed', failure_code=?, failure_message=?, finished_at=?, row_revision=row_revision+1 WHERE scan_id=? AND execution_status IN ('queued','running','cancelling')",
+            "UPDATE scans SET execution_status='failed', failure_code=?, failure_message=?, finished_at=?, heartbeat_at=NULL, claim_id=NULL, recovery_state='failed', row_revision=row_revision+1 WHERE scan_id=? AND execution_status IN ('queued','running','cancelling')",
             (error_code[:120], error_message[:1000], now, scan_id),
         )
         conn.commit()
@@ -4207,7 +4336,7 @@ def cancel_scan_execution(scan_id: str, *, database_path: Path | None = None) ->
     with _scan_store_connection(database_path) as conn:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         conn.execute(
-            "UPDATE scans SET execution_status='cancelled', finished_at=?, row_revision=row_revision+1 WHERE scan_id=? AND execution_status='cancelling'",
+            "UPDATE scans SET execution_status='cancelled', finished_at=?, heartbeat_at=NULL, claim_id=NULL, recovery_state='cancelled', row_revision=row_revision+1 WHERE scan_id=? AND execution_status='cancelling'",
             (now, scan_id),
         )
         conn.commit()
@@ -4216,23 +4345,35 @@ def cancel_scan_execution(scan_id: str, *, database_path: Path | None = None) ->
 def commit_scan_output(scan_id: str, *, output_json: str, database_path: Path | None = None) -> dict[str, Any]:
     try:
         jobs = json.loads(output_json)
-    except (TypeError, ValueError) as exc:
+        canonical = canonicalize_jobs(jobs)
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
         raise ValueError("scan_output_invalid") from exc
-    if not isinstance(jobs, list):
-        raise ValueError("scan_output_invalid")
+    if canonical.json_text != output_json:
+        raise ValueError("scan_output_not_canonical")
     raw = output_json.encode("utf-8")
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     with _scan_store_connection(database_path) as conn:
-        row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
-        if row is None:
-            raise ValueError("scan_not_found")
-        if conn.execute("SELECT 1 FROM scan_outputs WHERE scan_id = ?", (scan_id,)).fetchone():
-            raise ValueError("scan_output_immutable")
-        if str(row["execution_status"]) in {"succeeded", "failed", "cancelled"}:
-            raise ValueError("scan_terminal")
-        conn.execute("INSERT INTO scan_outputs VALUES (?, ?, ?, ?, ?, ?)", (scan_id, output_json, hashlib.sha256(raw).hexdigest(), len(raw), len(jobs), now))
-        conn.execute("UPDATE scans SET execution_status='succeeded', finished_at=?, row_revision=row_revision+1 WHERE scan_id=?", (now, scan_id))
-        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
+            if row is None:
+                raise ValueError("scan_not_found")
+            if conn.execute("SELECT 1 FROM scan_outputs WHERE scan_id = ?", (scan_id,)).fetchone():
+                raise ValueError("scan_output_immutable")
+            if str(row["execution_status"]) in {"succeeded", "failed", "cancelled", "cancelling"}:
+                raise ValueError("scan_terminal")
+            conn.execute(
+                "INSERT INTO scan_outputs VALUES (?, ?, ?, ?, ?, ?)",
+                (scan_id, output_json, canonical.sha256, len(raw), len(canonical.jobs), now),
+            )
+            conn.execute(
+                "UPDATE scans SET execution_status='succeeded', finished_at=?, heartbeat_at=NULL, claim_id=NULL, recovery_state='completed', row_revision=row_revision+1 WHERE scan_id=?",
+                (now, scan_id),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
     return get_scan_detail(scan_id, database_path=database_path) or {}
 
 def get_scan_output(scan_id: str, *, database_path: Path | None = None) -> dict[str, Any] | None:
@@ -4244,7 +4385,16 @@ def get_scan_output(scan_id: str, *, database_path: Path | None = None) -> dict[
         if output is None:
             raise ValueError("scan_output_not_ready" if scan["execution_status"] in {"queued", "running", "cancelling"} else "scan_output_unavailable")
         raw = str(output["output_json"]).encode("utf-8")
-        if hashlib.sha256(raw).hexdigest() != str(output["sha256"]) or len(raw) != int(output["byte_length"]):
+        try:
+            canonical = canonicalize_jobs(json.loads(str(output["output_json"])))
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ValueError("scan_output_integrity_failed") from exc
+        if (
+            canonical.json_text != str(output["output_json"])
+            or canonical.sha256 != str(output["sha256"])
+            or len(raw) != int(output["byte_length"])
+            or len(canonical.jobs) != int(output["record_count"])
+        ):
             raise ValueError("scan_output_integrity_failed")
         return {"output_json": str(output["output_json"]), "sha256": str(output["sha256"]), "byte_length": int(output["byte_length"]), "record_count": int(output["record_count"])}
 
@@ -9119,6 +9269,9 @@ def create_run_bundle(
                 if candidate_profile_revision_id
                 else None
             )
+            run_input_contract_version = input_resource.get("run_input_contract_version")
+            if run_input_contract_version not in {None, "managed_v1"}:
+                raise ValueError("run_input_contract_version_invalid")
             conn.execute(
                 """
                 INSERT INTO run_inputs (
@@ -9129,8 +9282,9 @@ def create_run_bundle(
                     candidate_profile_name, candidate_profile_json, settings_revision,
                     settings_snapshot_json, synonym_policy_bundle_revision_id,
                     synonym_policy_bundle_checksum, synonym_policy_bundle_snapshot_json,
+                    run_input_contract_version,
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     run.run_id,
@@ -9153,6 +9307,7 @@ def create_run_bundle(
                     input_resource.get("synonym_policy_bundle_revision_id"),
                     input_resource.get("synonym_policy_bundle_checksum"),
                     input_resource.get("synonym_policy_bundle_snapshot_json"),
+                    run_input_contract_version,
                     run.created_at.isoformat(),
                 ),
             )
@@ -9184,7 +9339,7 @@ def create_run_bundle(
                         index,
                         hashlib.sha256(source_json.encode("utf-8")).hexdigest(),
                         source_json,
-                        job.get("job_url") or job.get("url"),
+                        job.get("job_url") or job.get("jobUrl") or job.get("url"),
                         str(job.get("title") or "Untitled"),
                         job.get("company"),
                         job.get("location"),

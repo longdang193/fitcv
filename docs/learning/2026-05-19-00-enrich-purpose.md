@@ -25,6 +25,7 @@ A: Apply pre-filters then enrich normalized rows into canonical semantic contrac
 
 E: Source-grounded fact: See docs/stages/enrich.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736180-->
+
 EEND
 
 

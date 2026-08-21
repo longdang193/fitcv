@@ -25,6 +25,7 @@ A: In: enriched rows + deterministic policy + synonym map. Out: passed/rejected 
 
 E: Source-grounded fact: See docs/stages/rule_filter.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736092-->
+
 EEND
 
 

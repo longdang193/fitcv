@@ -24,6 +24,7 @@ Q: normalize stage - Failure modes: What can go wrong in this stage, and how wou
 A: False dedup merges or missed duplicates; detect via artifacts and anomalies, prevent with tests/rules.
 
 E: Source-grounded fact: See docs/stages/normalize.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

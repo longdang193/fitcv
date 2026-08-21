@@ -25,6 +25,7 @@ A: Select grounded evidence, compute gaps, and resolve fit gate for generation r
 
 E: Source-grounded fact: See docs/stages/cv_analysis.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736283-->
+
 EEND
 
 

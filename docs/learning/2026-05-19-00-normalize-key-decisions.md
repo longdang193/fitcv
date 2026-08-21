@@ -24,6 +24,7 @@ Q: normalize stage - Key decisions: What important choices or judgments happen i
 A: Canonical identity and dedup decisions with deterministic ordering.
 
 E: Source-grounded fact: See docs/stages/normalize.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

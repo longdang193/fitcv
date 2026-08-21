@@ -25,6 +25,7 @@ A: If normalize removed, what concrete regressions appear in enrich/rule_filter/
 
 E: Source-grounded fact: See docs/stages/normalize.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736162-->
+
 EEND
 
 

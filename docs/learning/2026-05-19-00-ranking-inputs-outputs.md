@@ -25,6 +25,7 @@ A: In: scoring shortlist + reranker outputs + six-feature inputs. Out: ranked jo
 
 E: Source-grounded fact: See docs/stages/ranking.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736134-->
+
 EEND
 
 

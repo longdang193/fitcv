@@ -25,6 +25,7 @@ A: Transform passed jobs into retrieval-informed shortlist for scoring, with exp
 
 E: Source-grounded fact: See docs/stages/shortlist.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736039-->
+
 EEND
 
 

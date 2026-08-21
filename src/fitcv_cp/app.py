@@ -8518,6 +8518,7 @@ def create_app(
         jobs_input_source: str | None = None,
         jobs_input_json: str | None = None,
         jobs_input_manifest_json: str | None = None,
+        run_input_contract_version: str | None = None,
         candidate_profile_source: str | None = None,
         candidate_profile_json: str | None = None,
         run_synonym_overlay: dict[str, Any] | None = None,
@@ -8691,6 +8692,7 @@ def create_app(
                         "candidate_profile_id": candidate_profile_source,
                         "jobs_snapshot_json": jobs_input_json,
                         "jobs_manifest_json": jobs_input_manifest_json or "{}",
+                        "run_input_contract_version": run_input_contract_version,
                     },
                     jobs=[dict(job) for job in parsed_run_jobs if isinstance(job, dict)],
                 )
@@ -9158,8 +9160,20 @@ def create_app(
                     ) from exc
                 if not isinstance(decoded_upload, list):
                     raise ApiError(422, "validation_failed", "Uploaded job data must be a JSON array.")
-                merged_jobs.extend(decoded_upload)
-                sources.append({"type": "upload", "filename": upload_name, "record_count": len(decoded_upload)})
+                try:
+                    upload_artifact = canonicalize_jobs(decoded_upload)
+                except ValueError as exc:
+                    raise ApiError(422, "validation_failed", str(exc)) from exc
+                merged_jobs.extend(upload_artifact.jobs)
+                sources.append(
+                    {
+                        "type": "upload",
+                        "filename": upload_name,
+                        "record_count": len(upload_artifact.jobs),
+                        "sha256": upload_artifact.sha256,
+                        "byte_length": len(upload_artifact.json_text.encode("utf-8")),
+                    }
+                )
             for scan_id in scan_ids:
                 scan = _scan_store_call(
                     lambda scan_id=scan_id: request.app.state.run_store.get_scan_detail(scan_id)
@@ -9177,6 +9191,16 @@ def create_app(
                 )
                 if output is None:
                     raise ApiError(409, "scan_output_integrity_failed", f"Scan {scan_id} output is unavailable.")
+                refreshed_scan = _scan_store_call(
+                    lambda scan_id=scan_id: request.app.state.run_store.get_scan_detail(scan_id)
+                )
+                if refreshed_scan is None or not bool(dict(refreshed_scan.get("capabilities") or {}).get("use_for_run")):
+                    raise ApiError(
+                        409,
+                        "scan_not_usable",
+                        f"Scan {scan_id} changed while Run sources were being resolved.",
+                        data={"scan_id": scan_id},
+                    )
                 merged_jobs.extend(_json.loads(str(output["output_json"])))
                 sources.append(
                     {
@@ -9224,6 +9248,7 @@ def create_app(
                     canonical_jobs=artifact,
                     jobs_input_source=source_kind,
                     jobs_input_manifest_json=_json.dumps({"sources": sources}, ensure_ascii=False, sort_keys=True),
+                    run_input_contract_version="managed_v1",
                     candidate_profile_source=profile_id,
                     candidate_profile_json=_json.dumps(profile_snapshot, ensure_ascii=False, sort_keys=True),
                 )

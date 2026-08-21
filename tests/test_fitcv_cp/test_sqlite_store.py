@@ -36,6 +36,17 @@ def _make_run(run_id: str = "run-1") -> PipelineRun:
     )
 
 
+def _canonical_job(name: str) -> dict[str, str]:
+    return {
+        "jobUrl": f"https://jobs.example.test/{name}",
+        "title": name,
+        "companyName": f"{name} Company",
+        "description": f"{name} description",
+        "contractType": "full_time",
+        "experienceLevel": "mid",
+    }
+
+
 def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -> None:
     with sqlite3.connect(":memory:") as conn:
         sqlite_store._configure_sqlite_connection(conn)
@@ -111,7 +122,11 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             "synonym_policy_bundle_revision_id",
             "synonym_policy_bundle_checksum",
             "synonym_policy_bundle_snapshot_json",
+            "run_input_contract_version",
         } <= run_input_columns
+
+        scan_columns = {row[1] for row in conn.execute("PRAGMA table_info(scans)")}
+        assert {"queue_job_id", "claim_id", "heartbeat_at", "recovery_state"} <= scan_columns
 
         idempotency_columns = {row[1] for row in conn.execute("PRAGMA table_info(idempotent_actions)")}
         assert {
@@ -134,6 +149,47 @@ def test_tracked_company_and_scan_persist_with_immutable_output() -> None:
         provider_label="Personio",
         database_path=database_path,
     )
+    reservation = sqlite_store.reserve_idempotent_action(
+        "scans:create", "scan-key", "scan-fingerprint"
+    )
+    scan = sqlite_store.create_scan(
+        request={
+            "scan_name": "Germany data roles",
+            "company_ids": [company["company_id"]],
+            "job_titles": ["Data Engineer"],
+            "locations": ["Germany"],
+            "published_window": "past_7_days",
+            "total_rows": 50,
+        },
+        idempotency_action_id=reservation["action_id"],
+        database_path=database_path,
+    )
+
+    assert sqlite_store.query_tracked_companies(database_path=database_path)["items"] == [company]
+    assert sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)["input"]["company_ids"] == [company["company_id"]]
+
+    sqlite_store.commit_scan_output(
+        scan["scan_id"],
+        output_json=json.dumps([_canonical_job("Data Engineer")], ensure_ascii=False, indent=2),
+        database_path=database_path,
+    )
+    with pytest.raises(ValueError, match="scan_output_immutable"):
+        sqlite_store.commit_scan_output(scan["scan_id"], output_json="[]", database_path=database_path)
+
+    detail = sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)
+    archived = sqlite_store.transition_scan_lifecycle(
+        [{"scan_id": scan["scan_id"], "expected_revision": detail["row_revision"]}],
+        target="archived",
+        database_path=database_path,
+    )["items"][0]
+    preview = sqlite_store.preview_delete_archived_scans([scan["scan_id"]], database_path=database_path)
+    deleted = sqlite_store.delete_archived_scans(
+        [scan["scan_id"]], preview_revision=preview["preview_revision"], database_path=database_path
+    )
+
+    assert archived["lifecycle"] == "archived"
+    assert deleted == {"deleted_count": 1, "deleted_scan_ids": [scan["scan_id"]]}
+    assert sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path) is None
 
 def _make_succeeded_scan(database_path: Path, *, name: str) -> dict[str, object]:
     company = sqlite_store.create_tracked_company(
@@ -160,51 +216,174 @@ def _make_succeeded_scan(database_path: Path, *, name: str) -> dict[str, object]
     )
     sqlite_store.commit_scan_output(
         str(scan["scan_id"]),
-        output_json=json.dumps([{"title": name}]),
+        output_json=json.dumps([_canonical_job(name)], ensure_ascii=False, indent=2),
         database_path=database_path,
     )
     detail = sqlite_store.get_scan_detail(str(scan["scan_id"]), database_path=database_path)
     output = sqlite_store.get_scan_output(str(scan["scan_id"]), database_path=database_path)
     return {**detail, "output_sha256": output["sha256"]}
-    reservation = sqlite_store.reserve_idempotent_action(
-        "scans:create", "scan-key", "scan-fingerprint"
+
+
+def _make_queued_scan(database_path: Path, *, name: str) -> dict[str, object]:
+    company = sqlite_store.create_tracked_company(
+        company_name=f"{name} Company",
+        careers_url=f"https://{name}.jobs.personio.de/",
+        provider_id="personio",
+        provider_label="Personio",
+        database_path=database_path,
     )
-    scan = sqlite_store.create_scan(
+    reservation = sqlite_store.reserve_idempotent_action(
+        "scans:create", f"{name}-key", f"{name}-fingerprint"
+    )
+    return sqlite_store.create_scan(
         request={
-            "scan_name": "Germany data roles",
+            "scan_name": name,
             "company_ids": [company["company_id"]],
-            "job_titles": ["Data Engineer"],
-            "locations": ["Germany"],
-            "published_window": "past_7_days",
+            "job_titles": [],
+            "locations": [],
+            "published_window": "any",
             "total_rows": 50,
         },
         idempotency_action_id=reservation["action_id"],
         database_path=database_path,
     )
 
-    assert sqlite_store.query_tracked_companies(database_path=database_path)["items"] == [company]
-    assert sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)["input"]["company_ids"] == [company["company_id"]]
 
+def test_scan_claim_is_single_winner_and_heartbeat_requires_claim() -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    scan = _make_queued_scan(database_path, name="claim")
+    scan_id = str(scan["scan_id"])
+
+    assert sqlite_store.claim_scan_execution(scan_id, database_path=database_path)
+    assert not sqlite_store.claim_scan_execution(scan_id, database_path=database_path)
+
+    with sqlite3.connect(database_path) as connection:
+        claim_id = connection.execute(
+            "SELECT claim_id FROM scans WHERE scan_id = ?", (scan_id,)
+        ).fetchone()[0]
+    assert claim_id
+    assert not sqlite_store.update_scan_heartbeat(
+        scan_id, claim_id="wrong", database_path=database_path
+    )
+    assert sqlite_store.update_scan_heartbeat(
+        scan_id, claim_id=str(claim_id), database_path=database_path
+    )
+
+
+def test_scan_queue_binding_is_stable_and_conflicts_are_rejected() -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    scan = _make_queued_scan(database_path, name="queue-binding")
+    scan_id = str(scan["scan_id"])
+
+    assert sqlite_store.bind_scan_queue_job(
+        scan_id, "scan:queue-binding", database_path=database_path
+    )
+    assert not sqlite_store.bind_scan_queue_job(
+        scan_id, "scan:queue-binding", database_path=database_path
+    )
+    assert sqlite_store.get_scan_queue_job_id(scan_id, database_path=database_path) == "scan:queue-binding"
+    with pytest.raises(ValueError, match="scan_queue_binding_conflict"):
+        sqlite_store.bind_scan_queue_job(
+            scan_id, "scan:other", database_path=database_path
+        )
+
+
+def test_stale_scan_recovery_terminalizes_expired_heartbeat() -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    scan = _make_queued_scan(database_path, name="stale")
+    scan_id = str(scan["scan_id"])
+    assert sqlite_store.claim_scan_execution(scan_id, database_path=database_path)
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE scans SET heartbeat_at=? WHERE scan_id=?",
+            ("2020-01-01T00:00:00+00:00", scan_id),
+        )
+        connection.commit()
+
+    assert sqlite_store.recover_stale_scan_execution(
+        scan_id, stale_after_seconds=1, database_path=database_path
+    )
+    detail = sqlite_store.get_scan_detail(scan_id, database_path=database_path)
+    assert detail["execution_status"] == "failed"
+    assert detail["failure_code"] == "scan_stale_recovered"
+    assert detail["recovery_state"] == "stale_recovered"
+
+
+def test_scan_output_requires_canonical_bytes_and_rechecks_tampering() -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    scan = _make_queued_scan(database_path, name="integrity")
+    output_json = json.dumps([_canonical_job("integrity")], ensure_ascii=False, indent=2)
+
+    with pytest.raises(ValueError, match="scan_output_not_canonical"):
+        sqlite_store.commit_scan_output(
+            str(scan["scan_id"]), output_json=json.dumps([_canonical_job("integrity")]), database_path=database_path
+        )
     sqlite_store.commit_scan_output(
-        scan["scan_id"], output_json='[{"title":"Data Engineer"}]', database_path=database_path
+        str(scan["scan_id"]), output_json=output_json, database_path=database_path
     )
-    with pytest.raises(ValueError, match="scan_output_immutable"):
-        sqlite_store.commit_scan_output(scan["scan_id"], output_json="[]", database_path=database_path)
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE scan_outputs SET output_json = ? WHERE scan_id = ?",
+            (output_json.replace("integrity", "tampered"), scan["scan_id"]),
+        )
+        connection.commit()
+    detail = sqlite_store.get_scan_detail(str(scan["scan_id"]), database_path=database_path)
+    assert detail["output_integrity_valid"] is False
+    assert detail["capabilities"]["use_for_run"] is False
+    with pytest.raises(ValueError, match="scan_output_integrity_failed"):
+        sqlite_store.get_scan_output(str(scan["scan_id"]), database_path=database_path)
 
-    detail = sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)
-    archived = sqlite_store.transition_scan_lifecycle(
-        [{"scan_id": scan["scan_id"], "expected_revision": detail["row_revision"]}],
-        target="archived",
-        database_path=database_path,
-    )["items"][0]
-    preview = sqlite_store.preview_delete_archived_scans([scan["scan_id"]], database_path=database_path)
-    deleted = sqlite_store.delete_archived_scans(
-        [scan["scan_id"]], preview_revision=preview["preview_revision"], database_path=database_path
+
+def test_managed_run_input_marker_is_persisted_and_validated() -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    run = _make_run("run-managed-marker")
+    jobs = [_canonical_job("managed")]
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "jobs_snapshot_json": json.dumps(jobs),
+            "jobs_manifest_json": "{}",
+            "run_input_contract_version": "managed_v1",
+        },
+        jobs=jobs,
+    )
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute(
+            "SELECT run_input_contract_version FROM run_inputs WHERE run_id = ?",
+            (run.run_id,),
+        ).fetchone()[0] == "managed_v1"
+
+    with pytest.raises(ValueError, match="run_input_contract_version_invalid"):
+        sqlite_store.create_run_bundle(
+            _make_run("run-invalid-marker"),
+            input_resource={
+                "jobs_snapshot_json": json.dumps(jobs),
+                "jobs_manifest_json": "{}",
+                "run_input_contract_version": "other",
+            },
+            jobs=jobs,
+        )
+
+
+def test_create_run_bundle_persists_camel_case_job_url() -> None:
+    database_path = Path(sqlite_store._local_sqlite_path())
+    run = _make_run("run-camel-case-url")
+    job = _canonical_job("camel-case-url")
+
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "jobs_snapshot_json": json.dumps([job]),
+            "jobs_manifest_json": "{}",
+        },
+        jobs=[job],
     )
 
-    assert archived["lifecycle"] == "archived"
-    assert deleted == {"deleted_count": 1, "deleted_scan_ids": [scan["scan_id"]]}
-    assert sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path) is None
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute(
+            "SELECT source_url FROM run_jobs WHERE run_id = ?",
+            (run.run_id,),
+        ).fetchone()[0] == job["jobUrl"]
 
 
 def test_control_plane_schema_upgrades_version_3_without_losing_settings() -> None:

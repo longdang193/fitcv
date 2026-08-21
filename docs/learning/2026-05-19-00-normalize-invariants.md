@@ -24,6 +24,7 @@ Q: normalize stage - Invariants: What must always remain true before, during, an
 A: Raw input terminates here; downstream sees only normalized deduplicated rows.
 
 E: Source-grounded fact: See docs/stages/normalize.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

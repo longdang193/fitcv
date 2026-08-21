@@ -24,6 +24,7 @@ Q: normalize stage - Business impact: What user, product, operational, or busine
 A: Removes duplicate/noisy rows early, improving trust and reducing downstream spend.
 
 E: Source-grounded fact: See docs/stages/normalize.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

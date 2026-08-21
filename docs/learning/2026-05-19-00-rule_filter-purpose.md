@@ -25,6 +25,7 @@ A: Run deterministic eligibility checks to split passed and rejected jobs before
 
 E: Source-grounded fact: See docs/stages/rule_filter.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736072-->
+
 EEND
 
 

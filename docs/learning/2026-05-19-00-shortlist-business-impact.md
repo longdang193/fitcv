@@ -24,6 +24,7 @@ Q: shortlist stage - Business impact: What user, product, operational, or busine
 A: Balances recall and compute, improving throughput while preserving candidate coverage.
 
 E: Source-grounded fact: See docs/stages/shortlist.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

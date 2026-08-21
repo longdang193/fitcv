@@ -24,6 +24,7 @@ Q: shortlist stage - Dependencies: What does this stage rely on from earlier sta
 A: Depends on rule_filter outputs and profile evidence; ranking depends on shortlist contract.
 
 E: Source-grounded fact: See docs/stages/shortlist.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

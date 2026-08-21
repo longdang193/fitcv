@@ -25,6 +25,7 @@ A: Depends on enrich semantics; shortlist and later stages rely on passed-set bo
 
 E: Source-grounded fact: See docs/stages/rule_filter.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736100-->
+
 EEND
 
 

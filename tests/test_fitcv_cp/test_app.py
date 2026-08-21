@@ -452,7 +452,7 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     prototype_blob = hashlib.sha1(
         f"blob {len(prototype)}\0".encode() + prototype
     ).hexdigest()
-    assert prototype_blob == "989af611bd7767c148022c79ac00c5069d8a3956"
+    assert prototype_blob == "8d248d62003b2a8795672daaa221ef5508afdc88"
 
     client = TestClient(_candidate_profile_mock_app())
 
@@ -1025,7 +1025,7 @@ def _seed_succeeded_scan(*, name: str, jobs: list[dict[str, str]]) -> dict[str, 
         idempotency_action_id=reservation["action_id"],
     )
     return sqlite_store.commit_scan_output(
-        str(scan["scan_id"]), output_json=json.dumps(jobs)
+        str(scan["scan_id"]), output_json=json.dumps(jobs, ensure_ascii=False, indent=2)
     )
 
 
@@ -1345,6 +1345,8 @@ def test_admin_scan_detail_reuses_detail_structure_and_output_views() -> None:
     detail_template = Path("src/fitcv_cp/templates/scan_detail.html").read_text(encoding="utf-8")
     assert 'data-scan-status="{{ scan.execution_status }}"' in detail_template
     assert "['queued', 'running', 'cancelling']" in detail_template
+    assert "/events?limit=50" in detail_template
+    assert "next_cursor" in detail_template
     assert "fitcvRenderAsyncState(" in detail_template
     assert "fitcvRunLocked(" in detail_template
 
@@ -1643,8 +1645,13 @@ def test_real_managed_run_preserves_upload_then_selected_scan_order(
             "SELECT scan_id FROM run_scan_inputs WHERE run_id = ? ORDER BY source_ordinal",
             (run_id,),
         ).fetchall()
+        contract_version = connection.execute(
+            "SELECT run_input_contract_version FROM run_inputs WHERE run_id = ?",
+            (run_id,),
+        ).fetchone()[0]
     assert jobs == [("Upload Job",), ("Second Scan",), ("First Scan",)]
     assert provenance == [(second["scan_id"],), (first["scan_id"],)]
+    assert contract_version == "managed_v1"
 
 def test_real_managed_run_rejects_missing_archived_empty_and_integrity_invalid_sources() -> None:
     app = _app()

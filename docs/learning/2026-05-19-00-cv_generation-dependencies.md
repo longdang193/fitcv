@@ -25,6 +25,7 @@ A: Depends on cv_analysis outputs and fit-gate authority; should not reseat evid
 
 E: Source-grounded fact: See docs/stages/cv_generation.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736268-->
+
 EEND
 
 

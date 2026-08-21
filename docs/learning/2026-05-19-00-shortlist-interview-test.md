@@ -24,6 +24,7 @@ Q: shortlist stage - Interview-style understanding: What question would best tes
 A: If shortlist quality drops, which artifact/metric do you inspect first and why?
 
 E: Source-grounded fact: See docs/stages/shortlist.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
+
 EEND
 
 

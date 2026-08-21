@@ -25,6 +25,7 @@ A: Generate structured CV artifacts from ready records with validation, repair, 
 
 E: Source-grounded fact: See docs/stages/cv_generation.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736231-->
+
 EEND
 
 

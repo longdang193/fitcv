@@ -25,6 +25,7 @@ A: Why must reject reasons be finalized here, not synthesized in UI later?
 
 E: Source-grounded fact: See docs/stages/rule_filter.yaml for this stage contract. Interview explanation: Explain why this decision exists, tradeoffs it introduces, and downstream impact.
 <!--ID: 1779144736087-->
+
 EEND
 
 

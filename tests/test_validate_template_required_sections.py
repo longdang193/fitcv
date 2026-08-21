@@ -574,6 +574,58 @@ Verified work.
         rmtree(root, ignore_errors=True)
 
 
+def test_active_implementation_plan_satisfies_proposed_status_contract() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "operating_system" / "templates" / "implementation-plan-template.md",
+            """---
+template_id: implementation-plan
+target_globs:
+  - docs/superpowers/plans/*.md
+required_sections:
+  - Goal
+  - Implementation Outcomes
+  - Task Breakdown
+  - Verification
+required_frontmatter:
+  artifact_type: plan
+  status: proposed
+---
+
+# Implementation Plan Template
+""",
+        )
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "active-plan.md",
+            """---
+artifact_type: plan
+template_id: implementation-plan
+status: active
+---
+
+# Active Plan
+
+## Goal
+Ship safely.
+
+## Implementation Outcomes
+- outcome
+
+## Task Breakdown
+- task
+
+## Verification
+- check
+""",
+        )
+        rules, _ = VALIDATOR.discover_template_rules(root)
+        issues = VALIDATOR.validate_documents(root, rules, require_template_selection=False)
+        assert not any(issue.category == "template_document_type_mismatch" for issue in issues)
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
 def test_superseded_plan_accepts_template_initial_status() -> None:
     root = make_test_root()
     try:
