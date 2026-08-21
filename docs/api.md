@@ -254,13 +254,19 @@ checksum, timestamps, and failure diagnostics remain inspectable.
 
 Managed Runs trigger uses `multipart/form-data` plus `Idempotency-Key`:
 
-- `jobs_file`: exactly one non-empty UTF-8 `.json` or `.jsonl` file, maximum
+- `jobs_file`: optional single non-empty UTF-8 `.json` or `.jsonl` file, maximum
   50 MB
+- `scan_ids`: optional repeated ordered Scan IDs; duplicates are trimmed while
+  preserving first occurrence
 - `profile_id`: required active profile for upload, scan, and combined managed Runs
   submissions
 - `run_name`: optional, defaults to filename stem, maximum 120 characters
 - `config_path`: optional, defaults to `.env.yaml`
 - `triggered_by`: optional, defaults to `admin`
+
+At least one of `jobs_file` or `scan_ids` is required. Upload-only, Scan-only,
+and combined requests use one resolver and persist one canonical Run snapshot;
+Scan-only and combined requests include Scan provenance in the input manifest.
 
 The backend persists Run, immutable input/profile/settings snapshots, six stage
 rows, and stable Run Job IDs before enqueue. Success returns `201` with the Run

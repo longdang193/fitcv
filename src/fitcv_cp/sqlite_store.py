@@ -9123,6 +9123,8 @@ def update_run_status(
 ) -> PersistenceResult:
     def mutate(run: PipelineRun) -> PipelineRun:
         updated = dataclasses.replace(run, status=status)
+        if status is RunStatus.RUNNING:
+            updated.finished_at = None
         if started_at is not None:
             updated.started_at = started_at
         if finished_at is not None:

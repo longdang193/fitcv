@@ -71,6 +71,7 @@ class OrchestrationAdapter:
         triggered_by: str,
         redis_url: str,
         run_id: str | None = None,
+        queue_job_id: str | None = None,
     ) -> tuple[str, str]:
         submission = self.submit(
             jobs_path=jobs_path,
@@ -78,6 +79,7 @@ class OrchestrationAdapter:
             triggered_by=triggered_by,
             redis_url=redis_url,
             run_id=run_id,
+            queue_job_id=queue_job_id,
         )
         return submission.run_id, submission.queue_job_id
 
@@ -110,6 +112,7 @@ class OrchestrationAdapter:
         triggered_by: str,
         redis_url: str,
         run_id: str | None = None,
+        queue_job_id: str | None = None,
     ) -> RunSubmission:
         try:
             run_id_value, queue_job_id = queue.enqueue_run_with_job_id(
@@ -118,6 +121,7 @@ class OrchestrationAdapter:
                 triggered_by=triggered_by,
                 redis_url=redis_url,
                 run_id=run_id,
+                queue_job_id=queue_job_id,
             )
         except RedisConnectionError as exc:
             raise HTTPException(status_code=503, detail="Queue backend unavailable") from exc

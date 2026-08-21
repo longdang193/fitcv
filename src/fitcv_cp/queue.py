@@ -87,8 +87,12 @@ def _inline_start_delay_seconds() -> float:
     )
 
 
-def _enqueue_inline_after_delay(target: object, args: tuple[object, ...]) -> str:
-    queue_job_id = f"inline-{uuid.uuid4()}"
+def _enqueue_inline_after_delay(
+    target: object,
+    args: tuple[object, ...],
+    queue_job_id: str | None = None,
+) -> str:
+    queue_job_id = str(queue_job_id or f"inline-{uuid.uuid4()}")
     _INLINE_JOB_STATUS[queue_job_id] = "queued"
     if is_truthy_env(os.environ.get("FITCV_LOCAL_MODE")):
         from fitcv_cp.local_app import LocalAppBusyError, get_local_job_executor
@@ -255,15 +259,20 @@ def enqueue_run_with_job_id(
     triggered_by: str,
     redis_url: str = "redis://redis:6379/0",
     run_id: Optional[str] = None,
+    queue_job_id: str | None = None,
 ) -> tuple[str, str]:
     """Enqueue a pipeline run. Returns (run_id, rq_job_id)."""
     _ = triggered_by  # backward-compatible placeholder; intentionally unused in queue transport.
     if run_id is None:
         run_id = str(uuid.uuid4())
+    requested_queue_job_id = str(queue_job_id or "").strip() or None
     if _inline_execution_enabled():
+        if requested_queue_job_id and requested_queue_job_id in _INLINE_JOB_STATUS:
+            return run_id, requested_queue_job_id
         job_id = _enqueue_inline_after_delay(
             _run_inline_job_after_delay,
             (run_id, jobs_path, config_path, str(uuid.uuid4())),
+            queue_job_id=requested_queue_job_id,
         )
         return run_id, job_id
     retry: Retry | None = None
@@ -280,6 +289,8 @@ def enqueue_run_with_job_id(
 
     from fitcv_cp import worker_job  # noqa: F401
     q = get_queue(redis_url)
+    if requested_queue_job_id and q.fetch_job(requested_queue_job_id) is not None:
+        return run_id, requested_queue_job_id
     job = q.enqueue(
         worker_job.execute_pipeline_run,
         run_id=run_id,
@@ -287,6 +298,7 @@ def enqueue_run_with_job_id(
         config_path=config_path,
         job_timeout=3600,
         retry=retry,
+        **({"job_id": requested_queue_job_id} if requested_queue_job_id else {}),
     )
     return run_id, job.id
 
@@ -331,6 +343,8 @@ def enqueue_scan_with_job_id(
         return existing_job_id
     job_id = f"scan:{scan_id}"
     if _inline_execution_enabled():
+        from fitcv_cp.local_app import get_local_job_executor
+
         _INLINE_JOB_STATUS[job_id] = "queued"
         try:
             get_local_job_executor().submit(_run_inline_scan, job_id, scan_id)

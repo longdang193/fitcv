@@ -68,6 +68,27 @@ def test_enqueue_run_with_job_id_returns_tuple():
     assert isinstance(run_id, str) and len(run_id) == 36
     assert job_id == "rq-job-abc"
 
+def test_enqueue_run_with_job_id_uses_caller_created_binding() -> None:
+    from fitcv_cp.queue import enqueue_run_with_job_id
+
+    mock_q = MagicMock()
+    mock_q.fetch_job.return_value = None
+    mock_job = MagicMock()
+    mock_job.id = "run:fixed"
+    mock_q.enqueue.return_value = mock_job
+    with patch("fitcv_cp.queue.get_queue", return_value=mock_q), patch.dict(
+        "os.environ", {"FITCV_CP_INLINE_EXECUTION": "0"}
+    ):
+        run_id, job_id = enqueue_run_with_job_id(
+            jobs_path="data/jobs.json",
+            config_path=".env.yaml",
+            triggered_by="admin",
+            queue_job_id="run:fixed",
+        )
+
+    assert job_id == "run:fixed"
+    assert mock_q.enqueue.call_args.kwargs["job_id"] == "run:fixed"
+
 
 def test_enqueue_scan_uses_stable_queue_job_id() -> None:
     mock_q = MagicMock()
@@ -78,6 +99,20 @@ def test_enqueue_scan_uses_stable_queue_job_id() -> None:
 
             assert enqueue_scan_with_job_id("scan-123") == "scan:scan-123"
     assert mock_q.enqueue.call_args.kwargs["job_id"] == "scan:scan-123"
+
+def test_enqueue_scan_inline_uses_local_executor() -> None:
+    from fitcv_cp.queue import enqueue_scan_with_job_id
+
+    executor = MagicMock()
+    with patch("fitcv_cp.local_app.get_local_job_executor", return_value=executor), patch(
+        "fitcv_cp.sqlite_store.get_scan_queue_job_id", return_value=None
+    ), patch("fitcv_cp.sqlite_store.bind_scan_queue_job"), patch.dict(
+        "os.environ", {"FITCV_CP_INLINE_EXECUTION": "1"}, clear=False
+    ):
+        queue_job_id = enqueue_scan_with_job_id("scan-inline-123")
+
+    assert queue_job_id == "scan:scan-inline-123"
+    executor.submit.assert_called_once()
 
 
 def test_enqueue_candidate_profile_stage_uses_stable_rq_target() -> None:

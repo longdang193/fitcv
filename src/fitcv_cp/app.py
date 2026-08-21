@@ -574,6 +574,7 @@ def enqueue_run_with_job_id(
     triggered_by: str,
     redis_url: str = "redis://redis:6379/0",
     run_id: str | None = None,
+    queue_job_id: str | None = None,
 ) -> tuple[str, str]:
     submission = submit_run(
         jobs_path=jobs_path,
@@ -581,6 +582,7 @@ def enqueue_run_with_job_id(
         triggered_by=triggered_by,
         redis_url=redis_url,
         run_id=run_id,
+        queue_job_id=queue_job_id,
     )
     _cache_run_submission(submission)
     return submission.run_id, submission.queue_job_id
@@ -592,6 +594,7 @@ def submit_run(
     triggered_by: str,
     redis_url: str = "redis://redis:6379/0",
     run_id: str | None = None,
+    queue_job_id: str | None = None,
 ) -> RunSubmission:
     try:
         submission = ORCHESTRATION_ADAPTER.submit(
@@ -600,6 +603,7 @@ def submit_run(
             triggered_by=triggered_by,
             redis_url=redis_url,
             run_id=run_id,
+            queue_job_id=queue_job_id,
         )
     except Exception as exc:
         from fitcv_cp.local_app import LocalAppBusyError
@@ -8718,6 +8722,7 @@ def create_app(
                 triggered_by=triggered_by,
                 redis_url=redis_url,
                 run_id=run_id,
+                queue_job_id=f"run:{run_id}",
             )
         except Exception as exc:
             update_run_status(

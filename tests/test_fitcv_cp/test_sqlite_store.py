@@ -2627,6 +2627,23 @@ def test_update_status_and_events_persist() -> None:
     assert len(events) == 1
     assert json.loads(str(events[0].payload_json)) == {"attempt": 1}
 
+def test_update_status_running_clears_terminal_finished_at_for_replay() -> None:
+    run = _make_run("run-replay")
+    run.status = RunStatus.SUCCEEDED
+    run.finished_at = datetime.datetime.now(datetime.timezone.utc)
+    sqlite_store.insert_run(run)
+
+    sqlite_store.update_run_status(
+        run.run_id,
+        RunStatus.RUNNING,
+        started_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    stored = sqlite_store.get_run(run.run_id)
+    assert stored is not None
+    assert stored.status == RunStatus.RUNNING
+    assert stored.finished_at is None
+
 
 def test_run_json_updates_and_schema_status_use_sqlite_only_terms() -> None:
     run = _make_run("run-json")
