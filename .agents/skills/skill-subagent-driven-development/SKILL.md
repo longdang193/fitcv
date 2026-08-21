@@ -36,17 +36,15 @@ ledger and tool results carry the record.
 - Approved plan and settled behavior are required. Return unresolved design to `skill-spec-drafting` or `skill-writing-plans`.
 - Task `Required Skills` determine implementer methods. Do not inject every backend, frontend, contract, or tooling skill into every brief.
 
-## Profile Pairing
+## Validator Profile Selection
 
 Profile order: `xhigh > high > normal > low`.
 
-This skill uses reviewer subagents as validators. In validator-executor setups,
-validator profile must rank above executor profile: `low` executor uses `normal`
-validator, `normal` uses `high`, and `high` uses `xhigh`. Do not dispatch
-`xhigh` as an implementer in this reviewer-executor workflow; no higher profile
-exists for its required validator. Use `xhigh` for validation or use direct
-execution with independent automated evidence when ceiling-level reasoning is
-needed.
+This skill uses reviewer subagents as validators. Select executor and validator
+profiles independently from their bounded task contracts. A validator may use a
+lower, equal, or higher profile than its executor when that profile can reliably
+complete validation. Dispatch `xhigh` as an implementer when task fitness
+requires it; validation may use any profile that meets its own contract.
 
 ## When to Use
 

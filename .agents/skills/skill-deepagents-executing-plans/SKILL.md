@@ -84,10 +84,10 @@ The plan wins when a dispatch brief conflicts with plan state.
 - Keep task function and profile separate.
 - Select the lowest profile that can reliably complete the bounded contract.
 - Profile order is `xhigh > high > normal > low`.
-- Validator must rank above executor: `low` uses `normal`, `normal` uses `high`,
-  and `high` uses `xhigh`.
-- Do not use `xhigh` as executor when separate profile-based validation is
-  required.
+- Select executor and validator profiles independently from their bounded
+  contracts. A validator may be lower, equal, or higher than its executor when
+  that profile can reliably complete the validation contract.
+- `xhigh` may execute or validate based on task fitness.
 - Escalate only from task complexity, material risk, or failed-attempt evidence.
 
 ## Execution Topology

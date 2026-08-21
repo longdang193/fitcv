@@ -1,0 +1,134 @@
+{
+  "schema": "candidate-profile.task6.proof.v1",
+  "captured_at": "2026-08-17",
+  "provider": {
+    "base_url": "http://127.0.0.1:20128/v1",
+    "wire_api": "responses",
+    "model": "cx/gpt-5.4-mini",
+    "routing_parts": [
+      "candidate_profile_base_mapping",
+      "candidate_profile_derived_claims"
+    ],
+    "strict_source_block_validation": true,
+    "missing_id_repair": "unique exact-or-contained source-block text match only"
+  },
+  "cv_inputs": [
+    {
+      "filename": "2026-06-24-Munich_Electrification-CV.md",
+      "sha256": "fc5c96b2c06263d726d645b187374999e0aec9d6f0413aa98859c814601db85a",
+      "baseline_evidence": 10,
+      "derived_claims": 25,
+      "baseline_runtime": "succeeded",
+      "derived_runtime": "succeeded"
+    },
+    {
+      "filename": "2026-06-27-Beiersdorf-CV.md",
+      "sha256": "e4c9b089b8e5075b3bc2df513fbcc2fe07a7fef31439e12af0ed11308726f27a",
+      "baseline_evidence": 21,
+      "derived_claims": 26,
+      "baseline_runtime": "succeeded",
+      "derived_runtime": "succeeded"
+    }
+  ],
+  "browser_failure_path": {
+    "attempt_id": "attempt_a8314cee448e4864b443862001c3b0e8",
+    "input": "2026-06-27-Beiersdorf-CV.md",
+    "error_code": "candidate_profile_llm_output_invalid",
+    "error_message": "baseline collection requires valid source_block_ids",
+    "retry_visible": true,
+    "derived_transition": false,
+    "partial_profile_persisted": false
+  },
+  "magic_wand": {
+    "browser_base_url": "http://127.0.0.1:65416",
+    "attempt_id": "attempt_41654052068745919bd65101071a3ecc",
+    "input": "2026-06-24-Munich_Electrification-CV.md",
+    "source_checksum": "fc5c96b2c06263d726d645b187374999e0aec9d6f0413aa98859c814601db85a",
+    "baseline": {
+      "route": "/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/regenerate",
+      "http_status": 202,
+      "loading_disabled": true,
+      "duplicate_click_requests": 1,
+      "before_fingerprint": "94c851ad3f1b1696ed5cf7037439b8d4892613dc1745fbb29774d88f8ac2afe3",
+      "after_fingerprint": "c205e17987a0aef45deb5d0ba20abdb6338c938b18441bdcf7b1d98f9ab8ea74",
+      "undo_route": "/candidate-profile-creation-attempts/{attempt_id}/baseline/actions/undo-regeneration",
+      "undo_restored_fingerprint": "94c851ad3f1b1696ed5cf7037439b8d4892613dc1745fbb29774d88f8ac2afe3",
+      "undo_exact_restore": true,
+      "evidence_source_ids_remained_valid": true
+    },
+    "derived": {
+      "route": "/candidate-profile-creation-attempts/{attempt_id}/derived/actions/regenerate",
+      "http_status": 202,
+      "loading_disabled": true,
+      "duplicate_click_requests": 1,
+      "status_after_success": "succeeded",
+      "failure_visible": false,
+      "next_action": "undo",
+      "before_fingerprint": "abc7eaca41dc8d8093b79ce7208b230ca83d120af9d9555011f3d8a44969cdf8",
+      "after_fingerprint": "abc7eaca41dc8d8093b79ce7208b230ca83d120af9d9555011f3d8a44969cdf8",
+      "no_op_fingerprint": true,
+      "undo_route": "/candidate-profile-creation-attempts/{attempt_id}/derived/actions/undo-regeneration",
+      "undo_visible": true,
+      "undo_restored_fingerprint": "abc7eaca41dc8d8093b79ce7208b230ca83d120af9d9555011f3d8a44969cdf8",
+      "undo_exact_restore": true,
+      "partial_derived_persisted": false,
+      "evidence_source_ids_remained_valid": true
+    },
+    "coverage": {
+      "baseline_regeneration": "PASS",
+      "baseline_undo": "PASS",
+      "duplicate_submit_lock": "PASS",
+      "derived_regeneration_request_and_lock": "PASS",
+      "derived_failure_and_retry": "PASS",
+      "derived_undo": "PASS"
+    }
+  },
+  "browser_lifecycle": {
+    "profile_id": "profile_858c7fd9c179483f8c600de763fc8057",
+    "attempt_id": "attempt_12bc89771633424baa077690f7ed4dc6",
+    "create_confirm_save": "PASS",
+    "successor_update": {
+      "http_status": 200,
+      "expected_revision": 1,
+      "result_revision": 2,
+      "profile_name": "Munich Electrification Candidate v2"
+    },
+    "archive": {
+      "http_status": 200,
+      "lifecycle": "archived",
+      "use_for_run": false,
+      "restore": true,
+      "delete": true
+    },
+    "restore": {
+      "http_status": 200,
+      "lifecycle": "active",
+      "use_for_run": true,
+      "revision": 4
+    },
+    "delete_after_archive": {
+      "http_status": 200,
+      "active_profile_count_after_delete": 0
+    }
+  },
+  "pipeline_snapshot": {
+    "selected_profile_snapshot": "PASS",
+    "source_selected_profile": "tests/test_fitcv_cp/test_app.py:12707",
+    "immutable_after_source_mutation": "PASS",
+    "source_immutable_test": "tests/test_fitcv_cp/test_app.py:12743",
+    "revision_preserved": 3,
+    "snapshot_payload_mutated_after_submit": false
+  },
+  "automated_proof": {
+    "candidate_profile_and_app_suites": "469 passed",
+    "lifecycle_and_pipeline_suites": "118 passed",
+    "new_snapshot_regression": "2 passed",
+    "git_diff_check": "PASS"
+  },
+  "cleanup": {
+    "temporary_runtime_root": "C:\\tmp\\fitcv-codex-live-18a2f4b6e2294b32aa3ac9a15b8779c9",
+    "temporary_runtime_root_removed": true,
+    "temporary_probe_files_removed": true,
+    "supplied_cv_files_changed": false
+  }
+}

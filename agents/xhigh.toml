@@ -4,7 +4,7 @@ model = "combo-xhigh"
 rank = 40
 description = """
 Highest-capability profile.
-Use for deep reasoning, complex multi-step tasks, or validation of `high` work.
+Use for deep reasoning, complex multi-step tasks, or demanding validation tasks.
 """
 
 developer_instructions = """

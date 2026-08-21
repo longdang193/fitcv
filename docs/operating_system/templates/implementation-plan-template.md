@@ -116,8 +116,9 @@ Do not duplicate final artifact verification commands here unless a command is t
 
 **Validator Profile (optional):**
 - Controller-selected: `<none | xhigh | high | normal>`
-- Profile order: `xhigh > high > normal > low`
-- In validator-executor setups, validator profile must rank above executor profile.
+- Selection basis: <validation>
+- Select independently from the executor profile; no profile-rank relationship is required.
+- Use literal `<none>` when no validator is assigned; otherwise replace it with `low`, `normal`, `high`, or `xhigh`.
   `high` executor therefore uses `xhigh` validator. Do not pair `xhigh` executor
   with a profile-based validator because no higher profile exists.
 
@@ -166,7 +167,7 @@ Do not duplicate final artifact verification commands here unless a command is t
 **Validator Profile (optional):**
 - Controller-selected: `<none | xhigh | high | normal>`
 - Profile order: `xhigh > high > normal > low`
-- In validator-executor setups, validator profile must rank above executor profile.
+- Select executor and validator profiles independently from their bounded task contracts; no profile-rank relationship is required.
 
 **Specification Coverage:**
 - <requirement, decision, invariant, or approved direct scope>

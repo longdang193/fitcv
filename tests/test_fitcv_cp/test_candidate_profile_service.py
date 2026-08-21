@@ -124,6 +124,112 @@ def _runner(result: LlmRuntimeResult, calls: list) -> callable:
     return run
 
 
+def test_candidate_profile_llm_requests_use_non_strict_schema_for_router_compatibility() -> None:
+    source = ingest_candidate_source(
+        "candidate.md",
+        "text/markdown",
+        b"# Alex Morgan\n\nData analyst focused on reliable reporting.\n",
+    )
+    calls: list = []
+
+    build_baseline_review(source, llm_runner=_runner(_success({"proposals": [], "collections": []}), calls))
+
+    assert len(calls) == 1
+    assert calls[0].response_mode == "json_schema"
+    assert calls[0].schema_name == "candidate_profile_base_mapping"
+    assert calls[0].schema is not None
+    assert calls[0].schema_strict is False
+    assert "Every non-language collection must include at least one evidence item" in calls[0].instructions
+
+
+def test_baseline_validator_requires_evidence_for_non_language_collections() -> None:
+    result = _validate_baseline_payload(
+        {
+            "proposals": [],
+            "collections": [
+                {
+                    "section": "experiences",
+                    "fields": {"role": "Analyst", "company": "Northstar"},
+                    "source_block_ids": ["block-1"],
+                }
+            ],
+        },
+        {"block-1"},
+    )
+
+    assert result.valid is False
+    assert "baseline collection requires evidence" in result.errors
+
+
+def test_baseline_validator_allows_language_collections_without_evidence() -> None:
+    result = _validate_baseline_payload(
+        {
+            "proposals": [],
+            "collections": [
+                {
+                    "section": "languages",
+                    "fields": {"name": "English", "level": "C1"},
+                    "source_block_ids": ["block-1"],
+                }
+            ],
+        },
+        {"block-1"},
+    )
+
+    assert result.valid is True
+
+
+def test_baseline_validator_requires_valid_evidence_items() -> None:
+    result = _validate_baseline_payload(
+        {
+            "proposals": [],
+            "collections": [
+                {
+                    "section": "projects",
+                    "fields": {"name": "Forecasting"},
+                    "source_block_ids": ["block-1"],
+                    "evidence": [
+                        {
+                            "kind": "project_highlight",
+                            "text": "Built a forecasting model.",
+                            "source_block_ids": ["missing-block"],
+                        }
+                    ],
+                }
+            ],
+        },
+        {"block-1"},
+    )
+
+    assert result.valid is False
+    assert "baseline evidence requires valid source_block_ids" in result.errors
+
+
+def test_baseline_validator_accepts_evidence_with_canonical_kind_and_refs() -> None:
+    result = _validate_baseline_payload(
+        {
+            "proposals": [],
+            "collections": [
+                {
+                    "section": "projects",
+                    "fields": {"name": "Forecasting"},
+                    "source_block_ids": ["block-1"],
+                    "evidence": [
+                        {
+                            "kind": "project_highlight",
+                            "text": "Built a forecasting model.",
+                            "source_block_ids": ["block-1"],
+                        }
+                    ],
+                }
+            ],
+        },
+        {"block-1"},
+    )
+
+    assert result.valid is True
+
+
 def _baseline_with_evidence() -> dict:
     source = ingest_candidate_source("candidate.md", "text/markdown", b"# Alex Morgan\n")
     document = build_baseline_review(source, llm_runner=lambda *_args, **_kwargs: pytest.fail("LLM called")).document
@@ -203,6 +309,41 @@ def test_ambiguous_baseline_calls_llm_only_with_unresolved_blocks() -> None:
     assert "secret" not in str(result.runtime_evidence)
 
 
+def test_baseline_hydrates_missing_source_block_ids_from_exact_source_text() -> None:
+    source = ingest_candidate_source(
+        "candidate.md",
+        "text/markdown",
+        b"# Alex Morgan\n\nBuilt a forecasting model.\n",
+    )
+    result = build_baseline_review(
+        source,
+        llm_runner=_runner(
+            _success({
+                    "proposals": [],
+                    "collections": [
+                        {
+                            "section": "projects",
+                            "fields": {"name": "Forecasting"},
+                            "evidence": [
+                                {
+                                    "kind": "project_highlight",
+                                    "text": "Built a forecasting model.",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ),
+            [],
+        ),
+    )
+
+    project = result.document["projects"][0]
+    evidence = project["evidence"][0]
+    assert evidence["source_refs"]
+    assert project["source_refs"] == evidence["source_refs"]
+
+
 def test_baseline_validator_rejects_foreign_collection_fields() -> None:
     validation = _validate_baseline_payload(
         {
@@ -266,6 +407,7 @@ def test_derived_claims_receive_server_ids_and_separate_evidence_refs() -> None:
     )
 
     assert len(calls) == 1
+    assert "ev_exp_1" in calls[0].prompt
     assert result.document["skills"][0]["id"].startswith("skill_")
     assert result.document["skills"][0]["evidence_refs"] == ["ev_exp_1"]
     assert result.document["responsibility_themes"][0]["evidence_refs"] == ["ev_exp_1"]
@@ -298,6 +440,48 @@ def test_derived_claims_reject_missing_evidence_refs() -> None:
         )
 
     assert error.value.code == "candidate_profile_llm_output_invalid"
+
+
+def test_derived_regeneration_uses_proposals_override() -> None:
+    document = {"skills": [{"id": "skill_1", "name": "SQL"}]}
+    annotations = {"/skills/skill_1/name": {"regenerable": True, "confidence": 0.8}}
+    calls: list = []
+
+    result = regenerate_review(
+        "derived",
+        document,
+        annotations,
+        ["/skills/skill_1/name"],
+        llm_runner=_runner(
+            _success(
+                {
+                    "proposals": [
+                        {"path": "/skills/skill_1/name", "value": "Advanced SQL"}
+                    ]
+                }
+            ),
+            calls,
+        ),
+    )
+
+    assert result.document["skills"][0]["name"] == "Advanced SQL"
+    assert len(calls) == 1
+    assert "REGENERATION OVERRIDE" in calls[0].prompt
+    assert "full derived claims shape" in calls[0].instructions
+
+
+def test_regeneration_rejects_missing_replacement_value() -> None:
+    annotations = {"/summary": {"regenerable": True}}
+    with pytest.raises(CandidateProfileServiceError, match="requires path and value"):
+        regenerate_review(
+            "derived",
+            {"summary": "Old"},
+            annotations,
+            ["/summary"],
+            llm_runner=_runner(_success({"proposals": [{"path": "/summary"}]}), []),
+        )
+
+
 
 
 def test_regeneration_uses_one_target_resolver_for_both_stages() -> None:
@@ -337,7 +521,6 @@ def test_regeneration_uses_one_target_resolver_for_both_stages() -> None:
     assert len(calls) == 1
     assert calls[0].schema["properties"]["proposals"]["items"]["properties"]["path"]["enum"] == ["/summary"]
     assert "/summary" in calls[0].instructions
-
 
 def test_review_patch_is_atomic_and_baseline_invalidates_all_downstream_state() -> None:
     baseline = _baseline_with_evidence()

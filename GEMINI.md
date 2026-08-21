@@ -27,12 +27,14 @@ Use only these template profiles:
 - `normal`: default profile for ordinary complexity and risk.
 - `high`: high-capability profile for material complexity, ambiguity, or risk.
 - `xhigh`: highest-capability profile for deep reasoning, complex multi-step work,
-  or validation of `high` work.
+  or demanding validation tasks.
 
 Profile order: `xhigh > high > normal > low`.
-In validator-executor setups, validator profile must rank above executor profile.
-Example: `high` executor requires `xhigh` validator. `xhigh` is profile ceiling;
-do not use it as executor when a separate profile-based validator is required.
+In validator-executor setups, select the executor and validator profiles
+independently based on their respective bounded task contracts. A validator may
+use a lower, equal, or higher profile than the executor when that profile can
+reliably complete the validation task. Select the lowest profile that can
+reliably complete each contract.
 
 Template profile and task function are separate. Task function is open-ended and
 defined by current task contract; it may include debugging, research, plan

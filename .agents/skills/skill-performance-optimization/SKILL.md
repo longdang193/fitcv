@@ -1,6 +1,6 @@
 ---
 name: skill-performance-optimization
-description: Use when measured latency, throughput, memory, query, bundle, rendering, or Core Web Vitals problems need diagnosis and verified improvement.
+description: Use when measured latency, throughput, memory, query, bundle, rendering, Core Web Vitals, or prompt-cache behavior needs diagnosis and verified improvement.
 required_reads: []
 distribution_tier: starter_kit
 ---
@@ -13,7 +13,7 @@ Prove performance changes against a stable workload. Optimize the measured bottl
 
 ## When To Use
 
-Use for explicit performance requirements, monitoring regressions, slow user flows, tail-latency alarms, throughput limits, memory growth, expensive queries, bundle growth, or rendering bottlenecks.
+Use for explicit performance requirements, monitoring regressions, slow user flows, tail-latency alarms, throughput limits, memory growth, expensive queries, bundle growth, rendering bottlenecks, or prompt-cache hit/cost claims.
 
 Skip when no performance claim or symptom exists.
 
@@ -28,6 +28,8 @@ Skip when no performance claim or symptom exists.
 7. Rerun the identical workload and environment. Report absolute change, relative change, variance or percentiles, resource tradeoffs, and correctness results.
 8. Keep only proven wins. Add an existing benchmark, budget, deterministic proxy, or monitor guard when stable and valuable.
 
+For prompt-cache claims, apply `docs/operating_system/rules/prompt-cache-contract-rule.md`. Equal local hashes prove serialization stability, not a provider cache hit; require provider usage evidence or report the cache claim as unverified.
+
 ## Evidence Map
 
 When performance work depends on an unfamiliar external GitHub repository, consult `docs/operating_system/tooling/code-intelligence-tools.md` before using DeepWiki for advisory orientation. Measurements remain authoritative.
@@ -39,6 +41,7 @@ When performance work depends on an unfamiliar external GitHub repository, consu
 | database | query count, execution plan, actual rows, scans, joins, sort spill, total time |
 | memory | retained heap, allocation profile, growth across repeated workload |
 | build | initial and route chunks, transferred bytes, loading sequence |
+| prompt cache | exact provider-bound prefix, stable/volatile boundary, cache read/write tokens, route/model, latency, and cost |
 
 ## Example
 
@@ -52,6 +55,8 @@ A checkout p95 regression uses the alarm's production dimensions and last health
 - inventing percentage, millisecond, score, bundle, or cache-TTL gates
 - optimizing a convenient layer instead of the dominant constraint
 - caching without freshness, invalidation, isolation, memory bounds, and eviction
+- treating equal prompt hashes or total input tokens as proof of provider cache reuse
+- logging raw prompts, tool arguments, retrieved content, or credentials while auditing cache behavior
 - reporting faster output without proving semantic correctness
 
 ## Integration

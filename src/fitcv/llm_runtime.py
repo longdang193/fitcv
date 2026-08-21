@@ -55,6 +55,7 @@ class LlmTaskRequest:
     instructions: str | None = None
     schema_name: str | None = None
     schema: dict[str, Any] | None = None
+    schema_strict: bool = True
 
 
 @dataclass(frozen=True)
@@ -445,7 +446,7 @@ def _response_format(request: LlmTaskRequest, *, responses_api: bool) -> dict[st
     schema_format = {
         "name": request.schema_name,
         "schema": request.schema,
-        "strict": True,
+        "strict": request.schema_strict,
     }
     if responses_api:
         return {"type": "json_schema", **schema_format}

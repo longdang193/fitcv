@@ -596,12 +596,40 @@ def _validate_handoff(
         raise RuntimeError("Handoff constraints are invalid.")
     return path, payload
 
+def _canonicalize_handoff_for_prompt(payload: dict[str, object]) -> dict[str, object]:
+    sources = payload["sources"]
+    facts = payload["facts"]
+    if not isinstance(sources, list) or not isinstance(facts, list):
+        return payload
+    if any(
+        not isinstance(fact, dict) or not isinstance(fact.get("source"), int)
+        for fact in facts
+    ):
+        return payload
+
+    source_order = sorted(range(len(sources)), key=lambda index: _sha256_json(sources[index]))
+    source_indexes = {old: new for new, old in enumerate(source_order)}
+    canonical_facts = [
+        {
+            **fact,
+            "source": source_indexes[fact["source"]],
+        }
+        for fact in facts
+    ]
+    canonical_facts.sort(key=_sha256_json)
+    return {
+        **payload,
+        "sources": [sources[index] for index in source_order],
+        "facts": canonical_facts,
+    }
+
 def _handoff_stdin(argv: list[str], payload: dict[str, object]) -> str:
+    canonical_payload = _canonicalize_handoff_for_prompt(payload)
     delegated_payload = {
-        "schema": payload["schema"],
-        "sources": payload["sources"],
-        "facts": payload["facts"],
-        "constraints": payload.get("constraints", []),
+        "schema": canonical_payload["schema"],
+        "sources": canonical_payload["sources"],
+        "facts": canonical_payload["facts"],
+        "constraints": canonical_payload.get("constraints", []),
     }
     instruction = (
         " Use this validated Codex MCP handoff payload: "

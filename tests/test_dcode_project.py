@@ -468,6 +468,28 @@ def test_runtime_environment_reaches_deepagents_server_child(
     assert environment["DEEPAGENTS_CODE_OPENAI_BASE_URL"] == "http://127.0.0.1:20128/v1"
     assert environment["DEEPAGENTS_CODE_OPENAI_API_KEY"] == "test-key"
     assert environment["OPENAI_BASE_URL"] == "http://127.0.0.1:20128/v1"
+    assert environment["PYTHONUTF8"] == "1"
+    assert environment["PYTHONIOENCODING"] == "utf-8"
+
+
+def test_runtime_environment_makes_child_subprocess_decoding_utf8() -> None:
+    environment = LAUNCHER._runtime_environment("http://127.0.0.1:20128/v1", "test-key")
+    probe = (
+        "import subprocess, sys; "
+        "result = subprocess.run([sys.executable, '-c', \"print('\\u2190')\"], "
+        "capture_output=True, text=True, check=True); "
+        "print(subprocess._text_encoding()); "
+        "print(result.stdout, end='')"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        env=environment,
+        capture_output=True,
+        check=True,
+    )
+
+    assert completed.stdout.decode("utf-8").replace("\r\n", "\n") == "utf-8\n←\n"
     assert environment["OPENAI_API_KEY"] == "test-key"
 
 def mcp_config() -> dict[str, object]:
@@ -585,6 +607,34 @@ def test_handoff_instruction_moves_validated_payload_to_stdin() -> None:
     assert '"official_library_id":"/python/cpython"' in task
     assert "handoff.json" not in task
 
+
+def test_handoff_instruction_canonicalizes_provenance_order() -> None:
+    payload_a = {
+        "schema": "codex.mcp.handoff.v1",
+        "sources": [
+            {"server": "serena", "tool": "find_symbol"},
+            {"server": "context7", "tool": "query_docs"},
+        ],
+        "facts": [
+            {"source": 0, "value": "symbol fact"},
+            {"source": 1, "value": {"library": "docs"}},
+        ],
+        "constraints": ["first constraint", "second constraint"],
+    }
+    payload_b = {
+        **payload_a,
+        "sources": [payload_a["sources"][1], payload_a["sources"][0]],
+        "facts": [
+            {"source": 0, "value": {"library": "docs"}},
+            {"source": 1, "value": "symbol fact"},
+        ],
+    }
+
+    task_a = LAUNCHER._handoff_stdin(["-n", "caller task"], payload_a)
+    task_b = LAUNCHER._handoff_stdin(["-n", "caller task"], payload_b)
+
+    assert task_a == task_b
+    assert '"constraints":["first constraint","second constraint"]' in task_a
 
 def test_handoff_stdin_preserves_binary_file_safety_context(tmp_path: Path) -> None:
     argv = ["-n", "caller task", "--no-mcp"]

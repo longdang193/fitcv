@@ -12740,6 +12740,41 @@ def test_admin_upload_trigger_stores_selected_profile_snapshot(tmp_path):
     assert profile_snapshot["revision"] == 3
 
 
+def test_admin_upload_trigger_keeps_profile_snapshot_after_source_mutation(tmp_path):
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")
+    captured = {}
+    profile = {
+        "profile_id": "profile-1",
+        "name": "Fintech Profile",
+        "revision": 3,
+        "is_active": True,
+        "profile": {"preferences": {"domains": ["fintech"]}},
+    }
+    app = _app_with_captured_run(captured)
+    app.state.run_store.get_candidate_profile_fn = lambda profile_id: profile
+    p = (
+        patch("fitcv_cp.app.load_active_settings", return_value={}),
+        patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-dc-2", queue_job_id="rq-job-2", backend_run_id="rq-job-2", backend="default_queue")),
+        patch("fitcv_cp.app.update_run_queue_job_id"),
+        patch("fitcv_cp.app.load_config", return_value={"gcp_project": "p", "pipeline": {"final_top_n": 10}}),
+    )
+    with p[0], p[1], p[2], p[3]:
+        resp = TestClient(app).post(
+            "/admin/upload-trigger",
+            data={
+                "jobs_input_mode": "path",
+                "jobs_path": str(jobs_file),
+                "candidate_profile_id": "profile-1",
+            },
+        )
+
+    assert resp.status_code == 201, resp.text
+    profile["profile"]["preferences"]["domains"].append("mutated-after-submit")
+    profile_snapshot = json.loads(captured["run"].candidate_profile_json)
+    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
+
+
 def test_admin_upload_trigger_default_config_missing_profile_returns_422(tmp_path):
     """default_config mode: missing profile file must fail the trigger with 422."""
     jobs_file = tmp_path / "jobs.json"

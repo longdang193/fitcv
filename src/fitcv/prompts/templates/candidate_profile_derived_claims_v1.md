@@ -17,6 +17,6 @@ Return exactly one JSON object with this array property:
 ```
 
 `section` must be one of `skills`, `role_families`, `domain_tags`, or `responsibility_themes`.
-Every claim must cite one or more exact `evidence_refs` IDs present in approved baseline. Return `{"claims": []}` when no supported claim exists.
+Every claim must cite one or more exact `evidence_refs` IDs present in the `evidence_ids` list from approved baseline. Use evidence IDs, not source block IDs. Return `{"claims": []}` when no supported claim exists.
 
 $payload

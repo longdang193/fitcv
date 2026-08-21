@@ -64,19 +64,81 @@ _DERIVED_ID_PREFIX = {
     "domain_tags": "domain",
     "responsibility_themes": "responsibility",
 }
+_BASELINE_FIELD_NAMES = sorted({field for fields in _BASELINE_COLLECTION_FIELDS.values() for field in fields})
 _BASELINE_RESPONSE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
-        "proposals": {"type": "array", "items": {"type": "object"}},
-        "collections": {"type": "array", "items": {"type": "object"}},
+        "proposals": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "path": {"type": "string"},
+                    "value": {"type": ["string", "null"]},
+                    "source_block_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "confidence": {"type": "number"},
+                },
+            },
+        },
+        "collections": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "section": {"type": "string", "enum": list(_BASELINE_COLLECTIONS)},
+                    "fields": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {field: {"type": ["string", "null"]} for field in _BASELINE_FIELD_NAMES},
+                    },
+                    "source_block_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "confidence": {"type": "number"},
+                    "evidence": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "kind": {"type": "string", "enum": sorted(_EVIDENCE_KINDS)},
+                                "text": {"type": "string"},
+                                "source_block_ids": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "minItems": 1,
+                                },
+                                "confidence": {"type": "number"},
+                                "title": {"type": "string"},
+                            },
+                        },
+                    },
+                },
+            },
+        },
     },
     "required": ["proposals", "collections"],
 }
 _DERIVED_RESPONSE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "properties": {"claims": {"type": "array", "items": {"type": "object"}}},
+    "properties": {
+        "claims": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "section": {"type": "string", "enum": list(_DERIVED_COLLECTIONS)},
+                    "name": {"type": "string"},
+                    "evidence_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "confidence": {"type": "number"},
+                    "origin": {"type": "string"},
+                },
+            },
+        }
+    },
     "required": ["claims"],
 }
 _REGENERATION_RESPONSE_SCHEMA = {
@@ -261,7 +323,76 @@ def _validate_baseline_payload(value: Any, block_ids: set[str]) -> LlmValidation
         refs = collection.get("source_block_ids")
         if not isinstance(refs, list) or not refs or not set(refs) <= block_ids:
             errors.append("baseline collection requires valid source_block_ids")
+        if str(collection["section"]) == "languages":
+            continue
+        evidence = collection.get("evidence")
+        if not isinstance(evidence, list) or not evidence:
+            errors.append("baseline collection requires evidence")
+            continue
+        for item in evidence:
+            if not isinstance(item, dict):
+                errors.append("baseline evidence must be a mapping")
+                continue
+            evidence_refs = item.get("source_block_ids")
+            if (
+                item.get("kind") not in _EVIDENCE_KINDS
+                or not str(item.get("text") or "").strip()
+                or not isinstance(evidence_refs, list)
+                or not evidence_refs
+                or not set(evidence_refs) <= block_ids
+            ):
+                errors.append("baseline evidence requires valid source_block_ids")
     return _validation(errors)
+
+
+def _hydrate_baseline_source_block_ids(
+    value: Any,
+    blocks: dict[str, dict[str, Any]],
+) -> Any:
+    if not isinstance(value, dict):
+        return value
+
+    def normalize(text: Any) -> str:
+        return " ".join(str(text or "").casefold().split())
+
+    def matches(text: Any) -> list[str]:
+        normalized = normalize(text)
+        if not normalized:
+            return []
+        candidates = [
+            block_id
+            for block_id, block in blocks.items()
+            if normalized == normalize(block.get("text"))
+            or normalized in normalize(block.get("text"))
+        ]
+        return candidates if len(candidates) == 1 else []
+
+    def valid_refs(raw: Any) -> bool:
+        return isinstance(raw, list) and bool(raw) and set(raw) <= set(blocks)
+
+    for proposal in value.get("proposals") or []:
+        if isinstance(proposal, dict) and not proposal.get("source_block_ids"):
+            proposal["source_block_ids"] = matches(proposal.get("value"))
+
+    for collection in value.get("collections") or []:
+        if not isinstance(collection, dict):
+            continue
+        evidence_refs: list[str] = []
+        for evidence in collection.get("evidence") or []:
+            if not isinstance(evidence, dict):
+                continue
+            if not evidence.get("source_block_ids"):
+                evidence["source_block_ids"] = matches(evidence.get("text"))
+            if valid_refs(evidence.get("source_block_ids")):
+                evidence_refs.extend(evidence["source_block_ids"])
+        if not collection.get("source_block_ids"):
+            field_refs = [
+                block_id
+                for field in (collection.get("fields") or {}).values()
+                for block_id in matches(field)
+            ]
+            collection["source_block_ids"] = list(dict.fromkeys(evidence_refs or field_refs))
+    return value
 
 
 def _run_llm(
@@ -380,7 +511,11 @@ def build_baseline_review(
                 confidence=1.0,
                 regenerable=False,
             )
-    unresolved = [block for block in ingest.source_blocks if block["block_id"] not in resolved]
+    unresolved = [
+        block
+        for block in ingest.source_blocks
+        if block["block_id"] not in resolved and block["kind"] != "heading"
+    ]
     if not unresolved:
         return CandidateProfileStageResult(document, annotations, _fingerprint(document), None, False)
 
@@ -389,13 +524,21 @@ def build_baseline_review(
         routing_part="candidate_profile_base_mapping",
         prompt=_render_task_prompt("candidate_profile_base_mapping", {"source_blocks": unresolved}),
         response_mode="json_schema",
-        instructions="Map only observable source content. Never invent IDs, facts, evidence text, or source locations.",
+        instructions=(
+            "Map only observable source content. Never invent IDs, facts, evidence text, or source locations. "
+            "Every non-language collection must include at least one evidence item with non-empty source_block_ids; "
+            "language collections do not use evidence."
+        ),
         schema_name="candidate_profile_base_mapping",
         schema=_BASELINE_RESPONSE_SCHEMA,
+        schema_strict=False,
     )
     result = _run_llm(
         request,
-        lambda value: _validate_baseline_payload(value, set(block_lookup)),
+        lambda value: _validate_baseline_payload(
+            _hydrate_baseline_source_block_ids(value, block_lookup),
+            set(block_lookup),
+        ),
         llm_runner,
         document,
     )
@@ -468,11 +611,15 @@ def build_derived_review(
         return CandidateProfileStageResult(document, {}, _fingerprint(document), None, False, baseline_fingerprint)
     request = LlmTaskRequest(
         routing_part="candidate_profile_derived_claims",
-        prompt=_render_task_prompt("candidate_profile_derived_claims", {"approved_baseline": baseline}),
+        prompt=_render_task_prompt(
+            "candidate_profile_derived_claims",
+            {"approved_baseline": baseline, "evidence_ids": sorted(evidence_ids)},
+        ),
         response_mode="json_schema",
         instructions="Return only evidence-backed derived claims. Never add baseline facts, evidence text, IDs, or source locations.",
         schema_name="candidate_profile_derived_claims",
         schema=_DERIVED_RESPONSE_SCHEMA,
+        schema_strict=False,
     )
     result = _run_llm(
         request,
@@ -575,22 +722,46 @@ def regenerate_review(
     response_schema = copy.deepcopy(_REGENERATION_RESPONSE_SCHEMA)
     response_schema["properties"]["proposals"]["items"] = {
         "type": "object",
-        "properties": {"path": {"type": "string", "enum": list(resolved)}},
-        "required": ["path"],
+        "properties": {
+            "path": {"type": "string", "enum": list(resolved)},
+            "value": {},
+        },
+        "required": ["path", "value"],
     }
+    regeneration_prompt = _render_task_prompt(
+        routing_part,
+        {"document": working, "targets": resolved, "mode": "regenerate"},
+    ) + (
+        "\n\nREGENERATION OVERRIDE: Ignore any full-document claims envelope from the base task. "
+        "Return exactly one JSON object with a `proposals` array. Each proposal must contain "
+        "one requested canonical `path` and replacement `value`; do not return `claims`, `section`, "
+        "`name`, or `evidence_refs`."
+    )
     request = LlmTaskRequest(
         routing_part=routing_part,
-        prompt=_render_task_prompt(routing_part, {"document": working, "targets": resolved, "mode": "regenerate"}),
+        prompt=regeneration_prompt,
         response_mode="json_schema",
-        instructions=f"Return replacements only for requested canonical paths: {json.dumps(resolved)}.",
+        instructions=(
+            f"Return only canonical path/value replacements for {json.dumps(resolved)}. "
+            "Use the `proposals` array shape exactly; do not return the full derived claims shape."
+        ),
         schema_name=f"candidate_profile_{stage}_regeneration",
         schema=response_schema,
+        schema_strict=False,
     )
 
     def validator(value: Any) -> LlmValidationResult:
         if not isinstance(value, dict) or not isinstance(value.get("proposals"), list):
             return _validation(["proposals must be a list"])
-        paths = [proposal.get("path") for proposal in value["proposals"] if isinstance(proposal, dict)]
+        proposals = value["proposals"]
+        if any(
+            not isinstance(proposal, dict)
+            or not isinstance(proposal.get("path"), str)
+            or "value" not in proposal
+            for proposal in proposals
+        ):
+            return _validation(["regeneration proposal requires path and value"])
+        paths = [proposal["path"] for proposal in proposals]
         return _validation([] if paths and set(paths) <= set(resolved) else ["regeneration returned an unrequested path"])
 
     result = _run_llm(request, validator, llm_runner, working)

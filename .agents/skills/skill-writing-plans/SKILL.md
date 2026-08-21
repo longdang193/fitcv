@@ -203,9 +203,10 @@ configuration. `Task Function` is open-ended. `Template Profile` records
 controller-selected `xhigh`, `high`, `normal`, or `low` based on reasoning
 depth, ambiguity, scope, risk, and cost; never define fixed function-to-profile
 maps. Profile order is `xhigh > high > normal > low`. In validator-executor
-setups, record a validator profile that ranks above executor profile; `high`
-executor therefore uses `xhigh` validator. Do not assign `xhigh` executor to a
-separate profile-based validator pair because no higher profile exists.
+setups, select executor and validator profiles independently from their bounded
+task contracts. A validator may be lower, equal, or higher than its executor
+when that profile can reliably complete validation. Select the lowest profile
+that can reliably complete each contract; do not prohibit `xhigh` execution.
 
 ### 9. Define Verification Strategy
 

@@ -58,10 +58,6 @@ SECTION_ALIASES: dict[str, tuple[str, ...]] = {
         "Phase Structure",
     ),
 }
-LIFECYCLE_STATUSES_BY_TEMPLATE: dict[str, frozenset[str]] = {
-    "detailed-specification": frozenset({"active", "completed", "superseded"}),
-    "implementation-plan": frozenset({"proposed", "active", "completed", "superseded"}),
-}
 
 
 
@@ -349,10 +345,8 @@ def validate_documents(
 
         for key, expected in rule.required_frontmatter.items():
             actual = frontmatter.get(key)
-            if key == "status" and isinstance(actual, str):
-                allowed_statuses = LIFECYCLE_STATUSES_BY_TEMPLATE.get(rule.template_id, frozenset())
-                if actual in allowed_statuses:
-                    continue
+            if key == "status" and actual in {"completed", "superseded"}:
+                continue
             if not isinstance(actual, str) or actual.strip() != expected:
                 findings.append(
                     Finding(
