@@ -20,7 +20,9 @@ import zipfile
 import datetime
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
 import tempfile
 import uuid
 from pathlib import Path
@@ -1349,6 +1351,127 @@ def test_admin_scan_detail_reuses_detail_structure_and_output_views() -> None:
     assert "next_cursor" in detail_template
     assert "fitcvRenderAsyncState(" in detail_template
     assert "fitcvRunLocked(" in detail_template
+    assert "location.reload" not in detail_template
+
+
+def test_admin_scan_detail_polling_refreshes_terminal_state_in_place() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.fail("Node.js is required for Scan Details polling regression proof")
+
+    template = Path("src/fitcv_cp/templates/scan_detail.html").read_text(encoding="utf-8")
+    script = template.split("<script>", 1)[1].split("</script>", 1)[0]
+    harness = f"""
+const vm = require('node:vm');
+const source = {json.dumps(script)};
+const state = {{root: null, timers: [], fetches: [], locationAssignments: 0, pollCount: 0}};
+async function main() {{
+
+function makeButton(action) {{
+  return {{
+    id: '',
+    dataset: {{scanAction: action}},
+    listeners: [],
+    focused: false,
+    addEventListener(type, listener) {{ this.listeners.push([type, listener]); }},
+    focus() {{ this.focused = true; state.document.activeElement = this; }},
+  }};
+}}
+
+function makeTab(selected) {{
+  return {{
+    attributes: {{'aria-selected': String(selected)}},
+    hidden: false,
+    tabIndex: 0,
+    listeners: [],
+    addEventListener(type, listener) {{ this.listeners.push([type, listener]); }},
+    setAttribute(name, value) {{ this.attributes[name] = value; }},
+    getAttribute(name) {{ return this.attributes[name] ?? null; }},
+  }};
+}}
+
+function makeRoot(statusValue, revision, button) {{
+  const tabs = {{
+    table: makeTab(false),
+    json: makeTab(true),
+    tablePanel: {{hidden: true}},
+    jsonPanel: {{hidden: false}},
+  }};
+  const rootValue = {{
+    dataset: {{scanId: 'scan-1', scanRevision: String(revision), scanStatus: statusValue}},
+    button,
+    tabs,
+    replaceWith(next) {{ state.root = next; this.replaced = (this.replaced || 0) + 1; }},
+    querySelectorAll(selector) {{ return selector === '[data-scan-action]' ? [this.button] : []; }},
+  }};
+  return rootValue;
+}}
+
+const initialButton = makeButton('cancel');
+state.root = makeRoot('running', 1, initialButton);
+    const statusNodes = new WeakMap();
+const documentValue = {{
+  hidden: false,
+  activeElement: initialButton,
+  querySelector() {{ return state.root; }},
+  querySelectorAll(selector) {{ return selector === '[data-scan-action]' ? [state.root.button] : []; }},
+  getElementById(id) {{
+    if (id === 'scan-action-status') {{
+      if (!statusNodes.has(state.root)) statusNodes.set(state.root, {{textContent: ''}});
+      return statusNodes.get(state.root);
+    }}
+    if (id === 'scan-output-table-tab') return state.root.tabs.table;
+    if (id === 'scan-output-json-tab') return state.root.tabs.json;
+    if (id === 'scan-output-table-panel') return state.root.tabs.tablePanel;
+    if (id === 'scan-output-json-panel') return state.root.tabs.jsonPanel;
+    return null;
+  }},
+  addEventListener() {{}},
+    }};
+    state.document = documentValue;
+
+const refreshedRoot = makeRoot('succeeded', 2, makeButton('cancel'));
+const context = {{
+  console,
+  document: documentValue,
+      window: {{location: {{href: 'http://127.0.0.1:8000/admin/scans/scan-1'}}, setTimeout(callback) {{ state.timers.push(callback); return state.timers.length; }}, clearTimeout() {{}}}},
+  location: {{assign() {{ state.locationAssignments += 1; }}}},
+  DOMParser: class {{ parseFromString() {{ return {{querySelector() {{ return refreshedRoot; }}}}; }} }},
+      fetch: async (url) => {{
+    state.fetches.push(url);
+    if (url === context.window.location.href) return {{ok: true, text: async () => '<main data-page="scan-detail"></main>'}};
+    if (url.includes('/events?')) {{
+      return {{ok: true, json: async () => ({{data: {{events: [], next_cursor: state.pollCount === 1 ? '5' : '3'}}}})}};
+    }}
+    state.pollCount += 1;
+    return {{ok: true, json: async () => ({{data: {{execution_status: state.pollCount === 1 ? 'running' : 'succeeded', row_revision: state.pollCount}}}})}};
+  }},
+  fitcvRunLocked: async (_button, callback) => callback(),
+  fitcvRenderAsyncState() {{}},
+  crypto: {{randomUUID: () => 'idempotency-key'}},
+}};
+
+vm.runInNewContext(source, context);
+if (state.timers.length !== 1) throw new Error('initial polling timer missing');
+await state.timers.shift()();
+if (state.timers.length !== 1) throw new Error('polling did not continue while running');
+await state.timers.shift()();
+if (state.root.dataset.scanStatus !== 'succeeded') throw new Error('terminal state was not refreshed');
+if (state.root.dataset.scanRevision !== '2') throw new Error('row revision was not refreshed');
+if (!state.root.button.focused) throw new Error('focused action was not restored');
+if (state.root.tabs.json.attributes['aria-selected'] !== 'true' || state.root.tabs.jsonPanel.hidden) throw new Error('output view was not preserved');
+if (state.root.button.listeners.length !== 1) throw new Error('action handler was duplicated');
+if (!state.fetches.some(url => url.includes('/events?limit=50&cursor=5'))) throw new Error('event cursor was not advanced');
+if (state.fetches.some(url => url.includes('cursor=3'))) throw new Error('event cursor moved backwards');
+const fetchCountAfterTerminal = state.fetches.length;
+if (state.timers.length) await state.timers.shift()();
+if (state.fetches.length !== fetchCountAfterTerminal) throw new Error('polling continued after terminal state');
+if (state.locationAssignments !== 0) throw new Error('terminal refresh navigated away');
+}}
+main().catch(error => {{ console.error(error); process.exitCode = 1; }});
+"""
+    result = subprocess.run([node, "-e", harness], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr or result.stdout
 
 
 def test_admin_scan_detail_uses_prototype_visual_components() -> None:

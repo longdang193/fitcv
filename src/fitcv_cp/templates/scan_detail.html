@@ -79,66 +79,120 @@
 </main>
 <script>
 (function() {
-  const root = document.querySelector('[data-page="scan-detail"]');
+  let root = document.querySelector('[data-page="scan-detail"]');
   if (!root) return;
   const scanId = root.dataset.scanId;
-  const revision = Number(root.dataset.scanRevision);
-  const status = document.getElementById('scan-action-status');
-  document.querySelectorAll('[data-scan-action]').forEach(button => button.addEventListener('click', async () => {
-    await fitcvRunLocked(button, async () => {
-      status.textContent = `${button.textContent.trim()} pending…`;
-      try {
-        const action = button.dataset.scanAction;
-        if (action === 'archive' || action === 'unarchive') {
-          await fitcvApiRequest(`/scans/actions/${action}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({items:[{scan_id:scanId,expected_revision:revision}]})});
-          location.assign('/admin/scans?lifecycle=' + (action === 'archive' ? 'archived' : 'active'));
-        } else {
-          const payload = await fitcvApiRequest(`/scans/${encodeURIComponent(scanId)}/actions/${action}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({expected_revision:revision})});
-          location.assign('/admin/scans/' + encodeURIComponent(payload.data.scan_id));
-        }
-      } catch (error) { fitcvRenderAsyncState(status, {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: () => button.click()}); }
-    });
-  }));
-  const tableTab = document.getElementById('scan-output-table-tab');
-  const jsonTab = document.getElementById('scan-output-json-tab');
+  let status = document.getElementById('scan-action-status');
+  let eventCursor = null;
+  let pollTimer = null;
+  let pollInFlight = false;
+  let pollingStopped = false;
+  const pendingStatuses = new Set(['queued', 'running', 'cancelling']);
+
+  function bindActions() {
+    document.querySelectorAll('[data-scan-action]').forEach(button => button.addEventListener('click', async () => {
+      await fitcvRunLocked(button, async () => {
+        status.textContent = `${button.textContent.trim()} pending…`;
+        try {
+          const action = button.dataset.scanAction;
+          const revision = Number(root.dataset.scanRevision);
+          if (action === 'archive' || action === 'unarchive') {
+            await fitcvApiRequest(`/scans/actions/${action}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({items:[{scan_id:scanId,expected_revision:revision}]})});
+            location.assign('/admin/scans?lifecycle=' + (action === 'archive' ? 'archived' : 'active'));
+          } else {
+            const payload = await fitcvApiRequest(`/scans/${encodeURIComponent(scanId)}/actions/${action}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({expected_revision:revision})});
+            location.assign('/admin/scans/' + encodeURIComponent(payload.data.scan_id));
+          }
+        } catch (error) { fitcvRenderAsyncState(status, {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: () => button.click()}); }
+      });
+    }));
+  }
+
   function selectOutput(view) {
     const table = view === 'table';
+    const tableTab = document.getElementById('scan-output-table-tab');
+    const jsonTab = document.getElementById('scan-output-json-tab');
+    const tablePanel = document.getElementById('scan-output-table-panel');
+    const jsonPanel = document.getElementById('scan-output-json-panel');
+    if (!tableTab || !jsonTab || !tablePanel || !jsonPanel) return;
     tableTab.setAttribute('aria-selected', String(table));
     jsonTab.setAttribute('aria-selected', String(!table));
     tableTab.tabIndex = table ? 0 : -1;
     jsonTab.tabIndex = table ? -1 : 0;
-    document.getElementById('scan-output-table-panel').hidden = !table;
-    document.getElementById('scan-output-json-panel').hidden = table;
+    tablePanel.hidden = !table;
+    jsonPanel.hidden = table;
   }
-  tableTab?.addEventListener('click', () => selectOutput('table'));
-  jsonTab?.addEventListener('click', () => selectOutput('json'));
-  if (['queued', 'running', 'cancelling'].includes(root.dataset.scanStatus)) {
-    let pollTimer = null;
-    let eventCursor = null;
-    const poll = async () => {
-      if (document.hidden) return;
-      try {
-        const [resourceResponse, eventsResponse] = await Promise.all([
-          fetch(`/scans/${encodeURIComponent(scanId)}`),
-          fetch(`/scans/${encodeURIComponent(scanId)}/events?limit=50${eventCursor ? `&cursor=${encodeURIComponent(eventCursor)}` : ''}`),
-        ]);
-        if (!resourceResponse.ok || !eventsResponse.ok) throw new Error('Scan status refresh failed.');
-        const resource = (await resourceResponse.json()).data;
-        const events = (await eventsResponse.json()).data;
-        eventCursor = events.next_cursor || eventCursor;
-        const latestStatus = String(resource.execution_status || '');
-        root.dataset.scanStatus = latestStatus;
-        document.querySelectorAll('.run-status[data-status]').forEach(badge => {
-          badge.dataset.status = latestStatus.replaceAll('_', ' ');
-          badge.textContent = latestStatus.replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase());
-        });
-        if (Array.isArray(events.events) && events.events.length) status.textContent = `${events.events.length} new Scan event${events.events.length === 1 ? '' : 's'}.`;
-        if (!['queued', 'running', 'cancelling'].includes(latestStatus)) { location.reload(); return; }
-      } catch (error) { status.textContent = error.message; }
-      pollTimer = window.setTimeout(poll, 5000);
-    };
-    pollTimer = window.setTimeout(poll, 5000);
-    document.addEventListener('visibilitychange', () => { if (document.hidden && pollTimer) window.clearTimeout(pollTimer); }, {once:true});
+
+  function bindOutputTabs() {
+    document.getElementById('scan-output-table-tab')?.addEventListener('click', () => selectOutput('table'));
+    document.getElementById('scan-output-json-tab')?.addEventListener('click', () => selectOutput('json'));
+  }
+
+  async function refreshDetail() {
+    const active = document.activeElement;
+    const focusId = active?.id;
+    const focusAction = active?.dataset?.scanAction;
+    const jsonSelected = document.getElementById('scan-output-json-tab')?.getAttribute('aria-selected') === 'true';
+    const response = await fetch(window.location.href, {headers:{Accept:'text/html'}});
+    if (!response.ok) throw new Error('Scan detail refresh failed.');
+    const documentText = await response.text();
+    const refreshedRoot = new DOMParser().parseFromString(documentText, 'text/html').querySelector('[data-page="scan-detail"]');
+    if (!refreshedRoot) throw new Error('Scan detail refresh returned invalid markup.');
+    root.replaceWith(refreshedRoot);
+    root = refreshedRoot;
+    status = document.getElementById('scan-action-status');
+    bindActions();
+    bindOutputTabs();
+    selectOutput(jsonSelected ? 'json' : 'table');
+    if (focusId) document.getElementById(focusId)?.focus();
+    else if (focusAction) [...root.querySelectorAll('[data-scan-action]')].find(button => button.dataset.scanAction === focusAction)?.focus();
+  }
+
+  function advanceEventCursor(nextCursor) {
+    if (nextCursor === null || nextCursor === undefined || nextCursor === '') return;
+    const next = Number(nextCursor);
+    const current = Number(eventCursor);
+    if (eventCursor === null || (Number.isFinite(next) && (!Number.isFinite(current) || next > current))) eventCursor = nextCursor;
+  }
+
+  function schedulePoll() {
+    if (!pollingStopped && !document.hidden && !pollTimer) pollTimer = window.setTimeout(poll, 5000);
+  }
+
+  async function poll() {
+    pollTimer = null;
+    if (pollingStopped || document.hidden || pollInFlight) return;
+    pollInFlight = true;
+    try {
+      const [resourceResponse, eventsResponse] = await Promise.all([
+        fetch(`/scans/${encodeURIComponent(scanId)}`),
+        fetch(`/scans/${encodeURIComponent(scanId)}/events?limit=50${eventCursor !== null ? `&cursor=${encodeURIComponent(eventCursor)}` : ''}`),
+      ]);
+      if (!resourceResponse.ok || !eventsResponse.ok) throw new Error('Scan status refresh failed.');
+      const resource = (await resourceResponse.json()).data;
+      const events = (await eventsResponse.json()).data;
+      advanceEventCursor(events.next_cursor);
+      const latestStatus = String(resource.execution_status || '');
+      const revisionChanged = String(resource.row_revision ?? '') !== String(root.dataset.scanRevision ?? '');
+      const statusChanged = latestStatus !== root.dataset.scanStatus;
+      if (revisionChanged || statusChanged) await refreshDetail();
+      if (Array.isArray(events.events) && events.events.length) status.textContent = `${events.events.length} new Scan event${events.events.length === 1 ? '' : 's'}.`;
+      if (!pendingStatuses.has(latestStatus)) pollingStopped = true;
+    } catch (error) { status.textContent = error.message; }
+    finally {
+      pollInFlight = false;
+      schedulePoll();
+    }
+  }
+
+  bindActions();
+  bindOutputTabs();
+  if (pendingStatuses.has(root.dataset.scanStatus)) {
+    schedulePoll();
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && pollTimer) { window.clearTimeout(pollTimer); pollTimer = null; }
+      else schedulePoll();
+    });
   }
 })();
 </script>
