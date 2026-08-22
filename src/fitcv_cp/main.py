@@ -17,11 +17,14 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
+from fitcv.config import load_config
 from fitcv_cp.app import create_app
 from fitcv_cp.backend_runtime import resolve_backend_runtime, set_backend_runtime
 from fitcv_cp.env_defaults import load_dotenv_defaults
+from fitcv_cp.sqlite_store import ensure_control_plane_database
 
 logger = logging.getLogger(__name__)
 
@@ -47,15 +50,31 @@ def _ensure_safe_local_execution_mode() -> None:
         )
 
 
+def _resolve_candidate_profile_path() -> Path:
+    config = load_config()
+    candidate_profile_path = str(
+        dict(config.get("paths") or {}).get("candidate_profile") or ""
+    ).strip()
+    if not candidate_profile_path:
+        raise ValueError("paths.candidate_profile must be configured")
+    return Path(candidate_profile_path)
+
+
 def build_app() -> Any:
     load_dotenv_defaults()
     from fitcv_cp.local_storage import activate_local_storage, is_local_mode
 
-    if is_local_mode():
+    local_mode = is_local_mode()
+    if local_mode:
         activate_local_storage()
     _ensure_safe_local_execution_mode()
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
+    if not local_mode:
+        ensure_control_plane_database(
+            Path(runtime.sqlite_path),
+            _resolve_candidate_profile_path(),
+        )
     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
     logger.info("control-plane backend mode: sqlite")
     application = create_app(redis_url=redis_url, backend_runtime=runtime)
