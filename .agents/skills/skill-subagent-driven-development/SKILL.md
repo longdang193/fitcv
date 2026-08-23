@@ -245,8 +245,13 @@ and is re-read on every later turn. Hand artifacts over as files:
   cases) appear only in the brief.
 - **Report file:** name the implementer's report file after the brief
   (brief `…/task-N-brief.md` → report `…/task-N-report.md`) and put it in
-  the dispatch prompt. The implementer writes the full report there and
-  returns only status, a one-line test summary, and concerns.
+  the dispatch prompt. Repository-local report paths only when the delegated
+  executor can access the repository root. The implementer writes the full
+  report there and returns only status, a one-line test summary, and concerns.
+- **External evidence:** never hand DeepAgents paths to `C:\tmp`, databases,
+  API/browser captures, or other runtime artifacts. Codex validates external or
+  runtime evidence and passes sanitized facts or content through
+  `codex.mcp.handoff.v1`, or keeps validation in Codex.
 - **Reviewer inputs:** the task reviewer gets three paths — the same brief
   file, the report file, and the review package — plus the global
   constraints that bind the task.
@@ -285,7 +290,7 @@ You: I'm using Subagent-Driven Development to execute this plan.
 
 Task 1: Hook installation script
 
-[Run task-brief for Task 1; dispatch implementer with brief + report paths + context]
+[Run task-brief for Task 1; dispatch implementer with repository-local brief and report paths + context]
 
 Implementer: "Before I begin - should the hook be installed at user or system level?"
 
@@ -306,7 +311,7 @@ Task reviewer: Spec ✅ - all requirements met, nothing extra.
 
 Task 2: Recovery modes
 
-[Run task-brief for Task 2; dispatch implementer with brief + report paths + context]
+[Run task-brief for Task 2; dispatch implementer with repository-local brief and report paths + context]
 
 Implementer: [No questions, proceeds]
 Implementer:

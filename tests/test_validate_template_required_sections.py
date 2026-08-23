@@ -574,43 +574,6 @@ Verified work.
         rmtree(root, ignore_errors=True)
 
 
-def test_active_plan_accepts_template_initial_status() -> None:
-    root = make_test_root()
-    try:
-        write_text(
-            root / "docs" / "operating_system" / "templates" / "implementation-plan-template.md",
-            """---
-template_id: implementation-plan
-target_globs:
-  - docs/superpowers/plans/*.md
-required_sections:
-  - Goal
-required_frontmatter:
-  artifact_type: plan
-  status: proposed
----
-""",
-        )
-        write_text(
-            root / "docs" / "superpowers" / "plans" / "active-plan.md",
-            """---
-artifact_type: plan
-template_id: implementation-plan
-status: active
----
-
-# Active Plan
-
-## Goal
-Work in progress.
-""",
-        )
-        rules, findings = VALIDATOR.discover_template_rules(root)
-        assert findings == []
-        assert VALIDATOR.validate_documents(root, rules, require_template_selection=False) == []
-    finally:
-        rmtree(root, ignore_errors=True)
-
 def test_superseded_plan_accepts_template_initial_status() -> None:
     root = make_test_root()
     try:

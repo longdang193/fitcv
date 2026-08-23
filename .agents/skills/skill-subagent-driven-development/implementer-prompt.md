@@ -132,7 +132,7 @@ Subagent (general-purpose):
     - Working-tree changes left for lead review; no commit created
     - One-line test summary (e.g. "14/14 passing, output pristine")
     - Your concerns, if any
-    - The report file path
+    - The repository-relative report file path; external or runtime evidence must arrive as sanitized facts or content, not paths
 
     If BLOCKED or NEEDS_CONTEXT, put the specifics in the final message
     itself — the controller acts on it directly.
