@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -467,6 +468,9 @@ def test_runtime_environment_reaches_deepagents_server_child(
 
     assert environment["DEEPAGENTS_CODE_OPENAI_BASE_URL"] == "http://127.0.0.1:20128/v1"
     assert environment["DEEPAGENTS_CODE_OPENAI_API_KEY"] == "test-key"
+    assert environment["DEEPAGENTS_CODE_AUTO_UPDATE"] == "0"
+    if os.name == "nt":
+        assert environment["DEEPAGENTS_CODE_UI_CHARSET_MODE"] == "ascii"
     assert environment["OPENAI_BASE_URL"] == "http://127.0.0.1:20128/v1"
     assert environment["PYTHONUTF8"] == "1"
     assert environment["PYTHONIOENCODING"] == "utf-8"
@@ -491,6 +495,19 @@ def test_runtime_environment_makes_child_subprocess_decoding_utf8() -> None:
 
     assert completed.stdout.decode("utf-8").replace("\r\n", "\n") == "utf-8\n←\n"
     assert environment["OPENAI_API_KEY"] == "test-key"
+
+def test_runtime_environment_overrides_inherited_project_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://project-env.example/v1")
+    monkeypatch.setenv("OPENAI_API_KEY", "project-env-key")
+
+    environment = LAUNCHER._runtime_environment("http://127.0.0.1:20128/v1", "test-key")
+
+    assert environment["OPENAI_BASE_URL"] == "http://127.0.0.1:20128/v1"
+    assert environment["OPENAI_API_KEY"] == "test-key"
+    assert environment["DEEPAGENTS_CODE_OPENAI_BASE_URL"] == "http://127.0.0.1:20128/v1"
+    assert environment["DEEPAGENTS_CODE_OPENAI_API_KEY"] == "test-key"
 
 def mcp_config() -> dict[str, object]:
     return {
@@ -663,3 +680,11 @@ def test_setup_launcher_uses_current_repository_source() -> None:
     assert 'dcode-project.ps1' in setup
     assert 'Join-Path $HOME ".deepagents\\.mcp.json"' in setup
     assert "Direct DeepAgents MCP config detected" in setup
+    assert '$DeepAgentsCodeVersion = "0.1.59"' in setup
+    assert 'deepagents-code==$DeepAgentsCodeVersion' in setup
+    assert '$env:UV_TOOL_DIR = $deepAgentsToolRoot' in setup
+    assert '$env:UV_TOOL_BIN_DIR = $deepAgentsBinRoot' in setup
+    assert 'dcode-doctor.ps1' in setup
+    assert 'DEEPAGENTS_CODE_UI_CHARSET_MODE = "ascii"' in setup
+    assert "Python 3.12 or newer" in setup
+    assert "version mismatch" in setup

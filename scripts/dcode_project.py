@@ -689,23 +689,27 @@ def _append_bounded_task_context(argv: list[str], repo_root: Path) -> None:
 
 
 def _find_dcode() -> str | None:
-    return shutil.which("dcode") or next(
+    return next(
         (
             str(candidate)
             for candidate in (
+                Path.home() / ".local" / "share" / "dcode-project" / "bin" / "dcode.exe",
                 Path.home() / ".local" / "bin" / "dcode.exe",
                 Path.home() / ".local" / "bin" / "dcode",
             )
             if candidate.is_file()
         ),
         None,
-    )
+    ) or shutil.which("dcode")
 
 
 def _runtime_environment(base_url: str, api_key: str) -> dict[str, str]:
     environment = os.environ.copy()
     environment["PYTHONUTF8"] = "1"
     environment["PYTHONIOENCODING"] = "utf-8"
+    environment["DEEPAGENTS_CODE_AUTO_UPDATE"] = "0"
+    if os.name == "nt":
+        environment["DEEPAGENTS_CODE_UI_CHARSET_MODE"] = "ascii"
     environment["DEEPAGENTS_CODE_OPENAI_BASE_URL"] = base_url
     environment["DEEPAGENTS_CODE_OPENAI_API_KEY"] = api_key
     environment["OPENAI_BASE_URL"] = base_url

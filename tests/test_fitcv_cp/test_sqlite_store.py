@@ -1602,6 +1602,121 @@ def test_update_candidate_profile_creates_immutable_successor_with_cas_and_repla
     assert "Updated Analytics Engineer" not in revisions[0][1]
 
 
+def test_candidate_profile_lifecycle_preserves_revision_payload_and_run_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    with sqlite_store._sqlite_connection(database_path) as conn:
+        confirmation = sqlite_store._candidate_profile_confirmation_in_transaction(conn, ready["attempt_id"])
+    created = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="lifecycle-confirm",
+        database_path=database_path,
+    )
+    current = sqlite_store.get_candidate_profile_detail(created["profile_id"], database_path=database_path)
+    assert current is not None
+    canonical = dict(current["profile"]["canonical"])
+    canonical["headline"] = "Updated Analytics Engineer"
+    updated = sqlite_store.update_candidate_profile(
+        created["profile_id"],
+        canonical=canonical,
+        expected_revision=created["revision"],
+        idempotency_key="lifecycle-update",
+        database_path=database_path,
+    )
+    with sqlite3.connect(database_path) as conn:
+        before_lifecycle = conn.execute(
+            "SELECT revision, profile_json, checksum FROM candidate_profile_revisions "
+            "WHERE candidate_profile_id=? ORDER BY revision",
+            (created["profile_id"],),
+        ).fetchall()
+
+    archived = sqlite_store.transition_candidate_profile_lifecycle(
+        created["profile_id"],
+        lifecycle="archived",
+        expected_revision=updated["revision"],
+        database_path=database_path,
+    )
+    assert archived["revision"] == updated["revision"] + 1
+    assert archived["overview"] == canonical
+    assert archived["profile"]["canonical"] == canonical
+    assert archived["capabilities"]["use_for_run"] is False
+
+    restored = sqlite_store.transition_candidate_profile_lifecycle(
+        created["profile_id"],
+        lifecycle="active",
+        expected_revision=archived["revision"],
+        database_path=database_path,
+    )
+    assert restored["revision"] == archived["revision"] + 1
+    assert restored["overview"] == canonical
+    assert restored["profile"]["canonical"] == canonical
+    assert restored["capabilities"]["use_for_run"] is True
+
+    archived_again = sqlite_store.transition_candidate_profile_lifecycle(
+        created["profile_id"],
+        lifecycle="archived",
+        expected_revision=restored["revision"],
+        database_path=database_path,
+    )
+    restored_again = sqlite_store.transition_candidate_profile_lifecycle(
+        created["profile_id"],
+        lifecycle="active",
+        expected_revision=archived_again["revision"],
+        database_path=database_path,
+    )
+    assert restored_again["revision"] == restored["revision"] + 2
+    assert restored_again["profile"]["canonical"] == canonical
+    assert restored_again["capabilities"]["use_for_run"] is True
+
+    with sqlite3.connect(database_path) as conn:
+        revisions = conn.execute(
+            "SELECT revision, profile_revision_id, profile_json, checksum "
+            "FROM candidate_profile_revisions WHERE candidate_profile_id=? ORDER BY revision",
+            (created["profile_id"],),
+        ).fetchall()
+        current_revision = conn.execute(
+            "SELECT revision FROM candidate_profiles WHERE candidate_profile_id=?",
+            (created["profile_id"],),
+        ).fetchone()[0]
+    assert current_revision == restored_again["revision"]
+    assert [row[0] for row in revisions] == [1, 2, 3, 4, 5, 6]
+    assert revisions[0][2:] == before_lifecycle[0][1:]
+    assert all(row[2:] == revisions[1][2:] for row in revisions[2:])
+    assert restored_again["profile_revision_id"] == revisions[-1][1]
+
+    run = _make_run("run-restored-profile")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(database_path))
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "strict_candidate_profile": True,
+            "candidate_profile_id": created["profile_id"],
+            "jobs_snapshot_json": "[{\"title\":\"Analyst\"}]",
+            "jobs_manifest_json": "{}",
+        },
+        jobs=[{"title": "Analyst"}],
+    )
+    with sqlite3.connect(database_path) as conn:
+        snapshot = conn.execute(
+            "SELECT candidate_profile_id, candidate_profile_revision_id, candidate_profile_revision, "
+            "candidate_profile_checksum, candidate_profile_json FROM run_inputs WHERE run_id=?",
+            (run.run_id,),
+        ).fetchone()
+    assert snapshot[:4] == (
+        created["profile_id"],
+        restored_again["profile_revision_id"],
+        restored_again["revision"],
+        restored_again["profile"]["checksum"],
+    )
+    assert json.loads(snapshot[4]) == canonical
+
+
 def test_update_candidate_profile_preserves_existing_run_snapshot(tmp_path: Path) -> None:
     database_path = Path(sqlite_store._local_sqlite_path())
     ready, _ = _candidate_profile_ready_to_confirm(database_path)
@@ -4125,6 +4240,99 @@ def _create_normalized_run_with_jobs(run_id: str, jobs: list[dict[str, object]])
     )
     return list(result["run_job_ids"])
 
+
+def test_query_run_jobs_stage_all_conserves_duplicate_pending_occurrences() -> None:
+    _create_normalized_run_with_jobs(
+        "run-job-occurrences",
+        [
+            {"title": "Analyst", "company": "Example", "job_url": "https://example.com/1"},
+            {"title": "Analyst", "company": "Example", "job_url": "https://example.com/1"},
+        ],
+    )
+
+    result = sqlite_store.query_run_jobs(
+        "run-job-occurrences", page=1, page_size=50, stage="all", result_bucket="all"
+    )
+
+    assert result["total"] == 2
+    assert sorted(row["source_index"] for row in result["items"]) == [0, 1]
+    assert len({row["run_job_id"] for row in result["items"]}) == 2
+
+
+def test_settings_used_snapshot_is_visible_from_normalized_run_store() -> None:
+    run = _make_run("run-settings-used")
+    sqlite_store.insert_run(run)
+
+    sqlite_store.update_run_settings_used(
+        run.run_id,
+        json.dumps({"run_id": run.run_id, "schema_version": "settings_used_v2"}),
+    )
+
+    stored = sqlite_store.get_run(run.run_id)
+
+    assert stored is not None
+    assert json.loads(str(stored.settings_used_json))["schema_version"] == "settings_used_v2"
+
+
+def test_run_summary_conserves_passed_rejected_and_skipped_occurrences() -> None:
+    run_id = "run-summary-reconciliation"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": f"Job {index}", "job_url": f"https://example.com/{index}"} for index in range(7)],
+    )
+    export_results = []
+    for index in range(7):
+        outcome = "accepted" if index < 3 else "rejected" if index < 6 else "skipped"
+        stage = "rule_filter" if index < 6 else "normalize"
+        export_results.append(
+            {
+                "job_url": f"https://example.com/{index}",
+                "job_outcome": {
+                    "job_key": f"input:{index}",
+                    "stage": stage,
+                    "outcome": outcome,
+                    "reason_code": "near_duplicate_job_posting" if outcome == "skipped" else outcome,
+                    "evidence_ref": {"artifact": "results.json"},
+                },
+            }
+        )
+
+    sqlite_store.persist_pipeline_snapshot(
+        run_id,
+        {
+            "total_jobs": 7,
+            "passed_filter": 3,
+            "ranked": 3,
+            "cvs_generated": 0,
+            "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking"],
+            "export_results": export_results,
+        },
+        run_status=RunStatus.SUCCEEDED,
+        snapshot_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    sqlite_store.update_run_status(
+        run_id,
+        RunStatus.SUCCEEDED,
+        summary={"total_jobs": 7, "passed_filter": 3},
+    )
+
+    detail = sqlite_store.get_run_detail(run_id)
+    jobs = sqlite_store.query_run_jobs(run_id, page=1, page_size=50, stage="all", result_bucket="all")
+
+    assert detail is not None
+    assert detail["counts"] == {
+        "total": 7,
+        "passed": 3,
+        "rejected": 3,
+        "skipped": 1,
+        "cvs_generated": 0,
+    }
+    assert detail["integrity_warnings"] == []
+    assert jobs["total"] == 7
+    assert jobs["total_evaluated"] == 7
+    assert jobs["passed"] == 3
+    assert jobs["rejected"] == 3
+    assert jobs["skipped"] == 1
 
 def test_run_detail_projects_input_capabilities_and_integrity_warning() -> None:
     run_job_ids = _create_normalized_run_with_jobs(

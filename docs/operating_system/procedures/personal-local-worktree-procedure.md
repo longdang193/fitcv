@@ -163,13 +163,22 @@ Install or refresh local DeepAgents runtime:
 ./scripts/setup_deepagents_runtime.ps1 -SecretFile <local-env-file>
 ```
 
-Installer writes only `%USERPROFILE%\.local\share\dcode-project\config.toml`
-and `%USERPROFILE%\.local\bin\dcode-project.{cmd,ps1}`. Wrapper resolves current
-Git workspace and runs tracked `scripts/dcode_project.py`. Run `dcode-project`
+Installer writes only `%USERPROFILE%\.local\share\dcode-project\` runtime state
+and `%USERPROFILE%\.local\bin\dcode-project.{cmd,ps1}`. The pinned DeepAgents
+tool stays isolated under the runtime root, so concurrent repositories do not
+replace one shared `dcode.exe`. Wrapper resolves current Git workspace and runs
+tracked `scripts/dcode_project.py`. Run `dcode-project`
 from selected repository workspace with `--role <low|normal|high|xhigh>`; do not
-pass `--model`. Setup fails when
+pass `--model`. Setup pins `deepagents-code 0.1.59`, requires Python 3.12 or
+newer, verifies the installed `dcode` version, and disables child auto-update.
+Setup fails when
 `%USERPROFILE%\.deepagents\.mcp.json` exists; remove that direct DeepAgents MCP
 config before setup so Codex config remains sole MCP authority.
+
+DeepAgents may load project `.env` values. `dcode-project` overwrites provider
+environment values from its local Codex binding before launch and keeps MCP
+disabled; do not store credentials or runtime authority in project files.
+Inspect effective DeepAgents settings with `dcode config` or `dcode config path`.
 
 ## DeepAgents Probe Selection
 
@@ -184,6 +193,17 @@ temporary workspace, base, executor/profile, exit code, elapsed time, changed
 paths, checks, decision, and notes. Preserve failed-probe evidence. Remove
 only exact resolved probe roots after capture; do not track fixtures, handoffs,
 or `.deepagents/` state.
+
+After a runtime upgrade, run this bounded smoke probe from selected repository:
+
+```powershell
+dcode-project --role normal --no-mcp --json --max-turns 4 --timeout 120 -n "Return exactly DEEPAGENTS_UPGRADE_OK"
+```
+
+Accept only when exit code is `0`, output contains `DEEPAGENTS_UPGRADE_OK`,
+selected model is `combo-normal`, and `.deepagents/` is absent after exit. Run
+`dcode-doctor` separately when checking Windows diagnostics. It uses the
+isolated pinned executable and forces ASCII glyphs for legacy Windows consoles.
 
 ## Resume In A New Task
 

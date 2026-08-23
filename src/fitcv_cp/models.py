@@ -230,6 +230,7 @@ class PipelineRun:
     finished_at: Optional[datetime.datetime] = None
     total_jobs: Optional[int] = None
     passed_filter: Optional[int] = None
+    rejected_jobs: Optional[int] = None
     ranked: Optional[int] = None
     cvs_generated: Optional[int] = None
     error_message: Optional[str] = None

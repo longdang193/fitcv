@@ -567,6 +567,7 @@ def _ensure_control_plane_schema(
         total_jobs INTEGER NOT NULL DEFAULT 0 CHECK (total_jobs >= 0),
         passed_jobs INTEGER NOT NULL DEFAULT 0 CHECK (passed_jobs >= 0),
         rejected_jobs INTEGER NOT NULL DEFAULT 0 CHECK (rejected_jobs >= 0),
+          settings_used_json TEXT,
         cvs_generated INTEGER NOT NULL DEFAULT 0 CHECK (cvs_generated >= 0),
         progress_completed INTEGER NOT NULL DEFAULT 0 CHECK (progress_completed >= 0),
         progress_total INTEGER NOT NULL DEFAULT 0 CHECK (progress_total >= 0),
@@ -1052,6 +1053,12 @@ def _ensure_control_plane_schema(
         for statement in schema.split(";"):
             if statement.strip():
                 conn.execute(statement)
+        pipeline_run_columns = {
+            str(row[1] or "")
+            for row in conn.execute("PRAGMA table_info(pipeline_runs)").fetchall()
+        }
+        if "settings_used_json" not in pipeline_run_columns:
+            conn.execute("ALTER TABLE pipeline_runs ADD COLUMN settings_used_json TEXT")
         _ensure_run_inputs_snapshot_columns(conn)
         _ensure_scan_execution_columns(conn)
         if version == 4:
@@ -2059,6 +2066,7 @@ def list_candidate_profiles(
             FROM candidate_profiles AS cp
             LEFT JOIN candidate_profile_revisions AS pr
               ON pr.candidate_profile_id = cp.candidate_profile_id
+             AND pr.revision = cp.revision
             {where}
             ORDER BY cp.sort_order, cp.profile_name COLLATE NOCASE, cp.candidate_profile_id
             """
@@ -2087,6 +2095,7 @@ def get_candidate_profile(
             FROM candidate_profiles AS cp
             JOIN candidate_profile_revisions AS pr
               ON pr.candidate_profile_id = cp.candidate_profile_id
+             AND pr.revision = cp.revision
             WHERE cp.candidate_profile_id = ?
             """,
             (candidate_profile_id,),
@@ -2157,7 +2166,7 @@ def _candidate_profile_attempt_resource(conn: sqlite3.Connection, attempt_id: st
         },
         "failure": failure,
         "next_action": row["next_action"],
-        "capabilities": {
+            "capabilities": {
             "view_source": bool(row["source_available"]),
             "review_baseline": status == "base_review",
             "approve_baseline": status == "base_review",
@@ -3542,7 +3551,7 @@ def _candidate_profile_resource(conn: sqlite3.Connection, profile_id: str) -> di
             "archive": succeeded and active,
             "restore": succeeded and not active,
             "delete": succeeded and not active and related_run_count == 0,
-            "use_for_run": succeeded and active,
+            "use_for_run": succeeded and active and profile is not None,
         },
         "revision": row["revision"],
         "overview": profile,
@@ -3730,27 +3739,63 @@ def transition_candidate_profile_lifecycle(
     with _sqlite_connection(path) as conn:
         _ensure_control_plane_schema(conn)
         conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT creation_status, lifecycle, revision FROM candidate_profiles WHERE candidate_profile_id = ?",
-            (profile_id,),
-        ).fetchone()
-        if row is None:
-            raise ValueError("profile_not_found")
-        if int(row["revision"]) != expected_revision:
-            raise ValueError("revision_conflict")
-        if row["creation_status"] != "succeeded":
-            raise ValueError("profile_transition_unavailable")
-        if row["lifecycle"] != lifecycle:
-            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            conn.execute(
-                """
-                UPDATE candidate_profiles
-                SET lifecycle = ?, archived_at = ?, updated_at = ?, revision = revision + 1
-                WHERE candidate_profile_id = ?
-                """,
-                (lifecycle, now if lifecycle == "archived" else None, now, profile_id),
-            )
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = conn.execute(
+                "SELECT creation_status, lifecycle, revision FROM candidate_profiles WHERE candidate_profile_id = ?",
+                (profile_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("profile_not_found")
+            if int(row["revision"]) != expected_revision:
+                raise ValueError("revision_conflict")
+            if row["creation_status"] != "succeeded":
+                raise ValueError("profile_transition_unavailable")
+            if row["lifecycle"] != lifecycle:
+                current_revision = int(row["revision"])
+                revision = conn.execute(
+                    """SELECT profile_json, checksum, schema_revision
+                       FROM candidate_profile_revisions
+                       WHERE candidate_profile_id=? AND revision=?""",
+                    (profile_id, current_revision),
+                ).fetchone()
+                if revision is None:
+                    raise ValueError("candidate_profile_revision_missing")
+                now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                conn.execute(
+                    """INSERT INTO candidate_profile_revisions (
+                           profile_revision_id, candidate_profile_id, revision,
+                           profile_json, checksum, schema_revision, created_at
+                       ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        f"profile_revision_{uuid.uuid4().hex}",
+                        profile_id,
+                        current_revision + 1,
+                        revision["profile_json"],
+                        revision["checksum"],
+                        revision["schema_revision"],
+                        now,
+                    ),
+                )
+                conn.execute(
+                    """UPDATE candidate_profiles
+                       SET lifecycle = ?, archived_at = ?, updated_at = ?, revision = ?
+                       WHERE candidate_profile_id = ? AND revision = ?""",
+                    (
+                        lifecycle,
+                        now if lifecycle == "archived" else None,
+                        now,
+                        current_revision + 1,
+                        profile_id,
+                        current_revision,
+                    ),
+                )
+                if conn.execute("SELECT changes()").fetchone()[0] != 1:
+                    raise ValueError("revision_conflict")
             conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         resource = _candidate_profile_resource(conn, profile_id)
     assert resource is not None
     return resource
@@ -7383,6 +7428,7 @@ def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
         finished_at=_parse_dt(payload.get("finished_at")),
         total_jobs=payload.get("total_jobs"),
         passed_filter=payload.get("passed_filter"),
+          rejected_jobs=payload.get("rejected_jobs"),
         ranked=payload.get("ranked"),
         cvs_generated=payload.get("cvs_generated"),
         error_message=payload.get("error_message"),
@@ -8408,7 +8454,11 @@ def update_run_settings_used(
     **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the immutable run-scoped settings-used snapshot."""
-    return _update_pipeline_run_json_field_with_result(
+    normalized_updated = _mutate_normalized_run(
+        run_id,
+        lambda existing: dataclasses.replace(existing, settings_used_json=settings_used_json),
+    )
+    local_result = _update_pipeline_run_json_field_with_result(
         run_id=run_id,
         field_name="settings_used_json",
         field_value=settings_used_json,
@@ -8416,6 +8466,7 @@ def update_run_settings_used(
             existing, settings_used_json=settings_used_json
         ),
     )
+    return _persistence_result("persisted") if normalized_updated else local_result
 
 
 def update_run_mapping_suggestions(
@@ -8961,9 +9012,14 @@ def _write_normalized_run(conn: sqlite3.Connection, run: PipelineRun, *, insert:
         run.finished_at.isoformat() if run.finished_at else None,
         run.archived_at.isoformat() if run.archived_at else None, run.archived_by, run.queue_job_id,
         run.orchestration_backend, run.orchestration_run_id, int(run.total_jobs or 0),
-        int(run.passed_filter or 0), max(0, int(run.total_jobs or 0) - int(run.passed_filter or 0)),
+        int(run.passed_filter or 0),
+        int(
+            run.rejected_jobs
+            if run.rejected_jobs is not None
+            else max(0, int(run.total_jobs or 0) - int(run.passed_filter or 0))
+        ),
         int(run.cvs_generated or 0), int(run.progress_completed or 0),
-        int(run.progress_total or run.total_jobs or 0), _settings_revision(run), run.warning_json,
+        int(run.progress_total or run.total_jobs or 0), run.settings_used_json, _settings_revision(run), run.warning_json,
         run.error_stage, run.error_message, int(bool(run.partial_completion)),
         _pipeline_run_to_json(run), run.run_id,
     )
@@ -8974,9 +9030,9 @@ def _write_normalized_run(conn: sqlite3.Connection, run: PipelineRun, *, insert:
                 run_name, backend_status, status_detail, triggered_by, trigger_source, trigger_mode,
                 created_at, started_at, finished_at, archived_at, archived_by, queue_job_id,
                 orchestration_backend, orchestration_run_id, total_jobs, passed_jobs, rejected_jobs,
-                cvs_generated, progress_completed, progress_total, settings_revision, warning_json,
+                cvs_generated, progress_completed, progress_total, settings_used_json, settings_revision, warning_json,
                 error_code, error_message, partial_completion, compatibility_json, run_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             values,
         )
@@ -8987,7 +9043,7 @@ def _write_normalized_run(conn: sqlite3.Connection, run: PipelineRun, *, insert:
             run_name=?, backend_status=?, status_detail=?, triggered_by=?, trigger_source=?, trigger_mode=?,
             created_at=?, started_at=?, finished_at=?, archived_at=?, archived_by=?, queue_job_id=?,
             orchestration_backend=?, orchestration_run_id=?, total_jobs=?, passed_jobs=?, rejected_jobs=?,
-            cvs_generated=?, progress_completed=?, progress_total=?, settings_revision=?, warning_json=?,
+            cvs_generated=?, progress_completed=?, progress_total=?, settings_used_json=?, settings_revision=?, warning_json=?,
             error_code=?, error_message=?, partial_completion=?, compatibility_json=?, row_revision=row_revision+1
         WHERE run_id=?
         """,
@@ -9010,6 +9066,8 @@ def _normalized_run_from_row(row: sqlite3.Row) -> PipelineRun | None:
     run.orchestration_run_id = row["orchestration_run_id"]
     run.total_jobs = int(row["total_jobs"])
     run.passed_filter = int(row["passed_jobs"])
+    run.rejected_jobs = int(row["rejected_jobs"])
+    run.settings_used_json = row["settings_used_json"] or run.settings_used_json
     run.cvs_generated = int(row["cvs_generated"])
     run.error_stage = row["error_code"]
     run.error_message = row["error_message"]
@@ -9135,6 +9193,8 @@ def update_run_status(
             updated.error_stage = error_stage
         for key in ("total_jobs", "passed_filter", "ranked", "cvs_generated"):
             if summary and summary.get(key) is not None:
+                if status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED} and key == "passed_filter":
+                    continue
                 setattr(updated, key, int(summary[key]))
         return updated
 
@@ -10200,6 +10260,12 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
                WHERE j.run_id=?""",
             (run_id,),
         ).fetchall()
+        terminal_result_rows = conn.execute(
+            """SELECT r.* FROM run_job_stage_results r
+               JOIN run_jobs j ON j.run_job_id=r.run_job_id AND j.current_stage_id=r.stage_id
+               WHERE j.run_id=?""",
+            (run_id,),
+        ).fetchall()
         usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
 
     run = _normalized_run_from_row(run_row)
@@ -10240,17 +10306,31 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
         projected_stages.append(stage)
 
     screening_counts = recomputed_by_stage.get("screening", {"passed": 0, "rejected": 0})
+    terminal_counts = {"passed": 0, "rejected": 0, "skipped": 0}
+    for result_row in terminal_result_rows:
+        status = str(result_row["status"])
+        bucket = _job_result_bucket(
+            status,
+            run_job_id=str(result_row["run_job_id"]),
+            evidence=_json_dict(result_row["evidence_json"]),
+            usable_cv_job_ids=usable_cv_job_ids,
+        )
+        if bucket is not None:
+            terminal_counts[bucket.value] += 1
+        elif status == JobStageStatus.SKIPPED.value:
+            terminal_counts["skipped"] += 1
     integrity_warnings: list[dict[str, Any]] = []
     stored_counts = {
         "passed": int(run_row["passed_jobs"]),
         "rejected": int(run_row["rejected_jobs"]),
+        "skipped": int(run_row["total_jobs"]) - int(run_row["passed_jobs"]) - int(run_row["rejected_jobs"]),
     }
-    if stored_counts != screening_counts:
+    if stored_counts != terminal_counts:
         integrity_warnings.append(
             {
                 "code": "run_count_mismatch",
                 "stored": stored_counts,
-                "recomputed": screening_counts,
+                "recomputed": terminal_counts,
             }
         )
     return {
@@ -10267,6 +10347,7 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
             "total": int(run_row["total_jobs"]),
             "passed": stored_counts["passed"],
             "rejected": stored_counts["rejected"],
+            "skipped": stored_counts["skipped"],
             "cvs_generated": int(run_row["cvs_generated"]),
         },
         "progress": {
@@ -10297,8 +10378,8 @@ def _filtered_run_job_rows(
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if stage not in {None, "all", *(item.stage_id for item in PROTOTYPE_STAGES)}:
         raise ValueError("stage must be all or a canonical stage id")
-    if result_bucket not in {None, "all", "passed", "rejected"}:
-        raise ValueError("result_bucket must be all, passed, or rejected")
+    if result_bucket not in {None, "all", "passed", "rejected", "skipped"}:
+        raise ValueError("result_bucket must be all, passed, rejected, or skipped")
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
         jobs = conn.execute(
@@ -10334,13 +10415,18 @@ def _filtered_run_job_rows(
         run_job_id = str(job_row["run_job_id"])
         job_results = results_by_job.get(run_job_id, {})
         selected_result: sqlite3.Row | None = None
-        selected_bucket: ResultBucket | None = None
+        selected_category: str | None = None
         selected_evidence: dict[str, Any] = {}
-        candidate_stage_ids = (
-            [stage]
-            if stage not in {None, "all"}
-            else [item.stage_id for item in reversed(PROTOTYPE_STAGES)]
-        )
+        if stage not in {None, "all"}:
+            candidate_stage_ids = [stage]
+        else:
+            current_stage_id = str(job_row["current_stage_id"] or "").strip()
+            candidate_stage_ids = [current_stage_id] if current_stage_id else []
+            candidate_stage_ids.extend(
+                item.stage_id
+                for item in reversed(PROTOTYPE_STAGES)
+                if item.stage_id not in candidate_stage_ids
+            )
         for stage_id in candidate_stage_ids:
             result_row = job_results.get(str(stage_id))
             if result_row is None:
@@ -10352,12 +10438,17 @@ def _filtered_run_job_rows(
                 evidence=evidence,
                 usable_cv_job_ids=usable_cv_job_ids,
             )
-            if stage is None or bucket is not None:
+            category = (
+                "skipped"
+                if str(result_row["status"]) == JobStageStatus.SKIPPED.value and bucket is None
+                else bucket.value if bucket is not None else None
+            )
+            if stage in {None, "all"} or category is not None:
                 selected_result = result_row
-                selected_bucket = bucket
+                selected_category = category
                 selected_evidence = evidence
                 break
-        if stage is not None and selected_bucket is None:
+        if stage not in {None, "all"} and selected_category is None:
             continue
         skills = json.loads(str(job_row["skills_json"] or "[]"))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
@@ -10385,7 +10476,7 @@ def _filtered_run_job_rows(
                 "outcome_code": outcome_code,
                 "reason_code": reason_code,
                 "evidence": selected_evidence,
-                "result_bucket": selected_bucket.value if selected_bucket is not None else None,
+                "result_bucket": selected_category,
                 "stage_summaries": [
                     {
                         "stage_id": item.stage_id,
@@ -10408,6 +10499,7 @@ def _filtered_run_job_rows(
     totals = {
         "passed": sum(row["result_bucket"] == "passed" for row in projected),
         "rejected": sum(row["result_bucket"] == "rejected" for row in projected),
+        "skipped": sum(row["result_bucket"] == "skipped" for row in projected),
     }
     filtered = (
         projected
@@ -10436,9 +10528,10 @@ def query_run_jobs(
     return {
         "items": rows[offset:offset + page_size],
         "total": len(rows),
-        "total_evaluated": totals["passed"] + totals["rejected"],
+        "total_evaluated": totals["passed"] + totals["rejected"] + totals["skipped"],
         "passed": totals["passed"],
         "rejected": totals["rejected"],
+        "skipped": totals["skipped"],
         "page": page_number,
         "page_size": page_size,
     }
@@ -11181,6 +11274,30 @@ def persist_pipeline_snapshot(
                     ),
                 )
 
+            terminal_counts = {"passed": 0, "rejected": 0, "skipped": 0}
+            terminal_rows = conn.execute(
+                """SELECT r.run_job_id, r.status, r.evidence_json
+                   FROM run_jobs j
+                   JOIN run_job_stage_results r
+                     ON r.run_job_id=j.run_job_id AND r.stage_id=j.current_stage_id
+                   WHERE j.run_id=?""",
+                (run_id,),
+            ).fetchall()
+            usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
+            for terminal_row in terminal_rows:
+                status = str(terminal_row["status"])
+                if status == JobStageStatus.SKIPPED.value:
+                    terminal_counts["skipped"] += 1
+                    continue
+                bucket = _job_result_bucket(
+                    status,
+                    run_job_id=str(terminal_row["run_job_id"]),
+                    evidence=_json_dict(terminal_row["evidence_json"]),
+                    usable_cv_job_ids=usable_cv_job_ids,
+                )
+                if bucket is not None:
+                    terminal_counts[bucket.value] += 1
+
             terminal = run_status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}
             if terminal:
                 unresolved_stage_status = (
@@ -11216,7 +11333,7 @@ def persist_pipeline_snapshot(
                 usable_results=usable_results,
             )
             total_jobs = int(summary.get("total_jobs") or len(jobs_by_index))
-            passed_jobs = int(summary.get("passed_filter") or 0)
+            passed_jobs = terminal_counts["passed"]
             conn.execute(
                 """UPDATE pipeline_runs SET backend_status=?, total_jobs=?, passed_jobs=?,
                    rejected_jobs=?, cvs_generated=?, progress_completed=?, progress_total=?,
@@ -11226,7 +11343,7 @@ def persist_pipeline_snapshot(
                     run_status.value,
                     total_jobs,
                     passed_jobs,
-                    max(0, total_jobs - passed_jobs),
+                    terminal_counts["rejected"],
                     int(summary.get("cvs_generated") or 0),
                     len(completed_stage_ids),
                     len(PROTOTYPE_STAGES),

@@ -4585,10 +4585,19 @@ def _pipeline_stage_result(
     stage: str,
     filter_result: dict[str, Any],
     outcome: dict[str, Any],
-) -> tuple[bool, bool, str]:
+) -> tuple[bool, bool | None, str]:
+    explicit_outcome = str(outcome.get("outcome") or outcome.get("status") or "").strip()
+    detail = str(outcome.get("detail") or "").strip()
+    if explicit_outcome == "accepted":
+        return True, True, detail
+    if explicit_outcome == "rejected":
+        return True, False, detail
+    if explicit_outcome == "skipped":
+        return True, None, detail
+    if explicit_outcome in {"blocked", "held"}:
+        return True, False, detail
     filter_passed = filter_result.get("passed") is not False
     status = str(outcome.get("status") or "").strip()
-    detail = str(outcome.get("detail") or "").strip()
     if status in {"deduplicated_before_enrichment", "rejected_before_enrichment"}:
         return stage in {"all", "enrichment"}, False, detail
     if stage in {"all", "enrichment"}:
@@ -4699,6 +4708,8 @@ def _build_enriched_tab_context(
         )
     run_store = _resolve_run_store(client=client)
     enriched_jobs = list_run_structured_jobs(run_id, client=client)
+    canonical_job_page: dict[str, Any] = {}
+    canonical_jobs_by_id: dict[str, dict[str, Any]] = {}
     if enriched_jobs:
         try:
             canonical_job_page = run_store.query_run_jobs(
@@ -4759,6 +4770,7 @@ def _build_enriched_tab_context(
         outcome_surface = _pipeline_outcome_surface(row)
         outcome_payload = {
             **outcome_surface,
+            "outcome": str((row.get("job_outcome") or {}).get("outcome") or ""),
             "status": _canonical_pipeline_outcome_status(row) or str(row.get("pipeline_status") or ""),
             "detail": _format_pipeline_outcome_detail(row) or ", ".join(str(value) for value in (row.get("reject_reasons") or [])),
         }
@@ -4847,6 +4859,42 @@ def _build_enriched_tab_context(
         }))
         known_job_keys.update(row_keys)
 
+    if normalized_stage == "all":
+        outcome_labels = {
+            "accepted": "Passed",
+            "rejected": "Rejected",
+            "skipped": "Skipped",
+            "blocked": "Blocked",
+            "held": "Held",
+        }
+        outcome_badges = {
+            "accepted": "badge-success",
+            "rejected": "badge-error",
+            "skipped": "badge-warning",
+            "blocked": "badge-warning",
+            "held": "badge-warning",
+        }
+        for job in pipeline_jobs:
+            canonical_job = canonical_jobs_by_id.get(str(job.get("run_job_id") or ""))
+            if not canonical_job:
+                continue
+            outcome_code = str(
+                canonical_job.get("outcome_code")
+                or canonical_job.get("result_bucket")
+                or ""
+            ).strip()
+            if not outcome_code:
+                continue
+            outcome_payload = {
+                "outcome": outcome_code,
+                "status": outcome_code,
+                "label": outcome_labels.get(outcome_code, outcome_code.replace("_", " ").title()),
+                "badge_class": outcome_badges.get(outcome_code, "badge-error"),
+                "detail": str(canonical_job.get("reason_code") or "").strip(),
+            }
+            for lookup_key in _job_lookup_keys(job):
+                pipeline_outcomes_by_job_url[lookup_key] = outcome_payload
+
     stage_scoped_rows: list[dict[str, Any]] = []
     for job in pipeline_jobs:
         filter_row = _lookup_row_by_lookup_key(filter_results_by_job_url, job)
@@ -4878,6 +4926,8 @@ def _build_enriched_tab_context(
         filter_scoped_rows.append(job)
 
     stage_passed_count = sum(1 for job in stage_scoped_rows if job.get("stage_passed") is True)
+    stage_rejected_count = sum(1 for job in stage_scoped_rows if job.get("stage_passed") is False)
+    stage_skipped_count = sum(1 for job in stage_scoped_rows if job.get("stage_passed") is None)
 
     filtered_rows: list[dict[str, Any]] = []
     for job in filter_scoped_rows:
@@ -5022,7 +5072,8 @@ def _build_enriched_tab_context(
         "enriched_total_count": len(enriched_jobs),
         "enriched_evaluated_count": len(stage_scoped_rows),
         "enriched_stage_passed_count": stage_passed_count,
-        "enriched_stage_rejected_count": len(stage_scoped_rows) - stage_passed_count,
+        "enriched_stage_rejected_count": stage_rejected_count,
+        "enriched_skipped_count": stage_skipped_count,
         "enriched_filtered_total_count": pager["total"],
         "enriched_filtered_run_job_ids": [
             str(job.get("run_job_id"))
@@ -10802,6 +10853,7 @@ def create_app(
                 "total_evaluated": int(result.get("total_evaluated") or 0),
                 "passed": int(result.get("passed") or 0),
                 "rejected": int(result.get("rejected") or 0),
+                "skipped": int(result.get("skipped") or 0),
             },
         )
 
@@ -11227,7 +11279,7 @@ def create_app(
                 action="Fix highlighted fields and retry.",
             )
         try:
-            result = store.get_process_events("run", run_id, limit=limit, cursor=cursor)
+            result = store.get_process_events("pipeline", run_id, limit=limit, cursor=cursor)
         except ValueError as exc:
             raise ApiError(
                 422,
@@ -13216,8 +13268,8 @@ def create_app(
         candidate_profile_snapshot: dict[str, Any] = {}
         if run.candidate_profile_json:
             try:
-                parsed_candidate_profile = json.loads(run.candidate_profile_json)
-            except (TypeError, json.JSONDecodeError):
+                parsed_candidate_profile = _json.loads(run.candidate_profile_json)
+            except (TypeError, _json.JSONDecodeError):
                 parsed_candidate_profile = None
             if isinstance(parsed_candidate_profile, dict):
                 candidate_profile_snapshot = parsed_candidate_profile

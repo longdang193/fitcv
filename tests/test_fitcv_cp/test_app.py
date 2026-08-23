@@ -3288,6 +3288,56 @@ def test_run_detail_queued_shows_stop_run() -> None:
     assert "Archive Run" not in response.text
 
 
+def test_run_detail_with_candidate_profile_snapshot_does_not_raise_json_name_error() -> None:
+    run = PipelineRun(
+        run_id="run-detail-profile-snapshot",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        candidate_profile_json=json.dumps({"candidate_profile_id": "missing-profile"}),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(_app(), raise_server_exceptions=False).get(
+            f"/admin/runs/{run.run_id}"
+        )
+
+    assert response.status_code == 200
+
+def test_run_events_reads_canonical_pipeline_process_events() -> None:
+    from fitcv_cp.models import build_process_event
+
+    app = _app()
+    calls: list[str] = []
+    event = build_process_event(
+        process_type="pipeline",
+        process_id="run-process-events",
+        operation="normalize",
+        state="succeeded",
+        level="info",
+        message="Normalized",
+        event_id="event-normalize",
+    )
+    app.state.run_store.get_run_detail_fn = lambda _run_id: {"run_id": "run-process-events"}
+
+    def fake_get_process_events(process_type: str, *_args: object, **_kwargs: object) -> dict[str, object]:
+        calls.append(process_type)
+        return {
+            "events": [event],
+            "integrity_conflicts": [],
+            "total_count": 1,
+            "next_cursor": None,
+        }
+
+    app.state.run_store.get_process_events_fn = fake_get_process_events
+    response = TestClient(app).get("/runs/run-process-events/events")
+
+    assert response.status_code == 200
+    assert calls == ["pipeline"]
+    assert response.json()["data"][0]["event_id"] == "event-normalize"
+
 def test_run_detail_terminal_statuses_show_archive_run() -> None:
     for status in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED):
         run = PipelineRun(
@@ -3952,6 +4002,7 @@ def test_run_stages_and_jobs_use_canonical_envelopes() -> None:
         "total_evaluated": 1,
         "passed": 1,
         "rejected": 0,
+        "skipped": 0,
     }
 
 
@@ -10917,6 +10968,53 @@ def test_run_detail_pipeline_results_prune_selection_to_current_filtered_rows() 
     assert 'data-filtered-run-job-ids="[&#34;job-1&#34;]"' in response.text
 
 
+def test_run_detail_summary_does_not_count_skipped_occurrence_as_passed() -> None:
+    enriched_jobs = [
+        {
+            "run_job_id": f"job-{index}",
+            "job_url": f"https://jobs.example.com/{index}",
+            "title": f"Job {index}",
+            "required_skills": [],
+        }
+        for index in range(7)
+    ]
+    filter_results = [
+        {"job_url": f"https://jobs.example.com/{index}", "passed": index < 3, "reasons": []}
+        for index in range(6)
+    ]
+    results_export = json.dumps(
+        {
+            "results": [
+                {
+                    "job_url": f"https://jobs.example.com/{index}",
+                    "job_outcome": {
+                        "job_key": f"input:{index}",
+                        "stage": "rule_filter" if index < 6 else "normalize",
+                        "outcome": "accepted" if index < 3 else "rejected" if index < 6 else "skipped",
+                        "reason_code": "near_duplicate_job_posting" if index == 6 else "outcome",
+                        "evidence_ref": {"artifact": "results.json"},
+                    },
+                }
+                for index in range(7)
+            ]
+        }
+    )
+    patches = _run_detail_patches(
+        enriched_jobs=enriched_jobs,
+        filter_results=filter_results,
+        results_export_json=results_export,
+    )
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?stage=all")
+
+    assert response.status_code == 200
+    assert ">Total Evaluated<" in response.text
+    assert ">Total Evaluated</span><strong>7</strong>" in response.text
+    assert ">Passed</span><strong>3</strong>" in response.text
+    assert ">Rejected</span><strong>3</strong>" in response.text
+
+
 def test_run_detail_stage_change_clears_selection_and_debug_bundle_uses_route_truth() -> None:
     patches = _run_detail_patches()
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
@@ -11711,6 +11809,83 @@ def test_build_enriched_tab_context_does_not_guess_passed_for_unknown_rows() -> 
     assert context["enriched_passed_count"] == 0
     assert context["enriched_rejected_count"] == 0
     assert context["filter_results_by_job_url"] == {}
+
+def test_build_enriched_tab_context_uses_canonical_terminal_counts() -> None:
+    from fitcv_cp.app import _build_enriched_tab_context
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-enriched-canonical-counts",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path="config/runtime/control_plane.yaml",
+        created_at=datetime.datetime(2026, 6, 26, 12, 0, 0, tzinfo=datetime.timezone.utc),
+        results_export_json=json.dumps({"results": []}),
+    )
+    canonical_rows = []
+    enriched = []
+    for index in range(7):
+        run_job_id = f"run-job-{index}"
+        job_url = f"https://jobs.example.com/{index}"
+        bucket = "rejected" if index < 6 else "skipped"
+        canonical_rows.append(
+            {
+                "run_job_id": run_job_id,
+                "source_index": index,
+                "source_url": job_url,
+                "title": f"Job {index}",
+                "result_bucket": bucket,
+                "outcome_code": bucket,
+                "reason_code": "near_duplicate_job_posting" if bucket == "skipped" else bucket,
+            }
+        )
+        enriched.append(
+            {
+                "run_job_id": run_job_id,
+                "job_url": job_url,
+                "title": f"Job {index}",
+                "required_skills": [],
+                "location_type": None,
+                "seniority": None,
+            }
+        )
+
+    class CanonicalStore:
+        def query_run_jobs(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+            return {
+                "items": canonical_rows,
+                "total": 7,
+                "total_evaluated": 7,
+                "passed": 0,
+                "rejected": 6,
+                "skipped": 1,
+            }
+
+        def list_cv_versions(self, *_args: object, **_kwargs: object) -> list[dict[str, object]]:
+            return []
+
+    with patch("fitcv_cp.app._resolve_run_store", return_value=CanonicalStore()), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        context = _build_enriched_tab_context(
+            run,
+            run_id=run.run_id,
+            client=None,
+            stage="all",
+            filter_name="all",
+            query="",
+            pipeline_outcomes=[],
+            page=1,
+            page_size=25,
+        )
+
+    assert context["enriched_evaluated_count"] == 7
+    assert context["enriched_stage_passed_count"] == 0
+    assert context["enriched_stage_rejected_count"] == 6
+    assert context["enriched_skipped_count"] == 1
+    assert [job["stage_passed"] for job in context["enriched_jobs"]].count(None) == 1
 
 def test_build_enriched_tab_context_matches_truth_by_raw_job_fingerprint_when_urls_drift() -> None:
     from fitcv_cp.app import _build_enriched_tab_context, _normalize_job_url_key
