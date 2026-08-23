@@ -15,6 +15,7 @@ tags:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -49,6 +50,14 @@ def test_pyinstaller_spec_is_onedir_and_bundles_required_resources() -> None:
         "tzdata",
     ):
         assert required in spec
+
+def test_pyinstaller_datas_sources_exist() -> None:
+    spec = (ROOT / "packaging/windows/fitcv-local.spec").read_text(encoding="utf-8")
+    datas = spec.split("datas = [", 1)[1].split("]\n\nanalysis", 1)[0]
+    sources = re.findall(r'\(str\(ROOT / "([^"]+)"\),\s*"[^"]+"\)', datas)
+
+    assert sources
+    assert not [source for source in sources if not (ROOT / source).exists()]
 
 
 def test_inno_installer_is_per_user_and_preserves_user_data() -> None:
