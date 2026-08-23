@@ -1,7 +1,7 @@
 ---
 template_id: implementation-plan
 artifact_type: plan
-status: active
+status: completed
 layer: change
 name: fitcv-local-final-p0-integration-acceptance
 targets:
@@ -25,8 +25,8 @@ RQ requirements.
   its 25-probe contract.
 - Real Local readiness, controlled harness evidence, and the real ready-state
   anchor Run remain separate evidence classes.
-- The acceptance run remains read-only, readiness-gated, independently
-  validated, and deferred until the separate 25-probe task starts.
+- The acceptance run remained read-only and readiness-gated; all 25 fresh probes
+  passed with independent validation and no implementation drift.
 
 ## Execution Approach
 
@@ -41,25 +41,25 @@ RQ requirements.
 - Sequential fallback: `readiness gate, then acceptance probes`
 - Workspace: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT`
 - Runtime: `FITCV_LOCAL_MODE=1`, `FITCV_CP_INLINE_EXECUTION=1`, no `REDIS_URL`
-- Base: `69b3d89e76b8eee02ce93d6406ba55ef4e23fea4`
+- Base: `6f5e3c2f03a67971b334feb016f8579baf5c1802`
 - Worker: one bounded execution lead
 - Validator: independent read-only validator
-- Full 25-probe run: deferred to separate task; no product edits authorized
+- Full 25-probe run: completed; no product, test, or harness edits authorized
 
 ## Coordination State
 
 - Coordination owner: `single lead controller`
 - Branch: `main`
-- Base commit: `69b3d89e76b8eee02ce93d6406ba55ef4e23fea4`
+- Base commit: `6f5e3c2f03a67971b334feb016f8579baf5c1802`
 - Checkpoint identity: derive from the Git commit containing this plan; do not self-reference a future SHA.
 - Active task(s): `none`
 - Expected workspace: `main` at new checkpoint with readiness and final plans tracked; P20 worktree untouched
-- Next action: run separate final 25-probe acceptance task from fresh disposable storage and real ready-state anchor
+- Next action: preserve accepted checkpoint; no further P0 acceptance action remains
 - Blockers: `none`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `pending` | main | bounded acceptance worker | readiness gate | readiness, exactly 25 probe rows, independent validation, Git drift | readiness gate PASS; 25-probe run intentionally deferred |
+| Task 1 | `completed` | main | bounded acceptance worker | readiness gate | readiness, exactly 25 probe rows, independent validation, Git drift | real readiness PASS; anchor PASS; 25/25 fresh probes PASS; validator PASS; Git drift reconciled |
 
 ## Canonical Probe Matrix
 
@@ -196,13 +196,13 @@ anchor proof is `BLOCKED`.
 - Stop for: readiness failure, product defect, provider failure, plan/Git mismatch, or workspace drift.
 
 **Steps:**
-- [ ] Step 1: Reprove real readiness on fresh disposable Local storage through canonical APIs.
-- [ ] Step 2: Execute one real ready-state anchor Run from that same storage and reconcile SQLite/API/artifacts/browser state.
-- [ ] Step 3: Run exactly the 25 canonical probes only after Steps 1–2 pass.
-- [ ] Step 4: Reconcile independent validation and Git drift.
+- [x] Step 1: Reprove real readiness on fresh disposable Local storage through canonical APIs.
+- [x] Step 2: Execute one real ready-state anchor Run from that same storage and reconcile SQLite/API/artifacts/browser state.
+- [x] Step 3: Run exactly the 25 canonical probes only after Steps 1–2 pass.
+- [x] Step 4: Reconcile independent validation and Git drift.
 
 **Verification:**
-- [ ] Real readiness, real anchor Run, 25 probe rows, independent validator, and `git diff --check`.
+- [x] Real readiness, real anchor Run, 25 probe rows, independent validator, and `git diff --check`.
 - Expected: all required evidence passes or acceptance is explicitly blocked.
 
 **Exit Criteria:**
@@ -225,10 +225,11 @@ anchor proof is `BLOCKED`.
 
 ## Final Ledger
 
-- Final decision: `READY FOR FINAL 25-PROBE ACCEPTANCE`.
+- Final decision: `PASS / INTEGRATED`.
 - Sanitized worker facts: P2, P3, P6, P7, P9, P11, P12, P14, P19, P20, P22, P23, and P25 were `PASS`.
 - Sanitized supplemental facts: P1, P4, P5, P8, P10, P13, P15, P16, P17, P18, P21, and P24 were `PASS`.
-- Independent validator reconciliation: prior 25-row evidence remains historical; no new 25-probe run was performed here.
-- Readiness evidence: fresh real Local runtime returned `200` with `{"ready":true,"reasons":[]}` after canonical provider creation, connection verification, model validation, route persistence, and restart.
+- Independent validator reconciliation: PASS after current plan/base/task ledger reconciliation; validator confirmed no product or harness edits and preserved unrelated Git change.
+- Readiness evidence: fresh real Local runtime returned `200` with `{"ready":true,"reasons":[]}` after canonical provider creation, connection verification, model validation, route persistence, and restart; anchor Run `047534b2-5dfd-4dbb-9a82-a38458a18f24` reached terminal `backend_status=succeeded`.
 - Provider proof: connection `verified`, credential configured, model `cx/gpt-5.4-mini` `validated`, validated connection revision matched current connection revision, and eligible model count remained `1` after restart.
-- No product, test, harness, or preserved-worktree changes authorized or made by readiness provisioning.
+- Fresh probe evidence: P1–P25 all PASS; controlled harness covered P2, P3, P6, P7, P9, P11, P12, P14, P19, P20, P22, P23, P25; supplemental/API/SQLite/browser checks covered P1, P4, P5, P8, P10, P13, P15, P16, P17, P18, P21, P24.
+- No product, test, harness, or preserved-worktree changes authorized or made during acceptance; unrelated `config/taxonomy/skill_synonyms.yaml` modification remains preserved.
