@@ -13030,14 +13030,75 @@ def create_app(
         if attempt_count >= max_attempts:
             raise HTTPException(status_code=409, detail="Retry rejected: max_attempts exhausted")
 
-        update_run_status(run.run_id, RunStatus.QUEUED, client=client)
-        submission = submit_run(
-            jobs_path=run.jobs_path,
-            config_path=run.config_path,
-            triggered_by="admin_retry",
-            redis_url=redis_url,
-            run_id=run.run_id,
+        update_run_status(
+            run.run_id,
+            RunStatus.QUEUED,
+            client=client,
+            clear_finished_at=True,
+            clear_started_at=True,
+            clear_error=True,
+            partial_completion=False,
+            progress_completed=0,
+            progress_total=run.total_jobs or 0,
         )
+        _persist_run_orchestration_binding(
+            run.run_id,
+            queue_job_id=None,
+            orchestration_backend=None,
+            orchestration_run_id=None,
+            client=client,
+        )
+        try:
+            submission = submit_run(
+                jobs_path=run.jobs_path,
+                config_path=run.config_path,
+                triggered_by="admin_retry",
+                redis_url=redis_url,
+                run_id=run.run_id,
+            )
+        except Exception as exc:
+            update_run_status(
+                run.run_id,
+                run.status,
+                client=client,
+                started_at=run.started_at,
+                finished_at=run.finished_at,
+                error_message=run.error_message,
+                error_stage=run.error_stage,
+                partial_completion=run.partial_completion,
+                progress_completed=run.progress_completed,
+                progress_total=run.progress_total,
+            )
+            _persist_run_orchestration_binding(
+                run.run_id,
+                queue_job_id=None,
+                orchestration_backend=None,
+                orchestration_run_id=None,
+                client=client,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run.run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="retry_enqueue_failed",
+                    level="error",
+                    message="Run retry enqueue failed; run restored to failed",
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                    payload_json=_json.dumps(
+                        {
+                            "error": str(exc),
+                            "attempt_count": attempt_count,
+                            "max_attempts": max_attempts,
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+                client=client,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Retry enqueue failed; run restored to failed. Check queue connectivity and retry.",
+            ) from exc
         _persist_run_orchestration_binding(
             run.run_id,
             queue_job_id=submission.queue_job_id,
@@ -13045,7 +13106,13 @@ def create_app(
             orchestration_run_id=submission.backend_run_id,
             client=client,
         )
-        _persist_run_queue_job_id(run.run_id, submission.queue_job_id, client=client)
+        _persist_run_queue_job_id(
+            run.run_id,
+            submission.queue_job_id,
+            orchestration_backend=submission.backend,
+            orchestration_run_id=submission.backend_run_id,
+            client=client,
+        )
 
         append_event(
             RunEvent(

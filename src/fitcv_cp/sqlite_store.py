@@ -8227,6 +8227,12 @@ def update_run_status(
     summary: Optional[dict[str, Any]] = None,
     error_message: Optional[str] = None,
     error_stage: Optional[str] = None,
+    clear_finished_at: bool = False,
+    clear_started_at: bool = False,
+    clear_error: bool = False,
+    partial_completion: bool | None = None,
+    progress_completed: int | None = None,
+    progress_total: int | None = None,
     **_compat_kwargs: Any,
 ) -> PersistenceResult:
     def _mutate(existing: PipelineRun) -> PipelineRun:
@@ -8235,10 +8241,23 @@ def update_run_status(
             updated.started_at = started_at
         if finished_at:
             updated.finished_at = finished_at
+        if clear_started_at:
+            updated.started_at = None
+        if clear_finished_at:
+            updated.finished_at = None
+        if clear_error:
+            updated.error_message = None
+            updated.error_stage = None
         if error_message:
             updated.error_message = error_message
         if error_stage:
             updated.error_stage = error_stage
+        if partial_completion is not None:
+            updated.partial_completion = bool(partial_completion)
+        if progress_completed is not None:
+            updated.progress_completed = max(0, int(progress_completed))
+        if progress_total is not None:
+            updated.progress_total = max(0, int(progress_total))
         if summary:
             for key in ("total_jobs", "passed_filter", "ranked", "cvs_generated"):
                 raw_value = summary.get(key)
@@ -9177,6 +9196,12 @@ def update_run_status(
     summary: Optional[dict[str, Any]] = None,
     error_message: Optional[str] = None,
     error_stage: Optional[str] = None,
+    clear_finished_at: bool = False,
+    clear_started_at: bool = False,
+    clear_error: bool = False,
+    partial_completion: bool | None = None,
+    progress_completed: int | None = None,
+    progress_total: int | None = None,
     **_compat_kwargs: Any,
 ) -> PersistenceResult:
     def mutate(run: PipelineRun) -> PipelineRun:
@@ -9187,10 +9212,23 @@ def update_run_status(
             updated.started_at = started_at
         if finished_at is not None:
             updated.finished_at = finished_at
+        if clear_started_at:
+            updated.started_at = None
+        if clear_finished_at:
+            updated.finished_at = None
+        if clear_error:
+            updated.error_message = None
+            updated.error_stage = None
         if error_message is not None:
             updated.error_message = error_message
         if error_stage is not None:
             updated.error_stage = error_stage
+        if partial_completion is not None:
+            updated.partial_completion = bool(partial_completion)
+        if progress_completed is not None:
+            updated.progress_completed = max(0, int(progress_completed))
+        if progress_total is not None:
+            updated.progress_total = max(0, int(progress_total))
         for key in ("total_jobs", "passed_filter", "ranked", "cvs_generated"):
             if summary and summary.get(key) is not None:
                 if status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED} and key == "passed_filter":
