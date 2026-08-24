@@ -116,6 +116,31 @@ redacted diagnostics, recovery, and web-UI shutdown.
 2. clean-machine acceptance passes
 3. executable and installer are code-signed and signed hashes are published
 
+## Accepted Personal-Use Release Record
+
+- `PERSONAL_PACKAGED_READY`: `YES`
+- `OPTIONAL_CLEAN_MACHINE_VERIFIED`: `NOT RUN`
+- `PUBLIC_RELEASE_READY`: `NOT TARGETED`
+- Accepted product source: `2ba6d7c51984027e6e5eaaacd29f6250db749c7a`
+- Accepted installer: `FitCV-Local-0.1.0-Technical-Preview-Setup.exe`
+- Build ID: `2ba6d7c5`
+- Accepted installer SHA-256: `b8b9ed3b20e8960c456af1f338ed251c4c45b5103316330a602d5c9b57d3204a`
+- Runtime evidence: packaging tests `5 passed`; PyInstaller, Inno Setup,
+  packaged smoke, installed launch, `/healthz`, canonical onboarding, provider
+  verification, model `cx/gpt-5.4-mini` validation, `/local/readiness` with
+  `ready:true` and `reasons:[]`, real Run
+  `91f00611-6b55-452a-9693-7ef30846c314` with terminal status `succeeded`,
+  Run Details/API/artifacts, restart persistence, singleton, uninstall data
+  preservation, reinstall recovery, and credential-redaction checks all pass.
+- Independent validator: `PASS`
+- Non-blocking observation: one invalid profile fixture failed explicit
+  validation; the canonical seeded profile passed the final packaged Run.
+
+No required release work remains for personal use. Clean-machine verification,
+public code signing, and public-release hardening remain deferred. Source-mode
+P0 remains `PASS / INTEGRATED`; no 25-probe rerun was required, and no product
+defect remains open from this acceptance.
+
 Credential Manager ownership, loopback/Host/Origin/CSRF protections, secret
 redaction, PID-scoped cleanup, and application/user-data separation remain
 required in every classification. Sandbox relay proxy, temporary firewall
