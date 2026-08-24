@@ -1,7 +1,7 @@
 ---
 template_id: implementation-plan
 artifact_type: plan
-status: proposed
+status: completed
 layer: change
 name: fitcv-local-packaged-release-acceptance
 targets:
@@ -45,15 +45,17 @@ changing FitCV runtime or product behavior.
 
 - Coordination owner: `single lead controller`
 - Branch: `main`
-- Base commit: `f4c8715d`
+- Base commit: `2ba6d7c51984027e6e5eaaacd29f6250db749c7a`
+- Policy implementation checkpoint: `9d39d802cd69e130ed46ce2dd1e074f21c728c6c`
+- Current pre-closure HEAD: `49279b18906fd52c90dd01ca0350a3a8e52b7d23` (`origin/main`)
 - Active task(s): `none`
-- Expected workspace: `preserve unrelated config/taxonomy/skill_synonyms.yaml change`
-- Next action: run governance and repository contract validation
+- Expected workspace: `main` at closure commit; preserve unrelated `config/taxonomy/skill_synonyms.yaml` change and `stash@{0}`
+- Next action: execute a separate host-local `PERSONAL_PACKAGED_READY` acceptance task
 - Blockers: `none`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `pending` | current | `codex` | none | governance, template, repository validation | pending |
+| Task 1 | `completed` | current | `codex` | none | governance, template, repository validation | `9d39d802`; planning PASS; template PASS; repository contracts PASS (10 checks); packaging tests 5 passed; diff check PASS; no runtime/product changes |
 
 ## Acceptance Classes
 
@@ -138,16 +140,17 @@ pristine-machine dependency audits to the personal-use gate.
 - Stop for: runtime-file drift, plan/Git mismatch, or failed governance contract.
 
 **Steps:**
-- [ ] Step 1: Update distribution workstream release classes and deferred public checks.
-- [ ] Step 2: Record the host-local packaged acceptance plan and safety invariants.
-- [ ] Step 3: Run governance/template/repository validation and inspect Git diff.
+- [x] Step 1: Update distribution workstream release classes and deferred public checks.
+- [x] Step 2: Record the host-local packaged acceptance plan and safety invariants.
+- [x] Step 3: Run governance/template/repository validation and inspect Git diff.
 
 **Verification:**
-- [ ] `py scripts/validate_planning_lifecycle.py`
-- [ ] `py scripts/validate_template_required_sections.py`
-- [ ] `py scripts/validate_repo_contracts.py --fast`
-- [ ] `py -m pytest tests/test_fitcv_local_packaging.py -q`
-- Expected: all checks pass; no runtime or product files change.
+- [x] `py scripts/validate_planning_lifecycle.py` — PASS
+- [x] `py scripts/validate_template_required_sections.py` — PASS
+- [x] `py scripts/validate_repo_contracts.py --fast` — PASS (10 checks)
+- [x] `py -m pytest tests/test_fitcv_local_packaging.py -q` — 5 passed
+- [x] `git diff --check` — PASS
+- Expected: all checks pass; no runtime or product files change. Observed: all checks pass; only policy/documentation files changed.
 
 **Exit Criteria:**
 - Personal-use gate is host-local and complete.
@@ -172,3 +175,13 @@ pristine-machine dependency audits to the personal-use gate.
    absence are absent from the personal-use gate.
 5. Lightweight safety contracts remain explicit and unchanged.
 6. Governance, template, repository, packaging-contract, and diff checks pass.
+
+## Closure Review
+
+- Policy plan: `COMPLETED`
+- Runtime/product behavior: unchanged
+- Clean-machine/Sandbox acceptance: not run and not required for this policy task
+- `PERSONAL_PACKAGED_READY`: not yet executed
+- `OPTIONAL_CLEAN_MACHINE_VERIFIED`: optional and not required
+- `PUBLIC_RELEASE_READY`: not targeted
+- Closure checkpoint: `9d39d802cd69e130ed46ce2dd1e074f21c728c6c`
