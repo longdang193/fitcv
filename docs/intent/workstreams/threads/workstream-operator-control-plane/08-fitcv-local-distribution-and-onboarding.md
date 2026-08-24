@@ -51,16 +51,16 @@ redacted diagnostics, recovery, and web-UI shutdown.
 
 **Steps:**
 - [x] backup, import, relocation, diagnostics, recovery, and shutdown
-- [x] PyInstaller bundle, installer, checksum, and isolated local smoke
+- [x] PyInstaller bundle, installer, checksum, and host-local packaged smoke
 - [x] reinstall/uninstall preserve user data
-- [ ] clean Windows VM verifies no Python, Git, Docker, Redis, or network prerequisite
+- [ ] OPTIONAL clean-machine verification for public release
 
 **Verification:**
 - [x] bundle meets fixed size, idle-memory, health, and first-page budgets on documented local baseline
 - [x] unsigned artifacts are explicitly labeled Technical Preview
 
 **Exit Criteria:**
-- checkpoint result pack records proof and clean-VM limitation
+- personal-use packaged gate records host-local proof; clean-machine evidence remains a deferred public-release item
 
 ## Scope
 
@@ -68,7 +68,7 @@ redacted diagnostics, recovery, and web-UI shutdown.
   - Windows-first local packaging and launcher
   - browser onboarding and LLM setup
   - user-owned storage, backup, import, relocation, recovery, diagnostics, and shutdown
-  - packaged security and fixed release budgets
+  - host-local packaged acceptance and fixed release budgets
   - truthful public setup and usage docs
 - out of scope:
   - Electron or Tauri rewrite
@@ -76,7 +76,7 @@ redacted diagnostics, recovery, and web-UI shutdown.
   - signed stable release before signing and clean-VM proof
   - external runtime repository or alternate transport
 - deferred:
-  - clean Windows VM acceptance and production code signing
+  - optional clean-machine acceptance and production code signing for public release
 
 ## Dependencies
 
@@ -86,13 +86,38 @@ redacted diagnostics, recovery, and web-UI shutdown.
   - `trigger_run_management`
   - `run_lifecycle_controls`
 - blockers:
-  - clean Windows VM and code-signing infrastructure for stable release
+  - none for personal-use packaged readiness
+  - clean-machine evidence and code signing remain blockers only for public release readiness
 - downstream handoff:
   - technical-preview checkpoint result pack and release acceptance follow-up
 
 ## Completion Criteria
 
-1. installer and unpacked bundle are reproducible and checksum-backed
-2. onboarding, data ownership, credentials, backup, diagnostics, and shutdown are documented and tested
-3. server/Docker/Redis/RQ behavior remains available outside packaged mode
-4. checkpoint pack records local proof and unresolved clean-VM/signing gates
+### PERSONAL_PACKAGED_READY
+
+1. clean packaging build and installer identity/hash are recorded
+2. packaged launch, `/healthz`, fresh temporary FitCV data root, canonical onboarding,
+   provider/model verification, and `/local/readiness` with `ready:true` pass
+3. one real packaged pipeline Run reaches its intended terminal state
+4. browser/API/artifact state reconciles, restart persistence passes, and singleton
+   behavior passes
+5. uninstall preserves user data and reinstall recovers prior state
+6. logs and diagnostics contain no credentials
+
+### OPTIONAL_CLEAN_MACHINE_VERIFIED
+
+1. `PERSONAL_PACKAGED_READY` passes
+2. clean-machine evidence is run separately and recorded as optional evidence
+3. failure or omission does not block personal-use release
+
+### PUBLIC_RELEASE_READY
+
+1. `PERSONAL_PACKAGED_READY` passes
+2. clean-machine acceptance passes
+3. executable and installer are code-signed and signed hashes are published
+
+Credential Manager ownership, loopback/Host/Origin/CSRF protections, secret
+redaction, PID-scoped cleanup, and application/user-data separation remain
+required in every classification. Sandbox relay proxy, temporary firewall
+plumbing used only for VM testing, and pristine-machine Python/Git/Docker
+absence checks are not routine personal-use requirements.
