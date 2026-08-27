@@ -117,6 +117,7 @@
   let selectedCompanyIds = [];
   let draftCompanyIds = [];
   let verifiedCompanyInput = null;
+  const selectedScanState = new Map(Object.entries({{ selected_scans|tojson }}));
 
   const splitLines = value => [...new Set(value.split(/[,\r\n]+/).map(item => item.trim()).filter(Boolean))];
   const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -150,11 +151,13 @@
     document.getElementById('company-picker-status').textContent = `${filtered.length} ${filtered.length === 1 ? 'company' : 'companies'} shown.`;
   }
 
-  async function loadCompanies() {
+  async function loadCompanies(search = document.getElementById('company-picker-search').value.trim()) {
     document.getElementById('apply-company-selection').disabled = true;
     try {
-      const payload = await fitcvApiRequest('/tracked-companies?page=1&page_size=50');
-      companies = payload.data || [];
+      const payload = await fitcvApiRequest(`/tracked-companies?search=${encodeURIComponent(search)}&page=1&page_size=50`);
+      const loaded = payload.data || [];
+      const loadedIds = new Set(loaded.map(company => company.company_id));
+      companies = [...companies.filter(company => !loadedIds.has(company.company_id)), ...loaded];
       renderCompanies();
     } finally { document.getElementById('apply-company-selection').disabled = false; }
   }
@@ -175,6 +178,11 @@
     try { await loadCompanies(); } catch (error) { showCompanyLoadError(error); }
   });
   document.getElementById('company-picker-search').addEventListener('input', renderCompanies);
+  let companySearchTimer;
+  document.getElementById('company-picker-search').addEventListener('input', () => {
+    window.clearTimeout(companySearchTimer);
+    companySearchTimer = window.setTimeout(() => loadCompanies(), 200);
+  });
   document.getElementById('select-filtered-companies').addEventListener('click', () => {
     const query = document.getElementById('company-picker-search').value.trim().toLowerCase();
     companies.filter(company => !query || `${company.company_name} ${company.provider_id} ${company.careers_url}`.toLowerCase().includes(query)).forEach(company => { if (!draftCompanyIds.includes(company.company_id)) draftCompanyIds.push(company.company_id); });
@@ -234,9 +242,16 @@
   });
 
   const selectAll = document.getElementById('select-all-scans');
+  const syncScanSelectionUrl = () => {
+    const query = new URLSearchParams(location.search);
+    if (selectedScanState.size) query.set('selected_scans', JSON.stringify(Object.fromEntries(selectedScanState)));
+    else query.delete('selected_scans');
+    history.replaceState({}, '', `${location.pathname}?${query.toString()}`);
+  };
+  const selectedScanItems = () => [...selectedScanState.entries()].map(([scan_id, selection]) => ({scan_id, expected_revision: Number(selection.revision)}));
   const selectedInputs = () => Array.from(document.querySelectorAll('input[name="selected_scan_ids"]:checked'));
   function updateBulk() {
-    const selected = selectedInputs();
+    const selected = [...selectedScanState.values()];
     document.getElementById('scan-bulk-actions').hidden = !selected.length;
     document.getElementById('selected-scan-count').textContent = `${selected.length} Scan${selected.length === 1 ? '' : 's'} selected`;
     const visible = Array.from(document.querySelectorAll('input[name="selected_scan_ids"]'));
@@ -246,22 +261,52 @@
       selectAll.indeterminate = selected.length > 0 && selected.length < visible.length;
     }
     const action = document.querySelector('[data-bulk-scan-action]');
-    if (action) action.disabled = selected.some(input => input.dataset[`can${action.dataset.bulkScanAction[0].toUpperCase()}${action.dataset.bulkScanAction.slice(1)}`] !== 'true');
+    if (action) action.disabled = selected.some(selection => selection[`can${action.dataset.bulkScanAction[0].toUpperCase()}${action.dataset.bulkScanAction.slice(1)}`] !== true);
   }
   document.querySelectorAll('[data-scan-tab]').forEach(tab => {
     tab.addEventListener('click', () => { const query = new URLSearchParams(location.search); query.set('lifecycle', tab.dataset.scanTab); query.set('page', '1'); location.assign(`/admin/scans?${query}`); });
     tab.addEventListener('keydown', event => { if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return; event.preventDefault(); const next = tab.dataset.scanTab === 'active' ? document.querySelector('[data-scan-tab="archived"]') : document.querySelector('[data-scan-tab="active"]'); next.focus(); next.click(); });
   });
-  document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => input.addEventListener('change', updateBulk));
-  if (selectAll) selectAll.addEventListener('change', event => { document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => { input.checked = event.target.checked; }); updateBulk(); });
+  document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => {
+    input.checked = selectedScanState.has(input.value);
+    input.addEventListener('change', () => {
+      if (input.checked) {
+        selectedScanState.set(input.value, {
+          revision: Number(input.dataset.revision),
+          canArchive: input.dataset.canArchive === 'true',
+          canUnarchive: input.dataset.canUnarchive === 'true',
+        });
+      } else {
+        selectedScanState.delete(input.value);
+      }
+      syncScanSelectionUrl();
+      updateBulk();
+    });
+  });
+  if (selectAll) selectAll.addEventListener('change', event => {
+    document.querySelectorAll('input[name="selected_scan_ids"]').forEach(input => {
+      input.checked = event.target.checked;
+      if (input.checked) {
+        selectedScanState.set(input.value, {
+          revision: Number(input.dataset.revision),
+          canArchive: input.dataset.canArchive === 'true',
+          canUnarchive: input.dataset.canUnarchive === 'true',
+        });
+      } else {
+        selectedScanState.delete(input.value);
+      }
+    });
+    syncScanSelectionUrl();
+    updateBulk();
+  });
   document.querySelectorAll('[data-bulk-scan-action]').forEach(button => button.addEventListener('click', async () => {
-    const items = selectedInputs().map(input => ({scan_id:input.value, expected_revision:Number(input.dataset.revision)}));
+    const items = selectedScanItems();
     await fitcvRunLocked(button, async () => {
       try { await fitcvApiRequest(`/scans/actions/${button.dataset.bulkScanAction}`, {method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({items})}); location.reload(); } catch (error) { fitcvRenderAsyncState(notice, {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: () => button.click()}); }
     });
   }));
   document.getElementById('delete-selected-scans')?.addEventListener('click', async () => {
-    const scan_ids = selectedInputs().map(input => input.value);
+    const scan_ids = [...selectedScanState.keys()];
     const button = document.getElementById('delete-selected-scans');
     await fitcvRunLocked(button, async () => {
       try {

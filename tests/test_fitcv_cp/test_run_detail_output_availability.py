@@ -54,11 +54,20 @@ def test_run_detail_template_matches_prototype_drawers_and_profile_snapshot() ->
     assert content.count("<details") >= 3
     assert "Profile ID" in content
     assert "Profile State" in content
-    assert "/admin/candidate-profiles/{{ candidate_profile_id }}" in content
+    assert 'href="/admin/candidate-profiles/{{ candidate_profile_id }}?return_to={{ back_url|urlencode }}"' in content
     assert "Cancel Run" not in content
     assert "Run Again" not in content
     assert "Archive</button>" not in content
     assert 'id="process-console"' not in content
+
+
+def test_run_detail_profile_details_preserve_run_return_path() -> None:
+    content = open("src/fitcv_cp/templates/run_detail.html", encoding="utf-8").read()
+    assert 'href="/admin/candidate-profiles/{{ candidate_profile_id }}?return_to={{ back_url|urlencode }}"' in content
+    assert "run-profile-details-dialog" not in content
+    assert "data-run-profile-details" not in content
+    assert ".details-page-head h2{font-weight:700}" in content
+    assert ".page-actions .btn{line-height:20.3px}" in content
 
 
 def test_effective_settings_delta_counter_counts_leaf_changes() -> None:
@@ -89,3 +98,22 @@ def test_enriched_tab_matches_prototype_pagination_sizes_and_controls() -> None:
     assert 'target="_blank" rel="noopener noreferrer"' in content
     assert "(10, 20, 50)" in content
     assert "data-run-page-number" in content
+
+def test_enriched_tab_uses_canonical_cv_capability_keys() -> None:
+    content = open(
+        "src/fitcv_cp/templates/run_detail_tab_enriched.html", encoding="utf-8"
+    ).read()
+    assert "job.capabilities.download" in content
+    assert "job.capabilities.regenerate" in content
+    assert "job.capabilities.download_cv" not in content
+    assert "job.capabilities.regenerate_cv" not in content
+
+def test_run_detail_exposes_status_detail_and_prototype_interest_control_styles() -> None:
+    detail = open("src/fitcv_cp/templates/run_detail.html", encoding="utf-8").read()
+    enriched = open(
+        "src/fitcv_cp/templates/run_detail_tab_enriched.html", encoding="utf-8"
+    ).read()
+    assert "run.status_detail" in detail
+    assert ".star-btn" in enriched
+    assert ".clear-rating" in enriched
+    assert ".bookmark-btn" in enriched

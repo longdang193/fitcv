@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Run {{ run.run_id[:8] }} — FitCV Admin{% endblock %}
 {% block content %}
-<style>.tab-loading-state{display:flex;min-height:8rem;align-items:center;justify-content:center;text-align:center}</style>
+<style>
+  .tab-loading-state{display:flex;min-height:8rem;align-items:center;justify-content:center;text-align:center}
+  .details-page-head h2{font-weight:700}
+  .page-actions .btn{line-height:20.3px}
+</style>
 {% import "_icons.html" as icons %}
 {% import "_jobs_input_sources.html" as job_sources %}
 
@@ -30,6 +34,7 @@
     <div class="detail-item"><dt>Created</dt><dd>{{ run.created_at.strftime('%Y-%m-%d %H:%M UTC') if run.created_at else '—' }}</dd></div>
     <div class="detail-item"><dt>Started</dt><dd>{{ run.started_at.strftime('%Y-%m-%d %H:%M UTC') if run.started_at else '—' }}</dd></div>
     <div class="detail-item"><dt>Finished</dt><dd>{{ run.finished_at.strftime('%Y-%m-%d %H:%M UTC') if run.finished_at else '—' }}</dd></div>
+    <div class="detail-item"><dt>Status Detail</dt><dd>{{ run.status_detail or '—' }}</dd></div>
   </dl></div>
 </details>
 
@@ -42,8 +47,8 @@
     {% else %}
     <div class="detail-item"><dt>Job Input</dt><dd>{{ run.jobs_path_display or run.jobs_path }}</dd></div>
     {% endif %}
-    <div class="detail-item"><dt>Candidate Profile</dt><dd>{% if candidate_profile_id %}<a class="run-id run-id-link" href="/admin/candidate-profiles/{{ candidate_profile_id }}">{{ candidate_profile_name }}</a>{% else %}Profile unavailable{% endif %}</dd></div>
-    <div class="detail-item"><dt>Profile ID</dt><dd>{% if candidate_profile_id %}<a class="run-id run-id-link" href="/admin/candidate-profiles/{{ candidate_profile_id }}">{{ candidate_profile_id }}</a>{% else %}—{% endif %}</dd></div>
+    <div class="detail-item"><dt>Candidate Profile</dt><dd>{% if candidate_profile_id %}<a class="run-id run-id-link" href="/admin/candidate-profiles/{{ candidate_profile_id }}?return_to={{ back_url|urlencode }}">{{ candidate_profile_name }}</a>{% else %}Profile unavailable{% endif %}</dd></div>
+    <div class="detail-item"><dt>Profile ID</dt><dd>{% if candidate_profile_id %}{{ candidate_profile_id }}{% else %}—{% endif %}</dd></div>
     <div class="detail-item"><dt>Profile State</dt><dd>{{ candidate_profile_state }}</dd></div>
     <div class="detail-item"><dt>Configuration Snapshot</dt><dd>Pipeline Settings and Synonyms captured when this run was triggered.</dd></div>
   </dl></div>

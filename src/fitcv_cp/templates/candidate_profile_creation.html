@@ -14,9 +14,9 @@
 {% set reference = (source_refs or [])|first %}{% set locator = reference.locator if reference else none %}{% if locator and locator.kind == 'markdown_lines' %}md:lines {{ locator.start }}-{{ locator.end }}{% elif locator and locator.kind == 'docx_paragraph' %}docx:paragraph {{ locator.paragraph }}{% elif locator %}{{ locator|tojson }}{% else %}unresolved{% endif %}
 {%- endmacro %}
 
-{% macro evidence_entry_actions(annotation, regenerate_target, remove_path, label, generate_label, remove_label, source_kind, source_title, source_description, reviewed_value='', evidence_id='', source_template='') -%}
+{% macro evidence_entry_actions(annotation, regenerate_target, remove_path, label, generate_label, remove_label, source_kind, source_title, source_description, reviewed_value='', evidence_id='', source_template='', evidence_refs=[]) -%}
 <div class="field-action-row">
-  {% if annotation.source_block_ids %}<button class="evidence-trigger" type="button" data-source-block="{{ annotation.source_block_ids[0] }}" data-source-kind="{{ source_kind }}" data-source-title="{{ source_title }}" data-source-description="{{ source_description }}"{% if reviewed_value %} data-reviewed-value="{{ reviewed_value }}"{% endif %}{% if evidence_id %} data-evidence-id="{{ evidence_id }}"{% endif %}{% if source_template %} data-source-template="{{ source_template }}"{% endif %} aria-label="View source evidence for {{ label }}">Source</button>{% endif %}
+  {% if annotation.source_block_ids or evidence_refs %}<button class="evidence-trigger" type="button"{% if annotation.source_block_ids %} data-source-block="{{ annotation.source_block_ids[0] }}"{% endif %} data-source-kind="{{ source_kind }}" data-source-title="{{ source_title }}" data-source-description="{{ source_description }}"{% if reviewed_value %} data-reviewed-value="{{ reviewed_value }}"{% endif %}{% if evidence_id %} data-evidence-id="{{ evidence_id }}"{% endif %}{% if source_template %} data-source-template="{{ source_template }}"{% endif %} aria-label="View source evidence for {{ label }}">Source</button>{% endif %}
   <button class="wand-btn" type="button" data-regenerate-target="{{ regenerate_target }}" aria-label="{{ generate_label }}">{{ wand_icon() }}</button>
   <button class="btn danger" type="button" data-remove-path="{{ remove_path }}" aria-label="{{ remove_label }}">Remove</button>
 </div>
@@ -163,7 +163,7 @@
     <article class="derived-entry">
       <div class="derived-entry-head">
         <strong>{{ section.item_label }} {{ loop.index }} · <code>{{ item.id }}</code></strong>
-        {{ evidence_entry_actions(annotation, name_path, item_path, section.item_label|trim, 'Generate supported ' ~ (section.item_label|trim), 'Remove ' ~ (section.item_label|trim) ~ ' ' ~ loop.index, 'derived', item.name or section.item_label, 'Controlled derivation from approved evidence IDs.', '', '', source_template) }}
+        {{ evidence_entry_actions(annotation, name_path, item_path, section.item_label|trim, 'Generate supported ' ~ (section.item_label|trim), 'Remove ' ~ (section.item_label|trim) ~ ' ' ~ loop.index, 'derived', item.name or section.item_label, 'Controlled derivation from approved evidence IDs.', '', '', source_template, item.evidence_refs or []) }}
       </div>
       <div class="derived-entry-body">
         <label for="{{ input_id }}">Name<input class="field" id="{{ input_id }}" data-field-path="{{ name_path }}" type="text" value="{{ item.name or '' }}" required></label>
@@ -258,6 +258,7 @@
     </section>
     {% endfor %}
     </div></div>
+    {% if review.capabilities.undo_regeneration %}<div class="notice" data-regeneration-replacement role="status">Regeneration replaced the previous value. Undo restores the prior reviewed snapshot.</div>{% endif %}
     <p id="creation-status" class="sr-only" role="status" aria-live="polite"></p>
     {{ creation_footer(stage) }}
   </div>
@@ -303,7 +304,9 @@
       if (uploadSubmit.dataset.fitcvUploadSignature !== signature) { uploadSubmit.dataset.fitcvUploadSignature = signature; delete uploadSubmit.dataset.fitcvIdempotencyKey; }
       uploadSummary.textContent = file ? file.name : 'No file selected';
       uploadSubmit.disabled = !isSupportedCandidateProfileFile(file) || !uploadName.value.trim();
-      status.textContent = file && !isSupportedCandidateProfileFile(file) ? 'Supported files: Markdown (.md), Word (.docx), and YAML (.yaml).' : file ? file.name + ' selected.' : 'Choose one candidate document to continue.';
+      var invalid = Boolean(file && !isSupportedCandidateProfileFile(file));
+      status.classList.toggle('error', invalid);
+      status.textContent = invalid ? 'Supported files: Markdown (.md), Word (.docx), and YAML (.yaml).' : file ? file.name + ' selected.' : 'Choose one candidate document to continue.';
     }
     uploadFile.addEventListener('change', updateUpload);
     uploadName.addEventListener('input', updateUpload);
@@ -319,6 +322,7 @@
         status.textContent = 'Reading document, preserving source locators, and extracting baseline facts…';
         try {
           var payload = await fitcvApiRequest('/candidate-profile-creation-attempts', {method: 'POST', headers: {'Idempotency-Key': fitcvIdempotencyKey(uploadSubmit)}, body: uploadBody});
+          fitcvRenderAsyncState(asyncState, {kind: 'pending', message: 'Processing candidate profile…', preserveContent: true});
           await fitcvWaitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline');
           location.assign('/admin/candidate-profiles/create/' + encodeURIComponent(payload.data.attempt_id) + '/baseline');
         } catch (error) { uploadFile.disabled = false; uploadName.readOnly = false; status.textContent = error.message; showCandidateProfileFailure(error, processCandidateProfileUpload, {action: 'Choose another file', retry: function() { uploadFile.focus(); }}); }

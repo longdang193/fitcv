@@ -3980,6 +3980,9 @@ def _fallback_enriched_rows_from_results_export(rows: list[dict[str, Any]]) -> l
                 "job_family": row.get("job_family"),
                 "domain": row.get("domain"),
                 "required_skills": row.get("required_skills") if isinstance(row.get("required_skills"), list) else [],
+                "required_skill_entities_json": row.get("required_skill_entities_json"),
+                "tech_stack": row.get("tech_stack") if isinstance(row.get("tech_stack"), list) else [],
+                "keywords": row.get("keywords") if isinstance(row.get("keywords"), list) else [],
             }
         )
     return fallback_rows
@@ -4041,6 +4044,9 @@ def _fallback_enriched_rows_from_stage_artifacts(run: PipelineRun) -> list[dict[
                 "job_family": row.get("job_family"),
                 "domain": row.get("domain"),
                 "required_skills": row.get("required_skills") if isinstance(row.get("required_skills"), list) else [],
+                "required_skill_entities_json": row.get("required_skill_entities_json"),
+                "tech_stack": row.get("tech_stack") if isinstance(row.get("tech_stack"), list) else [],
+                "keywords": row.get("keywords") if isinstance(row.get("keywords"), list) else [],
             }
         )
     return fallback_rows
@@ -12242,7 +12248,22 @@ def create_app(
             scan["created_at_display"] = _format_compact_utc_timestamp(scan.get("created_at")) or "—"
             scan["duration_display"] = _format_scan_duration(scan)
             scans.append(scan)
+        selected_scans: dict[str, dict[str, Any]] = {}
+        raw_selected_scans = str(request.query_params.get("selected_scans") or "").strip()
+        if raw_selected_scans:
+            try:
+                parsed_selected_scans = _json.loads(raw_selected_scans)
+            except _json.JSONDecodeError:
+                parsed_selected_scans = {}
+            if isinstance(parsed_selected_scans, dict):
+                selected_scans = {
+                    str(scan_id): dict(selection)
+                    for scan_id, selection in parsed_selected_scans.items()
+                    if isinstance(selection, dict)
+                }
         query = {"lifecycle": lifecycle, "page_size": page_size}
+        if selected_scans:
+            query["selected_scans"] = _json.dumps(selected_scans, separators=(",", ":"))
         return templates.TemplateResponse(
             request=request,
             name="scans_list.html",
@@ -12257,6 +12278,7 @@ def create_app(
                 "total_items": total_items,
                 "page_query": urlencode(query),
                 "current_url": "/admin/scans?" + urlencode({**query, "page": page}),
+                "selected_scans": selected_scans,
                 "load_error": load_error,
             },
         )

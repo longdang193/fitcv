@@ -18,7 +18,7 @@
         <div class="table-scroll">
           <table class="run-table runs-table">
             <thead><tr><th><input type="checkbox" id="select-all-runs" aria-label="Select visible Runs" onchange="toggleSelectAllRuns(this)"></th><th>Run ID</th><th>Status</th><th>Job Name</th><th>Created Time</th><th>Duration</th></tr></thead>
-            <tbody>{% for run in runs %}{% set status_projection = run_status_projection.get(run.run_id, {}) %}<tr><td><input type="checkbox" name="selected_run_ids" value="{{ run.run_id }}" data-status="{{ run.status.value }}" data-archived-at="{{ run.archived_at.isoformat() if run.archived_at else '' }}" aria-label="Select {{ run.run_id }}" onchange="updateBulkActionBar()"></td><td><a class="run-id run-id-link" href="/admin/runs/{{ run.run_id }}?return_to={{ current_url|urlencode }}">{{ run.run_id }}</a></td><td><span class="badge run-status" data-status="{{ run.status.value|replace('_',' ')|title }}">{{ run.status.value|replace('_',' ')|title }}</span>{% if status_projection.is_archived %} <span class="badge run-status">Archived</span>{% endif %}</td><td><span class="run-job">{{ run.run_name or run.jobs_path_display or run.jobs_path }}</span></td><td><span class="run-created">{{ run_created_display.get(run.run_id, '—') }}</span></td><td><span class="run-duration">{{ run_duration_display.get(run.run_id, '—') }}</span></td></tr>{% endfor %}</tbody>
+            <tbody>{% for run in runs %}{% set status_projection = run_status_projection.get(run.run_id, {}) %}<tr><td><input type="checkbox" name="selected_run_ids" value="{{ run.run_id }}" data-status="{{ run.status.value }}" data-archived-at="{{ run.archived_at.isoformat() if run.archived_at else '' }}" aria-label="Select {{ run.run_id }}" onchange="updateBulkActionBar()"></td><td><a class="run-id run-id-link" href="/admin/runs/{{ run.run_id }}?return_to={{ current_url|urlencode }}">{{ run.run_id }}</a></td><td><span class="badge run-status" data-status="{{ run.status.value|replace('_',' ')|title }}">{{ run.status.value|replace('_',' ')|title }}</span>{% if status_projection.is_archived %} <span class="badge run-status">Archived</span>{% endif %}{% if run.status_detail %}<span class="run-status-detail">{{ run.status_detail }}</span>{% endif %}</td><td><span class="run-job">{{ run.run_name or run.jobs_path_display or run.jobs_path }}</span></td><td><span class="run-created">{{ run_created_display.get(run.run_id, '—') }}</span></td><td><span class="run-duration">{{ run_duration_display.get(run.run_id, '—') }}</span></td></tr>{% endfor %}</tbody>
           </table>
         </div>
         {% if total_items > 10 %}<div class="run-pagination"><span>Showing <strong>{{ (page - 1) * page_size + 1 }}</strong> to <strong>{{ [page * page_size, total_items]|min }}</strong> of <strong>{{ total_items }}</strong> results</span><div class="run-pagination-controls"><label class="run-page-size" for="runPageSize">Rows:<select class="field" id="runPageSize" onchange="location.href='/admin/runs?view={{ view }}&page_size='+this.value+'&page=1'">{% for size in [10,20,50] %}<option value="{{ size }}" {{ 'selected' if page_size == size else '' }}>{{ size }}</option>{% endfor %}</select></label><div class="run-page-numbers" aria-label="Run table pagination">{% if page > 1 %}<a class="btn" href="/admin/runs?{{ page_query }}&page={{ page - 1 }}" aria-label="Previous page">‹</a>{% endif %}<span class="btn" aria-current="page">{{ page }}</span>{% if page < total_pages %}<a class="btn" href="/admin/runs?{{ page_query }}&page={{ page + 1 }}" aria-label="Next page">›</a>{% endif %}</div></div></div>{% endif %}
@@ -290,6 +290,10 @@ function selectedRunIds() {
     .map((checkbox) => checkbox.value);
 }
 
+function showBulkSelectionError(message) {
+  fitcvRenderAsyncState(document.getElementById('runTablePanel'), {kind: 'error', message, preserveContent: true});
+}
+
 function ensureBulkActionBar() {
   let bar = document.getElementById('bulk-action-bar');
   if (bar) return bar;
@@ -344,7 +348,7 @@ function toggleSelectAllRuns(source) {
 async function bulkDeleteArchivedRuns(btn) {
   const runIds = selectedRunIds();
   if (!runIds.length) {
-    alert('Select at least one archived Run first.');
+    showBulkSelectionError('Select at least one archived Run first.');
     return;
   }
 
@@ -389,7 +393,7 @@ async function bulkDeleteArchivedRuns(btn) {
 async function bulkLifecycleAction(action, btn) {
   const runIds = selectedRunIds();
   if (!runIds.length) {
-    alert('Select at least one run first.');
+    showBulkSelectionError('Select at least one run first.');
     return;
   }
 

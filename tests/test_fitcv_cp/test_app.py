@@ -914,6 +914,10 @@ def test_candidate_profile_recovery_reuses_prototype_actions_and_shared_async_st
     assert "'Start new upload'" in profiles
     assert "fitcvWaitForCandidateProfileAttempt(payload.data.attempt_id, 'review_baseline')" in creation
     assert "fitcvRenderAsyncState(asyncState" in creation
+    assert "Processing candidate profile" in creation
+    assert "annotation.source_block_ids or evidence_refs" in creation
+    assert "Regeneration replaced the previous value" in creation
+    assert "status.classList.toggle('error'" in creation
     assert 'id="candidate-profile-controls"' in detail
     assert 'data-profile-action="archive"' in detail
     assert 'data-profile-action="restore"' in detail
@@ -1216,6 +1220,9 @@ def test_runs_list_preserves_prototype_states_and_interactions() -> None:
     assert "function updateRunTriggerState()" in template
     assert "alert(e.message || 'Delete archived Runs failed')" not in template
     assert "alert('Bulk action failed')" not in template
+    assert "alert('Select at least one archived Run first.')" not in template
+    assert "alert('Select at least one run first.')" not in template
+    assert "run-status-detail" in template
     assert "fitcv-focus-run-tab" in template
     assert 'id="cancelSelectedRuns"' in template
     assert 'id="archiveSelectedRuns"' in template
@@ -1308,6 +1315,9 @@ def test_admin_scans_workspace_uses_prototype_visual_components() -> None:
     assert "const selectAll = document.getElementById('select-all-scans');" in template
     assert "if (selectAll) selectAll.addEventListener('change'" in template
     assert "document.getElementById('scan-name').focus();" in template
+    assert "selectedScanState" in template
+    assert "history.replaceState" in template
+    assert "/tracked-companies?search=" in template
 
 
 def test_admin_scan_detail_reuses_detail_structure_and_output_views() -> None:
@@ -10937,6 +10947,51 @@ def test_run_detail_pipeline_results_use_prototype_controls() -> None:
     assert '<th>Required Skills</th>' in response.text
     assert '<th>Pipeline Outcome</th>' in response.text
 
+def test_run_detail_cv_generation_fragment_renders_canonical_capabilities() -> None:
+    patches = _run_detail_patches(
+        enriched_jobs=[
+            {
+                "run_job_id": "job-cv-1",
+                "job_url": "https://jobs.example.com/cv-1",
+                "title": "CV Role",
+                "required_skills": ["Python"],
+            }
+        ],
+        filter_results=[
+            {"job_url": "https://jobs.example.com/cv-1", "passed": True, "reasons": []}
+        ],
+        results_export_json=json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": "https://jobs.example.com/cv-1",
+                        "job_title": "CV Role",
+                        "pipeline_status": "ranked_with_cv",
+                    }
+                ]
+            }
+        ),
+    )
+    app = _app()
+    app.state.run_store.query_run_jobs_fn = lambda run_id, **_kwargs: {
+        "items": [
+            {
+                "run_job_id": "job-cv-1",
+                "capabilities": {"download": True, "regenerate": True},
+                "current_cv_version_id": "cv-1",
+            }
+        ],
+        "total": 1,
+    }
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(app).get(
+            "/admin/runs/run-detail-test/tabs/enriched?stage=cv-generation"
+        )
+
+    assert response.status_code == 200
+    assert 'data-cv-download' in response.text
+    assert 'data-cv-regenerate' in response.text
+
 
 def test_run_detail_pipeline_results_prune_selection_to_current_filtered_rows() -> None:
     patches = _run_detail_patches(
@@ -11092,7 +11147,9 @@ def test_run_detail_enriched_tab_uses_stage_artifacts_sample_for_running_run() -
                                 "seniority": "senior",
                                 "job_family": "data_engineering",
                                 "domain": "data",
-                                "required_skills": ["python", "sql"],
+                                "required_skills": [],
+                                "tech_stack": [],
+                                "keywords": ["Python", "SQL"],
                             }
                         ],
                     }
@@ -11112,6 +11169,8 @@ def test_run_detail_enriched_tab_uses_stage_artifacts_sample_for_running_run() -
     assert resp.status_code == 200
     assert "No enrichment data available for this run." not in resp.text
     assert "Live Enriched Role" in resp.text
+    assert "Python" in resp.text
+    assert "SQL" in resp.text
 
 
 def test_run_detail_hides_filter_marks_from_pipeline_results() -> None:
