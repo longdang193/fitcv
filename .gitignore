@@ -59,35 +59,14 @@ tmp/fitcv-local-*/
 # Canonical artifacts maintained in project-OS-starter
 /.agents/
 /agents/
-/repo_config/
 /docs/operating_system/
 /docs/superpowers/
 /AGENTS.md
 /CLAUDE.md
 /GEMINI.md
 
-# Starter-kit scripts and tests maintained in project-OS-starter
-/scripts/dcode_project.py
-/scripts/new_audit.ps1
-/scripts/new_brainstorming_report.ps1
-/scripts/planning_artifact_schema.py
-/scripts/publish_public_repo.ps1
-/scripts/render_harness_routing.py
-/scripts/setup_hooks.ps1
-/scripts/setup_hooks.sh
-/scripts/sync_agent_adapters.py
-/scripts/validate_agent_runtime_drift.py
-/scripts/validate_env_gitignore_contract.py
-/scripts/validate_generated_header_format.py
-/scripts/validate_learning_materials_format.py
-/scripts/validate_planning_lifecycle.py
-/scripts/validate_repo_config.py
-/scripts/validate_repo_contracts.py
-/scripts/validate_template_required_sections.py
-/tests/test_dcode_project.py
-/tests/test_setup_hooks.py
-/tests/test_validate_planning_lifecycle.py
-/tests/test_validate_prompt_ladder.py
-/tests/test_validate_repo_config.py
-/tests/test_validate_repo_contracts.py
-/tests/test_validate_template_required_sections.py
+# Local runtime/disposable state
+/.deepagents/
+/.serena/
+/.tura/
+/.tmp-tests/
