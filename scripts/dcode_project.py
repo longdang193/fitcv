@@ -13,6 +13,11 @@ import subprocess
 import sys
 import tomllib
 import uuid
+try:
+    from agent_profile_registry import load_agent_profiles
+except ModuleNotFoundError:
+    from scripts.agent_profile_registry import load_agent_profiles
+
 
 
 _ROLE_VIEWS_MARKER = ".dcode-project-owned"
@@ -159,44 +164,22 @@ def _load_roles(
     repo_root: Path,
     runtime_provider: str,
 ) -> list[dict[str, object]]:
-    roles_root = repo_root / "agents"
-    roles: list[dict[str, object]] = []
-    ranks: set[int] = set()
-    for source in sorted(roles_root.glob("*.toml")):
-        values = _load_toml(source, "role template")
-        required = {"name", "model_provider", "model", "rank", "description", "developer_instructions"}
-        if set(values) != required:
-            raise RuntimeError(f"Unsupported role template fields: {source}")
-        name = _required_string(values, "name", str(source))
-        if source.stem != name:
-            raise RuntimeError(f"Role filename must match name: {source}")
-        model_provider = _required_string(values, "model_provider", str(source))
-        if model_provider != runtime_provider:
-            raise RuntimeError(
-                f"Role provider `{model_provider}` does not match runtime provider `{runtime_provider}`: {source}"
-            )
-        rank = values.get("rank")
-        if isinstance(rank, bool) or not isinstance(rank, int) or rank <= 0:
-            raise RuntimeError(f"Role rank must be a positive integer: {source}")
-        if rank in ranks:
-            raise RuntimeError(f"Role ranks must be unique: {source}")
-        ranks.add(rank)
-        roles.append(
-            {
-                "name": name,
-                "model_provider": model_provider,
-                "rank": rank,
-                "description": _required_string(values, "description", str(source)),
-                "developer_instructions": _required_string(
-                    values, "developer_instructions", str(source)
-                ),
-                "model": _required_string(values, "model", str(source)),
-            }
-        )
-    if not roles:
-        raise RuntimeError(f"No role templates found: {roles_root}")
-    return roles
-
+    try:
+        profiles = load_agent_profiles(repo_root / "agents", runtime_provider=runtime_provider)
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
+    return [
+        {
+            "name": profile.name,
+            "model_provider": profile.model_provider,
+            "model": profile.model,
+            "rank": profile.rank,
+            "deepagents_compatible": profile.deepagents_compatible,
+            "description": profile.description,
+            "developer_instructions": profile.developer_instructions,
+        }
+        for profile in profiles.values()
+    ]
 
 def _role_view_path(agents_root: Path, role_name: str) -> Path:
     return agents_root / role_name / "AGENTS.md"
@@ -1093,7 +1076,14 @@ def main(argv: list[str]) -> int:
         )
         return 0
     if selected_role is None:
-        raise RuntimeError("dcode-project requires `--role <low|normal|high|xhigh>` for task execution.")
+        names = "|".join(sorted(role_by_name))
+        raise RuntimeError(f"dcode-project requires `--role <{names}>` for task execution.")
+    if executor == "deepagents" and not selected_role["deepagents_compatible"]:
+        raise RuntimeError(
+            f"Role `{selected_role['name']}` is not compatible with DeepAgents for "
+            f"model `{selected_role['model']}`; use `project-delegate --role "
+            f"{selected_role['name']}` or repair the provider Responses API route."
+        )
     if executor == "tura":
         executable, provider_config = _tura_worker_paths(config)
         if handoff_file is None:

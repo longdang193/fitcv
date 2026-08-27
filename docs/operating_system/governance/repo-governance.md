@@ -35,6 +35,7 @@ Public repository receives curated product-facing output through publication pro
 - `docs/operating_system/publication/`: publication policy and rewrite guidance.
 - `docs/operating_system/procedures/`: maintainer commands and runbooks.
 - `repo_config/`: actively consumed repository, starter-kit, adapter, planning-schema, and publication configuration.
+- `agents/*.toml`: canonical agent-profile registry; owns profile identity, provider, model, optional rank, compatibility, description, and instructions.
 - code, tests, configuration, and validators: executable truth.
 
 Do not duplicate one behavior across several layers. References do not justify preserving an otherwise dead layer.

@@ -21,15 +21,14 @@ This file is repo-wide instruction layer. More specific directory instructions o
 
 ## Subagent Routing
 
-Use only these template profiles:
+Use profiles discovered from `agents/*.toml`. Current ranked general profiles are
+`low`, `normal`, `high`, and `xhigh`; specialized profiles such as `ui` may be
+added without entering rank ordering.
 
-- `low`: lower-cost profile for bounded, low-complexity, low-risk work.
-- `normal`: default profile for ordinary complexity and risk.
-- `high`: high-capability profile for material complexity, ambiguity, or risk.
-- `xhigh`: highest-capability profile for deep reasoning, complex multi-step work,
-  or demanding validation tasks.
-
-Profile order: `xhigh > high > normal > low`.
+Profiles with positive `rank` form an ordered capability relation. Profiles
+without `rank` are unranked and explicit-only; they are not lower or higher
+than ranked profiles. Profile identity, rank, and model come from the registry;
+specialized profiles may use another name and model.
 In validator-executor setups, select the executor and validator profiles
 independently based on their respective bounded task contracts. A validator may
 use a lower, equal, or higher profile than the executor when that profile can
@@ -83,7 +82,7 @@ tools plus `git` and `py` shell commands. Task input cannot widen this set.
 Codex controller owns MCP calls and passes only validated
 `codex.mcp.handoff.v1` facts through user-local `dcode-project` handoff files.
 `--mcp-select` narrows provenance only. DeepAgents task launch requires
-`dcode-project --role <low|normal|high|xhigh>`; launcher resolves the selected
+`dcode-project --role <profile>`; launcher resolves the selected
 canonical source model while top-level Codex model remains controller default.
 For bounded external delegation, `project-delegate` selects Tura from the same
 tracked role source and user-local config. Native Codex remains controller for
@@ -105,7 +104,7 @@ use `;`. Ask for repository-relative `path:line` evidence. When a task needs an
 acceptance decision, require `PASS`, `FAIL`, or `BLOCKED` first. Do not assume
 interpreter, web, or MCP access; if a task needs unavailable capability, return
 `BLOCKED`.
-Name `low`, `normal`, `high`, or `xhigh` in bounded DeepAgents `task`
+Name a discovered profile in bounded DeepAgents `task`
 delegation; do not use `dcode --agent` or `dcode -r` for project coordination.
 Use `skill-deepagents-executing-plans` when an approved Git-tracked plan is
 executed through DeepAgents with bounded delegated work.

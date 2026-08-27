@@ -44,6 +44,7 @@ from planning_artifact_schema import (
     get_required_fields,
     get_required_values,
 )
+from agent_profile_registry import load_agent_profiles
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,7 @@ COORDINATION_STATES = {"pending", "active", "blocked", "completed"}
 CURRENT_PLAN_STATUSES = {"proposed", "active"}
 EXECUTION_MODES = {"inline sequential", "subagent-ready", "parallel-capable"}
 EXECUTION_COORDINATIONS = {"none", "git-tracked"}
+MODERN_COORDINATION_SCHEMA = "1"
 
 
 def _clean_coordination_cell(value: str) -> str:
@@ -127,7 +129,11 @@ def _task_sections(text: str) -> list[tuple[str, str]]:
 
 
 def _profile_names(root: Path) -> set[str]:
-    return {path.stem.lower() for path in (root / "agents").glob("*.toml")}
+    agents_root = root / "agents"
+    if not agents_root.is_dir():
+        return set()
+    return set(load_agent_profiles(agents_root))
+
 
 
 def _validate_single_execution_field(
@@ -166,8 +172,23 @@ def validate_execution_contract(root: Path, path: Path, payload: dict[str, Any],
     rel = path.as_posix()
     section = _section_body(text, "Execution Approach", 2)
     current = payload.get("status") in CURRENT_PLAN_STATUSES
+    completed_schema = (
+        _clean_coordination_cell(_coordination_value(text, "Coordination schema") or "")
+        if payload.get("status") == "completed"
+        else ""
+    )
+    modern_completed = bool(completed_schema)
+    enforce_contract = current or modern_completed
     findings: list[Finding] = []
-    if current and section is None:
+    if modern_completed and completed_schema != MODERN_COORDINATION_SCHEMA:
+        findings.append(
+            Finding(
+                "coordination_error",
+                rel,
+                f"Coordination schema must be `{MODERN_COORDINATION_SCHEMA}`",
+            )
+        )
+    if enforce_contract and section is None:
         findings.append(Finding("planning_execution_error", rel, "requires `## Execution Approach`"))
         return findings
 
@@ -176,14 +197,14 @@ def validate_execution_contract(root: Path, path: Path, payload: dict[str, Any],
         section,
         "Mode",
         EXECUTION_MODES,
-        required=current,
+        required=enforce_contract,
     )
     coordination_findings, coordination = _validate_single_execution_field(
         path,
         section,
         "Coordination",
         EXECUTION_COORDINATIONS,
-        required=current,
+        required=enforce_contract,
     )
     findings.extend(mode_findings)
     findings.extend(coordination_findings)
@@ -201,15 +222,19 @@ def validate_execution_contract(root: Path, path: Path, payload: dict[str, Any],
             )
         )
 
-    profile_names = _profile_names(root)
+    try:
+        profile_names = _profile_names(root)
+    except ValueError as exc:
+        findings.append(Finding("planning_execution_error", rel, str(exc)))
+        profile_names = set()
     template_profiles = profile_names | {"none (lead controller)"}
     validator_profiles = profile_names | {"none"}
     task_sections = _task_sections(text)
-    if current and not task_sections:
+    if enforce_contract and not task_sections:
         findings.append(Finding("planning_execution_error", rel, "requires at least one `### Task N` section"))
     for task_name, task_text in task_sections:
         for label, allowed, required in (
-            ("Template Profile", template_profiles, current),
+            ("Template Profile", template_profiles, enforce_contract),
             ("Validator Profile", validator_profiles, False),
         ):
             matches = re.findall(
@@ -235,7 +260,7 @@ def validate_execution_contract(root: Path, path: Path, payload: dict[str, Any],
 
     if current and "Active task(s)" in text:
         findings.append(Finding("planning_execution_error", rel, "current plans must derive active state from the task ledger; remove `Active task(s)`"))
-    if current and mode in EXECUTION_MODES and coordination == "git-tracked":
+    if enforce_contract and mode in EXECUTION_MODES and coordination == "git-tracked":
         findings.extend(validate_git_coordination(path, payload, text, allowed_executors, mode=mode))
     return findings
 
@@ -319,7 +344,7 @@ def validate_git_coordination(
     if payload.get("status") == "completed":
         if any(row["state"] != "completed" for row in rows):
             findings.append(Finding("coordination_error", rel, "completed plan requires every task to be completed"))
-        for label in ("Blockers", "Next action"):
+        for label in ("Blockers",):
             value = _clean_coordination_cell(_coordination_value(text, label) or "").lower()
             if value != "none":
                 findings.append(Finding("coordination_error", rel, f"completed plan requires `{label}: none`"))

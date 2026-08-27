@@ -1,6 +1,6 @@
 # Operating System Docs
 
-This folder holds repo governance, execution routing, runtime guidance, reusable prompts, templates, and maintainer procedures.
+This folder holds repo governance, executor selection, runtime guidance, reusable prompts, templates, and maintainer procedures.
 
 ## Start Here
 
@@ -10,8 +10,8 @@ This folder holds repo governance, execution routing, runtime guidance, reusable
 
 ## Sections
 
-- `governance/` — repo ownership, precedence, and routing policy
-- `planning/` — planning-tier and execution routing
+- `governance/` — repo ownership, precedence, and selection policy
+- `planning/` — planning-tier and executor selection
 - `runtime/` — runtime surfaces
 - `adoption/` — project adoption and migration guidance
 - `procedures/` — maintainer runbooks

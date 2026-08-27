@@ -495,6 +495,52 @@ def test_main_rejects_missing_or_unknown_role_before_role_view_write(
     assert not (tmp_path / ".deepagents").exists()
 
 
+def test_main_rejects_deepagents_incompatible_role_before_worker_start(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_role(tmp_path, "ui", rank=None)
+    profile = tmp_path / "agents" / "ui.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8").replace("rank = None\n", "")
+        + "deepagents_compatible = false\n",
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "dcode-project.toml"
+    config_path.write_text(
+        '[delegation]\ndefault_executor = "deepagents"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(LAUNCHER, "_config_path", lambda: config_path)
+    monkeypatch.setattr(LAUNCHER, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_runtime_binding",
+        lambda config: ("combo-high", "https://provider.example/v1", "secret", "9router"),
+    )
+    monkeypatch.setattr(LAUNCHER, "_codex_config", lambda config: {})
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_mcp_capabilities",
+        lambda config: {
+            "mcp_servers": [],
+            "mcp_tools": [],
+            "server_tools": {},
+            "mcp_capability_digest": "digest",
+        },
+    )
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_find_dcode",
+        lambda: pytest.fail("DeepAgents executable must not start"),
+    )
+
+    with pytest.raises(RuntimeError, match="not compatible with DeepAgents"):
+        LAUNCHER.main(["--role", "ui", "-n", "task"])
+
+    assert not (tmp_path / ".deepagents").exists()
+
+
 @pytest.mark.parametrize(
     "argument",
     [
@@ -763,16 +809,19 @@ def test_role_loader_rejects_duplicate_ranks(tmp_path: Path) -> None:
 
 def test_canonical_role_hierarchy_is_source_owned() -> None:
     roles = {
-        role["name"]: (role["model_provider"], role["model"], role["rank"])
+        role["name"]: (
+            role["model_provider"],
+            role["model"],
+            role["rank"],
+            role["deepagents_compatible"],
+        )
         for role in LAUNCHER._load_roles(ROOT, "9router")
     }
 
-    assert roles == {
-        "low": ("9router", "combo-low", 10),
-        "normal": ("9router", "combo-normal", 20),
-        "high": ("9router", "combo-high", 30),
-        "xhigh": ("9router", "combo-xhigh", 40),
-    }
+    source_names = {path.stem for path in (ROOT / "agents").glob("*.toml")}
+
+    assert set(roles) == source_names
+    assert roles["ui"] == ("9router", "combo-ui", None, True)
 
 
 def test_runtime_environment_reaches_deepagents_server_child(

@@ -35,7 +35,7 @@ ledger and tool results carry the record.
 - Use `skill-using-git-worktrees` when isolation materially reduces risk; an already-safe workspace does not require a new worktree.
 - Use `skill-dispatching-parallel-agents` instead when independent lanes should run concurrently with disjoint write ownership.
 - When plan selects `deepagents`, Codex launches one bounded `dcode-project`
-  task with canonical `low`, `normal`, `high`, or `xhigh` in its brief. Only
+  task with a discovered profile name in its brief. Only
   inside that bounded DeepAgents assignment may its runtime use built-in
   `task` workers. Do not use `dcode --agent`, `dcode -r`, direct model flags, or
   executor-local approvals as project coordination. Current `dcode-project`
@@ -46,7 +46,8 @@ ledger and tool results carry the record.
 
 ## Validator Profile Selection
 
-Profile order: `xhigh > high > normal > low`.
+Positive `rank` values order only ranked profiles; unranked profiles are
+explicit-only and non-orderable.
 
 This skill uses reviewer subagents as validators. Select executor and validator
 profiles independently from their bounded task contracts. A validator may use a
@@ -138,8 +139,8 @@ conflicts that only emerge from implementation.
 
 ## Profile Selection
 
-Select `low`, `normal`, `high`, or `xhigh` for delegated work from task
-reasoning depth, ambiguity, scope, risk, and cost. Use `none (lead controller)`
+Select a discovered profile for delegated work from task reasoning depth,
+ambiguity, scope, risk, and cost. Use `none (lead controller)`
 only for inline controller work. Escalation creates a fresh worker with a
 different profile; it does not mutate a running worker.
 

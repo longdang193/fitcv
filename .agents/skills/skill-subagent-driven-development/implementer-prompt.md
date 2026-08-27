@@ -3,7 +3,7 @@
 Use this template when dispatching an implementer subagent.
 
 ```
-Subagent (controller-selected profile: low | normal | high | xhigh):
+Subagent (controller-selected profile: <discovered-profile>):
   description: "Implement Task N: [task name]"
   prompt: |
     You are implementing Task N: [task name]

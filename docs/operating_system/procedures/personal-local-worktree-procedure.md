@@ -50,8 +50,10 @@ Follow
 Start selected local executor only from actual selected-workspace context. If
 context cannot be proved, work directly in selected workspace or `block`.
 
-For delegated roles, `agents/*.toml` owns role prompts, provider aliases, and
-models. Profile order is `xhigh > high > normal > low`. Codex consumes deployed
+For delegated profiles, `agents/*.toml` owns profile prompts, provider aliases, models,
+and optional ranks. Positive ranks order only ranked profiles; unranked profiles
+are explicit-only and non-orderable. Ranked profiles are ordered by registry
+rank. Codex consumes deployed
 TOML. User-local `dcode-project` materializes ignored `.deepagents/agents/`
 views at launch with local provider endpoint and credentials. Each role provider
 alias must match active local Codex provider. Select executor and validator
@@ -73,7 +75,7 @@ threads, or generated `.deepagents/` files to repository coordination.
 
 ## DeepAgents Tool Boundary
 
-Current `dcode-project` consumes required `--role <low|normal|high|xhigh>`,
+Current `dcode-project` consumes required `--role <profile>`,
 resolves that canonical source role's provider alias and model, then validates a
 controller-owned sanitized handoff. It starts `dcode` with selected source model
 and `--no-mcp`; Codex MCP servers, their tool allowlists, approval policy,
@@ -115,11 +117,11 @@ After replacing the executable, run
 performance evidence as stale when hash changes; do not add release-specific
 config or adapter code.
 
-Launch with `project-delegate --role <low|normal|high|xhigh> -n "<task>"`.
+Launch with `project-delegate --role <profile> -n "<task>"`.
 Use `dcode-project` when DeepAgents is required explicitly.
 
-DeepAgents controller may use built-in `task` for a bounded `low`, `normal`,
-`high`, or `xhigh` project subagent. These are capability profiles, not fixed task roles.
+DeepAgents controller may use built-in `task` for any discovered profile,
+including specialized profiles. Profiles are capability profiles, not fixed task roles.
 Controller defines open-ended task function through prompt and selects profile
 from required reasoning depth, ambiguity, scope, risk, and cost. Do not map
 research, debugging, review, design, planning, implementation, validation,
@@ -162,7 +164,7 @@ task text.
 Launch a task without controller facts with:
 
 ```powershell
-dcode-project --role <low|normal|high|xhigh> -n "<task>"
+dcode-project --role <profile> -n "<task>"
 ```
 
 When Codex passes validated facts, use:
@@ -199,7 +201,7 @@ and `%USERPROFILE%\.local\bin\dcode-project.{cmd,ps1}`. The pinned DeepAgents
 tool stays isolated under the runtime root, so concurrent repositories do not
 replace one shared `dcode.exe`. Wrapper resolves current Git workspace and runs
 tracked `scripts/dcode_project.py`. Run `dcode-project`
-from selected repository workspace with `--role <low|normal|high|xhigh>`; do not
+from selected repository workspace with `--role <profile>`; do not
 pass `--model`. Setup defaults to tested `deepagents-code 0.1.59`, requires
 Python 3.12 or newer, verifies the installed `dcode` version, and disables child auto-update.
 Setup fails when

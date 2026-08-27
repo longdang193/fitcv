@@ -208,9 +208,10 @@ only when it differs from the plan-level `Execution Approach`. `Authority` names
 task-local preauthorized actions plus stop conditions for external, destructive,
 or scope-changing actions. It never grants permissions beyond active Codex
 configuration. `Task Function` is open-ended. `Template Profile` records
-controller-selected `xhigh`, `high`, `normal`, or `low` based on reasoning
-depth, ambiguity, scope, risk, and cost; never define fixed function-to-profile
-maps. Profile order is `xhigh > high > normal > low`. In validator-executor
+controller-selected discovered profile based on reasoning depth, ambiguity,
+scope, risk, and cost; never define fixed function-to-profile maps. Positive
+`rank` values order only ranked profiles; unranked profiles are explicit-only
+and non-orderable. In validator-executor
 setups, select executor and validator profiles independently from their bounded
 task contracts. A validator may be lower, equal, or higher than its executor
 when that profile can reliably complete validation. Select the lowest profile

@@ -52,7 +52,14 @@ def run_validator(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def git_tracked_plan(*, status: str = "active", mode: str = "subagent-ready", ledger: str) -> str:
+def git_tracked_plan(
+    *,
+    status: str = "active",
+    mode: str = "subagent-ready",
+    ledger: str,
+    coordination_schema: int | None = None,
+) -> str:
+    schema_line = f"- Coordination schema: `{coordination_schema}`\n" if coordination_schema is not None else ""
     return f"""---
 artifact_type: plan
 template_id: implementation-plan
@@ -70,12 +77,19 @@ parent_spec: none
 ## Coordination State
 
 - Coordination owner: `lead-controller`
-- Branch: `main`
+{schema_line}- Branch: `main`
 - Base commit: `abc123`
 - Active task(s): `Task 1`
 - Expected workspace: `current`
 - Next action: `Complete Task 1`
 - Blockers: `none`
+
+## Task Breakdown
+
+### Task 1: Example
+
+**Template Profile:**
+- Controller-selected: `none (lead controller)`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -209,6 +223,25 @@ def test_current_plan_rejects_unknown_coordination_without_skipping_checks() -> 
     finally:
         rmtree(root, ignore_errors=True)
 
+
+def test_task_profile_names_require_valid_registry_records() -> None:
+    root = make_test_root()
+    try:
+        write_text(root / "agents" / "ui.toml", 'name = "broken"\n')
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            modern_plan(
+                execution="- Mode: `subagent-ready`\n- Coordination: `none`",
+                task_body="**Template Profile:**\n- Controller-selected: `ui`",
+            ),
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "Agent profile" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
 
 def test_task_profiles_are_validated_inside_task_section() -> None:
     root = make_test_root()
@@ -408,10 +441,52 @@ def test_completed_plan_with_terminal_coordination_passes() -> None:
             root / "docs" / "superpowers" / "plans" / "demo-plan.md",
             git_tracked_plan(
                 status="completed",
+                coordination_schema=1,
                 ledger="| Task 1 | `completed` | current | codex | none | `test-one` | recorded proof |"
             )
             .replace("- Active task(s): `Task 1`", "- Active task(s): `none`")
             .replace("- Next action: `Complete Task 1`", "- Next action: `none`")
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 0
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_modern_completed_plan_requires_terminal_coordination() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            git_tracked_plan(
+                status="completed",
+                coordination_schema=1,
+                ledger="| Task 1 | `pending` | current | codex | none | `test-one` | pending |",
+            ),
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "completed plan requires every task to be completed" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_modern_completed_plan_allows_post_verification_next_action() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            git_tracked_plan(
+                status="completed",
+                coordination_schema=1,
+                ledger="| Task 1 | `completed` | current | codex | none | `test-one` | recorded proof |",
+            )
+            .replace("- Active task(s): `Task 1`", "- Active task(s): `none`")
+            .replace("- Next action: `Complete Task 1`", "- Next action: `await authorized branch disposition`")
         )
 
         result = run_validator(root)

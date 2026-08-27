@@ -38,6 +38,11 @@ from types import ModuleType
 
 import json
 
+try:
+    from agent_profile_registry import load_agent_profiles
+except ModuleNotFoundError:
+    from scripts.agent_profile_registry import load_agent_profiles
+
 STARTER_KIT_CLASSIFICATION_ENFORCEMENT = "fail"
 STARTER_KIT_DISTRIBUTION_TIER = "starter_kit"
 
@@ -253,6 +258,14 @@ def _load_starter_kit_manifest(root: Path) -> dict | None:
     return payload if isinstance(payload, dict) else None
 
 
+def validate_agent_profile_registry(root: Path) -> list[ValidationIssue]:
+    try:
+        load_agent_profiles(root / "agents")
+    except (OSError, ValueError) as exc:
+        return [ValidationIssue("agent_profile_registry", "agents", str(exc))]
+    return []
+
+
 def _is_metadata_capable(path: Path) -> bool:
     analysis = _analyze_metadata_file(path)
     return analysis[0]
@@ -465,6 +478,10 @@ def report_issues(issues: list[ValidationIssue]) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = Path(args.repo_root).resolve()
+
+    profile_issues = validate_agent_profile_registry(root)
+    if profile_issues:
+        return report_issues(profile_issues)
 
     if args.sync_starter_kit_tier:
         patched = sync_starter_kit_distribution_tier(root)

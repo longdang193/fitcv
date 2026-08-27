@@ -64,7 +64,7 @@ def test_review_and_evidence_language_stays_conditional() -> None:
 
     assert "general-purpose" not in requesting
     assert "general-purpose" not in reviewer
-    assert "low`, `normal`, `high`, or `xhigh`" in requesting
+    assert "discovered-profile reviewer" in requesting
     assert "each applicable frontend, backend, and E2E evidence class" in requesting
     assert "[SPECIFICATION_OR_APPROVED_SCOPE]" in requesting
     assert "[EVIDENCE_CONTEXT]" in requesting
@@ -79,8 +79,8 @@ def test_active_subagent_templates_use_supported_profiles() -> None:
     reviewer = read(".agents/skills/skill-subagent-driven-development/task-reviewer-prompt.md")
     planning = read(".agents/skills/skill-writing-plans/SKILL.md")
 
-    assert "controller-selected profile: low | normal | high | xhigh" in implementer
-    assert "controller-selected profile: low | normal | high | xhigh" in reviewer
+    assert "controller-selected profile: <discovered-profile>" in implementer
+    assert "controller-selected profile: <discovered-profile>" in reviewer
     assert "### 3. Reconcile Approved Scope With Repository Truth" in planning
     assert "map frontend, backend, and shared-contract owners" in planning
 

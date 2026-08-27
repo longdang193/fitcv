@@ -8,7 +8,7 @@ code quality.
 more, nothing less) and is well-built (clean, tested, maintainable)
 
 ```
-Subagent (controller-selected profile: low | normal | high | xhigh):
+Subagent (controller-selected profile: <discovered-profile>):
   description: "Review Task N (spec + quality)"
   prompt: |
     You are reviewing one task's implementation: first whether it matches its

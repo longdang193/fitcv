@@ -33,7 +33,7 @@ HEAD_SHA=$(git rev-parse HEAD)
 
 **2. Dispatch code reviewer subagent:**
 
-Dispatch a controller-selected `low`, `normal`, `high`, or `xhigh` reviewer,
+Dispatch a controller-selected discovered-profile reviewer,
 filling the template at `code-reviewer.md`
 Review context must include each applicable frontend, backend, and E2E evidence
 class plus approved deviations.

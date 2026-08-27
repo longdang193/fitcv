@@ -49,7 +49,7 @@ Before dispatch, Codex must:
 Launch from repository root through user-local `dcode-project`:
 
 ```powershell
-dcode-project --role <low|normal|high|xhigh> -n "<bounded-task>"
+dcode-project --role <profile> -n "<bounded-task>"
 ```
 
 When Codex-supplied MCP facts are required, use a validated user-local
@@ -85,7 +85,8 @@ The plan wins when a dispatch brief conflicts with plan state.
 
 - Keep task function and profile separate.
 - Select the lowest profile that can reliably complete the bounded contract.
-- Profile order is `xhigh > high > normal > low`.
+- Positive `rank` values order only ranked profiles; unranked profiles are
+  explicit-only and non-orderable.
 - Select executor and validator profiles independently from their bounded
   contracts. A validator may be lower, equal, or higher than its executor when
   that profile can reliably complete the validation contract.

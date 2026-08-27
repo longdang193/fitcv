@@ -678,4 +678,4 @@ def test_implementation_plan_template_documents_executor_and_coordination() -> N
     assert "Allowed states: `pending`, `active`, `blocked`, `completed`." in template
     assert "`high` executor therefore uses `xhigh` validator" not in template
     assert "Do not pair `xhigh` executor" not in template
-    assert "<none | low | normal | high | xhigh>" in template
+    assert "<none | discovered profile>" in template
