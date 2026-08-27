@@ -30,7 +30,7 @@ or token-cost reporting.
   requires provider-reported read tokens or equivalent provider evidence. If the
   provider does not expose that evidence, report the claim as unverified.
 - When direct provider probing is prohibited or impractical, use the local
-  LightMem2-to-9router boundary as the observation boundary. Require explicit
+  project-owned provider boundary as the observation boundary. Require explicit
   cache counters or cache headers there; equal token counts, latency, output,
   or hashes alone do not prove cache reuse.
 - Do not use direct-provider calls by default. Missing cache fields at the local

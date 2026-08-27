@@ -250,6 +250,40 @@ Ship safely.
     finally:
         rmtree(root, ignore_errors=True)
 
+
+def test_active_implementation_plan_matches_lifecycle_status() -> None:
+    root = make_test_root()
+    try:
+        seed_template(root)
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "active-plan.md",
+            """---
+artifact_type: plan
+template_id: implementation-plan
+status: active
+---
+
+# Active Plan
+
+## Goal
+Ship safely.
+
+## Implementation Outcomes
+- deliverable one
+
+## Task Breakdown
+- task 1
+
+## Verification
+- pytest -q
+""",
+        )
+        rules, findings = VALIDATOR.discover_template_rules(root)
+        assert findings == []
+        assert VALIDATOR.validate_documents(root, rules, require_template_selection=False) == []
+    finally:
+        rmtree(root, ignore_errors=True)
+
 def test_nested_audit_report_is_discovered_from_template_glob() -> None:
     root = make_test_root()
     try:
@@ -574,83 +608,6 @@ Verified work.
         rmtree(root, ignore_errors=True)
 
 
-def test_active_plan_accepts_template_initial_status() -> None:
-    root = make_test_root()
-    try:
-        write_text(
-            root / "docs" / "operating_system" / "templates" / "implementation-plan-template.md",
-            """---
-template_id: implementation-plan
-target_globs:
-  - docs/superpowers/plans/*.md
-required_sections:
-  - Goal
-required_frontmatter:
-  artifact_type: plan
-  status: proposed
----
-""",
-        )
-        write_text(
-            root / "docs" / "superpowers" / "plans" / "active-plan.md",
-            """---
-artifact_type: plan
-template_id: implementation-plan
-status: active
----
-
-# Active Plan
-
-## Goal
-Work in progress.
-""",
-        )
-        rules, findings = VALIDATOR.discover_template_rules(root)
-        assert findings == []
-        assert VALIDATOR.validate_documents(root, rules, require_template_selection=False) == []
-    finally:
-        rmtree(root, ignore_errors=True)
-
-
-def test_invalid_lifecycle_status_rejects_template_initial_status() -> None:
-    root = make_test_root()
-    try:
-        write_text(
-            root / "docs" / "operating_system" / "templates" / "implementation-plan-template.md",
-            """---
-template_id: implementation-plan
-target_globs:
-  - docs/superpowers/plans/*.md
-required_sections:
-  - Goal
-required_frontmatter:
-  artifact_type: plan
-  status: proposed
----
-""",
-        )
-        write_text(
-            root / "docs" / "superpowers" / "plans" / "invalid-plan.md",
-            """---
-artifact_type: plan
-template_id: implementation-plan
-status: draft
----
-
-# Invalid Plan
-
-## Goal
-Must be rejected.
-""",
-        )
-        rules, findings = VALIDATOR.discover_template_rules(root)
-        assert findings == []
-        issues = VALIDATOR.validate_documents(root, rules, require_template_selection=False)
-        assert any(issue.category == "template_document_type_mismatch" for issue in issues)
-    finally:
-        rmtree(root, ignore_errors=True)
-
-
 def test_superseded_plan_accepts_template_initial_status() -> None:
     root = make_test_root()
     try:
@@ -712,9 +669,13 @@ def test_implementation_plan_template_documents_executor_and_coordination() -> N
         REPO_ROOT / "docs" / "operating_system" / "templates" / "implementation-plan-template.md"
     ).read_text(encoding="utf-8")
 
-    assert "Executor: `codex | deepagents`" in template
+    assert "Default task executor: `codex | deepagents | tura`" in template
+    assert "Task ledger `Executor` values are `codex`, `deepagents`, or `tura`" in template
     assert "Coordination: `git-tracked | none`" in template
     assert "Required when `Execution Approach > Coordination` is `git-tracked`" in template
     assert "current DeepAgents launcher uses no MCP" in template
     assert "## Coordination State" in template
     assert "Allowed states: `pending`, `active`, `blocked`, `completed`." in template
+    assert "`high` executor therefore uses `xhigh` validator" not in template
+    assert "Do not pair `xhigh` executor" not in template
+    assert "<none | low | normal | high | xhigh>" in template

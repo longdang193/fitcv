@@ -1,9 +1,0 @@
-{
-  "version": 3,
-  "run_id": "fitcv-lifecycle-local-system-redirect-20260806-successor1",
-  "task_type": "local_change",
-  "runtime_provider_id": "codex_app_server",
-  "plan_ref": "docs/superpowers/plans/2026-08-06-lifecycle-removal-coordinated-plan.md",
-  "plan_task_id": "lifecycle-local-system-redirect",
-  "user_request": "Execute only the ready coordinated task lifecycle-local-system-redirect. Redirect GET /local/system to /admin/system, retain /local/lifecycle/status unchanged, and run packet-selected proof. Preserve unrelated work."
-}

@@ -38,6 +38,8 @@ Read only what the current task needs:
 - `skill-subagent-driven-development` when approved tasks are separable, same-session sequential delegation is useful, and per-task commits are authorized
 - `skill-deepagents-executing-plans` when the plan selects DeepAgents and bounded
   delegated execution materially benefits the active Git-tracked task
+- `docs/operating_system/planning/planning-dispatch.md` when task executor
+  selection is unclear or the plan mixes `codex`, `deepagents`, and `tura`
 - `skill-dispatching-parallel-agents` when two or more lanes have disjoint write ownership
 - `skill-systematic-debugging` after unexpected failures or unexplained behavior
 - `skill-test-driven-development` for non-trivial behavior changes or bug fixes
@@ -50,11 +52,19 @@ tools, approval, sandbox, or shell policy. Current `dcode-project` forces
 MCP through Codex and pass only validated `codex.mcp.handoff.v1` facts to
 DeepAgents.
 
+When an active task selects `tura`, use the explicit `project-delegate` adapter.
+When it selects `deepagents`, use `dcode-project`. Executor selection does not
+transfer Git coordination, acceptance, or required Codex-owned capabilities.
+
 Do not load every linked document or skill by default.
 
-## Code Intelligence
+## Evidence Capability
 
-Use native tools for direct file inspection and local search. Use Serena for exact symbols and references. Use `semble_codebase_search` for unknown-location discovery. Use private read-only GitNexus for broad flows or impact only when available, fresh, and materially useful. Do not query multiple tools for the same fact by default. Source and tests remain authoritative.
+State minimum capability and required evidence before selecting a tool. Prefer
+native source inspection, search, diffs, and tests; resolve unmet capabilities
+through `docs/operating_system/tooling/runtime-tool-resolution.md`. Source and
+tests remain authoritative, and unavailable optional tooling never weakens
+mandatory proof.
 
 Before modifying a shared symbol, route, validator, generator, or orchestration function, inspect its direct consumers and affected tests. Fix root cause at the narrowest shared owner.
 
@@ -98,6 +108,13 @@ Choose the smallest unblocked action from approved scope:
 4. focused verification
 5. dependent documentation or generated refresh
 6. task status update
+
+Before dispatch, read the active task ledger `Executor` and `Template Profile`
+values. For `codex`, execute inline lead-controller work directly when the
+profile is `none`; when a fixed profile is selected for delegated work, use the
+active native Codex subagent capability. Use `dcode-project` for `deepagents`
+and `project-delegate` for `tura`; do not infer executor from profile rank or
+task-function name, and do not let a profile select an executor.
 
 Keep exactly one local task active unless parallel execution is explicitly justified. Do not invent adjacent cleanup merely because it is nearby.
 
@@ -242,5 +259,6 @@ Continue source-first when optional analysis tools are unavailable.
 - `skill-dispatching-parallel-agents` coordinates independent concurrent write lanes and their fan-out/fan-in method.
 - `skill-systematic-debugging` owns failure diagnosis.
 - `skill-test-driven-development` owns behavior-change proof during implementation.
+- `skill-disposable-artifact-cleanup` may audit task-owned disposable artifacts; invoke its Cleanup Mode only through completion verification.
 - `skill-verification-before-completion` produces final evidence result.
 - `skill-finishing-a-development-branch` performs authorized Git disposition after verified result.

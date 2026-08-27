@@ -16,6 +16,11 @@ Define durable ownership boundaries for private development, reusable agent meth
 Build it from `repo_config/starter-kit-manifest.json`; do not author changes
 directly in generated output or maintain a separate sibling kit copy.
 
+When this document is shipped in the starter kit, downstream projects own their
+adopted root instructions, documentation, skills, configuration, and tests.
+Private factory maintenance, adapter generation, and starter rebuild workflows
+remain upstream concerns and are not downstream operating instructions.
+
 ### Public Repository
 
 Public repository receives curated product-facing output through publication procedure. It is not a mirror of private repository.
@@ -52,8 +57,9 @@ Canonical planning and delivery skills are:
 - `skill-plan-document-reviewer`: review specification and plan readiness.
 - `skill-using-git-worktrees`: create optional isolated workspace and record workspace identity.
 - `skill-executing-plans`: execute approved plan tasks with task-local proof.
+- `skill-disposable-artifact-cleanup`: validate and remove exact task-owned disposable artifacts before the final verified snapshot.
 - `skill-verification-before-completion`: reconcile final scope and produce verified, incomplete, or blocked result.
-- `skill-finishing-a-development-branch`: perform explicitly authorized Git disposition and safe workspace cleanup.
+- `skill-finishing-a-development-branch`: perform explicitly authorized Git disposition and safe Git-managed branch/worktree cleanup.
 
 ## Planning Ownership
 
@@ -62,6 +68,7 @@ Canonical planning and delivery skills are:
 - Brainstorming reports optionally own exploratory options, trade-offs, recommendations, and unresolved questions.
 - Specifications own approved behavior, interfaces, decisions, invariants, acceptance criteria, and validation intent.
 - Plans own ordered implementation tasks, exact files, commands, dependencies, execution approach, parallel-safe lanes, shared-write controls, required skills, and verification.
+- Wayfinding maps own only provisional decision frontiers for explicit multi-session discovery; one writer maintains each map, while specifications and plans own promoted truth and execution details.
 - Execution skills own implementation; verification and branch-finishing skills own evidence and authorized Git disposition.
 - Validators validate artifacts that exist; they do not require a planning ladder.
 
@@ -93,11 +100,14 @@ Canonical sources are edited directly; generated surfaces are regenerated.
 
 If generated output conflicts with canonical source, fix source or mapping and regenerate. Never maintain both manually.
 
-## Code Intelligence
+## Runtime Capability Resolution
 
-Use native tools for local work, Serena for exact symbols and references, `semble_codebase_search` for unknown-location code discovery, and `ast_grep_preview` for structural preview when available. Use private read-only GitNexus for broad flows or impact only when available and fresh. Do not query multiple tools for the same fact by default. Source and tests win every conflict; optional tooling never blocks safe work.
-
-Detailed policy lives in `docs/operating_system/tooling/code-intelligence-tools.md`.
+Project OS owns capability requirements, authority and data boundaries, evidence
+requirements, fallback, and stop conditions. Active executors resolve those
+capabilities to currently available tools within existing permissions. Read
+`docs/operating_system/tooling/runtime-tool-resolution.md` for the resolver
+boundary; domain tooling docs own domain-specific capability and evidence needs.
+Source, tests, contracts, and runtime systems remain authoritative.
 
 ## Agent Memory
 
@@ -123,6 +133,7 @@ Keep only configuration with an active consumer. `repo_config/` currently owns:
 - `planning_artifact_schema.yaml`
 - `publication-config.json`
 - `starter-kit-manifest.json`
+- `switchyard-routing.toml`
 
 Runtime settings for a particular adopted project belong in that project, not in this starter factory unless shipped behavior actively consumes them.
 

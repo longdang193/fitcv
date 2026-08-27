@@ -8,7 +8,7 @@ distribution_tier: starter_kit
 
 ## Role
 
-Give approved frontend requirements one coherent, recognizable art direction. This skill owns aesthetic commitment; `ui-ux-pro-max` and `docs/operating_system/rules/frontend-ui-rule.md` own UX, accessibility, responsiveness, states, and rendered verification. Existing project design-system sources own durable primitives.
+Give approved frontend requirements one coherent, recognizable art direction. This skill owns aesthetic commitment when selected; `docs/operating_system/rules/frontend-ui-rule.md` owns shared UX, accessibility, responsiveness, states, and rendered-verification routing. Existing project design-system sources own durable primitives.
 
 ## When to Use
 
@@ -23,12 +23,12 @@ Skip for copy changes, mechanical CSS fixes, isolated frontend logic, or product
 ## Core Method
 
 1. Read product purpose, audience, content hierarchy, existing components, and approved design constraints.
-2. Use `ui-ux-pro-max` when declared target platform fits its scope and style, palette, typography, responsive behavior, interaction design, or accessibility guidance remains unresolved. Do not create or persist a second design-system SSOT without approval.
+2. Do not invoke another overlapping frontend design skill merely because it is available. If `impeccable` is explicitly selected, defer overlapping visual/UX guidance to it; otherwise resolve this skill's aesthetic direction under `docs/operating_system/rules/frontend-ui-rule.md`. Do not create or persist a second design-system SSOT without approval.
 3. State one visual concept in one sentence. Reject directions that only say "modern", "clean", or "premium".
 4. Choose one signature device: typography, composition, navigation, illustration, texture, data treatment, or motion.
 5. Reuse existing components and tokens. Change primitives only when the concept cannot work without it.
 6. Implement consistently. Complexity must match the direction: restrained concepts need precision; expressive concepts may justify richer layout or motion.
-7. After the first meaningful pass and substantial visual changes, run `render → inspect → compare → correct` on the target route using `browser.test` when available, according to the repository frontend rule. Fix systemic differences through shared components and semantic tokens.
+7. After the first meaningful pass and substantial visual changes, run `render → inspect → compare → correct` on the target route using available browser-interaction capability when available, according to the repository frontend rule. Fix systemic differences through shared components and semantic tokens.
 8. Verify through the repository frontend rule. Do not trade accessibility, content resilience, or interaction clarity for novelty.
 9. Treat prototypes and rendered comparisons as evidence for specification approval, not as canonical product behavior.
 

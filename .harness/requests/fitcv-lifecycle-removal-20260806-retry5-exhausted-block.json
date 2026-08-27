@@ -1,4 +1,0 @@
-{
-  "kind": "block",
-  "reason": "Retry5 exhausted its two packet attempts. Both writer turns timed out at the fixed 300-second App Server limit and reached terminal interrupt. Increase or make lane timeout configurable, then create a successor request."
-}

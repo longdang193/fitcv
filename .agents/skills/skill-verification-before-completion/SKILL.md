@@ -34,7 +34,7 @@ Read only what supports current claims:
 - active plan and completion criteria
 - linked specification acceptance criteria and preserved invariants
 - affected validators, tests, schemas, generated procedures, and maintained documentation
-- fresh rendered or browser evidence for material visual changes, following `docs/operating_system/rules/frontend-ui-rule.md` for `browser.test` selection when available and covering relevant viewports, supported themes, affected states, keyboard use, focus, contrast, and reduced motion
+- fresh rendered or browser evidence for material visual changes, following `docs/operating_system/rules/frontend-ui-rule.md` and resolving browser capability through `docs/operating_system/tooling/runtime-tool-resolution.md` when available; cover relevant viewports, supported themes, affected states, keyboard use, focus, contrast, and reduced motion
 - stateful-route evidence for in-scope deep links, refresh, browser Back/Forward, failed mutations, retry, duplicate submission prevention, and optimistic rollback
 - audit rule only when its failure trigger applies
 - publication rules only when reporting publication readiness
@@ -111,6 +111,8 @@ Use existing planning and template validators when planning artifacts changed. D
 | performance improved | identical before/after workload and environment, named metric, variance or tail evidence, and correctness checks |
 | performance budget met | fresh configured benchmark, budget, or monitoring evidence passes |
 | backend behavior complete | direct backend boundary, important business/failure paths, final state or side effects, fresh automated output, plus contract, real-dependency, representative-operation trace, or performance proof when applicable |
+| frontend verification complete | applicable rendered or browser evidence, affected states, keyboard and focus behavior, accessibility, responsive containers, themes, and console result |
+| end-to-end journey complete | cross-boundary journey evidence covering setup, user actions, transport, visible result, failure or retry behavior, and relevant navigation state |
 | frontend/backend integration complete | backend behavior evidence, canonical contract check when applicable, focused frontend tests, verified browser flow, and fulfilled sidecar removed or narrowed to an explicit blocker |
 
 ### 5. Run Focused Proof
@@ -245,5 +247,6 @@ Verification makes Git closure eligible. It does not authorize:
 - `skill-systematic-debugging` investigates failed proof.
 - `skill-backend-verification` provides task-local direct backend evidence independent of frontend availability.
 - `skill-performance-optimization` defines performance workloads, metrics, targets, and comparison evidence.
-- `skill-full-stack-integration` defines cross-boundary contract, MCP routing, browser evidence, and sidecar lifecycle.
+- `skill-full-stack-integration` defines cross-boundary contract, browser evidence, and sidecar lifecycle; runtime tool resolution remains owned by `docs/operating_system/tooling/runtime-tool-resolution.md`.
+- `skill-disposable-artifact-cleanup` validates and removes explicitly authorized task-owned disposable artifacts before the final verified snapshot; this skill decides retention dependencies and reruns affected proof but does not delete files itself.
 - `skill-finishing-a-development-branch` performs explicitly authorized Git disposition after `verified` result.

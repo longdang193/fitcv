@@ -2,10 +2,12 @@
 
 Use `native-personal-local` for ordinary work by one trusted local OS user.
 Git owns workspace identity and change evidence. Selected local executor is
-Codex or DeepAgents; Codex is default when plan omits executor. Executor choice
-does not change task paths, Git acceptance, or user approval. It can change
-host-enforced tool containment; current DeepAgents containment is not a Codex
-permission projection.
+Codex, DeepAgents, or Tura; Codex is safe default when plan omits executor or
+delegated benefit is unclear. Follow
+`docs/operating_system/planning/planning-dispatch.md` for advisory executor
+selection. Executor choice does not change task paths, Git acceptance, or user
+approval. It can change host-enforced tool containment; current DeepAgents
+containment is not a Codex permission projection.
 
 Git-tracked coordinated work follows
 `docs/operating_system/rules/git-tracked-coordination-rule.md`. This procedure
@@ -86,6 +88,35 @@ user-local `TAVILY_API_KEY`; its absence disables web search and does not fall
 back to Codex browser or web MCPs.
 Keep DeepAgents work inside trusted one-user workspace, retain controller path
 checks, and verify Git scope before acceptance.
+
+## Bounded Tura Worker
+
+`project-delegate` is the explicit Native Codex adapter for one bounded Tura
+worker. It uses the same `agents/*.toml` role source and controller-validated
+handoff, but Native Codex retains MCP, approval, Git, verification, and
+acceptance. Tura receives fixed Git root, native `--sandbox`, fresh session id,
+and opaque JSONL; it cannot spawn another worker. `dcode-project` remains
+DeepAgents and does not silently switch runtimes.
+
+Tura-enabled setup requires one paired executable/provider-config path:
+
+```powershell
+./scripts/setup_deepagents_runtime.ps1 -SecretFile <local-env-file> `
+  -TuraExecutable <tura-executable> -TuraProviderConfig <tura-provider-config>
+```
+
+Setup probes required public CLI flags once, writes one user-local config, and
+installs `project-delegate`. Restart needs no manual action. Production route is
+`Tura -> LightRSI -> 9router -> provider` through `TURA_PROVIDER_CONFIG`; moving
+the executable requires setup rerun, replacing it at the same path does not.
+After replacing the executable, run
+`project-delegate --role normal --print-config` to capture its nonsecret
+`tura_executable_sha256`, then run one bounded read-only TL smoke. Treat prior
+performance evidence as stale when hash changes; do not add release-specific
+config or adapter code.
+
+Launch with `project-delegate --role <low|normal|high|xhigh> -n "<task>"`.
+Use `dcode-project` when DeepAgents is required explicitly.
 
 DeepAgents controller may use built-in `task` for a bounded `low`, `normal`,
 `high`, or `xhigh` project subagent. These are capability profiles, not fixed task roles.
@@ -169,8 +200,8 @@ tool stays isolated under the runtime root, so concurrent repositories do not
 replace one shared `dcode.exe`. Wrapper resolves current Git workspace and runs
 tracked `scripts/dcode_project.py`. Run `dcode-project`
 from selected repository workspace with `--role <low|normal|high|xhigh>`; do not
-pass `--model`. Setup pins `deepagents-code 0.1.59`, requires Python 3.12 or
-newer, verifies the installed `dcode` version, and disables child auto-update.
+pass `--model`. Setup defaults to tested `deepagents-code 0.1.59`, requires
+Python 3.12 or newer, verifies the installed `dcode` version, and disables child auto-update.
 Setup fails when
 `%USERPROFILE%\.deepagents\.mcp.json` exists; remove that direct DeepAgents MCP
 config before setup so Codex config remains sole MCP authority.

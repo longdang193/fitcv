@@ -5,7 +5,7 @@ distribution_tier: starter_kit
 ---
 # Design Spec Prompt
 
-Start from user need, approved brainstorming direction, or diagnosed root cause. Gather current-state evidence from source, tests, configuration, interfaces, Serena, GitNexus, native tools, or relevant MCPs only as needed.
+Start from user need, approved brainstorming direction, or diagnosed root cause. Gather current-state evidence from source, tests, configuration, interfaces, native tools, or relevant runtime capabilities only as needed. Resolve non-native capability needs through `docs/operating_system/tooling/runtime-tool-resolution.md`.
 
 Define:
 

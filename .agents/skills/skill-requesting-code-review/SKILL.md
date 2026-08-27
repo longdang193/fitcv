@@ -33,11 +33,18 @@ HEAD_SHA=$(git rev-parse HEAD)
 
 **2. Dispatch code reviewer subagent:**
 
-Dispatch a `general-purpose` subagent, filling the template at `code-reviewer.md`
+Dispatch a controller-selected `low`, `normal`, `high`, or `xhigh` reviewer,
+filling the template at `code-reviewer.md`
+Review context must include each applicable frontend, backend, and E2E evidence
+class plus approved deviations.
 
 **Placeholders:**
 - `[DESCRIPTION]` - Brief summary of what you built
 - `[PLAN_OR_REQUIREMENTS]` - What it should do
+- `[SPECIFICATION_OR_APPROVED_SCOPE]` - Approved behavior and preserved invariants
+- `[PROTOTYPE_REFERENCE]` - Prototype and validation findings when material, otherwise `Not applicable: <reason>`
+- `[EVIDENCE_CONTEXT]` - Each applicable frontend, backend, and E2E evidence class with result or approved gap
+- `[APPROVED_DEVIATIONS]` - Explicit deviations from plan or specification, or `none`
 - `[BASE_SHA]` - Starting commit
 - `[HEAD_SHA]` - Ending commit
 

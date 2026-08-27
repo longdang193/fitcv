@@ -1,4 +1,0 @@
-{
-  "kind": "block",
-  "reason": "Host exposes no provider entrypoint with enforced sequential_work_lanes, isolated writer workspace, packet-bound tools, packet checks, and independent read-only validator."
-}

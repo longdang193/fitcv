@@ -1,4 +1,0 @@
-{
-  "kind": "block",
-  "reason": "App Server preflight succeeded, but codex-harness-host dispatch failed before writer evidence. Preserve retry4 packet and repair host dispatch error reporting or App Server lane dispatch before a successor run."
-}

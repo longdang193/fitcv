@@ -64,7 +64,9 @@ multiple evidence-recorded implementation, debugging, retry, or validation
 attempts.
 
 One `dcode-project` invocation equals one active plan task. Runtime-internal
-read-only decomposition never becomes plan-level coordination.
+decomposition never becomes plan-level coordination. Nested writers are allowed
+only when dispatch explicitly permits them; they remain inside active task
+workspace, authority, dependencies, and declared write ownership.
 
 Every dispatch states:
 
@@ -103,6 +105,8 @@ The plan wins when a dispatch brief conflicts with plan state.
 - Spawn an independent validator only when validation materially benefits.
 - Do not allow nested delegation unless the bounded dispatch explicitly permits
   it.
+- A permitted nested writer does not create another plan task or coordination
+  ledger entry.
 - Read `skill-subagent-driven-development` only when its bounded delegation
   patterns fit the current task; do not inherit session-based coordination.
 

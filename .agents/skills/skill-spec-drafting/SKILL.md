@@ -1,8 +1,6 @@
 ---
 name: skill-spec-drafting
 description: Use when a problem, approved direction, or diagnosed defect needs a precise behavioral and design specification before implementation planning.
-required_reads:
-- docs/operating_system/tooling/code-intelligence-tools.md
 distribution_tier: starter_kit
 ---
 # Spec Drafting
@@ -63,12 +61,11 @@ Implementation plan owns exact files, task order, commands, dependencies, rollou
 
 ### Tool Selection
 
-- Use native tools for direct file inspection, local search, configuration, tests, and repository state.
-- Use Serena for exact symbols, definitions, callers, references, implementations, and diagnostics.
-- Use `semble_codebase_search` for unknown-location code discovery or similar implementations.
-- Use private read-only GitNexus for broad flows, dependency impact, duplication, or ownership analysis only when available, fresh, and materially useful.
-- Use domain MCP tools exposed by active executor for external services, databases, models, reports, or platform state. Under DeepAgents, Codex supplies validated handoff facts.
-- Do not query every tool by default. Source and tests remain authoritative.
+- State minimum capability and required evidence before selecting a tool.
+- Prefer native tools for direct file inspection, local search, configuration, tests, and repository state.
+- Resolve unmet code, external-service, database, model, report, or platform capabilities through `docs/operating_system/tooling/runtime-tool-resolution.md`.
+- Under DeepAgents, Codex supplies validated handoff facts within the existing permission boundary.
+- Do not query every tool by default. Source and tests remain authoritative; unavailable optional tools never replace mandatory evidence.
 
 ### Evidence Discipline
 
@@ -113,7 +110,7 @@ Inspect smallest evidence set needed to understand:
 - canonical and generated surfaces
 - applicable native or existing repository capabilities
 - constraints imposed by compatibility, security, accessibility, performance, publication, or external systems
-- for material front-end scope, `ui-ux-pro-max` guidance and explicit responsive, theme, accessibility, and affected-state acceptance criteria
+- for material front-end scope, guidance from the selected applicable design skill under `docs/operating_system/rules/frontend-ui-rule.md`, plus explicit responsive, theme, accessibility, and affected-state acceptance criteria
 
 Do not design from guessed repository behavior.
 

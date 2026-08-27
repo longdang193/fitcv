@@ -18,8 +18,10 @@ lifecycle:
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -63,6 +65,252 @@ def write_role(
         'description = "Role description"\n'
         'developer_instructions = "Return ROLE_OK."\n',
         encoding="utf-8",
+    )
+
+
+def tura_config(
+    tmp_path: Path,
+    *,
+    default_executor: str = "tura",
+) -> dict[str, object]:
+    return {
+        "delegation": {"default_executor": default_executor},
+        "paths": {
+            "tura_executable": str(tmp_path / "tura.exe"),
+            "tura_provider_config": str(tmp_path / "providers.toml"),
+        },
+    }
+
+
+def test_executor_resolution_prefers_explicit_then_configured_default(tmp_path: Path) -> None:
+    config = tura_config(tmp_path)
+
+    assert LAUNCHER._resolve_executor(config, "deepagents") == "deepagents"
+    assert LAUNCHER._resolve_executor(config, None) == "tura"
+
+
+@pytest.mark.parametrize(
+    ("config", "explicit", "message"),
+    [
+        ({}, None, "default_executor"),
+        ({"delegation": {"default_executor": "codex"}}, None, "executor"),
+        ({"delegation": {"default_executor": "tura"}}, "codex", "executor"),
+    ],
+)
+def test_executor_resolution_rejects_missing_or_invalid_values(
+    config: dict[str, object],
+    explicit: str | None,
+    message: str,
+) -> None:
+    with pytest.raises(RuntimeError, match=message):
+        LAUNCHER._resolve_executor(config, explicit)
+
+
+def test_controller_options_extracts_executor_once() -> None:
+    child, selections, handoff, role, executor = LAUNCHER._controller_options(
+        ["--executor", "tura", "--role", "normal", "-n", "task"]
+    )
+
+    assert child == ["-n", "task"]
+    assert selections == []
+    assert handoff is None
+    assert role == "normal"
+    assert executor == "tura"
+
+
+def test_tura_argv_contains_bounded_worker_contract(tmp_path: Path) -> None:
+    argv = LAUNCHER._tura_worker_argv(
+        Path("C:/tools/tura.exe"),
+        tmp_path,
+        "combo-normal",
+        "session-a",
+        "inspect files",
+    )
+
+    assert argv[:2] == [str(Path("C:/tools/tura.exe")), "--quiet"]
+    assert "--json" in argv
+    assert "--sandbox" in argv
+    assert "--session-id" in argv
+    assert argv[argv.index("--session-id") + 1] == "session-a"
+    assert argv[argv.index("--agent-id") + 1] == "balanced"
+    assert argv[argv.index("-C") + 1] == str(tmp_path)
+    assert argv[argv.index("-m") + 1] == "openai/combo-normal"
+    assert argv[-1] == "inspect files"
+
+
+def test_tura_task_labels_profile_guidance_and_handoff_once(tmp_path: Path) -> None:
+    argv = ["-n", "inspect files"]
+    payload = {
+        "schema": "codex.mcp.handoff.v1",
+        "sources": [{"server": "context7", "tool": "query_docs"}],
+        "facts": [{"source": 0, "value": "fact"}],
+        "constraints": ["no MCP"],
+    }
+
+    task = LAUNCHER._tura_worker_task(
+        argv,
+        tmp_path,
+        "normal",
+        "Return ROLE_OK.",
+        payload,
+    )
+
+    assert task.count("Return ROLE_OK.") == 1
+    assert task.count('"schema":"codex.mcp.handoff.v1"') == 1
+    assert "Bounded task guidance" in task
+    assert task.count("Project guidance:") == 1
+    assert "AGENTS.md" in task
+    assert ".agents/skills/<name>/SKILL.md" in task
+    assert "inspect files" in task
+    assert "handoff.json" not in task
+
+
+def test_tura_environment_owns_provider_and_workspace_values(tmp_path: Path) -> None:
+    os.environ["OPENAI_BASE_URL"] = "https://direct-provider.invalid/v1"
+    environment = LAUNCHER._tura_worker_environment(
+        "secret", tmp_path / "providers.toml", tmp_path
+    )
+
+    assert environment["OPENAI_API_KEY"] == "secret"
+    assert environment["TURA_PROVIDER_CONFIG"] == str(tmp_path / "providers.toml")
+    assert environment["TURA_PROJECT_ROOT"] == str(tmp_path)
+    assert "OPENAI_BASE_URL" not in environment
+    assert "secret" not in environment.get("TURA_PROVIDER_CONFIG", "")
+    os.environ.pop("OPENAI_BASE_URL", None)
+
+
+def test_tura_worker_propagates_opaque_child_status(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeProcess:
+        pid = 42
+
+        def wait(self, timeout: float | None = None) -> int:
+            assert timeout == 3
+            return 7
+
+    observed: dict[str, object] = {}
+
+    def fake_popen(argv: list[str], **kwargs: object) -> FakeProcess:
+        observed["argv"] = argv
+        observed.update(kwargs)
+        return FakeProcess()
+
+    monkeypatch.setattr(LAUNCHER.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(LAUNCHER, "_create_windows_job", lambda process: "job")
+    monkeypatch.setattr(LAUNCHER, "_close_windows_job", lambda job: None)
+
+    assert LAUNCHER._run_tura_worker(
+        ["tura", "task"], {"TURA_PROVIDER_CONFIG": "providers.toml"}, tmp_path, 3
+    ) == 7
+    assert observed["cwd"] == tmp_path
+
+
+@pytest.mark.parametrize("handoff_stdin", [None, "handoff"])
+def test_bounded_worker_preserves_stdin_and_status(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    handoff_stdin: str | None,
+) -> None:
+    class FakeProcess:
+        returncode = 7
+
+        def communicate(self, input: str, timeout: float | None = None) -> None:
+            assert input == handoff_stdin
+            assert timeout == 3
+
+        def wait(self, timeout: float | None = None) -> int:
+            assert timeout == 3
+            return 7
+
+    observed: dict[str, object] = {}
+
+    def fake_popen(argv: list[str], **kwargs: object) -> FakeProcess:
+        observed.update(argv=argv, kwargs=kwargs)
+        return FakeProcess()
+
+    monkeypatch.setattr(LAUNCHER.os, "name", "posix")
+    monkeypatch.setattr(LAUNCHER.subprocess, "Popen", fake_popen)
+
+    assert LAUNCHER._run_bounded_worker(
+        ["worker", "task"], {}, tmp_path, handoff_stdin, 3, "worker"
+    ) == 7
+    assert observed["argv"] == ["worker", "task"]
+    assert observed["kwargs"]["stdin"] is (
+        subprocess.PIPE if handoff_stdin is not None else None
+    )
+
+def test_bounded_worker_terminates_timed_out_posix_process(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeProcess:
+        pid = 42
+
+        def __init__(self) -> None:
+            self.killed = False
+            self.waits = 0
+
+        def wait(self, timeout: float | None = None) -> int:
+            self.waits += 1
+            if self.waits == 1:
+                raise subprocess.TimeoutExpired(["worker"], timeout)
+            return -9
+
+        def kill(self) -> None:
+            self.killed = True
+
+    process = FakeProcess()
+    monkeypatch.setattr(LAUNCHER.os, "name", "posix")
+    monkeypatch.setattr(LAUNCHER.subprocess, "Popen", lambda *args, **kwargs: process)
+
+    with pytest.raises(RuntimeError, match="worker timed out"):
+        LAUNCHER._run_bounded_worker(
+            ["worker"], {}, tmp_path, None, 3, "worker"
+        )
+
+    assert process.killed is True
+    assert process.waits == 2
+
+def test_deepagents_worker_reaps_windows_child_tree_after_normal_exit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeProcess:
+        pid = 42
+        returncode = 0
+
+        def communicate(self, input: str, timeout: float | None = None) -> None:
+            assert input == "handoff"
+            assert timeout == 3
+
+        def wait(self, timeout: float | None = None) -> int:
+            assert timeout == 3
+            return 0
+
+    observed: list[object] = []
+
+    def fake_popen(argv: list[str], **kwargs: object) -> FakeProcess:
+        return FakeProcess()
+
+    def fake_close(job: object | None) -> None:
+        observed.append(job)
+
+    monkeypatch.setattr(LAUNCHER.os, "name", "nt")
+    monkeypatch.setattr(LAUNCHER.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(LAUNCHER, "_create_windows_job", lambda process: "job")
+    monkeypatch.setattr(LAUNCHER, "_close_windows_job", fake_close)
+
+    assert LAUNCHER._run_deepagents_worker(
+        ["dcode", "-n", "task"], {}, tmp_path, "handoff", 3
+    ) == 0
+    assert observed == ["job"]
+
+
+def test_tura_worker_does_not_supply_adapter_cache_key() -> None:
+    assert "prompt_cache_key" not in LAUNCHER._tura_worker_argv(
+        Path("tura"), Path("repo"), "combo-low", "session-b", "task"
     )
 
 
@@ -166,7 +414,10 @@ def test_main_cleans_owned_role_views_after_dcode_failure(
 ) -> None:
     write_role(tmp_path, "normal")
     config_path = tmp_path / "dcode-project.toml"
-    config_path.write_text("", encoding="utf-8")
+    config_path.write_text(
+        '[delegation]\ndefault_executor = "deepagents"\n',
+        encoding="utf-8",
+    )
     monkeypatch.setattr(LAUNCHER, "_config_path", lambda: config_path)
     monkeypatch.setattr(LAUNCHER, "_repo_root", lambda: tmp_path)
     monkeypatch.setattr(
@@ -192,7 +443,7 @@ def test_main_cleans_owned_role_views_after_dcode_failure(
         assert (tmp_path / ".deepagents" / "agents" / "normal" / "AGENTS.md").is_file()
         raise OSError("dcode unavailable")
 
-    monkeypatch.setattr(LAUNCHER.subprocess, "run", fail_dcode)
+    monkeypatch.setattr(LAUNCHER, "_run_deepagents_worker", fail_dcode)
 
     with pytest.raises(OSError, match="dcode unavailable"):
         LAUNCHER.main(["--role", "normal", "-n", "task"])
@@ -215,7 +466,10 @@ def test_main_rejects_missing_or_unknown_role_before_role_view_write(
 ) -> None:
     write_role(tmp_path, "normal")
     config_path = tmp_path / "dcode-project.toml"
-    config_path.write_text("", encoding="utf-8")
+    config_path.write_text(
+        '[delegation]\ndefault_executor = "deepagents"\n',
+        encoding="utf-8",
+    )
     monkeypatch.setattr(LAUNCHER, "_config_path", lambda: config_path)
     monkeypatch.setattr(LAUNCHER, "_repo_root", lambda: tmp_path)
     monkeypatch.setattr(
@@ -323,7 +577,10 @@ def test_main_uses_selected_role_model_and_fixed_local_capabilities(
     ]:
         write_role(tmp_path, candidate_name, model=candidate_model, rank=candidate_rank)
     config_path = tmp_path / "dcode-project.toml"
-    config_path.write_text("", encoding="utf-8")
+    config_path.write_text(
+        '[delegation]\ndefault_executor = "deepagents"\n',
+        encoding="utf-8",
+    )
     monkeypatch.setattr(LAUNCHER, "_config_path", lambda: config_path)
     monkeypatch.setattr(LAUNCHER, "_repo_root", lambda: tmp_path)
     monkeypatch.setattr(
@@ -347,12 +604,23 @@ def test_main_uses_selected_role_model_and_fixed_local_capabilities(
     invoked: list[object] = []
     invoked_kwargs: dict[str, object] = {}
 
-    def complete_dcode(*args: object, **kwargs: object) -> subprocess.CompletedProcess[object]:
-        invoked.extend(args)
-        invoked_kwargs.update(kwargs)
-        return subprocess.CompletedProcess(args[0], 0)
+    def complete_dcode(
+        argv: list[str],
+        environment: dict[str, str],
+        repo_root: Path,
+        handoff_stdin: str | None,
+        timeout: float,
+    ) -> int:
+        invoked.append(argv)
+        invoked_kwargs.update(
+            environment=environment,
+            cwd=repo_root,
+            input=handoff_stdin,
+            timeout=timeout,
+        )
+        return 0
 
-    monkeypatch.setattr(LAUNCHER.subprocess, "run", complete_dcode)
+    monkeypatch.setattr(LAUNCHER, "_run_deepagents_worker", complete_dcode)
 
     assert LAUNCHER.main(["--role", role_name, "--json", "--no-mcp", "-n", "task"]) == 0
     file_tool_root = "/" + tmp_path.relative_to(tmp_path.anchor).as_posix()
@@ -392,7 +660,10 @@ def test_print_config_reports_selected_role_effective_model(
 ) -> None:
     write_role(tmp_path, "normal", model="combo-normal", rank=20)
     config_path = tmp_path / "dcode-project.toml"
-    config_path.write_text("", encoding="utf-8")
+    config_path.write_text(
+        '[delegation]\ndefault_executor = "deepagents"\n',
+        encoding="utf-8",
+    )
     monkeypatch.setattr(LAUNCHER, "_config_path", lambda: config_path)
     monkeypatch.setattr(LAUNCHER, "_repo_root", lambda: tmp_path)
     monkeypatch.setattr(
@@ -418,6 +689,52 @@ def test_print_config_reports_selected_role_effective_model(
     assert payload["selected_role"] == "normal"
     assert payload["effective_model"] == "openai:combo-normal"
     assert payload["controller_model"] == "openai:combo-high"
+
+def test_print_config_reports_tura_executable_hash_without_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    write_role(tmp_path, "normal")
+    executable = tmp_path / "tura.exe"
+    executable.write_bytes(b"tura-test-binary")
+    provider_config = tmp_path / "providers.toml"
+    provider_config.write_text('api_key = "do-not-print"\n', encoding="utf-8")
+    config_path = tmp_path / "dcode-project.toml"
+    config_path.write_text(
+        "[delegation]\ndefault_executor = \"tura\"\n"
+        f"\n[paths]\ntura_executable = '{executable}'\n"
+        f"tura_provider_config = '{provider_config}'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(LAUNCHER, "_config_path", lambda: config_path)
+    monkeypatch.setattr(LAUNCHER, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_runtime_binding",
+        lambda config: ("combo-high", "https://provider.example/v1", "secret", "9router"),
+    )
+    monkeypatch.setattr(LAUNCHER, "_codex_config", lambda config: {})
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_mcp_capabilities",
+        lambda config: {
+            "mcp_servers": [],
+            "mcp_tools": [],
+            "server_tools": {},
+            "mcp_capability_digest": "digest",
+        },
+    )
+
+    assert LAUNCHER.main(["--role", "normal", "--print-config"]) == 0
+
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert payload["tura_executable"] == str(executable)
+    assert payload["tura_executable_sha256"] == hashlib.sha256(
+        b"tura-test-binary"
+    ).hexdigest()
+    assert "do-not-print" not in output
 
 
 def test_role_model_comes_from_canonical_template(tmp_path: Path) -> None:
@@ -678,6 +995,16 @@ def test_setup_launcher_uses_current_repository_source() -> None:
     assert "git rev-parse --show-toplevel" in setup
     assert 'Join-Path $repoRoot "scripts\\dcode_project.py"' in setup
     assert 'dcode-project.ps1' in setup
+    assert 'project-delegate.ps1' in setup
+    assert 'TuraExecutable' in setup
+    assert 'TuraProviderConfig' in setup
+    assert 'default_executor' in setup
+    assert '--sandbox' in setup
+    assert 'Tura capability probe failed' in setup
+    assert 'selects DeepAgents; do not pass --executor' in setup
+    assert 'project-delegate selects Tura; do not pass --executor' in setup
+    assert 'scripts\\dcode_project.py") --executor tura @DelegateArgs' in setup
+    assert 'Tura migration:' in setup
     assert 'Join-Path $HOME ".deepagents\\.mcp.json"' in setup
     assert "Direct DeepAgents MCP config detected" in setup
     assert '$DeepAgentsCodeVersion = "0.1.59"' in setup
@@ -688,3 +1015,37 @@ def test_setup_launcher_uses_current_repository_source() -> None:
     assert 'DEEPAGENTS_CODE_UI_CHARSET_MODE = "ascii"' in setup
     assert "Python 3.12 or newer" in setup
     assert "version mismatch" in setup
+
+
+def test_generated_project_delegate_guard_returns_contract_exit_code(tmp_path: Path) -> None:
+    powershell = shutil.which("pwsh") or shutil.which("powershell")
+    if powershell is None:
+        pytest.skip("PowerShell is required to execute generated wrapper")
+
+    setup = (ROOT / "scripts" / "setup_deepagents_runtime.ps1").read_text(encoding="utf-8")
+    setup = setup.replace("\r\n", "\n")
+    start_marker = "$delegateWrapper = @'\n"
+    end_marker = "\n'@\n"
+    start = setup.index(start_marker) + len(start_marker)
+    end = setup.index(end_marker, start)
+    wrapper_path = tmp_path / "project-delegate.ps1"
+    wrapper_path.write_text(setup[start:end] + "\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(wrapper_path),
+            "--executor",
+            "deepagents",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "project-delegate selects Tura; do not pass --executor" in result.stderr

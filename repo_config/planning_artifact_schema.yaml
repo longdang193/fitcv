@@ -50,6 +50,11 @@ allowed_values:
       - active
       - completed
       - superseded
+  executor:
+    shared:
+      - codex
+      - deepagents
+      - tura
   layer:
     shared:
       - intent
@@ -76,6 +81,8 @@ artifacts:
     description: Detailed specification artifact.
     path_globs:
       - docs/superpowers/specs/*.md
+    required_fields:
+      - template_id
     identity:
       canonical_field: name
       legacy_field: none
@@ -92,6 +99,8 @@ artifacts:
     description: Implementation plan artifact.
     path_globs:
       - docs/superpowers/plans/*.md
+    required_fields:
+      - template_id
     identity:
       canonical_field: name
       legacy_field: none

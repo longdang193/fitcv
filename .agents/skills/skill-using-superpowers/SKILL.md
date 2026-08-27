@@ -98,7 +98,9 @@ These thoughts mean STOP—you're rationalizing:
 When multiple skills could apply, use this order:
 
 1. **Process skills first** (skill-brainstorming, systematic-debugging) - these determine HOW to approach the task
-2. **Implementation skills second** (for example `skill-distinctive-frontend-design` or `ui-ux-pro-max`) - these guide execution
+2. **Implementation skills second** (for example `impeccable`, `skill-distinctive-frontend-design`, or `ui-ux-pro-max`) - these guide execution
+
+An explicit user request or approved task contract naming one frontend design skill satisfies overlapping design-skill applicability for that task. Do not invoke another overlapping design skill solely because it is installed, discoverable, or appears applicable; follow `docs/operating_system/rules/frontend-ui-rule.md`.
 
 "Let's build X" → skill-brainstorming first, then implementation skills.
 "Fix this bug" → debugging first, then domain-specific skills.

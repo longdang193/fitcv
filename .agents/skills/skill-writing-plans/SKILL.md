@@ -1,8 +1,6 @@
 ---
 name: skill-writing-plans
 description: Use when an approved specification or direct approved scope needs an executable multi-step implementation plan.
-required_reads:
-- docs/operating_system/tooling/code-intelligence-tools.md
 distribution_tier: starter_kit
 ---
 # Writing Plans
@@ -45,14 +43,21 @@ stop and use `skill-spec-drafting`.
 - Read `docs/operating_system/rules/git-tracked-coordination-rule.md` when
   execution needs durable multi-task coordination or recovery.
 - Read governance only when ownership, generation, publication, or repository boundaries affect execution.
-- Use native tools for local file mapping, Serena for exact symbols and references, `semble_codebase_search` for unknown-location discovery, and private read-only GitNexus for broad flow or impact only when available, fresh, and materially useful. Do not query multiple tools for the same fact by default.
+- State minimum capability and required evidence before selecting a tool. Prefer native tools for local file mapping and source inspection; resolve unmet capabilities through `docs/operating_system/tooling/runtime-tool-resolution.md`. Do not query multiple tools for the same fact by default.
 - Read related execution skills only when the chosen execution approach requires them.
-- Name `ui-ux-pro-max` only for tasks requiring material visual or interaction judgment, and include rendered viewport, theme, and accessibility proof for those tasks.
+- Name the selected applicable design skill only for tasks requiring material visual or interaction judgment, and include rendered viewport, theme, and accessibility proof for those tasks.
 - Name `skill-performance-optimization` only for explicit performance requirements or measured regressions. Performance tasks must identify baseline command or evidence source, representative workload and environment, target metric, threshold owner, and regression proof.
 - Name `skill-backend-verification` for material backend behavior. Identify direct boundary, important failures, final state or side effects, rollback/idempotency, material real dependencies, contract proof, and representative-operation trace mechanism by applicability.
 - Name `skill-full-stack-integration` when a task crosses frontend behavior and backend contracts or routes. Identify matching sidecar, canonical contract owner, route impact, generated consumers, focused backend and frontend proof, browser flow, and sidecar removal condition.
 
 Source and tests remain authoritative when documents or optional tools disagree.
+
+Executor selection follows `docs/operating_system/planning/planning-dispatch.md`.
+Executor and profile selection are independent. A plan may record an optional
+default task executor, but each Git-tracked task records its authoritative
+`codex`, `deepagents`, or `tura` executor in the task ledger. Use Codex when
+controller authority is required or delegated benefit is unclear; use Tura or
+DeepAgents only when task-specific evidence supports that choice.
 
 When a plan names `deepagents` as executor, record only executor choice and
 task role. Do not treat it as a tool-permission grant. Current `dcode-project`
@@ -87,13 +92,14 @@ When a spec exists:
 - note open questions that block task design
 - record which requirements need code, configuration, tests, docs, migration, generated refresh, or operational proof
 
-### 3. Inspect Current Repository Truth
+### 3. Reconcile Approved Scope With Repository Truth
 
 - locate exact files, symbols, callers, tests, commands, and generated consumers
 - distinguish canonical inputs from generated outputs
 - inspect existing helpers and patterns before proposing new code
 - identify unrelated working-tree changes that execution must preserve
 - confirm deletion targets have no active consumer
+- for cross-boundary work, map frontend, backend, and shared-contract owners plus applicable evidence; omit non-applicable boundary classes
 
 ### 4. Define Implementation Outcomes
 
@@ -120,6 +126,7 @@ workspace ownership, dependencies, required proof, blockers, and next action.
 Also state:
 
 - required skills per task or lane
+- optional default task executor and authoritative task-ledger executor per task
 - required isolation: current workspace, task-specific isolated worktree, or
   per-writer isolated worktrees
 - commit policy; checkpoint commits are created by the lead after acceptance
@@ -193,7 +200,8 @@ Each task must include:
 **Exit Criteria:**
 ```
 
-Name exact paths, symbols, commands, expected results, and generated consumers.
+Name exact paths, symbols, commands, expected results, generated consumers, and
+the authoritative executor for every Git-tracked task.
 If a symbol does not yet exist, name its intended owner and contract. Steps
 must be executable actions, not restated goals. Add task-level execution mode
 only when it differs from the plan-level `Execution Approach`. `Authority` names

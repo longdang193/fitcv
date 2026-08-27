@@ -9,7 +9,7 @@ distribution_tier: starter_kit
 
 ## Role
 
-Implement approved UI behavior using smallest component and state structure with one owner per fact and clear failure behavior. Visual direction, accessibility, responsive layout, and rendered evidence remain in `docs/operating_system/rules/frontend-ui-rule.md` and `skill-distinctive-frontend-design`.
+Implement approved UI behavior using smallest component and state structure with one owner per fact and clear failure behavior. Visual direction, accessibility, responsive layout, and rendered evidence remain in `docs/operating_system/rules/frontend-ui-rule.md` and the selected applicable design skill.
 
 ## When To Use
 
@@ -47,7 +47,7 @@ A searchable table whose filters, sort, page, and tab must survive refresh and s
 - verify pending, retry, duplicate submission, failure restoration, and server reconciliation for mutations
 - add the smallest focused regression check using existing test tooling
 - follow `docs/operating_system/rules/frontend-ui-rule.md` for browser and accessibility evidence
-- use Context7 only when active executor exposes it for version-specific framework or accessibility-library questions not answered by pinned project sources; under DeepAgents, use validated Codex handoff facts
+- use external documentation capability only when active executor exposes it for version-specific framework or accessibility-library questions not answered by pinned project sources; resolve it through `docs/operating_system/tooling/runtime-tool-resolution.md`
 
 ## Common Mistakes
 

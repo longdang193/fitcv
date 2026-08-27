@@ -28,7 +28,7 @@ If scope is missing, infer smallest useful scope from request and repository evi
 
 Read only references needed for current assessment:
 
-- `docs/operating_system/tooling/code-intelligence-tools.md` when selecting native tools, Serena, Semble, AST-Grep, GitNexus, or DeepWiki for unfamiliar external repository orientation
+- `docs/operating_system/tooling/runtime-tool-resolution.md` when a code, flow, impact, or external-repository capability is needed beyond native source inspection
 - `docs/operating_system/rules/audit-evidence-mandate-rule.md` when user requests an audit or evidence suggests a qualifying incident
 - `docs/operating_system/templates/audit-report-with-evidence-template.md` only when a formal audit bundle is required
 - `skill-brainstorming` when desired behavior or design direction remains unclear
@@ -120,20 +120,16 @@ Define validation intent without claiming implementation proof:
 
 Prefer existing tests and validators. Recommend new executable contract only when no current owner can enforce invariant.
 
-## Code Intelligence
+## Evidence Capability
 
-Use smallest tool that answers question:
+Use smallest available capability that answers question: native search, file
+inspection, diffs, and tests for bounded evidence; symbol, discovery, flow, or
+impact capabilities only when the question requires them. Resolve selection
+through `docs/operating_system/tooling/runtime-tool-resolution.md`.
 
-- native search, file inspection, diffs, and tests for bounded evidence
-- Serena for exact symbols, declarations, implementations, references, and diagnostics
-- `semble_codebase_search` for unknown-location discovery or similar implementations
-- private read-only GitNexus for broad execution flows, module clusters, or cross-file impact when available and fresh; use native rename and edit tools for changes
-
-Do not query Serena, Semble, and GitNexus for same fact by default. Start with known local scope in Serena, unknown-location discovery in Semble, and broad flow or impact in GitNexus only when available. Cross over only when evidence exposes a different question.
-
-Before high-trust GitNexus impact analysis, check index freshness. Refresh only when graph evidence materially affects prioritization. If unavailable or stale, continue source-first and label graph evidence advisory.
-
-Source code, configuration, tests, schemas, validators, and current runtime evidence remain authoritative.
+Treat stale or advisory analysis as non-authoritative. Source code,
+configuration, tests, schemas, validators, and current runtime evidence remain
+authoritative.
 
 ## Assessment Method
 

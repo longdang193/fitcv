@@ -12,6 +12,7 @@ required_sections:
 - Completion Criteria
 required_frontmatter:
   artifact_type: spec
+  template_id: detailed-specification
   status: active
   layer: change
 distribution_tier: starter_kit
@@ -81,6 +82,17 @@ Use this template after behavior and design direction are approved. Promote an e
 - observable acceptance:
 
 When relevant define inputs, outputs, identity, data grain, schemas, state transitions, defaults, validation, errors, retries, idempotency, ordering, cancellation, fallback, and boundary conversions.
+
+When material, add this optional block inside this section. Include only
+applicable rows; do not add administrative `Not applicable` rows.
+
+| Boundary | Owner or canonical contract | Required evidence |
+| --- | --- | --- |
+| <frontend, backend, or shared contract> | <owner or canonical contract> | <applicable evidence> |
+
+Prototype references remain validation evidence. Exact files, component
+decomposition, sequencing, commands, rollout steps, and implementation
+mechanisms belong in the implementation plan or source.
 
 ### Constraints and Alternatives
 

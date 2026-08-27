@@ -1,8 +1,6 @@
 ---
 name: skill-plan-document-reviewer
 description: Use when a specification or implementation plan needs correctness and readiness review before approval, handoff, or costly execution.
-required_reads:
-- docs/operating_system/tooling/code-intelligence-tools.md
 distribution_tier: starter_kit
 ---
 # Plan Document Reviewer
@@ -48,9 +46,12 @@ Skip for tiny, local, reversible tasks with settled behavior and obvious proof.
 
 Do not load every reference for every review.
 
-## Code Intelligence
+## Evidence Capability
 
-Use native tools for direct evidence and local search. Use Serena for exact symbols and references. Use `semble_codebase_search` for unknown-location discovery. Use private read-only GitNexus for broad dependency, duplication, ownership, or implementation-path analysis only when available, fresh, and materially useful. Do not query multiple tools for the same fact by default. Source and tests remain authoritative.
+Use native tools for direct evidence and local search. Resolve symbol,
+discovery, flow, or impact needs through
+`docs/operating_system/tooling/runtime-tool-resolution.md` only when the
+question requires them. Source and tests remain authoritative.
 
 ## Review Process
 

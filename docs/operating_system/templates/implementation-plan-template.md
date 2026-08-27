@@ -10,6 +10,7 @@ required_sections:
 - Completion Criteria
 required_frontmatter:
   artifact_type: plan
+  template_id: implementation-plan
   status: proposed
   layer: change
 distribution_tier: starter_kit
@@ -38,7 +39,7 @@ Describe another concrete implementation result this plan must deliver, such as 
 
 - Mode: `inline sequential | subagent-ready | parallel-capable`
 - Coordination: `git-tracked | none`
-- Executor: `codex | deepagents` (optional; Codex default; selects local runtime only; current DeepAgents launcher uses no MCP, so required MCP work stays with Codex and passes validated handoff facts)
+- Default task executor: `codex | deepagents | tura` (optional; Codex default; each Git-tracked task ledger `Executor` value is authoritative for that task; current DeepAgents launcher uses no MCP, so required MCP work stays with Codex and passes validated handoff facts)
 - Required skills: `<exact skill names or none>`
 - Isolation: `<current workspace | optional worktree>`
 - Commit policy: `<verified per-task checkpoint commits preauthorized | no commits during execution>`
@@ -57,7 +58,6 @@ never becomes repository state.
 - Coordination owner: `single lead controller`
 - Branch: `<target branch>`
 - Base commit: `<commit>`
-- Active task(s): `<Task N[, Task M] | none>`
 - Expected workspace: `<clean or named preserved changes>`
 - Next action: `<one dependency-ready action>`
 - Blockers: `<none or concrete blocker>`
@@ -77,6 +77,10 @@ never copy that commit SHA into the plan. Push, merge,
 publication, external writes, destructive recovery, discard, and cleanup still
 need explicit user authorization.
 
+Task ledger `Executor` values are `codex`, `deepagents`, or `tura`. A task value
+overrides the optional plan default. Executor choice does not select profile;
+`Template Profile` and optional `Validator Profile` remain independent.
+
 ## Task Breakdown
 
 Use `Task` for directly executable implementation slices.
@@ -85,7 +89,7 @@ Use `Wave` only when plan truly needs orchestration across multiple related task
 Within each task:
 - `Purpose` owns bounded outcome
 - `Task Function` names current open-ended function without mapping it to a profile
-- `Template Profile` records controller-selected `xhigh`, `high`, `normal`, or`n  `low` plus selection basis for delegated work, or `none (lead controller)` for`n  inline controller work
+- `Template Profile` records controller-selected `xhigh`, `high`, `normal`, or `low` plus selection basis for delegated work, or `none (lead controller)` for inline controller work
 - `Validator Profile` records an optional separate validator and its selection basis
 - `Specification Coverage` maps approved requirements or direct scope
 - `Required Skills` names only methods needed for this task
@@ -111,16 +115,14 @@ Do not duplicate final artifact verification commands here unless a command is t
 - <task-specific function; do not select from a fixed taxonomy>
 
 **Template Profile:**
-- Controller-selected: `<xhigh | high | normal | low>`
+- Controller-selected: `<none (lead controller) | low | normal | high | xhigh>`
 - Selection basis: <reasoning depth, ambiguity, scope, risk, and cost>
 
 **Validator Profile (optional):**
-- Controller-selected: `<none | xhigh | high | normal>`
+- Controller-selected: `<none | low | normal | high | xhigh>`
 - Selection basis: <validation>
 - Select independently from the executor profile; no profile-rank relationship is required.
 - Use literal `<none>` when no validator is assigned; otherwise replace it with `low`, `normal`, `high`, or `xhigh`.
-  `high` executor therefore uses `xhigh` validator. Do not pair `xhigh` executor
-  with a profile-based validator because no higher profile exists.
 
 **Specification Coverage:**
 - <requirement, decision, invariant, or approved direct scope>
@@ -165,7 +167,7 @@ Do not duplicate final artifact verification commands here unless a command is t
 - Selection basis: <reasoning depth, ambiguity, scope, risk, and cost>
 
 **Validator Profile (optional):**
-- Controller-selected: `<none | xhigh | high | normal>`
+- Controller-selected: `<none | low | normal | high | xhigh>`
 - Profile order: `xhigh > high > normal > low`
 - Select executor and validator profiles independently from their bounded task contracts; no profile-rank relationship is required.
 

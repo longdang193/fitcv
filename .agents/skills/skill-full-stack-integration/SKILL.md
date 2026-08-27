@@ -1,8 +1,6 @@
 ---
 name: skill-full-stack-integration
 description: Use when frontend behavior crosses backend API contracts or routes and needs contract reconciliation, typed client wiring, or end-to-end verification.
-required_reads:
-- docs/operating_system/tooling/code-intelligence-tools.md
 distribution_tier: starter_kit
 ---
 
@@ -44,15 +42,12 @@ Reference request and response schemas; do not copy them.
 
 1. Read final specification, prototype reference when material, matching sidecar, existing client or query, mocks, backend route, canonical contract owner, and focused tests.
 2. Use source, canonical contracts, security policy, routes, and tests to establish current behavior. If the sidecar requests conflicting behavior, report the exact mismatch and affected owners, present viable options, and ask the user to decide before implementation. Security and data-safety constraints remain non-negotiable; after approval, update all affected owners together.
-3. Choose one code-intelligence path:
-   - native tools for known local scope
-   - Serena for exact symbols, references, implementations, and diagnostics
-   - private read-only GitNexus for unknown broad flow, route consumers, or cross-repo impact only when available and fresh
-4. Before changing an API route handler, use GitNexus `api_impact` only when private read-only GitNexus is available and fresh. Fall back to source search when unavailable.
+3. State minimum code, route-impact, or contract capability and required evidence, then resolve it through `docs/operating_system/tooling/runtime-tool-resolution.md`.
+4. Before changing an API route handler, inspect route consumers and impact with an available fresh capability when material; fall back to source search when unavailable, without weakening required proof.
 5. Implement smallest complete slice: canonical contract when applicable, backend validation and authorization, narrow route or service change, existing client generation command, frontend query or mutation, and mapped UI states. Reuse existing mocks; do not add mock infrastructure by default.
 6. Use `skill-backend-verification` for direct boundary, business/failure, state, dependency, contract, representative-operation, and automated backend evidence before accepting consumer proof.
-7. Use Context7 only when active executor exposes it and pinned local sources do not answer a version-specific library question; under DeepAgents, use validated Codex handoff facts. Treat output as advisory.
-8. Run focused frontend checks. When `browser.test` is available, use it for repeatable user flows and accessibility state. `browser.diagnose` is not available yet.
+7. Use external documentation capability only when active executor exposes it and pinned local sources do not answer a version-specific library question; treat output as advisory and follow runtime data-boundary rules.
+8. Run focused frontend checks. When browser-interaction capability is available, use it for repeatable user flows and accessibility state.
 9. Remove sidecar when all acceptance evidence passes. If blocked, delete completed items and retain only exact unresolved work.
 10. Hand final claims to `skill-verification-before-completion`. Store MCP Memory only for a verified recurring invariant or costly failure not already owned by source or documentation when active executor exposes it; under DeepAgents, use validated Codex handoff facts. Never store task progress, payloads, credentials, or user data.
 

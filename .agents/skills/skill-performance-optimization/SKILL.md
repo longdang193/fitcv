@@ -32,7 +32,10 @@ For prompt-cache claims, apply `docs/operating_system/rules/prompt-cache-contrac
 
 ## Evidence Map
 
-When performance work depends on an unfamiliar external GitHub repository, consult `docs/operating_system/tooling/code-intelligence-tools.md` before using DeepWiki for advisory orientation. Measurements remain authoritative.
+When performance work depends on an unfamiliar external GitHub repository, use
+available external-repository orientation capability only when needed and
+resolve it through `docs/operating_system/tooling/runtime-tool-resolution.md`.
+Measurements remain authoritative.
 
 | Surface | Useful evidence |
 |---|---|

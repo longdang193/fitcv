@@ -10,7 +10,7 @@ distribution_tier: starter_kit
 
 Finish verified development work through one explicitly selected Git disposition: commit, push branch and create or update pull request, local fast-forward merge, keep workspace unchanged, or discard with destructive confirmation.
 
-This skill owns Git reconciliation and workspace cleanup after verification. It does not implement remaining work, decide product behavior, publish curated output, or weaken failed checks.
+This skill owns Git reconciliation and Git-managed branch/worktree cleanup after verification. It does not implement remaining work, decide product behavior, publish curated output, clean task-owned disposable artifacts, or weaken failed checks.
 
 ## Preconditions
 

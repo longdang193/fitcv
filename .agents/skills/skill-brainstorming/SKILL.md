@@ -1,8 +1,6 @@
 ---
 name: skill-brainstorming
 description: Use when exploring or defining non-trivial behavior before implementation.
-required_reads:
-- docs/operating_system/tooling/code-intelligence-tools.md
 distribution_tier: starter_kit
 ---
 # Brainstorming Ideas Into Designs
@@ -19,7 +17,7 @@ This skill produces design artifacts only.
 
 ## Conditional References
 
-- Use `ui-ux-pro-max` when material visual direction, interaction design, responsive behavior, or accessibility behavior is unresolved; skip it for text-only design questions.
+- For unresolved material visual direction, interaction design, responsive behavior, or accessibility behavior, follow `docs/operating_system/rules/frontend-ui-rule.md`. If `impeccable` is explicitly selected, use it without also invoking overlapping design skills; otherwise preserve existing `ui-ux-pro-max` eligibility. Skip design-skill invocation for text-only design questions.
 - Read `docs/operating_system/planning/planning-dispatch.md` to choose the smallest truthful planning tier.
 - Read `docs/operating_system/templates/brainstorming-detailed-report-template.md` only when user requests a saved detailed brainstorming report.
 - Read `docs/operating_system/governance/repo-governance.md` only when ownership or publication boundaries are in scope.
@@ -32,9 +30,13 @@ This skill produces design artifacts only.
 - Approved behavior, interfaces, decisions, and invariants belong in specifications.
 - Exact tasks, sequencing, dependencies, and execution approach belong in implementation plans.
 
-## Code Intelligence
+## Evidence Capability
 
-Use native tools for local evidence, Serena for exact symbols and references, `semble_codebase_search` for unknown-location discovery, and private read-only GitNexus for broad flow or impact when available and fresh. Do not query multiple tools for the same fact by default. Optional tool failure never blocks source-first design.
+State minimum capability and evidence before selecting a tool. Prefer native
+source, tests, and repository inspection. Resolve unmet capabilities through
+`docs/operating_system/tooling/runtime-tool-resolution.md`; optional tool
+failure never blocks safe source-first design, but never replaces mandatory
+evidence.
 
 ## Brainstorming Process
 

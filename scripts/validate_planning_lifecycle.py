@@ -54,6 +54,9 @@ class Finding:
 
 
 COORDINATION_STATES = {"pending", "active", "blocked", "completed"}
+CURRENT_PLAN_STATUSES = {"proposed", "active"}
+EXECUTION_MODES = {"inline sequential", "subagent-ready", "parallel-capable"}
+EXECUTION_COORDINATIONS = {"none", "git-tracked"}
 
 
 def _clean_coordination_cell(value: str) -> str:
@@ -98,10 +101,153 @@ def _coordination_value(text: str, label: str) -> str | None:
     return match.group(1).strip() if match else None
 
 
-def validate_git_coordination(path: Path, payload: dict[str, Any], text: str) -> list[Finding]:
-    if re.search(r"(?im)^-\s*Coordination:\s*`?git-tracked`?\s*$", text) is None:
-        return []
+def _section_body(text: str, heading: str, level: int) -> str | None:
+    match = re.search(
+        rf"(?ims)^{'#' * level}\s+{re.escape(heading)}\s*$\n(.*?)(?=^{'#' * level}\s|\Z)",
+        text,
+    )
+    return match.group(1) if match else None
 
+
+def _field_values(text: str, label: str) -> list[str]:
+    return [
+        match.group(1).strip().strip("`").strip()
+        for match in re.finditer(rf"(?im)^-\s*{re.escape(label)}:\s*(.+?)\s*$", text)
+    ]
+
+
+def _task_sections(text: str) -> list[tuple[str, str]]:
+    return [
+        (match.group(1), match.group(2))
+        for match in re.finditer(
+            r"(?ims)^###\s+(Task\s+\d+):[^\n]*\n(.*?)(?=^###\s+Task\s+\d+:|^##\s|\Z)",
+            text,
+        )
+    ]
+
+
+def _profile_names(root: Path) -> set[str]:
+    return {path.stem.lower() for path in (root / "agents").glob("*.toml")}
+
+
+def _validate_single_execution_field(
+    path: Path,
+    section: str | None,
+    label: str,
+    allowed: set[str],
+    *,
+    required: bool,
+) -> tuple[list[Finding], str | None]:
+    rel = path.as_posix()
+    if section is None:
+        return [], None
+    values = _field_values(section, label)
+    findings: list[Finding] = []
+    if not values:
+        if required:
+            findings.append(Finding("planning_execution_error", rel, f"requires `{label}` in `## Execution Approach`"))
+        return findings, None
+    if len(values) > 1:
+        findings.append(Finding("planning_execution_error", rel, f"`{label}` must appear exactly once in `## Execution Approach`"))
+        return findings, values[0].lower()
+    value = values[0].lower()
+    if value not in allowed:
+        findings.append(
+            Finding(
+                "planning_execution_error",
+                rel,
+                f"{label} must be one of: {', '.join(sorted(allowed))}",
+            )
+        )
+    return findings, value
+
+
+def validate_execution_contract(root: Path, path: Path, payload: dict[str, Any], text: str) -> list[Finding]:
+    rel = path.as_posix()
+    section = _section_body(text, "Execution Approach", 2)
+    current = payload.get("status") in CURRENT_PLAN_STATUSES
+    findings: list[Finding] = []
+    if current and section is None:
+        findings.append(Finding("planning_execution_error", rel, "requires `## Execution Approach`"))
+        return findings
+
+    mode_findings, mode = _validate_single_execution_field(
+        path,
+        section,
+        "Mode",
+        EXECUTION_MODES,
+        required=current,
+    )
+    coordination_findings, coordination = _validate_single_execution_field(
+        path,
+        section,
+        "Coordination",
+        EXECUTION_COORDINATIONS,
+        required=current,
+    )
+    findings.extend(mode_findings)
+    findings.extend(coordination_findings)
+
+    executor_values = _field_values(section or "", "Default task executor")
+    allowed_executors = set(get_allowed_values(root, "executor", "plan"))
+    if len(executor_values) > 1:
+        findings.append(Finding("planning_execution_error", rel, "`Default task executor` must appear at most once in `## Execution Approach`"))
+    elif executor_values and executor_values[0].lower() not in allowed_executors:
+        findings.append(
+            Finding(
+                "planning_execution_error",
+                rel,
+                "Default task executor must be one of: " + ", ".join(sorted(allowed_executors)),
+            )
+        )
+
+    profile_names = _profile_names(root)
+    template_profiles = profile_names | {"none (lead controller)"}
+    validator_profiles = profile_names | {"none"}
+    task_sections = _task_sections(text)
+    if current and not task_sections:
+        findings.append(Finding("planning_execution_error", rel, "requires at least one `### Task N` section"))
+    for task_name, task_text in task_sections:
+        for label, allowed, required in (
+            ("Template Profile", template_profiles, current),
+            ("Validator Profile", validator_profiles, False),
+        ):
+            matches = re.findall(
+                rf"(?im)^\*\*{re.escape(label)}(?: \(optional\))?:\*\*\s*\n\s*-\s*Controller-selected:\s*`?([^`\r\n]+?)`?\s*$",
+                task_text,
+            )
+            if not matches:
+                if required:
+                    findings.append(Finding("planning_execution_error", rel, f"{task_name} requires `{label}`"))
+                continue
+            if len(matches) > 1:
+                findings.append(Finding("planning_execution_error", rel, f"{task_name} `{label}` must appear exactly once"))
+                continue
+            value = matches[0].strip().lower()
+            if value not in allowed:
+                findings.append(
+                    Finding(
+                        "planning_execution_error",
+                        rel,
+                        f"{task_name} {label} must be one of: {', '.join(sorted(allowed))}",
+                    )
+                )
+
+    if current and "Active task(s)" in text:
+        findings.append(Finding("planning_execution_error", rel, "current plans must derive active state from the task ledger; remove `Active task(s)`"))
+    if current and mode in EXECUTION_MODES and coordination == "git-tracked":
+        findings.extend(validate_git_coordination(path, payload, text, allowed_executors, mode=mode))
+    return findings
+
+
+def validate_git_coordination(
+    path: Path,
+    payload: dict[str, Any],
+    text: str,
+    allowed_executors: set[str],
+    *,
+    mode: str | None = None,
+) -> list[Finding]:
     rel = path.as_posix()
     findings: list[Finding] = []
     if re.search(r"(?im)^##\s+Coordination State\s*$", text) is None:
@@ -111,7 +257,7 @@ def validate_git_coordination(path: Path, payload: dict[str, Any], text: str) ->
     if len(owner_matches) != 1 or not owner_matches[0].strip('` <>"'):
         findings.append(Finding("coordination_error", rel, "requires exactly one coordination owner"))
 
-    for label in ("Branch", "Base commit", "Active task(s)", "Expected workspace", "Next action", "Blockers"):
+    for label in ("Branch", "Base commit", "Expected workspace", "Next action", "Blockers"):
         value = _coordination_value(text, label)
         if value is None or not value.strip('` <>"'):
             findings.append(Finding("coordination_error", rel, f"missing coordination field `{label}`"))
@@ -127,8 +273,7 @@ def validate_git_coordination(path: Path, payload: dict[str, Any], text: str) ->
             Finding("coordination_error", rel, f"task state must be one of: {', '.join(sorted(COORDINATION_STATES))}")
         )
 
-    mode_match = re.search(r"(?im)^-\s*Mode:\s*`?([^`\r\n]+)", text)
-    mode = mode_match.group(1).strip().lower() if mode_match else ""
+    mode = mode or ""
     active_rows = [row for row in rows if row["state"] == "active"]
     if mode in {"inline sequential", "subagent-ready"} and len(active_rows) > 1:
         findings.append(Finding("coordination_error", rel, f"{mode} permits at most one active task"))
@@ -147,8 +292,19 @@ def validate_git_coordination(path: Path, payload: dict[str, Any], text: str) ->
                         "coordination_error",
                         rel,
                         f"active task `{row['task']}` depends on non-completed task `{dependency}`",
-                    )
+            )
+        )
+
+    for row in rows:
+        executor = row["executor"].strip().lower()
+        if executor not in allowed_executors:
+            findings.append(
+                Finding(
+                    "coordination_error",
+                    rel,
+                    f"task `{row['task']}` executor must be one of: {', '.join(sorted(allowed_executors))}",
                 )
+            )
 
     for row in rows:
         if row["state"] == "completed" and row["evidence"].lower() in {"", "pending", "none", "n/a"}:
@@ -161,10 +317,12 @@ def validate_git_coordination(path: Path, payload: dict[str, Any], text: str) ->
             )
 
     if payload.get("status") == "completed":
-        if any(row["state"] in {"active", "blocked"} for row in rows):
-            findings.append(Finding("coordination_error", rel, "completed plan cannot have active or blocked tasks"))
-        if (_coordination_value(text, "Blockers") or "").strip("` ").lower() not in {"", "none", "n/a"}:
-            findings.append(Finding("coordination_error", rel, "completed plan cannot have unresolved blockers"))
+        if any(row["state"] != "completed" for row in rows):
+            findings.append(Finding("coordination_error", rel, "completed plan requires every task to be completed"))
+        for label in ("Blockers", "Next action"):
+            value = _clean_coordination_cell(_coordination_value(text, label) or "").lower()
+            if value != "none":
+                findings.append(Finding("coordination_error", rel, f"completed plan requires `{label}: none`"))
 
     return findings
 
@@ -269,7 +427,7 @@ def validate_artifact(root: Path, path: Path, artifact_type: str) -> list[Findin
                 )
             )
     if artifact_type == "plan":
-        findings.extend(validate_git_coordination(Path(rel), payload, text))
+        findings.extend(validate_execution_contract(root, Path(rel), payload, text))
     return findings
 
 

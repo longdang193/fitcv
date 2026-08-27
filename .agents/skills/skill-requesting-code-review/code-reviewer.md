@@ -5,7 +5,7 @@ Use this template when dispatching a code reviewer subagent.
 **Purpose:** Review completed work against requirements and code quality standards before it cascades into more work.
 
 ```
-Subagent (general-purpose):
+Subagent (controller-selected profile: low | normal | high | xhigh):
   description: "Review code changes"
   prompt: |
     You are a Senior Code Reviewer with expertise in software architecture,
@@ -19,6 +19,13 @@ Subagent (general-purpose):
     ## Requirements / Plan
 
     [PLAN_OR_REQUIREMENTS]
+
+    ## Review Context
+
+    **Approved specification or scope:** [SPECIFICATION_OR_APPROVED_SCOPE]
+    **Prototype reference:** [PROTOTYPE_REFERENCE]
+    **Applicable evidence:** [EVIDENCE_CONTEXT]
+    **Approved deviations:** [APPROVED_DEVIATIONS]
 
     ## Git Range to Review
 

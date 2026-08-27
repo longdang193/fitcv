@@ -12,6 +12,13 @@ Execute an approved plan by dispatching a fresh implementer subagent per task, r
 
 **Core principle:** Fresh subagent per task + task review (spec + quality) + broad final review = bounded context with early defect detection
 
+## Disposable Artifacts
+
+When a task creates external temporary output, retain its exact normalized
+absolute path in current task-local state or a validated handoff. Do not put
+machine-local paths in Git-tracked plans. Missing ownership evidence means
+preserve the artifact.
+
 **Narration:** between tool calls, narrate at most one short line — the plan
 ledger and tool results carry the record.
 
@@ -27,12 +34,13 @@ ledger and tool results carry the record.
   tree and accepted proof, then creates any authorized checkpoint commit.
 - Use `skill-using-git-worktrees` when isolation materially reduces risk; an already-safe workspace does not require a new worktree.
 - Use `skill-dispatching-parallel-agents` instead when independent lanes should run concurrently with disjoint write ownership.
-- When plan selects `deepagents`, delegate through one bounded built-in `task` and
-  name canonical `low`, `normal`, `high`, or `xhigh` in its brief. Do not use `dcode
-  --agent`, `dcode -r`, direct model flags, or executor-local approvals as
-  project coordination. Current `dcode-project` forces `--no-mcp`; required MCP
-  calls stay with Codex; pass only validated `codex.mcp.handoff.v1` facts to
-  DeepAgents.
+- When plan selects `deepagents`, Codex launches one bounded `dcode-project`
+  task with canonical `low`, `normal`, `high`, or `xhigh` in its brief. Only
+  inside that bounded DeepAgents assignment may its runtime use built-in
+  `task` workers. Do not use `dcode --agent`, `dcode -r`, direct model flags, or
+  executor-local approvals as project coordination. Current `dcode-project`
+  forces `--no-mcp`; required MCP calls stay with Codex; pass only validated
+  `codex.mcp.handoff.v1` facts to DeepAgents.
 - Approved plan and settled behavior are required. Return unresolved design to `skill-spec-drafting` or `skill-writing-plans`.
 - Task `Required Skills` determine implementer methods. Do not inject every backend, frontend, contract, or tooling skill into every brief.
 
@@ -128,17 +136,15 @@ before execution begins, not one interrupt per discovery mid-plan. If the
 scan is clean, proceed without comment. The review loop remains the net for
 conflicts that only emerge from implementation.
 
-## Model Selection
+## Profile Selection
 
-Use platform default inherited model unless a task-specific reason justifies an available override.
+Select `low`, `normal`, `high`, or `xhigh` for delegated work from task
+reasoning depth, ambiguity, scope, risk, and cost. Use `none (lead controller)`
+only for inline controller work. Escalation creates a fresh worker with a
+different profile; it does not mutate a running worker.
 
-Override only when:
-
-- task needs materially stronger architecture or debugging judgment
-- bounded mechanical work can safely use a faster supported model
-- user explicitly requests a model
-
-Do not hard-code provider tiers or require an override for every dispatch. Reviewers need enough capability for diff risk; implementers need enough capability for task ambiguity. Follow current agent tool contract.
+Never override the model, provider, or reasoning configuration owned by the
+selected profile. Follow the active agent tool contract.
 
 ## Handling Implementer Status
 Implementer subagents report one of four statuses. Handle each appropriately:

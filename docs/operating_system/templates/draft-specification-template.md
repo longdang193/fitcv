@@ -73,8 +73,11 @@ Use `Not applicable: <reason>` when no UI exists.
 - accepted behavior:
 - rejected behavior:
 - remaining uncertainty:
+- boundary implication when material: frontend, backend, shared contract, data/state, capability, feasibility, or failure behavior:
 
 Prototypes are evidence, not canonical behavior or design-system truth.
+Record only material boundary implications. Do not prescribe production
+components, implementation mechanisms, or runtime providers here.
 
 ## Promotion Readiness
 

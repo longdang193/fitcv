@@ -42,7 +42,10 @@ When repository convention conflicts with generic advice, preserve repository co
 
 ### 1. Read Existing Contracts
 
-When compatibility depends on an unfamiliar external GitHub repository, consult `docs/operating_system/tooling/code-intelligence-tools.md` before using DeepWiki for advisory orientation. Pinned source remains authoritative.
+When compatibility depends on an unfamiliar external GitHub repository, resolve
+an external-repository evidence capability through
+`docs/operating_system/tooling/runtime-tool-resolution.md`. Pinned source
+remains authoritative.
 
 Before editing:
 
@@ -171,7 +174,7 @@ Do not claim quality from review alone. Fresh executable evidence owns completio
 ## Guardrails
 
 - Preserve security, accessibility, data safety, and explicit requirements.
-- For material front-end work, follow `docs/operating_system/rules/frontend-ui-rule.md` and use `ui-ux-pro-max` when available.
+- For material front-end work, follow `docs/operating_system/rules/frontend-ui-rule.md` and use the selected applicable design skill.
 - For material backend behavior changes, follow `docs/operating_system/rules/backend-verification-rule.md` and use `skill-backend-verification` for direct proof independent of consumers.
 - For explicit performance requirements or measured regressions, use `skill-performance-optimization`; do not invent universal budgets or optimize without comparable evidence.
 - For frontend-to-backend contract wiring, follow `docs/operating_system/rules/frontend-backend-integration-rule.md` and use `skill-full-stack-integration`; colocated notes may map contracts to UI states but must not duplicate canonical transport schemas.
