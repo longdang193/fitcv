@@ -4,150 +4,140 @@ artifact_type: roadmap
 name: master-workstream-roadmap
 status: active
 registered_workstreams:
-  - workstream-fitcv-semantic-spine
-  - workstream-operator-control-plane
-  - workstream-deterministic-acceptance-and-artifact-truth
-  - workstream-bounded-agentic-cv-quality
-  - workstream-agentic-observability
-  - workstream-agentic-synonym-management
-  - workstream-pipeline-efficiency-and-reuse
+  - workstream-fitcv-local-experience
+  - workstream-candidate-profile-lifecycle
+  - workstream-job-collection-and-scans
+  - workstream-job-evaluation-and-personalization
+  - workstream-grounded-cv-generation-and-review
+  - workstream-run-continuity-and-recovery
+  - workstream-decision-and-history-truth
+  - workstream-reliability-and-diagnostics
+  - workstream-efficiency-and-cost-control
 ---
 
 # Master Workstream Roadmap
 
 ## Goal
 
-Deliver a FitCV-first platform where stage semantics and deterministic acceptance remain authoritative while portability, orchestration, and observability hardening are expanded by phase without feature drift.
+Deliver Personal FitCV for one trusted user on a Windows computer they control.
+The roadmap organizes work around the personal job-search journeys and evidence
+in `success-outcomes.md`, not around the historical architecture program that
+produced them.
+
+## Product Completion Boundary
+
+Personal FitCV is complete when the personal-use journeys and evidence gates in
+`success-outcomes.md` pass.
+
+The roadmap distinguishes product completion from ongoing engineering:
+
+- `completion-critical` work directly enables a declared completion journey
+- `supporting` work improves reliability, diagnosis, efficiency, or quality but does not block completion unless promoted
+- `maintenance` work preserves completed behavior after completion
+- `deferred` work remains outside the current completion target
+
+Downstream work may decompose these categories, but may not promote work into a
+completion blocker without an explicit intent update.
+
+The registered names below define current roadmap ownership. This update does
+not create or rename child workstream files; historical artifacts remain
+migration evidence until their disposition is handled deliberately.
 
 ## Key Deliverables
 
-- Preserve FitCV semantic spine, deterministic acceptance, and operator control-plane truth.
-- Complete Phase 2 portability/hardening outcomes with evidence-backed parity and observability.
-- Keep one canonical roadmap and route details through downstream planning artifacts.
+- complete the personal journey from FitCV Local setup through grounded CV review and return use
+- keep Candidate Profile, Scan, Run, fit, bookmark, interest, personalization, and CV behavior truthful across user-visible history
+- preserve clear failure, recovery, credential, and data-control behavior
+- keep supporting, maintenance, and deferred work from becoming completion blockers by implication
 
-## Phase Structure
+## Completion-Critical Workstreams
 
-### Phase 1
+- `workstream-fitcv-local-experience` - setup, local data control, normal operation, and shutdown through FitCV Local
+- `workstream-candidate-profile-lifecycle` - create, review, confirm, revise, archive, restore, and select Candidate Profiles
+- `workstream-job-collection-and-scans` - collect jobs through supported Scans or supplied inputs, inspect results, reuse successful Scans, and use them in Runs
+- `workstream-job-evaluation-and-personalization` - explain fit, record interest, bookmark jobs, and optionally prioritize future jobs without changing suitability
+- `workstream-grounded-cv-generation-and-review` - prepare, validate, review, and download grounded CV output without unsupported claims
+- `workstream-run-continuity-and-recovery` - start Runs, follow lifecycle state, inspect results, return later, and recover from interruption or failure
+- `workstream-decision-and-history-truth` - preserve evidence, explanations, profile snapshots, prior decisions, and user-visible historical truth across product surfaces
 
-### Goal
-- Deliver the baseline FitCV product line with stable stage meaning, bounded agentic quality upgrades, deterministic acceptance truth, and operator-facing lifecycle control.
+## Supporting Workstreams
 
-### Key Deliverables
-- Semantic-spine stage authority from ingest through final CV outcome.
-- Operator control-plane trigger, status, timeline, and run-detail truth surfaces.
-- Deterministic acceptance and artifact-truth diagnostics/export surfaces.
-- Bounded agentic quality seams with deterministic final gates.
+- `workstream-reliability-and-diagnostics` - support truthful diagnosis and recovery without making advanced monitoring or telemetry a completion prerequisite
+- `workstream-efficiency-and-cost-control` - reduce avoidable analysis and CV-generation cost without changing product meaning
+- synonym review and improvement - remain optional supporting work, not a top-level completion pillar
 
-### Phase 2
+## Maintenance
 
-### Goal
-- Harden architecture and portability without changing product meaning.
+- `operating_system.docs-and-contract-hygiene` - preserve documentation and contract ownership
+- `operating_system.repo-governance-and-publication-boundary` - preserve private/public publication boundaries
+- `operating_system.starter-shared-surface-sync` - preserve shared starter surfaces without overwriting product truth
+- `operating_system.agent-workflow-reliability` - preserve validator, skill, and agent reliability
 
-### Key Deliverables
-- SQLite portability:
-  - no feature drift vs BigQuery for equivalent behaviors.
-  - behavior verification against BigQuery-backed implementation where relevant.
-- Queue orchestration hardening:
-  - submit, status progression, cancellation, and timeline behavior verified end-to-end.
-  - Prefect support was later retired from the active runtime.
-- OpenTelemetry observability:
-  - telemetry pipeline verified end-to-end.
-  - trace propagation plus stage/event compatibility are validated.
-- Langfuse integration:
-  - implemented or verified.
-  - evidence includes successful instrumented runs with trace linkage back to FitCV run/stage context.
-- Universal stage contract across every deterministic and agentic stage:
-  - `StageResult = { output, evidence, validation, decision, policy_version, trace_context }`
-- FitCV control-plane reliability hardening:
-  - preserve existing control-plane behavior.
-  - persist partial artifacts for failed and cancelled runs (not only successful runs).
-  - add outbox, retry, and dead-letter handling for `pipeline_run_events`.
-- Standardized observability IDs:
-  - include `trace_id`, `span_id`, `parent_span_id` across stage artifacts and events.
-  - keep existing trace JSON surfaces while making them OpenTelemetry-compatible.
-- Independent policy versioning:
-  - policy versioned separately from application code.
-  - every gate decision stores `policy_version`.
-  - replay supports `strict` (same config + same policy) and `policy_replay` (new policy on old run).
-- Data-plane split for growth:
-  - operational run metadata/state on Postgres path.
-  - analytical or warehouse-style storage explicitly separated.
+## Deferred
 
-### Phase 2 Deliverables Completed In This Branch
+- public Internet service operation and high-availability deployment
+- broader website coverage beyond supported FitCV job scans
+- large-scale architecture, developer/server deployment expansion, and public-release hardening
+- optional observability, portability, scalability, and other infrastructure improvements that do not address a demonstrated personal-use gap
 
-- SQLite portability and runtime backend resolution hardening:
-  - shared backend runtime contract implemented and wired through control-plane startup/worker paths.
-  - explicit env override support for backend mode (`FITCV_CP_DATA_BACKEND`) now respected by backend resolution.
-  - SQLite mode startup path avoids BigQuery client requirement.
-- Provider-agnostic adapter architecture:
-  - `LLMClient` and `EmbeddingClient` protocol surface added under control-plane adapters.
-  - routing-selection contract added to support provider scaling without stage-semantic drift.
-- Observability tooling layer contract and diagnostics:
-  - control-plane observability event emitter surface present and wired for orchestration/backend/model-routing diagnostics.
-  - stage/result traces expose standardized trace fields and `trace_status` handling across run artifacts.
-- Multi-file configuration strategy and settings-used evidence surface:
-  - runtime configuration surfaces use split config ownership (`config/runtime/control_plane.yaml`, `config/runtime/pipeline.yaml`, plus env).
-  - run-scoped `settings-used.json` remains the canonical execution snapshot for operator/debug evidence.
-- SQLite E2E stabilization work completed for no-crash parity path:
-  - run-detail/runtime paths hardened for SQLite (including null-safe BigQuery dependencies in control-plane store/read paths).
-  - run execution reaches terminal success in SQLite mode with artifacts and trace exports available.
-  - shortlist persistence now invoked in pipeline flow and persisted in SQLite local store.
-  - non-applicable trace artifacts (`cv-analysis-trace.json`, `agentic-live-trace.json`) are exportable as explicit `trace_status=not_applicable` payloads for stable artifact surface.
-- Secret-hygiene improvements in SQLite settings export:
-  - `service_account_key` removed from SQLite-mode `settings-used` effective snapshot/compatibility projection exports.
-  - backend data-plane metadata in settings-used now records SQLite backend in SQLite mode.
+## Personal Journey Map
 
-### Phase 2 Closure Status In This Branch
+The roadmap follows this product sequence:
 
-- Phase 2 deliverables are closed as done in this branch, including:
-  - historical Prefect orchestration verification; active runtime now uses queue orchestration only.
-  - OpenTelemetry exporter/collector integration verification.
-  - Langfuse trace-link integration verification.
-  - SQLite durable event-history no-drift parity verification.
+1. set up and use FitCV Local
+2. build and maintain a Candidate Profile
+3. collect or add jobs through supported Scans and job inputs
+4. start a Run and understand narrowing, fit, and user feedback
+5. save jobs and optionally use personalization
+6. prepare and review a grounded CV
+7. return to prior profiles, Runs, jobs, bookmarks, feedback, and recovery state
 
-Current Phase 2 completion references:
-- `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
-- `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
-- `docs/superpowers/plans/2026-05-03-14-20-phase-2-architecture-hardening-and-portability-plan.md`
+Each completion-critical workstream must map to one or more of these journeys
+and to representative evidence in `success-outcomes.md`.
 
-### Phase 3
+## Historical Workstream Disposition
 
-### Goal
-- Sustain roadmap-delivered behavior through governance, lifecycle discipline, and no-drift change control across product and operating-system planning surfaces.
+Historical workstreams remain evidence and do not automatically remain
+completion-critical:
 
-### Key Deliverables
-- Lifecycle hygiene:
-  - roadmap/workstream/thread/spec/plan statuses remain coherent with validator rules.
-  - closure decisions remain evidence-backed and checkpoint-linked.
-- Contract preservation:
-  - Phase 1 and Phase 2 semantic, policy, orchestration, and observability contracts stay stable unless explicitly re-scoped.
-  - portability and observability no-drift claims remain protected by regression validation.
-- Operating-system governance:
-  - registered workstream/thread/spec/execution-map/plan lineage stays synchronized with canonical templates and governance.
-  - roadmap and downstream planning artifacts remain continuously reconcilable without contradictory state.
+| Historical workstream | Current disposition |
+| --- | --- |
+| `workstream-fitcv-semantic-spine` | migrate relevant stage-meaning and acceptance responsibilities into `workstream-decision-and-history-truth`; preserve remaining semantics as maintenance |
+| `workstream-operator-control-plane` | split responsibilities across local experience, Candidate Profile, Scan, and Run continuity workstreams |
+| `workstream-deterministic-acceptance-and-artifact-truth` | completed foundation; preserve its truth obligations through decision/history maintenance and completion evidence |
+| `workstream-bounded-agentic-cv-quality` | migrate product-facing responsibilities into `workstream-grounded-cv-generation-and-review` |
+| `workstream-agentic-observability` | migrate needed diagnosis and recovery responsibilities into `workstream-reliability-and-diagnostics`; keep infrastructure enhancements supporting |
+| `workstream-agentic-synonym-management` | optional supporting child work; not registered as a completion-critical master workstream |
+| `workstream-pipeline-efficiency-and-reuse` | migrate into `workstream-efficiency-and-cost-control` as supporting optimization |
 
-## Workstream Index
+Migration does not require immediate bulk renaming. Do not rewrite historical
+child references merely to make names look current; create or rename downstream
+artifacts only when an active work item needs them.
 
-- `workstream-fitcv-semantic-spine` - preserve FitCV stage-owned meaning and acceptance authority.
-- `workstream-operator-control-plane` - preserve and harden trigger/run/replay/inspection operator surfaces.
-- `workstream-deterministic-acceptance-and-artifact-truth` - keep decisions and evidence legible, stage-owned, and exportable.
-- `workstream-bounded-agentic-cv-quality` - improve late-stage quality with bounded agentic behavior under deterministic gates.
-- `workstream-agentic-observability` - make agentic behavior and deterministic gate interaction observable.
-- `workstream-agentic-synonym-management` - review-first synonym assistance with deterministic runtime authority.
-- `workstream-pipeline-efficiency-and-reuse` - improve throughput/reuse without semantic drift.
-- `operating_system.docs-and-contract-hygiene` - maintain docs/contracts/source-of-truth hygiene.
-- `operating_system.repo-governance-and-publication-boundary` - enforce private/public publication boundary.
-- `operating_system.starter-shared-surface-sync` - keep shared-starter surfaces aligned without overwriting product truth.
-- `operating_system.agent-workflow-reliability` - maintain validator/skill/agent reliability surfaces.
+## Remaining Completion Alignment
 
-## Completion Criteria
+Current work should focus only on gaps demonstrated against the declared
+personal-use journeys, including:
 
-A roadmap item is considered complete when:
+- missing or misleading user experience
+- broken continuity between product areas
+- incomplete Scan, Run, profile, bookmark, personalization, or CV behavior
+- incomplete failure or recovery behavior
+- incorrect historical state
+- unsupported or ungrounded recommendations or CV content
+- regressions in normal personal use
 
-1. all Key Deliverables are satisfied
-2. all downstream/child items are terminal
-3. every child item is `completed` or `dropped`
+Architecture, observability, scalability, or platform work does not become
+completion-critical unless a demonstrated product gap requires it.
 
-Canonical source-of-truth:
+## Workstream Completion
 
-- `docs/operating_system/repo-governance.md`
+A completion-critical workstream is complete when the Success Outcomes it owns
+have representative acceptance evidence and no unresolved blocker prevents the
+declared Personal FitCV journey.
+
+Supporting and maintenance descendants do not have to be exhausted or closed
+for the product workstream to be complete.
+
+New work becomes completion-critical only through an explicit update to the
+intent layer.

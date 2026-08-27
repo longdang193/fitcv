@@ -1,12 +1,15 @@
 # Stakeholders
 
-Primary stakeholders:
+Primary stakeholder:
 
-- operators who trigger runs, inspect outcomes, and decide what to act on
-- engineers who maintain pipeline stages, settings, and admin surfaces
-- workflow owners who need repeatable, explainable CV generation rather than one-off manual rewriting
+- the individual FitCV user who runs job searches, reviews fit decisions, and generates CVs on their own machine
 
-Secondary stakeholders:
+Supporting stakeholders:
 
-- future contributors who need a truthful architecture-doc layer
-- public-repo readers who need curated product-facing explanations without private operating-system material
+- the same user when configuring FitCV or diagnosing a run
+- engineers and future contributors maintaining FitCV behavior and documentation
+- public-repo readers consuming curated product explanations without private operating-system material
+
+The primary stakeholder may perform operator, workflow-owner, and diagnostic
+roles. Those role names do not imply multiple users, shared infrastructure, or
+organizational authorization boundaries.

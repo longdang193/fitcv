@@ -42,4 +42,8 @@ stable source docs.
 - treat them as source material for later README synthesis
 - use `master-workstream-roadmap.md` to translate intent into durable planning threads without replacing upstream intent docs
 - use `workstream-coverage-and-progress-guide.md` when you need the precise execution ladder from roadmap coverage into bounded change thread files, specs, plans, and safe parallel work
+- treat the charter, constraints, and success outcomes as the authority for the current product completion target
+- allow downstream roadmaps, workstreams, specs, and plans to decompose intent, but not enlarge it without an explicit intent update
+- do not treat supporting, maintenance, or deferred work as a product-completion blocker unless intent explicitly promotes it
+- treat named technologies as implementation choices unless an intent document states their behavior as a durable contract
 - if a document is really about how the repo should build, govern, or route work, it belongs in `docs/operating_system/` instead
