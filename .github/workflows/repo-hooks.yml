@@ -132,6 +132,10 @@ jobs:
 
       - name: Verify architecture generator output when configured
         run: |
+          if (-not (Test-Path repo_config/adoption-mode.yaml)) {
+            Write-Host "Architecture generator is not configured. Skipping architecture sync check."
+            exit 0
+          }
           $generator = python -c "from pathlib import Path; import yaml; data = yaml.safe_load(Path('repo_config/adoption-mode.yaml').read_text(encoding='utf-8')); print(data.get('architecture_generator', 'none'))"
           if (($generator -eq 'none') -or (-not (Test-Path $generator))) {
             Write-Host "Configured architecture generator is absent. Skipping deprecated architecture sync check."
