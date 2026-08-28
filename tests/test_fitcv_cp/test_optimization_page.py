@@ -253,7 +253,7 @@ def test_optimization_notice_projection_marks_stale_and_retryable_states() -> No
     assert stale["kind"] == "stale"
     assert stale["action"] == "Reload current state"
     assert retryable["kind"] == "retryable"
-    assert retryable["action"] == "Retry"
+    assert retryable["action"] == "Reload current state"
 
 
 def test_optimization_page_renders_empty_native_state(monkeypatch: Any) -> None:

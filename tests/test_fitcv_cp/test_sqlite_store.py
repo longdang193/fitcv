@@ -2299,6 +2299,16 @@ def test_bookmark_projection_includes_interest_and_current_cv_state() -> None:
     assert item["reason_code"] == "missing_skill"
     assert item["result_bucket"] == "rejected"
 
+    sqlite_store.insert_cv_version_row({
+        "version_id": "cv-bookmark-actions-failed",
+        "run_job_id": job["run_job_id"],
+        "generation_status": "generation_failed",
+    })
+    failed_item = sqlite_store.query_bookmarks(page_size=20)["items"][0]
+    assert failed_item["cv_version_id"] == "cv-bookmark-actions-failed"
+    assert failed_item["cv_generation_status"] == "generation_failed"
+    assert failed_item["cv_available"] == 0
+
 
 def test_synonym_suggestion_detail_pages_evidence_sources() -> None:
     for index in range(11):

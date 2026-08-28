@@ -6687,7 +6687,7 @@ def _optimization_notice_projection(code: str | None) -> dict[str, Any] | None:
         "level": level,
         "message": message,
         "kind": kind,
-        "action": "Reload current state" if kind == "stale" else "Retry" if kind == "retryable" else None,
+        "action": "Reload current state" if kind in {"stale", "retryable"} else None,
     }
 
 

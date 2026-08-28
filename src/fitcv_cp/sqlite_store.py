@@ -9824,7 +9824,7 @@ def query_bookmarks(
             "stage_summaries",
         ):
             item[key] = projection[key]
-        item["cv_available"] = int(projection["capabilities"]["download_cv"])
+        item["cv_available"] = int(item["cv_available"])
         items.append(item)
     total = len(items)
     offset = (max(1, page) - 1) * page_size
