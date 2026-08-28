@@ -454,7 +454,7 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     prototype_blob = hashlib.sha1(
         f"blob {len(prototype)}\0".encode() + prototype
     ).hexdigest()
-    assert prototype_blob == "a8db55d89e78285c24c8226d0f81804eb342c025"
+    assert prototype_blob == "3c20781eb15131bf7928619368283b0737e0dda2"
 
     client = TestClient(_candidate_profile_mock_app())
 
@@ -482,11 +482,11 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     assert 'class="icon-btn danger"' in header.group(0)
     assert 'class="icon-button' not in header.group(0)
     assert 'aria-label="Switch to dark theme" title="Switch to dark theme"' in header.group(0)
-    assert '.icon-btn,.menu-btn{display:grid;width:38px;height:38px;' in profiles.text
-    assert '.icon-btn,.menu-btn{display:grid;width:38px;height:38px;place-items:center;padding:1px 6px;' in profiles.text
-    assert '.icon-btn:hover,.menu-btn:hover{border-color:var(--border);background:var(--surface-2);' in profiles.text
-    assert '.icon-btn,.menu-btn{min-height:44px}' in profiles.text
-    assert '.icon-btn,.menu-btn{width:44px}' in profiles.text
+    assert '.icon-btn,.sidebar-toggle{display:grid;width:38px;height:38px;' in profiles.text
+    assert '.icon-btn,.sidebar-toggle{display:grid;width:38px;height:38px;place-items:center;padding:1px 6px;' in profiles.text
+    assert '.icon-btn:hover,.sidebar-toggle:hover{border-color:var(--border);background:var(--surface-2);' in profiles.text
+    assert '.icon-btn,.sidebar-toggle{min-height:44px}' in profiles.text
+    assert '.icon-btn,.sidebar-toggle{width:44px}' in profiles.text
     assert '.icon-btn.danger{color:#b91c1c}' in profiles.text
     assert '[data-theme="dark"] .icon-btn.danger{color:#fca5a5}' in profiles.text
     assert "var actionLabel = t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';" in profiles.text

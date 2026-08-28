@@ -46,12 +46,12 @@ appears below. Prototype hash recheck: `3c20781eb15131bf7928619368283b0737e0dda2
   lifecycle actions, Preference Optimization start/success/policy changes,
   Synonyms, providers, backup, and settings. Each notification supports
   individual dismissal and clear-all.
-- Live frontend parity remains unresolved: `src/fitcv_cp/templates/base.html`
-  still owns a separate mobile `#menu` sidebar flow, while the prototype owns
-  one top-bar `#sidebarToggle` with desktop hide and mobile off-canvas behavior.
-- UX Freeze remains blocked until live frontend navigation adopts the prototype
-  sidebar contract. Product owner approval is still required; this ledger does
-  not freeze UX.
+- Live frontend sidebar parity is now aligned: `src/fitcv_cp/templates/base.html`
+  uses one top-bar `#sidebarToggle`, desktop hide, mobile off-canvas behavior,
+  persisted desktop collapse, Escape close, and focus return.
+- The prior sidebar SSOT blocker is resolved. UX Freeze still requires product
+  owner approval and closure of remaining material drift listed in Gate 0,
+  including Bookmarks, Synonyms, and Preference Optimization.
 
 ## Runs, Scans, and Candidate Profiles parity patch evidence
 

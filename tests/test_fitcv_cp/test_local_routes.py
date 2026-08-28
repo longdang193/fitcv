@@ -169,12 +169,12 @@ def test_shared_shell_matches_frozen_prototype_and_canonical_error_contract(
     assert navigation.count('<details class="nav-group" open>') == 2
     assert navigation.index(">Pipeline</summary>") < navigation.index(">Application</summary>")
     assert 'href="/admin/lifecycle"' not in navigation
-    assert 'id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"' in server_html
+    assert 'id="sidebarToggle" type="button" aria-label="Collapse sidebar" aria-controls="sidebar" aria-expanded="true"' in server_html
     assert 'id="page-content" tabindex="-1"' in server_html
     assert 'id="theme-toggle"' in html
     assert html.index('id="theme-toggle"') < html.index('id="open-shutdown-dialog"')
     assert "if (event.key !== 'Escape' || !sidebar.classList.contains('open')) return;" in server_html
-    assert "menu.focus();" in server_html
+    assert "sidebarToggle.focus();" in server_html
 
 
 def test_provider_setup_pages_and_resources_are_available_before_onboarding_completion(
