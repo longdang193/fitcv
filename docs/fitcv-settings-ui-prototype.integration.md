@@ -62,7 +62,10 @@ appears below. Prototype hash recheck: `5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27
 - Bookmark and Synonym contract gaps are closed. Preference Optimization
   preserves service error codes through PRG and renders stale/retry states;
   stale actions explicitly reload current state rather than pretending to retry
-  candidate creation. Product owner approval remains required for UX Freeze.
+  candidate creation. Source audit still identifies two implementation blockers
+  before UX Freeze: Bookmarks can advertise an older usable CV while targeting a
+  failed current version, and Optimization labels a state-reload link as
+  `Retry`. Product owner approval remains required for UX Freeze.
 
 ## Runs, Scans, and Candidate Profiles parity patch evidence
 
