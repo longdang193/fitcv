@@ -1,7 +1,7 @@
 # FitCV Prototype Runtime Integration Ledger
 
 Prototype visual/UI-state owner: `docs/fitcv-settings-ui-prototype.html` blob
-`989af611bd7767c148022c79ac00c5069d8a3956`.
+`3c20781eb15131bf7928619368283b0737e0dda2`.
 
 Transport owners: current FastAPI/Pydantic source, registered routes,
 `/openapi.json`, `docs/api.md`, and focused route/service/store tests. Prototype
@@ -32,7 +32,26 @@ Ledger dispositions:
 | Preference Optimization | list/detail optimization renderers | `src/fitcv_cp/templates/optimization.html` | Optimization routes/service/settings/store | Main sections, controls, detail, and lifecycle are reusable; empty state is plain row instead of prototype guidance; PRG failures lack shared retry/stale rendering | change narrowly | `tests/test_fitcv_cp/test_optimization_page.py`, `tests/test_inverse_optimization.py`, `tests/test_fitcv_cp/test_sqlite_store.py` |
 
 Gate 0 complete on August 4, 2026. All 13 planned slices have explicit
-dispositions. Prototype hash recheck: `8d248d62003b2a8795672daaa221ef5508afdc88`.
+dispositions. The table is historical parity evidence; current reconciliation
+appears below. Prototype hash recheck: `3c20781eb15131bf7928619368283b0737e0dda2`.
+
+## Current Reconciliation — August 28, 2026
+
+- Prototype audit rerun after the latest UI fixes in commit `f49acffc`; focused
+  prototype tests pass (`6 passed`). Browser checks pass for desktop/mobile
+  sidebar behavior, dark status contrast, hidden zero-notification state, no
+  backdrop blur, and no console errors.
+- Prototype notifications cover Run and Scan creation/completion, CV
+  regeneration start/completion/failure, Candidate Profile draft and profile
+  lifecycle actions, Preference Optimization start/success/policy changes,
+  Synonyms, providers, backup, and settings. Each notification supports
+  individual dismissal and clear-all.
+- Live frontend parity remains unresolved: `src/fitcv_cp/templates/base.html`
+  still owns a separate mobile `#menu` sidebar flow, while the prototype owns
+  one top-bar `#sidebarToggle` with desktop hide and mobile off-canvas behavior.
+- UX Freeze remains blocked until live frontend navigation adopts the prototype
+  sidebar contract. Product owner approval is still required; this ledger does
+  not freeze UX.
 
 ## Runs, Scans, and Candidate Profiles parity patch evidence
 
