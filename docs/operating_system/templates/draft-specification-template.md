@@ -18,7 +18,9 @@ distribution_tier: starter_kit
 
 # Draft Specification Template
 
-Use while behavior or UI intent still needs prototype validation. Keep one file and promote it in place to detailed specification after approval.
+Use while behavior or UI intent still needs prototype validation. Keep one file
+and promote it in place to detailed specification after approval and all
+applicable post-approval inputs are complete.
 
 ## Goal and Scope
 
@@ -68,6 +70,8 @@ Use `Not applicable: <reason>` when no UI exists.
 ## Prototype and Validation Findings
 
 - prototype reference or `Not created: <reason>`:
+- UX approval: `Not approved` | `<owner-approved revision/reference>`:
+- design export reference or `Not required: <reason>`:
 - scenario tested:
 - observed result:
 - accepted behavior:
@@ -75,7 +79,10 @@ Use `Not applicable: <reason>` when no UI exists.
 - remaining uncertainty:
 - boundary implication when material: frontend, backend, shared contract, data/state, capability, feasibility, or failure behavior:
 
-Prototypes are evidence, not canonical behavior or design-system truth.
+Before owner-approved UX freeze, prototypes are exploratory validation evidence.
+After owner-approved UX freeze, the recorded prototype may be an immutable
+approved UX reference and evidence. It remains neither canonical behavior nor
+design-system truth.
 Record only material boundary implications. Do not prescribe production
 components, implementation mechanisms, or runtime providers here.
 
@@ -84,7 +91,10 @@ components, implementation mechanisms, or runtime providers here.
 - [ ] important behavior and state transitions are settled
 - [ ] material backend boundary, failure, state, dependency, contract, and trace claims are selected
 - [ ] UI intent conflicts are resolved
+- [ ] applicable post-approval Design Export or reconciliation inputs are complete or explicitly not applicable
 - [ ] approved deferrals are explicit
 - [ ] user approved promotion
 
-After approval, replace this template content in same file with `detailed-specification`, set `status: active`, preserve prototype/validation evidence, and run planning and template validators.
+After approval and completion of applicable post-approval inputs, replace this
+template content in same file with `detailed-specification`, set `status: active`,
+preserve prototype/validation evidence, and run planning and template validators.

@@ -20,7 +20,11 @@ distribution_tier: starter_kit
 
 # Detailed Specification Template
 
-Use this template after behavior and design direction are approved. Promote an existing draft in place when one exists. Specification owns required behavior and design-level boundaries. Exact files, task order, commands, dependencies, rollout steps, and execution waves belong in implementation plan.
+Use this template after behavior and design direction are approved and all
+applicable post-approval inputs are complete. Promote an existing draft in place
+when one exists. Specification owns required behavior and design-level
+boundaries. Exact files, task order, commands, dependencies, rollout steps, and
+execution waves belong in implementation plan.
 
 ## Goal and Problem
 
@@ -55,6 +59,9 @@ Use this template after behavior and design direction are approved. Promote an e
 ### Prototype and Validation Evidence
 
 - prototype reference or `Not applicable: <reason>`:
+- UX approval or `Not applicable: <reason>`:
+- frozen prototype revision or reference or `Not applicable: <reason>`:
+- design export reference or `Not required: <reason>`:
 - validated scenarios and states:
 - findings incorporated into approved behavior:
 - rejected alternatives:
@@ -90,6 +97,8 @@ applicable rows; do not add administrative `Not applicable` rows.
 | --- | --- | --- |
 | <frontend, backend, or shared contract> | <owner or canonical contract> | <applicable evidence> |
 
+An owner-approved frozen prototype is immutable UX reference evidence. It does
+not supersede specification behavior or project design-system ownership.
 Prototype references remain validation evidence. Exact files, component
 decomposition, sequencing, commands, rollout steps, and implementation
 mechanisms belong in the implementation plan or source.

@@ -202,7 +202,7 @@ tool stays isolated under the runtime root, so concurrent repositories do not
 replace one shared `dcode.exe`. Wrapper resolves current Git workspace and runs
 tracked `scripts/dcode_project.py`. Run `dcode-project`
 from selected repository workspace with `--role <profile>`; do not
-pass `--model`. Setup defaults to tested `deepagents-code 0.1.59`, requires
+pass `--model`. Setup defaults to tested `deepagents-code 0.1.64`, requires
 Python 3.12 or newer, verifies the installed `dcode` version, and disables child auto-update.
 Setup fails when
 `%USERPROFILE%\.deepagents\.mcp.json` exists; remove that direct DeepAgents MCP

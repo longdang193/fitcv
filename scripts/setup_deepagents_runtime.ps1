@@ -7,7 +7,7 @@ param(
     [string]$UvPath = (Join-Path $HOME ".local\bin\uv.exe"),
     [string]$TuraExecutable,
     [string]$TuraProviderConfig,
-    [string]$DeepAgentsCodeVersion = "0.1.59",
+    [string]$DeepAgentsCodeVersion = "0.1.64",
     [switch]$SkipInstall,
     [switch]$ResetConfig
 )
@@ -19,7 +19,14 @@ $binRoot = Join-Path $HOME ".local\bin"
 $deepAgentsToolRoot = Join-Path $runtimeRoot "deepagents-tool"
 $deepAgentsBinRoot = Join-Path $runtimeRoot "bin"
 $launcherSource = Join-Path $repoRoot "scripts\dcode_project.py"
-$directMcpConfig = Join-Path $HOME ".deepagents\.mcp.json"
+$deepAgentsHome = if ($env:DEEPAGENTS_HOME) {
+    $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
+        [Environment]::ExpandEnvironmentVariables($env:DEEPAGENTS_HOME)
+    )
+} else {
+    Join-Path $HOME ".deepagents"
+}
+$directMcpConfig = Join-Path $deepAgentsHome ".mcp.json"
 $pythonCommand = Get-Command py -ErrorAction SilentlyContinue
 
 if (-not (Test-Path $launcherSource -PathType Leaf)) {
@@ -61,7 +68,11 @@ if (-not $SkipInstall) {
     }
     $env:UV_TOOL_DIR = $deepAgentsToolRoot
     $env:UV_TOOL_BIN_DIR = $deepAgentsBinRoot
-    & $UvPath tool install --reinstall "deepagents-code==$DeepAgentsCodeVersion"
+    & $UvPath tool install --reinstall `
+        "deepagents-code==$DeepAgentsCodeVersion" `
+        --with "langgraph-api==0.13.0" `
+        --with "langgraph-runtime-inmem==0.33.0" `
+        --with "uvicorn==0.51.0"
     if ($LASTEXITCODE -ne 0) {
         throw "DeepAgents Code installation failed."
     }

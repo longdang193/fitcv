@@ -1003,6 +1003,7 @@ def _runtime_environment(base_url: str, api_key: str) -> dict[str, str]:
     environment["DEEPAGENTS_CODE_AUTO_UPDATE"] = "0"
     if os.name == "nt":
         environment["DEEPAGENTS_CODE_UI_CHARSET_MODE"] = "ascii"
+        environment["LOG_COLOR"] = "false"
     environment["DEEPAGENTS_CODE_OPENAI_BASE_URL"] = base_url
     environment["DEEPAGENTS_CODE_OPENAI_API_KEY"] = api_key
     environment["OPENAI_BASE_URL"] = base_url
@@ -1010,8 +1011,15 @@ def _runtime_environment(base_url: str, api_key: str) -> dict[str, str]:
     return environment
 
 
+def _deepagents_home() -> Path:
+    configured = os.environ.get("DEEPAGENTS_HOME")
+    if configured:
+        return Path(os.path.expandvars(configured)).expanduser().resolve()
+    return Path.home() / ".deepagents"
+
+
 def _reject_conflicting_user_openai_base_url() -> None:
-    config_path = Path.home() / ".deepagents" / "config.toml"
+    config_path = _deepagents_home() / "config.toml"
     if not config_path.exists():
         return
     values = _load_toml(config_path, "DeepAgents user config")

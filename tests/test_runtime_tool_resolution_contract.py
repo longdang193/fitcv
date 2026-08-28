@@ -103,3 +103,23 @@ def test_core_runtime_adapter_maps_are_explicit_not_generic_defaults() -> None:
     policy = normalized("docs/operating_system/tooling/runtime-tool-resolution.md")
     assert "explicit core-runtime bindings" in policy
     assert "not generic provider defaults" in policy
+
+
+def test_runtime_policy_requires_live_endpoint_and_async_run_proof() -> None:
+    policy = normalized("docs/operating_system/tooling/runtime-tool-resolution.md")
+
+    assert "Resolve ephemeral service endpoints through live IPC" in policy
+    assert "runtime marker files as discovery hints only" in policy
+    assert "record the run ID, wait for terminal state" in policy
+    assert "`active:false` means no active UI context" in policy
+    assert "Closed-parent `EPIPE`" in policy
+
+
+def test_runtime_adapter_procedure_preserves_lifecycle_evidence() -> None:
+    procedure = normalized("docs/operating_system/procedures/runtime-adapter-procedure.md")
+
+    assert "## Runtime Recovery and Proof" in procedure
+    assert "Do not trust a stale port, PID, or marker file" in procedure
+    assert "Tool-call success is not completion proof" in procedure
+    assert "preserve the run record and lifecycle logs" in procedure
+    assert "Keep logging best-effort" in procedure

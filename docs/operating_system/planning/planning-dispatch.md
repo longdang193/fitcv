@@ -12,7 +12,8 @@ artifact needed for safe execution.
 | Broad problem framing, options, or trade-offs remain | Use `skill-brainstorming`; save a report only when requested |
 | User explicitly invokes wayfinding for a known destination with materially unresolved dependent decisions expected to span multiple sessions | Use `skill-wayfinding` with one template-validated map and one writer |
 | Behavior, UI intent, interfaces, or invariants need prototype validation | Use `skill-spec-drafting` with `draft-specification`; keep one file |
-| Draft behavior is approved | Promote same file to `detailed-specification` and `status: active` |
+| Draft behavior is approved and all applicable post-approval inputs are complete | Promote same file to `detailed-specification` and `status: active` |
+| Owner-approved UX freeze or equivalent approved visual prototype needs durable design inputs | Use an explicitly selected Design Export method; provider availability or installation does not select a provider or make it a Starter dependency |
 | Behavior, interfaces, or invariants need durable definition without prototype work | Use `skill-spec-drafting` |
 | Approved design or direct approved scope needs multiple implementation steps | Use `skill-writing-plans` |
 | Multi-task execution needs durable resume or delegated checkpoints | Select `git-tracked` coordination |
@@ -31,13 +32,28 @@ Use these gates only when their trigger applies:
 2. Prototype and iterate when UX or behavior needs validation.
 3. Design review when material design judgment is required.
 4. UX or behavior approval when approval is required.
-5. Detailed specification when durable behavior or contracts need definition.
-6. Repository reconciliation when current source, tests, contracts, or configuration must be checked against approved scope.
-7. Implementation plan when work needs multiple steps, dependencies, or handoffs.
-8. Implementation.
-9. Integration when a boundary is crossed.
-10. Applicable frontend, backend, browser, or end-to-end verification.
-11. Independent review when risk or policy requires it.
+5. Design Export when an applicable owner-approved UX freeze or equivalent approved visual prototype needs durable design inputs.
+6. Roadmap or workstream reconciliation when several outcomes need coordinated direction and the approved UX materially changes ownership or scope.
+7. Detailed specification when durable behavior or contracts need definition.
+8. Repository reconciliation when current source, tests, contracts, or configuration must be checked against approved scope.
+9. Implementation plan when work needs multiple steps, dependencies, or handoffs.
+10. Implementation.
+11. Integration when a boundary is crossed.
+12. Applicable frontend, backend, browser, or end-to-end verification.
+13. Independent review when risk or policy requires it.
+
+Approval does not itself authorize draft promotion when an explicitly applicable
+post-approval input remains incomplete. Design Export method selection is
+explicit; named providers are task or runtime facts, not Starter dependencies.
+
+A Design Export gate is complete only when the selected export method provides
+a durable output identity attributable to the current task and requested
+deliverable. Workspace presence, agent prose, inferred deliverable
+classification, evidence from another task or run, and producer self-assessment
+do not establish completion. When independent review is applicable under this
+lifecycle, its PASS must apply to the same task and output identities. If those
+bindings cannot be established, the Design Export gate remains incomplete or
+blocked.
 
 Downstream project-owned handoff: Release/Deploy → Observe, when applicable.
 

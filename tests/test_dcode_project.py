@@ -837,6 +837,7 @@ def test_runtime_environment_reaches_deepagents_server_child(
     assert environment["DEEPAGENTS_CODE_AUTO_UPDATE"] == "0"
     if os.name == "nt":
         assert environment["DEEPAGENTS_CODE_UI_CHARSET_MODE"] == "ascii"
+        assert environment["LOG_COLOR"] == "false"
     assert environment["OPENAI_BASE_URL"] == "http://127.0.0.1:20128/v1"
     assert environment["PYTHONUTF8"] == "1"
     assert environment["PYTHONIOENCODING"] == "utf-8"
@@ -874,6 +875,23 @@ def test_runtime_environment_overrides_inherited_project_bindings(
     assert environment["OPENAI_API_KEY"] == "test-key"
     assert environment["DEEPAGENTS_CODE_OPENAI_BASE_URL"] == "http://127.0.0.1:20128/v1"
     assert environment["DEEPAGENTS_CODE_OPENAI_API_KEY"] == "test-key"
+
+
+def test_conflicting_user_config_uses_deepagents_home(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "deepagents-home"
+    home.mkdir()
+    (home / "config.toml").write_text(
+        '[models.providers.openai]\nbase_url = "https://user.example/v1"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DEEPAGENTS_HOME", str(home))
+
+    with pytest.raises(RuntimeError, match="Remove conflicting OpenAI base_url"):
+        LAUNCHER._reject_conflicting_user_openai_base_url()
+
 
 def mcp_config() -> dict[str, object]:
     return {
@@ -1054,10 +1072,14 @@ def test_setup_launcher_uses_current_repository_source() -> None:
     assert 'project-delegate selects Tura; do not pass --executor' in setup
     assert 'scripts\\dcode_project.py") --executor tura @DelegateArgs' in setup
     assert 'Tura migration:' in setup
-    assert 'Join-Path $HOME ".deepagents\\.mcp.json"' in setup
+    assert "DEEPAGENTS_HOME" in setup
+    assert "GetUnresolvedProviderPathFromPSPath" in setup
     assert "Direct DeepAgents MCP config detected" in setup
-    assert '$DeepAgentsCodeVersion = "0.1.59"' in setup
+    assert '$DeepAgentsCodeVersion = "0.1.64"' in setup
     assert 'deepagents-code==$DeepAgentsCodeVersion' in setup
+    assert 'langgraph-api==0.13.0' in setup
+    assert 'langgraph-runtime-inmem==0.33.0' in setup
+    assert 'uvicorn==0.51.0' in setup
     assert '$env:UV_TOOL_DIR = $deepAgentsToolRoot' in setup
     assert '$env:UV_TOOL_BIN_DIR = $deepAgentsBinRoot' in setup
     assert 'dcode-doctor.ps1' in setup

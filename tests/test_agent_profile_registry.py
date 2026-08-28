@@ -49,6 +49,21 @@ def test_load_profiles_accepts_ranked_and_unranked_profiles(tmp_path: Path) -> N
     assert profiles["ui"].deepagents_compatible is True
 
 
+def test_repository_review_profile_preserves_specialized_contract() -> None:
+    profiles = REGISTRY.load_agent_profiles(ROOT / "agents")
+    review = profiles["review"]
+
+    assert review.rank is None
+    assert review.model_provider == "9router"
+    assert review.model == "combo-review"
+    assert review.deepagents_compatible is True
+
+    instructions = review.developer_instructions.lower()
+    assert "do not implement" in instructions
+    assert "task-specific" in instructions
+    assert "pass, fail, or blocked" in instructions
+
+
 def test_load_profiles_accepts_deepagents_compatibility_override(tmp_path: Path) -> None:
     write_profile(tmp_path, "ui", None, 'deepagents_compatible = false\n')
 

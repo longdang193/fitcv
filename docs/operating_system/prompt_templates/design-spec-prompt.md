@@ -20,4 +20,4 @@ Define:
 
 Separate verified facts, assumptions, unresolved questions, and design implications. Prefer existing repository and native capabilities. Keep exact files, task order, commands, dependencies, rollout steps, and execution waves in implementation plan.
 
-When behavior still needs prototype validation, write one proposed draft specification at final spec path and update it in place. After approval, replace draft with active detailed specification, request review when risk warrants it, then hand off to `skill-writing-plans`.
+When behavior still needs prototype validation, write one proposed draft specification at final spec path and update it in place. After approval, complete explicitly applicable post-approval Design Export, roadmap or workstream reconciliation, and other required inputs; then promote the draft in place by replacing it with active detailed specification, request review when risk warrants it, and hand off to `skill-writing-plans`.
