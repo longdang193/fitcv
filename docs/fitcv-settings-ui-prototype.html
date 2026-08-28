@@ -12,15 +12,16 @@
     .sidebar{width:var(--sidebar-w);flex:0 0 auto;overflow-y:auto;border-right:1px solid var(--border-soft);background:var(--sidebar);transition:transform .2s ease}.brand{display:flex;align-items:center;gap:12px;padding:24px 24px 22px}.brand-mark{display:grid;width:38px;height:38px;place-items:center;border-radius:10px;background:var(--accent);color:#fff}.brand-mark svg{width:21px}.brand strong{display:block;font-family:var(--display-font);font-size:17px;letter-spacing:-.015em}.brand small{color:var(--muted)}nav{padding:0 16px 24px}.nav-group{margin:4px 0 12px}.nav-group summary{display:flex;min-height:40px;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;color:var(--subtle);cursor:pointer;font-size:11px;font-weight:750;letter-spacing:.1em;list-style:none;text-transform:uppercase}.nav-group summary::-webkit-details-marker{display:none}.nav-group summary:hover{background:var(--surface-2);color:var(--text)}[data-theme="dark"] .nav-group summary{color:#dbe4ee}[data-theme="dark"] .nav-group summary:hover{color:#fff}.nav-group summary::after{width:16px;margin-left:auto;content:"›";font-size:18px;transform:rotate(0);transition:transform .15s}.nav-group[open] summary::after{transform:rotate(90deg)}.nav-group svg{width:17px;height:17px}.nav-children{padding:2px 0 0 12px}.nav-link{display:flex;align-items:center;gap:10px;min-height:36px;margin:2px 0;padding:7px 12px;border-radius:9px;color:var(--muted);font-size:13px;font-weight:550;text-decoration:none}.nav-link:hover{background:var(--surface-2);color:var(--text)}.nav-link.active{background:var(--accent-soft);color:var(--accent)}.nav-link svg{width:17px;height:17px;flex:0 0 auto}.nav-link.child{padding-left:14px}.nav-divider{height:1px;margin:14px 12px;background:var(--border-soft)}
     .main{position:relative;display:flex;min-width:0;flex:1;flex-direction:column;min-height:100vh}
     header{display:flex;min-height:var(--header-h);align-items:center;justify-content:space-between;gap:16px;padding:0 32px;border-bottom:1px solid var(--border-soft);background:var(--surface)}
-    .title{display:flex;min-width:0;align-items:center;gap:10px}.title-icon{width:23px;height:23px;flex:0 0 23px;color:var(--accent)}.title h1{margin:0;font-family:var(--display-font);font-size:22px;letter-spacing:-.025em}.title p{margin:2px 0 0;color:var(--muted);font-size:13px}.actions{display:flex;flex:0 0 auto;gap:6px}
-    .icon-btn,.menu-btn{display:grid;width:38px;height:38px;place-items:center;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer}.icon-btn:hover,.menu-btn:hover{border-color:var(--border);background:var(--surface-2);color:var(--text)}.icon-btn svg,.menu-btn svg{width:19px}.menu-btn{display:none}
+    .title{display:flex;min-width:0;flex:1;align-items:center;gap:10px}.title>div{min-width:0}.title-icon{width:23px;height:23px;flex:0 0 23px;color:var(--accent)}.title h1{margin:0;font-family:var(--display-font);font-size:22px;letter-spacing:-.025em}.title p{margin:2px 0 0;color:var(--muted);font-size:13px}.actions{display:flex;flex:0 0 auto;gap:6px}
+    .icon-btn{display:grid;width:38px;height:38px;place-items:center;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer}.icon-btn:hover{border-color:var(--border);background:var(--surface-2);color:var(--text)}.icon-btn svg{width:19px}
     .scroll{flex:1;overflow-y:auto;padding:40px}.content{width:min(960px,100%);margin:auto}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin:0 0 22px;flex-wrap:wrap}.page-head>div:first-child{min-width:min(320px,100%);flex:1 1 420px}.eyebrow{margin:0 0 6px;color:var(--accent);font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase}.page-head h2{margin:0;font-family:var(--display-font);font-size:27px;letter-spacing:-.035em}.page-head p{max-width:560px;margin:6px 0 0;color:var(--muted)}
     .btn{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 14px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);cursor:pointer;font-weight:650;text-decoration:none}.btn:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.btn.primary{border-color:var(--accent);background:var(--accent);color:#fff}.btn.primary:hover{background:var(--accent-hover);color:#fff}
     .stack{display:grid;gap:14px}.section-card{overflow:hidden;border:1px solid var(--border-soft);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}.collapsible-section summary{display:flex;align-items:center;gap:10px;padding:18px 22px;cursor:pointer;list-style:none}.collapsible-section summary::-webkit-details-marker{display:none}.collapsible-section summary::before{width:10px;content:"›";font-size:19px;transform:rotate(0);transition:transform .15s}.collapsible-section[open] summary::before{transform:rotate(90deg)}.section-heading strong{display:block;font-family:var(--display-font);font-size:16px;letter-spacing:-.01em}.section-heading span{display:block;margin-top:2px;color:var(--muted);font-size:13px}.section-content{overflow:hidden;border-top:1px solid var(--border-soft)}
+    .start-here{padding:20px 22px;border-color:color-mix(in srgb,var(--accent) 28%,var(--border))}.start-here-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.start-here h3{margin:0;font-family:var(--display-font);font-size:19px;letter-spacing:-.02em}.start-here p{max-width:650px;margin:5px 0 0;color:var(--muted)}.start-here-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 0;padding:0;list-style:none;counter-reset:start-here}.start-here-step{display:grid;gap:5px;min-width:0;padding:14px;border:1px solid var(--border-soft);border-radius:10px;background:var(--surface-2);counter-increment:start-here}.start-here-step::before{content:counter(start-here);display:grid;width:26px;height:26px;place-items:center;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:750}.start-here-step a{color:var(--text);font-weight:700;text-decoration:none}.start-here-step a:hover{color:var(--accent);text-decoration:underline}.start-here-step span{color:var(--muted);font-size:12px}@media(max-width:760px){.start-here-list{grid-template-columns:1fr}.start-here-head{flex-direction:column;gap:10px}}
     .row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:20px;min-height:82px;padding:16px 22px;border-top:1px solid var(--border)}.row:first-child{border-top:0}.row strong{display:block;font-weight:650}.row p{margin:3px 0 0;color:var(--muted);font-size:13px}.support-link{display:inline-block;margin-top:5px;color:var(--accent);font-size:12px;font-weight:650;text-decoration:none}.support-link:hover{text-decoration:underline}.control{display:flex;align-items:center;justify-content:flex-end;gap:10px}
     .field{width:150px;min-height:38px;padding:0 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-variant-numeric:tabular-nums}.field:focus{border-color:var(--accent)}.switch{position:relative;display:inline-flex}.switch input{position:absolute;opacity:0}.track{display:block;width:42px;height:24px;border-radius:999px;background:var(--border);cursor:pointer}.track::after{display:block;width:18px;height:18px;margin:3px;border-radius:50%;background:#fff;content:"";transition:.15s}.switch input:checked+.track{background:var(--accent)}.switch input:checked+.track::after{transform:translateX(18px)}.switch input:focus-visible+.track{outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:2px}
     .savebar{position:sticky;bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:0 10px 30px -16px rgba(0,0,0,.25)}.status{color:var(--muted)}.status strong{display:block;color:var(--text)}.buttons{display:flex;gap:8px}.search{display:flex;align-items:center;gap:8px;width:220px;padding:0 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface)}.search svg{width:17px;color:var(--muted)}.search input{width:100%;min-height:36px;border:0;outline:0;background:transparent;color:var(--text)}.toast{position:fixed;right:24px;bottom:24px;z-index:50;padding:11px 14px;border-radius:9px;background:var(--text);color:var(--surface);font-weight:650;opacity:0;pointer-events:none;transform:translateY(8px);transition:.18s}.toast.show{opacity:1;transform:none}.scrim{display:none}
-    @media(max-width:760px){.sidebar{position:fixed;inset:0 auto 0 0;z-index:30;transform:translateX(-100%)}.sidebar.open{transform:none}.menu-btn{display:grid}header{padding:0 14px}.title p,.search{display:none}.scroll{padding:24px 16px}.page-head{align-items:stretch;flex-direction:column;gap:14px}.page-head .btn{width:100%}.row{grid-template-columns:1fr;gap:11px}.control{justify-content:flex-start}.field{width:100%}.nav-link,.btn,.icon-btn,.menu-btn{min-height:44px}.icon-btn,.menu-btn{width:44px}.savebar{align-items:stretch;flex-direction:column}.buttons{display:grid;grid-template-columns:1fr 1fr}.scrim{position:fixed;inset:0;z-index:20;display:block;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:.18s}.scrim.show{opacity:1;pointer-events:auto}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+    @media(min-width:761px) and (max-width:1000px){.title p{display:none}.search{width:180px}}@media(max-width:760px){.sidebar{position:fixed;inset:0 auto 0 0;z-index:30;transform:translateX(-100%)}.sidebar.open{transform:none}header{padding:0 14px}.title p,.search{display:none}.scroll{padding:24px 16px}.page-head{align-items:stretch;flex-direction:column;gap:14px}.page-head .btn{width:100%}.row{grid-template-columns:1fr;gap:11px}.control{justify-content:flex-start}.field{width:100%}.nav-link,.btn,.icon-btn,.sidebar-toggle{min-height:44px}.icon-btn,.sidebar-toggle{width:44px}.sidebar-toggle{flex-basis:44px}.savebar{align-items:stretch;flex-direction:column}.buttons{display:grid;grid-template-columns:1fr 1fr}.scrim{position:fixed;inset:0;z-index:20;display:block;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:.18s}.scrim.show{opacity:1;pointer-events:auto}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
   </style>
   <style>
     dialog{width:min(560px,calc(100vw - 32px));padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text);box-shadow:0 24px 64px -16px rgba(0,0,0,.35)}dialog::backdrop{background:rgba(17,24,39,.34);backdrop-filter:blur(3px)}.dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 24px 18px;border-bottom:1px solid var(--border-soft)}.dialog-head h2{margin:0;font-size:21px;letter-spacing:-.025em}.dialog-head p{margin:4px 0 0;color:var(--muted)}.dialog-close{display:grid;width:36px;height:36px;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-size:24px}.dialog-close:hover{background:var(--surface-2);color:var(--text)}.weight-form{padding:8px 24px 0}.weight-row{display:grid;grid-template-columns:minmax(0,1fr) 120px;align-items:center;gap:18px;padding:15px 0;border-bottom:1px solid var(--border-soft)}.weight-row label{font-weight:650}.weight-row span{display:block;margin-top:2px;color:var(--muted);font-size:12px}.weight-row .field{width:100%}.weight-status{margin:18px 24px 0;padding:10px 12px;border-radius:8px;background:var(--surface-2);color:var(--muted);font-size:13px}.weight-status.invalid{background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent)}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:20px 24px 24px}.btn:disabled{border-color:var(--border);background:var(--surface-2);color:var(--subtle);cursor:not-allowed}@media(max-width:760px){.weight-row{grid-template-columns:1fr}.dialog-actions{display:grid;grid-template-columns:1fr 1fr}}
@@ -95,24 +96,31 @@
   <style>
     .review-section-head>div:first-child{min-width:0;flex:1}.review-section-head-actions{flex:0 0 auto;align-self:center}.draft-status{justify-content:center;white-space:nowrap}.derived-entry-body>label{width:100%;min-width:0;font-size:14px}.derived-entry-body>label .field{width:100%;min-width:0;min-height:44px;box-sizing:border-box;font-size:15px}.creation-footer-copy{min-width:0}.creation-footer-copy strong{display:block}.creation-footer-copy p{margin:3px 0 0}.creation-footer .creation-action-group{flex-wrap:nowrap}@media(max-width:760px){.creation-footer{position:static;align-items:stretch;flex-direction:column}.creation-footer .creation-action-group{display:grid;width:100%;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.creation-footer .btn{width:100%}.review-section-head-actions{justify-content:flex-end}}@media(max-width:560px){.review-section-head-actions{width:100%;justify-content:space-between}.creation-footer .creation-action-group{grid-template-columns:1fr}}
   </style>
+  <style>
+    .sidebar{transition:transform .2s ease}.sidebar-toggle{display:grid;width:38px;height:38px;place-items:center;flex:0 0 38px;margin:0;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--muted);cursor:pointer;box-shadow:var(--shadow)}.sidebar-toggle:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}.sidebar-toggle:active{transform:translateY(1px)}.sidebar-toggle svg{width:19px}.start-here{margin-bottom:14px}@media(min-width:761px){.sidebar-collapsed .sidebar{display:none}}
+    .details-page-actions,.creation-draft-actions{display:flex;gap:8px;flex-wrap:wrap}@media(max-width:560px){.details-page-actions,.creation-draft-actions{width:100%}.details-page-actions .btn,.creation-draft-actions .btn{flex:1}}
+  </style>
+  <style>
+    .notification-btn{position:relative}.notification-count{position:absolute;top:-4px;right:-4px;display:grid;min-width:18px;height:18px;padding:0 4px;place-items:center;border-radius:999px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;line-height:1}.notification-count[hidden]{display:none}.notification-actions{display:flex;align-items:center;gap:8px}.notification-list{display:grid;gap:8px;max-height:min(420px,55vh);overflow:auto;padding:0 24px 24px}.notification-item{display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2)}.notification-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.notification-item-head strong{min-width:0}.notification-item span{color:var(--muted);font-size:12px}.notification-empty{padding:0 24px 24px;color:var(--muted)}.cv-regeneration-status{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:3px 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:11px;font-weight:700}.cv-regeneration-status[data-status="Running"]{border-color:color-mix(in srgb,#2563eb 35%,var(--border));background:color-mix(in srgb,#2563eb 10%,var(--surface));color:#1d4ed8}.cv-regeneration-status[data-status="Failed"]{border-color:color-mix(in srgb,#b91c1c 35%,var(--border));background:color-mix(in srgb,#b91c1c 8%,var(--surface));color:#b91c1c}.cv-regeneration-status[data-status="Succeeded"]{border-color:color-mix(in srgb,#15803d 35%,var(--border));background:color-mix(in srgb,#15803d 10%,var(--surface));color:#15803d}.cv-preview-dialog{width:min(760px,calc(100vw - 32px))}.cv-preview-body{max-height:calc(100dvh - 180px);overflow:auto;padding:24px}.cv-preview{padding:28px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow)}.cv-preview header{display:block;min-height:auto;padding:0 0 18px;border-bottom:2px solid var(--text);background:transparent}.cv-preview header h1{margin:0;font-family:var(--display-font);font-size:28px}.cv-preview header p{margin:4px 0 0;color:var(--muted)}.cv-preview section{display:grid;gap:6px;margin-top:20px}.cv-preview section h3{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase}.cv-preview section p{margin:0}.cv-preview-skills{display:flex;gap:6px;flex-wrap:wrap}.cv-preview-skills span{padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:12px}@media(max-width:560px){.cv-preview-body{padding:14px}.cv-preview{padding:18px}}
+  </style>
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12a2 2 0 0 1 2 2v14H4V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h6M8 17h4"/></svg></div><div><strong>FitCV Control Plane</strong><small>Local workspace</small></div></div>
-      <nav aria-label="Workspace">
+      <nav aria-label="Main navigation">
         <a class="nav-link" id="runsNav" href="#runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>Runs</a>
         <a class="nav-link" id="scansNav" href="#scans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/></svg>Scans</a>
         <a class="nav-link" id="candidateProfilesNav" href="#candidate-profiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Candidate Profiles</a>
         <a class="nav-link" id="bookmarksNav" href="#bookmarks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Bookmarks</a>
         <a class="nav-link" id="synonymsNav" href="#synonyms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M5 5h14v14H5z"/></svg>Synonyms</a>
-        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#preference-optimization">Preference Optimization</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a><a class="nav-link child" id="promptManagementNav" href="#prompt-management">Prompt Management</a></div></details>
-        <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children"><a class="nav-link child" id="apiProvidersNav" href="#api-providers">API Providers</a><a class="nav-link child" id="llmConfigurationNav" href="#llm-configuration">LLM Configuration</a><a class="nav-link child" id="systemNav" href="#system">System</a></div></details>
+        <details class="nav-group" id="pipelineNavGroup"><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg>Pipeline settings</summary><div class="nav-children"><a class="nav-link child active" href="#overview" aria-current="page">Overview</a><a class="nav-link child" href="#enrichment">Enrichment</a><a class="nav-link child" href="#screening">Screening</a><a class="nav-link child" href="#shortlisting">Shortlisting</a><a class="nav-link child" href="#ranking">Ranking</a><a class="nav-link child" href="#preference-optimization">Preference Optimization</a><a class="nav-link child" href="#cv-analysis">CV Analysis</a><a class="nav-link child" href="#cv-generation">CV Generation</a><a class="nav-link child" href="#runtime-limits">Runtime &amp; Limits</a><a class="nav-link child" href="#automation-reuse">Automation &amp; Reuse</a><a class="nav-link child" id="promptManagementNav" href="#prompt-management">Prompt Management</a></div></details>
+        <details class="nav-group" id="applicationNavGroup"><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application settings</summary><div class="nav-children"><a class="nav-link child" id="apiProvidersNav" href="#api-providers">API Providers</a><a class="nav-link child" id="llmConfigurationNav" href="#llm-configuration">LLM Configuration</a><a class="nav-link child" id="systemNav" href="#system">System</a></div></details>
       </nav>
     </aside>
     <div class="scrim" id="scrim"></div>
     <main class="main">
-      <header><div class="title"><button class="menu-btn" id="menu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><svg class="title-icon" id="titleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1 id="headerTitle">Pipeline</h1><p id="headerDescription">Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search" id="searchBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn" id="theme" type="button" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button><button class="icon-btn danger" id="openShutdownDialog" type="button" aria-label="Shutdown FitCV" title="Shutdown FitCV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></button></div></header>
+      <header><div class="title"><button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Collapse sidebar" aria-controls="sidebar" aria-expanded="true" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M9 5v14"/><path d="m15 9-3 3 3 3"/></svg></button><svg class="title-icon" id="titleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h6v5H4zM14 13h6v5h-6zM10 8.5h4a3 3 0 0 1 3 3V13"/></svg><div><h1 id="headerTitle">Pipeline</h1><p id="headerDescription">Configure how each matching run selects and prepares candidates.</p></div></div><div class="actions"><label class="search" id="searchBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="search" type="search" placeholder="Search Pipeline" aria-label="Search Pipeline Overview"></label><button class="icon-btn notification-btn" id="openNotifications" type="button" aria-label="Notifications" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="notification-count" id="notificationCount" hidden>0</span></button><button class="icon-btn" id="theme" type="button" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"/></svg></button><button class="icon-btn danger" id="openShutdownDialog" type="button" aria-label="Shutdown FitCV" title="Shutdown FitCV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg></button></div></header>
       <div class="scroll"><div class="content"><form id="form"></form></div></div>
     </main>
   </div>
@@ -129,6 +137,9 @@
   <dialog id="personalizationStrengthDialog" aria-labelledby="personalizationStrengthTitle" aria-describedby="personalizationStrengthDescription"><div class="dialog-head"><div><h2 id="personalizationStrengthTitle">Personalization Strength</h2><p id="personalizationStrengthDescription">Set how strongly saved ratings can influence future personalized rankings.</p></div><button class="dialog-close" id="closePersonalizationStrength" type="button" aria-label="Close Personalization Strength dialog">×</button></div><form class="weight-form" id="personalizationStrengthForm"><div class="weight-row"><div><label for="personalizationStrengthInput">Strength<span>Higher values let saved ratings move results further from Baseline Ranking.</span></label></div><input class="field" id="personalizationStrengthInput" type="number" required></div></form><p class="weight-status" id="personalizationStrengthStatus">Bounds load from policy.</p><div class="dialog-actions"><button class="btn" id="cancelPersonalizationStrength" type="button">Cancel</button><button class="btn primary" type="submit" form="personalizationStrengthForm">Save</button></div></dialog>
   <dialog class="profile-evidence-dialog" id="profileEvidenceDialog" aria-labelledby="profileEvidenceTitle"><div class="dialog-head"><div><p class="eyebrow">Source Evidence</p><h2 id="profileEvidenceTitle">Evidence details</h2><p id="profileEvidenceDescription">Review source excerpt and locators.</p></div><button class="dialog-close" id="closeProfileEvidence" type="button" aria-label="Close Source Evidence dialog">×</button></div><div class="profile-evidence-body" id="profileEvidenceBody"></div></dialog>
   <dialog class="details-drawer" id="synonymDetailsDrawer" aria-labelledby="synonymDetailsTitle"><div class="drawer-scroll"><div class="drawer-head"><div><p class="eyebrow">Synonym Review</p><h2 id="synonymDetailsTitle">Suggestion Details</h2><p>Review suggestion evidence before deciding.</p></div><button class="dialog-close" id="closeSynonymDetails" type="button" aria-label="Close Synonym Suggestion Details">×</button></div><div class="drawer-body" id="synonymDetailsBody"></div></div></dialog>
+  <dialog class="run-dialog" id="notificationDialog" aria-labelledby="notificationTitle" aria-describedby="notificationDescription"><div class="dialog-head"><div><h2 id="notificationTitle">Notifications</h2><p id="notificationDescription">Recent FitCV activity and action results.</p></div><div class="notification-actions"><button class="small-action" id="clearNotifications" type="button">Clear all</button><button class="dialog-close" id="closeNotificationDialog" type="button" aria-label="Close notifications">×</button></div></div><div class="notification-list" id="notificationList"></div></dialog>
+  <dialog class="run-dialog" id="cvRegenerationDialog" aria-labelledby="cvRegenerationTitle" aria-describedby="cvRegenerationDescription"><div class="dialog-head"><div><h2 id="cvRegenerationTitle">Regenerate CV</h2><p id="cvRegenerationDescription">Review request before creating a new CV artifact.</p></div><button class="dialog-close" id="closeCvRegenerationDialog" type="button" aria-label="Close CV regeneration dialog">×</button></div><form class="run-form" id="cvRegenerationForm"><div class="run-field"><label for="cvRegenerationPrompt">Specific prompt <span class="supporting-text">Optional</span></label><textarea class="field" id="cvRegenerationPrompt" rows="5" maxlength="1200" placeholder="Example: Emphasize platform strategy and measurable product outcomes."></textarea><small>Leave blank to use FitCV's default CV-generation instructions.</small></div></form><p class="run-dialog-status" id="cvRegenerationStatus" role="status" aria-live="polite">This creates a new CV artifact for this job.</p><div class="dialog-actions"><button class="btn" id="cancelCvRegeneration" type="button">Cancel</button><button class="btn primary" id="confirmCvRegeneration" type="button">Confirm regeneration</button></div></dialog>
+  <dialog class="run-dialog cv-preview-dialog" id="cvPreviewDialog" aria-labelledby="cvPreviewTitle"><div class="dialog-head"><div><h2 id="cvPreviewTitle">CV Preview</h2><p>Review generated content without downloading a file.</p></div><button class="dialog-close" id="closeCvPreviewDialog" type="button" aria-label="Close CV preview">×</button></div><div class="cv-preview-body" id="cvPreviewBody"></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite">Ranking changes saved in prototype</div>
   <script>
   (()=>{
@@ -143,6 +154,7 @@
   const PERSONALIZATION_STRENGTH_LIMITS=Object.freeze({minimum:.01,maximum:.10,recommended:.05,step:.01});
   const OPTIMIZATION_EVIDENCE_SUMMARY=Object.freeze({savedRatings:24,episodes:6,eligibleComparisons:148,ready:true});
   const RUN_STATUSES=new Set(['Running','Succeeded','Failed']);
+  const CV_REGENERATION_STATUSES=new Set(['Running','Succeeded','Failed']);
   const SCAN_STATUSES=new Set(['Queued','Running','Succeeded','Failed','Cancelled']);
   const PUBLISHED_WINDOWS=Object.freeze([
     {id:'any',label:'Any time',milliseconds:null},
@@ -265,6 +277,7 @@
     {id:'RUN-A94F210B',status:'Failed',runName:'Platform engineer roles',jobName:'platform-engineer.json',inputFileName:'platform-engineer.json',profileId:'candidate-platform',createdAt:prototypeNow-9010000,startedAt:prototypeNow-9007000,completeAt:null,endedAt:prototypeNow-8927000,archived:false,statusDetail:'Prototype validation failed'},
     {id:'RUN-54C0E83D',status:'Succeeded',runName:'Data operations manager',jobName:'data-operations-manager.jsonl',inputFileName:'data-operations-manager.jsonl',profileId:'candidate-analytics',createdAt:prototypeNow-86400000,startedAt:prototypeNow-86397000,completeAt:null,endedAt:prototypeNow-86236000,archived:true,statusDetail:''}
   ];
+  const DEFAULT_NOTIFICATIONS=[{id:'notification-run-progress',message:'Run RUN-7E4A92C1 is still in progress.',createdAt:prototypeNow-30000,read:false}];
   const PIPELINE_STAGES=[
     {id:'all',label:'All Jobs'},{id:'enrichment',label:'Enrichment'},{id:'screening',label:'Screening'},{id:'shortlisting',label:'Shortlisting'},{id:'ranking',label:'Ranking'},{id:'cv-analysis',label:'CV Analysis'},{id:'cv-generation',label:'CV Generation'}
   ];
@@ -498,9 +511,20 @@
   const theme=document.querySelector('#theme');
   const search=document.querySelector('#search');
   const sidebar=document.querySelector('#sidebar');
-  const menu=document.querySelector('#menu');
+  const sidebarToggle=document.querySelector('#sidebarToggle');
   const scrim=document.querySelector('#scrim');
   const toast=document.querySelector('#toast');
+  const notificationButton=document.querySelector('#openNotifications');
+  const notificationCount=document.querySelector('#notificationCount');
+  const notificationDialog=document.querySelector('#notificationDialog');
+  const notificationList=document.querySelector('#notificationList');
+  const cvRegenerationDialog=document.querySelector('#cvRegenerationDialog');
+  const cvRegenerationTitle=document.querySelector('#cvRegenerationTitle');
+  const cvRegenerationPrompt=document.querySelector('#cvRegenerationPrompt');
+  const cvRegenerationStatus=document.querySelector('#cvRegenerationStatus');
+  const cvPreviewDialog=document.querySelector('#cvPreviewDialog');
+  const cvPreviewTitle=document.querySelector('#cvPreviewTitle');
+  const cvPreviewBody=document.querySelector('#cvPreviewBody');
   const dialog=document.querySelector('#weightsDialog');
   const dialogTitle=document.querySelector('#weightsTitle');
   const dialogDescription=document.querySelector('#weightsDescription');
@@ -508,6 +532,8 @@
   const dialogStatus=document.querySelector('#weightStatus');
   const dialogSave=document.querySelector('#saveWeights');
   const pipelineNav=document.querySelector('#sidebar .nav-group .nav-children');
+  const pipelineNavGroup=document.querySelector('#pipelineNavGroup');
+  const applicationNavGroup=document.querySelector('#applicationNavGroup');
   const synonymsNav=document.querySelector('#synonymsNav');
   const candidateProfilesNav=document.querySelector('#candidateProfilesNav');
   const runsNav=document.querySelector('#runsNav');
@@ -791,7 +817,9 @@
     });
     const validBookmarkKeys=new Set(runs.flatMap(run=>runJobs(run).map(job=>bookmarkKey(run,job))));
     const bookmarks=[...new Set((Array.isArray(stored.bookmarks)?stored.bookmarks:DEFAULT_BOOKMARK_KEYS).filter(key=>typeof key==='string'&&validBookmarkKeys.has(key)))];
-    return {candidateProfiles:clone(profiles),creationAttempts:clone(creationAttempts),runs:clone(runs),bookmarks,runActiveTab:stored.runActiveTab==='archived'||stored.activeTab==='archived'?'archived':'active',profileActiveTab:stored.profileActiveTab==='archived'?'archived':'active'};
+    const notifications=(Array.isArray(stored.notifications)?stored.notifications:DEFAULT_NOTIFICATIONS).filter(item=>item&&typeof item.id==='string'&&typeof item.message==='string'&&Number.isFinite(item.createdAt)).map(item=>({id:item.id,message:item.message,createdAt:item.createdAt,read:item.read===true})).slice(0,30);
+    const cvRegenerations=(Array.isArray(stored.cvRegenerations)?stored.cvRegenerations:[]).filter(item=>item&&typeof item.id==='string'&&typeof item.runId==='string'&&typeof item.jobId==='string'&&CV_REGENERATION_STATUSES.has(item.status)&&Number.isFinite(item.createdAt)).map(item=>({id:item.id,runId:item.runId,jobId:item.jobId,prompt:typeof item.prompt==='string'?item.prompt:'',status:item.status,createdAt:item.createdAt,startedAt:Number.isFinite(item.startedAt)?item.startedAt:item.createdAt,completeAt:Number.isFinite(item.completeAt)?item.completeAt:null,endedAt:Number.isFinite(item.endedAt)?item.endedAt:null,error:typeof item.error==='string'?item.error:''}));
+    return {candidateProfiles:clone(profiles),creationAttempts:clone(creationAttempts),runs:clone(runs),bookmarks,notifications:clone(notifications),cvRegenerations:clone(cvRegenerations),runActiveTab:stored.runActiveTab==='archived'||stored.activeTab==='archived'?'archived':'active',profileActiveTab:stored.profileActiveTab==='archived'?'archived':'active'};
   }
   function readCompanyStored(){try{return JSON.parse(localStorage.getItem(COMPANY_STORAGE_KEY)||'{}')}catch{return {}}}
   function normaliseCompanyRegistry(stored){
@@ -892,10 +920,35 @@
   writeProviderState();
   writeOptimizationState();
   function notify(message){
+    runState.notifications.unshift({id:`notification-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,message,createdAt:Date.now(),read:false});
+    runState.notifications=runState.notifications.slice(0,30);
+    writeRunState();
+    updateNotificationBadge();
+    if(notificationDialog.open)renderNotifications();
     toast.textContent=message;
     toast.classList.add('show');
     clearTimeout(notify.timer);
     notify.timer=setTimeout(()=>toast.classList.remove('show'),1800);
+  }
+  function updateNotificationBadge(){
+    const count=runState.notifications.filter(item=>!item.read).length;
+    notificationCount.textContent=count>99?'99+':String(count);
+    notificationCount.hidden=!count;
+    notificationCount.setAttribute('aria-hidden',String(!count));
+    notificationButton.setAttribute('aria-label',count?`Notifications, ${count} new`:'Notifications');
+  }
+  function clearNotification(id){runState.notifications=runState.notifications.filter(item=>item.id!==id);writeRunState();updateNotificationBadge();renderNotifications()}
+  function clearNotifications(){runState.notifications=[];writeRunState();updateNotificationBadge();renderNotifications()}
+  function renderNotifications(){
+    notificationList.innerHTML=runState.notifications.length?runState.notifications.map(item=>`<div class="notification-item"><div class="notification-item-head"><strong>${escapeHtml(item.message)}</strong><button class="small-action" type="button" data-notification-id="${escapeAttribute(item.id)}" aria-label="Dismiss notification: ${escapeAttribute(item.message)}">Dismiss</button></div><span>${formatCreated(item.createdAt)}</span></div>`).join(''):'<p class="notification-empty">No notifications yet.</p>';
+    document.querySelector('#clearNotifications').disabled=!runState.notifications.length;
+  }
+  function openNotifications(){
+    runState.notifications.forEach(item=>{item.read=true});
+    writeRunState();
+    updateNotificationBadge();
+    renderNotifications();
+    showExclusiveDialog(notificationDialog,document.querySelector('#closeNotificationDialog'));
   }
   function escapeHtml(value){
     const span=document.createElement('span');
@@ -923,16 +976,45 @@
   function refreshRunStatuses(){
     const now=Date.now();
     let changed=false;
+    const messages=[];
     for(const run of runState.runs){
       if(run.status==='Running'&&Number.isFinite(run.completeAt)&&run.completeAt<=now){
         run.status='Succeeded';
         run.endedAt=run.completeAt;
         run.completeAt=null;
         run.statusDetail='';
+        messages.push(`Run ${run.id} succeeded`);
         changed=true;
       }
     }
-    if(changed)writeRunState();
+    if(changed){writeRunState();messages.forEach(notify)}
+    return changed;
+  }
+  function cvRegenerationFor(run,job){return [...runState.cvRegenerations].reverse().find(item=>item.runId===run.id&&item.jobId===job.id)}
+  function cvRegenerationLabel(regeneration){return regeneration.status==='Running'?'Regeneration in progress':regeneration.status==='Succeeded'?`Regeneration complete · ${formatCreated(regeneration.endedAt)}`:'Regeneration failed'}
+  function refreshCvRegenerations(){
+    const now=Date.now();
+    let changed=false;
+    const messages=[];
+    for(const regeneration of runState.cvRegenerations){
+      if(regeneration.status!=='Running'||!Number.isFinite(regeneration.completeAt)||regeneration.completeAt>now)continue;
+      regeneration.endedAt=regeneration.completeAt;
+      regeneration.completeAt=null;
+      if(/\b(fail|error)\b/i.test(regeneration.prompt)){
+        regeneration.status='Failed';
+        regeneration.error='Prototype generation failed. Remove “fail” or “error” from prompt and try again.';
+        messages.push(`CV regeneration failed for ${regeneration.jobId}`);
+      }else{
+        regeneration.status='Succeeded';
+        regeneration.error='';
+        messages.push(`CV regeneration complete for ${regeneration.jobId}`);
+      }
+      changed=true;
+    }
+    if(changed){
+      writeRunState();
+      messages.forEach(notify);
+    }
     return changed;
   }
   function uniqueRunId(){
@@ -1208,7 +1290,7 @@
   function creationAttemptPath(attempt){return `#candidate-profiles/create/${encodeURIComponent(attempt.id)}/${attempt.status==='failed'?'baseline':attempt.status}`}
   function creationDraftsMarkup(){
     const attempts=creationAttempts();
-    return `<section class="section-card creation-drafts" aria-labelledby="creationDraftsTitle"><div class="creation-drafts-head"><div><h3 id="creationDraftsTitle">Creation drafts</h3><span>Paused and failed attempts are not available to Runs.</span></div><span>${attempts.length} draft${attempts.length===1?'':'s'}</span></div>${attempts.length?`<div class="creation-draft-list">${attempts.map(attempt=>`<div class="creation-draft"><span class="draft-status">${escapeHtml(attempt.status==='confirm'?'Ready to confirm':attempt.status==='derived'?'Derived review':attempt.status==='failed'?'Needs attention':'Baseline review')}</span><div class="creation-draft-copy"><strong>${escapeHtml(attempt.draftName)}</strong><span>${escapeHtml(attempt.sourceFileName)} · Updated ${formatCreated(attempt.updatedAt)}</span></div><a class="btn" href="${creationAttemptPath(attempt)}">Resume</a></div>`).join('')}</div>`:'<div class="creation-draft"><div class="creation-draft-copy"><strong>No creation drafts</strong><span>Upload Markdown, DOCX, or YAML to start one staged review.</span></div></div>'}</section>`;
+    return `<section class="section-card creation-drafts" aria-labelledby="creationDraftsTitle"><div class="creation-drafts-head"><div><h3 id="creationDraftsTitle">Creation drafts</h3><span>Paused and failed attempts are not available to Runs.</span></div><span>${attempts.length} draft${attempts.length===1?'':'s'}</span></div>${attempts.length?`<div class="creation-draft-list">${attempts.map(attempt=>`<div class="creation-draft"><span class="draft-status">${escapeHtml(attempt.status==='confirm'?'Ready to confirm':attempt.status==='derived'?'Derived review':attempt.status==='failed'?'Needs attention':'Baseline review')}</span><div class="creation-draft-copy"><strong>${escapeHtml(attempt.draftName)}</strong><span>${escapeHtml(attempt.sourceFileName)} · Updated ${formatCreated(attempt.updatedAt)}</span></div><div class="creation-draft-actions"><a class="btn" href="${creationAttemptPath(attempt)}">Resume</a><button class="btn danger" type="button" data-delete-creation-draft="${escapeAttribute(attempt.id)}" aria-label="Delete ${escapeAttribute(attempt.draftName)} draft">Delete</button></div></div>`).join('')}</div>`:'<div class="creation-draft"><div class="creation-draft-copy"><strong>No creation drafts</strong><span>Upload Markdown, DOCX, or YAML to start one staged review.</span></div></div>'}</section>`;
   }
   function renderCandidateProfilesPage(){
     const profiles=visibleProfiles();
@@ -1250,6 +1332,7 @@
     }
     form.querySelector('#archiveSelectedProfiles')?.addEventListener('click',archiveSelectedProfiles);
     form.querySelector('#deleteSelectedProfiles')?.addEventListener('click',deleteSelectedProfiles);
+    form.querySelectorAll('[data-delete-creation-draft]').forEach(button=>button.addEventListener('click',()=>deleteCreationDraft(button.dataset.deleteCreationDraft)));
   }
   function isYamlProfileFile(file){return Boolean(file&&typeof file.name==='string'&&file.name.toLowerCase().endsWith('.yaml'))}
   function isCvProfileFile(file){return Boolean(file&&typeof file.name==='string'&&/\.(md|docx)$/i.test(file.name))}
@@ -1277,6 +1360,14 @@
     writeRunState();
     renderCandidateProfilesPage();
     notify(`${selected.length} profile${selected.length===1?'':'s'} deleted`);
+  }
+  function deleteCreationDraft(attemptId){
+    const attempt=attemptById(attemptId);if(!attempt)return;
+    if(!confirm(`Delete draft “${attempt.draftName}”?\n\nThis permanently removes this staged profile draft. This cannot be undone.`))return;
+    runState.creationAttempts=runState.creationAttempts.filter(item=>item.id!==attemptId);
+    writeRunState();
+    renderCandidateProfilesPage();
+    notify('Creation draft deleted');
   }
   function uniqueCreationAttemptId(){
     let id;
@@ -1357,7 +1448,7 @@
   function startCvCreation(){
     const profileName=form.querySelector('#creationProfileName').value.trim();if(!isSupportedProfileInput(creationUploadFile)||!profileName)return updateUploadControls();
     const button=form.querySelector('#processCv'),status=form.querySelector('#creationUploadStatus');button.disabled=true;button.textContent='Processing…';status.textContent='Reading document, preserving source locators, and extracting baseline facts…';
-    setTimeout(()=>{const attempt=makeCreationAttempt(creationUploadFile,profileName);runState.creationAttempts.unshift(attempt);writeRunState();creationUploadFile=null;location.hash=creationAttemptPath(attempt)},420);
+    setTimeout(()=>{const attempt=makeCreationAttempt(creationUploadFile,profileName);runState.creationAttempts.unshift(attempt);writeRunState();creationUploadFile=null;notify(`Candidate Profile draft created from ${attempt.sourceFileName}`);location.hash=creationAttemptPath(attempt)},420);
   }
   function renderCreationUpload(){
     form.innerHTML=`<div class="profile-creation"><div class="details-page-head"><a class="details-page-back" href="#candidate-profiles">← Back to Candidate Profiles</a><div class="page-head"><div><p class="eyebrow">Step 1 · Upload</p><h2>Upload candidate document</h2><p>Define Profile Name once, then every supported format follows same extraction, review, derivation, and confirmation pipeline.</p></div></div></div>${creationStepperMarkup(1)}<section class="section-card creation-upload-card"><div class="creation-upload-grid"><label class="creation-dropzone" id="creationDropzone" for="creationCvFile"><input class="sr-only" id="creationCvFile" type="file" accept=".md,.docx,.yaml,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/yaml,text/yaml"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 15v4h16v-4"/></svg><strong>Drop candidate document here or choose file</strong><span>Markdown (.md), Word (.docx), or YAML (.yaml), one file</span></span></label><div class="creation-upload-meta"><div><h3>One staged hybrid pipeline</h3><p>Deterministic readers preserve source text and locators. AI assists only with ambiguous mapping, normalization, and controlled derivation.</p></div><div class="provider-field"><label for="creationProfileName">Profile Name</label><input class="field" id="creationProfileName" type="text" maxlength="120" required><small>Workspace label only. Candidate Full name remains baseline data.</small></div><div class="creation-file-summary" id="creationFileName">No file selected</div><p class="creation-status" id="creationUploadStatus" role="status" aria-live="polite">Choose one candidate document to continue.</p><button class="btn primary" id="processCv" type="button" disabled>Process document</button></div></div></section></div>`;
@@ -1404,7 +1495,7 @@
       if(invalidEvidence){status.textContent='Every evidence entry needs a Kind and Evidence text.';status.classList.add('error');return}
       if(!allEvidenceItems(attempt.baseline).length){status.textContent='Keep at least one nested evidence statement.';status.classList.add('error');return}
       attempt.baselineApprovedAt=Date.now();attempt.derived=deriveProfileClaims(attempt);attempt.derivedInvalidated=false;attempt.status='derived';
-    }else{const invalid=DERIVED_SECTIONS.flatMap(section=>attempt.derived[section.key]).find(entry=>!entry.name.trim()||entry.evidence_refs.some(ref=>!resolveProfileRef(attempt.baseline,ref))||(entry.support_status==='supported'&&!entry.evidence_refs.length));if(invalid){status.textContent='Every claim needs a name; supported claims need valid evidence IDs.';status.classList.add('error');return}attempt.derivedApprovedAt=Date.now();attempt.status='confirm'}attempt.updatedAt=Date.now();attempt.undo=null;attempt.suggestions={};writeRunState();location.hash=creationAttemptPath(attempt)
+    }else{const invalid=DERIVED_SECTIONS.flatMap(section=>attempt.derived[section.key]).find(entry=>!entry.name.trim()||entry.evidence_refs.some(ref=>!resolveProfileRef(attempt.baseline,ref))||(entry.support_status==='supported'&&!entry.evidence_refs.length));if(invalid){status.textContent='Every claim needs a name; supported claims need valid evidence IDs.';status.classList.add('error');return}attempt.derivedApprovedAt=Date.now();attempt.status='confirm'}attempt.updatedAt=Date.now();attempt.undo=null;attempt.suggestions={};writeRunState();notify(`${attempt.draftName} ${stage==='baseline'?'baseline facts':'derived claims'} approved`);location.hash=creationAttemptPath(attempt)
   }
   function returnToBaseline(attempt){if(!confirm('Return to baseline review?\n\nAny derived approval becomes invalid because derived claims depend on approved baseline facts.'))return;attempt.status='baseline';markBaselineChanged(attempt);attempt.suggestions={};attempt.undo=null;writeRunState();location.hash=creationAttemptPath(attempt)}
   function creationFooterMarkup(stage){const confirmStage=stage==='confirm',derivedStage=stage==='derived',statusId=confirmStage?'creationConfirmStatus':'creationReviewStatus',title=confirmStage?'Ready to create profile':'Draft saved automatically',message=confirmStage?'Confirmation creates one immutable Candidate Profile revision ready for Pipeline Runs.':'Changes save automatically to this creation draft.',actions=confirmStage?'<button class="btn" id="backToDerived" type="button">Back to derived review</button><button class="btn" id="saveCreationDraft" type="button">Save and exit</button><button class="btn primary" id="confirmCreation" type="button">Confirm and save profile</button>':`${derivedStage?'<button class="btn" id="backToBaseline" type="button">Back to baseline</button>':''}<button class="btn" id="saveCreationDraft" type="button">Save and exit</button><button class="btn primary" id="approveCreationStage" type="button">${derivedStage?'Approve derived claims':'Approve baseline and continue'}</button>`;return `<div class="creation-footer"><div class="creation-footer-copy"><strong>${title}</strong><p class="creation-status" id="${statusId}" role="status" aria-live="polite">${message}</p></div><div class="creation-action-group">${actions}</div></div>`}
@@ -1425,7 +1516,7 @@
   function canonicalProfileFromAttempt(attempt){const baseline=canonicalBaseline(attempt);return {schema_version:'candidate-profile.v2',source_documents:[{id:'doc-upload',filename:attempt.sourceFileName,media_type:attempt.sourceFormat==='Markdown'?'text/markdown':attempt.sourceFormat==='YAML'?'application/yaml':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',sha256:'0'.repeat(64),parser:{name:'fitcv-profile-prototype',version:'v2'}}],...baseline,...Object.fromEntries(DERIVED_SECTIONS.map(section=>[section.key,clone(attempt.derived[section.key])])),interests:[],search_preferences:{}}}
   function saveCreationProfile(attempt){
     if(attempt.savedProfileId){openProfileDetails(attempt.savedProfileId);return}const profileName=attempt.draftName.trim();if(!profileName){form.querySelector('#creationConfirmStatus').textContent='Profile Name is required. Return to Upload.';return}
-    const canonical=canonicalProfileFromAttempt(attempt),profile={id:uniqueProfileId(),status:'Succeeded',name:profileName,inputFileName:attempt.sourceFileName,createdAt:Date.now(),archived:false,canonical,creation:{method:'staged-hybrid',attemptId:attempt.id,sourceFormat:attempt.sourceFormat,baselineApprovedAt:attempt.baselineApprovedAt,derivedApprovedAt:attempt.derivedApprovedAt,confirmedAt:Date.now()}};runState.candidateProfiles.unshift(profile);attempt.savedProfileId=profile.id;attempt.status='saved';attempt.updatedAt=Date.now();runState.profileActiveTab='active';writeRunState();notify('Candidate Profile ready for Runs');openProfileDetails(profile.id)
+     const canonical=canonicalProfileFromAttempt(attempt),previous=attempt.editProfileId?runState.candidateProfiles.find(profile=>profile.id===attempt.editProfileId):null,profile={id:uniqueProfileId(),status:'Succeeded',name:profileName,inputFileName:attempt.sourceFileName,createdAt:Date.now(),archived:false,canonical,creation:{method:'staged-hybrid',attemptId:attempt.id,sourceFormat:attempt.sourceFormat,baselineApprovedAt:attempt.baselineApprovedAt,derivedApprovedAt:attempt.derivedApprovedAt,confirmedAt:Date.now(),revisionOf:previous?.id||null}};if(previous)previous.archived=true;runState.candidateProfiles.unshift(profile);attempt.savedProfileId=profile.id;attempt.status='saved';attempt.updatedAt=Date.now();runState.profileActiveTab='active';writeRunState();notify(`${previous?'Candidate Profile revision':'Candidate Profile'} ${profile.id} created and ready for Runs`);openProfileDetails(profile.id)
   }
   function creationConfirmationSectionsMarkup(attempt){
     const evidenceCount=allEvidenceItems(attempt.baseline).length,claimCount=DERIVED_SECTIONS.reduce((total,section)=>total+attempt.derived[section.key].length,0),supportedCount=DERIVED_SECTIONS.reduce((total,section)=>total+attempt.derived[section.key].filter(entry=>entry.support_status==='supported').length,0);
@@ -1446,6 +1537,17 @@
     selectedProfileDetailId=profileId;
     const nextHash=`#candidate-profiles/${encodeURIComponent(profileId)}`;
     if(location.hash===nextHash)renderPage();else location.hash=nextHash;
+  }
+  function editProfile(profileId){
+    const profile=runState.candidateProfiles.find(item=>item.id===profileId);if(!profile)return;
+    const baseline=normaliseBaselineProfile(profile.canonical||profile.baseline),now=Date.now(),sourceFormat=profile.creation?.sourceFormat||'YAML',sourceFileName=profile.inputFileName||`profile-${profile.id}.yaml`;
+    const attempt={id:uniqueCreationAttemptId(),status:'baseline',draftName:profile.name,sourceFileName,sourceFormat,createdAt:now,updatedAt:now,baseline,sourceSnapshot:clone(baseline),derived:null,suggestions:{},undo:null,baselineApprovedAt:null,derivedApprovedAt:null,derivedInvalidated:false,savedProfileId:null,editProfileId:profile.id};
+    runState.creationAttempts.unshift(attempt);writeRunState();notify('Profile revision draft created');location.hash=creationAttemptPath(attempt);
+  }
+  function ensureProfileEditAction(profile){
+    const head=profileDetailsBody.querySelector('.details-page-head .page-head');if(!head)return;
+    head.insertAdjacentHTML('beforeend','<div class="details-page-actions"><button class="btn" type="button" data-edit-profile>Edit profile</button></div>');
+    head.querySelector('[data-edit-profile]').addEventListener('click',()=>editProfile(profile.id));
   }
   function providerById(providerId){return providerState.providers.find(provider=>provider.id===providerId)}
   function providerInitials(name){return name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase()||'AI'}
@@ -1819,11 +1921,49 @@
     const bookmarked=bookmarkedJobs.has(bookmarkKey(run,job)),label=`${bookmarked?'Remove':'Add'} bookmark for ${job.title}`;
     return `<button class="small-action icon-only bookmark-btn" type="button" data-bookmark-job="${job.id}" aria-pressed="${bookmarked}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-3.75L6 21V4.5Z"/></svg></button>`;
   }
-  function cvActionMarkup(job,outcome,stageId=pipelineStage){
+  function cvActionMarkup(run,job,outcome,stageId=pipelineStage){
     if(stageId!=='cv-generation'||outcome.result!=='Passed')return '';
-    return `<div class="job-action-row"><button class="small-action" type="button" data-generated-cv-action="download" data-generated-cv-job="${job.id}" aria-label="Download generated CV for ${escapeHtml(job.title)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg><span>Download CV</span></button><button class="small-action" type="button" data-generated-cv-action="regenerate" data-generated-cv-job="${job.id}" aria-label="Regenerate CV for ${escapeHtml(job.title)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 8A7 7 0 0 1 18 6l2 2M17.9 16A7 7 0 0 1 6 18l-2-2"/></svg><span>Regenerate CV</span></button></div>`;
+    const regeneration=cvRegenerationFor(run,job),status=regeneration?`<span class="cv-regeneration-status" data-status="${regeneration.status}">${escapeHtml(cvRegenerationLabel(regeneration))}</span>`:'';
+    return `<div class="job-action-row">${status}<button class="small-action" type="button" data-generated-cv-action="view" data-generated-cv-run="${run.id}" data-generated-cv-job="${job.id}" aria-label="View generated CV for ${escapeHtml(job.title)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5Z"/><circle cx="12" cy="12" r="2.5"/></svg><span>View CV</span></button><button class="small-action" type="button" data-generated-cv-action="download" data-generated-cv-run="${run.id}" data-generated-cv-job="${job.id}" aria-label="Download generated CV for ${escapeHtml(job.title)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg><span>Download CV</span></button><button class="small-action" type="button" data-generated-cv-action="regenerate" data-generated-cv-run="${run.id}" data-generated-cv-job="${job.id}" aria-label="Regenerate CV for ${escapeHtml(job.title)}" ${regeneration?.status==='Running'?'disabled':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 8A7 7 0 0 1 18 6l2 2M17.9 16A7 7 0 0 1 6 18l-2-2"/></svg><span>Regenerate CV</span></button></div>`;
   }
   function cvReviewMarkup(outcome){return outcome.review==='stretch'?'<span class="cv-review" data-review="stretch">Stretch review</span>':''}
+  function previewSection(title,content){return `<section><h3>${escapeHtml(title)}</h3>${content}</section>`}
+  function openCvPreview(run,job){
+    const profile=selectedProfile(run),source=profile?.canonical||profile?.baseline||{},contact=source.contact||{},experiences=source.experiences||source.experience||[],education=source.education||[],skills=(source.skills||[]).map(item=>typeof item==='string'?item:item?.name||'').filter(Boolean),languages=(source.languages||[]).map(item=>typeof item==='string'?item:item?.name?`${item.name}${item.level?` · ${item.level}`:''}`:'').filter(Boolean);
+    cvPreviewTitle.textContent=`${job.title} · CV Preview`;
+    cvPreviewBody.innerHTML=`<article class="cv-preview"><header><h1>${escapeHtml(source.name||profile?.name||'Candidate Profile')}</h1><p>${escapeHtml(source.headline||job.title)}</p><p>${escapeHtml([contact.email,contact.location].filter(Boolean).join(' · ')||'Generated from verified Candidate Profile evidence.')}</p></header>${source.summary?previewSection('Summary',`<p>${escapeHtml(source.summary)}</p>`):''}${experiences.length?previewSection('Experience',experiences.slice(0,3).map(entry=>`<div><strong>${escapeHtml([entry.role,entry.company].filter(Boolean).join(' · '))}</strong><p>${escapeHtml((entry.evidence||[]).map(item=>item.text).filter(Boolean).join(' ')||[entry.location,entry.start&&entry.end?[entry.start,entry.end].join(' – '):entry.start].filter(Boolean).join(' · '))}</p></div>`).join('')):''}${education.length?previewSection('Education',education.slice(0,2).map(entry=>`<div><strong>${escapeHtml([entry.degree,entry.institution].filter(Boolean).join(' · '))}</strong><p>${escapeHtml([entry.location,entry.start&&entry.end?[entry.start,entry.end].join(' – '):entry.start].filter(Boolean).join(' · '))}</p></div>`).join('')):''}${previewSection('Target Role',`<p>${escapeHtml(job.title)} · ${escapeHtml(job.location)} · ${escapeHtml(job.workMode)}</p>`)}${previewSection('Skills',`<div class="cv-preview-skills">${(skills.length?skills:job.skills).map(skill=>`<span>${escapeHtml(skill)}</span>`).join('')}</div>`)}${languages.length?previewSection('Languages',`<p>${escapeHtml(languages.join(' · '))}</p>`):''}</article>`;
+    showExclusiveDialog(cvPreviewDialog,document.querySelector('#closeCvPreviewDialog'));
+  }
+  let activeCvRegeneration=null;
+  function openCvRegeneration(run,job){
+    const current=cvRegenerationFor(run,job);
+    if(current?.status==='Running')return;
+    activeCvRegeneration={runId:run.id,jobId:job.id};
+    cvRegenerationTitle.textContent=`Regenerate CV for ${job.title}`;
+    cvRegenerationPrompt.value=current?.prompt||'';
+    cvRegenerationStatus.textContent=current?.status==='Failed'?current.error||'Previous regeneration failed. Review prompt and try again.':'This creates a new CV artifact for this job.';
+    showExclusiveDialog(cvRegenerationDialog,cvRegenerationPrompt);
+  }
+  function confirmCvRegeneration(){
+    const run=runState.runs.find(item=>item.id===activeCvRegeneration?.runId),job=run&&runJobs(run).find(item=>item.id===activeCvRegeneration.jobId);
+    if(!run||!job)return;
+    if(cvRegenerationFor(run,job)?.status==='Running')return;
+    const now=Date.now(),prompt=cvRegenerationPrompt.value.trim();
+    runState.cvRegenerations.push({id:`CV-${now.toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`,runId:run.id,jobId:job.id,prompt,status:'Running',createdAt:now,startedAt:now,completeAt:now+5000,endedAt:null,error:''});
+    writeRunState();
+    cvRegenerationDialog.close();
+    renderPage();
+    notify(`CV regeneration started for ${job.title}`);
+  }
+  function bindGeneratedCvActions(root){
+    root.querySelectorAll('[data-generated-cv-action]').forEach(button=>button.addEventListener('click',()=>{
+      const run=runState.runs.find(item=>item.id===button.dataset.generatedCvRun),job=run&&runJobs(run).find(item=>item.id===button.dataset.generatedCvJob);
+      if(!run||!job)return;
+      if(button.dataset.generatedCvAction==='view')openCvPreview(run,job);
+      else if(button.dataset.generatedCvAction==='regenerate')openCvRegeneration(run,job);
+      else notify(`Download CV for ${job.title}`);
+    }));
+  }
   function ratingMarkup(run,job,showBookmark=true){
     const key=`${run.id}:${job.id}`,rating=interestRatings.get(key)||0;
     return `<div class="interest-rating" aria-label="Application Interest for ${escapeHtml(job.title)}">${[1,2,3,4,5].map(value=>`<button class="star-btn" type="button" data-interest-rating="${value}" data-interest-job="${job.id}" data-interest-run="${run.id}" aria-label="Rate ${value} of 5" aria-pressed="${value<=rating}">★</button>`).join('')}<button class="small-action clear-rating" type="button" data-clear-interest="${job.id}" data-interest-run="${run.id}" ${rating?'':'disabled'}>Clear</button>${showBookmark?bookmarkMarkup(run,job):''}</div>`;
@@ -1832,7 +1972,7 @@
     const {job,outcome}=item,visibleSkills=job.skills.slice(0,5),extra=job.skills.length-visibleSkills.length;
     const key=bookmarkKey(run,job),bookmarksMode=mode==='bookmark',selected=bookmarksMode?selectedBookmarkKeys:selectedJobResultKeys,selectAttribute=bookmarksMode?'data-bookmark-select':'data-job-result-select';
     const runCell=bookmarksMode?`<td><div class="job-primary"><button class="run-id run-id-link" type="button" data-bookmark-run-details="${run.id}" aria-label="Open details for ${run.id}">${run.id}</button></div></td>`:'';
-    return `<tr class="${selected.has(key)?'is-selected':''}">${runCell}<td><div class="job-primary"><div class="job-title-row"><input type="checkbox" ${selectAttribute}="${key}" aria-label="Select ${escapeHtml(job.title)} from ${run.id}" ${selected.has(key)?'checked':''}><a class="job-title-link" href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(job.title)}</a></div>${ratingMarkup(run,job,!bookmarksMode)}${cvActionMarkup(job,outcome,bookmarksMode?bookmarkStage:pipelineStage)}</div></td><td><div class="job-attributes">${[['Location',job.location],['Work Mode',job.workMode],['Language',job.language],['Seniority',job.seniority],['Job Family',job.jobFamily],['Domain',job.domain]].map(([label,value])=>`<div class="job-attribute"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}</div></td><td><div class="skill-list">${visibleSkills.map(skill=>`<span class="skill-chip">${escapeHtml(skill)}</span>`).join('')}${extra?`<span class="skill-chip">+${extra} more</span>`:''}</div></td><td><div class="pipeline-outcome"><span class="badge run-status" data-status="${outcome.result==='Rejected'?'Failed':'Succeeded'}">${outcome.label}</span><span class="outcome-reason">${escapeHtml(outcome.reason)}</span>${cvReviewMarkup(outcome)}</div></td></tr>`;
+    return `<tr class="${selected.has(key)?'is-selected':''}">${runCell}<td><div class="job-primary"><div class="job-title-row"><input type="checkbox" ${selectAttribute}="${key}" aria-label="Select ${escapeHtml(job.title)} from ${run.id}" ${selected.has(key)?'checked':''}><a class="job-title-link" href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(job.title)}</a></div>${ratingMarkup(run,job,!bookmarksMode)}${cvActionMarkup(run,job,outcome,bookmarksMode?bookmarkStage:pipelineStage)}</div></td><td><div class="job-attributes">${[['Location',job.location],['Work Mode',job.workMode],['Language',job.language],['Seniority',job.seniority],['Job Family',job.jobFamily],['Domain',job.domain]].map(([label,value])=>`<div class="job-attribute"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}</div></td><td><div class="skill-list">${visibleSkills.map(skill=>`<span class="skill-chip">${escapeHtml(skill)}</span>`).join('')}${extra?`<span class="skill-chip">+${extra} more</span>`:''}</div></td><td><div class="pipeline-outcome"><span class="badge run-status" data-status="${outcome.result==='Rejected'?'Failed':'Succeeded'}">${outcome.label}</span><span class="outcome-reason">${escapeHtml(outcome.reason)}</span>${cvReviewMarkup(outcome)}</div></td></tr>`;
   }
   function jobPaginationMarkup(total,mode='run'){
     const bookmarksMode=mode==='bookmark',page=bookmarksMode?bookmarkPage:jobResultsPage,pageSize=bookmarksMode?bookmarkPageSize:jobResultsPageSize,totalPages=Math.max(1,Math.ceil(total/pageSize)),currentPage=Math.min(page,totalPages),pageData=bookmarksMode?'bookmark-page':'job-page',sizeId=bookmarksMode?'bookmarkPageSize':'jobResultsPageSize';
@@ -1898,7 +2038,7 @@
     form.querySelectorAll('[data-bookmark-run-details]').forEach(button=>button.addEventListener('click',()=>openRunDetails(button.dataset.bookmarkRunDetails,bookmarkStage)));
     form.querySelectorAll('[data-interest-rating]').forEach(button=>button.addEventListener('click',()=>{interestRatings.set(`${button.dataset.interestRun}:${button.dataset.interestJob}`,Number(button.dataset.interestRating));renderBookmarksPage()}));
     form.querySelectorAll('[data-clear-interest]').forEach(button=>button.addEventListener('click',()=>{interestRatings.delete(`${button.dataset.interestRun}:${button.dataset.clearInterest}`);renderBookmarksPage()}));
-    form.querySelectorAll('[data-generated-cv-action]').forEach(button=>button.addEventListener('click',()=>notify(`${button.dataset.generatedCvAction==='download'?'Download':'Regenerate'} CV for ${button.dataset.generatedCvJob}`)));
+    bindGeneratedCvActions(form);
     form.querySelector('#bookmarkPageSize')?.addEventListener('change',event=>{bookmarkPageSize=Number(event.currentTarget.value);bookmarkPage=1;renderBookmarksPage()});
     form.querySelectorAll('[data-bookmark-page]').forEach(button=>button.addEventListener('click',()=>{const totalPages=Math.max(1,Math.ceil(filtered.length/bookmarkPageSize));bookmarkPage=button.dataset.bookmarkPage==='previous'?bookmarkPage-1:button.dataset.bookmarkPage==='next'?bookmarkPage+1:Number(button.dataset.bookmarkPage);bookmarkPage=Math.max(1,Math.min(bookmarkPage,totalPages));renderBookmarksPage()}));
     form.querySelector('#exportBookmarks')?.addEventListener('click',exportBookmarkedJobs);
@@ -1974,7 +2114,7 @@
     runDetailsBody.querySelectorAll('[data-job-result-select]').forEach(checkbox=>checkbox.addEventListener('change',()=>{checkbox.checked?selectedJobResultKeys.add(checkbox.dataset.jobResultSelect):selectedJobResultKeys.delete(checkbox.dataset.jobResultSelect);renderRunDetails()}));
     const selectAll=runDetailsBody.querySelector('#selectAllJobResults');
     if(selectAll){selectAll.indeterminate=selectAll.dataset.indeterminate==='true';selectAll.addEventListener('change',()=>{const filtered=filteredJobResults(run),pageRows=filtered.slice((jobResultsPage-1)*jobResultsPageSize,jobResultsPage*jobResultsPageSize);pageRows.forEach(({job})=>selectAll.checked?selectedJobResultKeys.add(bookmarkKey(run,job)):selectedJobResultKeys.delete(bookmarkKey(run,job)));renderRunDetails()})}
-    runDetailsBody.querySelectorAll('[data-generated-cv-action]').forEach(button=>button.addEventListener('click',()=>notify(`${button.dataset.generatedCvAction==='download'?'Download':'Regenerate'} CV for ${button.dataset.generatedCvJob}`)));
+    bindGeneratedCvActions(runDetailsBody);
     runDetailsBody.querySelectorAll('[data-bookmark-job]').forEach(button=>button.addEventListener('click',()=>{const key=bookmarkKey(run,button.dataset.bookmarkJob);bookmarkedJobs.has(key)?bookmarkedJobs.delete(key):bookmarkedJobs.add(key);writeBookmarks();renderRunDetails()}));
     runDetailsBody.querySelectorAll('[data-interest-rating]').forEach(button=>button.addEventListener('click',()=>{interestRatings.set(`${run.id}:${button.dataset.interestJob}`,Number(button.dataset.interestRating));renderRunDetails()}));
     runDetailsBody.querySelectorAll('[data-clear-interest]').forEach(button=>button.addEventListener('click',()=>{interestRatings.delete(`${run.id}:${button.dataset.clearInterest}`);renderRunDetails()}));
@@ -2081,7 +2221,7 @@
     selectedRunIds.clear();
     writeRunState();
     renderRunsPage();
-    notify(`${running.length} run${running.length===1?'':'s'} cancelled`);
+    notify(`${running.length} run${running.length===1?'':'s'} failed and were cancelled`);
   }
   function archiveSelectedRuns(){
     const selected=runState.runs.filter(run=>selectedRunIds.has(run.id)&&!run.archived);
@@ -2136,10 +2276,25 @@
     theme.setAttribute('title',label);
     theme.querySelector('svg').innerHTML=dark?'<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path>':'<path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3Z"></path>';
   }
+  function setSidebarCollapsed(collapsed){
+    const shell=document.querySelector('.shell');
+    shell.classList.toggle('sidebar-collapsed',collapsed);
+    const mobile=matchMedia('(max-width:760px)').matches;
+    const open=mobile?sidebar.classList.contains('open'):!collapsed;
+    const label=mobile?(open?'Close navigation':'Open navigation'):(collapsed?'Expand sidebar':'Collapse sidebar');
+    sidebarToggle.setAttribute('aria-label',label);
+    sidebarToggle.setAttribute('title',label);
+    sidebarToggle.setAttribute('aria-expanded',String(open));
+    sidebarToggle.querySelector('svg').innerHTML=open?'<path d="M4 5h16v14H4z"></path><path d="M9 5v14"></path><path d="m15 9-3 3 3 3"></path>':'<path d="M4 5h16v14H4z"></path><path d="M15 5v14"></path><path d="m9 9 3 3-3 3"></path>';
+  }
   function openNav(open){
     sidebar.classList.toggle('open',open);
     scrim.classList.toggle('show',open);
-    menu.setAttribute('aria-expanded',String(open));
+    setSidebarCollapsed(document.querySelector('.shell').classList.contains('sidebar-collapsed'));
+  }
+  function setNavGroups(group){
+    pipelineNavGroup.open=group==='pipeline';
+    applicationNavGroup.open=group==='application';
   }
   function slug(value){return value.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()}
   function transactionValue(group){
@@ -2213,7 +2368,7 @@
     const strengthReason=!personalized?'Choose Personalized Ranking to manage this setting.':active?'Inactivate Policy before changing Personalization Strength.':'';
     const optimizeReason=!personalized?'<p class="supporting-text">Choose Personalized Ranking to optimize ratings.</p>':'';
     form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>Preference Optimization</h2><p>Choose ranking behavior, review saved ratings, and manage learned policies.</p></div></div><div class="stack"><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Ranking Mode</strong><span>Choose standard ranking or ranking adjusted by your saved ratings.</span></span></summary><div class="section-content"><div class="settings-card"><label class="row"><span><strong>Ranking Mode</strong><p>Applies to future ranking runs across this workspace.</p></span><span class="control"><select class="field preference-mode-field" id="preferenceRankingMode" aria-label="Ranking Mode"><option value="baseline" ${personalized?'':'selected'}>Baseline Ranking</option><option value="personalized" ${personalized?'selected':''}>Personalized Ranking</option></select></span></label></div>${fallback}</div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Personalization Strength</strong><span>Controls how strongly saved ratings adjust job order.</span></span></summary><div class="section-content settings-card"><div class="row${strengthDisabled?' is-disabled':''}"><span><strong>Personalization Strength</strong><p>Higher values allow larger changes from Baseline Ranking.</p><p class="supporting-text">Current value: ${optimizationState.strength.toFixed(2)}</p>${strengthReason?`<p class="supporting-text" id="personalizationStrengthDisabledReason">${strengthReason}</p>`:''}</span><span class="control"><button class="btn" id="managePersonalizationStrength" type="button" ${strengthDisabled?'disabled aria-describedby="personalizationStrengthDisabledReason"':''}>Manage</button></span></div></div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Rating Evidence</strong><span>Saved job ratings currently available for a new optimization.</span></span></summary><div class="section-content"><div class="settings-card"><div class="row"><span><strong>Saved Ratings</strong><p>${evidence.savedRatings} ratings across ${evidence.episodes} completed runs.</p>${optimizeReason}</span><span class="control"><button class="btn primary" id="optimizeCurrentRatings" type="button" ${optimizationActionsDisabled()?'disabled':''}>Optimize Current Ratings</button></span></div></div>${optimizationEvidenceTableMarkup(DEFAULT_OPTIMIZATION_EVIDENCE)}</div></details><details class="section-card collapsible-section setting-section" open><summary><span class="section-heading"><strong>Optimization Runs</strong><span>Review results and manage the policy created by each run.</span></span></summary><div class="section-content"><div class="table-scroll"><table class="run-table optimization-runs"><thead><tr><th>Optimization ID</th><th>Created</th><th>Strength</th><th>Status</th><th>Policy</th><th>Actions</th></tr></thead><tbody>${optimizationRunsRows()||'<tr><td colspan="6"><div class="empty-state"><h3>No optimization runs</h3><p>Use Optimize Current Ratings to create one.</p></div></td></tr>'}</tbody></table></div></div></details></div>`;
-    form.querySelector('#preferenceRankingMode')?.addEventListener('change',event=>{optimizationState.rankingMode=event.target.value;writeOptimizationState();renderPreferenceOptimizationPage();form.querySelector('#preferenceRankingMode')?.focus()});
+    form.querySelector('#preferenceRankingMode')?.addEventListener('change',event=>{optimizationState.rankingMode=event.target.value;writeOptimizationState();renderPreferenceOptimizationPage();notify(`${event.target.value==='personalized'?'Personalized':'Baseline'} Ranking selected`);form.querySelector('#preferenceRankingMode')?.focus()});
     form.querySelector('#managePersonalizationStrength')?.addEventListener('click',openPersonalizationStrengthDialog);
     form.querySelector('#optimizeCurrentRatings')?.addEventListener('click',startPreferenceOptimization);
     bindOptimizationActions(form);
@@ -2222,9 +2377,10 @@
     if(optimizationActionsDisabled())return;
     const button=document.getElementById('optimizeCurrentRatings');button.disabled=true;button.textContent='Optimizing…';
     const capturedStrength=optimizationState.strength,{optimizationId,policyVersionId}=optimizationIdParts(),createdAt=Date.now();
+    notify(`${optimizationId} started`);
     setTimeout(()=>{
       const completedAt=Date.now(),item={id:optimizationId,policyVersionId,createdAt,startedAt:createdAt,completedAt,strength:capturedStrength,status:'Succeeded',comparisons:OPTIMIZATION_EVIDENCE_SUMMARY.eligibleComparisons,usage:'Inactive',runtimeCompatible:true,hiddenAt:null,coverage:null,stability:null,rejectionReason:'',evidence:clone(DEFAULT_OPTIMIZATION_EVIDENCE),logs:[{recordedAt:createdAt,level:'info',operation:'optimization',message:`Started preference optimization with personalization strength ${capturedStrength.toFixed(2)}.`},{recordedAt:completedAt,level:'info',operation:'complete',message:'Optimization completed successfully.'}]};
-      optimizationState.history.unshift(item);writeOptimizationState();renderPreferenceOptimizationPage();notify(`${optimizationId} succeeded`);
+      optimizationState.history.unshift(item);writeOptimizationState();renderPreferenceOptimizationPage();notify(`${optimizationId} succeeded; policy ${policyVersionId} created`);
     },300);
   }
   function toggleOptimizationPolicy(id){
@@ -2374,12 +2530,12 @@
     scanState.activeTab='active';selectedScanIds.clear();writeScanState();scanDialog.close();openScanDetails(id);notify('Scan started in prototype');
   }
   function refreshScanStatuses(){
-    const now=Date.now();let changed=false;
+    const now=Date.now();let changed=false;const messages=[];
     for(const scan of scanState.scans){
       if(scan.status==='Queued'&&now-scan.createdAt>=2000){scan.status='Running';scan.startedAt=scan.createdAt+2000;scan.progress=20;changed=true}
-      if(scan.status==='Running'&&scan.completeAt){scan.progress=Math.min(95,Math.max(scan.progress||0,Math.round(((now-(scan.startedAt||scan.createdAt))/(scan.completeAt-(scan.startedAt||scan.createdAt)))*100)));if(now>=scan.completeAt){scan.status='Succeeded';scan.endedAt=now;scan.progress=100;scan.output=Array.from({length:Math.min(scan.limit,12)},(_,index)=>prototypeScanJob(index+101));scan.count=scan.output.length;scan.valid=true;delete scan.completeAt}changed=true}
+      if(scan.status==='Running'&&scan.completeAt){scan.progress=Math.min(95,Math.max(scan.progress||0,Math.round(((now-(scan.startedAt||scan.createdAt))/(scan.completeAt-(scan.startedAt||scan.createdAt)))*100)));if(now>=scan.completeAt){scan.status='Succeeded';scan.endedAt=now;scan.progress=100;scan.output=Array.from({length:Math.min(scan.limit,12)},(_,index)=>prototypeScanJob(index+101));scan.count=scan.output.length;scan.valid=true;delete scan.completeAt;messages.push(`Scan ${scan.id} succeeded`)}changed=true}
     }
-    if(changed)writeScanState();return changed;
+    if(changed){writeScanState();messages.forEach(notify)}return changed;
   }
   function openScanDetails(id){if(!scanState.scans.some(scan=>scan.id===id))return;selectedScanDetailId=id;const nextHash=`#scan-details/${encodeURIComponent(id)}`;if(location.hash===nextHash)renderPage();else location.hash=nextHash}
   function scanConsoleEntries(scan){
@@ -2415,7 +2571,10 @@
   function actOnScan(action,scan){
     if(action==='cancel'&&['Queued','Running'].includes(scan.status)){scan.status='Cancelled';scan.endedAt=Date.now();scan.valid=false;delete scan.completeAt}
     if(action==='archive')scan.archived=!scan.archived;
-    if(action==='again')return runScanAgain(scan);
+    if(action==='again'){
+      if(!confirm(`Run ${scanLabel(scan)} again?\n\nA new Scan will use current registry data and start a fresh lifecycle.`))return;
+      return runScanAgain(scan);
+    }
     if(action==='download')return downloadScanJson(scan);
     writeScanState();renderScanDetails();notify(action==='cancel'?'Scan cancelled':scan.archived?'Scan archived':'Scan unarchived');
   }
@@ -2462,6 +2621,9 @@
     pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
   }
   function renderPage(){
+    const applicationRoute=isSystemPage()||isApiProvidersPage()||isProviderDetailsPage()||isLlmConfigurationPage();
+    const pipelineRoute=!applicationRoute&&!isRunsPage()&&!isScansPage()&&!isCandidateProfilesPage()&&!isProfileCreationPage()&&!isProfileDetailsPage()&&!isBookmarksPage()&&!isSynonymsPage()&&!isScanDetailsPage()&&!isRunDetailsPage();
+    setNavGroups(applicationRoute?'application':pipelineRoute?'pipeline':'');
     form.classList.toggle('details-page-layout',isProfileDetailsPage()||isRunDetailsPage()||isScanDetailsPage()||isOptimizationDetailsPage());
     form.classList.toggle('creation-page-layout',isProfileCreationPage());
     form.closest('.content').classList.toggle('creation-content',isProfileCreationPage());
@@ -2536,14 +2698,15 @@
       return;
     }
     if(isProfileCreationPage()){
-      headerTitle.textContent='Create Candidate Profile';
-      headerDescription.textContent='Upload, review baseline evidence, approve derivation, then confirm.';
+      const creationRoute=profileCreationRoute(),editingProfile=creationRoute.attemptId&&attemptById(creationRoute.attemptId)?.editProfileId;
+      headerTitle.textContent=editingProfile?'Edit Candidate Profile':'Create Candidate Profile';
+      headerDescription.textContent=editingProfile?'Review changes, approve derivation, then save a new immutable profile revision.':'Upload, review baseline evidence, approve derivation, then confirm.';
       titleIcon.innerHTML='<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 4v6M16 7h6"/>';
       searchBox.hidden=true;
       clearPrimaryNavigation();
       candidateProfilesNav.classList.add('active');
       candidateProfilesNav.setAttribute('aria-current','page');
-      renderProfileCreationPage(profileCreationRoute());
+      renderProfileCreationPage(creationRoute);
       document.querySelector('.scroll').scrollTop=0;
       return;
     }
@@ -2566,6 +2729,7 @@
       systemNav.removeAttribute('aria-current');
       pipelineNav.querySelectorAll('.nav-link').forEach(link=>{link.classList.remove('active');link.removeAttribute('aria-current')});
       renderProfileDetailsPage();
+      ensureProfileEditAction(runState.candidateProfiles.find(profile=>profile.id===selectedProfileDetailId));
       document.querySelector('.scroll').scrollTop=0;
       return;
     }
@@ -2731,13 +2895,15 @@
       const link=document.createElement('a');
       link.className=`nav-link child${item.id===page.id?' active':''}`;
       link.href=`#${item.id}`;
-      link.textContent=item.title;
+      link.textContent=item.id==='overview'?'Pipeline Overview':item.title;
+      link.title=link.textContent;
       if(item.id===page.id)link.setAttribute('aria-current','page');
       return link;
     }));
     const sections=page.sections.filter(section=>section.rows.length);
     const pageActions=`<div class="run-selection-actions">${page.id==='automation-reuse'?'<a class="btn" href="#synonyms">Manage Synonyms</a>':''}<button class="btn" id="restore" type="button">Restore Defaults</button></div>`;
-    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>${page.title}</h2><p>${page.description} Changes apply to future runs.</p></div>${pageActions}</div><div class="stack">${sections.map(section=>`<details class="section-card collapsible-section setting-section" data-section ${section.open?'open':''}><summary><span class="section-heading"><strong>${section.title}</strong></span></summary><div class="section-content settings-card">${section.rows.map(rowMarkup).join('')}</div></details>`).join('')}</div>`;
+    const startHereMarkup=page.id==='overview'?'<section class="section-card start-here" aria-labelledby="start-here-title"><div class="start-here-head"><div><p class="eyebrow">Normal use</p><h3 id="start-here-title">Before your first run</h3><p>Confirm a candidate profile, bring in jobs, and connect a model. Technical tuning below is optional.</p></div></div><ol class="start-here-list"><li class="start-here-step"><a href="#candidate-profiles">Confirm Candidate Profile</a><span>Review source-backed facts before matching.</span></li><li class="start-here-step"><a href="#scans">Bring in jobs</a><span>Scan supported companies or add job input from Runs.</span></li><li class="start-here-step"><a href="#api-providers">Connect a model</a><span>Validate one provider before AI-assisted stages run.</span></li></ol></section>':'';
+    form.innerHTML=`<div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>${page.title}</h2><p>${page.description} Changes apply to future runs.</p></div>${pageActions}</div>${startHereMarkup}<div class="stack">${sections.map(section=>`<details class="section-card collapsible-section setting-section" data-section ${page.id==='overview'&&section.open?'open':''}><summary><span class="section-heading"><strong>${section.title}</strong></span></summary><div class="section-content settings-card">${section.rows.map(rowMarkup).join('')}</div></details>`).join('')}</div>`;
     search.placeholder='Search Pipeline';
     search.setAttribute('aria-label',`Search ${page.title}`);
     bindPage(page);
@@ -2857,7 +3023,11 @@
   function filterRows(){
     const query=search.value.trim().toLowerCase();
     form.querySelectorAll('[data-row]').forEach(row=>row.hidden=Boolean(query)&&!row.textContent.toLowerCase().includes(query));
-    form.querySelectorAll('[data-section]').forEach(section=>section.hidden=Boolean(query)&&!section.querySelector('[data-row]:not([hidden])'));
+    form.querySelectorAll('[data-section]').forEach(section=>{
+      const hasMatch=Boolean(section.querySelector('[data-row]:not([hidden])'));
+      section.hidden=Boolean(query)&&!hasMatch;
+      if(query&&hasMatch)section.open=true;
+    });
   }
   function selfCheck(){
     if(pages.length!==10)throw new Error('Expected ten Pipeline pages');
@@ -2916,10 +3086,11 @@
     if(!['active','archived'].includes(runState.runActiveTab)||!['active','archived'].includes(runState.profileActiveTab))throw new Error('Run and Candidate Profile tabs must use independent valid states');
     if(new Set(DEFAULT_RUNS.map(run=>run.id)).size!==DEFAULT_RUNS.length)throw new Error('Run IDs must be unique');
     if(DEFAULT_RUNS.some(run=>!RUN_STATUSES.has(run.status)))throw new Error('Prototype runs must use supported statuses');
+    if(!normaliseRunState({}).notifications.length||!CV_REGENERATION_STATUSES.has('Running')||!cvActionMarkup(DEFAULT_RUNS[1],PROTOTYPE_JOB_CATALOG[0],{result:'Passed',review:'approved'},'cv-generation').includes('View CV'))throw new Error('Runs must expose notification, CV regeneration, and preview contracts');
     if(normaliseRunState({}).bookmarks.length!==DEFAULT_BOOKMARK_KEYS.length)throw new Error('Default bookmarks must reference valid run jobs');
     if(new Set(PROTOTYPE_JOB_CATALOG.map(job=>job.id)).size!==PROTOTYPE_JOB_CATALOG.length)throw new Error('Prototype Job IDs must be unique');
     if(!PIPELINE_STAGES.some(stage=>stage.id==='shortlisting'))throw new Error('Run Details must support Shortlisting');
-    if(!jobResultsTableMarkup(DEFAULT_RUNS[0],[evaluatedJobResults(DEFAULT_RUNS[0])[0]],1).includes('selectAllJobResults')||!bookmarkTableMarkup([],0).includes('No bookmarks match this view')||!bookmarkTableMarkup.toString().includes('No bookmarked jobs yet'))throw new Error('Run Details and Bookmarks must expose shared selection and distinct empty states');
+    if(!jobResultsTableMarkup(DEFAULT_RUNS[1],[{job:PROTOTYPE_JOB_CATALOG[0],outcome:{result:'Passed',label:'Passed CV Generation',reason:'Self-check'}}],1).includes('selectAllJobResults')||!bookmarkTableMarkup([],0).includes('No bookmarks match this view')||!bookmarkTableMarkup.toString().includes('No bookmarked jobs yet'))throw new Error('Run Details and Bookmarks must expose shared selection and distinct empty states');
     if(jobFile.multiple)throw new Error('Run dialog must accept one Job Input file');
     if(!companyRegistry.length||new Set(companyRegistry.map(company=>company.id)).size!==companyRegistry.length||companyRegistry.some(company=>!company.active||!company.scannable))throw new Error('Tracked-company registry must contain unique active scannable entries');
     if(PUBLISHED_WINDOWS.map(window=>window.id).join(',')!=='any,past_12_hours,past_24_hours,past_7_days,past_30_days,past_180_days'||scanPublishedAt.tagName!=='SELECT')throw new Error('Published At must use one predefined rolling-window enum');
@@ -2964,6 +3135,19 @@
   }
 
   document.querySelector('#closeWeights').addEventListener('click',()=>dialog.close());
+  notificationButton.addEventListener('click',openNotifications);
+  document.querySelector('#clearNotifications').addEventListener('click',clearNotifications);
+  notificationList.addEventListener('click',event=>{const button=event.target.closest('[data-notification-id]');if(button)clearNotification(button.dataset.notificationId)});
+  document.querySelector('#closeNotificationDialog').addEventListener('click',()=>notificationDialog.close());
+  notificationDialog.addEventListener('click',event=>{if(event.target===notificationDialog)notificationDialog.close()});
+  document.querySelector('#closeCvRegenerationDialog').addEventListener('click',()=>cvRegenerationDialog.close());
+  document.querySelector('#cancelCvRegeneration').addEventListener('click',()=>cvRegenerationDialog.close());
+  document.querySelector('#confirmCvRegeneration').addEventListener('click',confirmCvRegeneration);
+  cvRegenerationDialog.addEventListener('cancel',event=>{event.preventDefault();cvRegenerationDialog.close()});
+  cvRegenerationDialog.addEventListener('click',event=>{if(event.target===cvRegenerationDialog)cvRegenerationDialog.close()});
+  document.querySelector('#closeCvPreviewDialog').addEventListener('click',()=>cvPreviewDialog.close());
+  cvPreviewDialog.addEventListener('click',event=>{if(event.target===cvPreviewDialog)cvPreviewDialog.close()});
+  cvRegenerationDialog.addEventListener('close',()=>{activeCvRegeneration=null;cvRegenerationPrompt.value=''});
   document.querySelector('#cancelWeights').addEventListener('click',()=>dialog.close());
   document.querySelector('#closeSynonymDetails').addEventListener('click',()=>synonymDetailsDrawer.close());
   document.querySelector('#closeRunDialog').addEventListener('click',()=>runDialog.close());
@@ -3059,7 +3243,15 @@
     setTheme(next);
     localStorage.setItem(`${STORAGE_KEY}:theme`,next);
   });
-  menu.addEventListener('click',()=>openNav(!sidebar.classList.contains('open')));
+  sidebarToggle.addEventListener('click',()=>{
+    if(matchMedia('(max-width:760px)').matches){
+      openNav(!sidebar.classList.contains('open'));
+      return;
+    }
+    const collapsed=!document.querySelector('.shell').classList.contains('sidebar-collapsed');
+    setSidebarCollapsed(collapsed);
+    localStorage.setItem(`${STORAGE_KEY}:sidebar-collapsed`,String(collapsed));
+  });
   scrim.addEventListener('click',()=>openNav(false));
   pipelineNav.addEventListener('click',()=>openNav(false));
   synonymsNav.addEventListener('click',()=>openNav(false));
@@ -3072,11 +3264,13 @@
   promptManagementNav.addEventListener('click',()=>openNav(false));
   systemNav.addEventListener('click',()=>openNav(false));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.open)openNav(false)});
+  addEventListener('resize',()=>setSidebarCollapsed(document.querySelector('.shell').classList.contains('sidebar-collapsed')));
   document.querySelectorAll('[data-prototype-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();notify(`${link.textContent.trim()} is navigation-only in this prototype`);openNav(false)}));
   search.addEventListener('input',filterRows);
   addEventListener('hashchange',renderPage);
+  updateNotificationBadge();
   setInterval(()=>{
-    const changed=refreshRunStatuses();
+    const changed=refreshRunStatuses()||refreshCvRegenerations();
     if(changed&&isRunsPage())renderRunsPage();
     else if(isRunsPage())updateRunningDurations();
     if(changed&&isBookmarksPage())renderBookmarksPage();
@@ -3086,6 +3280,7 @@
     if(scansChanged&&isScanDetailsPage())renderScanDetails();
   },1000);
   setTheme(localStorage.getItem(`${STORAGE_KEY}:theme`)||'light');
+  setSidebarCollapsed(localStorage.getItem(`${STORAGE_KEY}:sidebar-collapsed`)==='true');
   window.fitcvPipelineContract={pages,transactions,defaults,runState,scanState,companyRegistry,synonymState,providerState,optimizationState,PERSONALIZATION_STRENGTH_LIMITS,bookmarkedJobs,RUN_STATUSES,SCAN_STATUSES,PROFILE_STATUSES,SYNONYM_TYPES,SYNONYM_REVIEW_STATUSES,PIPELINE_STAGES,LLM_TASKS,PUBLISHED_WINDOWS,TRACKED_COMPANIES,selfCheck,validateTransaction,parseSynonymEditor,triggerPrototypeRun,submitPrototypeScan,openProfileDetails,openSynonymDetails,openRunDetails,openScanDetails,renderScansPage,renderScanDetails,renderApiProvidersPage,renderProviderDetailsPage,renderLlmConfigurationPage,renderPromptManagementPage,renderPreferenceOptimizationPage,renderOptimizationDetailsPage,renderSystemPage,renderBookmarksPage,exportRunResults,exportBookmarkedJobs};
   console.assert(selfCheck(),'Pipeline prototype self-check failed');
   renderPage();
