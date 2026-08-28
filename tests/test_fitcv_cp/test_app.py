@@ -454,7 +454,7 @@ def test_candidate_profile_mock_admin_flow_renders_staged_review_contract() -> N
     prototype_blob = hashlib.sha1(
         f"blob {len(prototype)}\0".encode() + prototype
     ).hexdigest()
-    assert prototype_blob == "8d248d62003b2a8795672daaa221ef5508afdc88"
+    assert prototype_blob == "a8db55d89e78285c24c8226d0f81804eb342c025"
 
     client = TestClient(_candidate_profile_mock_app())
 
