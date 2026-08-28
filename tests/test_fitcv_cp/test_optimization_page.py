@@ -266,10 +266,14 @@ def test_optimization_page_renders_empty_native_state(monkeypatch: Any) -> None:
     ) == 4
     assert 'class="section-content settings-card"' in response.text
     assert 'class="btn primary"' in response.text
-    assert 'class="field preference-mode-field"' in response.text
+    assert 'class="field preference-mode-field" id="preferenceRankingMode"' in response.text
     assert 'data-header-description="Configure ranking mode, rating evidence, and optimization runs."' in response.text
     assert "Higher values allow larger changes from Baseline Ranking." in response.text
-    assert "No saved rating evidence yet" in response.text
+    assert 'class="empty-state"' in response.text
+    assert "No saved ratings" in response.text
+    assert "Ratings from completed runs will appear here." in response.text
+    assert "No optimization runs" in response.text
+    assert "Use Optimize Current Ratings to create one." in response.text
     assert "Optimize Current Ratings" in response.text
     assert "Training Runs" not in response.text
     assert "Policy Snapshots" not in response.text

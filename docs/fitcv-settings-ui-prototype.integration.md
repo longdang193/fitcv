@@ -27,9 +27,9 @@ Ledger dispositions:
 | Run Details | `renderRunDetails` | `src/fitcv_cp/templates/run_detail.html` and run-detail partials | Run detail/stage/job/event/action routes and artifact contracts | Audit findings `DETAIL-03`, `DETAIL-04`, and `DETAIL-05` fixed: fallback skill sources survive normalization, canonical CV capability keys render, and prototype rating/clear/bookmark geometry is applied. `DETAIL-01` is covered by current URL bootstrap/tests. `DETAIL-02` fixed in the approved follow-up: the profile action follows the prototype's profile-details page transition through the canonical detail route, preserves the Run return path, and removes modal-only behavior. Run Details typography/action values are scoped to the measured prototype values. | change narrowly | `tests/test_fitcv_cp/test_app.py`, `tests/test_fitcv_cp/test_run_detail_output_availability.py` |
 | Scans | `renderScansPage`, `renderScanDetails`, company picker | `src/fitcv_cp/templates/scans_list.html`, `scan_detail.html` | `src/fitcv_cp/scan_contracts.py`, Scan routes/store/worker | Audit findings `SCN-01` and `SCN-02` fixed: selected Scan IDs/revisions persist through URL pagination, bulk actions submit all selected items, and company search is server-backed beyond the first unsearched page. | change narrowly | `tests/test_fitcv_cp/test_app.py`, `tests/test_fitcv_cp/test_scan_contracts.py`, `tests/test_fitcv_cp/test_scan_worker.py` |
 | Candidate Profiles | list/upload/review/confirm/detail renderers | Candidate Profile templates and shared sections | Candidate Profile models/routes/service/store and canonical field registry | Audit findings `CP-001` through `CP-004` fixed: processing state renders before polling, derived Source appears for evidence refs, replacement notice appears when undo is available, and invalid upload status receives `.error` styling. | change narrowly | `tests/test_fitcv_cp/test_candidate_profile_service.py`, `tests/test_fitcv_cp/test_app.py`, `tests/test_fitcv_cp/test_sqlite_store.py` |
-| Bookmarks | `renderBookmarksPage` | `src/fitcv_cp/templates/bookmarks.html` | Bookmark routes and SQLite store | Header/copy, buttons, filters, toolbar, selection layout, table shell, pagination, and loading/network/export failures differ materially; extra Result filter is absent from prototype | change | `tests/test_fitcv_cp/test_app.py`, `tests/test_fitcv_cp/test_store.py`, `tests/test_fitcv_cp/test_sqlite_store.py` |
-| Synonyms | `renderSynonymsPage`, `renderSynonymDetails` | `src/fitcv_cp/templates/synonyms.html` | Synonym routes, policy IO, SQLite store | Header/actions, section collapsibility, tab counts, editor controls, review columns, detail dialog, default Processing Log state, and async states differ materially | change | `tests/test_fitcv_cp/test_app.py`, Synonym policy/preview/commit tests |
-| Preference Optimization | list/detail optimization renderers | `src/fitcv_cp/templates/optimization.html` | Optimization routes/service/settings/store | Main sections, controls, detail, and lifecycle are reusable; empty state is plain row instead of prototype guidance; PRG failures lack shared retry/stale rendering | change narrowly | `tests/test_fitcv_cp/test_optimization_page.py`, `tests/test_inverse_optimization.py`, `tests/test_fitcv_cp/test_sqlite_store.py` |
+| Bookmarks | `renderBookmarksPage` | `src/fitcv_cp/templates/bookmarks.html` | Bookmark routes and SQLite store | Follow-up aligns page shell, all seven stage tabs, grouped jobs table, conditional selection panel, page-size controls, stage-aware export naming, and canonical async failure ownership. Remaining: rating/CV row actions need transport fields and route contract parity before claiming full alignment. | change narrowly | `tests/test_fitcv_cp/test_app.py`, `tests/test_fitcv_cp/test_store.py`, `tests/test_fitcv_cp/test_sqlite_store.py` |
+| Synonyms | `renderSynonymsPage`, `renderSynonymDetails` | `src/fitcv_cp/templates/synonyms.html` | Synonym routes, policy IO, SQLite store | Follow-up aligns Workspace header/actions, collapsible sections, editor find-next/cancel controls, review table columns/select-all, and structured collapsed processing log. Remaining: tab counts and detail confidence/evidence fields require transport data not present in current API. | change narrowly | `tests/test_fitcv_cp/test_app.py`, Synonym policy/preview/commit tests |
+| Preference Optimization | list/detail optimization renderers | `src/fitcv_cp/templates/optimization.html` | Optimization routes/service/settings/store | Follow-up aligns prototype empty-state guidance, fallback notice class, and canonical ranking-mode selector identity. Remaining: PRG failures lack shared retry/stale rendering. | change narrowly | `tests/test_fitcv_cp/test_optimization_page.py`, `tests/test_inverse_optimization.py`, `tests/test_fitcv_cp/test_sqlite_store.py` |
 
 Gate 0 complete on August 4, 2026. All 13 planned slices have explicit
 dispositions. The table is historical parity evidence; current reconciliation
@@ -52,6 +52,18 @@ appears below. Prototype hash recheck: `3c20781eb15131bf7928619368283b0737e0dda2
 - The prior sidebar SSOT blocker is resolved. UX Freeze still requires product
   owner approval and closure of remaining material drift listed in Gate 0,
   including Bookmarks, Synonyms, and Preference Optimization.
+- Follow-up parity patch updated Bookmarks, Synonyms, and Preference Optimization
+  runtime shells and states. Full affected test files pass: `514 passed`.
+- Browser render checks at `810px` show no page-level horizontal overflow for
+  Bookmarks or Synonyms; only intended wide-table scrolling remains. Runtime
+  pages were rendered through TestClient because direct Uvicorn startup remains
+  blocked by the existing local database schema mismatch (`found version 0,
+  expected 5`).
+- Remaining freeze blockers are contract-level: Bookmarks still lacks runtime
+  rating/CV action data, Synonyms API lacks prototype tab-count/detail evidence
+  fields, and Preference Optimization PRG failures lack shared retry/stale
+  rendering. Product owner must decide whether these differences are accepted
+  or require another parity pass.
 
 ## Runs, Scans, and Candidate Profiles parity patch evidence
 

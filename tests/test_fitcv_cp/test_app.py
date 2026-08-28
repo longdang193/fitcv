@@ -3870,14 +3870,15 @@ def test_central_workspace_pages_share_navigation_and_retire_legacy_labels() -> 
     assert 'class="run-tabs"' in candidate_html
     assert 'class="filter-bar section-card"' not in candidate_html
     assert "table-shell" in bookmark_html
-    assert bookmark_html.index('id="bookmarkNotice"') < bookmark_html.index('id="bookmarkCount"') < bookmark_html.index('class="table-shell"')
+    assert bookmark_html.index('class="page-head"') < bookmark_html.index('class="run-panel"')
+    assert bookmark_html.index('id="bookmarkNotice"') < bookmark_html.index('id="bookmarkCount"') < bookmark_html.index('id="bookmarkTablePanel"')
+    for stage in ("enrichment", "screening", "shortlisting", "ranking", "cv-analysis", "cv-generation"):
+        assert f'data-stage="{stage}"' in bookmark_html
     assert "Submitted" not in bookmark_html and "Archived" not in bookmark_html
     assert "Deferred" not in synonym_html and "Promote" not in synonym_html
     assert "Pending" in synonym_html and "Approved" in synonym_html and "Declined" in synonym_html
-    assert "'Approved '+x.approved_count" in synonym_html
-    assert "'Declined '+x.declined_count" in synonym_html
-    assert "'Pending '+x.pending_count" in synonym_html
-    assert "'Added '+x.successfully_added_count" in synonym_html
+    assert "SYNONYM_REVIEW" in synonym_html
+    assert "successfully_added=" in synonym_html
     assert "function guarded(control,operation" in synonym_html
     assert "fitcvRenderAsyncState(notice" in synonym_html
     assert ".catch(showError)" not in synonym_html
@@ -11502,7 +11503,7 @@ def test_normalize_job_url_key_keeps_indeed_jk_query_value() -> None:
 def test_admin_bookmarks_page_and_delete_flow():
     page_resp = TestClient(_app()).get("/admin/bookmarks")
     assert page_resp.status_code == 200
-    assert "Central list of bookmarked jobs across Runs." in page_resp.text
+    assert "Review bookmarked jobs across runs using the same pipeline evidence as Run Details." in page_resp.text
     assert "/bookmarks?stage=" in page_resp.text
     assert "/bookmarks/actions/remove" in page_resp.text
     assert "/bookmarks/actions/export/preview" in page_resp.text
@@ -11511,7 +11512,10 @@ def test_admin_bookmarks_page_and_delete_flow():
     assert "fitcvRenderAsyncState" in page_resp.text
     assert page_resp.text.count("fitcvRunLocked") >= 2
     assert "function failure(error,retry)" in page_resp.text
-    assert "table-shell" in page_resp.text
+    assert 'jobs-table bookmark-table' in page_resp.text
+    assert 'data-stage="shortlisting"' in page_resp.text
+    assert 'id="bookmarkPageSize"' in page_resp.text
+    assert "bookmarked-jobs-" in page_resp.text
     assert "Submitted" not in page_resp.text
     assert "Archived" not in page_resp.text
 

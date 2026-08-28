@@ -34,7 +34,7 @@ canonical: true
         <td>{{ row.rating }} / 5</td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="6">No saved rating evidence yet.</td></tr>
+      <tr class="empty-row"><td colspan="6"><div class="empty-state"><h3>No saved ratings</h3><p>Ratings from completed runs will appear here.</p></div></td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -128,8 +128,8 @@ canonical: true
   </div>
 
   {% if notice %}<div class="notice optimization-notice" data-level="{{ notice.level }}" role="status">{{ notice.message }}</div>{% endif %}
-  {% if removed %}<div class="notice" role="status"><strong>Removed from Optimization Runs</strong><br><span class="meta">Historical details remain available.</span></div>{% endif %}
-  {% if baseline_fallback %}<div class="notice" role="status">Baseline Ranking is being used until a policy is activated.</div>{% endif %}
+  {% if removed %}<p class="optimization-fallback" role="status"><strong>Removed from Optimization Runs</strong><br><span class="meta">Historical details remain available.</span></p>{% endif %}
+  {% if baseline_fallback %}<p class="optimization-fallback" role="status">Baseline Ranking is being used until a policy is activated.</p>{% endif %}
 
   <div class="optimization-stack">
     <details class="section-card collapsible-section drawer-section" open>
@@ -173,7 +173,7 @@ canonical: true
         <form class="optimization-setting-form" method="post" action="/admin/optimization/ranking-mode">
           <input type="hidden" name="settings_revision" value="{{ settings_revision }}">
           <label class="optimization-sr-only" for="ranking-mode-select">Ranking Mode</label>
-          <select class="field preference-mode-field" id="ranking-mode-select" name="ranking_mode" data-auto-submit>
+          <select class="field preference-mode-field" id="preferenceRankingMode" name="ranking_mode" data-auto-submit>
             <option value="baseline" {% if ranking_mode == 'baseline' %}selected{% endif %}>Baseline Ranking</option>
             <option value="personalized" {% if ranking_mode == 'personalized' %}selected{% endif %}>Personalized Ranking</option>
           </select>
@@ -240,7 +240,7 @@ canonical: true
               </td>
             </tr>
             {% else %}
-            <tr class="empty-row"><td colspan="6">No optimization runs yet.</td></tr>
+            <tr class="empty-row"><td colspan="6"><div class="empty-state"><h3>No optimization runs</h3><p>Use Optimize Current Ratings to create one.</p></div></td></tr>
             {% endfor %}
           </tbody>
         </table>

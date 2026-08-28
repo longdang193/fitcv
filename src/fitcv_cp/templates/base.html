@@ -662,7 +662,8 @@ canonical: true
     .empty-state p { max-width: 430px; margin: 0; color: var(--muted); }
     .notice { padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; }
     .notice[role="alert"] { border-color: var(--badge-error-fg); color: var(--badge-error-fg); }
-    .fitcv-async-state { display: flex; align-items: center; gap: 0.75rem; justify-content: space-between; }
+    .fitcv-async-state { display: flex; align-items: center; gap: 0.75rem; justify-content: space-between; min-width: 0; overflow-wrap: anywhere; }
+    .fitcv-async-state > span { min-width: 0; overflow-wrap: anywhere; }
     .fitcv-async-state code { margin-left: auto; }
     .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 0.85rem 0; border-top: 1px solid var(--border-soft); }
     .settings-row:first-of-type { border-top: 0; }
