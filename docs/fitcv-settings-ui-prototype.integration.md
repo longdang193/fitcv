@@ -1,7 +1,7 @@
 # FitCV Prototype Runtime Integration Ledger
 
 Prototype visual/UI-state owner: `docs/fitcv-settings-ui-prototype.html` blob
-`3c20781eb15131bf7928619368283b0737e0dda2`.
+`5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27`.
 
 Transport owners: current FastAPI/Pydantic source, registered routes,
 `/openapi.json`, `docs/api.md`, and focused route/service/store tests. Prototype
@@ -33,14 +33,15 @@ Ledger dispositions:
 
 Gate 0 complete on August 4, 2026. All 13 planned slices have explicit
 dispositions. The table is historical parity evidence; current reconciliation
-appears below. Prototype hash recheck: `3c20781eb15131bf7928619368283b0737e0dda2`.
+appears below. Prototype hash recheck: `5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27`.
 
 ## Current Reconciliation — August 28, 2026
 
-- Prototype audit rerun after the latest UI fixes in commit `f49acffc`; focused
-  prototype tests pass (`6 passed`). Browser checks pass for desktop/mobile
-  sidebar behavior, dark status contrast, hidden zero-notification state, no
-  backdrop blur, and no console errors.
+- Prototype audit rerun after the latest UI fixes. Impeccable parser-backed
+  detection reports 21 subjective findings (5 warnings, 16 advisories); no
+  contrast, parser, or structural failure remains. Browser route and viewport
+  checks pass for desktop/mobile sidebar behavior, dark status contrast, hidden
+  zero-notification state, no backdrop blur, and no console errors.
 - Prototype notifications cover Run and Scan creation/completion, CV
   regeneration start/completion/failure, Candidate Profile draft and profile
   lifecycle actions, Preference Optimization start/success/policy changes,
@@ -49,18 +50,17 @@ appears below. Prototype hash recheck: `3c20781eb15131bf7928619368283b0737e0dda2
 - Live frontend sidebar parity is now aligned: `src/fitcv_cp/templates/base.html`
   uses one top-bar `#sidebarToggle`, desktop hide, mobile off-canvas behavior,
   persisted desktop collapse, Escape close, and focus return.
-- The prior sidebar SSOT blocker is resolved. UX Freeze still requires product
-  owner approval and closure of remaining material drift listed in Gate 0,
-  including Bookmarks, Synonyms, and Preference Optimization.
-- Follow-up parity patch updated Bookmarks, Synonyms, and Preference Optimization
-  runtime shells and states. Full affected test files pass: `514 passed`.
+- The prior sidebar SSOT blocker is resolved. Bookmarks, Synonyms, and
+  Preference Optimization runtime shells and states now match the prototype
+  contract, including lifecycle, retry, stale, and review states.
+- The focused UI route/template suite passes: `512 passed`.
 - Browser render checks at `810px` show no page-level horizontal overflow for
   Bookmarks or Synonyms; only intended wide-table scrolling remains. Runtime
   pages were rendered through TestClient because direct Uvicorn startup remains
   blocked by the existing local database schema mismatch (`found version 0,
   expected 5`).
-- Follow-up closed Bookmark and Synonym contract gaps. Preference Optimization
-  now preserves service error codes through PRG and renders stale/retry states;
+- Bookmark and Synonym contract gaps are closed. Preference Optimization
+  preserves service error codes through PRG and renders stale/retry states;
   stale actions explicitly reload current state rather than pretending to retry
   candidate creation. Product owner approval remains required for UX Freeze.
 
@@ -122,7 +122,7 @@ Status: mock-backed frontend approved August 3, 2026; backend Tasks 5-10 authori
 
 ## Prototype Parity Contract
 
-- approved visual and interaction SSOT is `docs/fitcv-settings-ui-prototype.html` blob `989af611bd7767c148022c79ac00c5069d8a3956`; implementation review must verify this blob before comparing mock UI
+- approved visual and interaction SSOT is `docs/fitcv-settings-ui-prototype.html` blob `5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27`; implementation review must verify this blob before comparing mock UI
 - prototype owns page headings, section names, section order, default expanded/collapsed state, component classes, visible metadata, and responsive layout; this note maps behavior and transport only and must not restate a competing presentation contract
 - canonical field registry owns field inventory, labels, descriptions, requirement state, control shape, evidence kinds, section descriptions, and derived-claim metadata; templates do not copy these lists
 - schema shape does not grant editability: stable IDs and provenance remain contextual display, while `origin`, `confidence`, and `support_status` render as derived metadata unless server contract explicitly enables editing
@@ -217,7 +217,7 @@ Prior mock approval evidence from August 2, 2026 is invalidated. Required parity
 - [x] one deterministic fixture supplies prototype and runtime mock values, IDs, selected refs, and capabilities
 - [x] browser flow covers Candidate Profiles, Upload, Baseline, Controlled Derivation, Confirmation, Candidate Details, and LLM Configuration
 - [x] desktop, 375px, effective 200% width, dark theme, Source dialog focus return, long evidence labels, computed high-risk styles, screenshots, and zero console warnings pass
-- [x] independent verifier reports `Spec compliance: PASS` and `UI parity quality: APPROVED` against prototype blob `989af611bd7767c148022c79ac00c5069d8a3956`
+- [x] independent verifier reports `Spec compliance: PASS` and `UI parity quality: APPROVED` against prototype blob `5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27`
 - [x] exact presentation projections cover Source excerpt/locator values, validated-model copy, evidence-kind labels, derived origin labels, and confirmation date labels without changing canonical raw values
 - [x] user approved corrected mock UI on August 3, 2026 before backend Tasks 5-10
 

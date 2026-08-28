@@ -691,7 +691,7 @@ canonical: true
 
     /* Approved prototype visual contract. */
     :root{--sidebar-w:288px;--header-h:72px;--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--font-sans:var(--font);--display-font:var(--font)}
-    :root[data-theme="light"]{color-scheme:light;--accent:#b94d36;--accent-hover:#a64027;--accent-soft:#fdf1ed;--bg:#fdfaf6;--surface:#fff;--surface-1:var(--surface);--surface-2:#f4f4f5;--sidebar:#fff;--border:#e5e7eb;--border-soft:#f1f1f3;--text:#111827;--text-primary:var(--text);--text-secondary:#4b5563;--text-muted:#6b7280;--muted:#6b7280;--subtle:#6b7280;--accent-text:var(--accent);--accent-dim:var(--accent-soft);--table-header-bg:var(--surface-2);--table-row-hover:var(--surface-2);--input-bg:var(--surface);--shadow:0 1px 2px rgba(0,0,0,.04)}
+    :root[data-theme="light"]{color-scheme:light;--accent:#b94d36;--accent-hover:#a64027;--accent-soft:#fdf1ed;--bg:#fdfaf6;--surface:#fff;--surface-1:var(--surface);--surface-2:#f4f4f5;--sidebar:#fff;--border:#e5e7eb;--border-soft:#f1f1f3;--text:#111827;--text-primary:var(--text);--text-secondary:#4b5563;--text-muted:#62666d;--muted:#62666d;--subtle:#62666d;--accent-text:var(--accent);--accent-dim:var(--accent-soft);--table-header-bg:var(--surface-2);--table-row-hover:var(--surface-2);--input-bg:var(--surface);--shadow:0 1px 2px rgba(0,0,0,.04)}
     :root[data-theme="dark"]{color-scheme:dark;--accent:#ee8d6a;--accent-hover:#f3a181;--accent-soft:#3b2119;--bg:#1a1a1a;--surface:#262626;--surface-1:var(--surface);--surface-2:#303030;--sidebar:#202020;--border:#3a3a3a;--border-soft:#303030;--text:#f3f4f6;--text-primary:var(--text);--text-secondary:#cbd5e1;--text-muted:#cbd5e1;--muted:#cbd5e1;--subtle:#94a3b8;--accent-text:var(--accent);--accent-dim:var(--accent-soft);--table-header-bg:var(--surface-2);--table-row-hover:var(--surface-2);--input-bg:var(--surface-2);--shadow:0 1px 2px rgba(0,0,0,.28)}
     body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased}
     .shell{display:flex;min-height:100vh;background:var(--bg)}
@@ -719,7 +719,7 @@ canonical: true
     .run-tabs{display:flex;gap:8px}
     .run-tabs .btn[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
     .run-tab-count{margin-left:5px;color:var(--subtle);font-size:12px}
-    .run-selection{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}
+     .run-selection{display:flex;align-items:center;justify-content:space-between;gap:14px;row-gap:8px;flex-wrap:wrap;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}
     .run-selection-copy{display:grid;gap:2px}
     .run-selection-actions{display:flex;gap:8px;flex-wrap:wrap}
     .table-card{overflow:hidden;padding:0;margin:0}
@@ -976,7 +976,18 @@ canonical: true
     });
   }
   applySidebarState();
-  addEventListener('resize', applySidebarState);
+   addEventListener('resize', applySidebarState);
+   document.addEventListener('keydown', function(event) {
+     if (event.key !== 'Tab') return;
+     var openDialog = document.querySelector('dialog[open]');
+     if (!openDialog) return;
+     var focusable = Array.prototype.filter.call(openDialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'), function(element) { return element.offsetParent !== null; });
+     if (!focusable.length) { event.preventDefault(); return; }
+     var first = focusable[0];
+     var last = focusable[focusable.length - 1];
+     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+   });
   var shutdownDialog = document.getElementById('shutdown-dialog');
   var openShutdown = document.getElementById('open-shutdown-dialog');
   var cancelShutdown = document.getElementById('cancel-shutdown');
