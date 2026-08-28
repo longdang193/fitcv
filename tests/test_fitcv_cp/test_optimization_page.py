@@ -244,6 +244,18 @@ def test_optimization_page_allows_grid_to_shrink_on_narrow_viewports(
     ) in response.text
 
 
+def test_optimization_notice_projection_marks_stale_and_retryable_states() -> None:
+    from fitcv_cp.app import _optimization_notice_projection
+
+    stale = _optimization_notice_projection("stale_evidence")
+    retryable = _optimization_notice_projection("operation_failed")
+
+    assert stale["kind"] == "stale"
+    assert stale["action"] == "Reload current state"
+    assert retryable["kind"] == "retryable"
+    assert retryable["action"] == "Retry"
+
+
 def test_optimization_page_renders_empty_native_state(monkeypatch: Any) -> None:
     """@proves admin_control_plane_core.jinja2-admin-pages
     @proves inspection_debugging.ranking-diagnostics
@@ -456,6 +468,38 @@ def test_candidate_post_persists_accepted_insufficient_evidence(monkeypatch: Any
         "/admin/optimization?notice=insufficient_evidence"
     )
     assert captured["request"] == _empty_request()
+
+
+def test_candidate_post_prefers_service_error_code_for_stale_prg(monkeypatch: Any) -> None:
+    active_settings = {
+        "preference_optimization.ranking_mode": "personalized",
+        "preference_optimization.personalization_strength": 0.05,
+    }
+
+    monkeypatch.setattr(
+        app_module,
+        "create_ranking_policy_candidate",
+        lambda *_args, **_kwargs: {
+            "status": "stale",
+            "error_code": "optimization_precondition_changed",
+        },
+    )
+    monkeypatch.setattr(app_module, "load_active_settings", lambda: active_settings)
+
+    response = _client(monkeypatch).post(
+        "/admin/optimization/candidate",
+        data={
+            "domain_id": DOMAIN_ID,
+            "evidence_head_fingerprint": "evidence-head",
+            "expected_parent_ref": "zero_residual:baseline",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        "/admin/optimization?notice=optimization_precondition_changed"
+    )
 
 
 def test_ranking_mode_post_uses_revisioned_workspace_setting(monkeypatch: Any) -> None:

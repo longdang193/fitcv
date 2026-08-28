@@ -6618,6 +6618,7 @@ _OPTIMIZATION_NOTICE_MESSAGES = {
     "inactivation_completed": ("success", "Policy inactivated. Baseline Ranking is used until another policy becomes active."),
     "optimization_run_removed": ("success", "Optimization Run removed from the default view."),
     "insufficient_evidence": ("warning", "More clearly different 1-5-star ratings are required."),
+    "zero_rating_evidence": ("warning", "More clearly different 1-5-star ratings are required."),
     "no_op": ("info", "Current evidence produced no meaningful preference change."),
     "evaluation_rejected": ("warning", "Candidate failed promotion checks and was not activated."),
     "stale_evidence": ("warning", "Saved rating evidence changed. Review current state and retry."),
@@ -6639,6 +6640,7 @@ _OPTIMIZATION_NOTICE_MESSAGES = {
     "personalized_ranking_required": ("warning", "Choose Personalized Ranking to use this action."),
     "active_policy_must_be_inactivated": ("warning", "Inactivate Policy before changing Personalization Strength."),
     "settings_revision_conflict": ("warning", "Settings changed. Review current values and retry."),
+    "optimization_precondition_changed": ("warning", "Optimization inputs changed. Review current state and retry."),
     "invalid_ranking_mode": ("error", "Choose Baseline Ranking or Personalized Ranking."),
     "invalid_personalization_strength": ("error", "Personalization Strength is outside the allowed range."),
     "optimization_run_not_found": ("error", "Optimization Run was not found."),
@@ -6650,12 +6652,43 @@ _OPTIMIZATION_NOTICE_MESSAGES = {
 }
 
 
-def _optimization_notice_projection(code: str | None) -> dict[str, str] | None:
+_OPTIMIZATION_STALE_NOTICE_CODES = {
+    "stale_evidence",
+    "candidate_parent_changed",
+    "candidate_evidence_changed",
+    "candidate_runtime_contract_changed",
+    "candidate_compiler_policy_changed",
+    "candidate_activation_policy_changed",
+    "candidate_optimizer_policy_changed",
+    "candidate_decision_learning_policy_changed",
+    "active_snapshot_changed",
+    "settings_revision_conflict",
+    "optimization_precondition_changed",
+}
+
+
+def _optimization_notice_projection(code: str | None) -> dict[str, Any] | None:
     projected = _OPTIMIZATION_NOTICE_MESSAGES.get(str(code or ""))
     if projected is None:
         return None
     level, message = projected
-    return {"code": str(code), "level": level, "message": message}
+    normalized_code = str(code)
+    kind = (
+        "stale"
+        if normalized_code in _OPTIMIZATION_STALE_NOTICE_CODES
+        else "retryable"
+        if normalized_code == "operation_failed"
+        else "success"
+        if level == "success"
+        else "non_retryable"
+    )
+    return {
+        "code": normalized_code,
+        "level": level,
+        "message": message,
+        "kind": kind,
+        "action": "Reload current state" if kind == "stale" else "Retry" if kind == "retryable" else None,
+    }
 
 
 def _optimization_error_notice(exc: BaseException) -> str:
@@ -10435,6 +10468,7 @@ def create_app(
         return _collection_response(
             list(result.get("items") or []), page=page, page_size=page_size,
             total_items=int(result.get("total") or 0),
+            meta={"counts": result.get("counts") or {}},
         )
 
     @app.get("/synonym-suggestions/{suggestion_id}", response_model=SynonymSuggestionEnvelope)
@@ -11893,7 +11927,12 @@ def create_app(
             )
         except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             return _optimization_redirect(_optimization_error_notice(exc))
-        notice_code = str(result.get("status") or result.get("error_code") or "")
+        error_code = str(result.get("error_code") or "")
+        notice_code = (
+            error_code
+            if error_code in _OPTIMIZATION_STALE_NOTICE_CODES
+            else str(result.get("status") or error_code)
+        )
         return _optimization_redirect(notice_code)
 
     async def admin_optimization_activate(

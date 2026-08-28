@@ -2234,6 +2234,72 @@ def test_synonym_suggestions_aggregate_across_runs_and_preserve_approved_decisio
     assert sqlite_store.get_synonym_suggestion(suggestion_id)["source_count"] == 0
 
 
+def test_synonym_suggestion_projection_preserves_review_metadata_and_counts() -> None:
+    sqlite_store.insert_run(_make_run("run-suggestion-metadata"))
+    sqlite_store.ingest_synonym_suggestions([
+        {
+            "synonym_type": "skills",
+            "alias": "JS",
+            "canonical": "JavaScript",
+            "confidence": 0.91,
+            "candidate_canonicals": ["JavaScript", "JavaScript Runtime"],
+            "evidence_note": "repeated_alias_mapping",
+            "run_id": "run-suggestion-metadata",
+            "evidence": {"text": "JS"},
+        }
+    ])
+
+    page = sqlite_store.query_synonym_suggestions(synonym_type="skills")
+    item = page["items"][0]
+    assert item["confidence"] == 0.91
+    assert item["candidate_canonicals"] == ["JavaScript", "JavaScript Runtime"]
+    assert item["evidence_note"] == "repeated_alias_mapping"
+    assert page["counts"]["skills"]["pending"] == 1
+
+    detail = sqlite_store.get_synonym_suggestion(item["suggestion_id"])
+    assert detail["candidate_canonicals"] == ["JavaScript", "JavaScript Runtime"]
+
+
+def test_bookmark_projection_includes_interest_and_current_cv_state() -> None:
+    run = _make_run("run-bookmark-actions")
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={"jobs_snapshot_json": '[{"title":"Alpha"}]', "jobs_manifest_json": "{}"},
+        jobs=[{"title": "Alpha", "company": "One"}],
+    )
+    job = sqlite_store.query_run_jobs(run.run_id, page_size=20)["items"][0]
+    sqlite_store.set_bookmark(job["run_job_id"])
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute(
+            """INSERT INTO run_job_stage_results
+               (run_job_id, stage_id, status, outcome_code, reason_code, evidence_json)
+               VALUES (?, 'screening', 'rejected', 'screened_out', 'missing_skill', '{}')""",
+            (job["run_job_id"],),
+        )
+        conn.commit()
+    sqlite_store.set_run_job_interest(
+        job["run_job_id"], 4,
+        rating_contract_revision="application-interest-v1",
+        action_id="interest-action",
+    )
+    sqlite_store.insert_cv_version_row({
+        "version_id": "cv-bookmark-actions",
+        "run_job_id": job["run_job_id"],
+        "cv_markdown": "# Alpha CV",
+        "generation_status": "generated",
+    })
+
+    item = sqlite_store.query_bookmarks(page_size=20)["items"][0]
+    assert item["rating"] == 4
+    assert item["cv_version_id"] == "cv-bookmark-actions"
+    assert item["cv_generation_status"] == "generated"
+    assert item["cv_available"] == 1
+    assert item["stage_id"] == "screening"
+    assert item["outcome_code"] == "screened_out"
+    assert item["reason_code"] == "missing_skill"
+    assert item["result_bucket"] == "rejected"
+
+
 def test_synonym_suggestion_detail_pages_evidence_sources() -> None:
     for index in range(11):
         run_id = f"run-evidence-{index:02d}"

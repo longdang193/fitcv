@@ -895,6 +895,9 @@ def _ensure_control_plane_schema(
         normalized_alias TEXT NOT NULL,
         normalized_canonical TEXT NOT NULL,
         concept_key TEXT NOT NULL UNIQUE,
+        confidence REAL CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
+        evidence_note TEXT,
+        candidate_canonicals_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(candidate_canonicals_json)),
         review_status TEXT NOT NULL CHECK (review_status IN ('pending', 'approved', 'declined')),
         policy_effect TEXT NOT NULL DEFAULT 'absent' CHECK (policy_effect IN ('absent', 'active', 'blocked')),
         decided_at TEXT,
@@ -1059,6 +1062,18 @@ def _ensure_control_plane_schema(
         }
         if "settings_used_json" not in pipeline_run_columns:
             conn.execute("ALTER TABLE pipeline_runs ADD COLUMN settings_used_json TEXT")
+        synonym_columns = {
+            str(row[1] or "")
+            for row in conn.execute("PRAGMA table_info(synonym_suggestions)").fetchall()
+        }
+        if "confidence" not in synonym_columns:
+            conn.execute("ALTER TABLE synonym_suggestions ADD COLUMN confidence REAL")
+        if "evidence_note" not in synonym_columns:
+            conn.execute("ALTER TABLE synonym_suggestions ADD COLUMN evidence_note TEXT")
+        if "candidate_canonicals_json" not in synonym_columns:
+            conn.execute(
+                "ALTER TABLE synonym_suggestions ADD COLUMN candidate_canonicals_json TEXT NOT NULL DEFAULT '[]'"
+            )
         _ensure_run_inputs_snapshot_columns(conn)
         _ensure_scan_execution_columns(conn)
         if version == 4:
@@ -1670,6 +1685,20 @@ def ingest_synonym_suggestions(
             if (active.get(synonym_type) or {}).get(normalized_alias) == normalized_canonical:
                 suppressed_count += 1
                 continue
+            raw_confidence = item.get("confidence")
+            confidence = (
+                float(raw_confidence)
+                if isinstance(raw_confidence, (int, float))
+                and not isinstance(raw_confidence, bool)
+                and 0 <= float(raw_confidence) <= 1
+                else None
+            )
+            candidate_canonicals = list(dict.fromkeys(
+                str(value).strip()
+                for value in item.get("candidate_canonicals") or []
+                if str(value).strip()
+            ))
+            evidence_note = str(item.get("evidence_note") or "").strip() or None
             concept_key = _policy_checksum(
                 [synonym_type, normalized_alias, normalized_canonical]
             )
@@ -1681,8 +1710,20 @@ def ingest_synonym_suggestions(
                 suggestion_id = str(existing[0])
                 review_status = str(existing[1])
                 conn.execute(
-                    "UPDATE synonym_suggestions SET updated_at = ?, revision = revision + 1 WHERE suggestion_id = ?",
-                    (now, suggestion_id),
+                    """UPDATE synonym_suggestions
+                       SET updated_at = ?, revision = revision + 1,
+                           confidence = COALESCE(?, confidence),
+                           evidence_note = COALESCE(?, evidence_note),
+                           candidate_canonicals_json = CASE WHEN ? IS NULL THEN candidate_canonicals_json ELSE ? END
+                       WHERE suggestion_id = ?""",
+                    (
+                        now,
+                        confidence,
+                        evidence_note,
+                        json.dumps(candidate_canonicals) if candidate_canonicals else None,
+                        json.dumps(candidate_canonicals) if candidate_canonicals else None,
+                        suggestion_id,
+                    ),
                 )
             else:
                 suggestion_id = str(uuid.uuid4())
@@ -1690,12 +1731,14 @@ def ingest_synonym_suggestions(
                 conn.execute(
                     """INSERT INTO synonym_suggestions (
                         suggestion_id, synonym_type, alias, canonical, normalized_alias,
-                        normalized_canonical, concept_key, review_status, policy_effect,
+                        normalized_canonical, concept_key, confidence, evidence_note,
+                        candidate_canonicals_json, review_status, policy_effect,
                         decided_at, decided_by, created_at, updated_at, revision
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'absent', NULL, NULL, ?, ?, 1)""",
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'absent', NULL, NULL, ?, ?, 1)""",
                     (
                         suggestion_id, synonym_type, alias, canonical, normalized_alias,
-                        normalized_canonical, concept_key, now, now,
+                        normalized_canonical, concept_key, confidence, evidence_note,
+                        json.dumps(candidate_canonicals), now, now,
                     ),
                 )
                 created_count += 1
@@ -1768,7 +1811,32 @@ def query_synonym_suggestions(
                 LIMIT ? OFFSET ?""",
             (*params, page_size, (max(1, page) - 1) * page_size),
         ).fetchall()
-    return {"items": [dict(row) for row in rows], "total": total, "page": max(1, page), "page_size": page_size}
+        count_rows = conn.execute(
+            """SELECT synonym_type, review_status, COUNT(*) AS count
+               FROM synonym_suggestions
+               GROUP BY synonym_type, review_status"""
+        ).fetchall()
+    counts = {
+        synonym_type: {"pending": 0, "approved": 0, "declined": 0, "total": 0}
+        for synonym_type in ("skills", "domain", "role_family")
+    }
+    for count_row in count_rows:
+        synonym_type = str(count_row["synonym_type"])
+        status = str(count_row["review_status"])
+        if synonym_type in counts and status in counts[synonym_type]:
+            value = int(count_row["count"])
+            counts[synonym_type][status] = value
+            counts[synonym_type]["total"] += value
+    items = [dict(row) for row in rows]
+    for item in items:
+        item["candidate_canonicals"] = json.loads(item.pop("candidate_canonicals_json") or "[]")
+    return {
+        "items": items,
+        "total": total,
+        "page": max(1, page),
+        "page_size": page_size,
+        "counts": counts,
+    }
 
 def get_synonym_suggestion(
     suggestion_id: str,
@@ -1813,6 +1881,9 @@ def get_synonym_suggestion(
             ),
         ).fetchall()
     resource = dict(row)
+    resource["candidate_canonicals"] = json.loads(
+        resource.pop("candidate_canonicals_json") or "[]"
+    )
     resource["sources"] = []
     for source in sources:
         source_resource = dict(source)
@@ -9705,32 +9776,59 @@ def query_bookmarks(
         raise ValueError("page_size must be 10, 20, or 50")
     if sort != "bookmarked_desc":
         raise ValueError("bookmark_sort_invalid")
-    clauses, params = _bookmark_filter_sql(search=search, stage=stage, result=result)
-    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     path = database_path or Path(_local_sqlite_path())
     with _sqlite_connection(path) as conn:
         conn.row_factory = sqlite3.Row
         _ensure_control_plane_schema(conn)
-        total = int(conn.execute(
-            f"SELECT COUNT(*) FROM bookmarks b JOIN run_jobs j ON j.run_job_id=b.run_job_id {where}",
-            params,
-        ).fetchone()[0])
         rows = conn.execute(
             f"""SELECT b.bookmark_id, b.created_at AS bookmarked_at,
-                       r.run_id, r.run_name, j.*
+                       r.run_id, r.run_name, j.*,
+                       i.rating, i.rating_contract_revision,
+                       cv.version_id AS cv_version_id,
+                       cv.generation_status AS cv_generation_status,
+                       CASE WHEN cv.generation_status IN ('generated', 'review_required')
+                            AND cv.content_checksum IS NOT NULL
+                            AND cv.content_length IS NOT NULL THEN 1 ELSE 0 END AS cv_available
                 FROM bookmarks b
                 JOIN run_jobs j ON j.run_job_id=b.run_job_id
                 JOIN pipeline_runs r ON r.run_id=b.run_id
-                {where}
-                ORDER BY b.created_at DESC, b.bookmark_id
-                LIMIT ? OFFSET ?""",
-            (*params, page_size, (max(1, page) - 1) * page_size),
+                LEFT JOIN run_job_interest i ON i.run_job_id=j.run_job_id
+                LEFT JOIN cv_versions cv ON cv.version_id=j.current_cv_version_id
+                 ORDER BY b.created_at DESC, b.bookmark_id"""
         ).fetchall()
-    items = [dict(row) for row in rows]
-    for item in items:
+    raw_items = [dict(row) for row in rows]
+    projection_by_job: dict[str, dict[str, Any]] = {}
+    for run_id in {str(item["run_id"]) for item in raw_items}:
+        projected, _totals = _filtered_run_job_rows(
+            run_id,
+            stage=stage,
+            result_bucket=result,
+            search=search,
+            database_path=path,
+        )
+        projection_by_job.update({str(item["run_job_id"]): item for item in projected})
+    items = []
+    for item in raw_items:
+        projection = projection_by_job.get(str(item["run_job_id"]))
+        if projection is None:
+            continue
         item["source_snapshot"] = json.loads(item.pop("source_snapshot_json"))
         item["skills"] = json.loads(item.pop("skills_json"))
-    return {"items": items, "total": total, "page": max(1, page), "page_size": page_size}
+        for key in (
+            "stage_id",
+            "status",
+            "outcome_code",
+            "reason_code",
+            "evidence",
+            "result_bucket",
+            "stage_summaries",
+        ):
+            item[key] = projection[key]
+        item["cv_available"] = int(projection["capabilities"]["download_cv"])
+        items.append(item)
+    total = len(items)
+    offset = (max(1, page) - 1) * page_size
+    return {"items": items[offset:offset + page_size], "total": total, "page": max(1, page), "page_size": page_size}
 
 def resolve_job_selection(
     run_job_ids: list[str],
@@ -10413,12 +10511,13 @@ def _filtered_run_job_rows(
     stage: str | None,
     result_bucket: str | None,
     search: str,
+    database_path: Path | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if stage not in {None, "all", *(item.stage_id for item in PROTOTYPE_STAGES)}:
         raise ValueError("stage must be all or a canonical stage id")
     if result_bucket not in {None, "all", "passed", "rejected", "skipped"}:
         raise ValueError("result_bucket must be all, passed, rejected, or skipped")
-    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+    with _sqlite_connection(database_path or Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
         jobs = conn.execute(
             "SELECT * FROM run_jobs WHERE run_id=? ORDER BY title COLLATE NOCASE, run_job_id",

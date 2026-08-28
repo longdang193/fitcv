@@ -3427,6 +3427,9 @@ def test_synonyms_use_shared_async_renderer_and_mutation_locks() -> None:
     assert "fitcvIdempotencyKey(button)" in template
     assert ".catch(showError)" not in template
     assert "Promise.all([loadPolicy(),loadSuggestions(),loadLog()])" not in template
+    assert "occurrence_count" in template
+    assert "total_items" in template
+    assert "data-evidence-page" in template
 
 
 def _candidate_profile_resource() -> dict[str, object]:
@@ -3744,6 +3747,22 @@ def test_central_workspace_list_routes_forward_canonical_sort_values() -> None:
     assert captured["candidate"]["sort"] == "created_desc"
     assert captured["bookmark"]["sort"] == "bookmarked_desc"
     assert captured["synonym"]["sort"] == "updated_desc"
+
+
+def test_synonym_suggestion_route_exposes_canonical_tab_counts() -> None:
+    app = _app()
+    app.state.run_store.query_synonym_suggestions_fn = lambda **kwargs: {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "page_size": 20,
+        "counts": {"skills": {"pending": 2, "approved": 1, "declined": 0, "total": 3}},
+    }
+
+    response = TestClient(app).get("/synonym-suggestions?type=skills&status=pending")
+
+    assert response.status_code == 200
+    assert response.json()["meta"]["counts"]["skills"]["total"] == 3
 
 
 def test_candidate_profile_routes_map_rejection_missing_and_stale_states() -> None:

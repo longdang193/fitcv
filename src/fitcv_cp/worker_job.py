@@ -1296,6 +1296,9 @@ def _sync_central_synonym_suggestions(
                 "alias": alias,
                 "canonical": canonical,
                 "run_id": run_id,
+                "confidence": proposal.get("confidence"),
+                "candidate_canonicals": list(proposal.get("candidate_canonicals") or []),
+                "evidence_note": str((proposal.get("rationale") or {}).get("kind") or "").replace("_", " ").strip().capitalize() or None,
                 "evidence": {
                     "evidence_summary": dict(proposal.get("evidence_summary") or {}),
                     "conflict_summary": dict(proposal.get("conflict_summary") or {}),

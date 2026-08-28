@@ -127,7 +127,7 @@ canonical: true
   </div>
   </div>
 
-  {% if notice %}<div class="notice optimization-notice" data-level="{{ notice.level }}" role="status">{{ notice.message }}</div>{% endif %}
+  {% if notice %}<div class="notice optimization-notice" data-level="{{ notice.level }}" data-fitcv-async-state="{{ notice.kind }}" role="{% if notice.kind in ['stale', 'retryable', 'non_retryable'] %}alert{% else %}status{% endif %}"><span>{{ notice.message }}</span>{% if notice.action %}<a class="btn-secondary" href="{{ request.url.path }}">{{ notice.action }}</a>{% endif %}<code>{{ notice.code }}</code></div>{% endif %}
   {% if removed %}<p class="optimization-fallback" role="status"><strong>Removed from Optimization Runs</strong><br><span class="meta">Historical details remain available.</span></p>{% endif %}
   {% if baseline_fallback %}<p class="optimization-fallback" role="status">Baseline Ranking is being used until a policy is activated.</p>{% endif %}
 
@@ -162,7 +162,7 @@ canonical: true
 <main data-page="preference-optimization" data-header-description="Configure ranking mode, rating evidence, and optimization runs.">
   <div class="page-head"><div><p class="eyebrow">Pipeline</p><h2>Preference Optimization</h2><p>Choose ranking behavior, review saved ratings, and manage learned policies.</p></div></div>
 
-  {% if notice %}<div class="notice optimization-notice" data-level="{{ notice.level }}" role="status">{{ notice.message }}</div>{% endif %}
+  {% if notice %}<div class="notice optimization-notice" data-level="{{ notice.level }}" data-fitcv-async-state="{{ notice.kind }}" role="{% if notice.kind in ['stale', 'retryable', 'non_retryable'] %}alert{% else %}status{% endif %}"><span>{{ notice.message }}</span>{% if notice.action %}<a class="btn-secondary" href="{{ request.url.path }}">{{ notice.action }}</a>{% endif %}<code>{{ notice.code }}</code></div>{% endif %}
   {% if baseline_fallback %}<div class="notice" role="status">Baseline Ranking is being used until a policy is activated.</div>{% endif %}
 
   <div class="optimization-stack">
