@@ -1,8 +1,8 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
-template_id: draft-specification
+status: active
+template_id: detailed-specification
 name: fitcv-core-personalization-json
 targets:
   - src/fitcv_cp/app.py
@@ -17,89 +17,205 @@ related_features:
 
 # FitCV Core Personalization JSON Contract
 
-## Goal and Scope
+## Goal and Problem
 
-- problem or opportunity: completion-critical personalization is implemented behind `/admin/optimization` HTML routes, which a new frontend cannot consume as a stable JSON contract.
-- affected users or systems: users optionally prioritizing future jobs, ranking settings, and existing preference-learning services.
-- desired outcome: new frontend can read and enable/disable core personalized ranking without inheriting legacy admin HTML.
-- included scope: minimal JSON read/update contract for ranking mode and personalization strength, plus truthful active-policy status.
-- excluded scope: optimization history administration, candidate approve/reject/rollback/remove workflows, HTML route exposure, training internals, and synonym administration.
+### Problem
 
-## User Flow and Business Rules
+- current behavior or opportunity: completion-critical personalization is implemented behind `/admin/optimization` HTML routes, which a new frontend cannot consume as a stable JSON contract.
+- affected users, systems, or maintainers: users optionally prioritizing future jobs, ranking settings, and existing preference-learning services.
+- evidence: canonical settings and optimization service already own ranking mode, strength, active policy, and fallback semantics; legacy routes expose an HTML administration model.
+- consequence of no change: new frontend either couples to legacy HTML or cannot truthfully show personalization state.
 
-1. Client reads `GET /personalization`.
-2. Client shows baseline or personalized ranking state and current strength.
-3. Client sends `PATCH /personalization` with `ranking_mode`, `personalization_strength`, and `expected_revision`.
-4. Server validates, persists atomically through canonical settings ownership, and returns refreshed resource with `ETag`.
+### Goal
 
-- `ranking_mode` is `baseline` or `personalized`; personalized mode remains optional and must not alter fit qualification truth.
-- Strength is bounded by existing optimization policy/settings validation; omitted strength preserves current value. Sending strength while target mode is `baseline` returns `422 validation_failed`.
-- Stale revision returns `409 personalization_revision_conflict`; invalid values return `422 validation_failed`.
-- If personalized mode has no compatible active policy, response reports `baseline_fallback: true`, `effective_ranking_mode: "baseline"`, and `active_policy_id: null`; it must not claim personalized ranking is active.
-- Core personalization does not expose optimization candidate rows or legacy HTML fields.
-- Supporting administration remains behind existing operator routes until separately approved.
+- desired outcome: new frontend can read and update core personalized ranking without inheriting legacy admin HTML.
+- observable success: minimal JSON resource reports requested and effective state, validates updates atomically, and never changes fit qualification truth.
 
-### JSON Contract
+## Required Outcomes
 
-`GET /personalization` and successful `PATCH /personalization` return:
+### Outcome: Core personalization resource
 
-```json
-{
-  "data": {
-    "ranking_mode": "baseline|personalized",
-    "effective_ranking_mode": "baseline|personalized",
-    "personalization_strength": 0.05,
-    "baseline_fallback": false,
-    "active_policy_id": "opaque-or-null",
-    "revision": "sha256",
-    "bounds": {"minimum": 0.01, "maximum": 0.1, "step": 0.01},
-    "updated_at": "ISO-8601"
-  }
-}
-```
+- affected actor or system: new frontend Personal FitCV journey and canonical settings/optimization services.
+- required result: `GET /personalization` exposes requested mode, effective mode, strength, fallback, policy identity, bounds, and revision.
+- success condition: displayed state matches canonical settings and active-policy resolution.
 
-`PATCH` body is `{ "ranking_mode": "baseline|personalized", "personalization_strength": 0.05, "expected_revision": "sha256", "updated_by": "admin" }`. Unknown fields are rejected. `ETag` equals the resource revision in quotes. Errors use the standard API envelope.
+### Outcome: Safe optimistic update
 
-## UI Intent and Known States
+- affected actor or system: client update and canonical settings persistence.
+- required result: `PATCH /personalization` validates inputs, checks expected revision, persists atomically, and returns refreshed resource with `ETag`.
+- success condition: stale updates conflict without overwriting newer state; invalid updates return actionable validation errors.
 
-- target platform: new frontend Preference Optimization area within Personal FitCV.
-- intended interaction: optional toggle/mode selector and bounded strength control with current effective state.
-- loading, empty, success, error, disabled, and retry states: baseline default; personalized active; personalized requested but fallback; revision conflict reload; invalid input correction; unavailable optimization remains supporting explanation.
-- accessibility or responsive intent: native controls, labels, visible current mode, 44px touch targets, no hidden suitability changes.
-- durable design-system owner: Agentic Design System SSOT; verified FitCV Design Export is guidance evidence.
+### Outcome: Supporting administration stays separate
 
-## Assumptions and Open Questions
+- affected actor or system: legacy optimization administration and completion-critical personalization.
+- required result: optimization history and candidate administration remain supporting-only and are not exposed as this JSON resource.
+- success condition: core journey works without legacy HTML model or admin row payload.
 
-### Verified Facts
+## Design Analysis
 
-- canonical settings already own `preference_optimization.ranking_mode` and `preference_optimization.personalization_strength`.
-- optimization service already resolves compatible active policy and reports fallback/stale semantics.
-- legacy optimization routes are HTML and therefore not a new-frontend API.
+### Current State and Evidence
 
-### Assumptions
+| Question | Evidence | Source | Confidence | Specification implication |
+|---|---|---|---|---|
+| What owns ranking settings? | Canonical settings own ranking mode and strength. | `src/fitcv_cp/settings_store.py` and `src/fitcv_cp/store.py` | high | JSON route delegates to canonical settings ownership. |
+| What resolves effective personalization? | Optimization service resolves compatible active policy and fallback/stale semantics. | `src/fitcv_cp/optimization_service.py` | high | Response must distinguish requested from effective mode. |
+| Is legacy HTML a usable API? | `/admin/optimization` serves HTML administration surfaces. | existing route inventory | high | Do not expose legacy HTML fields as JSON contract. |
 
-- one resource is enough for completion-critical personalization; history/admin stays supporting.
-
-### Open Questions
-
-- none that change the minimum JSON contract.
-
-## Prototype and Validation Findings
+### Prototype and Validation Evidence
 
 - prototype reference: `docs/fitcv-settings-ui-prototype.html` Preference Optimization surfaces.
 - UX approval: owner-approved frozen UX.
-- design export evidence: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md`; gate state: complete.
-- scenario required for validation: baseline, personalized with compatible policy, personalized fallback, stale revision, invalid strength.
-- observed result: new frontend needs read/update JSON; HTML admin model is not reusable contract.
-- accepted behavior: optional personalization only; fit truth remains independent.
-- rejected behavior: exposing `/admin/optimization` HTML as JSON, making optimization history completion-critical.
-- remaining uncertainty: exact resource field naming can follow existing API conventions without changing behavior.
-- boundary implication when material: backend JSON route over canonical settings/service ownership.
+- frozen prototype revision or reference: approved FitCV settings UX prototype.
+- design export evidence: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md`.
+  - selected export method: verified OpenDesign export.
+  - export task reference: recorded Design Export completion evidence.
+  - requested deliverable: FitCV design-system guidance.
+  - durable output identity: `fitcv-design-system-export.md`.
+  - independent review: `PASS` for the verified export.
+- validated scenarios and states: baseline, personalized with compatible policy, personalized fallback, stale revision, invalid strength, unavailable optimization, and supporting-admin separation.
+- findings incorporated into approved behavior: minimal JSON resource, truthful effective state, fit truth independence, and supporting optimization administration.
+- rejected alternatives: exposing `/admin/optimization` HTML as JSON, making optimization history completion-critical, and reporting requested mode as effective mode during fallback.
 
-## Promotion Readiness
+### Scope
 
-- owner approval or `Not approved: <reason>`: proposed pending independent specification review.
-- approval reference: accepted reconciliation finding G-03.
-- remaining blockers or `None identified`: independent review.
-- approved deferrals with owner, rationale, trigger, and approval reference or `None`: optimization administration remains supporting; product owner, promote only if core journey requires it.
-- unresolved behavior-changing questions or `None`: None.
+- included behavior: minimal JSON read/update contract for ranking mode, personalization strength, revision, bounds, effective policy state, errors, and ETag.
+- affected boundaries: new frontend API consumer, canonical settings, optimization policy resolution, and API documentation.
+- admissible cases: baseline mode, personalized mode with valid bounded strength, and fallback when no compatible active policy exists.
+- compatibility expectation: existing HTML administration routes and optimization internals remain available as supporting surfaces.
+
+### Non-Goals
+
+- optimization history administration or candidate approve/reject/rollback/remove workflows.
+- training internals or policy authoring.
+- synonym administration.
+- exposing legacy HTML fields as a new API.
+- changing fit qualification truth.
+
+### Requirements and Behavioral Contract
+
+#### Requirement: Read current personalization state
+
+- trigger or actor: new frontend requests `GET /personalization`.
+- preconditions: canonical settings and optimization policy resolver are available.
+- required behavior: return `{ "data": { "ranking_mode", "effective_ranking_mode", "personalization_strength", "baseline_fallback", "active_policy_id", "revision", "bounds", "updated_at" } }`.
+- output or state change: no mutation; `ETag` equals quoted resource revision.
+- failure behavior: standard API error envelope when canonical settings or policy state cannot be read.
+- observable acceptance: requested and effective state are explicit and truthful.
+
+#### Requirement: Update personalization atomically
+
+- trigger or actor: client sends `PATCH /personalization` with `ranking_mode`, optional `personalization_strength`, and `expected_revision`.
+- preconditions: body contains only supported fields; mode is `baseline` or `personalized`; strength is within canonical bounds; expected revision matches current revision.
+- required behavior: persist through canonical settings ownership and return refreshed resource with new `ETag`.
+- output or state change: ranking preference changes without changing fit qualification truth.
+- failure behavior: unknown or invalid fields return `422 validation_failed`; strength supplied with baseline returns `422 validation_failed`; stale revision returns `409 personalization_revision_conflict`; no partial write occurs.
+- observable acceptance: successful update is atomic and response reflects effective policy resolution.
+
+#### Requirement: Report fallback truthfully
+
+- trigger or actor: read or update resolves personalized mode without compatible active policy.
+- preconditions: requested mode is personalized and policy resolver reports no compatible active policy.
+- required behavior: return `baseline_fallback: true`, `effective_ranking_mode: "baseline"`, and `active_policy_id: null`.
+- output or state change: UI explains that personalized mode is requested but baseline is currently effective.
+- failure behavior: never claim personalized ranking is active without compatible policy.
+- observable acceptance: requested mode and effective mode differ only when fallback is true.
+
+| Boundary | Owner or canonical contract | Required evidence |
+| --- | --- | --- |
+| Requested settings | Canonical settings store | Direct read/update tests |
+| Effective policy state | Optimization service | Fallback and compatible-policy tests |
+| HTTP resource and errors | `/personalization` API contract | Response-shape and ETag tests |
+| Supporting administration | Existing legacy operator routes | Non-coupling regression proof |
+
+### Constraints and Alternatives
+
+- constraint: core personalization must remain optional and must not alter fit qualification truth.
+- alternative: expose legacy optimization HTML model as JSON
+  - benefit: fewer backend changes.
+  - trade-off: couples new frontend to legacy administrative fields and unstable presentation shape.
+  - reason accepted or rejected: rejected; canonical settings and policy state require smaller stable resource.
+
+## Design Decisions
+
+### Decision: Separate core personalization from optimization administration
+
+- context: personalization is completion-critical, while history and candidate administration are supporting capabilities.
+- selected approach: minimal `/personalization` resource over canonical settings and optimization resolution; retain admin HTML outside contract.
+- rationale: preserves one owner for settings and one owner for effective policy while avoiding legacy model leakage.
+- alternatives considered: full optimization JSON administration API and direct HTML reuse.
+- accepted trade-offs: supporting administration remains separate and may need future specification if product scope changes.
+- affected owners and boundaries: backend API owns resource contract; settings store owns persistence; optimization service owns effective state; frontend owns presentation.
+
+### Compatibility, Migration, and Risk
+
+- old behavior: legacy HTML routes expose optimization administration; no minimal JSON resource exists.
+- new behavior: new frontend reads and updates core personalization through `/personalization`.
+- compatibility boundary: legacy HTML routes and optimization internals remain unchanged and supporting-only.
+- migration or backfill: none for existing settings; resource reads current canonical values.
+- rollout and rollback: client can fall back to baseline presentation if resource unavailable; existing admin routes remain available.
+- deprecation or consumer impact: no existing HTML consumer is required to migrate.
+- risk:
+  - mitigation: optimistic revision check, atomic persistence, explicit fallback, bounded validation, and fit-truth invariant.
+
+## Invariants and Edge Cases
+
+### Invariants
+
+- canonical settings remain single source for requested ranking mode and strength.
+- effective mode never claims personalization without compatible active policy.
+- personalization never changes fit qualification truth.
+- stale revision never overwrites newer settings.
+- supporting administration is not required for core personalization journey.
+
+### Edge Cases
+
+- empty or minimal input: omitted strength preserves current value; baseline mode may omit strength change.
+- normal and large input: strength remains bounded by canonical minimum, maximum, and step; no history payload is returned.
+- duplicate, missing, malformed, or unsupported data: unknown fields and invalid values fail validation; missing policy resolves fallback.
+- retry, cancellation, timeout, partial failure, or concurrency: stale updates conflict; persistence failure produces no partial update; reads may retry through standard API semantics.
+- migration or mixed-version state: existing settings are read through canonical compatibility logic; no legacy HTML field migration is required.
+- generated-source consistency: API documentation and route response shape must stay aligned.
+- security or accessibility boundary: validate at API boundary; expose labels and current effective state with native controls and 44px touch targets.
+
+## Validation Plan
+
+### Backend Verification Claims
+
+- direct boundary: `GET /personalization` and `PATCH /personalization` return documented resource and error shapes.
+- important success and failure behavior: prove baseline, compatible personalized, fallback, invalid input, unknown fields, and stale revision.
+- final state or side effects: prove atomic settings update and unchanged fit qualification truth.
+- rollback, retry, duplicate, or idempotency behavior: prove stale update rejection and repeated same-revision reads/updates do not corrupt settings.
+- canonical contract and conformance proof: response, bounds, revision, and ETag match `docs/api.md`.
+- real dependencies requiring proof: canonical settings store and optimization service resolution.
+- representative-operation trace mechanism: direct API read → update → read trace with policy fallback variant.
+- performance claim and threshold: resource read/update must remain within existing local API request budget.
+
+### Acceptance Criterion: Core personalization is independently consumable
+
+- setup or precondition: canonical settings and policy resolver contain baseline or personalized state.
+- action: new frontend reads resource and updates valid state.
+- expected result: resource contains requested/effective state, bounds, revision, and policy identity without admin rows.
+- failure condition: client must parse legacy HTML or response claims unsupported fields.
+- proof method: API contract tests and response-shape assertions.
+- expected evidence: valid JSON resource and matching ETag.
+
+### Acceptance Criterion: Invalid and stale updates preserve truth
+
+- setup or precondition: current revision and bounded strength are known.
+- action: send unknown field, invalid strength, baseline-plus-strength, and stale revision updates.
+- expected result: actionable errors return and canonical settings remain unchanged.
+- failure condition: partial write, lost update, or personalized claim without compatible policy.
+- proof method: direct boundary tests with final-state assertions.
+- expected evidence: status/error envelope and unchanged settings snapshot.
+
+## Completion Criteria
+
+Specification is complete when:
+
+1. minimal JSON resource, update body, errors, revision, ETag, and fallback semantics are unambiguous
+2. canonical settings and optimization-service ownership are explicit
+3. core personalization and supporting administration are separated
+4. fit qualification truth is explicitly protected
+5. each required outcome maps to acceptance and backend verification intent
+6. Design Export and frozen UX evidence are preserved
+7. implementation sequencing remains outside this specification
