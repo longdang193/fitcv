@@ -53,9 +53,10 @@ Implementation plan owns exact files, task order, commands, dependencies, rollou
 - Use `docs/operating_system/templates/draft-specification-template.md` when behavior, UI intent, or state transitions still need prototype validation.
 - Save draft under final `docs/superpowers/specs/*.md` path with `template_id: draft-specification` and `status: proposed`.
 - Keep assumptions, open questions, prototype reference, and findings in same file while design remains unsettled.
-- After explicit approval, complete every explicitly applicable post-approval input before promotion. Keep the draft `status: proposed` while required Design Export, roadmap or workstream reconciliation, or other approved inputs remain incomplete. Then replace draft content in place with `docs/operating_system/templates/detailed-specification-template.md`, set `template_id: detailed-specification` and `status: active`, and preserve accepted prototype evidence and approved deferrals.
+- After explicit approval, complete every explicitly applicable post-approval input before promotion. Keep the draft `status: proposed` while required Design Export or other approved inputs remain incomplete. Then replace draft content in place with `docs/operating_system/templates/detailed-specification-template.md`, set `template_id: detailed-specification` and `status: active`, and preserve accepted prototype evidence and approved deferrals.
 - Do not keep parallel permanent draft/final files. Git history preserves draft state.
 - For material backend behavior, define verification claims using `docs/operating_system/rules/backend-verification-rule.md`; frontend proof never replaces backend proof.
+- Spec status is `proposed` while behavior or design remains unsettled, `active` for the approved contract under implementation, `completed` after implementation is verified against that contract, and `superseded` when a newer specification replaces it. Revise only `proposed` or `active` specifications; use completed or superseded specifications as historical baseline evidence for new work.
 
 ### Promotion Mapping
 
@@ -115,20 +116,28 @@ Define:
 
 If problem framing or alternatives remain unclear, return to `skill-brainstorming`. If defect root cause remains unclear, use `skill-systematic-debugging`.
 
-### 2. Inspect Current State
+### 2. Inspect Current State And Baseline
 
 Inspect smallest evidence set needed to understand:
 
 - current behavior and ownership
+- requested behavior compared with current behavior
 - existing interfaces and contracts
 - working and failing paths
 - consumers and dependencies
 - canonical and generated surfaces
+- affected maintained contracts, specifications, and ownership boundaries
 - applicable native or existing repository capabilities
 - constraints imposed by compatibility, security, accessibility, performance, publication, or external systems
 - for material front-end scope, guidance from the selected applicable design skill under `docs/operating_system/rules/frontend-ui-rule.md`, plus explicit responsive, theme, accessibility, and affected-state acceptance criteria
 
 Do not design from guessed repository behavior.
+
+When modifying existing behavior, inspect current source, tests, configuration,
+schemas, and maintained documentation before defining the post-change contract.
+Reconcile affected scope and ownership in this specification, and capture only
+concise baseline/change context rather than duplicating evidence or normative
+requirements.
 
 ### 3. Define Scope And Non-Goals
 

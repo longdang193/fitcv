@@ -7,9 +7,7 @@ distribution_tier: starter_kit
 responsibility:
   - Validate metadata for planning artifacts that exist.
   - Validate optional plan-to-spec references.
-  - Keep roadmap use optional.
 inputs:
-  - docs/intent/master-workstream-roadmap.md
   - docs/superpowers/specs/*.md
   - docs/superpowers/plans/*.md
 outputs:
@@ -384,7 +382,7 @@ def validate_git_coordination(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate existing roadmap, specification, and plan artifacts."
+        description="Validate existing specification and plan artifacts."
     )
     parser.add_argument(
         "--repo-root",
@@ -488,7 +486,7 @@ def validate_artifact(root: Path, path: Path, artifact_type: str) -> list[Findin
 
 def validate_planning_artifacts(root: Path) -> list[Finding]:
     findings: list[Finding] = []
-    for artifact_type in ("roadmap", "spec", "plan"):
+    for artifact_type in ("spec", "plan"):
         for path in discover_artifacts(root, artifact_type):
             findings.extend(validate_artifact(root, path, artifact_type))
     return findings

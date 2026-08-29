@@ -96,8 +96,8 @@ skills/
 ## SKILL.md Structure
 
 **Frontmatter (YAML):**
-- Only two fields supported: `name` and `description`
-- Max 1024 characters total
+- Must satisfy `scripts/validate_agent_metadata_schema.py`.
+- `name` and `description` are required; `required_reads` and `distribution_tier` are supported repository metadata.
 - `name`: Use letters, numbers, and hyphens only (no parentheses, special chars)
 - `description`: Third-person, describes ONLY when to use (NOT what it does)
   - Start with "Use when..." to focus on triggering conditions
@@ -374,24 +374,18 @@ pptx/
 ```
 When: Reference material too large for inline
 
-## The Iron Law (Same as TDD)
+## Testing Rule
 
 ```
-NO SKILL WITHOUT A FAILING TEST FIRST
+NO DISCIPLINE SKILL WITHOUT A FAILING TEST FIRST
 ```
 
-This applies to NEW skills AND EDITS to existing skills.
+For discipline-enforcing skills, write a failing pressure scenario before the
+skill and verify compliance after it. Other skill types and mechanical
+metadata/reference edits use proportional validation: focused repository tests,
+validators, retrieval scenarios, or application scenarios as applicable.
 
-Write skill before testing? Delete it. Start over.
-Edit skill without testing? Same violation.
-
-**No exceptions:**
-- Not for "simple additions"
-- Not for "just adding a section"
-- Not for "documentation updates"
-- Don't keep untested changes as "reference"
-- Don't "adapt" while running tests
-- Delete means delete
+Every skill change still needs applicable verification before deployment.
 
 **REQUIRED BACKGROUND:** The `skill-test-driven-development` skill explains why
 this matters. Same principles apply to documentation.
@@ -449,16 +443,16 @@ Different skill types need different test approaches:
 
 | Excuse | Reality |
 |--------|---------|
-| "Skill is obviously clear" | Clear to you ≠ clear to other agents. Test it. |
-| "It's just a reference" | References can have gaps, unclear sections. Test retrieval. |
-| "Testing is overkill" | Untested skills have issues. Always. 15 min testing saves hours. |
-| "I'll test if problems emerge" | Problems = agents can't use skill. Test BEFORE deploying. |
-| "Too tedious to test" | Testing is less tedious than debugging bad skill in production. |
-| "I'm confident it's good" | Overconfidence guarantees issues. Test anyway. |
-| "Academic review is enough" | Reading ≠ using. Test application scenarios. |
-| "No time to test" | Deploying untested skill wastes more time fixing it later. |
+| "Skill is obviously clear" | Clear to you ≠ clear to other agents. Use the applicable test or validator. |
+| "It's just a reference" | References can have gaps, unclear sections. Test retrieval when material. |
+| "Testing is overkill" | Match proof to skill type; do not skip applicable validation. |
+| "I'll test if problems emerge" | Use the smallest applicable proof before deploying. |
+| "Too tedious to test" | Use a focused validator or scenario when a full pressure test is not applicable. |
+| "I'm confident it's good" | Confidence does not replace applicable proof. |
+| "Academic review is enough" | Use retrieval or application scenarios when behavior matters. |
+| "No time to test" | Do not skip required proof; choose the smallest valid method. |
 
-**All of these mean: Test before deploying. No exceptions.**
+**All of these mean: verify before deploying, using proof proportional to the skill.**
 
 ## Bulletproofing Skills Against Rationalization
 
@@ -652,7 +646,8 @@ How future agents find your skill:
 
 **Creating skills IS TDD for process documentation.**
 
-Same Iron Law: No skill without failing test first.
+Discipline skills use the failing-test-first rule; other skills use applicable
+focused validation.
 Same cycle: RED (baseline) → GREEN (write skill) → REFACTOR (close loopholes).
 Same benefits: Better quality, fewer surprises, bulletproof results.
 

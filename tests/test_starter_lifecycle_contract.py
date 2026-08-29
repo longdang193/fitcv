@@ -43,6 +43,10 @@ def test_planning_dispatch_owns_conditional_lifecycle() -> None:
     assert "Design Export when an applicable owner-approved UX freeze" in dispatch
     assert "Design Export method selection is explicit" in dispatch
     assert "all applicable post-approval inputs are complete" in dispatch
+    assert "Reconcile those impacts during specification drafting before planning" in dispatch
+    assert "Affected-scope/spec reconciliation" not in dispatch
+    assert "optional roadmap" not in dispatch
+    assert "Do not use an arbitrary overlap threshold" in dispatch
     assert "Downstream project-owned handoff: Release/Deploy → Observe" in dispatch
     assert "Lifecycle ownership remains in `docs/operating_system/planning/planning-dispatch.md`." in integration
     assert "planning-dispatch post-approval gates" in integration
@@ -112,10 +116,110 @@ def test_specification_promotion_mapping_preserves_material_draft_evidence() -> 
     assert "semantic rewrite" in skill
     assert "block `status: active`" in skill
     assert "durable approval evidence" in skill
+    assert "Reconcile affected scope and ownership in this specification" in skill
+    assert "affected-scope/spec reconciliation" not in skill
+    assert "roadmap or workstream reconciliation" not in skill
+    assert "Revise only `proposed` or `active` specifications" in skill
     assert "owner approval or `Not approved: <reason>`" in draft
     assert "remaining blockers or `None identified`" in draft
     assert "approved deferrals with owner, rationale, trigger, and approval reference" in draft
     assert "[ ] important behavior and state transitions are settled" not in draft
+
+
+def test_spec_and_plan_status_ownership_is_explicit() -> None:
+    spec = normalized(".agents/skills/skill-spec-drafting/SKILL.md")
+    verification = normalized(".agents/skills/skill-verification-before-completion/SKILL.md")
+    governance = normalized("docs/operating_system/governance/repo-governance.md")
+
+    assert "Revise only `proposed` or `active` specifications" in spec
+    assert "completed` after implementation is verified against that contract" in spec
+    assert "marks that specification `completed` after verification proves the implementation" in verification
+    assert "at most one owning specification through `parent_spec`" in governance
+    assert "one change affects several specifications" not in governance
+
+
+def test_spec_guidance_has_single_baseline_stage_and_compact_change_summary() -> None:
+    skill = read(".agents/skills/skill-spec-drafting/SKILL.md")
+    detailed = read("docs/operating_system/templates/detailed-specification-template.md")
+
+    assert skill.count("### 2. Inspect Current State And Baseline") == 1
+    assert "### 3. Inspect Current Baseline" not in skill
+    assert skill.count("### 6. Resolve Design Decisions") == 1
+    assert skill.count("### 7. Define Invariants And Edge Cases") == 1
+    assert "### Change Summary" in detailed
+    assert "#### Current Baseline" not in detailed
+    assert "#### Affected Maintained Contracts" not in detailed
+    assert "not a second owner for evidence" in detailed
+
+
+def test_completed_migration_plan_has_consistent_historical_status() -> None:
+    plan = read("docs/superpowers/plans/2026-08-29-openspec-lifecycle-cleanup-plan.md")
+
+    assert "status: completed" in plan
+    assert "Execution was approved and completed" in plan
+    assert "Plan remains `proposed`" not in plan
+
+
+def test_starter_onboarding_matches_optional_intent_and_atomic_kit() -> None:
+    readme = read("README.md")
+    intent = read("docs/intent/README.md")
+    adoption = read("docs/operating_system/adoption/project-adoption-migration-guide.md")
+    manifest = read("repo_config/starter-kit-manifest.json")
+
+    assert "standard project folders" in readme
+    assert "create `docs/intent/` when durable project purpose needs more than `README.md`" in readme
+    assert "Use this optional layer" in intent
+    assert "generated Starter kit as the atomic adoption unit" in adoption
+    assert "manual file-by-file copying" in adoption
+    assert '"docs/intent"' not in manifest
+
+
+def test_skill_selector_uses_documented_triggers_without_forced_brainstorming() -> None:
+    selector = read(".agents/skills/skill-using-superpowers/SKILL.md")
+
+    assert "documented trigger matches" in selector
+    assert "do not invoke a skill" in selector
+    assert "About to EnterPlanMode?" not in selector
+    assert "Already brainstormed?" not in selector
+    assert "\"Let's build X with unresolved options\"" in selector
+    assert "\"Let's build X\" → skill-brainstorming first" not in selector
+
+
+def test_skill_authoring_contract_matches_validator_and_proportional_testing() -> None:
+    writing = read(".agents/skills/skill-writing-skills/SKILL.md")
+
+    assert "scripts/validate_agent_metadata_schema.py" in writing
+    assert "Only two fields supported" not in writing
+    assert "NO DISCIPLINE SKILL WITHOUT A FAILING TEST FIRST" in writing
+    assert "Every skill change still needs applicable verification" in writing
+    assert "verify before deploying, using proof proportional to the skill" in writing
+    assert "Same Iron Law: No skill without failing test first" not in writing
+
+
+def test_runtime_docs_use_profile_concept_and_keep_cli_selector_literal() -> None:
+    paths = [
+        "README.md",
+        "docs/operating_system/procedures/personal-local-worktree-procedure.md",
+        "docs/operating_system/procedures/runtime-adapter-procedure.md",
+        "docs/operating_system/runtime/runtime-surfaces.md",
+        "docs/operating_system/templates/agents/root-AGENTS.template.md",
+    ]
+
+    for path in paths:
+        content = read(path)
+        assert "role source" not in content, path
+        assert "role provider" not in content, path
+
+    assert "--role <profile>" in read("README.md")
+    assert "--role <profile>" in read("docs/operating_system/procedures/runtime-adapter-procedure.md")
+
+
+def test_terminal_historical_rule_and_status_writer_are_explicit() -> None:
+    rule = read("docs/operating_system/rules/doc-contracts-rule.md")
+    plan_template = read("docs/operating_system/templates/implementation-plan-template.md")
+
+    assert "Historical terminal artifacts (`completed` or `superseded`)" in rule
+    assert "returns `verified`; the lead controller then updates plan status" in plan_template
 
 
 def test_specification_promotion_owners_share_applicable_gate_contract() -> None:

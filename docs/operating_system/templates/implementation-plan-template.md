@@ -239,6 +239,6 @@ The plan may be marked `completed` only when `skill-verification-before-completi
 1. runs fresh final verification
 2. confirms completion criteria against repository evidence
 3. finds no unresolved required task, failed required check, stale status, or unrecorded scope deviation
-4. returns `verified` and updates plan status
+4. returns `verified`; the lead controller then updates plan status
 
 A checked box records progress; it is not proof by itself.

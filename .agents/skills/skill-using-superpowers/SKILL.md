@@ -44,9 +44,6 @@ documented trigger matches, do not invoke a skill only because it might apply.
 ```dot
 digraph skill_flow {
     "User message received" [shape=doublecircle];
-    "About to EnterPlanMode?" [shape=doublecircle];
-    "Already brainstormed?" [shape=diamond];
-    "Invoke skill-brainstorming skill" [shape=box];
     "Does a rule or request select a skill?" [shape=diamond];
     "Invoke the skill" [shape=box];
     "Announce: 'Using [skill] to [purpose]'" [shape=box];
@@ -54,11 +51,6 @@ digraph skill_flow {
     "Create a todo per item" [shape=box];
     "Follow skill exactly" [shape=box];
     "Respond (including clarifications)" [shape=doublecircle];
-
-    "About to EnterPlanMode?" -> "Already brainstormed?";
-    "Already brainstormed?" -> "Invoke skill-brainstorming skill" [label="no"];
-    "Already brainstormed?" -> "Does a rule or request select a skill?" [label="yes"];
-    "Invoke skill-brainstorming skill" -> "Does a rule or request select a skill?";
 
     "User message received" -> "Does a rule or request select a skill?";
     "Does a rule or request select a skill?" -> "Invoke the skill" [label="yes"];
@@ -82,10 +74,10 @@ These thoughts mean STOP—you're rationalizing:
 | "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
 | "I can check git/files quickly" | Files lack conversation context. Check for skills. |
 | "Let me gather information first" | Skills tell you HOW to gather information. |
-| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "This doesn't need a formal skill" | If no documented trigger matches, do not invoke it. |
 | "I remember this skill" | Skills evolve. Read current version. |
 | "This doesn't count as a task" | Action = task. Check for skills. |
-| "The skill is overkill" | Simple things become complex. Use it. |
+| "The skill is overkill" | If no documented trigger matches, do not invoke it. |
 | "I'll just do this one thing first" | Check BEFORE doing anything. |
 | "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
 | "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
@@ -99,7 +91,7 @@ When multiple skills could apply, use this order:
 
 An explicit user request or approved task contract naming one frontend design skill satisfies overlapping design-skill applicability for that task. Do not invoke another overlapping design skill solely because it is installed, discoverable, or appears applicable; follow `docs/operating_system/rules/frontend-ui-rule.md`.
 
-"Let's build X" → skill-brainstorming first, then implementation skills.
+"Let's build X with unresolved options" → skill-brainstorming. Design-clear local work can execute directly.
 "Fix this bug" → debugging first, then domain-specific skills.
 
 ## Skill Types

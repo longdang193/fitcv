@@ -6,7 +6,7 @@ type: test
 scope: unit
 domain: docs
 covers:
-  - Optional roadmap validation
+  - Optional planning-artifact validation
   - Existing specification and plan metadata validation
   - Optional plan-to-spec reference validation
 tags:
@@ -122,26 +122,12 @@ parent_spec: none
 """
 
 
-def test_empty_repo_does_not_require_roadmap() -> None:
+def test_empty_repo_does_not_require_planning_artifacts() -> None:
     root = make_test_root()
     try:
         result = run_validator(root)
         assert result.returncode == 0
         assert "passed" in result.stdout.lower()
-    finally:
-        rmtree(root, ignore_errors=True)
-
-
-def test_optional_roadmap_is_validated_when_present() -> None:
-    root = make_test_root()
-    try:
-        write_text(
-            root / "docs" / "intent" / "master-workstream-roadmap.md",
-            "---\nartifact_type: roadmap\nstatus: active\nlayer: change\n---\n# Roadmap\n",
-        )
-        result = run_validator(root, "--strict")
-        assert result.returncode == 1
-        assert "`layer` must be `intent`" in result.stdout
     finally:
         rmtree(root, ignore_errors=True)
 

@@ -57,7 +57,7 @@ and optional ranks. Positive ranks order only ranked profiles; unranked profiles
 are explicit-only and non-orderable. Ranked profiles are ordered by registry
 rank. Codex consumes deployed
 TOML. User-local `dcode-project` materializes ignored `.deepagents/agents/`
-views at launch with local provider endpoint and credentials. Each role provider
+views at launch with local provider endpoint and credentials. Each profile provider
 alias must match active local Codex provider. Select executor and validator
 profiles independently from their bounded task contracts; a lower, equal, or
 higher validator profile is valid when reliable for the validation task. It is
@@ -78,11 +78,11 @@ threads, or generated `.deepagents/` files to repository coordination.
 ## DeepAgents Tool Boundary
 
 Current `dcode-project` consumes required `--role <profile>`,
-resolves that canonical source role's provider alias and model, then validates a
-controller-owned sanitized handoff. It starts `dcode` with selected source model
+resolves that selected profile's provider alias and model, then validates a
+controller-owned sanitized handoff. It starts `dcode` with selected profile model
 and `--no-mcp`; Codex MCP servers, their tool allowlists, approval policy,
 sandbox mode, and shell policy do not transfer. The top-level Codex model remains
-controller default; it does not select a DeepAgents role model.
+controller default; it does not select a DeepAgents profile model.
 DeepAgents capabilities depend on launch mode and task context. Current
 `dcode-project` supplies a fixed launcher-owned bounded tool surface; callers
 cannot widen it through task text or runtime-authority flags. Never assume a
@@ -96,7 +96,7 @@ checks, and verify Git scope before acceptance.
 ## Bounded Tura Worker
 
 `project-delegate` is the explicit Native Codex adapter for one bounded Tura
-worker. It uses the same `agents/*.toml` role source and controller-validated
+worker. It uses the same `agents/*.toml` profile registry and controller-validated
 handoff, but Native Codex retains MCP, approval, Git, verification, and
 acceptance. Tura receives fixed Git root, native `--sandbox`, fresh session id,
 and opaque JSONL; it cannot spawn another worker. `dcode-project` remains
@@ -130,7 +130,7 @@ from required reasoning depth, ambiguity, scope, risk, and cost. Do not map
 research, debugging, review, design, planning, implementation, validation,
 orchestration, or any other function to one fixed profile. Name function and
 selected profile in task prompt; do not use `dcode --agent` or `dcode -r` for
-project coordination. Same role source, Git scope, plan
+project coordination. Same profile registry, Git scope, plan
 coordination, task evidence, checks, and acceptance rules apply to Codex and
 DeepAgents delegates; executor containment and approval remain distinct.
 

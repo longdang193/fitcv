@@ -93,7 +93,7 @@ For every required task and criterion classify:
 
 Do not require raw `- [ ]` count to equal zero. Optional, historical, deferred, and not-applicable items may remain when disposition is explicit.
 
-Use existing planning and template validators when planning artifacts changed. Do not duplicate required-section parsing inside skill.
+Use existing planning and template validators when planning artifacts changed. Do not duplicate required-section parsing inside skill. Required maintained-contract updates are implementation scope when named by the plan; verification checks alignment but does not rewrite a contract to make proof pass. The lead controller accepts the reconciled result and performs durable plan/spec status transitions.
 
 ### 4. Map Claims To Evidence
 
@@ -185,6 +185,12 @@ not a delegated validator, performs the durable plan-status transition. A
 checked box is progress state, not completion proof.
 
 Plan `completed` means implementation and verification are complete. It does not mean branch merged, pushed, published, or cleaned.
+
+When a completed plan has an active `parent_spec`, the lead controller also marks
+that specification `completed` after verification proves the implementation
+against its contract. Plans with no `parent_spec` do not imply a specification
+status transition. Completed and superseded specifications remain historical
+and are not revised in place.
 
 ### 10. Produce Verification Result
 

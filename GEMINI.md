@@ -65,45 +65,18 @@ or delegated benefit is unclear. Follow
 Reuse a clean checkout for small reversible work; use a native Git worktree only
 when existing worktree guidance selects isolation.
 Git owns workspace identity, change evidence, and authorized branch disposition.
-For DeepAgents, use user-local `dcode-project`; it derives ignored project role
-views from `agents/*.toml` and local provider endpoint and credentials. Do not track
+For DeepAgents, use user-local `dcode-project`; it derives ignored profile views
+from `agents/*.toml` and local provider endpoint and credentials. Do not track
 `.deepagents/`, invent provider fallback, runtime state, or cleanup commands.
 DeepAgents auto-loads this root `AGENTS.md` and discovers `.agents/skills` as
 project skills. It does not auto-load `.agents/rules`; those are generated
-platform-adapter views. For a detailed rule outside this root prompt, name and
-read its canonical `docs/operating_system/rules/*.md` source in bounded task
-scope. Do not duplicate rules in `.deepagents/AGENTS.md`.
-DeepAgents setup rejects user-local `.deepagents/.mcp.json`; keep direct
-DeepAgents MCP configuration absent so Codex remains sole MCP authority.
-Current launcher forces `--no-mcp`, binds DeepAgents to selected Git root, and
-does not project Codex MCP servers, approval, sandbox, profile, or thread
-settings. It gives native DeepAgents fixed launcher-owned built-ins: filesystem
-tools plus `git` and `py` shell commands. Task input cannot widen this set.
-Codex controller owns MCP calls and passes only validated
-`codex.mcp.handoff.v1` facts through user-local `dcode-project` handoff files.
-`--mcp-select` narrows provenance only. DeepAgents task launch requires
-`dcode-project --role <profile>`; launcher resolves the selected
-canonical source model while top-level Codex model remains controller default.
-For bounded external delegation, `project-delegate` selects Tura from the same
-tracked role source and user-local config. Native Codex remains controller for
-MCP, approval, Git, verification, and acceptance; Tura receives one bounded
-task, fixed Git root, native `--sandbox`, fresh session id, and opaque JSONL.
-`dcode-project` remains the explicit DeepAgents path and does not route through
-Tura. Tura production routing stays `Tura -> LightRSI -> 9router -> provider`
-through `TURA_PROVIDER_CONFIG`; no direct-provider fallback exists.
-Do not pass raw `--stdin` or pipe task text to `dcode-project`; only validated
-`--handoff-file` launches create DeepAgents stdin. DeepAgents built-in file tools
-receive exact native file-tool root in every bounded task. On Windows it looks
-like `/Users/<user>/repos/<repo>`; append repository-relative paths to that
-root. Never guess `/workspace/...` or use Windows drive syntax. Read only named
-source, test, and text files with filesystem tools; never read database, binary,
-archive, or runtime artifacts. For SQLite evidence, use launcher-authorized `py`
-with stdlib `sqlite3` read-only URI mode. Run `py` directly; do not prefix it
-with `cd`, shell operators, or wrappers. For `py -c`, use one expression; never
-use `;`. Ask for repository-relative `path:line` evidence. When a task needs an
-acceptance decision, require `PASS`, `FAIL`, or `BLOCKED` first. Do not assume
-interpreter, web, or MCP access; if a task needs unavailable capability, return
-`BLOCKED`.
+platform-adapter views. Codex remains MCP, approval, Git, verification, and
+acceptance controller; delegated runtimes receive only validated handoffs and
+bounded task contracts. Do not bypass configured provider routes or invent
+direct-provider fallback. For launcher details, file-root conventions, and
+runtime-specific restrictions, read
+`docs/operating_system/procedures/personal-local-worktree-procedure.md`.
+Do not duplicate rules in `.deepagents/AGENTS.md`.
 Name a discovered profile in bounded DeepAgents `task`
 delegation; do not use `dcode --agent` or `dcode -r` for project coordination.
 Use `skill-deepagents-executing-plans` when an approved Git-tracked plan is

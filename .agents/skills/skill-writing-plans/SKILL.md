@@ -66,7 +66,6 @@ pass only validated `codex.mcp.handoff.v1` facts to DeepAgents.
 
 ## Artifact Boundaries
 
-- optional roadmap: coordinated direction across several outcomes
 - specification: approved behavior, interfaces, design decisions, invariants, acceptance criteria, and validation intent
 - implementation plan: ordered tasks, dependencies, exact files and symbols, execution approach, required skills, shared-write controls, commands, and exit criteria
 - execution skill: implementation and task-local proof
@@ -74,6 +73,9 @@ pass only validated `codex.mcp.handoff.v1` facts to DeepAgents.
 - branch-finishing skill: explicitly authorized Git disposition
 
 No artifact is required merely to connect two other artifacts.
+Each plan keeps at most one `parent_spec`; do not invent `parent_specs` or a
+second linkage system. Coordinate several affected outcomes through the plan's
+task dependencies and ownership instead.
 
 ## Planning Process
 

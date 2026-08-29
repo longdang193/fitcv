@@ -35,11 +35,6 @@ shared_optional_context_fields:
 
 allowed_values:
   status:
-    roadmap:
-      - proposed
-      - active
-      - completed
-      - dropped
     spec:
       - proposed
       - active
@@ -62,21 +57,6 @@ allowed_values:
       - change
 
 artifacts:
-  roadmap:
-    description: Optional multi-outcome project roadmap.
-    path_globs:
-      - docs/intent/master-workstream-roadmap.md
-    identity:
-      canonical_field: name
-      legacy_field: template_id
-      recommended_value: master-workstream-roadmap
-    optional_fields:
-      - template_id
-      - name
-    required_values:
-      artifact_type: roadmap
-      layer: intent
-
   spec:
     description: Detailed specification artifact.
     path_globs:

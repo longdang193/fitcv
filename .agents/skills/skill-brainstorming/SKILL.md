@@ -82,7 +82,6 @@ evidence.
 
 - specs -> `docs/superpowers/specs/`
 - detailed brainstorming reports -> `docs/superpowers/plans/brainstorming/<report_id>/report.md`
-- optional roadmap -> `docs/intent/master-workstream-roadmap.md`
 
 ## Guardrails
 

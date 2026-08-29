@@ -50,6 +50,17 @@ execution waves belong in implementation plan.
 
 ## Design Analysis
 
+### Change Summary
+
+Use this optional section when it improves review of an existing behavior
+change. It orients reviewers; it is not a second owner for evidence, normative
+requirements, compatibility, or machine-readable delta semantics.
+
+- baseline reference:
+- added, changed, or removed behavior summary:
+- intentionally unchanged behavior:
+- affected maintained contracts:
+
 ### Current State and Evidence
 
 | Question | Evidence | Source | Confidence | Specification implication |
