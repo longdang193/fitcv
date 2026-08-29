@@ -71,7 +71,13 @@ Use `Not applicable: <reason>` when no UI exists.
 
 - prototype reference or `Not created: <reason>`:
 - UX approval: `Not approved` | `<owner-approved revision/reference>`:
-- design export reference or `Not required: <reason>`:
+- design export evidence or `Not required: <reason>`:
+  - selected export method:
+  - export task reference:
+  - requested deliverable:
+  - durable output identity:
+  - independent review: `Not applicable: <reason>` | `<reference bound to the same task and output identity>`:
+  - gate state: `complete | incomplete | blocked`:
 - scenario tested:
 - observed result:
 - accepted behavior:
@@ -86,14 +92,16 @@ design-system truth.
 Record only material boundary implications. Do not prescribe production
 components, implementation mechanisms, or runtime providers here.
 
+Use Design Export evidence fields only when that gate applies. Lifecycle
+meaning remains owned by `docs/operating_system/planning/planning-dispatch.md`.
+
 ## Promotion Readiness
 
-- [ ] important behavior and state transitions are settled
-- [ ] material backend boundary, failure, state, dependency, contract, and trace claims are selected
-- [ ] UI intent conflicts are resolved
-- [ ] applicable post-approval Design Export or reconciliation inputs are complete or explicitly not applicable
-- [ ] approved deferrals are explicit
-- [ ] user approved promotion
+- owner approval or `Not approved: <reason>`:
+- approval reference:
+- remaining blockers or `None identified`:
+- approved deferrals with owner, rationale, trigger, and approval reference or `None`:
+- unresolved behavior-changing questions or `None`:
 
 After approval and completion of applicable post-approval inputs, replace this
 template content in same file with `detailed-specification`, set `status: active`,

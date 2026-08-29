@@ -67,6 +67,55 @@ def test_design_export_completion_requires_bound_method_evidence() -> None:
     assert "studio_status" not in dispatch
 
 
+def test_design_export_evidence_templates_preserve_bound_identity_contract() -> None:
+    draft = normalized("docs/operating_system/templates/draft-specification-template.md")
+    detailed = normalized("docs/operating_system/templates/detailed-specification-template.md")
+
+    for content in (draft, detailed):
+        assert "design export evidence or `Not required: <reason>`" in content
+        assert "selected export method" in content
+        assert "export task reference" in content
+        assert "requested deliverable" in content
+        assert "durable output identity" in content
+        assert "independent review" in content
+        assert "bound to the same task and output identity" in content
+
+    assert "gate state: `complete | incomplete | blocked`" in draft
+    assert "gate state: `complete | incomplete | blocked`" not in detailed
+
+
+def test_detailed_specification_preserves_promoted_design_export_evidence() -> None:
+    detailed = normalized("docs/operating_system/templates/detailed-specification-template.md")
+
+    assert "design export evidence or `Not required: <reason>`" in detailed
+    assert "gate state: `incomplete | blocked`" not in detailed
+    assert "promoted" in detailed
+
+
+def test_specification_promotion_mapping_preserves_material_draft_evidence() -> None:
+    skill = normalized(".agents/skills/skill-spec-drafting/SKILL.md")
+    draft = normalized("docs/operating_system/templates/draft-specification-template.md")
+
+    for source, destination in (
+        ("verified facts", "Current State and Evidence"),
+        ("accepted behavior", "Required Outcomes"),
+        ("rejected behavior", "Constraints and Alternatives"),
+        ("resolved questions", "Design Decisions"),
+        ("approved deferrals", "Design Analysis"),
+        ("prototype findings", "Prototype and Validation Evidence"),
+    ):
+        assert source in skill
+        assert destination in skill
+
+    assert "semantic rewrite" in skill
+    assert "block `status: active`" in skill
+    assert "durable approval evidence" in skill
+    assert "owner approval or `Not approved: <reason>`" in draft
+    assert "remaining blockers or `None identified`" in draft
+    assert "approved deferrals with owner, rationale, trigger, and approval reference" in draft
+    assert "[ ] important behavior and state transitions are settled" not in draft
+
+
 def test_specification_promotion_owners_share_applicable_gate_contract() -> None:
     paths = [
         "docs/operating_system/planning/planning-dispatch.md",

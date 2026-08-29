@@ -30,10 +30,9 @@ stable source docs.
   - limits, boundaries, and deliberate exclusions
 - [master-workstream-roadmap.md](./master-workstream-roadmap.md)
   - top-down bridge from intent into durable product workstreams and the parallel `operating_system` branch
-- [workstream-coverage-and-progress-guide.md](./workstream-coverage-and-progress-guide.md)
-  - precise ladder from roadmap to execution, plus coverage/progress/divergence rules
-- [workstreams/threads/README.md](./workstreams/threads/README.md)
-  - explicit bounded change thread file surface between registered workstreams and downstream specs/plans
+- Workstream child files are not currently registered in this repository.
+  Historical plan references remain migration evidence and are not active intent
+  sources.
 
 ## Rules
 
@@ -41,7 +40,8 @@ stable source docs.
 - do not turn them into execution logs or release notes
 - treat them as source material for later README synthesis
 - use `master-workstream-roadmap.md` to translate intent into durable planning threads without replacing upstream intent docs
-- use `workstream-coverage-and-progress-guide.md` when you need the precise execution ladder from roadmap coverage into bounded change thread files, specs, plans, and safe parallel work
+- use the roadmap as the current durable ownership boundary; create downstream
+  specs or plans only after an explicit follow-on approval
 - treat the charter, constraints, and success outcomes as the authority for the current product completion target
 - allow downstream roadmaps, workstreams, specs, and plans to decompose intent, but not enlarge it without an explicit intent update
 - do not treat supporting, maintenance, or deferred work as a product-completion blocker unless intent explicitly promotes it

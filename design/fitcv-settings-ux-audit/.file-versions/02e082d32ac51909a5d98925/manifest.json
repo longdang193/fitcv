@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "fileName": "smoke.html",
+  "currentVersionId": "a33963f4-74f7-43e4-a9ae-20f4f91ccfec",
+  "entries": [
+    {
+      "id": "a33963f4-74f7-43e4-a9ae-20f4f91ccfec",
+      "fileName": "smoke.html",
+      "version": 1,
+      "label": "Version 1",
+      "createdAt": 1787943361635,
+      "source": "manual",
+      "prompt": null,
+      "size": 292,
+      "mime": "text/html; charset=utf-8",
+      "kind": "html",
+      "contentPath": "0001-a33963f4-74f7-43e4-a9ae-20f4f91ccfec.html",
+      "promptSource": "manual",
+      "contentDigest": "74a3abdaf1a3c9b95b9070b57e62002708aa370c9b49a29ffad8df66b600271d"
+    }
+  ],
+  "deletedAt": 1787943532745
+}

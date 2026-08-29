@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "smoke.html",
+  "entry": "smoke.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-28T18:56:01.618Z",
+  "updatedAt": "2026-08-28T18:56:01.620Z",
+  "metadata": {
+    "inferred": true
+  }
+}

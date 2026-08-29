@@ -43,6 +43,24 @@ The registered names below define current roadmap ownership. This update does
 not create or rename child workstream files; historical artifacts remain
 migration evidence until their disposition is handled deliberately.
 
+## Approved Product Decisions — August 29, 2026
+
+- FitCV terracotta/cream remains the approved product palette for the frozen UX;
+  the active Agentic token system remains the implementation token owner.
+- `data-od-id` inspectability metadata is not required for current delivery.
+- Compact `30px` actions are pointer-only; touch-capable contexts use the
+  approved `44px` target size.
+- SQLite acceptance evidence targets fresh installation only. Existing-data
+  migration is not part of the current completion gate.
+- Synonym management remains supporting work. It cannot block Personal FitCV
+  completion unless it breaks a core journey or makes results untruthful.
+- Local data relocation and diagnostics remain supporting capabilities under
+  Application Settings → System / Data Backup. No top-level Lifecycle item is
+  added; relocation requires explicit confirmation and diagnostics surface when
+  recovery or failure needs them.
+- Historical integration evidence remains unchanged. Stale links and status
+  labels are documentation-maintenance work, not new product workstreams.
+
 ## Key Deliverables
 
 - complete the personal journey from FitCV Local setup through grounded CV review and return use

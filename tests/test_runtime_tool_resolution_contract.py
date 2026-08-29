@@ -90,6 +90,23 @@ def test_generic_guidance_uses_capabilities_not_optional_provider_names() -> Non
         assert "capability" in content.lower(), path
 
 
+def test_contract_evidence_capabilities_preserve_ownership_and_limits() -> None:
+    backend_skill = normalized(".agents/skills/skill-backend-verification/SKILL.md")
+    full_stack_skill = normalized(".agents/skills/skill-full-stack-integration/SKILL.md")
+    backend_rule = normalized("docs/operating_system/rules/backend-verification-rule.md")
+    integration_tools = normalized("docs/operating_system/tooling/frontend-backend-integration-tools.md")
+
+    assert "schema-driven API evidence" in backend_skill
+    assert "supplemental evidence" in backend_skill
+    assert "durable state" in backend_skill
+    assert "schema-driven api evidence may supplement contract proof" in backend_rule.lower()
+    assert "consumer-driven compatibility evidence" in integration_tools
+    assert "consumer-driven compatibility evidence" in full_stack_skill
+    assert "existing canonical transport/event contract" in integration_tools
+    assert "frontend" in full_stack_skill
+    assert "never becomes the canonical contract owner" in integration_tools
+
+
 def test_starter_manifest_omits_private_provider_setup() -> None:
     if not (REPO_ROOT / "repo_config" / "starter-kit-manifest.json").is_file():
         pytest.skip("starter-kit-manifest.json is factory-only")

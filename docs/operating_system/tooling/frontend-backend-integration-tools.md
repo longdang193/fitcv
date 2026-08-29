@@ -15,7 +15,7 @@ or runtime tool-resolution policy.
 | prototype findings | validation evidence in current specification |
 | approved behavior and state transitions | final specification |
 | durable visual primitives | project design system |
-| transport schema | canonical contract such as OpenAPI |
+| transport or event contract | existing canonical transport/event contract such as OpenAPI, AsyncAPI, or Protobuf schema |
 | temporary contract-to-UI mapping and blockers | colocated `*.integration.md` sidecar |
 | implementation behavior | source and tests |
 | deployed behavior | runtime evidence |
@@ -26,8 +26,9 @@ or runtime tool-resolution policy.
 |---|---|---|---|---|---|
 | problem or options unclear | planning dispatch | `skill-brainstorming` | external documentation capability for version-specific library facts | grounded recommendation or resolved questions | `skill-spec-drafting` when durable behavior needs approval |
 | draft or final behavior needs definition | documentation contracts and planning dispatch | `skill-spec-drafting` | prototype, external documentation capability, `skill-backend-verification` claim selection | approved behavior, states, boundaries, validation intent | `skill-writing-plans` |
-| material backend behavior changes | `docs/operating_system/rules/backend-verification-rule.md` | `skill-backend-verification` | real dependencies, `skill-systematic-debugging`, `skill-test-driven-development` | direct boundary, business/failure, state, automated proof | consumer integration or final verification |
+| material backend behavior changes | `docs/operating_system/rules/backend-verification-rule.md` | `skill-backend-verification` | real dependencies, schema-driven API evidence, `skill-systematic-debugging`, `skill-test-driven-development` | direct boundary, business/failure, state, contract evidence when applicable, automated proof | consumer integration or final verification |
 | frontend crosses backend contract or route | `docs/operating_system/rules/frontend-backend-integration-rule.md` | `skill-full-stack-integration` | `skill-backend-verification`, `skill-frontend-component-engineering` | canonical contract, backend proof, frontend tests, browser flow | `skill-verification-before-completion` |
+| independently evolving consumer/provider boundary with material compatibility risk | `docs/operating_system/tooling/frontend-backend-integration-tools.md` and `docs/operating_system/tooling/runtime-tool-resolution.md` | `skill-backend-verification` | consumer-driven compatibility evidence; `skill-full-stack-integration` only for frontend consumers | existing canonical transport/event contract, consumer/provider identity and tested revisions, expectation reference, verified interactions, direct backend proof, result, freshness, artifact or broker reference when applicable | consumer integration or final verification |
 | stateful frontend component or page | `docs/operating_system/rules/frontend-ui-rule.md` | `skill-frontend-component-engineering` | selected applicable design skill (`impeccable`, `ui-ux-pro-max`, or `skill-distinctive-frontend-design`), external documentation capability | state ownership, tests, required rendered/accessibility evidence | integration or final verification |
 | approved plan execution | planning dispatch | `skill-executing-plans` | `skill-subagent-driven-development` only with authorized per-task commits | task-local proof | `skill-verification-before-completion` |
 | independent disjoint lanes | plan execution ownership | `skill-dispatching-parallel-agents` | platform subagent tools | lane-local and combined proof | `skill-executing-plans` |
@@ -56,6 +57,23 @@ target-project options with active consumers, not Starter defaults.
 Current `dcode-project` forces `--no-mcp`. Codex performs required MCP calls and
 passes only validated `codex.mcp.handoff.v1` facts to DeepAgents; selected MCP
 IDs narrow handoff provenance and never grant DeepAgents tools.
+
+### Contract Evidence Capabilities
+
+`schema-driven API evidence` applies when an HTTP/API boundary has a
+machine-readable schema, material behavior changed, and generated or
+property-driven checks add meaningful coverage. It supplements direct backend
+proof and does not replace state, side-effect, authorization, dependency,
+rollback/idempotency, retry, duplicate-delivery, or trace evidence.
+
+`consumer-driven compatibility evidence` applies when independently evolving
+consumer/provider boundaries create material compatibility risk. Record
+consumer and provider identities plus tested revision/version/build references
+when available or required, expectation ownership, canonical transport/event
+contract reference, verified interaction scope, invocation and result,
+freshness, artifact or broker reference when applicable, fallback disposition,
+and known limits. It supplements provider correctness proof and never becomes
+the canonical contract owner.
 
 ## Source-First Fallback
 

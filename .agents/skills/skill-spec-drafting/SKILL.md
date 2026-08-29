@@ -57,6 +57,22 @@ Implementation plan owns exact files, task order, commands, dependencies, rollou
 - Do not keep parallel permanent draft/final files. Git history preserves draft state.
 - For material backend behavior, define verification claims using `docs/operating_system/rules/backend-verification-rule.md`; frontend proof never replaces backend proof.
 
+### Promotion Mapping
+
+Promotion is a semantic rewrite, not a heading-only rename. Preserve material draft evidence in the detailed specification:
+
+| Draft evidence | Detailed destination |
+|---|---|
+| verified facts | `Current State and Evidence` |
+| accepted behavior | `Required Outcomes` or `Requirements and Behavioral Contract` |
+| rejected behavior | `Constraints and Alternatives` |
+| resolved questions | `Design Decisions` |
+| confirmed assumptions | `Current State and Evidence` or `Design Analysis` |
+| approved deferrals | `Design Analysis` or `Design Decisions`, with approval, owner, rationale, and trigger |
+| prototype findings, UX approval, and Design Export evidence | `Prototype and Validation Evidence` |
+
+Unresolved questions that change required behavior or design block `status: active`. Non-blocking deferrals require durable approval evidence and an owner or trigger.
+
 ## Evidence Gathering
 
 ### Tool Selection

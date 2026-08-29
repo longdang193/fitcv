@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "kind": "markdown-document",
+  "title": "FitCV Design System Export",
+  "entry": "fitcv-design-system-export.md",
+  "renderer": "markdown",
+  "status": "complete",
+  "exports": [
+    "md",
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-28T22:56:20.081Z",
+  "updatedAt": "2026-08-29T00:12:39.192Z",
+  "metadata": {
+    "task": "final-design-export-curation",
+    "source": "fitcv-settings-ui-prototype.html",
+    "priorEvidence": "fitcv-design-system-audit.md"
+  }
+}

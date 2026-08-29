@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "markdown-document",
+  "title": "fitcv-design-system-audit.md",
+  "entry": "fitcv-design-system-audit.md",
+  "renderer": "markdown",
+  "status": "complete",
+  "exports": [
+    "md",
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-28T19:36:55.529Z",
+  "updatedAt": "2026-08-28T19:36:55.532Z",
+  "metadata": {
+    "inferred": true
+  }
+}

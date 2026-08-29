@@ -61,10 +61,19 @@ execution waves belong in implementation plan.
 - prototype reference or `Not applicable: <reason>`:
 - UX approval or `Not applicable: <reason>`:
 - frozen prototype revision or reference or `Not applicable: <reason>`:
-- design export reference or `Not required: <reason>`:
+- design export evidence or `Not required: <reason>`:
+  - selected export method:
+  - export task reference:
+  - requested deliverable:
+  - durable output identity:
+  - independent review: `Not applicable: <reason>` | `<reference bound to the same task and output identity>`:
 - validated scenarios and states:
 - findings incorporated into approved behavior:
 - rejected alternatives:
+
+Preserve promoted Design Export evidence here; do not record a pending gate
+state in an active detailed specification. Lifecycle meaning remains owned by
+`docs/operating_system/planning/planning-dispatch.md`.
 
 ### Scope
 
