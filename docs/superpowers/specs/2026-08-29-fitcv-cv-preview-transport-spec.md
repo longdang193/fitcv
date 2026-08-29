@@ -59,13 +59,13 @@ related_features:
 
 - prototype reference: `docs/fitcv-settings-ui-prototype.html` CV View CV action.
 - UX approval: owner-approved frozen UX.
-- frozen prototype revision or reference: approved FitCV settings UX prototype.
+- frozen prototype revision or reference: `docs/fitcv-settings-ui-prototype.html` at blob `5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27`.
 - design export evidence: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md`.
   - selected export method: verified OpenDesign export.
-  - export task reference: recorded Design Export completion evidence.
+  - export task reference: OpenDesign run `ea9169ad-d5e0-4e7e-9480-98de93b62a6e`.
   - requested deliverable: FitCV design-system guidance.
-  - durable output identity: `fitcv-design-system-export.md`.
-  - independent review: `PASS` for the verified export.
+  - durable output identity: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md` at blob `8586f2d64bef1ef2ab11db9768877de020e13b89`.
+  - independent review: `PASS` recorded for the same OpenDesign run and durable output.
 - validated scenarios and states: generated version, review-required version, pending version, missing version, corrupt artifact, unsupported media type, preview then download, and focus return after closing preview.
 - findings incorporated into approved behavior: immutable version selection, safe inline disposition, separate review/evaluation truth, and independent download.
 - rejected alternatives: latest-version-by-job preview, server-side content rewrite, preview implying approval, and changed download semantics.
@@ -92,14 +92,14 @@ related_features:
 - preconditions: `version_id` identifies a stored version and the client has permission to read it.
 - required behavior: `GET /cv-versions/{version_id}/preview` returns exact persisted bytes for previewable media.
 - output or state change: response uses inline disposition and preserves version identity; no domain state changes.
-- failure behavior: missing version returns `404 cv_not_found`; pending/unavailable content or invalid integrity returns `409 artifact_not_available` with retryable/action guidance; unsupported media returns the same unavailable contract.
+- failure behavior: missing version returns `404 cv_not_found`; pending or running content returns `409 artifact_not_available` with `retryable = true`; failed, corrupt, or unsupported content returns `409 artifact_not_available` with `retryable = false` and recovery guidance.
 - observable acceptance: response bytes and selected `version_id` match canonical stored version.
 
 #### Requirement: Signal preview capability and preserve truth
 
 - trigger or actor: client reads CV version projection.
 - preconditions: version projection includes download capability and stored media type.
-- required behavior: `capabilities.preview` is true exactly when download is available and media is `text/markdown` or `text/plain`; review/evaluation, parent identity, generation metadata, and immutable run snapshot remain unchanged.
+- required behavior: `capabilities.preview` is metadata-based preview eligibility: generation status is `generated` or `review_required`, checksum and content-length metadata exist, and media is `text/markdown` or `text/plain`; request-time preview remains authoritative for availability and integrity. Review/evaluation, parent identity, generation metadata, and immutable run snapshot remain unchanged.
 - output or state change: frontend can disable View CV without changing Download CV.
 - failure behavior: preview never claims approval or substitutes latest version.
 - observable acceptance: capability, displayed metadata, and review/evaluation state match canonical projection.
@@ -110,7 +110,7 @@ related_features:
 - preconditions: stored length and SHA-256 metadata exist.
 - required behavior: verify integrity before serving; preview returns `ETag`, `Content-Length`, `X-Content-Type-Options: nosniff`, and `Content-Disposition: inline`; download remains attachment with unchanged bytes.
 - output or state change: only read response is produced.
-- failure behavior: corrupt content is not served as valid preview or download.
+- failure behavior: corrupt content is not served as valid preview or download; integrity mismatch is non-retryable.
 - observable acceptance: preview and download either pass the same integrity truth or return a consistent artifact-unavailable error.
 
 | Boundary | Owner or canonical contract | Required evidence |
@@ -169,10 +169,10 @@ related_features:
 - empty or minimal input: missing or blank version ID returns canonical not-found behavior.
 - normal and large input: exact stored bytes are served; response size follows stored artifact and transport limits.
 - duplicate, missing, malformed, or unsupported data: missing metadata or checksum mismatch returns artifact unavailable; unsupported media is not inline-rendered.
-- retry, cancellation, timeout, partial failure, or concurrency: read failures expose retryable/action guidance; concurrent regeneration cannot change selected version identity.
+- retry, cancellation, timeout, partial failure, or concurrency: pending/running preview failures are retryable; unsupported media and integrity mismatch are non-retryable with download, regenerate, or diagnostics action; concurrent regeneration cannot change selected version identity.
 - migration or mixed-version state: older versions without valid integrity metadata remain unavailable rather than being rewritten.
 - generated-source consistency: API documentation and route contract must match implementation response shape.
-- security or accessibility boundary: `nosniff`, safe frontend rendering, selectable text, semantic dialog/page, keyboard close/focus return, visible version identity, and 44px actions.
+- security or accessibility boundary: preview bytes are untrusted presentation input; raw Markdown HTML is disabled or sanitized, unsafe URL schemes are rejected, executable/script content is never interpreted, and content-derived code is never executed. Plain text renders as text, never HTML. If safe rich rendering is unavailable, use plain-text preview. Also require `nosniff`, selectable text, semantic dialog/page, keyboard close/focus return, visible version identity, and 44px actions.
 
 ## Validation Plan
 
@@ -181,7 +181,7 @@ related_features:
 - direct boundary: preview route returns exact selected version bytes and required headers.
 - important success and failure behavior: prove valid Markdown/plain text, missing version, pending/unavailable version, corrupt artifact, and unsupported media.
 - final state or side effects: prove preview performs no store mutation and preserves review/evaluation projection.
-- rollback, retry, duplicate, or idempotency behavior: repeated reads are idempotent; corrupt or transient failures expose retryable/action semantics.
+- rollback, retry, duplicate, or idempotency behavior: repeated reads are idempotent; pending/running failures are retryable; unsupported media and integrity failures are non-retryable.
 - canonical contract and conformance proof: route response, capability field, error envelope, and headers match `docs/api.md`.
 - real dependencies requiring proof: canonical CV store integrity metadata and route boundary.
 - representative-operation trace mechanism: direct API requests plus representative CV list → preview → download trace.

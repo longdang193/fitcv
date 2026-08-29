@@ -11213,7 +11213,7 @@ def create_app(
                 409,
                 "artifact_not_available",
                 "CV file failed integrity verification.",
-                retryable=True,
+                retryable=False,
                 action="Regenerate CV or inspect Console.",
             ) from exc
         if preview is None:
@@ -11224,12 +11224,18 @@ def create_app(
                 action="Refresh CV history.",
             )
         if not preview.get("preview_available"):
+            generation_status = str(preview.get("generation_status") or "")
+            is_pending = generation_status in {"pending", "running"}
             raise ApiError(
                 409,
                 "artifact_not_available",
                 "CV preview is not available for this version.",
-                retryable=str(preview.get("reason") or "") != "unsupported_media_type",
-                action="Wait for generation, download the CV, or regenerate it.",
+                retryable=is_pending,
+                action=(
+                    "Wait for generation and retry."
+                    if is_pending
+                    else "Download the CV, regenerate it, or inspect Console."
+                ),
             )
         return Response(
             content=bytes(preview["content"]),
@@ -11507,12 +11513,22 @@ def create_app(
         config = load_config()
         policy = config["decision_learning_policy"]
         domain_id = str(policy["domain_id"])
-        active = load_active_settings()
-        ranking_mode = str(active.get("preference_optimization.ranking_mode", "baseline"))
         strength_entry = next(
             entry for entry in SETTINGS_SCHEMA
             if entry["key"] == "preference_optimization.personalization_strength"
         )
+        run_store = _resolve_run_store()
+        bootstrap_provenance = current_activation_provenance(
+            {"domain_id": domain_id},
+            config,
+            personalization_strength=float(strength_entry["default"]),
+        )
+        run_store.resolve_active_ranking_policy(
+            domain_id,
+            bootstrap_provenance["current_runtime_contract_fingerprint"],
+        )
+        active = load_active_settings()
+        ranking_mode = str(active.get("preference_optimization.ranking_mode", "baseline"))
         strength = float(
             active.get(
                 "preference_optimization.personalization_strength",
@@ -11522,16 +11538,8 @@ def create_app(
         provenance = current_activation_provenance(
             {"domain_id": domain_id}, config, personalization_strength=strength
         )
-        compatible = _resolve_run_store().resolve_active_ranking_policy(
+        compatible = run_store.resolve_active_ranking_policy(
             domain_id, provenance["current_runtime_contract_fingerprint"]
-        )
-        active = load_active_settings()
-        ranking_mode = str(active.get("preference_optimization.ranking_mode", "baseline"))
-        strength = float(
-            active.get(
-                "preference_optimization.personalization_strength",
-                strength_entry["default"],
-            )
         )
         fallback = ranking_mode == "personalized" and compatible is None
         return {
@@ -11548,7 +11556,6 @@ def create_app(
                 "maximum": float(strength_entry["max"]),
                 "step": float(strength_entry["step"]),
             },
-            "updated_at": None,
         }
 
     @app.get("/personalization")

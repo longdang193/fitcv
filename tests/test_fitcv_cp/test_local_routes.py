@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import io
 import re
+import sqlite3
 import zipfile
 import types
 from pathlib import Path
@@ -730,14 +731,25 @@ def test_readiness_ignores_legacy_profile_flag(local_client: TestClient) -> None
     assert "Candidate profile is not configured" in readiness.json()["reasons"]
 
 
-def test_readiness_reports_actionable_error_for_malformed_onboarding(
+def test_readiness_ignores_malformed_legacy_onboarding(local_client: TestClient) -> None:
+    state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
+    state_path.write_text("{malformed", encoding="utf-8")
+
+    readiness = local_client.get("/local/readiness")
+
+    assert readiness.status_code == 200
+    assert readiness.json()["ready"] is False
+    assert "Candidate profile is not configured" in readiness.json()["reasons"]
+
+
+def test_readiness_normalizes_sqlite_failures(
     local_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        local_routes,
-        "load_onboarding_state",
-        lambda: (_ for _ in ()).throw(RuntimeError("malformed")),
+        local_routes.ControlPlaneStore,
+        "list_candidate_profiles",
+        lambda _self: (_ for _ in ()).throw(sqlite3.OperationalError("database is locked")),
     )
 
     readiness = local_client.get("/local/readiness")
@@ -745,6 +757,7 @@ def test_readiness_reports_actionable_error_for_malformed_onboarding(
     assert readiness.status_code == 503
     assert readiness.json()["error"]["code"] == "local_readiness_unavailable"
     assert readiness.json()["error"]["retryable"] is True
+    assert "System Diagnostics" in readiness.json()["error"]["action"]
 
 
 def test_server_mode_keeps_existing_host_and_csrf_behavior(

@@ -108,9 +108,11 @@ Returns `{"ok": true}` when the service process is available.
 Returns `{"ready": bool, "reasons": string[]}`. Profile readiness is true
 only when the canonical Candidate Profile store has at least one record with
 `creation_status = "succeeded"` and `lifecycle = "active"`; onboarding state
-flags and drafts do not count. If local onboarding state or the profile catalog
-cannot be read, returns `503` with `error.code =
-"local_readiness_unavailable"`, `retryable = true`, and recovery action.
+flags, malformed legacy onboarding, and drafts do not count. Failures reading
+the canonical profile catalog, provider registry, or required local
+configuration return `503` with `error.code = "local_readiness_unavailable"`,
+`retryable = true`, and recovery action. Malformed legacy onboarding alone does
+not produce this error.
 
 ## Pipeline Settings
 
@@ -177,13 +179,17 @@ Run records persist one authoritative `run_inputs` snapshot at trigger time, inc
 completion-critical ranking preference. Responses use the standard `data`
 envelope and include `ranking_mode`, `effective_ranking_mode`,
 `personalization_strength`, `baseline_fallback`, `active_policy_id`,
-`revision`, `bounds`, and `updated_at`. `ETag` equals `revision` in quotes.
+`revision`, and `bounds`. `revision` is the canonical global active-settings
+snapshot revision used for compare-and-set updates. `ETag` equals `revision` in
+quotes. The resource has no `updated_at` field.
 
 `PATCH` requires `ranking_mode`, `expected_revision`, and optional
 `personalization_strength` and `updated_by`. Unknown fields are rejected.
 Settings CAS failures return `409 personalization_revision_conflict`; invalid
 settings return `422 validation_failed`. Optimization history and operator
-administration remain outside this JSON resource.
+administration remain outside this JSON resource. Legacy optimization
+administration is a temporary supporting transition surface during legacy
+frontend retirement, not a new API contract.
 
 
 ### Field schema
@@ -385,8 +391,10 @@ missing or corrupt content returns `artifact_not_available`.
 Returns exact persisted `text/markdown` or `text/plain` bytes for selected
 immutable version with `Content-Disposition: inline`, checksum-backed `ETag`,
 `Content-Length`, `X-CV-Version-ID`, and `X-Content-Type-Options: nosniff`.
-Missing versions return `cv_not_found`; pending, failed, corrupt, or
-unsupported media returns `artifact_not_available` in standard error envelope.
+Missing versions return `cv_not_found`. Pending or running versions return
+`artifact_not_available` with `retryable = true`; failed, corrupt, or
+unsupported media returns the same code with `retryable = false` and recovery
+guidance. All use the standard error envelope.
 This route never changes evaluation, review, version, or download state.
 
 ### `POST /runs/{run_id}/jobs/{run_job_id}/cvs/actions/regenerate`

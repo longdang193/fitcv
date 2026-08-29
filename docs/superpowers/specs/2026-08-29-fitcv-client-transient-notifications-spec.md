@@ -4,9 +4,6 @@ artifact_type: spec
 status: active
 template_id: detailed-specification
 name: fitcv-client-transient-notifications
-targets:
-  - docs/fitcv-settings-ui-prototype.html
-  - design/fitcv-settings-ux-audit/fitcv-design-system-export.md
 related_features:
   - notifications
   - run-continuity
@@ -57,20 +54,20 @@ related_features:
 
 - prototype reference: `docs/fitcv-settings-ui-prototype.html` notification bell and panel.
 - UX approval: owner-approved frozen UX.
-- frozen prototype revision or reference: approved FitCV settings UX prototype.
+- frozen prototype revision or reference: `docs/fitcv-settings-ui-prototype.html` at blob `5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27`.
 - design export evidence: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md`.
   - selected export method: verified OpenDesign export.
-  - export task reference: recorded Design Export completion evidence.
+  - export task reference: OpenDesign run `ea9169ad-d5e0-4e7e-9480-98de93b62a6e`.
   - requested deliverable: FitCV design-system guidance.
-  - durable output identity: `fitcv-design-system-export.md`.
-  - independent review: `PASS` for the verified export.
+  - durable output identity: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md` at blob `8586f2d64bef1ef2ab11db9768877de020e13b89`.
+  - independent review: `PASS` recorded for the same OpenDesign run and durable output.
 - validated scenarios and states: action success, action failure, lifecycle success/failure, duplicate polling observation, dismiss-one, clear-all, zero unread, and empty panel.
 - findings incorporated into approved behavior: hidden zero badge, session-only state, deterministic deduplication, and source-linked actions.
 - rejected alternatives: persistent notification tables, cross-device history, server push, and a zero-valued attention badge.
 
 ### Scope
 
-- included behavior: client notification creation, deduplication, session storage, unread state, visible-item read marking, dismiss-one, clear-all, source links, and accessible responsive presentation.
+- included behavior: client notification creation, deduplication, per-tab/session transient state, unread state, visible-item read marking, dismiss-one, clear-all, source links, and accessible responsive presentation.
 - affected boundaries: new frontend client state and canonical source-resource APIs.
 - admissible cases: completed responses, observed lifecycle transitions, and recoverable request failures.
 - compatibility expectation: source resource, run, scan, and error contracts remain unchanged.
@@ -95,10 +92,10 @@ related_features:
 #### Requirement: Deduplicate and retain transient state
 
 - trigger or actor: repeated polling observation or repeated response handling.
-- preconditions: notification key is `{source_type}:{source_id}:{terminal_state}`.
-- required behavior: replace duplicate metadata without increasing unread count; store state under one versioned `sessionStorage` key.
-- output or state change: navigation and reload in same browser session retain state; closing session clears it.
-- failure behavior: malformed stored state is discarded and replaced with empty notification state.
+- preconditions: notification has one canonical identity selected in this order: `action:{action_id}`, `event:{event_id}`, `state:{source_type}:{source_id}:{revision}:{state}`, or `request:{operation}:{source_id?}:{error_code}:{attempt_identity}`.
+- required behavior: keep client-generated notification ID separate from deduplication identity; replace duplicate metadata without increasing unread count.
+- output or state change: navigation and reload in same browser session retain state; session termination clears it.
+- failure behavior: malformed client state is discarded and replaced with empty notification state.
 - observable acceptance: repeated identical observations do not create duplicate unread items.
 
 #### Requirement: Manage notification visibility
@@ -128,7 +125,7 @@ related_features:
 ### Decision: Use client-owned session notifications
 
 - context: frozen UX needs immediate feedback, but durable backend notification infrastructure is not approved.
-- selected approach: versioned `sessionStorage` state with deterministic deduplication and source links.
+- selected approach: versioned per-tab/session transient state with deterministic canonical identity and source links; storage mechanism belongs to implementation.
 - rationale: smallest contract that satisfies current journey while preserving durable source ownership.
 - alternatives considered: persistent backend event store, server push, and local-only ephemeral memory.
 - accepted trade-offs: feedback ends with browser session; source history remains available through canonical surfaces.
@@ -151,7 +148,7 @@ related_features:
 
 - durable source state remains canonical.
 - success copy requires proven success state.
-- duplicate source observations do not increase unread count.
+- duplicate canonical observations do not increase unread count.
 - zero unread count has no visible badge.
 - dismiss and clear operations change client state only.
 
@@ -159,7 +156,7 @@ related_features:
 
 - empty or minimal input: no source identity means no success notification; empty panel explains no recent activity.
 - normal and large input: keep panel rendering responsive without changing source truth.
-- duplicate, missing, malformed, or unsupported data: deduplicate by source key; discard malformed storage; do not invent unsupported outcomes.
+- duplicate, missing, malformed, or unsupported data: use hierarchical canonical identity; discard malformed client state; do not invent unsupported outcomes.
 - retry, cancellation, timeout, partial failure, or concurrency: classify recoverable request failures as actionable errors; do not report completion for canceled or timed-out work.
 - migration or mixed-version state: unknown storage versions reset to empty state.
 - generated-source consistency: no generated backend surface is changed.

@@ -51,22 +51,22 @@ related_features:
 
 | Question | Evidence | Source | Confidence | Specification implication |
 |---|---|---|---|---|
-| What currently controls readiness? | `local_readiness_status()` reads `profile_configured` from onboarding state. | `src/fitcv_cp/local_routes.py` and `src/fitcv_cp/app.py` | high | Remove profile boolean as readiness authority. |
-| What owns usable profiles? | Candidate Profile catalog exposes confirmation and lifecycle state. | `src/fitcv_cp/store.py` and profile routes | high | Use active confirmed catalog records. |
-| What does run eligibility require? | Run guards use `creation_status = 'succeeded'` and `lifecycle = 'active'`. | run eligibility implementation | high | Readiness and run guards share same predicate. |
-| What happens on local-state failure? | Malformed state can raise server error without actionable recovery. | local readiness route | high | Return structured retryable readiness-unavailable error. |
+| What currently controls readiness? | `local_readiness_status()` uses `ControlPlaneStore.list_candidate_profiles()` with its canonical active-only predicate; it does not parse onboarding state. | `src/fitcv_cp/local_routes.py` and `src/fitcv_cp/sqlite_store.py` | high | Keep profile readiness owned by the canonical catalog. |
+| What owns usable profiles? | Candidate Profile catalog filters `creation_status = 'succeeded'` and `lifecycle = 'active'`. | `src/fitcv_cp/sqlite_store.py` and profile routes | high | Use the same active confirmed predicate for readiness and run eligibility. |
+| What does run eligibility require? | Run guards use `creation_status = 'succeeded'` and `lifecycle = 'active'`. | `src/fitcv_cp/sqlite_store.py` and run routes | high | Readiness and run guards share equivalent profile semantics. |
+| What happens on local-state failure? | Malformed legacy onboarding JSON is tolerated by onboarding compatibility reads; canonical store, provider, or configuration failures return structured unavailable readiness. | `src/fitcv_cp/local_routes.py` and readiness tests | high | Do not turn stale onboarding syntax into false readiness or an unrelated readiness outage. |
 
 ### Prototype and Validation Evidence
 
 - prototype reference: `docs/fitcv-settings-ui-prototype.html` Overview and Candidate Profiles entry flow.
 - UX approval: owner-approved frozen UX.
-- frozen prototype revision or reference: approved FitCV settings UX prototype.
+- frozen prototype revision or reference: `docs/fitcv-settings-ui-prototype.html` at blob `5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27`.
 - design export evidence: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md`.
   - selected export method: verified OpenDesign export.
-  - export task reference: recorded Design Export completion evidence.
+  - export task reference: OpenDesign run `ea9169ad-d5e0-4e7e-9480-98de93b62a6e`.
   - requested deliverable: FitCV design-system guidance.
-  - durable output identity: `fitcv-design-system-export.md`.
-  - independent review: `PASS` for the verified export.
+  - durable output identity: `fitcv-design-system-export.md` at blob `8586f2d64bef1ef2ab11db9768877de020e13b89`.
+  - independent review: `PASS` recorded for the same OpenDesign run and durable output.
 - validated scenarios and states: fresh install, draft only, confirmed active profile, archived-only profile, stale onboarding flag, provider incomplete, and catalog failure.
 - findings incorporated into approved behavior: canonical confirmed profiles determine readiness; onboarding orchestrates but does not own profile truth.
 - rejected alternatives: saved draft, legacy profile file, or boolean flag making profile selectable; new top-level lifecycle navigation.
@@ -76,7 +76,7 @@ related_features:
 - included behavior: readiness calculation, profile authority, onboarding compatibility, profile save behavior, structured catalog failure, and consistent run eligibility.
 - affected boundaries: local readiness API, onboarding persistence, Candidate Profile catalog, and run guards.
 - admissible cases: no profile, draft-only, active confirmed profile, archived/unconfirmed profiles, provider blockers, and local/catalog failure.
-- compatibility expectation: existing onboarding files remain readable; old field is tolerated but cannot control readiness.
+- compatibility expectation: existing onboarding files remain readable; malformed legacy onboarding is ignored for readiness; `profile_configured` is tolerated but cannot control readiness.
 
 ### Non-Goals
 
@@ -93,7 +93,7 @@ related_features:
 - preconditions: local readiness dependencies can be read.
 - required behavior: profile readiness is true only when at least one Candidate Profile satisfies `creation_status = 'succeeded' AND lifecycle = 'active'`.
 - output or state change: readiness response reports profile reason alongside provider/model reasons.
-- failure behavior: draft, archived, deleted, malformed, unconfirmed, or stale onboarding state does not satisfy profile readiness.
+- failure behavior: draft, archived, deleted, malformed, unconfirmed, or stale onboarding state does not satisfy profile readiness; malformed onboarding alone does not produce `503`.
 - observable acceptance: toggling `onboarding.json.profile_configured` alone never changes readiness.
 
 #### Requirement: Remove independent onboarding profile truth
@@ -107,8 +107,8 @@ related_features:
 
 #### Requirement: Report actionable local-readiness failure
 
-- trigger or actor: readiness dependency or canonical catalog cannot be read.
-- preconditions: local state or catalog access fails.
+- trigger or actor: canonical catalog, provider registry, or required local configuration cannot be read.
+- preconditions: a canonical readiness dependency fails at its boundary.
 - required behavior: return `503` with `error.code = "local_readiness_unavailable"`, `retryable = true`, and actionable recovery message.
 - output or state change: frontend can show recovery action without claiming readiness.
 - failure behavior: no partial readiness result is presented as complete.
@@ -145,7 +145,7 @@ related_features:
 - old behavior: onboarding `profile_configured` can influence readiness.
 - new behavior: readiness uses active confirmed Candidate Profiles and ignores independent profile boolean.
 - compatibility boundary: old files parse; legacy draft endpoint remains draft-only; canonical profile creation path remains authoritative.
-- migration or backfill: do not rewrite historical files; remove legacy key on next successful save where supported; require fresh-install and upgrade evidence before deleting tolerant reads.
+- migration or backfill: do not rewrite historical files; tolerate malformed legacy onboarding and ignore `profile_configured`; remove the legacy key only on a future successful save where supported; require fresh-install and upgrade evidence before deleting tolerant reads.
 - rollout and rollback: readiness can fall back to retryable unavailable response on dependency failure; no data deletion is required.
 - deprecation or consumer impact: clients relying on stale boolean may see not-ready until a confirmed active profile exists; this is intentional truth correction.
 - risk:
@@ -167,7 +167,7 @@ related_features:
 - normal and large input: multiple active confirmed profiles still yield profile-ready; profile list size does not change predicate semantics.
 - duplicate, missing, malformed, or unsupported data: malformed records are excluded; missing catalog/readiness dependency returns retryable unavailable error.
 - retry, cancellation, timeout, partial failure, or concurrency: retryable failure preserves no false readiness; profile creation completion is re-read from canonical catalog.
-- migration or mixed-version state: legacy `profile_configured` is tolerated for reads but ignored; next successful save may remove it.
+- migration or mixed-version state: malformed legacy onboarding is tolerated for compatibility paths; `profile_configured` is tolerated for reads but ignored by readiness; next successful save may remove it.
 - generated-source consistency: API documentation, onboarding serialization, and readiness response remain aligned.
 - security or accessibility boundary: readiness reason text, semantic status, keyboard recovery links, and 44px actions are required.
 

@@ -4386,6 +4386,34 @@ def test_cv_preview_preserves_version_identity_and_pending_state() -> None:
     assert response.headers["etag"] == '"checksum-1"'
     assert pending.status_code == 409
     assert pending.json()["error"]["code"] == "artifact_not_available"
+    assert pending.json()["error"]["retryable"] is True
+
+
+def test_cv_preview_integrity_failure_is_not_retryable() -> None:
+    app = _app()
+    app.state.run_store.get_cv_preview_fn = lambda _version_id: (_ for _ in ()).throw(
+        ValueError("artifact_integrity_mismatch")
+    )
+
+    response = TestClient(app).get("/cv-versions/cv-corrupt/preview")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["retryable"] is False
+
+
+def test_personalization_resource_uses_one_settings_snapshot() -> None:
+    app = _app()
+    snapshot = {
+        "preference_optimization.ranking_mode": "baseline",
+        "preference_optimization.personalization_strength": 0.05,
+    }
+
+    with patch("fitcv_cp.app.load_active_settings", return_value=snapshot) as load:
+        response = TestClient(app).get("/personalization")
+
+    assert response.status_code == 200
+    assert load.call_count == 1
+    assert "updated_at" not in response.json()["data"]
 
 
 def test_personalization_json_contract_uses_settings_revision() -> None:

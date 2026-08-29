@@ -48,31 +48,41 @@ not a second UX SSOT. Active prototype remains file under `docs/`.
 
 ### G-01 Global notifications — resolved
 
-Client-owned `sessionStorage` projection. Deduplicate by
-`source_type:source_id:terminal_state`; mark rendered items read; support
-clear-one and clear-all; hide badge at zero. No backend notification service.
+Client-owned per-tab/session projection; storage mechanism is implementation
+owned and is not part of contract. Deduplicate in priority order by
+`action:{action_id}`, `event:{event_id}`,
+`state:{source_type}:{source_id}:{revision}:{state}`, then
+`request:{operation}:{source_id?}:{error_code}:{attempt_identity}`. Keep client
+notification IDs separate from dedupe identities; mark rendered items read;
+support clear-one and clear-all; hide badge at zero. No backend notification
+service.
 
 ### G-02 CV preview — resolved
 
 `GET /cv-versions/{version_id}/preview` returns exact persisted
-`text/markdown` or `text/plain` bytes inline after checksum validation. Pending,
-failed, corrupt, unsupported, and missing states use canonical error semantics.
+`text/markdown` or `text/plain` bytes inline after checksum validation. Pending
+or running states are retryable; failed, corrupt, unsupported, and missing
+states use canonical non-retryable/not-found semantics. The client disables
+unsafe HTML/script execution, rejects unsafe URL schemes, renders plain text as
+text, and falls back to plain text when safe rich rendering is unavailable.
 Version identity, evaluation/review state, and download behavior remain intact.
 
 ### G-03 Preference Optimization transport — resolved
 
 `GET /personalization` and `PATCH /personalization` expose only ranking mode,
-effective mode, strength, fallback, active policy ID, revision, bounds, and
-update metadata. Legacy optimization administration remains supporting and
-HTML-only.
+effective mode, strength, fallback, active policy ID, revision, and bounds.
+Revision is the global active-settings snapshot CAS value; no `updated_at` field
+is exposed. Legacy optimization administration remains a temporary supporting
+HTML-only transition surface and is not a new frontend API.
 
 ### G-04 Local onboarding entry flow — resolved
 
 `/local/readiness` uses canonical active confirmed profile predicate
 (`creation_status = succeeded` and `lifecycle = active`). Legacy profile form
-may retain a draft but never writes `profile_configured`; new frontend profile
-creation uses Candidate Profile creation-attempt APIs. Malformed readiness state
-returns actionable `503 local_readiness_unavailable`.
+may retain a draft but never writes `profile_configured`; malformed legacy
+onboarding is ignored for readiness. Only canonical catalog/provider/config
+dependency failures return actionable `503 local_readiness_unavailable`. New
+frontend profile creation uses Candidate Profile creation-attempt APIs.
 
 ## Verification
 
@@ -83,8 +93,8 @@ client-owned by design; no persistent notification infrastructure was added.
 - `tests/test_fitcv_cp/test_app.py`: CV preview and personalization boundary tests pass.
 - `tests/test_fitcv_cp/test_sqlite_store.py`: immutable preview, checksum, pending, and missing-state tests pass.
 - `tests/test_fitcv_cp/test_local_routes.py`: canonical profile readiness, legacy-flag rejection, and malformed-state tests pass.
-- Related control-plane suite: `863 passed, 1 skipped`.
-- `python -m compileall -q src/fitcv_cp`: passed.
+- Focused corrective suite: `635 passed` (`pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_sqlite_store.py`).
+- `python -m compileall -q src`: passed; `git diff --check`: passed.
 
 ## Stop Point
 

@@ -26,6 +26,7 @@ import io
 import os
 import platform
 import re
+import sqlite3
 import tempfile
 import zipfile
 from datetime import datetime, timezone
@@ -237,7 +238,7 @@ def onboarding_is_complete() -> bool:
     try:
         return bool(load_onboarding_state().get("complete"))
     except RuntimeError:
-        return False
+        return True
 
 
 def _provider_setup(form: Any) -> ProviderSetup:
@@ -407,34 +408,33 @@ def _controller_view(state: dict[str, Any]) -> dict[str, Any]:
 def local_readiness_status() -> dict[str, object]:
     reasons: list[str] = []
     try:
-        load_onboarding_state()
         store = ControlPlaneStore()
         has_active_profile = bool(store.list_candidate_profiles())
-    except RuntimeError:
+        if not store.integration_migration_applied("packaged_local_complete_integration_v1"):
+            reasons.append("Local integration migration is incomplete")
+        if not has_active_profile:
+            reasons.append("Candidate profile is not configured")
+        eligible_refs = {
+            model["model_record_id"]
+            for model in provider_registry.list_eligible_models(store=store)
+        }
+        default_model_ref = load_llm_configuration().get("default_model_ref")
+        if not eligible_refs:
+            reasons.append("No verified provider model is available")
+        if not default_model_ref:
+            reasons.append("Default Route is not configured")
+        elif default_model_ref not in eligible_refs:
+            reasons.append("Default Route model requires connection or model retest")
+    except (OSError, sqlite3.DatabaseError, RuntimeError):
         return {
             "ready": False,
             "reasons": ["Local readiness could not be verified."],
             "error": {
                 "code": "local_readiness_unavailable",
                 "retryable": True,
-                "action": "Repair local state, then reload readiness.",
+                "action": "Open System Diagnostics, then retry readiness.",
             },
         }
-    if not store.integration_migration_applied("packaged_local_complete_integration_v1"):
-        reasons.append("Local integration migration is incomplete")
-    if not has_active_profile:
-        reasons.append("Candidate profile is not configured")
-    eligible_refs = {
-        model["model_record_id"]
-        for model in provider_registry.list_eligible_models(store=store)
-    }
-    default_model_ref = load_llm_configuration().get("default_model_ref")
-    if not eligible_refs:
-        reasons.append("No verified provider model is available")
-    if not default_model_ref:
-        reasons.append("Default Route is not configured")
-    elif default_model_ref not in eligible_refs:
-        reasons.append("Default Route model requires connection or model retest")
     return {"ready": not reasons, "reasons": reasons}
 
 

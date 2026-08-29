@@ -65,13 +65,13 @@ related_features:
 
 - prototype reference: `docs/fitcv-settings-ui-prototype.html` Preference Optimization surfaces.
 - UX approval: owner-approved frozen UX.
-- frozen prototype revision or reference: approved FitCV settings UX prototype.
+- frozen prototype revision or reference: `docs/fitcv-settings-ui-prototype.html` at blob `5950dcd2b6a6c4f68b1d522fcea1c0a29d9aff27`.
 - design export evidence: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md`.
   - selected export method: verified OpenDesign export.
-  - export task reference: recorded Design Export completion evidence.
+  - export task reference: OpenDesign run `ea9169ad-d5e0-4e7e-9480-98de93b62a6e`.
   - requested deliverable: FitCV design-system guidance.
-  - durable output identity: `fitcv-design-system-export.md`.
-  - independent review: `PASS` for the verified export.
+  - durable output identity: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md` at blob `8586f2d64bef1ef2ab11db9768877de020e13b89`.
+  - independent review: `PASS` recorded for the same OpenDesign run and durable output.
 - validated scenarios and states: baseline, personalized with compatible policy, personalized fallback, stale revision, invalid strength, unavailable optimization, and supporting-admin separation.
 - findings incorporated into approved behavior: minimal JSON resource, truthful effective state, fit truth independence, and supporting optimization administration.
 - rejected alternatives: exposing `/admin/optimization` HTML as JSON, making optimization history completion-critical, and reporting requested mode as effective mode during fallback.
@@ -97,8 +97,8 @@ related_features:
 
 - trigger or actor: new frontend requests `GET /personalization`.
 - preconditions: canonical settings and optimization policy resolver are available.
-- required behavior: return `{ "data": { "ranking_mode", "effective_ranking_mode", "personalization_strength", "baseline_fallback", "active_policy_id", "revision", "bounds", "updated_at" } }`.
-- output or state change: no mutation; `ETag` equals quoted resource revision.
+- required behavior: return `{ "data": { "ranking_mode", "effective_ranking_mode", "personalization_strength", "baseline_fallback", "active_policy_id", "revision", "bounds" } }` from one immutable active-settings snapshot. `revision` is the canonical global active-settings snapshot revision used for CAS.
+- output or state change: no mutation; `ETag` equals quoted global settings snapshot revision.
 - failure behavior: standard API error envelope when canonical settings or policy state cannot be read.
 - observable acceptance: requested and effective state are explicit and truthful.
 
@@ -152,8 +152,8 @@ related_features:
 - new behavior: new frontend reads and updates core personalization through `/personalization`.
 - compatibility boundary: legacy HTML routes and optimization internals remain unchanged and supporting-only.
 - migration or backfill: none for existing settings; resource reads current canonical values.
-- rollout and rollback: client can fall back to baseline presentation if resource unavailable; existing admin routes remain available.
-- deprecation or consumer impact: no existing HTML consumer is required to migrate.
+- rollout and rollback: if resource read fails, client shows Personalization unavailable; backend ranking fallback remains authoritative. Existing admin routes may remain temporarily available during legacy frontend retirement.
+- deprecation or consumer impact: no existing HTML consumer is required to migrate; future advanced optimization administration needs a separate specification if retained after legacy frontend retirement.
 - risk:
   - mitigation: optimistic revision check, atomic persistence, explicit fallback, bounded validation, and fit-truth invariant.
 
