@@ -514,6 +514,49 @@ def test_modern_completed_plan_requires_terminal_coordination() -> None:
         rmtree(root, ignore_errors=True)
 
 
+def test_completed_task_rejects_unchecked_task_checklist() -> None:
+    root = make_test_root()
+    try:
+        plan = git_tracked_plan(
+            coordination_schema=2,
+            ledger="| Task 1 | `completed` | current | codex | none | `test-one` | recorded proof |"
+        ).replace("- Active task(s): `Task 1`", "- Active task(s): `none`")
+        plan = plan.replace(
+            "### Task 1: Example\n\n**Template Profile:**",
+            "### Task 1: Example\n\n**Steps:**\n- [ ] Step 1: unfinished\n\n**Template Profile:**",
+        )
+        write_text(root / "docs" / "superpowers" / "plans" / "demo-plan.md", plan)
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "completed task `Task 1` has unchecked checklist items" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_completed_plan_rejects_unchecked_verification_checklist() -> None:
+    root = make_test_root()
+    try:
+        plan = git_tracked_plan(
+            status="completed",
+            coordination_schema=2,
+            ledger="| Task 1 | `completed` | current | codex | none | `test-one` | recorded proof |",
+        ).replace("- Active task(s): `Task 1`", "- Active task(s): `none`")
+        plan = plan.replace(
+            "| Task 1 | `completed` | current | codex | none | `test-one` | recorded proof |",
+            "| Task 1 | `completed` | current | codex | none | `test-one` | recorded proof |\n\n## Verification\n\n- [ ] `test-one`",
+        )
+        write_text(root / "docs" / "superpowers" / "plans" / "demo-plan.md", plan)
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "completed plan requires all verification checklist items checked" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
 def test_modern_completed_plan_allows_post_verification_next_action() -> None:
     root = make_test_root()
     try:

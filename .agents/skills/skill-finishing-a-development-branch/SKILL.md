@@ -14,7 +14,9 @@ This skill owns Git reconciliation and Git-managed branch/worktree cleanup after
 
 ## Preconditions
 
-Require a fresh `verified` result from `skill-verification-before-completion` containing:
+Require a fresh accepted task-proof handoff for branch or PR publication, and a
+fresh `verified` result from `skill-verification-before-completion` before final
+merge or cleanup. The evidence must contain:
 
 - workspace path and creation mechanism
 - branch or detached state
@@ -43,9 +45,11 @@ When verified work used DeepAgents or another delegated executor:
 
 ## Authorization Rule
 
-Verification makes closure actions eligible. User authorization selects action.
+Verification makes closure actions eligible. For an assigned lane, an explicit
+active-plan lane grant selects bounded lifecycle actions. User authorization
+remains required for exceptional or destructive actions.
 
-Do not commit, fetch, pull, create branch, rebase, merge, push, create or update pull request, apply or drop stash, delete branch, prune metadata, or remove worktree without explicit authorization for that action. Exception: execution may create a verified local checkpoint commit when active approved plan explicitly preauthorizes it; this closing skill does not create that checkpoint.
+Do not commit, fetch, pull, create branch, rebase, merge, push, create or update pull request, apply or drop stash, delete branch, prune metadata, or remove worktree without explicit authorization for that action. An active approved plan may grant an assigned main agent bounded authority for its exact lane: branch/worktree creation or reuse, lane commits, lane push, PR create/update, assigned review action, exact approved PR merge into declared base after gates, and cleanup after retirement and clean-state proof. Direct or exceptional base mutation, force push, PR retargeting, branch-protection bypass, semantic conflict resolution, unrelated branch/worktree mutation, destructive recovery, unknown-file discard, and merging another lane remain user-authorized.
 
 Never infer a file is “superseded.” Before reconciliation can remove or overwrite
 content, show every overlapping file with hashes and diff summary, then require an
@@ -115,7 +119,7 @@ If verified in-scope changes are uncommitted:
 
 1. show exact staged, unstaged, and untracked scope
 2. preserve unrelated changes
-3. request commit authorization and message
+3. use the active plan lane grant when present; otherwise request commit authorization and message
 4. stage only approved files
 5. commit
 6. inspect hook output and repository state
@@ -139,17 +143,27 @@ Do not choose option for user.
 
 ## 6. Push Branch And Pull Request Path
 
-After explicit selection:
+After explicit selection and an applicable active-plan lane grant or explicit
+user authorization:
 
 1. confirm named branch and committed verified state
 2. confirm remote target
 3. request network authorization when required
 4. push lane branch
-5. create or update pull request when requested and supported
+5. create or update pull request when the active lane grant allows it and support exists
 6. record branch, remote, commit SHA, and pull-request result
-7. keep worktree unless user separately authorizes cleanup and cleanup is safe
+7. keep the lane process and worktree available for review fixes and integration
+8. after whole-plan verification, review acceptance, and expected-head confirmation, retire the lane main-agent process, confirm no live process owns the worktree, then remove it only when cleanup is granted and safe
 
 Do not merge local base first when pull request path is selected.
+
+For remote PR integration, re-read provider PR state immediately before merge.
+Verify PR number, base ref, head ref, expected head SHA, required checks,
+review identity, and mergeability. Merge through the provider's PR operation by
+that exact PR and expected head. If remote head or base differs, stop with
+`reconciliation-required`; never replace remote PR merge with direct base
+mutation. After merge, verify remote base head and record the result before
+cleanup.
 
 ## 7. Local Fast-Forward Merge Path
 
@@ -168,7 +182,7 @@ git -C <base-worktree> merge --ff-only <lane-branch>
 
 7. if fast-forward fails, stop with `reconciliation-required`
 8. rerun required post-merge checks on base worktree
-9. push base only with separate explicit authorization
+9. push base only with separate explicit authorization; exact approved PR merge is the only plan-granted base write
 
 Never run `git checkout main` blindly inside lane worktree.
 
@@ -269,7 +283,9 @@ Never recursively delete worktree directory directly. Never discard unrelated ch
 
 ## 12. Worktree Cleanup
 
-Cleanup occurs only after selected Git disposition is complete and explicit cleanup authorization exists.
+Cleanup occurs only after selected Git disposition is complete, the lane main
+agent is retired, no live process owns the worktree, and exact cleanup
+authorization exists through the active plan or explicit user authorization.
 
 - native-created workspace: use native cleanup tool
 - manually created worktree: use `git worktree remove <path>` after clean-state confirmation

@@ -24,6 +24,31 @@ artifact needed for safe execution.
 | Final completion proof is needed | Use `skill-verification-before-completion` |
 | Verified work needs an authorized Git disposition | Use `skill-finishing-a-development-branch` |
 
+## Coordination Method Selection
+
+Select `skill-chief-of-staff` as an optional coordination specialization of
+`skill-executing-plans` only when an approved Git-tracked plan lists
+`skill-chief-of-staff` in `Required skills` and needs sustained handoffs,
+independent top-level Codex main-agent lanes, or cross-task coordination. Keep
+ordinary single-lane work on the existing execution path.
+
+The `Required skills` entry is the canonical CoS opt-in signal. CoS does not add
+an executor, profile, plan field, or durable state artifact.
+It applies only when the task ledger `Executor` is `codex` and runtime parity,
+plan binding, lane identity, and profile-binding gates pass under a native Codex
+lead controller. Herdr is runtime observation and
+main-agent supervision, not
+executor selection or task acceptance. CoS dispatches only independent Herdr
+top-level Codex main-agent sessions; it never calls
+`multi_agent_v1`, native Codex subagents, DeepAgents internal `task` workers,
+Tura internal workers, or executor-local reviewers or helpers. `deepagents` and
+`tura` retain their existing peer executor paths.
+For every Herdr main-agent launch, CoS verifies branch, `HEAD`, expected base,
+lane ownership, and allowed paths. It uses `scripts/herdr_main_launcher.py` for
+runtime projection, exact session/pane/cwd checks, and Git-fact reporting; the
+launcher resolves provider, model, and developer instructions from
+`agents/*.toml`.
+
 ## Delivery Lifecycle
 
 Use these gates only when their trigger applies:

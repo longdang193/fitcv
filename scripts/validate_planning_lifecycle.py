@@ -59,6 +59,7 @@ CURRENT_PLAN_STATUSES = {"proposed", "active"}
 EXECUTION_MODES = {"inline sequential", "subagent-ready", "parallel-capable"}
 EXECUTION_COORDINATIONS = {"none", "git-tracked"}
 MODERN_COORDINATION_SCHEMA = "1"
+CHECKLIST_COORDINATION_SCHEMA = "2"
 MODERN_PLAN_CONTRACT_VERSION = "1"
 
 
@@ -127,6 +128,10 @@ def _task_sections(text: str) -> list[tuple[str, str]]:
             text,
         )
     ]
+
+
+def _unchecked_checklist_items(text: str) -> list[str]:
+    return re.findall(r"(?im)^\s*-\s*\[\s\]\s+(.+?)\s*$", text)
 
 
 def _profile_names(root: Path) -> set[str]:
@@ -214,7 +219,7 @@ def validate_execution_contract(root: Path, path: Path, payload: dict[str, Any],
     )
     findings.extend(mode_findings)
     findings.extend(coordination_findings)
-    if modern_completed and coordination == "git-tracked" and completed_schema != MODERN_COORDINATION_SCHEMA:
+    if modern_completed and coordination == "git-tracked" and completed_schema not in {MODERN_COORDINATION_SCHEMA, CHECKLIST_COORDINATION_SCHEMA}:
         findings.append(
             Finding(
                 "coordination_error",
@@ -318,6 +323,8 @@ def validate_git_coordination(
         findings.append(Finding("coordination_error", rel, f"{mode} permits at most one active task"))
 
     records = {row["task"]: row for row in rows}
+    task_sections = dict(_task_sections(text))
+    strict_checklists = _clean_coordination_cell(_coordination_value(text, "Coordination schema") or "") == CHECKLIST_COORDINATION_SCHEMA
     for row in active_rows:
         dependencies = row["dependencies"]
         if dependencies.lower() in {"", "none", "n/a"}:
@@ -354,6 +361,12 @@ def validate_git_coordination(
                     f"completed task `{row['task']}` requires recorded evidence",
                 )
             )
+        if row["state"] == "completed" and strict_checklists:
+            task_text = task_sections.get(row["task"])
+            if task_text is None:
+                findings.append(Finding("coordination_error", rel, f"completed task `{row['task']}` requires a matching task section"))
+            elif _unchecked_checklist_items(task_text):
+                findings.append(Finding("coordination_error", rel, f"completed task `{row['task']}` has unchecked checklist items"))
 
     if payload.get("status") == "completed":
         if any(row["state"] != "completed" for row in rows):
@@ -362,6 +375,9 @@ def validate_git_coordination(
             value = _clean_coordination_cell(_coordination_value(text, label) or "").lower()
             if value != "none":
                 findings.append(Finding("coordination_error", rel, f"completed plan requires `{label}: none`"))
+        verification = _section_body(text, "Verification", 2) or ""
+        if strict_checklists and _unchecked_checklist_items(verification):
+            findings.append(Finding("coordination_error", rel, "completed plan requires all verification checklist items checked"))
 
     return findings
 

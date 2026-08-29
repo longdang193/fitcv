@@ -21,6 +21,9 @@ Use isolation when:
 - multiple independent lanes need disjoint write ownership
 - branch comparison or safe integration benefits from separate workspaces
 
+For a write-capable Herdr main-agent lane, isolation is mandatory even when
+ordinary local work could safely reuse the current checkout.
+
 Skip isolation for small, local, reversible work when current checkout is safe and user has not requested a worktree.
 
 ## 1. Detect Current Workspace
@@ -49,7 +52,9 @@ If already in suitable isolated workspace, reuse it. Do not create nested worktr
 
 ## 2. Obtain Isolation Consent
 
-Use explicit user or repository instruction when available. Otherwise ask before creating worktree.
+Use an explicit approved-plan lane grant, user instruction, or repository
+instruction when available. Otherwise ask before creating worktree. A plan
+grant applies only to the exact named repository, branch, worktree, and lane.
 
 Worktree creation may create branch and filesystem state. Do not create it merely because skill exists.
 
@@ -148,9 +153,13 @@ Provide execution skill:
 - preserved unrelated changes
 - restrictions on commit, push, merge, and cleanup
 
+For a write-capable Herdr lane, also record launched process cwd and confirm it
+matches the exact worktree before writes begin.
+
 ## Cleanup Boundary
 
-This skill does not remove worktree.
+This skill does not remove worktree. Cleanup requires confirmation that no live
+main-agent process owns the path.
 
 `skill-finishing-a-development-branch` owns cleanup after verified Git disposition and explicit authorization. It must use native cleanup for native-created workspace and `git worktree remove` only for manually created worktree.
 

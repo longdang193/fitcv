@@ -112,9 +112,19 @@ Choose the smallest unblocked action from approved scope:
 Before dispatch, read the active task ledger `Executor` and `Template Profile`
 values. For `codex`, execute inline lead-controller work directly when the
 profile is `none`; when a fixed profile is selected for delegated work, use the
-active native Codex subagent capability. Use `dcode-project` for `deepagents`
-and `project-delegate` for `tura`; do not infer executor from profile rank or
-task-function name, and do not let a profile select an executor.
+active native Codex subagent capability only when CoS is not selected. When the
+approved plan lists `skill-chief-of-staff` in `Required skills`, keep
+this skill as the execution owner and allow CoS to select only a Herdr-
+supervised top-level Codex
+main agent after plan, runtime parity, lane identity,
+and profile-binding gates pass; CoS must not fall back to native subagents.
+CoS must not call `multi_agent_v1`, native Codex subagents, DeepAgents internal
+`task` workers, Tura internal workers, or executor-local reviewers or helpers.
+`Executor Selection` owns executor choice, while `Template Profile` and
+`agents/*.toml` own profile/model capability; Herdr launch must prove the same
+resolved binding. Use `dcode-project` for `deepagents` and `project-delegate` for `tura`;
+do not infer executor from profile rank or task-function name, and
+do not let a profile select an executor.
 
 Keep exactly one local task active unless parallel execution is explicitly justified. Do not invent adjacent cleanup merely because it is nearby.
 
@@ -206,9 +216,11 @@ When all required plan tasks appear complete:
 Create a local checkpoint commit only when active plan `Commit policy` explicitly
 preauthorizes verified per-task checkpoints. The lead creates it after accepting
 task proof and updating the task ledger, so implementation and accepted workflow
-state share one checkpoint. Push, merge, publish, delete,
-discard, destructive recovery, or clean worktrees only with explicit user
-authorization.
+state share one checkpoint. An exact active-plan lane grant may authorize lane
+push, PR create/update, assigned review action, exact approved PR merge, and
+post-retirement cleanup. Branch or PR publication may follow accepted lane
+proof; final merge and cleanup require whole-plan verification. Exceptional or
+destructive actions still require explicit user authorization.
 
 ## Handoff
 

@@ -311,6 +311,7 @@ def _iter_files_pruned(root: Path) -> list[Path]:
         "__pycache__",
         ".pytest_cache",
         ".mypy_cache",
+        "out",
     }
     files: list[Path] = []
     for current_root, dirnames, filenames in os.walk(root):
