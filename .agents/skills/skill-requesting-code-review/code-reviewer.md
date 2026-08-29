@@ -111,7 +111,7 @@ Subagent (controller-selected profile: <discovered-profile>):
 
     ### Assessment
 
-    **Ready to merge?** [Yes | No | With fixes]
+**Review verdict:** [PASS | FAIL | BLOCKED]
 
     **Reasoning:** [1-2 sentence technical assessment]
 

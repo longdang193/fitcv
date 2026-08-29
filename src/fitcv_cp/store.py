@@ -152,6 +152,7 @@ class RunStore(Protocol):
     def insert_cv_evaluation_row(self, row: dict[str, Any]) -> dict[str, Any]: ...
     def insert_cv_review_event(self, row: dict[str, Any]) -> dict[str, Any]: ...
     def get_cv_download(self, version_id: str) -> dict[str, Any] | None: ...
+    def get_cv_preview(self, version_id: str) -> dict[str, Any] | None: ...
     def get_cv_markdown(self, version_id: str) -> str | None: ...
     def get_debug_bundle_availability(self, run_id: str) -> dict[str, Any]: ...
     def list_run_structured_jobs(self, run_id: str) -> list[dict[str, Any]]: ...
@@ -289,6 +290,7 @@ class ControlPlaneStore:
     insert_cv_evaluation_row_fn: Any | None = None
     insert_cv_review_event_fn: Any | None = None
     get_cv_download_fn: Any | None = None
+    get_cv_preview_fn: Any | None = None
     get_cv_markdown_fn: Any | None = None
     get_debug_bundle_availability_fn: Any | None = None
     list_run_structured_jobs_fn: Any | None = None
@@ -1154,6 +1156,12 @@ class ControlPlaneStore:
             self._call(self.get_cv_download_fn, sqlite_store.get_cv_download, version_id),
         )
 
+    def get_cv_preview(self, version_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(self.get_cv_preview_fn, sqlite_store.get_cv_preview, version_id),
+        )
+
     def get_cv_markdown(self, version_id: str) -> str | None:
         return cast(
             str | None,
@@ -1424,7 +1432,6 @@ class ControlPlaneStore:
             sqlite_store.insert_cv_version_row,
             row,
         )
-
 
 
 

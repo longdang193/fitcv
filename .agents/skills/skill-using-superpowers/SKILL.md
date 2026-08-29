@@ -9,26 +9,22 @@ If you were dispatched as a subagent to execute a specific task, skip this skill
 </SUBAGENT-STOP>
 
 <EXTREMELY-IMPORTANT>
-If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
-
-IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
-
-This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+Canonical rules and higher-priority runtime instructions determine skill
+applicability. Use a skill when it is explicitly requested or its documented
+trigger matches the task. A skill may specialize a rule but may not weaken or
+override it.
 </EXTREMELY-IMPORTANT>
 
 ## Instruction Priority
 
-Superpowers skills override default system prompt behavior, but **user instructions always take precedence**:
-
-1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
-2. **Superpowers skills** — override default system behavior where they conflict
-3. **Default system prompt** — lowest priority
-
-If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+Skills provide repository-local procedures. They never override system,
+developer, user, repository, or canonical-source instructions. When instructions
+conflict, follow the higher-priority instruction and report unresolved ambiguity.
 
 ## How to Access Skills
 
-**Never read skill files manually with file tools** — always use your platform's skill-loading mechanism so the skill is properly activated.`r`n`r`n**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly.`r`n`r`n**In Codex:** Skills load natively. Follow the instructions presented when a skill activates.`r`n`r`n**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins.
+Use platform-native skill activation when available. If unavailable, read the
+canonical skill file directly and follow only applicable sections.
 
 **In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
 
@@ -42,7 +38,8 @@ Skills speak in actions ("dispatch a subagent", "create a todo", "read a file") 
 
 ## The Rule
 
-**Invoke relevant or requested skills BEFORE any response or action.** Even a 1% chance a skill might apply means that you should invoke the skill to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+**Invoke explicitly requested or applicable skills before acting.** If no
+documented trigger matches, do not invoke a skill only because it might apply.
 
 ```dot
 digraph skill_flow {
@@ -50,7 +47,7 @@ digraph skill_flow {
     "About to EnterPlanMode?" [shape=doublecircle];
     "Already brainstormed?" [shape=diamond];
     "Invoke skill-brainstorming skill" [shape=box];
-    "Might any skill apply?" [shape=diamond];
+    "Does a rule or request select a skill?" [shape=diamond];
     "Invoke the skill" [shape=box];
     "Announce: 'Using [skill] to [purpose]'" [shape=box];
     "Has checklist?" [shape=diamond];
@@ -60,12 +57,12 @@ digraph skill_flow {
 
     "About to EnterPlanMode?" -> "Already brainstormed?";
     "Already brainstormed?" -> "Invoke skill-brainstorming skill" [label="no"];
-    "Already brainstormed?" -> "Might any skill apply?" [label="yes"];
-    "Invoke skill-brainstorming skill" -> "Might any skill apply?";
+    "Already brainstormed?" -> "Does a rule or request select a skill?" [label="yes"];
+    "Invoke skill-brainstorming skill" -> "Does a rule or request select a skill?";
 
-    "User message received" -> "Might any skill apply?";
-    "Might any skill apply?" -> "Invoke the skill" [label="yes, even 1%"];
-    "Might any skill apply?" -> "Respond (including clarifications)" [label="definitely not"];
+    "User message received" -> "Does a rule or request select a skill?";
+    "Does a rule or request select a skill?" -> "Invoke the skill" [label="yes"];
+    "Does a rule or request select a skill?" -> "Respond (including clarifications)" [label="no"];
     "Invoke the skill" -> "Announce: 'Using [skill] to [purpose]'";
     "Announce: 'Using [skill] to [purpose]'" -> "Has checklist?";
     "Has checklist?" -> "Create a todo per item" [label="yes"];

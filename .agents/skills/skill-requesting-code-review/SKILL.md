@@ -14,9 +14,12 @@ Dispatch a code reviewer subagent to catch issues before they cascade. The revie
 ## When to Request Review
 
 **Mandatory:**
-- After each task in subagent-driven development
 - After completing major feature
 - Before merge to main
+- When independent review is required by the active lifecycle or plan
+
+Task-scoped review in `skill-subagent-driven-development` owns per-task review;
+do not dispatch a second whole-branch review for the same task.
 
 **Optional but valuable:**
 - When stuck (fresh perspective)
@@ -27,9 +30,12 @@ Dispatch a code reviewer subagent to catch issues before they cascade. The revie
 
 **1. Get git SHAs:**
 ```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
+BASE_SHA=$(git rev-parse "$APPROVED_BASE")
 HEAD_SHA=$(git rev-parse HEAD)
 ```
+
+`APPROVED_BASE` must come from the active plan, caller, or recorded merge base.
+Do not infer a base from commit count; `HEAD~1` can omit multi-commit changes.
 
 **2. Dispatch code reviewer subagent:**
 

@@ -666,7 +666,7 @@ preferences: {}
     assert target.exists()
     state = json.loads((target.parent / "onboarding.json").read_text(encoding="utf-8"))
     assert state["current_step"] == "provider"
-    assert state["profile_configured"] is True
+    assert "profile_configured" not in state
 
 
 def test_invalid_profile_does_not_expand_onboarding_state(local_client: TestClient) -> None:
@@ -681,7 +681,7 @@ def test_invalid_profile_does_not_expand_onboarding_state(local_client: TestClie
     assert response.status_code == 422
     state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    assert set(state) <= {"version", "current_step", "complete", "profile_configured"}
+    assert "profile_configured" not in state
     assert "Invalid YAML in candidate profile" in response.text
 
 
@@ -714,6 +714,37 @@ def test_incomplete_readiness_blocks_completion_and_run_submission(local_client:
     assert "provider_test_ok" not in completion.text
     assert trigger.status_code == 409
     assert "onboarding is incomplete" in trigger.text.lower()
+
+
+def test_readiness_ignores_legacy_profile_flag(local_client: TestClient) -> None:
+    state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
+    state_path.write_text(
+        json.dumps({"version": 1, "complete": False, "profile_configured": True}),
+        encoding="utf-8",
+    )
+
+    readiness = local_client.get("/local/readiness")
+
+    assert readiness.status_code == 200
+    assert readiness.json()["ready"] is False
+    assert "Candidate profile is not configured" in readiness.json()["reasons"]
+
+
+def test_readiness_reports_actionable_error_for_malformed_onboarding(
+    local_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        local_routes,
+        "load_onboarding_state",
+        lambda: (_ for _ in ()).throw(RuntimeError("malformed")),
+    )
+
+    readiness = local_client.get("/local/readiness")
+
+    assert readiness.status_code == 503
+    assert readiness.json()["error"]["code"] == "local_readiness_unavailable"
+    assert readiness.json()["error"]["retryable"] is True
 
 
 def test_server_mode_keeps_existing_host_and_csrf_behavior(

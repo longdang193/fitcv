@@ -31,7 +31,7 @@ Public repository receives curated product-facing output through publication pro
 - `docs/operating_system/rules/`: hard invariants.
 - `.agents/skills/`: reusable methods with enough operational detail to execute correctly.
 - `docs/operating_system/prompt_templates/`: reusable invocation wording.
-- `docs/operating_system/planning/`: planning-tier and routing policy.
+- `docs/operating_system/planning/`: planning artifact selection and advisory executor/profile selection.
 - `docs/operating_system/publication/`: publication policy and rewrite guidance.
 - `docs/operating_system/procedures/`: maintainer commands and runbooks.
 - `repo_config/`: actively consumed repository, starter-kit, adapter, planning-schema, and publication configuration.

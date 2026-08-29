@@ -4564,10 +4564,12 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
 
     versions = sqlite_store.list_cv_versions(run_job_id)
     download = sqlite_store.get_cv_download("cv-1")
+    preview = sqlite_store.get_cv_preview("cv-1")
 
     assert versions[0]["evaluation"]["fit_classification"] == "stretch"
     assert versions[0]["review_state"] == "stretch"
     assert download is not None and download["content"] == content
+    assert preview is not None and preview["content"] == content
     with pytest.raises(sqlite3.IntegrityError):
         sqlite_store.insert_cv_version_row(
             {"version_id": "cv-1", "generation_status": "pending"}
@@ -4578,6 +4580,26 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
         conn.commit()
     with pytest.raises(ValueError, match="artifact_integrity_mismatch"):
         sqlite_store.get_cv_download("cv-1")
+
+
+def test_cv_preview_distinguishes_pending_from_missing() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-preview-state", [{"title": "CV Job"}])[0]
+    sqlite_store.reserve_cv_regeneration(
+        run_job_id,
+        version_id="cv-pending",
+        idempotency_key="idem-preview",
+        action_id="action-preview",
+        input_snapshot={"job": {"title": "CV Job"}},
+    )
+
+    pending = sqlite_store.get_cv_preview("cv-pending")
+
+    assert pending == {
+        "version_id": "cv-pending",
+        "generation_status": "pending",
+        "preview_available": False,
+    }
+    assert sqlite_store.get_cv_preview("cv-missing") is None
 
 
 def test_cv_regeneration_reservation_is_idempotent_and_blocks_concurrent_action() -> None:

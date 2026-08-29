@@ -350,6 +350,13 @@ def validate_documents(
                 or (rule.template_id == "implementation-plan" and actual == "active")
             ):
                 continue
+            if (
+                key == "contract_version"
+                and rule.template_id == "implementation-plan"
+                and actual is None
+                and frontmatter.get("status") in {"completed", "superseded"}
+            ):
+                continue
             if not isinstance(actual, str) or actual.strip() != expected:
                 findings.append(
                     Finding(

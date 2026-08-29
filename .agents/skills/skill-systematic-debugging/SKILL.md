@@ -213,7 +213,7 @@ You MUST complete each phase before proceeding to the next.
    - Automated test if possible
    - One-off test script if no framework
    - MUST have before fixing
-   - Use the `superpowers:skill-test-driven-development` skill for writing proper failing tests
+   - Use `skill-test-driven-development` for writing proper failing tests
 
 2. **Implement Single Fix**
    - Address the root cause identified
@@ -228,12 +228,11 @@ You MUST complete each phase before proceeding to the next.
 
 4. **If Fix Doesn't Work**
    - STOP
-   - Count: How many fixes have you tried?
-   - If < 3: Return to Phase 1, re-analyze with new information
-   - **If ≥ 3: STOP and question the architecture (step 5 below)**
-   - DON'T attempt Fix #4 without architectural discussion
+   - Record the failed hypothesis and return to Phase 1 with new evidence
+   - If repeated failures reveal shared coupling, state problems, or no credible
+     root-cause hypothesis remains, stop and question the architecture
 
-5. **If 3+ Fixes Failed: Question Architecture**
+5. **If Evidence Indicates Architectural Risk: Question Architecture**
 
    **Pattern indicating architectural problem:**
    - Each fix reveals new shared state/coupling/problem in different place
@@ -245,9 +244,10 @@ You MUST complete each phase before proceeding to the next.
    - Are we "sticking with it through sheer inertia"?
    - Should we refactor architecture vs. continue fixing symptoms?
 
-   **Discuss with your human partner before attempting more fixes**
+    **Discuss with the request owner before attempting more fixes**
 
-   This is NOT a failed hypothesis - this is a wrong architecture.
+    Do not label architecture wrong without evidence; record the observed
+    coupling or repeated failed hypotheses first.
 
 ## Red Flags - STOP and Follow Process
 
@@ -267,7 +267,8 @@ If you catch yourself thinking:
 
 **ALL of these mean: STOP. Return to Phase 1.**
 
-**If 3+ fixes failed:** Question the architecture (see Phase 4.5)
+**If repeated failures reveal shared coupling or leave no credible root-cause
+hypothesis:** Question the architecture before attempting another fix.
 
 ## your human partner's Signals You're Doing It Wrong
 
@@ -292,7 +293,7 @@ If you catch yourself thinking:
 | "Multiple fixes at once saves time" | Can't isolate what worked. Causes new bugs. |
 | "Reference too long, I'll adapt the pattern" | Partial understanding guarantees bugs. Read it completely. |
 | "I see the problem, let me fix it" | Seeing symptoms ≠ understanding root cause. |
-| "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question pattern, don't fix again. |
+| "One more fix attempt" after repeated failures | Record evidence and reassess the hypothesis before trying another fix. |
 
 ## Quick Reference
 
@@ -326,7 +327,7 @@ These techniques are part of systematic debugging and available in this director
 
 **Related skills:**
 
-- **superpowers:skill-test-driven-development** - For creating failing test case (Phase 4, Step 1)
+- **skill-test-driven-development** - For creating failing test case (Phase 4, Step 1)
 - **skill-performance-optimization** - Define representative workloads, metrics, targets, and comparable performance proof
 - **skill-full-stack-integration** - Reconcile frontend intent, transport contracts, API impact, and browser evidence
 - **skill-verification-before-completion** - Verify fix worked before claiming success

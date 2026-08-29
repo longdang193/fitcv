@@ -108,9 +108,10 @@ Tura-enabled setup requires one paired executable/provider-config path:
 ```
 
 Setup probes required public CLI flags once, writes one user-local config, and
-installs `project-delegate`. Restart needs no manual action. Production route is
-`Tura -> LightRSI -> 9router -> provider` through `TURA_PROVIDER_CONFIG`; moving
-the executable requires setup rerun, replacing it at the same path does not.
+installs `project-delegate`. Restart needs no manual action. Production route
+follows the canonical runtime adapter procedure through `TURA_PROVIDER_CONFIG`;
+moving the executable requires setup rerun, replacing it at the same path does
+not.
 After replacing the executable, run
 `project-delegate --role normal --print-config` to capture its nonsecret
 `tura_executable_sha256`, then run one bounded read-only TL smoke. Treat prior
@@ -202,8 +203,9 @@ tool stays isolated under the runtime root, so concurrent repositories do not
 replace one shared `dcode.exe`. Wrapper resolves current Git workspace and runs
 tracked `scripts/dcode_project.py`. Run `dcode-project`
 from selected repository workspace with `--role <profile>`; do not
-pass `--model`. Setup defaults to tested `deepagents-code 0.1.64`, requires
-Python 3.12 or newer, verifies the installed `dcode` version, and disables child auto-update.
+pass `--model`. Setup uses the version pinned by
+`scripts/setup_deepagents_runtime.ps1`, requires Python 3.12 or newer, verifies
+the installed `dcode` version, and disables child auto-update.
 Setup fails when
 `%USERPROFILE%\.deepagents\.mcp.json` exists; remove that direct DeepAgents MCP
 config before setup so Codex config remains sole MCP authority.

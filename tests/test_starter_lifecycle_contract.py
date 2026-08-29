@@ -45,6 +45,8 @@ def test_planning_dispatch_owns_conditional_lifecycle() -> None:
     assert "all applicable post-approval inputs are complete" in dispatch
     assert "Downstream project-owned handoff: Release/Deploy → Observe" in dispatch
     assert "Lifecycle ownership remains in `docs/operating_system/planning/planning-dispatch.md`." in integration
+    assert "planning-dispatch post-approval gates" in integration
+    assert "`skill-writing-plans` only when implementation-ready" in integration
     assert "## Delivery Lifecycle" not in integration
     assert "Design Export" not in integration
 
@@ -164,10 +166,57 @@ def test_review_and_evidence_language_stays_conditional() -> None:
     assert "each applicable frontend, backend, and E2E evidence class" in requesting
     assert "[SPECIFICATION_OR_APPROVED_SCOPE]" in requesting
     assert "[EVIDENCE_CONTEXT]" in requesting
+    assert "APPROVED_BASE" in requesting
+    assert "BASE_SHA=$(git rev-parse HEAD~1)" not in requesting
     assert "## Review Context" in reviewer
+    assert "**Review verdict:** [PASS | FAIL | BLOCKED]" in reviewer
+    assert "Ready to merge?" not in reviewer
     assert "frontend verification complete" in verification
     assert "end-to-end journey complete" in verification
     assert "direct backend" in verification
+
+
+def test_active_skill_contracts_use_current_authority_and_lifecycle_terms() -> None:
+    authority = read(".agents/skills/skill-using-superpowers/SKILL.md")
+    subagent = read(".agents/skills/skill-subagent-driven-development/SKILL.md")
+    reviewer_prompt = read(
+        ".agents/skills/skill-subagent-driven-development/task-reviewer-prompt.md"
+    )
+    wayfinding = read(".agents/skills/skill-wayfinding/SKILL.md")
+    tdd = read(".agents/skills/skill-test-driven-development/SKILL.md")
+    writing = read(".agents/skills/skill-writing-skills/SKILL.md")
+    parallel = read(".agents/skills/skill-dispatching-parallel-agents/SKILL.md")
+
+    assert "never override system" in authority
+    assert "`r`n`r`n" not in authority
+    assert "Global Constraints" not in subagent
+    assert "[GLOBAL_CONSTRAINTS]" not in reviewer_prompt
+    assert "[BINDING_REQUIREMENTS]" in reviewer_prompt
+    assert "planning-dispatch.md" in wayfinding
+    assert "Behavior-preserving refactoring" in tdd
+    assert "superpowers:" not in writing
+    assert "TodoWrite" not in writing
+    assert "### Read-only fan-out" in parallel
+    assert "### Parallel writers" in parallel
+
+
+def test_skill_rule_bridges_preserve_canonical_applicability() -> None:
+    reviewer_prompt = read(
+        ".agents/skills/skill-subagent-driven-development/task-reviewer-prompt.md"
+    )
+    full_stack = read(".agents/skills/skill-full-stack-integration/SKILL.md")
+    planning = read(".agents/skills/skill-writing-plans/SKILL.md")
+    selector = read(".agents/skills/skill-using-superpowers/SKILL.md")
+    central_config = read(".agents/skills/skill-central-config-layer/SKILL.md")
+
+    assert "Apply `backend-verification-rule` independently of task wording" in reviewer_prompt
+    assert "may not remove rule-required evidence" in reviewer_prompt
+    assert "optional temporary contract-to-UI mappings" in full_stack
+    assert "when one exists" in full_stack
+    assert "durable multi-task resume" in planning
+    assert "delegated\n  checkpoints" in planning
+    assert "even a 1% chance" not in selector
+    assert "existing canonical owner first" in central_config
 
 
 def test_active_subagent_templates_use_supported_profiles() -> None:

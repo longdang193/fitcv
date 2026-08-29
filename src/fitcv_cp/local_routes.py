@@ -188,7 +188,7 @@ def load_onboarding_state() -> dict[str, Any]:
 def save_onboarding_state(payload: dict[str, Any]) -> None:
     payload = {
         key: payload[key]
-        for key in ("version", "current_step", "complete", "profile_configured")
+        for key in ("version", "current_step", "complete", "provider_test_ok", "provider_id", "drafts", "errors")
         if key in payload
     }
     path = _state_path()
@@ -405,12 +405,24 @@ def _controller_view(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def local_readiness_status() -> dict[str, object]:
-    state = load_onboarding_state()
     reasons: list[str] = []
-    store = ControlPlaneStore()
+    try:
+        load_onboarding_state()
+        store = ControlPlaneStore()
+        has_active_profile = bool(store.list_candidate_profiles())
+    except RuntimeError:
+        return {
+            "ready": False,
+            "reasons": ["Local readiness could not be verified."],
+            "error": {
+                "code": "local_readiness_unavailable",
+                "retryable": True,
+                "action": "Repair local state, then reload readiness.",
+            },
+        }
     if not store.integration_migration_applied("packaged_local_complete_integration_v1"):
         reasons.append("Local integration migration is incomplete")
-    if not state.get("profile_configured"):
+    if not has_active_profile:
         reasons.append("Candidate profile is not configured")
     eligible_refs = {
         model["model_record_id"]
@@ -461,7 +473,9 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
         profile_path = Path(os.environ["FITCV_LOCAL_CANDIDATE_PROFILE_PATH"])
         _write_profile(profile_path, profile)
         state = load_onboarding_state()
-        state.update({"current_step": "provider", "profile_configured": True})
+        drafts = dict(state.get("drafts") or {})
+        drafts["profile"] = raw_profile
+        state.update({"current_step": "provider", "drafts": drafts})
         save_onboarding_state(state)
         return RedirectResponse("/local/onboarding", status_code=303)
 
@@ -505,7 +519,8 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
 
     @router.get("/readiness")
     async def local_readiness() -> JSONResponse:
-        return JSONResponse(local_readiness_status())
+        status = local_readiness_status()
+        return JSONResponse(status_code=503 if status.get("error") else 200, content=status)
 
     @router.post("/folder-picker")
     async def folder_picker() -> JSONResponse:

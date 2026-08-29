@@ -103,6 +103,15 @@ do not infer lifecycle or totals.
 
 Returns `{"ok": true}` when the service process is available.
 
+### `GET /local/readiness`
+
+Returns `{"ready": bool, "reasons": string[]}`. Profile readiness is true
+only when the canonical Candidate Profile store has at least one record with
+`creation_status = "succeeded"` and `lifecycle = "active"`; onboarding state
+flags and drafts do not count. If local onboarding state or the profile catalog
+cannot be read, returns `503` with `error.code =
+"local_readiness_unavailable"`, `retryable = true`, and recovery action.
+
 ## Pipeline Settings
 
 ### `GET /settings/pipeline`
@@ -161,6 +170,20 @@ the `/settings/pipeline` resource.
 | `POST /admin/upload-trigger` | Legacy compatibility form; separate `candidate_profile_id` field | Preserves legacy behavior; does not alias managed multipart contract |
 
 Run records persist one authoritative `run_inputs` snapshot at trigger time, including selected profile revision when present. Null or empty legacy snapshots remain historical records and display as such; never backfill from current settings.
+
+### Personalization
+
+`GET /personalization` and `PATCH /personalization` expose only the
+completion-critical ranking preference. Responses use the standard `data`
+envelope and include `ranking_mode`, `effective_ranking_mode`,
+`personalization_strength`, `baseline_fallback`, `active_policy_id`,
+`revision`, `bounds`, and `updated_at`. `ETag` equals `revision` in quotes.
+
+`PATCH` requires `ranking_mode`, `expected_revision`, and optional
+`personalization_strength` and `updated_by`. Unknown fields are rejected.
+Settings CAS failures return `409 personalization_revision_conflict`; invalid
+settings return `422 validation_failed`. Optimization history and operator
+administration remain outside this JSON resource.
 
 
 ### Field schema
@@ -356,6 +379,15 @@ Returns the persisted CV bytes after checksum verification. Headers include
 `Content-Disposition`, `Content-Length`, checksum-backed `ETag`, and
 `X-Content-Type-Options: nosniff`. Missing versions return `cv_not_found`;
 missing or corrupt content returns `artifact_not_available`.
+
+### `GET /cv-versions/{version_id}/preview`
+
+Returns exact persisted `text/markdown` or `text/plain` bytes for selected
+immutable version with `Content-Disposition: inline`, checksum-backed `ETag`,
+`Content-Length`, `X-CV-Version-ID`, and `X-Content-Type-Options: nosniff`.
+Missing versions return `cv_not_found`; pending, failed, corrupt, or
+unsupported media returns `artifact_not_available` in standard error envelope.
+This route never changes evaluation, review, version, or download state.
 
 ### `POST /runs/{run_id}/jobs/{run_job_id}/cvs/actions/regenerate`
 

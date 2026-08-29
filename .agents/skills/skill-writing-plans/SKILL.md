@@ -117,7 +117,8 @@ Select one:
 Select coordination separately:
 
 - `none`: small reversible execution that does not need durable multi-task resume
-- `git-tracked`: multi-task, delegated, checkpointed, or parallel-writer work
+- `git-tracked`: work requiring durable multi-task resume, delegated
+  checkpoints, or parallel writers
 
 For `git-tracked`, initialize Coordination State and task ledger before
 execution. Record one coordination owner, branch and base expectations,

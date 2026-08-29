@@ -58,12 +58,14 @@ def git_tracked_plan(
     mode: str = "subagent-ready",
     ledger: str,
     coordination_schema: int | None = None,
+    contract_version: str | None = "1",
 ) -> str:
     schema_line = f"- Coordination schema: `{coordination_schema}`\n" if coordination_schema is not None else ""
+    contract_line = f'contract_version: "{contract_version}"\n' if contract_version is not None else ""
     return f"""---
 artifact_type: plan
 template_id: implementation-plan
-status: {status}
+{contract_line}status: {status}
 layer: change
 parent_spec: none
 ---
@@ -101,6 +103,7 @@ def modern_plan(*, status: str = "active", execution: str, task_body: str = "") 
     return f"""---
 artifact_type: plan
 template_id: implementation-plan
+contract_version: "1"
 status: {status}
 layer: change
 parent_spec: none
@@ -148,7 +151,7 @@ def test_plan_parent_spec_must_resolve() -> None:
     try:
         write_text(
             root / "docs" / "superpowers" / "plans" / "demo-plan.md",
-            "---\nartifact_type: plan\nstatus: proposed\nlayer: change\nparent_spec: docs/superpowers/specs/missing.md\n---\n# Plan\n",
+            "---\nartifact_type: plan\ncontract_version: \"1\"\nstatus: proposed\nlayer: change\nparent_spec: docs/superpowers/specs/missing.md\n---\n# Plan\n",
         )
         result = run_validator(root)
         assert result.returncode == 1
@@ -166,7 +169,7 @@ def test_existing_spec_and_linked_plan_pass() -> None:
         )
         write_text(
             root / "docs" / "superpowers" / "plans" / "demo-plan.md",
-            "---\nartifact_type: plan\ntemplate_id: implementation-plan\nstatus: proposed\nlayer: change\nparent_spec: docs/superpowers/specs/demo-spec.md\n---\n# Plan\n\n## Execution Approach\n\n- Mode: `inline sequential`\n- Coordination: `none`\n\n## Task Breakdown\n\n### Task 1: Example\n\n**Template Profile:**\n- Controller-selected: `none (lead controller)`\n",
+            "---\nartifact_type: plan\ntemplate_id: implementation-plan\ncontract_version: \"1\"\nstatus: proposed\nlayer: change\nparent_spec: docs/superpowers/specs/demo-spec.md\n---\n# Plan\n\n## Execution Approach\n\n- Mode: `inline sequential`\n- Coordination: `none`\n\n## Task Breakdown\n\n### Task 1: Example\n\n**Template Profile:**\n- Controller-selected: `none (lead controller)`\n",
         )
         result = run_validator(root)
         assert result.returncode == 0
@@ -179,7 +182,7 @@ def test_current_plan_requires_execution_approach() -> None:
     try:
         write_text(
             root / "docs" / "superpowers" / "plans" / "demo-plan.md",
-            "---\nartifact_type: plan\ntemplate_id: implementation-plan\nstatus: active\nlayer: change\nparent_spec: none\n---\n# Plan\n",
+            "---\nartifact_type: plan\ntemplate_id: implementation-plan\ncontract_version: \"1\"\nstatus: active\nlayer: change\nparent_spec: none\n---\n# Plan\n",
         )
 
         result = run_validator(root)
@@ -201,6 +204,41 @@ def test_historical_completed_plan_without_modern_fields_passes() -> None:
         result = run_validator(root)
 
         assert result.returncode == 0
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_modern_completed_uncoordinated_plan_is_validated() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            modern_plan(
+                status="completed",
+                execution="- Mode: `inline sequential`\n- Coordination: `none`",
+            ).replace("### Task 1: Example", "### Work item"),
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "requires at least one `### Task N` section" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_current_plan_requires_contract_version() -> None:
+    root = make_test_root()
+    try:
+        write_text(
+            root / "docs" / "superpowers" / "plans" / "demo-plan.md",
+            "---\nartifact_type: plan\ntemplate_id: implementation-plan\nstatus: active\nlayer: change\nparent_spec: none\n---\n# Plan\n",
+        )
+
+        result = run_validator(root)
+
+        assert result.returncode == 1
+        assert "requires `contract_version: 1`" in result.stdout
     finally:
         rmtree(root, ignore_errors=True)
 
@@ -419,6 +457,7 @@ def test_historical_completed_plan_preserves_legacy_coordination() -> None:
             root / "docs" / "superpowers" / "plans" / "demo-plan.md",
             git_tracked_plan(
                 status="completed",
+                contract_version=None,
                 ledger="| Task 1 | `pending` | current | codex | none | `test-one` | pending |"
             )
             .replace("- Active task(s): `Task 1`", "- Active task(s): `Task 1`")

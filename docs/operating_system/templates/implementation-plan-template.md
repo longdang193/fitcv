@@ -11,6 +11,7 @@ required_sections:
 required_frontmatter:
   artifact_type: plan
   template_id: implementation-plan
+  contract_version: "1"
   status: proposed
   layer: change
 distribution_tier: starter_kit
@@ -63,10 +64,11 @@ never becomes repository state.
 - Next action: `<one dependency-ready action>`
 - Blockers: `<none or concrete blocker>`
 
-`Coordination schema: 1` marks modern Git-tracked coordination. Completed plans
-without this marker remain historical compatibility artifacts; marked completed
-plans require terminal task states and recorded proof. Post-verification branch
-disposition may remain in `Next action`.
+`contract_version: 1` marks the modern plan contract. Completed plans without
+this marker remain historical compatibility artifacts. `Coordination schema: 1`
+marks modern Git-tracked coordination only; it does not version the plan
+contract. Versioned completed plans require terminal task states and recorded
+proof. Post-verification branch disposition may remain in `Next action`.
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |

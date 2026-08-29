@@ -39,7 +39,23 @@ When you have multiple unrelated failures (different test files, different subsy
   fan-in. Do not run same-workspace final validation concurrently with writer.
   Codex still owns final Git verification and acceptance.
 
-Use this skill directly for independent investigations, audits, research questions, bounded fixes, or approved multi-lane implementation with disjoint write ownership.
+Use this skill directly for independent investigations, audits, research
+questions, bounded fixes, or approved multi-lane implementation with disjoint
+write ownership.
+
+## Execution Modes
+
+### Read-only fan-out
+
+Independent investigations may run concurrently without an active plan, branch,
+or worktree unless the task explicitly requires one. Each lane gets immutable
+inputs, a focused question, and a required evidence format.
+
+### Parallel writers
+
+Concurrent implementation lanes require an approved plan, dependency-ready
+tasks, isolated Git worktrees, disjoint write ownership, and declared lane
+proof. Same-workspace writers remain sequential.
 ## When to Use
 
 ```dot
@@ -92,11 +108,11 @@ Each agent gets:
 
 ### 3. Dispatch in Parallel
 
-Before dispatch, record the dependency-ready wave, branch and isolated worktree
-for each writer, exact disjoint write ownership, and required lane proof in the
-active plan. Then use the platform-native parallel dispatch facility. Issue all
-independent spawn calls in the same round when supported; dispatching one and
-waiting before the next is sequential.
+For parallel writers, record the dependency-ready wave, branch and isolated
+worktree for each writer, exact disjoint write ownership, and required lane
+proof in the active plan. Then use the platform-native parallel dispatch
+facility. Issue all independent spawn calls in the same round when supported;
+dispatching one and waiting before the next is sequential.
 
 ```text
 Subagent: "Fix agent-tool-abort.test.ts failures"

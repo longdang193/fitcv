@@ -8,7 +8,8 @@ distribution_tier: starter_kit
 
 ## Purpose
 
-Create or improve a central configuration layer so shared rules do not drift across files.
+Assess configuration ownership and improve the existing configuration layer only
+when shared, runtime-varying, or policy values need one canonical owner.
 
 Use this skill when:
 
@@ -18,6 +19,10 @@ Use this skill when:
 - agents or pipelines need one source of truth
 - normalization rules should be reused
 - configuration should be easier to tune without editing code
+
+Do not create a new configuration architecture only because values repeat. Find
+the existing canonical owner first and centralize only when semantics require a
+shared configurable boundary.
 
 ## Core principle
 
@@ -58,18 +63,16 @@ Typical config categories:
 
 ## Recommended directory layout
 
-Prefer a dedicated config directory:
+Reuse the existing configuration location. If no suitable owner exists and
+multiple consumers need shared configurable values, add the smallest appropriate
+file or module; do not create a fixed directory layout by default.
 
 ```text
-config/
-├── env.yaml
-├── runtime.yaml
-├── policy.yaml
-├── taxonomy.yaml
-└── synonyms.yaml
+<existing-config-owner>
 ```
 
-For very small projects, a single file may be enough at first. Once multiple modules share assumptions, split by responsibility.
+For very small projects, one file may be enough. Split by responsibility only
+when separate ownership or change cadence requires it.
 
 ## What to centralize
 
@@ -105,25 +108,20 @@ Do not centralize:
 
 ## Output expectations
 
-When applying this skill, produce:
+When applicable, produce only the smallest useful outputs:
 
 1. A diagnosis of config sprawl or missing config boundaries
-2. A recommended config structure
-3. A split of which values belong in which file
-4. Example config schemas
-5. Validation rules
-6. Refactor guidance
-7. A migration checklist
+2. A recommended owner or structure
+3. Refactor and validation guidance
 
 ## Recommended workflow
 
-1. Inventory hardcoded values across the codebase
-2. Group them by environment, runtime, policy, taxonomy, or normalization
-3. Create config files with stable keys
-4. Add a config loader with validation
-5. Refactor modules to consume config instead of literals
-6. Update tests to use config fixtures
-7. Document the config contract
+1. Inventory repeated values and existing configuration owners
+2. Group candidates by environment, runtime, policy, taxonomy, or normalization
+3. Decide whether each candidate is shared and semantically configurable
+4. Add or adjust the smallest owner and validation needed
+5. Refactor consumers to use the owner
+6. Update tests and documentation only when the contract changes
 
 ## Validation guidance
 

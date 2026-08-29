@@ -22,7 +22,7 @@ This file is repo-wide instruction layer. More specific directory instructions o
 ## Subagent Routing
 
 Use profiles discovered from `agents/*.toml`. Current ranked general profiles are
-`low`, `normal`, `high`, and `xhigh`; specialized profiles such as `ui` may be
+`low`, `normal`, `high`, and `xhigh`; specialized and unranked profiles may be
 added without entering rank ordering.
 
 Profiles with positive `rank` form an ordered capability relation. Profiles

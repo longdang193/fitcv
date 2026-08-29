@@ -10753,6 +10753,13 @@ def _cv_projection(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]
             and item.get("content_checksum") is not None
             and item.get("content_length") is not None
         ),
+        "preview": (
+            item.get("generation_status") in {"generated", "review_required"}
+            and item.get("content_checksum") is not None
+            and item.get("content_length") is not None
+            and str(item.get("media_type") or "").split(";", 1)[0].lower()
+            in {"text/markdown", "text/plain"}
+        ),
         "regenerate": bool(item.get("run_job_id")),
     }
     return item
@@ -11190,6 +11197,47 @@ def get_cv_download(version_id: str, *_args: Any, **_kwargs: Any) -> dict[str, A
         "content_checksum": str(row["content_checksum"]),
         "media_type": str(row["media_type"] or "text/markdown; charset=utf-8"),
         "filename": str(row["filename"] or f"{version_id}.md"),
+    }
+
+
+def get_cv_preview(version_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] | None:
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM cv_versions WHERE version_id=?", (version_id,)
+        ).fetchone()
+    if row is None:
+        return None
+    status = str(row["generation_status"])
+    if status not in {"generated", "review_required"}:
+        return {
+            "version_id": version_id,
+            "generation_status": status,
+            "preview_available": False,
+        }
+    media_type = str(row["media_type"] or "text/markdown; charset=utf-8")
+    if media_type.split(";", 1)[0].lower() not in {"text/markdown", "text/plain"}:
+        return {
+            "version_id": version_id,
+            "generation_status": status,
+            "preview_available": False,
+            "reason": "unsupported_media_type",
+        }
+    content = bytes(row["content_blob"] or b"")
+    if (
+        not content
+        or int(row["content_length"] or -1) != len(content)
+        or str(row["content_checksum"] or "") != hashlib.sha256(content).hexdigest()
+    ):
+        raise ValueError("artifact_integrity_mismatch")
+    return {
+        "version_id": version_id,
+        "content": content,
+        "content_length": len(content),
+        "content_checksum": str(row["content_checksum"]),
+        "media_type": media_type,
+        "filename": str(row["filename"] or f"{version_id}.md"),
+        "preview_available": True,
     }
 
 

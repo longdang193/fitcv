@@ -4360,6 +4360,62 @@ def test_cv_history_download_and_regenerate_contract() -> None:
     assert regenerate.json()["data"]["status"] == "queued"
 
 
+def test_cv_preview_preserves_version_identity_and_pending_state() -> None:
+    app = _app()
+    app.state.run_store.get_cv_preview_fn = lambda version_id: (
+        {
+            "version_id": version_id,
+            "content": b"# CV\n",
+            "content_length": 5,
+            "content_checksum": "checksum-1",
+            "media_type": "text/markdown; charset=utf-8",
+            "preview_available": True,
+        }
+        if version_id == "cv-1"
+        else {"version_id": version_id, "generation_status": "pending", "preview_available": False}
+    )
+    client = TestClient(app)
+
+    response = client.get("/cv-versions/cv-1/preview")
+    pending = client.get("/cv-versions/cv-pending/preview")
+
+    assert response.status_code == 200
+    assert response.content == b"# CV\n"
+    assert response.headers["x-cv-version-id"] == "cv-1"
+    assert response.headers["content-disposition"] == "inline"
+    assert response.headers["etag"] == '"checksum-1"'
+    assert pending.status_code == 409
+    assert pending.json()["error"]["code"] == "artifact_not_available"
+
+
+def test_personalization_json_contract_uses_settings_revision() -> None:
+    app = _app()
+    client = TestClient(app)
+
+    initial = client.get("/personalization")
+    revision = initial.json()["data"]["revision"]
+    updated = client.patch(
+        "/personalization",
+        json={
+            "ranking_mode": "personalized",
+            "expected_revision": revision,
+            "updated_by": "test",
+        },
+    )
+    stale = client.patch(
+        "/personalization",
+        json={"ranking_mode": "baseline", "expected_revision": revision},
+    )
+
+    assert initial.status_code == 200
+    assert initial.headers["etag"] == f'"{revision}"'
+    assert updated.status_code == 200
+    assert updated.json()["data"]["ranking_mode"] == "personalized"
+    assert updated.json()["data"]["baseline_fallback"] is True
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "personalization_revision_conflict"
+
+
 def test_cv_regeneration_replays_completed_action_without_enqueue() -> None:
     app = _app()
     app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {

@@ -90,7 +90,7 @@ The plan wins when a dispatch brief conflicts with plan state.
 - Select executor and validator profiles independently from their bounded
   contracts. A validator may be lower, equal, or higher than its executor when
   that profile can reliably complete the validation contract.
-- `xhigh` may execute or validate based on task fitness.
+- Any discovered profile may execute or validate based on task fitness.
 - Escalate only from task complexity, material risk, or failed-attempt evidence.
 
 ## Execution Topology

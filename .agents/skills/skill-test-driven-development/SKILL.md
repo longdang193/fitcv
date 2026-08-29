@@ -19,8 +19,13 @@ Write the test first. Watch it fail. Write minimal code to pass.
 **Always:**
 - New features
 - Bug fixes
-- Refactoring
 - Behavior changes
+- Refactoring that changes behavior
+
+**Behavior-preserving refactoring:**
+- Start from green characterization or regression coverage
+- Keep coverage green before and after the refactor
+- Do not require a deliberately failing test when behavior is unchanged
 
 **Exceptions (ask your human partner):**
 - Throwaway prototypes
@@ -32,10 +37,11 @@ Thinking "skip TDD just this once"? Stop. That's rationalization.
 ## The Iron Law
 
 ```
-NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
+NO NEW OR CHANGED BEHAVIOR WITHOUT A FAILING TEST FIRST
 ```
 
-Write code before the test? Delete it. Start over.
+For new or changed behavior, write code before the test? Delete it. Start over.
+Pure refactoring may begin from green characterization coverage.
 
 **No exceptions:**
 - Don't keep it as "reference"

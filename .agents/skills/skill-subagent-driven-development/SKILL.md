@@ -99,13 +99,13 @@ digraph process {
         "Lead accepts proof and updates plan task ledger" [shape=box];
     }
 
-    "Read plan, note context and global constraints; use disposable checklist only if useful" [shape=box];
+    "Read plan, note context and binding requirements; use disposable checklist only if useful" [shape=box];
     "More tasks remain?" [shape=diamond];
     "Dispatch final code reviewer subagent (../skill-requesting-code-review/code-reviewer.md)" [shape=box];
     "Use skill-verification-before-completion" [shape=box style=filled fillcolor=lightgreen];
     "Use skill-finishing-a-development-branch when authorized" [shape=box];
 
-    "Read plan, note context and global constraints; use disposable checklist only if useful" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Read plan, note context and binding requirements; use disposable checklist only if useful" -> "Dispatch implementer subagent (./implementer-prompt.md)";
     "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
     "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
     "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
@@ -127,7 +127,7 @@ digraph process {
 
 Before dispatching Task 1, scan the plan once for conflicts:
 
-- tasks that contradict each other or the plan's Global Constraints
+- tasks that contradict each other or the plan's binding requirements
 - anything the plan explicitly mandates that the review rubric treats as a
   defect (a test that asserts nothing, verbatim duplication of a logic block)
 
@@ -188,13 +188,12 @@ final whole-branch review. When you fill a reviewer template:
   loop. If the prompt you are writing contains "do not flag," "don't treat X
   as a defect," "at most Minor," or "the plan chose" — stop: you are
   pre-judging, usually to spare yourself a review loop.
-- The global-constraints block you hand the reviewer is its attention
-  lens. Copy the binding requirements verbatim from the plan's Global
-  Constraints section or the spec: exact values, exact formats, and the
-  stated relationships between components ("same layout as X", "matches
-  Y"). The reviewer's template already carries the process rules (YAGNI,
-  test hygiene, review method) — the constraints block is for what THIS
-  project's spec demands.
+- The binding-requirements block you hand the reviewer is its attention lens.
+  Copy requirements verbatim from the active plan or spec: exact values, exact
+  formats, and stated relationships between components ("same layout as X",
+  "matches Y"). The reviewer's template already carries process rules (YAGNI,
+  test hygiene, review method); this block carries only requirements for THIS
+  task.
 - Hand the reviewer its diff as a file: run this skill's
   `scripts/review-package BASE` and pass the reviewer the file path
   it prints (or, without bash: `git log --oneline`, `git diff --stat`,

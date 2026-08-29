@@ -16,7 +16,9 @@ You write test cases (pressure scenarios with subagents), watch them fail (basel
 
 **Core principle:** If you didn't watch an agent fail without the skill, you don't know if the skill teaches the right thing.
 
-**REQUIRED BACKGROUND:** You MUST understand superpowers:skill-test-driven-development before using this skill. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This skill adapts TDD to documentation.
+**REQUIRED BACKGROUND:** You MUST understand `skill-test-driven-development`
+before using this skill. That skill defines the RED-GREEN-REFACTOR cycle. This
+skill adapts TDD to documentation.
 
 **Official guidance:** Follow the Codex Skills model first: one focused workflow per skill, `SKILL.md` as the entrypoint, and optional `scripts/`, `references/`, `assets/`, or `agents/openai.yaml` only when they materially help.
 
@@ -281,8 +283,8 @@ wc -w skills/path/SKILL.md
 **When writing documentation that references other skills:**
 
 Use skill name only, with explicit requirement markers:
-- ✅ Good: `**REQUIRED SUB-SKILL:** Use superpowers:skill-test-driven-development`
-- ✅ Good: `**REQUIRED BACKGROUND:** You MUST understand superpowers:skill-systematic-debugging`
+- ✅ Good: `**REQUIRED SUB-SKILL:** Use skill-test-driven-development`
+- ✅ Good: `**REQUIRED BACKGROUND:** You MUST understand skill-systematic-debugging`
 - ❌ Bad: `See skills/testing/skill-test-driven-development` (unclear if required)
 - ❌ Bad: `@skills/testing/skill-test-driven-development/SKILL.md` (force-loads, burns context)
 
@@ -391,7 +393,8 @@ Edit skill without testing? Same violation.
 - Don't "adapt" while running tests
 - Delete means delete
 
-**REQUIRED BACKGROUND:** The superpowers:skill-test-driven-development skill explains why this matters. Same principles apply to documentation.
+**REQUIRED BACKGROUND:** The `skill-test-driven-development` skill explains why
+this matters. Same principles apply to documentation.
 
 ## Testing All Skill Types
 
@@ -596,7 +599,7 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 
 ## Skill Creation Checklist (TDD Adapted)
 
-**IMPORTANT: Use TodoWrite to create todos for EACH checklist item below.**
+**IMPORTANT: Use platform-native task tracking for EACH checklist item below.**
 
 **RED Phase - Write Failing Test:**
 - [ ] Create pressure scenarios (3+ combined pressures for discipline skills)

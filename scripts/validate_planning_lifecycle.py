@@ -59,6 +59,7 @@ CURRENT_PLAN_STATUSES = {"proposed", "active"}
 EXECUTION_MODES = {"inline sequential", "subagent-ready", "parallel-capable"}
 EXECUTION_COORDINATIONS = {"none", "git-tracked"}
 MODERN_COORDINATION_SCHEMA = "1"
+MODERN_PLAN_CONTRACT_VERSION = "1"
 
 
 def _clean_coordination_cell(value: str) -> str:
@@ -171,21 +172,26 @@ def _validate_single_execution_field(
 def validate_execution_contract(root: Path, path: Path, payload: dict[str, Any], text: str) -> list[Finding]:
     rel = path.as_posix()
     section = _section_body(text, "Execution Approach", 2)
-    current = payload.get("status") in CURRENT_PLAN_STATUSES
+    status = payload.get("status")
+    current = status in CURRENT_PLAN_STATUSES
+    contract_value = payload.get("contract_version")
+    contract_version = str(contract_value).strip() if contract_value is not None else ""
     completed_schema = (
         _clean_coordination_cell(_coordination_value(text, "Coordination schema") or "")
-        if payload.get("status") == "completed"
+        if status == "completed"
         else ""
     )
-    modern_completed = bool(completed_schema)
+    modern_completed = status == "completed" and bool(contract_version)
     enforce_contract = current or modern_completed
     findings: list[Finding] = []
-    if modern_completed and completed_schema != MODERN_COORDINATION_SCHEMA:
+    if current and not contract_version:
+        findings.append(Finding("planning_execution_error", rel, "requires `contract_version: 1`"))
+    if contract_version and contract_version != MODERN_PLAN_CONTRACT_VERSION:
         findings.append(
             Finding(
-                "coordination_error",
+                "planning_execution_error",
                 rel,
-                f"Coordination schema must be `{MODERN_COORDINATION_SCHEMA}`",
+                f"contract_version must be `{MODERN_PLAN_CONTRACT_VERSION}`",
             )
         )
     if enforce_contract and section is None:
@@ -208,6 +214,14 @@ def validate_execution_contract(root: Path, path: Path, payload: dict[str, Any],
     )
     findings.extend(mode_findings)
     findings.extend(coordination_findings)
+    if modern_completed and coordination == "git-tracked" and completed_schema != MODERN_COORDINATION_SCHEMA:
+        findings.append(
+            Finding(
+                "coordination_error",
+                rel,
+                f"Coordination schema must be `{MODERN_COORDINATION_SCHEMA}`",
+            )
+        )
 
     executor_values = _field_values(section or "", "Default task executor")
     allowed_executors = set(get_allowed_values(root, "executor", "plan"))

@@ -20,8 +20,8 @@ Subagent (controller-selected profile: <discovered-profile>):
 
     Read the task brief: [BRIEF_FILE]
 
-    Global constraints from the spec/design that bind this task:
-    [GLOBAL_CONSTRAINTS]
+    Binding requirements from the spec/design that bind this task:
+    [BINDING_REQUIREMENTS]
 
     ## What the Implementer Claims They Built
 
@@ -84,7 +84,7 @@ Subagent (controller-selected profile: <discovered-profile>):
     - **Misunderstood:** right feature built the wrong way, wrong problem
       solved
 
-    Reject frontend-only, browser-only, client-only, mock-only, or MCP-only evidence for backend claims. When task requires backend behavior, verify implementer report includes direct boundary, important failure, final state or side-effect, and fresh automated evidence. Check contract, real dependency, representative trace, and browser evidence only when task or specification requires them. Missing required evidence is spec-compliance issue; do not broaden review into unrelated suites.
+    Reject frontend-only, browser-only, client-only, mock-only, or MCP-only evidence for backend claims. Apply `backend-verification-rule` independently of task wording. When backend behavior is in scope, verify direct boundary, important failure, final state or side-effect, and fresh automated evidence, then check contract, real dependency, rollback/idempotency/retry, representative trace, performance, and browser evidence whenever the canonical rule says they apply. The task or specification may add evidence requirements but may not remove rule-required evidence. Missing required evidence is a spec-compliance issue; do not broaden review into unrelated suites.
 
     If a requirement cannot be verified from this diff alone (it lives in
     unchanged code or spans tasks), report it as a ⚠️ item instead of
@@ -168,10 +168,9 @@ Subagent (controller-selected profile: <discovered-profile>):
 **Placeholders:**
 - `[BRIEF_FILE]` — REQUIRED: the task brief file (`scripts/task-brief PLAN N`
   prints the path; same file the implementer worked from)
-- `[GLOBAL_CONSTRAINTS]` — the binding requirements copied verbatim from
-  the plan's Global Constraints section or the spec: exact values, formats,
-  and stated relationships between components (not process rules — those
-  are already in this template)
+- `[BINDING_REQUIREMENTS]` — the binding requirements copied verbatim from
+  the active plan or spec: exact values, formats, and stated relationships
+  between components (not process rules; those are already in this template)
 - `[REPORT_FILE]` — REQUIRED: the file the implementer wrote its detailed
   report to
 - `[BASE_SHA]` — commit before this task

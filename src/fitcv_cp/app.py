@@ -6069,6 +6069,15 @@ class CvRegenerateRequest(BaseModel):
     parent_cv_version_id: str | None = None
 
 
+class PersonalizationPatchRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    ranking_mode: Literal["baseline", "personalized"]
+    personalization_strength: float | None = None
+    expected_revision: str
+    updated_by: str = "admin"
+
+
 class BulkRunActionRequest(BaseModel):
     run_ids: list[str]
 
@@ -11195,6 +11204,45 @@ def create_app(
             },
         )
 
+    @app.get("/cv-versions/{cv_version_id}/preview")
+    def preview_canonical_cv(cv_version_id: str) -> Response:
+        try:
+            preview = _resolve_run_store().get_cv_preview(cv_version_id)
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "artifact_not_available",
+                "CV file failed integrity verification.",
+                retryable=True,
+                action="Regenerate CV or inspect Console.",
+            ) from exc
+        if preview is None:
+            raise ApiError(
+                404,
+                "cv_not_found",
+                "CV version not found.",
+                action="Refresh CV history.",
+            )
+        if not preview.get("preview_available"):
+            raise ApiError(
+                409,
+                "artifact_not_available",
+                "CV preview is not available for this version.",
+                retryable=str(preview.get("reason") or "") != "unsupported_media_type",
+                action="Wait for generation, download the CV, or regenerate it.",
+            )
+        return Response(
+            content=bytes(preview["content"]),
+            media_type=str(preview["media_type"]),
+            headers={
+                "Content-Disposition": "inline",
+                "Content-Length": str(preview["content_length"]),
+                "ETag": f'"{preview["content_checksum"]}"',
+                "X-CV-Version-ID": cv_version_id,
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
     @app.post("/runs/{run_id}/jobs/{run_job_id}/cvs/actions/regenerate")
     def regenerate_canonical_cv(
         run_id: str,
@@ -11454,6 +11502,91 @@ def create_app(
     @app.get("/settings")
     def get_settings_view() -> dict:
         return load_active_settings()
+
+    def _personalization_resource() -> dict[str, Any]:
+        config = load_config()
+        policy = config["decision_learning_policy"]
+        domain_id = str(policy["domain_id"])
+        active = load_active_settings()
+        ranking_mode = str(active.get("preference_optimization.ranking_mode", "baseline"))
+        strength_entry = next(
+            entry for entry in SETTINGS_SCHEMA
+            if entry["key"] == "preference_optimization.personalization_strength"
+        )
+        strength = float(
+            active.get(
+                "preference_optimization.personalization_strength",
+                strength_entry["default"],
+            )
+        )
+        provenance = current_activation_provenance(
+            {"domain_id": domain_id}, config, personalization_strength=strength
+        )
+        compatible = _resolve_run_store().resolve_active_ranking_policy(
+            domain_id, provenance["current_runtime_contract_fingerprint"]
+        )
+        active = load_active_settings()
+        ranking_mode = str(active.get("preference_optimization.ranking_mode", "baseline"))
+        strength = float(
+            active.get(
+                "preference_optimization.personalization_strength",
+                strength_entry["default"],
+            )
+        )
+        fallback = ranking_mode == "personalized" and compatible is None
+        return {
+            "ranking_mode": ranking_mode,
+            "effective_ranking_mode": "baseline" if fallback else ranking_mode,
+            "personalization_strength": strength,
+            "baseline_fallback": fallback,
+            "active_policy_id": (
+                str(compatible["policy_snapshot_id"]) if compatible is not None else None
+            ),
+            "revision": settings_revision(active),
+            "bounds": {
+                "minimum": float(strength_entry["min"]),
+                "maximum": float(strength_entry["max"]),
+                "step": float(strength_entry["step"]),
+            },
+            "updated_at": None,
+        }
+
+    @app.get("/personalization")
+    def get_personalization(response: Response) -> dict[str, Any]:
+        resource = _personalization_resource()
+        response.headers["ETag"] = f'"{resource["revision"]}"'
+        return _data_response(resource)
+
+    @app.patch("/personalization")
+    def patch_personalization(
+        body: PersonalizationPatchRequest, response: Response
+    ) -> dict[str, Any]:
+        changes = {"preference_optimization.ranking_mode": body.ranking_mode}
+        if body.personalization_strength is not None:
+            changes["preference_optimization.personalization_strength"] = body.personalization_strength
+        try:
+            mutate_settings_atomically(
+                changes=changes,
+                updated_by=body.updated_by,
+                expected_revision=body.expected_revision,
+            )
+        except SettingsRevisionConflict as exc:
+            raise ApiError(
+                409,
+                "personalization_revision_conflict",
+                "Personalization changed since last read.",
+                action="Reload Personalization and retry.",
+            ) from exc
+        except ValidationError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                str(exc),
+                action="Review Personalization values and retry.",
+            ) from exc
+        resource = _personalization_resource()
+        response.headers["ETag"] = f'"{resource["revision"]}"'
+        return _data_response(resource)
 
     @app.get("/settings/pipeline")
     def get_pipeline_settings(response: Response) -> dict:
