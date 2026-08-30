@@ -507,7 +507,7 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 - Branch: `main`
 - Base commit: `e98ce80df2f5a73ae88a2815af62143256aec8da`
 - Expected workspace: `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT`
-- Next action: activate Task 3 as next dependency-ready slice; Tasks 1–2 are accepted
+- Next action: dispatch Task 3 implementation lane from accepted Task 1 base
 - Blockers: none
 - Preserved pre-existing changes: user-owned `.gitignore` modification in lead workspace; preserved and excluded from task lane.
 
@@ -517,7 +517,7 @@ Before activation, lead controller records one durable lane entry per task in th
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-1` | codex | none | build, host, browser, package | accepted at `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30`; frontend bootstrap/typecheck/unit/a11y/build passed; browser preview shell/theme/deep-link proof passed; 534 backend/host regression tests passed; foundation fallback kept under `frontend/src/app/**` |
 | Task 2 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-2` | codex | Task 1 | lifecycle API and browser journey | accepted at `24ad1bfda7c227cd70b66faa0464c511c7648a6e`; frontend typecheck passed; Vitest `34 passed`; a11y `1 passed`; Vite build passed; candidate pytest `210 passed, 1 skipped`; focused app tests `26 passed`; Playwright `3 passed`; `git diff --check` passed; independent Herdr `review` returned `PASS`; lane clean |
-| Task 3 | pending | activation-assigned isolated worktree | codex | Task 1 | scan API and browser journey | pending |
+| Task 3 | active | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-3` | codex | Task 1 | scan API and browser journey | activated at base `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30`; dispatch pending |
 | Task 4 | pending | activation-assigned isolated worktree | codex | Tasks 1–3 | run API and recovery browser journey | pending |
 | Task 5 | pending | activation-assigned isolated worktree | codex | Task 4 | decision API and browser journey | pending |
 | Task 6 | pending | activation-assigned isolated worktree | codex | Task 5 | artifact API and safe preview browser journey | pending |
@@ -530,7 +530,7 @@ Before activation, lead controller records one durable lane entry per task in th
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | completed | `codex/fitcv-task-1` | `e98ce80df2f5a73ae88a2815af62143256aec8da` / `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` | Task 1 Modify paths | `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` | npm ci with pinned Node/npm; frontend typecheck, Vitest, a11y, Vite build; browser preview `/app/#/overview`, navigation, title, light/dark toggle; `pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_setup.py tests/test_fitcv_cp/test_frontend_host.py` = 534 passed; `python -m compileall -q src`; `git diff --check`; post-proof ownership correction moved overview fallback into `frontend/src/app/**` and reran frontend checks | source for Tasks 2–8 | Task 1 accepted; select Task 2 or Task 3 |
 | Task 2 | completed | `codex/fitcv-task-2` | `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` / `24ad1bfda7c227cd70b66faa0464c511c7648a6e` | `frontend/src/features/candidate-profile/**`, focused frontend tests; backend only for proven canonical contract delta | `24ad1bfda7c227cd70b66faa0464c511c7648a6e` | frontend typecheck; Vitest `34 passed`; a11y `1 passed`; Vite build; candidate pytest `210 passed, 1 skipped`; focused app tests `26 passed`; Playwright `3 passed`; `git diff --check`; independent Herdr `review` `PASS`; clean lane | source for Task 4 | Task 2 accepted; activate Task 3 |
-| Task 3 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 3 Modify paths | pending | pending | source for Task 4 | record after Task 1 |
+| Task 3 | active | `codex/fitcv-task-3` | `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` / `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` | `frontend/src/features/scans/**`, `frontend/src/features/scans/route.tsx`, `frontend/src/features/scans/run-source-selection.tsx`, focused frontend tests; backend only for proven contract delta | pending | activation identity verified; proof pending | source for Task 4 | dispatch bounded `ui` executor |
 | Task 4 | activation-assigned | activation-assigned | Tasks 2–3 accepted / pending | Task 4 Modify paths | pending | pending | source for Task 5 | record after Tasks 2–3 |
 | Task 5 | activation-assigned | activation-assigned | Task 4 accepted / pending | Task 5 Modify paths | pending | pending | source for Task 6/8 | record after Task 4 |
 | Task 6 | activation-assigned | activation-assigned | Task 5 accepted / pending | Task 6 Modify paths | pending | pending | source for Task 8 | record after Task 5 |
