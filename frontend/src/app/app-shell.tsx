@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   discoverFeatureRoutes,
   matchRoute,
@@ -28,6 +28,9 @@ export const AppShell: React.FC = () => {
   });
   const [notifications, setNotifications] = useState<TransientNotification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notificationButtonRef = useRef<HTMLButtonElement>(null);
+  const notificationPanelRef = useRef<HTMLDivElement>(null);
+  const notificationWasOpen = useRef(false);
 
   // Sync hash routing
   useEffect(() => {
@@ -69,6 +72,55 @@ export const AppShell: React.FC = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isMobileMenuOpen, isNotifOpen]);
+
+  useEffect(() => {
+    if (!isNotifOpen) {
+      if (notificationWasOpen.current) notificationButtonRef.current?.focus();
+      notificationWasOpen.current = false;
+      return;
+    }
+
+    notificationWasOpen.current = true;
+    const panel = notificationPanelRef.current;
+    if (!panel) return;
+
+    const focusable = () =>
+      Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          "button, a[href], [tabindex]:not([tabindex='-1'])"
+        )
+      );
+    focusable()[0]?.focus();
+
+    const handleTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!panel.contains(target) && !notificationButtonRef.current?.contains(target)) {
+        setIsNotifOpen(false);
+      }
+    };
+
+    panel.addEventListener("keydown", handleTab);
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      panel.removeEventListener("keydown", handleTab);
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isNotifOpen]);
 
   const activeRoute = matchRoute(currentHash, routes);
   const ActiveComponent = activeRoute.component;
@@ -178,6 +230,7 @@ export const AppShell: React.FC = () => {
               <Button
                 variant="icon"
                 className="notification-bell-btn"
+                ref={notificationButtonRef}
                 aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
                 aria-expanded={isNotifOpen}
                 onClick={() => setIsNotifOpen((prev) => !prev)}
@@ -201,9 +254,11 @@ export const AppShell: React.FC = () => {
 
               {isNotifOpen && (
                 <div
+                  ref={notificationPanelRef}
                   className="notification-dropdown dropdown-panel"
-                  role="region"
+                  role="dialog"
                   aria-label="Notifications panel"
+                  aria-modal="false"
                   style={{
                     position: "absolute",
                     right: 0,

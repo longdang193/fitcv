@@ -113,6 +113,16 @@ describe("transient notifications store", () => {
     expect(store.getNotifications()).toHaveLength(1);
     expect(store.getNotifications()[0].href).toBe("#/runs");
 
+    const unsafe = store.notify({
+      dedupe: "unsafe",
+      type: "error",
+      title: "Unsafe",
+      actionLabel: "Open",
+      href: "javascript:alert(1)",
+    });
+    expect(unsafe.href).toBeUndefined();
+    expect(unsafe.actionLabel).toBeUndefined();
+
     store.notify({
       dedupe: "callback-only",
       type: "info",

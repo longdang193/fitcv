@@ -68,19 +68,31 @@ type NotificationListener = (notifications: TransientNotification[]) => void;
 
 const STORAGE_KEY = "fitcv:session_notifications:v1";
 
+function isSafeHref(href: unknown): href is string {
+  return (
+    typeof href === "string" &&
+    (href.startsWith("#/") || href.startsWith("/app/#/"))
+  );
+}
+
 function isNotification(value: unknown): value is TransientNotification {
   if (!value || typeof value !== "object") return false;
   const notification = value as Partial<TransientNotification>;
   return (
-    typeof notification.id === "string" &&
-    typeof notification.dedupeKey === "string" &&
-    typeof notification.title === "string" &&
+    typeof notification.id === "string" && notification.id.trim().length > 0 &&
+    typeof notification.dedupeKey === "string" && notification.dedupeKey.trim().length > 0 &&
+    typeof notification.title === "string" && notification.title.trim().length > 0 &&
     ["info", "success", "warning", "error"].includes(notification.type as string) &&
     typeof notification.read === "boolean" &&
-    typeof notification.createdAt === "number" &&
+    typeof notification.createdAt === "number" && Number.isFinite(notification.createdAt) &&
     (notification.message === undefined || typeof notification.message === "string") &&
-    (notification.actionLabel === undefined || typeof notification.actionLabel === "string") &&
-    (notification.href === undefined || typeof notification.href === "string")
+    (notification.actionLabel === undefined ||
+      (typeof notification.actionLabel === "string" &&
+        notification.actionLabel.trim().length > 0 &&
+        isSafeHref(notification.href))) &&
+    (notification.href === undefined || isSafeHref(notification.href)) &&
+    (notification.sourceType === undefined || typeof notification.sourceType === "string") &&
+    (notification.sourceId === undefined || typeof notification.sourceId === "string")
   );
 }
 
@@ -100,7 +112,7 @@ export class TransientNotificationStore {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          this.notifications = parsed.filter(isNotification);
+          this.notifications = parsed.filter(isNotification).slice(0, 50);
           const maxId = this.notifications.reduce((acc, n) => {
             const num = parseInt(String(n.id).replace(/[^0-9]/g, ""), 10);
             return isNaN(num) ? acc : Math.max(acc, num);
@@ -138,6 +150,10 @@ export class TransientNotificationStore {
     href?: string;
   }): TransientNotification {
     const dedupeKey = buildDedupeKey(options.dedupe);
+    const safeHref = isSafeHref(options.href) ? options.href : undefined;
+    const actionLabel = options.actionLabel && (safeHref || options.onAction)
+      ? options.actionLabel
+      : undefined;
     const existingIndex = this.notifications.findIndex((n) => n.dedupeKey === dedupeKey);
 
     if (existingIndex >= 0) {
@@ -150,11 +166,11 @@ export class TransientNotificationStore {
         message: options.message,
         read: false,
         createdAt: Date.now(),
-        actionLabel: options.actionLabel,
+        actionLabel,
         onAction: options.onAction,
         sourceType: options.sourceType,
         sourceId: options.sourceId,
-        href: options.href,
+        href: safeHref,
       };
       this.notifications[existingIndex] = updated;
       this.saveToSessionStorage();
@@ -170,11 +186,11 @@ export class TransientNotificationStore {
       message: options.message,
       read: false,
       createdAt: Date.now(),
-      actionLabel: options.actionLabel,
+      actionLabel,
       onAction: options.onAction,
       sourceType: options.sourceType,
       sourceId: options.sourceId,
-      href: options.href,
+      href: safeHref,
     };
 
     this.notifications.unshift(notification);

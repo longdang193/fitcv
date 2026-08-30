@@ -24,38 +24,34 @@ export function discoverFeatureRoutes(): FeatureRoute[] {
   const discovered: FeatureRoute[] = [...fallbackRoutes];
   const knownIds = new Set(discovered.map((r) => r.id));
 
-  try {
-    const modules: Record<string, unknown> = import.meta.glob("../features/**/route.tsx", {
-      eager: true,
-    });
+  const modules: Record<string, unknown> = import.meta.glob("../features/**/route.tsx", {
+    eager: true,
+  });
 
-    for (const [, untypedMod] of Object.entries(modules)) {
-      const mod = untypedMod as RouteModule;
-      let routeObj: FeatureRoute | undefined;
+  for (const [, untypedMod] of Object.entries(modules)) {
+    const mod = untypedMod as RouteModule;
+    let routeObj: FeatureRoute | undefined;
 
-      if (mod.route && typeof mod.route === "object" && mod.route.id) {
-        routeObj = mod.route;
-      } else if (
-        mod.default &&
-        typeof mod.default === "object" &&
-        "id" in mod.default &&
-        (mod.default as FeatureRoute).id
-      ) {
-        routeObj = mod.default as FeatureRoute;
-      }
+    if (mod.route && typeof mod.route === "object" && mod.route.id) {
+      routeObj = mod.route;
+    } else if (
+      mod.default &&
+      typeof mod.default === "object" &&
+      "id" in mod.default &&
+      (mod.default as FeatureRoute).id
+    ) {
+      routeObj = mod.default as FeatureRoute;
+    }
 
-      if (routeObj) {
-        if (knownIds.has(routeObj.id)) {
-          const idx = discovered.findIndex((r) => r.id === routeObj!.id);
-          discovered[idx] = routeObj;
-        } else {
-          discovered.push(routeObj);
-          knownIds.add(routeObj.id);
-        }
+    if (routeObj) {
+      if (knownIds.has(routeObj.id)) {
+        const idx = discovered.findIndex((r) => r.id === routeObj!.id);
+        discovered[idx] = routeObj;
+      } else {
+        discovered.push(routeObj);
+        knownIds.add(routeObj.id);
       }
     }
-  } catch (error) {
-    console.error("Failed to discover feature routes.", error);
   }
 
   return discovered.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
