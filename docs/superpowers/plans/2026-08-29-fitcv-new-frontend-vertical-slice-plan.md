@@ -215,15 +215,15 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 - Stop for: stack change beyond React/Vite/TypeScript, route contract change, legacy template modification, destructive cleanup, or any dependency outside the exact locked set.
 
 **Steps:**
-- [ ] Create minimal frontend package and manifests with exact pins `react@19.1.1`, `react-dom@19.1.1`, `@types/react@19.1.10`, `@types/react-dom@19.1.7`, `vite@7.1.3`, `@vitejs/plugin-react@5.0.2`, `typescript@5.9.2`, `vitest@3.2.4`, and `@playwright/test@1.55.0`; set `engines.node` to `24.15.0` and `packageManager` to `npm@11.13.0`; require `node --version` to return `v24.15.0` and `npm --version` to return `11.13.0`, blocking on mismatch before any install; then run `npm install --package-lock-only --ignore-scripts` to generate `frontend/package-lock.json`, followed by `npm ci`; define `frontend/vitest.config.ts`, `frontend/playwright.config.ts`, `npm run typecheck`, `npm run test`, `npm run test:e2e`, `npm run test:a11y`, and `npm run build`; bind production tokens through one CSS entry and semantic component contracts.
-- [ ] Implement API client with same-origin credentials, CSRF handling, standard error envelope, idempotency-key retention, ETag/CAS support, safe file/download handling, and no secret persistence.
-- [ ] Implement shell, grouped navigation, hash/deep-link routing, responsive drawer/scrim, shared Button/Field/Dialog/Tabs/Status/Table/Navigation, loading/empty/error/success states, focus lifecycle, and reduced-motion behavior; define `frontend/src/app/route-registry.ts` with Vite-discovered feature route modules so feature tasks do not edit shared registration files.
-- [ ] Resolve source-tree assets from `frontend/dist/` and frozen assets from `_MEIPASS/frontend/`; mount `/app/assets/*`, serve `/app` and `/app/*` SPA entry only for non-API paths, redirect local `/` to `/app`, preserve `/admin/*`, update PyInstaller destination mapping to `frontend`, update build inputs, and add host/package contract tests.
+- [x] Create minimal frontend package and manifests with exact pins `react@19.1.1`, `react-dom@19.1.1`, `@types/react@19.1.10`, `@types/react-dom@19.1.7`, `vite@7.1.3`, `@vitejs/plugin-react@5.0.2`, `typescript@5.9.2`, `vitest@3.2.4`, and `@playwright/test@1.55.0`; set `engines.node` to `24.15.0` and `packageManager` to `npm@11.13.0`; require `node --version` to return `v24.15.0` and `npm --version` to return `11.13.0`, blocking on mismatch before any install; then run `npm install --package-lock-only --ignore-scripts` to generate `frontend/package-lock.json`, followed by `npm ci`; define `frontend/vitest.config.ts`, `frontend/playwright.config.ts`, `npm run typecheck`, `npm run test`, `npm run test:e2e`, `npm run test:a11y`, and `npm run build`; bind production tokens through one CSS entry and semantic component contracts.
+- [x] Implement API client with same-origin credentials, CSRF handling, standard error envelope, idempotency-key retention, ETag/CAS support, safe file/download handling, and no secret persistence.
+- [x] Implement shell, grouped navigation, hash/deep-link routing, responsive drawer/scrim, shared Button/Field/Dialog/Tabs/Status/Table/Navigation, loading/empty/error/success states, focus lifecycle, and reduced-motion behavior; define `frontend/src/app/route-registry.ts` with Vite-discovered feature route modules so feature tasks do not edit shared registration files.
+- [x] Resolve source-tree assets from `frontend/dist/` and frozen assets from `_MEIPASS/frontend/`; mount `/app/assets/*`, serve `/app` and `/app/*` SPA entry only for non-API paths, redirect local `/` to `/app`, preserve `/admin/*`, update PyInstaller destination mapping to `frontend`, update build inputs, and add host/package contract tests.
 
 **Verification:**
-- [ ] `npm ci`, `npm run typecheck`, `npm run test`, `npm run test:e2e`, `npm run test:a11y`, and `npm run build` from `frontend/`; Expected: lockfile-backed dependency install, state/browser/accessibility checks, typecheck, and no build errors.
-- [ ] Focused host tests; Expected: `/app` entry/assets/deep-link work before readiness, API paths are not swallowed, `/admin/*` remains reachable, unsafe local requests retain existing protection.
-- [ ] Browser proof on desktop/mobile and light/dark; Expected: no overflow, visible focus, keyboard/Escape/focus return, no uncaught console errors, expected API/network requests only.
+- [x] `npm ci`, `npm run typecheck`, `npm run test`, `npm run test:e2e`, `npm run test:a11y`, and `npm run build` from `frontend/`; Expected: lockfile-backed dependency install, state/browser/accessibility checks, typecheck, and no build errors.
+- [x] Focused host tests; Expected: `/app` entry/assets/deep-link work before readiness, API paths are not swallowed, `/admin/*` remains reachable, unsafe local requests retain existing protection.
+- [x] Browser proof on desktop/mobile and light/dark; Expected: no overflow, visible focus, keyboard/Escape/focus return, no uncaught console errors, expected API/network requests only.
 
 **Exit Criteria:** New app launches in local mode, Slice 1 acceptance passes, packaged static assets are present, and no legacy implementation is imported or modified.
 
@@ -255,14 +255,14 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 **Authority:** Preauthorized declared frontend and focused test edits; stop for schema/lifecycle changes not covered by active spec or source/tests.
 
 **Steps:**
-- [ ] Load field schema and attempt resource before rendering stage; follow server `next_action` and capabilities.
-- [ ] Implement staged upload/polling, baseline/derived review, source references, ordered local operation queue, flush/approval sequencing, conflict handling, retry, and discard.
-- [ ] Implement catalog/detail and revision-safe archive/restore/delete; expose only server-permitted Run selection.
+- [x] Load field schema and attempt resource before rendering stage; follow server `next_action` and capabilities.
+- [x] Implement staged upload/polling, baseline/derived review, source references, ordered local operation queue, flush/approval sequencing, conflict handling, retry, and discard.
+- [x] Implement catalog/detail and revision-safe archive/restore/delete; expose only server-permitted Run selection.
 
 **Verification:**
-- [ ] Frontend state tests for polling, CAS/fingerprint conflict, batching, retry, and capability gating.
-- [ ] Existing direct API/store suites; Expected: no regression and canonical revisions/snapshots remain immutable.
-- [ ] Playwright upload → review → confirm → catalog → archive/restore; Expected: refresh/deep-link and keyboard/focus paths pass.
+- [x] Frontend state tests for polling, CAS/fingerprint conflict, batching, retry, and capability gating.
+- [x] Existing direct API/store suites; Expected: no regression and canonical revisions/snapshots remain immutable.
+- [x] Playwright upload → review → confirm → catalog → archive/restore; Expected: refresh/deep-link and keyboard/focus paths pass.
 
 **Exit Criteria:** Profile slice acceptance passes with direct backend evidence and browser evidence.
 
@@ -507,7 +507,7 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 - Branch: `main`
 - Base commit: `e98ce80df2f5a73ae88a2815af62143256aec8da`
 - Expected workspace: `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT`
-- Next action: select Task 2 or Task 3 as next dependency-ready slice; Task 1 is accepted
+- Next action: activate Task 3 as next dependency-ready slice; Tasks 1–2 are accepted
 - Blockers: none
 - Preserved pre-existing changes: user-owned `.gitignore` modification in lead workspace; preserved and excluded from task lane.
 
@@ -516,7 +516,7 @@ Before activation, lead controller records one durable lane entry per task in th
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-1` | codex | none | build, host, browser, package | accepted at `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30`; frontend bootstrap/typecheck/unit/a11y/build passed; browser preview shell/theme/deep-link proof passed; 534 backend/host regression tests passed; foundation fallback kept under `frontend/src/app/**` |
-| Task 2 | active | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-2` | codex | Task 1 | lifecycle API and browser journey | review `FAIL`; P1/P2 fixes routed to fresh `ui` execution at `3d99cb67ea597071cdcb981655e17c5b8c565fee` |
+| Task 2 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-2` | codex | Task 1 | lifecycle API and browser journey | accepted at `24ad1bfda7c227cd70b66faa0464c511c7648a6e`; frontend typecheck passed; Vitest `34 passed`; a11y `1 passed`; Vite build passed; candidate pytest `210 passed, 1 skipped`; focused app tests `26 passed`; Playwright `3 passed`; `git diff --check` passed; independent Herdr `review` returned `PASS`; lane clean |
 | Task 3 | pending | activation-assigned isolated worktree | codex | Task 1 | scan API and browser journey | pending |
 | Task 4 | pending | activation-assigned isolated worktree | codex | Tasks 1–3 | run API and recovery browser journey | pending |
 | Task 5 | pending | activation-assigned isolated worktree | codex | Task 4 | decision API and browser journey | pending |
@@ -529,7 +529,7 @@ Before activation, lead controller records one durable lane entry per task in th
 | Task | Branch | Worktree | Base / HEAD | Allowed Paths | Checkpoint | Accepted Proof | Fan-in | Blocker / Next Action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | completed | `codex/fitcv-task-1` | `e98ce80df2f5a73ae88a2815af62143256aec8da` / `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` | Task 1 Modify paths | `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` | npm ci with pinned Node/npm; frontend typecheck, Vitest, a11y, Vite build; browser preview `/app/#/overview`, navigation, title, light/dark toggle; `pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_setup.py tests/test_fitcv_cp/test_frontend_host.py` = 534 passed; `python -m compileall -q src`; `git diff --check`; post-proof ownership correction moved overview fallback into `frontend/src/app/**` and reran frontend checks | source for Tasks 2–8 | Task 1 accepted; select Task 2 or Task 3 |
-| Task 2 | active | `codex/fitcv-task-2` | `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` / `3d99cb67ea597071cdcb981655e17c5b8c565fee` | `frontend/src/features/candidate-profile/**`, focused frontend tests; backend only for proven canonical contract delta | pending | review `FAIL`: static lifecycle placeholders, multipart boundary header, route discovery/detail ID/dialog/test proof gaps; no files modified by reviewer | source for Task 4 | fresh `ui` fix lane on same branch/head; re-review after proof |
+| Task 2 | completed | `codex/fitcv-task-2` | `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` / `24ad1bfda7c227cd70b66faa0464c511c7648a6e` | `frontend/src/features/candidate-profile/**`, focused frontend tests; backend only for proven canonical contract delta | `24ad1bfda7c227cd70b66faa0464c511c7648a6e` | frontend typecheck; Vitest `34 passed`; a11y `1 passed`; Vite build; candidate pytest `210 passed, 1 skipped`; focused app tests `26 passed`; Playwright `3 passed`; `git diff --check`; independent Herdr `review` `PASS`; clean lane | source for Task 4 | Task 2 accepted; activate Task 3 |
 | Task 3 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 3 Modify paths | pending | pending | source for Task 4 | record after Task 1 |
 | Task 4 | activation-assigned | activation-assigned | Tasks 2–3 accepted / pending | Task 4 Modify paths | pending | pending | source for Task 5 | record after Tasks 2–3 |
 | Task 5 | activation-assigned | activation-assigned | Task 4 accepted / pending | Task 5 Modify paths | pending | pending | source for Task 6/8 | record after Task 4 |
