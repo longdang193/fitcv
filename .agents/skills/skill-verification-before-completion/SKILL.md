@@ -97,6 +97,10 @@ Use existing planning and template validators when planning artifacts changed. D
 
 ### 4. Map Claims To Evidence
 
+For material frontend work, reconcile every applicable evidence class selected
+under `docs/operating_system/rules/frontend-ui-rule.md`. Provider identity is
+irrelevant; evidence must prove the class-specific claim.
+
 | Claim | Minimum evidence |
 |---|---|
 | bug fixed | original reproduction or regression test passes |
@@ -111,7 +115,7 @@ Use existing planning and template validators when planning artifacts changed. D
 | performance improved | identical before/after workload and environment, named metric, variance or tail evidence, and correctness checks |
 | performance budget met | fresh configured benchmark, budget, or monitoring evidence passes |
 | backend behavior complete | direct backend boundary, important business/failure paths, final state or side effects, fresh automated output, plus contract, real-dependency, representative-operation trace, or performance proof when applicable |
-| frontend verification complete | applicable rendered or browser evidence, affected states, keyboard and focus behavior, accessibility, responsive containers, themes, and console result |
+| frontend verification complete | all applicable frontend evidence classes reconciled with fresh class-appropriate proof; include affected states, keyboard and focus behavior, accessibility, responsive containers, themes, and console result when applicable |
 | end-to-end journey complete | cross-boundary journey evidence covering setup, user actions, transport, visible result, failure or retry behavior, and relevant navigation state |
 | frontend/backend integration complete | backend behavior evidence, canonical contract check when applicable, focused frontend tests, verified browser flow, and fulfilled sidecar removed or narrowed to an explicit blocker |
 

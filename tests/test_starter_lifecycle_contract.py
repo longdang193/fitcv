@@ -255,6 +255,10 @@ def test_frontend_export_boundary_stays_provider_agnostic() -> None:
 
     assert "Curate generated design exports" in frontend
     assert "surface the conflict for reconciliation" in frontend
+    assert "evidence classes" in frontend.lower()
+    assert "cannot substitute" in frontend.lower()
+    assert "runtime-tool-resolution.md" in frontend
+    assert "performance or web-quality claims when required" in frontend
     assert "OpenDesign" not in frontend
     assert "combo-ui" not in frontend
 
@@ -276,6 +280,8 @@ def test_review_and_evidence_language_stays_conditional() -> None:
     assert "**Review verdict:** [PASS | FAIL | BLOCKED]" in reviewer
     assert "Ready to merge?" not in reviewer
     assert "frontend verification complete" in verification
+    assert "every applicable evidence class" in verification
+    assert "frontend-ui-rule.md" in verification
     assert "end-to-end journey complete" in verification
     assert "direct backend" in verification
 

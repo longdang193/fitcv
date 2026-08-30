@@ -44,6 +44,9 @@ def test_runtime_policy_assigns_ownership_and_preserves_evidence() -> None:
     assert "blocked` or `incomplete`" in policy
     assert "data/trust boundary" in policy
     assert "Do not install, connect, authenticate, or widen data access" in policy
+    assert "provider catalog" in policy.lower()
+    assert "authority boundary" in policy
+    assert "evidence requirement" in policy
     assert "capability registry" not in policy.lower()
 
 

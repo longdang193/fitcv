@@ -58,7 +58,6 @@ tmp/fitcv-local-*/
 
 # Canonical artifacts maintained in project-OS-starter
 /.agents/
-/agents/
 /docs/operating_system/
 /AGENTS.md
 /CLAUDE.md
