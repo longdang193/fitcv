@@ -54,7 +54,7 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Branch: `main`
 - Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
-- Next action: complete Task 1 evidence reconciliation
+- Next action: complete Task 2 journey coverage reconciliation
 - Blockers: none at drafting
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Final source under review: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`; changes only if approved bounded correction occurs
@@ -75,8 +75,8 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `active` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | in progress; activation baseline recorded |
-| Task 2 | `pending` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | pending |
+| Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | accepted with one incomplete live personalization claim; matrix below |
+| Task 2 | `active` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | in progress |
 | Task 3 | `pending` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | pending |
 | Task 4 | `pending` | `.worktrees/fitcv-closure-review` | `codex` | Tasks 1–3 | independent `PASS`, `FAIL`, or `BLOCKED` review bound to final source SHA | pending
 | Task 5 | `pending` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | pending |
@@ -123,20 +123,31 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 - Stop for: source/spec conflict, baseline drift, missing canonical owner, or any requested product change.
 
 **Steps:**
-- [ ] Capture activation baseline and confirm workspace identity.
-- [ ] Classify each applicable evidence class as `ALREADY PROVEN`, `MISSING PROOF`, or `NOT APPLICABLE`.
-- [ ] Reconcile affected backend/API proof without treating browser evidence as backend proof.
-- [ ] Record one matrix row per claim with `claim`, `canonical owner`, `evidence source/command`, `result`, `evidence source commit`, `freshness`, `disposition`, and `missing proof`.
+- [x] Capture activation baseline and confirm workspace identity.
+- [x] Classify each applicable evidence class as `ALREADY PROVEN`, `MISSING PROOF`, or `NOT APPLICABLE`.
+- [x] Reconcile affected backend/API proof without treating browser evidence as backend proof.
+- [x] Record one matrix row per claim with `claim`, `canonical owner`, `evidence source/command`, `result`, `evidence source commit`, `freshness`, `disposition`, and `missing proof`.
 
 **Verification:**
-- [ ] `python scripts/validate_template_required_sections.py --repo-root .`
-- [ ] `python scripts/validate_planning_lifecycle.py --repo-root .`
-- [ ] `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_setup.py tests/test_fitcv_cp/test_frontend_host.py`
-- [ ] From `frontend/`: `npm run typecheck`, `npm run test`, `npm run test:a11y`, and `npm run build`; run `npm run test:e2e` only when an already-healthy browser runtime is available and record that runtime with the evidence.
+- [x] `python scripts/validate_template_required_sections.py --repo-root .`
+- [x] `python scripts/validate_planning_lifecycle.py --repo-root .`
+- [x] `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_setup.py tests/test_fitcv_cp/test_frontend_host.py`
+- [x] From `frontend/`: `npm run typecheck`, `npm run test`, `npm run test:a11y`, and `npm run build`; run `npm run test:e2e` only when an already-healthy browser runtime is available and record that runtime with the evidence.
 - Expected: every Stage 11 claim has explicit disposition and SHA-bound evidence.
 
 **Exit Criteria:**
 - Stage 11 is `SATISFIED`, or exact missing/blocked claims are recorded. No generic PASS replaces the matrix.
+
+**Stage 11 Evidence Matrix:**
+
+| Claim | Canonical owner | Evidence source/command | Result | Evidence source commit | Freshness | Disposition | Missing proof |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Frontend type safety and unit/state coverage | `frontend/` and frontend tests | `npm run typecheck`; `npm run test` from `frontend/` | typecheck passed; `96 passed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | none |
+| Frontend accessibility coverage | `frontend/src/test/a11y.test.ts` | `npm run test:a11y` from `frontend/` | `1 passed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | browser accessibility states remain covered only by E2E scope below |
+| Frontend production build | `frontend/` and `src/fitcv_cp/app.py` host | `npm run build` from `frontend/` | Vite build passed; `94 modules transformed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | packaged-resource proof not rerun |
+| Backend/API focused boundaries and local host | `src/fitcv_cp/app.py`, `src/fitcv_cp/local_routes.py`, `src/fitcv_cp/local_app.py` | focused pytest command in Task 1; `python -m compileall -q src` | `534 passed`; compile passed | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | live provider/data-dependent paths not covered by focused suite |
+| Planning and artifact integrity | planning scripts and Git | both planning validators; `git diff --check` | all passed | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | none |
+| Browser shell and route journeys | `/app` frontend host and E2E specs | `npm run test:e2e` against healthy `http://127.0.0.1:8000` (`/healthz` returned `{"status":"ok"}`) | `11 passed`, `1 failed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `INCOMPLETE` | `GET /personalization` returns `500 Internal Server Error`; page remains loading and integration route assertion fails |
 
 ### Task 2: Reconcile Stage 12 journey coverage
 
