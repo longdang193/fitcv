@@ -3,6 +3,8 @@ import {
   CvVersionResource,
   CvPreviewResult,
   CvRegenerateResponseData,
+  CvReviewDecisionPayload,
+  CvReviewMutationResult,
 } from "./types";
 
 /**
@@ -128,4 +130,35 @@ export async function regenerateCvVersion(
     return (payload as any).data;
   }
   return payload as CvRegenerateResponseData;
+}
+
+/**
+ * Submit review decision and notes for a CV version with CAS ETag support.
+ * Preserves and returns updated ETag for optimistic concurrency.
+ */
+export async function submitCvReviewDecision(
+  runId: string,
+  runJobId: string,
+  versionId: string,
+  decision: CvReviewDecisionPayload,
+  ifMatch?: string | null
+): Promise<CvReviewMutationResult> {
+  const options: Record<string, any> = {};
+  if (ifMatch) {
+    options.ifMatch = ifMatch;
+  }
+  const res = await apiClient.post<{ data: CvVersionResource } | CvVersionResource>(
+    `/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(runJobId)}/cvs/${encodeURIComponent(versionId)}/review`,
+    decision,
+    options
+  );
+  const payload = res.data;
+  const version = (payload && typeof payload === "object" && "data" in payload)
+    ? (payload as any).data
+    : payload;
+  const returnedEtag = res.etag || (version as any)?.content_checksum || ifMatch || null;
+  return {
+    version: version as CvVersionResource,
+    etag: returnedEtag,
+  };
 }

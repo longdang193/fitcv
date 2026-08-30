@@ -8,6 +8,7 @@ export interface CvEvaluationData {
   weaknesses?: string[];
   recommendation?: string;
   evaluator_id?: string;
+  notes?: string;
   is_current?: boolean | number;
   created_at?: string;
   [key: string]: unknown;
@@ -38,6 +39,7 @@ export interface CvVersionResource {
   evaluation?: CvEvaluationData | null;
   review_state: string;
   capabilities: CvCapabilities;
+  etag?: string | null;
   [key: string]: unknown;
 }
 
@@ -58,4 +60,14 @@ export interface CvRegenerateResponseData {
   status: "queued" | "failed" | string;
   queue_job_id?: string | null;
   cv_version?: CvVersionResource;
+}
+
+export interface CvReviewDecisionPayload {
+  review_state: string;
+  notes?: string;
+}
+
+export interface CvReviewMutationResult {
+  version: CvVersionResource;
+  etag?: string | null;
 }

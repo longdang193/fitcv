@@ -1,9 +1,12 @@
-import React from "react";
-import { CvVersionResource } from "../types";
-import { StatusBadge, StatusVariant } from "../../../components";
+import React, { useState, useEffect } from "react";
+import { CvVersionResource, CvReviewDecisionPayload } from "../types";
+import { StatusBadge, StatusVariant, Button } from "../../../components";
 
 export interface CvEvaluationCardProps {
   version: CvVersionResource | null;
+  runId?: string;
+  runJobId?: string;
+  onReviewSubmit?: (decision: CvReviewDecisionPayload, ifMatch?: string | null) => Promise<{ etag?: string | null }>;
 }
 
 function getReviewVariant(state: string): StatusVariant {
@@ -23,7 +26,25 @@ function getReviewVariant(state: string): StatusVariant {
   }
 }
 
-export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({ version }) => {
+export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({
+  version,
+  onReviewSubmit,
+}) => {
+  const [notes, setNotes] = useState<string>("");
+  const [currentEtag, setCurrentEtag] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // Reset / version-key notes and ETag state whenever selected version changes
+  useEffect(() => {
+    if (version) {
+      setNotes(version.evaluation?.notes || "");
+      setCurrentEtag(version.etag || version.content_checksum || null);
+    } else {
+      setNotes("");
+      setCurrentEtag(null);
+    }
+  }, [version?.version_id, version?.etag, version?.content_checksum]);
+
   if (!version) {
     return null;
   }
@@ -31,10 +52,28 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({ version }) =
   const evalData = version.evaluation;
   const reviewState = version.review_state || "none";
 
+  const handleDecision = async (newState: string) => {
+    if (!onReviewSubmit) return;
+    setSubmitting(true);
+    try {
+      const result = await onReviewSubmit(
+        { review_state: newState, notes },
+        currentEtag
+      );
+      // Preserve / update returned ETag for next CAS mutation
+      if (result?.etag) {
+        setCurrentEtag(result.etag);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <section
       className="cv-evaluation-card"
       aria-labelledby="cv-eval-title"
+      key={version.version_id}
       style={{
         border: "1px solid var(--border)",
         borderRadius: "var(--radius-lg)",
@@ -84,9 +123,9 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({ version }) =
                 <strong style={{ fontSize: 12, color: "var(--success)", display: "block", marginBottom: 4 }}>
                   Strengths ({evalData.strengths.length})
                 </strong>
-                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--text)" }}>
+                <ul className="cv-evaluation-list" style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--text)" }}>
                   {evalData.strengths.map((s, idx) => (
-                    <li key={idx}>{s}</li>
+                    <li key={`str-${idx}`}>{s}</li>
                   ))}
                 </ul>
               </div>
@@ -97,9 +136,9 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({ version }) =
                 <strong style={{ fontSize: 12, color: "var(--danger)", display: "block", marginBottom: 4 }}>
                   Weaknesses ({evalData.weaknesses.length})
                 </strong>
-                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--text)" }}>
+                <ul className="cv-evaluation-list" style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--text)" }}>
                   {evalData.weaknesses.map((w, idx) => (
-                    <li key={idx}>{w}</li>
+                    <li key={`weak-${idx}`}>{w}</li>
                   ))}
                 </ul>
               </div>
@@ -109,6 +148,51 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({ version }) =
       ) : (
         <div style={{ fontSize: 12, color: "var(--muted)" }}>
           No structured evaluation record attached to this CV version.
+        </div>
+      )}
+
+      {/* Interactive Review Decision & Notes */}
+      {onReviewSubmit && (
+        <div style={{ borderTop: "1px solid var(--border-soft)", paddingTop: 14, display: "grid", gap: 10 }}>
+          <label htmlFor={`cv-notes-${version.version_id}`} style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>
+            Review Notes (v{version.ordinal || 1})
+          </label>
+          <textarea
+            id={`cv-notes-${version.version_id}`}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Add reviewer notes or feedback for this CV version..."
+            rows={2}
+            className="field-input"
+            style={{ fontSize: 12, resize: "vertical" }}
+          />
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Button
+              variant="primary"
+              size="compact"
+              onClick={() => handleDecision("approved")}
+              disabled={submitting}
+            >
+              Approve CV
+            </Button>
+            <Button
+              variant="secondary"
+              size="compact"
+              onClick={() => handleDecision("stretch")}
+              disabled={submitting}
+            >
+              Mark Stretch
+            </Button>
+            <Button
+              variant="secondary"
+              size="compact"
+              onClick={() => handleDecision("rejected")}
+              disabled={submitting}
+            >
+              Reject CV
+            </Button>
+          </div>
         </div>
       )}
     </section>

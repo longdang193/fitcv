@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { CvVersionResource } from "./types";
-import { fetchCvVersions, regenerateCvVersion } from "./api";
+import { CvVersionResource, CvReviewDecisionPayload } from "./types";
+import { fetchCvVersions, regenerateCvVersion, submitCvReviewDecision } from "./api";
 import { CvVersionHistory } from "./components/CvVersionHistory";
 import { CvPreviewPane } from "./components/CvPreviewPane";
 import { CvEvaluationCard } from "./components/CvEvaluationCard";
@@ -167,6 +167,44 @@ export const CvReviewPage: React.FC = () => {
     await loadVersions(selectedRunId, selectedJobId);
   };
 
+  const handleReviewSubmit = async (
+    decision: CvReviewDecisionPayload,
+    ifMatch?: string | null
+  ): Promise<{ etag?: string | null }> => {
+    if (!selectedRunId || !selectedJobId || !selectedVersionId) {
+      return { etag: null };
+    }
+    const result = await submitCvReviewDecision(
+      selectedRunId,
+      selectedJobId,
+      selectedVersionId,
+      decision,
+      ifMatch
+    );
+    notificationStore.notify({
+      dedupe: `cv:review:${selectedVersionId}:${Date.now()}`,
+      type: "success",
+      title: "Review Updated",
+      message: `Set review state to ${decision.review_state}.`,
+    });
+    // Update local version review state and ETag
+    setVersions((prev) =>
+      prev.map((v) =>
+        v.version_id === selectedVersionId
+          ? {
+              ...v,
+              review_state: decision.review_state,
+              etag: result.etag || v.etag,
+              evaluation: v.evaluation
+                ? { ...v.evaluation, notes: decision.notes }
+                : { notes: decision.notes },
+            }
+          : v
+      )
+    );
+    return { etag: result.etag };
+  };
+
   const selectedVersion = versions.find((v) => v.version_id === selectedVersionId) || (versions.length > 0 ? versions[0] : null);
 
   return (
@@ -298,7 +336,7 @@ export const CvReviewPage: React.FC = () => {
         />
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 320px) minmax(0, 1fr)", gap: 20, alignItems: "start" }}>
-          {/* Left Column: Version History */}
+          {/* Left Column: Version History & Evaluation */}
           <div style={{ display: "grid", gap: 16 }}>
             <div className="table-card" style={{ padding: "16px 18px", background: "var(--surface)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -316,7 +354,12 @@ export const CvReviewPage: React.FC = () => {
             </div>
 
             {/* Evaluation & Review State */}
-            <CvEvaluationCard version={selectedVersion} />
+            <CvEvaluationCard
+              version={selectedVersion}
+              runId={selectedRunId}
+              runJobId={selectedJobId}
+              onReviewSubmit={handleReviewSubmit}
+            />
           </div>
 
           {/* Right Column: Selected Version Preview Pane */}

@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { route } from "./route";
-import { fetchCvVersions, fetchCvPreview, downloadCvVersion, regenerateCvVersion } from "./api";
+import {
+  fetchCvVersions,
+  fetchCvPreview,
+  downloadCvVersion,
+  regenerateCvVersion,
+  submitCvReviewDecision,
+} from "./api";
 
 describe("CV Review route and contracts", () => {
   beforeEach(() => {
@@ -141,5 +147,50 @@ describe("CV Review route and contracts", () => {
     const res = await regenerateCvVersion("run-1", "job-1", "cv-ver-1", "idem-key-1");
     expect(res.action_id).toBe("act-123");
     expect(res.status).toBe("queued");
+  });
+
+  it("preserves and updates returned ETag during review mutation with CAS If-Match", async () => {
+    let lastIfMatch: string | null = null;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, opts: any) => {
+      lastIfMatch = opts?.headers?.["If-Match"] || null;
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          "content-type": "application/json",
+          "etag": '"etag-updated-rev-2"',
+        }),
+        json: async () => ({
+          data: {
+            version_id: "cv-ver-1",
+            review_state: "approved",
+            content_checksum: "etag-updated-rev-2",
+          },
+        }),
+      };
+    });
+
+    // First mutation using initial ETag
+    const firstMutation = await submitCvReviewDecision(
+      "run-1",
+      "job-1",
+      "cv-ver-1",
+      { review_state: "approved", notes: "First review" },
+      '"etag-rev-1"'
+    );
+
+    expect(lastIfMatch).toBe('"etag-rev-1"');
+    expect(firstMutation.etag).toBe('"etag-updated-rev-2"');
+
+    // Second mutation using newly updated ETag
+    await submitCvReviewDecision(
+      "run-1",
+      "job-1",
+      "cv-ver-1",
+      { review_state: "stretch", notes: "Updated review" },
+      firstMutation.etag
+    );
+
+    expect(lastIfMatch).toBe('"etag-updated-rev-2"');
   });
 });

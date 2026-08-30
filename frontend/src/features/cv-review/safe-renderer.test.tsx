@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect } from "vitest";
 import {
   isSafeUrl,
@@ -37,7 +38,6 @@ describe("Safe Markdown parser and renderer", () => {
     const raw = "## Section with <script>alert('xss')</script> and <img src='x' onerror='alert(1)'>";
     const nodes = parseSafeMarkdown(raw);
     expect(nodes.length).toBeGreaterThan(0);
-    // The raw script text is preserved as string content and never executed
   });
 
   it("neutralizes unsafe markdown links", () => {
@@ -46,7 +46,31 @@ describe("Safe Markdown parser and renderer", () => {
     expect(inline.length).toBeGreaterThan(0);
   });
 
-  it("renders headings, code blocks, lists, and tables safely", () => {
+  it("wraps unordered and ordered list items inside semantic ul and ol tags", () => {
+    const markdownWithLists = `
+- First bullet item
+- Second bullet item
+
+1. First numbered step
+2. Second numbered step
+`;
+    const nodes = parseSafeMarkdown(markdownWithLists);
+    expect(nodes).toHaveLength(2);
+
+    const ulNode = nodes[0] as React.ReactElement;
+    expect(ulNode.type).toBe("ul");
+    expect(ulNode.props.className).toBe("cv-ul");
+    expect(ulNode.props.children).toHaveLength(2);
+    expect((ulNode.props.children as React.ReactElement[])[0].type).toBe("li");
+
+    const olNode = nodes[1] as React.ReactElement;
+    expect(olNode.type).toBe("ol");
+    expect(olNode.props.className).toBe("cv-ol");
+    expect(olNode.props.children).toHaveLength(2);
+    expect((olNode.props.children as React.ReactElement[])[0].type).toBe("li");
+  });
+
+  it("renders headings, code blocks, and tables safely", () => {
     const markdownDoc = `
 # Candidate CV
 
