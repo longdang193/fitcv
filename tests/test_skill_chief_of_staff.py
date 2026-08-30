@@ -11,11 +11,11 @@ def read(path: str) -> str:
 def test_chief_of_staff_has_single_required_read_and_clear_ownership() -> None:
     skill = read(".agents/skills/skill-chief-of-staff/SKILL.md")
     assert "name: skill-chief-of-staff" in skill
-    assert "required_reads:\n  - docs/operating_system/rules/git-tracked-coordination-rule.md" in skill
+    assert "required_reads: []" in skill
     assert "`skill-executing-plans` owns\napproved-plan execution" in skill
     assert "CoS has no direct Git or PR authority" in skill
-    assert "`deepagents` uses\n`dcode-project`" in skill
-    assert "`tura` uses\n`project-delegate`" in skill
+    assert "`deepagents` uses `dcode-project`" in skill
+    assert "`tura` uses `project-delegate`" in skill
 
 
 def test_chief_of_staff_has_deterministic_binding_runtime_and_status_contract() -> None:
@@ -68,14 +68,15 @@ def test_chief_of_staff_preserves_lifecycle_boundaries() -> None:
 def test_chief_of_staff_defines_explicit_turn_attention_audit() -> None:
     skill = read(".agents/skills/skill-chief-of-staff/SKILL.md")
     audit = skill.index("### Attention Audit")
+    work_binding = skill.index("## Work Binding")
     plan_binding = skill.index("## Plan Binding")
     next_action = skill.index("Select one dependency-ready task")
-    assert plan_binding < audit < next_action
+    assert work_binding < audit < plan_binding < next_action
     normalized = " ".join(skill.split())
     for text in (
         "On each explicit CoS turn with outstanding CoS-coordinated work",
-        "after plan binding and before selecting the next action",
-        "currently relevant plan/task, Git/worktree, applicable PR/review, and expected Herdr lane evidence",
+        "after Work Binding and before selecting the mode-specific next action",
+        "plan-bound execution inspects the current plan/task, Git/worktree, applicable PR/review, and expected Herdr lane evidence",
         "NO_ACTION | INSPECT | BLOCKED",
         "NO_ACTION` - evidence is consistent with the current lifecycle phase.",
         "INSPECT` - CoS judgment or an approved in-scope correction is needed.",
@@ -88,6 +89,49 @@ def test_chief_of_staff_defines_explicit_turn_attention_audit() -> None:
         "does not mutate plan, Git, PR state, Herdr, authority, or durable coordination state",
         "V1 has no autonomous wake mechanism, timer, scheduler, helper-agent dispatch, new profile, hook integration, or persistent heartbeat state.",
         "No polling or subscription mechanism is implied by this skill.",
+    ):
+        assert text in normalized
+
+
+def test_chief_of_staff_defines_canonical_work_modes_and_advisory_boundaries() -> None:
+    skill = read(".agents/skills/skill-chief-of-staff/SKILL.md")
+    normalized = " ".join(skill.split())
+    for text in (
+        "Work identity",
+        "evidence authority",
+        "reference anchors",
+        "source-relative freshness boundary",
+        "acceptance authority",
+        "Coordination mode: `advisory` or `plan-bound-execution`",
+        "Repository Snapshot Advisory Binding",
+        "exact commit SHA",
+        "repository identity",
+        "scoped target",
+        "Advisory CoS may inspect, synthesize, challenge, and recommend",
+        "Advisory CoS has no mutation authority",
+        "explicit current-work owner",
+        "canonical work owner",
+        "existing repository or workflow authority",
+        "source-relative freshness",
+        "Remote or immutable inspection needs no worktree",
+        "local tools can mutate",
+        "CoS must not activate for PR, release, incident, specification, research, or cross-repository work in V2",
+        "CoS coordinates work; it does not own work execution or canonical work truth",
+    ):
+        assert text in normalized
+    assert "authority class: inspect | recommend | execute" not in skill
+    assert "required_reads:\n  - docs/operating_system/rules/git-tracked-coordination-rule.md" not in skill
+
+
+def test_chief_of_staff_keeps_plan_execution_mode_specific() -> None:
+    skill = read(".agents/skills/skill-chief-of-staff/SKILL.md")
+    normalized = " ".join(skill.split())
+    for text in (
+        "Plan-bound execution mode",
+        "Plan Binding applies only to `plan-bound-execution`",
+        "Attention Audit applies to both coordination modes",
+        "Select one dependency-ready task only in `plan-bound-execution`",
+        "`skill-executing-plans` remains the sole approved-plan execution owner",
     ):
         assert text in normalized
 

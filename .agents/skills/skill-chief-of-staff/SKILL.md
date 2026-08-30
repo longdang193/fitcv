@@ -1,8 +1,7 @@
 ---
 name: skill-chief-of-staff
-description: "Codex lead only: use when an approved Git-tracked plan lists `skill-chief-of-staff` in Required skills and needs sustained top-level coordination across independent Codex main-agent lanes."
-required_reads:
-  - docs/operating_system/rules/git-tracked-coordination-rule.md
+description: "Codex lead only: use when canonical work needs sustained top-level coordination across independent Codex main-agent lanes."
+required_reads: []
 distribution_tier: starter_kit
 ---
 
@@ -10,39 +9,120 @@ distribution_tier: starter_kit
 
 ## Role
 
-Coordinate approved Git-tracked execution without becoming a second execution
-owner. CoS owns situational synthesis, attention selection, top-level Codex
-main-agent choice, lane briefing, Herdr observation, return normalization,
-blocker routing, retirement, and escalation. `skill-executing-plans` owns
+Coordinate canonical work without becoming its owner. CoS owns work binding,
+situational synthesis, attention selection, top-level Codex main-agent choice,
+lane briefing, evidence reconciliation, blocker routing, retirement, and
+escalation. `skill-executing-plans` owns
 approved-plan execution.
+CoS coordinates work; it does not own work execution or canonical work truth.
 
 ## Activation
 
-Use CoS only when an approved plan lists `skill-chief-of-staff` in its
-`Required skills` and needs sustained handoffs, independent write-capable lanes,
-or cross-task coordination. Use ordinary execution for single-lane work. CoS
-activates only under a native Codex lead controller. A
-delegated Herdr main agent receives a bounded lane task; it must not activate
+Use CoS only when canonical work is deterministically bindable, two or more
+materially independent lanes need synthesis, or a substantial isolated detour
+needs coordination. Use ordinary execution for single-lane work or simple
+parallel aggregation. CoS activates only under a native Codex lead controller.
+Use coordination mode `advisory` or `plan-bound-execution`.
+
+Advisory CoS may inspect, synthesize, challenge, and recommend. Advisory CoS has
+no mutation authority. V2 advisory scope supports only an exact-commit repository
+audit; PR, release, incident, specification, research, and cross-repository
+work remain out of scope. Plan-bound execution requires an approved plan that
+lists `skill-chief-of-staff` in `Required skills` and needs sustained handoffs,
+independent write-capable lanes, or cross-task coordination.
+CoS must not activate for PR, release, incident, specification, research, or
+cross-repository work in V2.
+
+CoS activates only under a native Codex lead controller. A delegated Herdr main
+agent receives a bounded lane task; it must not activate
 CoS, create peer agents, or reactivate coordination. CoS applies only to
-`Executor: codex`; `deepagents` uses
-`dcode-project`, and `tura` uses
-`project-delegate`. Other generated adapters may carry this skill, but their
-non-Codex lead must return `BLOCKED` rather than activate it.
+`Executor: codex`;
+`deepagents` uses `dcode-project`, and `tura` uses `project-delegate`. Other
+generated adapters may carry this skill, but their non-Codex lead must return
+`BLOCKED` rather than activate it.
 
 ## Conditional References
 
-- Read `skill-executing-plans` for approved-plan execution and executor precedence.
-- Read `skill-using-git-worktrees` for lane identity and isolated workspace ownership.
-- Read `skill-requesting-code-review` when dispatching independent review.
-- Read `skill-reviewing-pull-requests` when inspecting a pull request.
-- Read `skill-receiving-code-review` when evaluating returned findings.
-- Read `skill-verification-before-completion` for acceptance evidence.
-- Read `skill-finishing-a-development-branch` for merge and cleanup disposition.
+- For `plan-bound-execution`, read `skill-executing-plans` for approved-plan execution and executor precedence.
+- For plan-bound write lanes, read `skill-using-git-worktrees` for lane identity and isolated workspace ownership.
+- For applicable plan-bound review, read `skill-requesting-code-review`, `skill-reviewing-pull-requests`, and `skill-receiving-code-review`.
+- For applicable plan-bound acceptance, read `skill-verification-before-completion` and `skill-finishing-a-development-branch`.
 - Read `docs/operating_system/tooling/runtime-tool-resolution.md` when runtime capability is material.
+
+## Work Binding
+
+Resolve canonical work before selecting lanes. Record in the current turn:
+
+- Work identity
+- evidence authority
+- reference anchors
+- source-relative freshness boundary
+- acceptance authority
+- Coordination mode: `advisory` or `plan-bound-execution`
+
+Resolve acceptance authority in this order: explicit current-work owner,
+canonical work owner, existing repository or workflow authority. Return
+`BLOCKED` for acceptance-sensitive claims when no authority resolves. CoS
+reports recommendations; the resolved external owner accepts them.
+
+### Repository Snapshot Advisory Binding
+
+For V2 advisory work, bind repository identity, exact commit SHA, scoped target,
+and evidence authority before inspection. Commit-bound Git evidence remains
+valid while its anchor is unchanged. Runtime evidence uses
+`fresh-this-turn` or `reused-this-session`; external mutable evidence follows
+its own freshness boundary. Do not create freshness state.
+
+Remote or immutable inspection needs no worktree. If local tools can mutate the
+repository, use clean isolation or equivalent pre/post Git-state
+proof. Read-only behavior remains instruction-level when the runtime cannot
+enforce it.
+
+## Attention
+
+CoS attention is pull-based on explicit CoS turns. No polling or subscription
+mechanism is implied by this skill. Herdr lifecycle state is runtime observation
+only. It does not prove task acceptance, update the ledger, or replace
+canonical work truth.
+
+### Attention Audit
+
+Attention Audit applies to both coordination modes. On each explicit CoS turn
+with outstanding CoS-coordinated work and bound canonical work, after Work
+Binding and before selecting the mode-specific next action, perform a bounded
+read-only Attention Audit.
+
+Inspect only evidence relevant to the bound work and current mode. Advisory
+repository audits inspect the bound repository target at its exact commit;
+plan-bound execution inspects the current plan/task, Git/worktree, applicable
+PR/review, and expected Herdr lane evidence. Do not scan unrelated work,
+worktrees, sessions, or pull requests. Do not invent Herdr event semantics.
+
+Audit result: `NO_ACTION | INSPECT | BLOCKED`.
+
+- `NO_ACTION` - evidence is consistent with the current lifecycle phase.
+- `INSPECT` - CoS judgment or an approved in-scope correction is needed.
+- `BLOCKED` - an existing canonical blocking condition prevents safe progress.
+
+Consume blocking and verification semantics from their canonical owners; do not
+recreate their failure taxonomy. Herdr absence alone is not a blocker. Treat it
+as actionable only when current plan or current-turn evidence establishes that
+a live bound agent is expected.
+
+Audit outcomes are advisory attention results, not workflow-state transitions.
+The audit does not mutate plan, Git, PR state, Herdr, authority, or durable
+coordination state. Advisory CoS also does not mutate canonical work.
+`attention_target` identifies what CoS should inspect; CoS remains the
+next-action selector.
+
+V1 has no autonomous wake mechanism, timer, scheduler, helper-agent dispatch,
+new profile, hook integration, or persistent heartbeat state. No polling or
+subscription mechanism is implied by this skill.
 
 ## Plan Binding
 
-Resolve the active plan in this order:
+Plan Binding applies only to `plan-bound-execution`. Resolve the active plan in
+this order:
 
 1. explicit supplied plan path
 2. plan already bound by the current execution context
@@ -55,7 +135,12 @@ task ledger, dependencies, and ownership before dispatch. Resolve behavior from
 `parent_spec` first when present, otherwise from the plan specification or
 approved direct scope. Missing, stale, mismatched, or ambiguous binding blocks.
 
-## Runtime Gates
+Plan-bound execution mode uses the existing runtime, lane, review, integration,
+retirement, and durable-truth rules below. Select one dependency-ready task only
+in `plan-bound-execution`. `skill-executing-plans` remains the sole approved-plan
+execution owner.
+
+## Runtime Gates (plan-bound execution)
 
 Use runtime resolution rules for capability facts. On relevant Herdr, Codex,
 configuration, provider, or tooling change, verify parity before material
@@ -110,40 +195,7 @@ wait, read, and retire/stop. Operation names and outputs come from the active
 runtime; CoS must not invent commands, event semantics, subscriptions, or
 durable Herdr state. Record returned facts in the current turn or plan-owned
 evidence only.
-
-## Attention
-
-CoS attention is pull-based on explicit CoS turns. No polling or subscription
-mechanism is implied by this skill. Herdr lifecycle state is runtime observation
-only. It does not prove task acceptance, update the ledger, or replace plan and
-Git truth.
-
-### Attention Audit
-
-On each explicit CoS turn with outstanding CoS-coordinated work, after plan binding and before selecting the next action, perform a bounded read-only Attention Audit.
-
-Inspect only currently relevant plan/task, Git/worktree, applicable PR/review, and expected Herdr lane evidence. Do not scan unrelated tasks,
-worktrees, sessions, or pull requests. Do not invent Herdr event semantics.
-
-Audit result: `NO_ACTION | INSPECT | BLOCKED`.
-
-- `NO_ACTION` - evidence is consistent with the current lifecycle phase.
-- `INSPECT` - CoS judgment or an approved in-scope correction is needed.
-- `BLOCKED` - an existing canonical blocking condition prevents safe progress.
-
-Consume blocking and verification semantics from their canonical owners; do
-not recreate their failure taxonomy. Herdr absence alone is not a blocker.
-Treat it as actionable only when current plan or current-turn evidence establishes that a live bound agent is expected.
-
-Audit outcomes are advisory attention results, not workflow-state transitions.
-The audit does not mutate plan, Git, PR state, Herdr, authority, or durable
-coordination state. `attention_target` identifies what CoS should inspect; CoS
-remains the sole next-action selector.
-
-V1 has no autonomous wake mechanism, timer, scheduler, helper-agent dispatch,
-new profile, hook integration, or persistent heartbeat state.
-
-Select one dependency-ready task. Prefer reuse of a healthy main-agent session
+For plan-bound execution, select one dependency-ready task. Prefer reuse of a healthy main-agent session
 when plan, repository, lane, and context match. Select a fresh top-level Codex
 main agent when context isolation materially helps. When resolving a blocker
 becomes a substantial independent detour, park the current lane, dispatch a
@@ -151,7 +203,7 @@ fresh bounded Herdr main agent for that blocker, and merge back only compact
 evidence or result. Do not supervise executor-local workers inside `deepagents`
 or `tura`.
 
-## Lane Contract
+## Lane Contract (plan-bound execution)
 
 Activate task and record ownership before launch. One write-capable main agent
 gets one exact branch and isolated worktree. Use existing worktree, parallel-
@@ -172,7 +224,7 @@ Lane commits remain implementation artifacts. The lead controller records
 coordination checkpoints in its own workspace after accepting proof; a lane
 agent must not update the ledger as part of its implementation commit.
 
-## Review And Integration
+## Review And Integration (plan-bound execution)
 
 Request review through `skill-requesting-code-review`. CoS dispatches only an
 independent Herdr top-level Codex main-agent session. CoS never calls
@@ -205,7 +257,7 @@ the exact reviewed head, remote expected-head confirmation, and post-merge
 proof. Missing remote PR capability returns `BLOCKED`; do not substitute local
 base mutation.
 
-## Returns And Retirement
+## Returns And Retirement (plan-bound execution)
 
 Normalize main-agent execution returns to `DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED`. Keep review decisions separate: CoS acceptance uses
 `PASS | FAIL | BLOCKED` after checking evidence and never converts execution
