@@ -15,6 +15,7 @@ hiddenimports = collect_submodules("keyring.backends") + [
 datas = [
     (str(ROOT / "packaging/windows/.env.yaml"), "."),
     (str(ROOT / "packaging/windows/fitcv.ico"), "."),
+    (str(ROOT / "frontend/dist"), "frontend"),
     (str(ROOT / "src/fitcv_cp/templates"), "fitcv_cp/templates"),
     (str(ROOT / "src/fitcv/prompts/templates"), "fitcv/prompts/templates"),
     (str(ROOT / "config/policy"), "config/policy"),

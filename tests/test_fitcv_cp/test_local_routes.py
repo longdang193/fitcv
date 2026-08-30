@@ -569,7 +569,7 @@ def test_local_root_redirects_to_onboarding_when_setup_incomplete(local_client: 
     response = local_client.get("/", follow_redirects=False)
 
     assert response.status_code == 307
-    assert response.headers["location"] == "/local/onboarding"
+    assert response.headers["location"] == "/app"
 
 def test_onboarding_sets_csrf_cookie_and_redirects_incomplete_app(local_client: TestClient) -> None:
     onboarding = local_client.get("/local/onboarding")
@@ -588,7 +588,7 @@ def test_local_root_redirects_to_runs_when_setup_complete(local_client: TestClie
     response = local_client.get("/", follow_redirects=False)
 
     assert response.status_code == 307
-    assert response.headers["location"] == "/admin/runs"
+    assert response.headers["location"] == "/app"
 
 
 def test_completed_onboarding_redirects_to_runs(

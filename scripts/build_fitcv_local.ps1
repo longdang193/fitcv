@@ -20,6 +20,14 @@ foreach ($path in @($dist, $build)) {
 
 Push-Location $root
 try {
+    Push-Location (Join-Path $root "frontend")
+    try {
+        npm ci
+        npm run build
+    }
+    finally {
+        Pop-Location
+    }
     uv run --extra local python -c "import fitcv_cp.local_app, fitcv_cp.local_routes, keyring; print('FitCV Local import smoke passed')"
     uv run --group build PyInstaller .\packaging\windows\fitcv-local.spec --clean --noconfirm
     $bundle = Join-Path $dist "fitcv-local"
