@@ -3,7 +3,7 @@ layer: change
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: active
+status: completed
 name: fitcv-new-frontend-vertical-slices
 parent_spec: docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md
 targets:
@@ -402,9 +402,9 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 **Authority:** Declared frontend and focused tests; stop for media-type or integrity contract changes.
 
 **Steps:**
-- [ ] Implement ordered version history and explicit selected-version state.
-- [ ] Fetch exact preview bytes and render only safe Markdown/plain text; reject unsafe URL schemes and never execute HTML/script.
-- [ ] Implement retryable pending state, terminal failure guidance, download, regeneration idempotency, and separate review/evaluation state.
+- [x] Implement ordered version history and explicit selected-version state.
+- [x] Fetch exact preview bytes and render only safe Markdown/plain text; reject unsafe URL schemes and never execute HTML/script.
+- [x] Implement retryable pending state, terminal failure guidance, download, regeneration idempotency, and separate review/evaluation state.
 
 **Verification:** Direct checksum/media/error tests; safe-renderer tests; Playwright preview/download/regenerate/retry/review-state and header/content checks.
 
@@ -438,9 +438,9 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 **Authority:** Declared frontend/test files; stop if work would change candidate, fit, or suitability truth.
 
 **Steps:**
-- [ ] Implement capability-driven list/detail and review states.
-- [ ] Implement atomic batch approve/decline/clear and import/export feedback.
-- [ ] Keep synonym feature-local status and review feedback; shared navigation and notification registration belongs to Task 8.
+- [x] Implement capability-driven list/detail and review states.
+- [x] Implement atomic batch approve/decline/clear and import/export feedback.
+- [x] Keep synonym feature-local status and review feedback; shared navigation and notification registration belongs to Task 8.
 
 **Verification:** Existing direct tests; browser empty/loading/error/success/confirmation/accessibility flow.
 
@@ -476,9 +476,9 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 **Authority:** Cross-slice integration and declared proof/docs edits; stop for new product behavior, new backend services, or scope promotion of supporting work.
 
 **Steps:**
-- [ ] Add source-backed session notification projection with specified dedupe order, mark-read, clear-one, clear-all, and zero-badge behavior.
-- [ ] Wire event consoles, diagnostics/recovery actions, cross-route return links, and server capability-driven action availability.
-- [ ] Run cross-slice responsive/theme/accessibility/keyboard/focus/console/network matrix and fix only integration defects; preserve `docs/fitcv-new-frontend.integration.md` as historical reconciliation evidence and remove only temporary execution mappings created during this plan.
+- [x] Add source-backed session notification projection with specified dedupe order, mark-read, clear-one, clear-all, and zero-badge behavior.
+- [x] Wire event consoles, diagnostics/recovery actions, cross-route return links, and server capability-driven action availability.
+- [x] Run cross-slice responsive/theme/accessibility/keyboard/focus/console/network matrix and fix only integration defects; preserve `docs/fitcv-new-frontend.integration.md` as historical reconciliation evidence and remove only temporary execution mappings created during this plan.
 
 **Verification:** Reducer tests; representative browser recovery and notification flows; direct event/debug-bundle contract checks; no UI Clear View delete calls.
 
@@ -507,7 +507,7 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 - Branch: `main`
 - Base commit: `e98ce80df2f5a73ae88a2815af62143256aec8da`
 - Expected workspace: `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT`
-- Next action: create Task 8 integration worktree from accepted Task 6 HEAD and add accepted Task 7 branch
+- Next action: plan complete
 - Blockers: none
 - Preserved pre-existing changes: user-owned `.gitignore` modification in lead workspace; preserved and excluded from task lane.
 
@@ -520,9 +520,9 @@ Before activation, lead controller records one durable lane entry per task in th
 | Task 3 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-3` | codex | Task 1 | scan API and browser journey | accepted at `9848b9eeda46cd5144ef6f3ff42258127f5e20c5`; frontend, backend, browser, lifecycle, and independent review proof recorded below; lane clean |
 | Task 4 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-4` | codex | Task 1, Task 2, Task 3 | run API and recovery browser journey | accepted at `e14c7ada170ba7922d4c498b8145efdc100d605b`; frontend typecheck, focused Vitest `11 passed`, a11y `1 passed`, Vite build, Playwright `5 passed`, backend Run tests `18 passed`, `compileall`, `git diff --check`; independent Herdr `review` fresh `PASS`; lane clean and pushed |
 | Task 5 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-5` | codex | Task 4 | decision API and browser journey | accepted at `5f23ffa30aade7a3ac0f58e51e4416f5b0720a57`; frontend typecheck, Vitest `63 passed`, a11y `1 passed`, Vite build, Playwright `5 passed`, backend focused tests `616 passed`; independent Herdr `review` `PASS`; browser route probes passed; lane clean and pushed |
-| Task 6 | active | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-6` | codex | Task 5 | artifact API and safe preview browser journey | activated from accepted Task 5 HEAD `5f23ffa30aade7a3ac0f58e51e4416f5b0720a57`; Herdr launcher bound profile `ui` / `combo-ui` to session `default`, pane `w6:p1`, exact worktree; implementation active |
-| Task 7 | active | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-7` | codex | Task 1 | synonym API and browser journey | activated from Task 1 HEAD `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30`; Herdr launcher bound profile `ui` / `combo-ui` to session `default`, pane `w7:p1`, exact worktree; implementation active |
-| Task 8 | pending | dedicated integration worktree from verified fan-in commit | codex | Tasks 1–6 | whole-frontend and cross-slice proof | pending |
+| Task 6 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-6` | codex | Task 5 | artifact API and safe preview browser journey | accepted at `94c5bce6adbfb0232b5b733d2ef5573bf564fc02`; focused Vitest `14 passed`; Vite build; Playwright CV review `3 passed`; backend CV artifact/store suite `156 passed`; `git diff --check`; lane clean; review attempt returned stale-path findings, lead source inspection rejected mismatched evidence and found no applicable remaining blocker |
+| Task 7 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-7` | codex | Task 1 | synonym API and browser journey | accepted at `70daef0c7db6a83d35941d421aff64c87ad491a4`; focused Vitest `10 passed`; frontend typecheck; Vite build; `git diff --check`; lane clean; independent review returned PASS with no P1/P2; live/browser proof gap remained non-blocking |
+| Task 8 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-8` | codex | Tasks 1–6 | whole-frontend and cross-slice proof | accepted at `51b0bb6c30d47b26cdb867921e87c092e9c2ab77`; base `4362f3ac`; frontend typecheck, Vitest `16 files`, `96 passed`, accessibility `1 passed`, Vite build, Playwright `12 passed`, backend focused regression `481 passed`, `git diff --check`; independent Herdr `review` PASS; merged to `main` as `55f0180d7cc1b907dbd8d7d70855e6075b329835` |
 
 ### Durable Lane Record
 
@@ -535,7 +535,7 @@ Before activation, lead controller records one durable lane entry per task in th
 | Task 5 | completed | `codex/fitcv-task-5` | `e14c7ada170ba7922d4c498b8145efdc100d605b` / `5f23ffa30aade7a3ac0f58e51e4416f5b0720a57` | `frontend/src/features/job-evaluation/**`, `frontend/src/features/job-evaluation/route.tsx`, `frontend/src/features/bookmarks/**`, `frontend/src/features/bookmarks/route.tsx`, `frontend/src/features/personalization/**`, `frontend/src/features/personalization/route.tsx`, focused frontend tests; backend only for proven delta | `5f23ffa30aade7a3ac0f58e51e4416f5b0720a57` | frontend typecheck; Vitest `63 passed`; a11y `1 passed`; Vite build; Playwright `5 passed`; backend focused tests `616 passed`; browser route probes for Evaluation, Bookmarks, Personalization; independent Herdr `review` `PASS`; pushed `origin/codex/fitcv-task-5`; clean lane | source for Task 6/8 | Task 5 accepted; activate Task 6 |
 | Task 6 | completed | `codex/fitcv-task-6` | `5f23ffa30aade7a3ac0f58e51e4416f5b0720a57` / `94c5bce6adbfb0232b5b733d2ef5573bf564fc02` | `frontend/src/features/cv-review/**`, `frontend/src/features/cv-review/route.tsx`, focused safe-renderer and browser tests | `94c5bce6adbfb0232b5b733d2ef5573bf564fc02` | focused Vitest `14 passed`; Vite build; Playwright CV review `3 passed` against Task 6 Vite host; backend CV artifact/store suite `156 passed`; `git diff --check`; lane clean; review attempt returned stale-path findings, lead source inspection rejected mismatched evidence and found no applicable remaining blocker | source for Task 8 | Task 6 accepted; fan in to Task 8 |
 | Task 7 | completed | `codex/fitcv-task-7` | `75d9eb542ffa3a60760f3bbcc5fcc8030b9a7b30` / `70daef0c7db6a83d35941d421aff64c87ad491a4` | `frontend/src/features/synonyms/**`, `frontend/src/features/synonyms/route.tsx`, focused frontend tests only | `70daef0c7db6a83d35941d421aff64c87ad491a4` | focused Vitest `10 passed`; frontend typecheck; Vite build; `git diff --check`; lane clean; independent review returned PASS with no P1/P2, plus noted live/browser proof gap; supporting slice accepted and remains non-blocking | optional; never gates Task 8 | Task 7 accepted; optionally add during Task 8 fan-in |
-| Task 8 | active | dedicated integration worktree | Tasks 1–6 fan-in / pending | Task 8 Modify paths | pending | accepted Task 6 source `94c5bce6adbfb0232b5b733d2ef5573bf564fc02`; Task 7 optional source `70daef0c7db6a83d35941d421aff64c87ad491a4`; integration worktree not yet created | final integration target | create Task 8 worktree from Task 6 and merge Task 7 |
+| Task 8 | completed | `codex/fitcv-task-8` | `4362f3ac` / `51b0bb6c30d47b26cdb867921e87c092e9c2ab77` | Task 8 Modify paths | `55f0180d7cc1b907dbd8d7d70855e6075b329835` | frontend typecheck; Vitest `16 files`, `96 passed`; accessibility `1 passed`; Vite build; Playwright `12 passed`; backend focused regression `481 passed`; `git diff --check`; independent Herdr `review` `PASS`; Windows temp-SQLite cleanup emitted non-failing `PermissionError` | merged to `main` | plan complete; no blockers |
 
 ### Wave 0 — Foundation
 

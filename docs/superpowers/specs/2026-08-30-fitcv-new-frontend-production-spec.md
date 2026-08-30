@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: active
+status: completed
 template_id: detailed-specification
 name: fitcv-new-frontend-production
 related_features:
