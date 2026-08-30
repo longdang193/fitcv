@@ -354,9 +354,9 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 **Required Skills:** `skill-frontend-component-engineering`, `skill-full-stack-integration`, `skill-backend-verification`.
 
 **Files And Symbols:**
-- Inspect: results/bookmark/personalization handlers and focused tests.
+- Inspect: `src/fitcv_cp/app.py::set_canonical_bookmark`, `src/fitcv_cp/app.py::clear_canonical_bookmark`, `src/fitcv_cp/app.py::set_canonical_interest`, `src/fitcv_cp/app.py::clear_canonical_interest`, `src/fitcv_cp/app.py::get_personalization`, `src/fitcv_cp/app.py::patch_personalization`, `src/fitcv_cp/sqlite_store.py::set_bookmark`, `src/fitcv_cp/sqlite_store.py::clear_bookmark`, `src/fitcv_cp/sqlite_store.py::set_run_job_interest`, `src/fitcv_cp/sqlite_store.py::clear_run_job_interest`, `src/fitcv_cp/sqlite_store.py::list_filter_results_for_run`, `tests/test_fitcv_cp/test_app.py`, `tests/test_fitcv_cp/test_sqlite_store.py`, and `tests/test_fitcv_cp/test_optimization_page.py`.
 - Modify: `frontend/src/features/job-evaluation/**`, `frontend/src/features/job-evaluation/route.tsx`, `frontend/src/features/bookmarks/**`, `frontend/src/features/bookmarks/route.tsx`, `frontend/src/features/personalization/**`, `frontend/src/features/personalization/route.tsx`, focused frontend tests.
-- Verify: route/store tests and browser evidence.
+- Verify: `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_optimization_page.py`; `frontend/src/features/job-evaluation/route.test.tsx`, `frontend/src/features/bookmarks/route.test.tsx`, and `frontend/src/features/personalization/route.test.tsx`; Playwright fit-review, interest, bookmark, export, and personalization-conflict flows.
 
 **Dependencies:** Task 4 job results available.
 
@@ -390,9 +390,9 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 **Required Skills:** `skill-frontend-component-engineering`, `skill-full-stack-integration`, `skill-backend-verification`.
 
 **Files And Symbols:**
-- Inspect: CV handlers/store and `tests/test_fitcv_cp/test_sqlite_store.py`.
+- Inspect: `src/fitcv_cp/app.py::get_canonical_cv_versions`, `src/fitcv_cp/app.py::download_canonical_cv`, `src/fitcv_cp/app.py::preview_canonical_cv`, `src/fitcv_cp/app.py::regenerate_canonical_cv`, `src/fitcv_cp/sqlite_store.py::list_cv_versions`, `src/fitcv_cp/sqlite_store.py::get_cv_download`, `src/fitcv_cp/sqlite_store.py::get_cv_preview`, `src/fitcv_cp/sqlite_store.py::reserve_cv_regeneration`, `src/fitcv_cp/sqlite_store.py::get_cv_markdown`, `tests/test_fitcv_cp/test_run_artifact_contracts.py`, `tests/test_fitcv_cp/test_run_detail_output_availability.py`, and `tests/test_fitcv_cp/test_sqlite_store.py`.
 - Modify: `frontend/src/features/cv-review/**`, `frontend/src/features/cv-review/route.tsx`, focused safe-renderer and browser tests.
-- Verify: preview/download/regeneration API tests and downloaded artifact bytes.
+- Verify: `python -m pytest tests/test_fitcv_cp/test_run_artifact_contracts.py tests/test_fitcv_cp/test_run_detail_output_availability.py tests/test_fitcv_cp/test_sqlite_store.py`; `frontend/src/features/cv-review/safe-renderer.test.tsx` and `frontend/src/features/cv-review/route.test.tsx`; Playwright preview/download/regenerate/retry/review-state flows plus downloaded-byte checksum and media-type assertions.
 
 **Dependencies:** Task 5 selected job boundary.
 
@@ -462,9 +462,9 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 **Required Skills:** `skill-full-stack-integration`, `skill-backend-verification`, `skill-verification-before-completion`.
 
 **Files And Symbols:**
-- Inspect: all new frontend feature boundaries, event/debug routes, direct contract tests.
+- Inspect: `frontend/src/app/route-registry.ts`, `frontend/src/state/notifications/**`, each `frontend/src/features/*/route.tsx`, `src/fitcv_cp/app.py::get_process_events`, `src/fitcv_cp/app.py::download_run_cv_debug_json`, `src/fitcv_cp/app.py::download_run_cv_generation_trace_json`, `src/fitcv_cp/app.py::download_run_cv_analysis_trace_json`, `tests/test_fitcv_cp/test_run_lifecycle.py`, `tests/test_fitcv_cp/test_run_detail_output_availability.py`, and `tests/test_fitcv_cp/test_app.py`.
 - Modify: `frontend/src/state/notifications/**`, `frontend/src/app/**`, `frontend/src/features/**` only for integration defects, `docs/architecture.md`, `docs/usage.md`, focused integration/browser tests.
-- Verify: full frontend/browser and affected backend suites.
+- Verify: `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_run_lifecycle.py tests/test_fitcv_cp/test_run_detail_output_availability.py`; `frontend/src/app/route-registry.test.tsx`, `frontend/src/state/notifications/notifications.test.ts`, and `frontend/src/app/integration.test.tsx`; full frontend typecheck/test/build and Playwright desktop/mobile, theme, keyboard, recovery, notification, and history flows.
 
 **Dependencies:** Tasks 1–7 complete.
 

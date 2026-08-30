@@ -10,6 +10,7 @@ targets:
   - docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md
   - docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md
   - docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md
+  - docs/superpowers/specs/README.md
   - docs/fitcv-new-frontend.integration.md
 ---
 
@@ -75,7 +76,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 ## META-PLAN OWNER APPROVAL GATE
 
 - Independent `xhigh` and `review` assessment must return no unresolved P1/P2 approval blockers.
-- Product owner approved exact artifact `docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md` in Codex task on 2026-08-30.
+- Product owner approved exact artifact `docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md` in Codex task on 2026-08-30; activation and Task 1 evidence are checkpointed in `0864016be8dedc0e6fb53f061d63a77f152166e6`.
 - Before Task 1, lead controller records approval reference, changes this plan from `status: proposed` to `status: active`, leaves every task `pending`, and commits that active-plan state.
 - After the active-plan checkpoint exists, lead controller marks Task 1 `active`, records the next action, and commits that ledger state before Task 1 work begins. Never copy a checkpoint SHA into the plan.
 - Without explicit owner approval, do not run Task 1 as coordinated execution, create downstream specifications, revise the vertical-slice plan, or implement production code.
@@ -243,9 +244,9 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 ### OWNER APPROVAL GATE — parent specification
 
 - Stop after Task 3 passes.
-- Product owner explicitly approved `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md` on 2026-08-30, resolved `EX-01` and `EX-12`, and authorized continuation to Task 4. Final production-plan approval remains separate.
+- Product owner explicitly approved `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md` on 2026-08-30, resolved `EX-01` and `EX-12`, and authorized continuation to Task 4; same-file promotion and approval evidence are checkpointed in `9a83da1d32a2c49d90e46a39ec5de99fa0e8b229`. Final production-plan approval remains separate.
 - Reviewer readiness is not approval.
-- Approval evidence is recorded before Task 4; no production plan edit occurs before promotion.
+- Approval evidence is recorded before Task 4 in `9a83da1d32a2c49d90e46a39ec5de99fa0e8b229`; no production plan edit occurs before promotion.
 
 
 ### Task 4: Verify Design Export gate and owner decisions
@@ -373,8 +374,8 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - `skill-verification-before-completion`
 
 **Files And Symbols:**
-- Inspect: `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`, `docs/superpowers/specs/2026-08-01-19-49-fitcv-managed-scan-lifecycle-spec.md`, `docs/superpowers/specs/2026-08-01-23-49-canonical-candidate-uniform-evidence-projection-spec.md`, `docs/superpowers/specs/2026-08-29-fitcv-client-transient-notifications-spec.md`, `docs/superpowers/specs/2026-08-29-fitcv-core-personalization-json-spec.md`, `docs/superpowers/specs/2026-08-29-fitcv-cv-preview-transport-spec.md`, `docs/superpowers/specs/2026-08-29-fitcv-local-readiness-profile-authority-spec.md`, `docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md`, `docs/fitcv-new-frontend.integration.md`, `docs/api.md`, `src/fitcv_cp/app.py`, `src/fitcv_cp/local_routes.py`, `src/fitcv_cp/main.py`, `src/fitcv_cp/local_app.py`, `packaging/windows/fitcv-local.spec`, `scripts/build_fitcv_local.ps1`, `tests/test_fitcv_cp/test_app.py`, `tests/test_fitcv_cp/test_local_routes.py`, `tests/test_fitcv_cp/test_sqlite_store.py`, `tests/test_fitcv_cp/test_scan_contracts.py`, `tests/test_fitcv_cp/test_run_lifecycle.py`, `tests/test_fitcv_cp/test_run_detail_output_availability.py`, `tests/test_fitcv_cp/test_synonym_global_policy_io.py`, `tests/test_fitcv_cp/test_synonym_promote_preview_field_aware.py`, and `tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py`.
-- Modify: `docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md` and `docs/fitcv-new-frontend.integration.md` only.
+- Inspect: `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`, `docs/superpowers/specs/README.md`, `docs/superpowers/specs/2026-08-01-19-49-fitcv-managed-scan-lifecycle-spec.md`, `docs/superpowers/specs/2026-08-01-23-49-canonical-candidate-uniform-evidence-projection-spec.md`, `docs/superpowers/specs/2026-08-29-fitcv-client-transient-notifications-spec.md`, `docs/superpowers/specs/2026-08-29-fitcv-core-personalization-json-spec.md`, `docs/superpowers/specs/2026-08-29-fitcv-cv-preview-transport-spec.md`, `docs/superpowers/specs/2026-08-29-fitcv-local-readiness-profile-authority-spec.md`, `docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md`, `docs/fitcv-new-frontend.integration.md`, `docs/api.md`, `src/fitcv_cp/app.py`, `src/fitcv_cp/local_routes.py`, `src/fitcv_cp/main.py`, `src/fitcv_cp/local_app.py`, `packaging/windows/fitcv-local.spec`, `scripts/build_fitcv_local.ps1`, `tests/test_fitcv_cp/test_app.py`, `tests/test_fitcv_cp/test_local_routes.py`, `tests/test_fitcv_cp/test_sqlite_store.py`, `tests/test_fitcv_cp/test_scan_contracts.py`, `tests/test_fitcv_cp/test_run_lifecycle.py`, `tests/test_fitcv_cp/test_run_detail_output_availability.py`, `tests/test_fitcv_cp/test_synonym_global_policy_io.py`, `tests/test_fitcv_cp/test_synonym_promote_preview_field_aware.py`, and `tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py`.
+- Modify: `docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md`, `docs/fitcv-new-frontend.integration.md`, and `docs/superpowers/specs/README.md` only.
 - Verify: modified documents, parent linkage, task ledger, coverage matrix, exact paths/symbols, dependencies, commands, and final proof sections.
 
 **Dependencies:**
@@ -467,7 +468,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - [ ] `python -m pytest tests/test_validate_template_required_sections.py tests/test_validate_planning_lifecycle.py`; Expected: planning validator tests pass.
 - [ ] `git diff --check`; Expected: no whitespace errors in tracked changes.
 - [ ] `Test-Path docs/intent/master-workstream-roadmap.md`; Expected: `False`; no retired roadmap is required.
-- [ ] `$allowed = @('docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md','docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md','docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md','docs/fitcv-new-frontend.integration.md'); $changed = @((git diff --name-only b861d13e HEAD) + (git diff --name-only --cached) + (git diff --name-only) + (git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique); $unexpected = @($changed | Where-Object { $_ -notin $allowed }); if ($unexpected.Count -gt 0) { throw 'Unexpected changed paths' }; $untracked = @(git ls-files --others --exclude-standard); $badWhitespace = @($untracked | ForEach-Object { if (Test-Path -LiteralPath $_ -PathType Leaf) { $line = 0; Get-Content -LiteralPath $_ | ForEach-Object { $line++; if ($_ -match '[ \t]+$') { "$($_):$line" } } } }); if ($badWhitespace.Count -gt 0) { throw 'Whitespace in untracked files' }`; Expected: only four declared planning/integration documents change; no production path changes; untracked files contain no trailing whitespace.
+- [ ] `$allowed = @('docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md','docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md','docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md','docs/superpowers/specs/README.md','docs/fitcv-new-frontend.integration.md'); $changed = @((git diff --name-only --cached) + (git diff --name-only) + (git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique); $unexpected = @($changed | Where-Object { $_ -notin $allowed }); if ($unexpected.Count -gt 0) { throw 'Unexpected current-workspace paths' }; $untracked = @(git ls-files --others --exclude-standard); $badWhitespace = @($untracked | ForEach-Object { if (Test-Path -LiteralPath $_ -PathType Leaf) { $line = 0; Get-Content -LiteralPath $_ | ForEach-Object { $line++; if ($_ -match '[ \t]+$') { "$($_):$line" } } } }); if ($badWhitespace.Count -gt 0) { throw 'Whitespace in untracked files' }`; Expected: current workspace delta contains only declared planning/integration documents; unrelated pre-existing changes remain preserved; no production path changes; untracked files contain no trailing whitespace.
 - [ ] `Test-Path docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; Expected `False` before Task 2, `True` after Task 2; same file remains through Task 5 promotion.
 - [ ] `Test-Path docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md` and `Test-Path docs/fitcv-new-frontend.integration.md`; Expected: both `True` before and after reconciliation, unless separately authorized sidecar cleanup occurs after evidence migration.
 - [ ] `rg -n "parent_specs|Product/workstream|master-workstream-roadmap|workstream-" docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md docs/fitcv-new-frontend.integration.md`; Expected: no active retired ownership or plural parent linkage; historical references are explicitly non-normative.

@@ -1,4 +1,4 @@
-Archived to [../archive/specs](../archive/specs).
+Canonical active specifications live in this folder.
 
-This folder is kept as a lightweight pointer so older references to
-`docs/superpowers/specs/` still resolve to a human-readable entry point.
+Historical specifications may be moved to `docs/archive/specs/` only through
+an explicit archival change; do not treat this folder as archived.
