@@ -59,14 +59,14 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Branch: `main`
 - Base commit: `b861d13e`
 - Expected workspace: clean at `b861d13e` before this plan is added; after drafting, only declared planning artifacts may be uncommitted and unrelated user changes remain preserved
-- Next action: create proposed parent specification in Task 2
+- Next action: independently review proposed parent specification in Task 3
 - Blockers: Design Export decisions `EX-01` and `EX-12` require current owner resolution and complete applicable gate evidence before parent-spec promotion; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference; parent-spec owner approval is required before Task 4; final production-plan owner approval is required before production implementation
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | `completed` | current | `codex` | meta-plan owner approval | inventory, source/test evidence, stale-owner and Design Export gate scan | six focused specs active; G-02/G-03/G-04 direct proof recorded; retired roadmap reference is historical; EX-01/EX-12 remain promotion gates |
-| Task 2 | `active` | current | `codex` | Task 1 | draft-spec template and lifecycle validation | active; xhigh writer owns parent spec only |
-| Task 3 | `pending` | current | `codex` | Task 2 | independent draft-spec verdict | pending |
+| Task 2 | `completed` | current | `codex` | Task 1 | draft-spec template and lifecycle validation | proposed parent spec created; template and lifecycle validators passed; prohibited-marker scan passed |
+| Task 3 | `active` | current | `codex` | Task 2 | independent draft-spec verdict | review agent owns read-only review |
 | Task 4 | `pending` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | pending |
 | Task 5 | `pending` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | pending |
 | Task 6 | `pending` | current | `codex` | Task 5 | plan/integration reconciliation and validators | pending |
@@ -180,16 +180,16 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Stop for: unresolved behavior/design that prevents a bounded draft, contradictory focused specification, or implementation sequencing in the specification. Record incomplete Design Export evidence as an explicit promotion blocker for Task 4 rather than silently treating it as approved.
 
 **Steps:**
-- [ ] Create the declared file with `artifact_type: spec`, `template_id: draft-specification`, `status: proposed`, and `layer: change`.
-- [ ] Record goal/scope, user flow/business rules, UI intent/known states, verified facts, assumptions/open questions, prototype findings, Design Export gate state, and promotion readiness.
-- [ ] Define greenfield authority, runtime/build/hosting boundary, `/app` entry and deep-link behavior, same-origin delivery, FitCV Local packaging boundary, and legacy `/admin/*` compatibility without file-by-file implementation order.
-- [ ] Define backend-versus-client truth ownership, API error/CSRF/ETag-CAS/idempotency/download-preview/retry behavior, secret handling, safe rendering, accessibility, responsive behavior, reduced motion, and focus lifecycle.
-- [ ] Reference focused specifications without copying contracts; unresolved decisions remain explicit open questions and block promotion when they change behavior or durable design.
+- [x] Create the declared file with `artifact_type: spec`, `template_id: draft-specification`, `status: proposed`, and `layer: change`.
+- [x] Record goal/scope, user flow/business rules, UI intent/known states, verified facts, assumptions/open questions, prototype findings, Design Export gate state, and promotion readiness.
+- [x] Define greenfield authority, runtime/build/hosting boundary, `/app` entry and deep-link behavior, same-origin delivery, FitCV Local packaging boundary, and legacy `/admin/*` compatibility without file-by-file implementation order.
+- [x] Define backend-versus-client truth ownership, API error/CSRF/ETag-CAS/idempotency/download-preview/retry behavior, secret handling, safe rendering, accessibility, responsive behavior, reduced motion, and focus lifecycle.
+- [x] Reference focused specifications without copying contracts; unresolved decisions remain explicit open questions and block promotion when they change behavior or durable design.
 
 **Verification:**
-- [ ] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Expected: proposed draft satisfies current draft template.
-- [ ] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: proposed specification lifecycle and references validate.
-- [ ] `rg -n "TODO|TBD|placeholder|parent_specs|workstream-|master-workstream-roadmap" docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; Expected: no unresolved placeholder or retired planning authority; known keyword matches are absent from spec body.
+- [x] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Expected: proposed draft satisfies current draft template.
+- [x] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: proposed specification lifecycle and references validate.
+- [x] `rg -n "TODO|TBD|placeholder|parent_specs|workstream-|master-workstream-roadmap" docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; Expected: no unresolved placeholder or retired planning authority; known keyword matches are absent from spec body.
 
 **Exit Criteria:**
 - One proposed draft exists, is validator-clean, references focused owners, records any incomplete Design Export gate explicitly, and contains no hidden implementation plan or unresolved behavior treated as approved.
