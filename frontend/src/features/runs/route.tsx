@@ -12,6 +12,9 @@ export const RunsFeature: React.FC = () => {
   useEffect(() => {
     const parseHash = () => {
       const hash = window.location.hash || "#/runs";
+      setView("active");
+      setPage(1);
+      setSelectedRunId(null);
       const parts = hash.split("?");
       if (parts.length > 1) {
         const params = new URLSearchParams(parts[1]);
@@ -25,8 +28,6 @@ export const RunsFeature: React.FC = () => {
         }
         const id = params.get("run_id");
         setSelectedRunId(id || null);
-      } else {
-        setSelectedRunId(null);
       }
     };
 

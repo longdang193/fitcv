@@ -401,7 +401,6 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
           activeId={view}
           onChange={(id) => {
             onViewChange(id as RunLifecycle);
-            onPageChange(1);
           }}
         />
         <form onSubmit={handleSearchSubmit} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>

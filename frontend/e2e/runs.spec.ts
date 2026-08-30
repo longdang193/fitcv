@@ -15,6 +15,14 @@ test.describe("Runs Feature Journey", () => {
     const archivedTab = page.locator("button[role='tab']:has-text('Archived')");
     await expect(archivedTab).toBeVisible();
 
+    await page.locator("button[role='tab']:has-text('All Runs')").click();
+    await expect(page).toHaveURL(/#\/runs\?view=all$/);
+    await page.evaluate(() => {
+      window.location.hash = "#/runs";
+    });
+    await expect(page).toHaveURL(/#\/runs$/);
+    await expect(activeTab).toHaveAttribute("aria-selected", "true");
+
     // Open New Run Dialog
     await page.click("button:has-text('New Run')");
     await expect(page.locator("dialog.new-run-dialog")).toBeVisible();
