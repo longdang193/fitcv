@@ -46,8 +46,9 @@ def test_load_control_plane_config_ignores_deprecated_route_env(monkeypatch: pyt
 
     cfg = load_control_plane_config()
 
-    assert cfg["providers"]["openai_compatible"]["base_url"] == "http://host.docker.internal:20128/v1"
-    assert cfg["providers"]["openai_compatible"]["wire_api"] == "chat_completions"
+    canonical_provider = _CANONICAL_CONTROL_PLANE["providers"]["openai_compatible"]
+    assert cfg["providers"]["openai_compatible"]["base_url"] == canonical_provider["base_url"]
+    assert cfg["providers"]["openai_compatible"]["wire_api"] == canonical_provider["wire_api"]
     assert "providers" in cfg
     assert "model_routing" in cfg
     assert "parts" in cfg["model_routing"]

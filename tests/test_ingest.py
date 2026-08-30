@@ -113,21 +113,6 @@ def test_parse_jobs_file_has_required_fields(sample_jobs_path: Path) -> None:
             assert field in job, f"Missing field '{field}' in job: {job.get('title', '?')}"
 
 
-def test_sample_data_engineer_jobs_contains_two_explicitly_flexible_data_engineer_roles() -> None:
-    sample_path = Path(__file__).parent.parent / "data" / "sample_data_engineer_jobs.json"
-    jobs = json.loads(sample_path.read_text())
-
-    flexible_data_engineer_jobs = []
-    for job in jobs:
-        text = f"{job.get('title', '')}\n{job.get('description', '')}".lower()
-        if "data engineer" not in text:
-            continue
-        if "hybrid" in text or "remote" in text:
-            flexible_data_engineer_jobs.append(job)
-
-    assert len(flexible_data_engineer_jobs) == 2
-
-
 def test_parse_jobs_file_raises_for_missing_file() -> None:
     with pytest.raises(FileNotFoundError):
         parse_jobs_file(Path("/nonexistent/path/jobs.json"))

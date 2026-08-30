@@ -44,6 +44,9 @@ def test_worker_auto_accept_routes_domain_proposals_through_central_queue() -> N
                 "alias": "fintech",
                 "canonical": "financial technology",
                 "run_id": "run-domain",
+                "confidence": None,
+                "candidate_canonicals": [],
+                "evidence_note": None,
                 "evidence": {
                     "evidence_summary": {"occurrence_count": 3},
                     "conflict_summary": {"has_conflict": False},

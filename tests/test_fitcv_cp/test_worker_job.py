@@ -75,6 +75,9 @@ def test_central_synonym_sync_ingests_evidence_and_uses_shared_approve_transacti
             "alias": "gcp",
             "canonical": "google cloud",
             "run_id": "run-1",
+            "confidence": None,
+            "candidate_canonicals": [],
+            "evidence_note": None,
             "evidence": {
                 "evidence_summary": {"occurrence_count": 2},
                 "conflict_summary": {"has_conflict": False},
