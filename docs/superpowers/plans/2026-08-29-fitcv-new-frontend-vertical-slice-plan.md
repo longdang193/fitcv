@@ -14,6 +14,8 @@ targets:
   - src/fitcv_cp/local_app.py
   - packaging/windows/fitcv-local.spec
   - scripts/build_fitcv_local.ps1
+  - docs/architecture.md
+  - docs/usage.md
   - tests/
 ---
 
@@ -155,7 +157,7 @@ Supporting synonym management cannot block completion unless it breaks a complet
 - **Owning sources:** active parent specification; `docs/superpowers/specs/2026-08-29-fitcv-client-transient-notifications-spec.md`; reconciliation G-01; Run/Scan event and debug-bundle contracts; decision/history and reliability requirements.
 - **Backend status:** `READY`; notifications remain client-only, with no notification service.
 - **Boundaries:** Run/Scan immutable events and debug bundle; client dedupe identities and session-scoped notification projection.
-- **Dependencies:** Slices 1–7; only cross-slice concerns belong here.
+- **Dependencies:** Slices 1–6; Task 7 is supporting and must not block this slice. Only cross-slice concerns belong here.
 - **Acceptance:** Dedupe priority is `action`, `event`, `state`, then `request`; rendered items mark read; clear-one/clear-all are symmetric; zero badge is hidden; event history remains server truth; diagnostics are redacted and actionable; no UI Clear View calls a delete route.
 - **Verification:** frontend reducer/state tests; Playwright multi-slice notification and recovery flows; direct debug-bundle/event contract checks; final console/network/accessibility evidence.
 - **Final journey relevance:** Return and continue; decision/history truth.
@@ -175,10 +177,11 @@ Slice 1
   ├── Slice 2 ──┐
   ├── Slice 3 ──┼── Slice 4 ── Slice 5 ── Slice 6
   └─────────────┘       └────────────── Slice 7
-All slices ───────────────────────────── Slice 8
+Completion-critical Slices 1–6 ──────── Slice 8
+Supporting Slice 7 may join when ready
 ```
 
-Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not require those slices' complete UI if server-source selection fixtures are available. Slice 5 requires Slice 4's jobs boundary. Slice 6 requires Slice 5's selected-job state. Slice 8 follows all slices.
+Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requires Slice 4's jobs boundary. Slice 6 requires Slice 5's selected-job state. Slice 8 follows completion-critical Slices 1–6; supporting Slice 7 may join when ready but cannot block.
 
 ## Task Breakdown
 
@@ -208,11 +211,11 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 **Dependencies:** None. Do not copy or import `src/fitcv_cp/templates/` or `docs/fitcv-settings-ui-prototype.html` implementation.
 
 **Authority:**
-- Preauthorized local actions: create declared frontend files, add host/package wiring, run `npm ci` for the exact locked dependency set, run frontend/backend checks, and create disposable build output.
+- Preauthorized local actions: create declared frontend files, add host/package wiring, run `npm install --package-lock-only --ignore-scripts` once to generate the initial lockfile, run `npm ci` for the exact locked dependency set, record `node --version` and `npm --version`, run frontend/backend checks, and create disposable build output.
 - Stop for: stack change beyond React/Vite/TypeScript, route contract change, legacy template modification, destructive cleanup, or any dependency outside the exact locked set.
 
 **Steps:**
-- [ ] Create minimal frontend package and lockfile with exact dependencies `react`, `react-dom`, `@types/react`, `@types/react-dom`, `vite`, `@vitejs/plugin-react`, `typescript`, `vitest`, and `@playwright/test`; define `frontend/vitest.config.ts`, `frontend/playwright.config.ts`, `npm run typecheck`, `npm run test`, `npm run test:e2e`, `npm run test:a11y`, and `npm run build`; bind production tokens through one CSS entry and semantic component contracts.
+- [ ] Create minimal frontend package and manifests with exact pins `react@19.1.1`, `react-dom@19.1.1`, `@types/react@19.1.10`, `@types/react-dom@19.1.7`, `vite@7.1.3`, `@vitejs/plugin-react@5.0.2`, `typescript@5.9.2`, `vitest@3.2.4`, and `@playwright/test@1.55.0`; set `engines.node` to `24.15.0` and `packageManager` to `npm@11.13.0`; require `node --version` to return `v24.15.0` and `npm --version` to return `11.13.0`, blocking on mismatch before any install; then run `npm install --package-lock-only --ignore-scripts` to generate `frontend/package-lock.json`, followed by `npm ci`; define `frontend/vitest.config.ts`, `frontend/playwright.config.ts`, `npm run typecheck`, `npm run test`, `npm run test:e2e`, `npm run test:a11y`, and `npm run build`; bind production tokens through one CSS entry and semantic component contracts.
 - [ ] Implement API client with same-origin credentials, CSRF handling, standard error envelope, idempotency-key retention, ETag/CAS support, safe file/download handling, and no secret persistence.
 - [ ] Implement shell, grouped navigation, hash/deep-link routing, responsive drawer/scrim, shared Button/Field/Dialog/Tabs/Status/Table/Navigation, loading/empty/error/success states, focus lifecycle, and reduced-motion behavior; define `frontend/src/app/route-registry.ts` with Vite-discovered feature route modules so feature tasks do not edit shared registration files.
 - [ ] Resolve source-tree assets from `frontend/dist/` and frozen assets from `_MEIPASS/frontend/`; mount `/app/assets/*`, serve `/app` and `/app/*` SPA entry only for non-API paths, redirect local `/` to `/app`, preserve `/admin/*`, update PyInstaller destination mapping to `frontend`, update build inputs, and add host/package contract tests.
@@ -322,7 +325,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 - Modify: `frontend/src/features/runs/**`, `frontend/src/features/runs/route.tsx`, `frontend/src/features/run-detail/**`, focused frontend tests; backend only on proven delta.
 - Verify: direct route/store/orchestrator tests and browser journey.
 
-**Dependencies:** Tasks 1–3 contract boundaries available.
+**Dependencies:** Tasks 1–3 complete, including task-local proof and usable source-selection fixtures.
 
 **Authority:** Declared frontend and focused backend test edits; stop for orchestration semantics changes or unapproved retry behavior.
 
@@ -427,7 +430,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 
 **Files And Symbols:**
 - Inspect: synonym route decorators in `src/fitcv_cp/app.py::create_app`, persistence helpers in `src/fitcv_cp/sqlite_store.py`, and `tests/test_fitcv_cp/test_synonym_global_policy_io.py`, `tests/test_fitcv_cp/test_synonym_promote_preview_field_aware.py`, `tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py`.
-- Modify: `frontend/src/features/synonyms/**`, `frontend/src/features/synonyms/route.tsx`, focused frontend tests. Shared navigation and notification registration belongs to Task 8.
+- Modify: `frontend/src/features/synonyms/**`, `frontend/src/features/synonyms/route.tsx`, focused frontend tests only. Task 7 does not edit shared app registration, navigation, notification, or integration files; those belong to Task 8.
 - Verify: existing synonym route/store suites and browser flows.
 
 **Dependencies:** Task 1 shared shell and current source/test synonym contract; no dependency on Task 5 UI completion.
@@ -445,7 +448,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 
 ### Task 8: Integrate history, notifications, diagnostics, and cross-slice hardening
 
-**Purpose:** Deliver Slice 8 and resolve cross-slice integration defects only after all product slices exist.
+**Purpose:** Deliver Slice 8 and resolve cross-slice integration defects after completion-critical slices exist; supporting Slice 7 may join but cannot block.
 
 **Task Function:** Integrate client notification reducer, event projections, recovery links, global error handling, responsive/theme consistency, and cross-slice navigation/history.
 
@@ -459,25 +462,27 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 
 **Specification Coverage:** Active parent specification; transient notifications spec; reconciliation G-01; decision/history and reliability requirements.
 
-**Required Skills:** `skill-full-stack-integration`, `skill-backend-verification`, `skill-verification-before-completion`.
+**Required Skills:** `skill-full-stack-integration`, `skill-backend-verification`.
 
 **Files And Symbols:**
 - Inspect: `frontend/src/app/route-registry.ts`, `frontend/src/state/notifications/**`, each `frontend/src/features/*/route.tsx`, `src/fitcv_cp/app.py::get_process_events`, `src/fitcv_cp/app.py::download_run_cv_debug_json`, `src/fitcv_cp/app.py::download_run_cv_generation_trace_json`, `src/fitcv_cp/app.py::download_run_cv_analysis_trace_json`, `tests/test_fitcv_cp/test_run_lifecycle.py`, `tests/test_fitcv_cp/test_run_detail_output_availability.py`, and `tests/test_fitcv_cp/test_app.py`.
 - Modify: `frontend/src/state/notifications/**`, `frontend/src/app/**`, `frontend/src/features/**` only for integration defects, `docs/architecture.md`, `docs/usage.md`, focused integration/browser tests.
 - Verify: `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_run_lifecycle.py tests/test_fitcv_cp/test_run_detail_output_availability.py`; `frontend/src/app/route-registry.test.tsx`, `frontend/src/state/notifications/notifications.test.ts`, and `frontend/src/app/integration.test.tsx`; full frontend typecheck/test/build and Playwright desktop/mobile, theme, keyboard, recovery, notification, and history flows.
 
-**Dependencies:** Tasks 1–7 complete.
+**Dependencies:** Tasks 1–6 complete. Task 7 may be included when complete, but cannot block integration or completion-critical verification.
+
+**Workspace:** Dedicated integration worktree created from the verified fan-in commit for Tasks 1–6; never use the controller's current workspace for write-capable integration.
 
 **Authority:** Cross-slice integration and declared proof/docs edits; stop for new product behavior, new backend services, or scope promotion of supporting work.
 
 **Steps:**
 - [ ] Add source-backed session notification projection with specified dedupe order, mark-read, clear-one, clear-all, and zero-badge behavior.
 - [ ] Wire event consoles, diagnostics/recovery actions, cross-route return links, and server capability-driven action availability.
-- [ ] Run cross-slice responsive/theme/accessibility/keyboard/focus/console/network matrix and fix only integration defects.
+- [ ] Run cross-slice responsive/theme/accessibility/keyboard/focus/console/network matrix and fix only integration defects; preserve `docs/fitcv-new-frontend.integration.md` as historical reconciliation evidence and remove only temporary execution mappings created during this plan.
 
 **Verification:** Reducer tests; representative browser recovery and notification flows; direct event/debug-bundle contract checks; no UI Clear View delete calls.
 
-**Exit Criteria:** Cross-slice acceptance passes and no integration sidecar or temporary contract mapping remains unresolved.
+**Exit Criteria:** Cross-slice acceptance passes, no temporary contract mapping remains, and historical reconciliation evidence remains intact.
 
 ## Execution waves / parallelism opportunities
 
@@ -486,8 +491,9 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 - Mode: `parallel-capable`
 - Coordination: `git-tracked`
 - Default task executor: `codex`
-- Required skills: `skill-chief-of-staff`, `skill-writing-plans`, `skill-full-stack-integration`, `skill-backend-verification`, `skill-frontend-component-engineering`, `skill-verification-before-completion`
+- Required skills: `skill-chief-of-staff`, `skill-full-stack-integration`, `skill-backend-verification`, `skill-frontend-component-engineering`
 - Isolation: isolated Git worktree per concurrent writer; same-worktree work is sequential.
+- CoS/profile preflight: before any write-capable dispatch, follow `docs/operating_system/procedures/personal-local-worktree-procedure.md` and `docs/operating_system/tooling/runtime-tool-resolution.md`; set `$base = git rev-parse HEAD`, prove `git cat-file -e "$base:agents/ui.toml"`, `git cat-file -e "$base:agents/review.toml"`, `git cat-file -e "$base:agents/xhigh.toml"`, `git cat-file -e "$base:scripts/herdr_main_launcher.py"`, each tracked `.agents/skills/<skill>/SKILL.md`, resolved runtime/model bindings, and `git hash-object` values for profiles, skills, and launcher. Resolve external skills `ui-ux-pro-max` and `build-web-apps:react-best-practices` through the configured runtime capability path and record provider/version evidence; do not require those external skills to be Git-tracked. Current-worktree untracked files do not satisfy this gate. Missing or mismatched profiles, skills, launcher, hashes, runtime capability, or runtime evidence blocks dispatch; do not fall back to another profile or current-workspace writes. If required profile/coordination-skill inputs are not tracked at activation base, stop and obtain a separate approved repository-configuration change before activation. Record `git status --short --ignored` and inventory pre-existing ignored SQLite sidecars before creating worktrees; cleanup may remove only task-created sidecars after proof.
 - Commit policy: no commits during plan drafting; execution tasks use verified per-task checkpoint commits only when approved CoS run authorizes them.
 - Preauthorized local actions: declared frontend/backend/test/docs edits, configured local checks, browser verification, package/build checks, and isolated worktree operations.
 - User-approval actions: push, merge, publication, external writes/authentication, destructive cleanup, and legacy deletion.
@@ -496,25 +502,40 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 
 ## Coordination State
 
-- Coordination schema: `1`
+- Coordination schema: `2`
 - Coordination owner: lead Codex controller
 - Branch: `main`
-- Base commit: `9a83da1d`
+- Base commit: `9a83da1d` planning candidate; replace with exact clean pre-activation `HEAD` after prerequisite/profile preflight passes.
 - Expected workspace: `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT`
 - Next action: final owner approval before production implementation; keep plan `status: proposed` and do not activate or execute slices
-- Blockers: none
+- Blockers: activation blocked until an approved repository-configuration change tracks required `ui`/`review` profiles and `skill-chief-of-staff` in the activation base; current dirty or untracked files do not satisfy that prerequisite.
 - Preserved pre-existing changes: none at the clean baseline commit; preserve any user changes that appear after plan creation before execution starts.
+
+Before activation, lead controller records one durable lane entry per task in this ledger: exact branch, isolated worktree path, base commit, current `HEAD`, allowed paths, dependency gate, checkpoint commit, accepted proof, fan-in source and target, blocker, and next action. Values come from Git and fresh command output, not runtime session state. Lead remains sole ledger writer; lane commits do not change task state. Task 8 integration starts only from the verified fan-in commit in its dedicated integration worktree. Replace every pending activation value before dispatch; no runtime session may supply missing recovery state.
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | pending | isolated worktree | codex | none | build, host, browser, package | pending |
-| Task 2 | pending | isolated worktree | codex | Task 1 | lifecycle API and browser journey | pending |
-| Task 3 | pending | isolated worktree | codex | Task 1 | scan API and browser journey | pending |
-| Task 4 | pending | isolated worktree | codex | Tasks 2, 3 | run API and recovery browser journey | pending |
-| Task 5 | pending | isolated worktree | codex | Task 4 | decision API and browser journey | pending |
-| Task 6 | pending | isolated worktree | codex | Task 5 | artifact API and safe preview browser journey | pending |
-| Task 7 | pending | isolated worktree | codex | Task 1 | synonym API and browser journey | pending |
-| Task 8 | pending | current workspace after fan-in | codex | Tasks 1–7 | whole-frontend and cross-slice proof | pending |
+| Task 1 | pending | activation-assigned isolated worktree | codex | none | build, host, browser, package | pending |
+| Task 2 | pending | activation-assigned isolated worktree | codex | Task 1 | lifecycle API and browser journey | pending |
+| Task 3 | pending | activation-assigned isolated worktree | codex | Task 1 | scan API and browser journey | pending |
+| Task 4 | pending | activation-assigned isolated worktree | codex | Tasks 1–3 | run API and recovery browser journey | pending |
+| Task 5 | pending | activation-assigned isolated worktree | codex | Task 4 | decision API and browser journey | pending |
+| Task 6 | pending | activation-assigned isolated worktree | codex | Task 5 | artifact API and safe preview browser journey | pending |
+| Task 7 | pending | activation-assigned isolated worktree | codex | Task 1 | synonym API and browser journey | pending |
+| Task 8 | pending | dedicated integration worktree from verified fan-in commit | codex | Tasks 1–6 | whole-frontend and cross-slice proof | pending |
+
+### Durable Lane Record
+
+| Task | Branch | Worktree | Base / HEAD | Allowed Paths | Checkpoint | Accepted Proof | Fan-in | Blocker / Next Action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Task 1 | activation-assigned | activation-assigned | activation-captured / pending | Task 1 Modify paths | pending | pending | source for Tasks 2–8 | record before dispatch |
+| Task 2 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 2 Modify paths | pending | pending | source for Task 4 | record after Task 1 |
+| Task 3 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 3 Modify paths | pending | pending | source for Task 4 | record after Task 1 |
+| Task 4 | activation-assigned | activation-assigned | Tasks 2–3 accepted / pending | Task 4 Modify paths | pending | pending | source for Task 5 | record after Tasks 2–3 |
+| Task 5 | activation-assigned | activation-assigned | Task 4 accepted / pending | Task 5 Modify paths | pending | pending | source for Task 6/8 | record after Task 4 |
+| Task 6 | activation-assigned | activation-assigned | Task 5 accepted / pending | Task 6 Modify paths | pending | pending | source for Task 8 | record after Task 5 |
+| Task 7 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 7 Modify paths only | pending | pending | optional; never gates Task 8 | supporting; may proceed independently |
+| Task 8 | integration-assigned | dedicated integration worktree | Tasks 1–6 fan-in / pending | Task 8 Modify paths | pending | pending | final integration target | create only from verified fan-in |
 
 ### Wave 0 — Foundation
 
@@ -528,7 +549,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 
 ### Wave 2 — Run continuity
 
-- Task 4 after Tasks 2 and 3 contract fixtures and task-local proof.
+- Task 4 after Tasks 2 and 3 complete with task-local proof.
 
 ### Wave 3 — Decision and artifact slices
 
@@ -536,7 +557,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 
 ### Wave 4 — Cross-slice integration
 
-- Task 8 after Tasks 1–7. No parallel writers during final integration or verification.
+- Task 8 after Tasks 1–6 in its dedicated integration worktree. Task 7 may be added if complete, but does not block final integration. No parallel writers during final integration or verification.
 
 ## Cross-slice integration/hardening phase
 

@@ -37,8 +37,8 @@ related_features:
 ### Outcome: Complete Personal FitCV journey
 
 - affected actor or system: FitCV Local user and canonical backend resources.
-- required result: setup/readiness, Candidate Profile, Scans, Runs, fit evaluation, bookmarks/interest, personalization, grounded CV review, notifications, history, diagnostics, and recovery are consumable through one frontend.
-- success condition: each completion-critical journey has truthful loading, empty, success, failure, disabled, pending, conflict, cancelled, unavailable, and retry behavior where its canonical contract permits.
+- required result: completion-critical core journeys include setup/readiness, Candidate Profile, Scans, Runs, Run recovery, fit evaluation, bookmarks/interest, personalization, grounded CV review, and durable decision/history. Supporting surfaces include diagnostics, session-scoped notification convenience, and synonym management.
+- success condition: every completion-critical core journey has truthful loading, empty, success, failure, disabled, pending, conflict, cancelled, unavailable, and retry behavior where its canonical contract permits. Supporting surfaces may not block core completion, but must not falsify core truth or suppress actionable recovery.
 
 ### Outcome: Truthful cross-boundary ownership
 
@@ -90,7 +90,7 @@ related_features:
 
 ### Scope
 
-- included behavior: `/app` entry and deep links; same-origin static delivery; Personal FitCV journeys; canonical API resource consumption; server capability/error/revision/media handling; client view/URL/unsaved-edit/selection/polling/transient state; responsive and accessible interaction; FitCV Local packaging boundary; legacy coexistence.
+- included behavior: `/app` entry and deep links; same-origin static delivery; completion-critical Personal FitCV core journeys and required recovery/history; supporting diagnostics, session-scoped notification convenience, and synonym management; canonical API resource consumption; server capability/error/revision/media handling; client view/URL/unsaved-edit/selection/polling/transient state; responsive and accessible interaction; FitCV Local packaging boundary; legacy coexistence.
 - affected boundaries: browser frontend, FastAPI local host, static-resource packaging, canonical API contracts, local persistence authority, and verification surfaces.
 - admissible cases: one trusted local user, supported browser and Windows package, supported providers and job sources, valid and invalid API responses, lifecycle transitions, retryable failures, stale revisions, missing/corrupt artifacts, and restart/recovery.
 - compatibility expectation: existing API paths, response/error semantics, backend data, legacy `/admin/*` routes, and Jinja compatibility surfaces remain available unless a separate approved retirement change says otherwise.
