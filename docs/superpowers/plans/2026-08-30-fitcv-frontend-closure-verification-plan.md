@@ -39,7 +39,7 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Mode: `inline sequential`
 - Coordination: `git-tracked`
 - Default task executor: `codex`
-- Required skills: `skill-chief-of-staff`, `skill-verification-before-completion`
+- Required skills: `skill-chief-of-staff`, `skill-executing-plans`, `skill-verification-before-completion`
 - Isolation: lead uses `current workspace`; Task 4 uses a fresh isolated read-only review workspace; no write-capable product lane is authorized by this plan
 - Commit policy: verified per-task checkpoint commits may record lead ledger transitions; source evidence SHA remains separate from coordination checkpoint SHA; no push, merge, or publication
 - Preauthorized local actions: read declared sources, run existing validators/tests, use already-configured local runtime and browser capability for bounded proof, and update this plan's coordination ledger
@@ -58,9 +58,9 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Blockers: none at drafting
 - Source evidence baseline: `activation_source_sha`
 - Final source under review: `final_candidate_source_sha`; equal to activation source unless an approved bounded correction changes source
-- Coordination checkpoint: `latest_coordination_checkpoint_sha`; ledger-only commits do not replace source evidence SHA
+- Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
 
-Before activation, commit this proposed plan so Git can recover its coordination ledger. Activation then changes plan `status` from `proposed` to `active` before Task 1 starts. At activation, CoS must record exact `main` HEAD, `origin/main`, worktree status, preserved unrelated changes, and `activation_source_sha`. Require `HEAD == origin/main` and no unexpected tracked changes. Every accepted evidence item records the source SHA it proves and the coordination checkpoint that records acceptance.
+Before activation, commit this proposed plan so Git can recover its coordination ledger. Activation then changes plan `status` from `proposed` to `active` before Task 1 starts. At activation, CoS must record exact `main` HEAD, `origin/main`, worktree status, preserved unrelated changes, and `activation_source_sha`. Require `HEAD == origin/main` and no unexpected tracked changes. Every accepted evidence item records the source SHA it proves. Derive the coordination checkpoint from plan history with `git log -1 --format=%H -- <plan-path>` when resuming or reviewing.
 
 If a required defect correction changes source, stop current proof, record `final_candidate_source_sha` after correction, invalidate only affected evidence, rerun only affected proof, and make Task 4 review the final source candidate. Ledger-only checkpoint commits do not change `final_candidate_source_sha`. This plan does not authorize source correction.
 The lead controller is sole coordination-state writer. Runtime threads, agent sessions, temporary todos, and memory are not recovery state.
@@ -70,7 +70,7 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 | Task 1 | `pending` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | pending |
 | Task 2 | `pending` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | pending |
 | Task 3 | `pending` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | pending |
-| Task 4 | `pending` | fresh isolated read-only review
+| Task 4 | `pending` | `.worktrees/fitcv-closure-review` | `codex` | Tasks 1–3 | independent `PASS`, `FAIL`, or `BLOCKED` review bound to final source SHA | pending
 | Task 5 | `pending` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | pending |
 
 ## Task Breakdown
@@ -124,7 +124,7 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 - [ ] `python scripts/validate_template_required_sections.py --repo-root .`
 - [ ] `python scripts/validate_planning_lifecycle.py --repo-root .`
 - [ ] `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_setup.py tests/test_fitcv_cp/test_frontend_host.py`
-- [ ] From `frontend/`: `npm run typecheck`, `npm run test`, `npm run test:a11y`, `npm run build`, and `npm run test:e2e` when browser evidence is applicable.
+- [ ] From `frontend/`: `npm run typecheck`, `npm run test`, `npm run test:a11y`, and `npm run build`; run `npm run test:e2e` only when an already-healthy browser runtime is available and record that runtime with the evidence.
 - Expected: every Stage 11 claim has explicit disposition and SHA-bound evidence.
 
 **Exit Criteria:**
@@ -224,7 +224,8 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 - Mock rule: no mock/fake fallback for claims classified `REQUIRED AND MISSING`.
 
 **Steps:**
-- [ ] Resolve existing local runtime through `./start_web.ps1 -Port 8000` if not already running; if queued execution is required, use `./start_worker.ps1`; verify `Invoke-RestMethod http://localhost:8000/healthz` returns `ok: true`; record actual endpoint and provider identity.
+- [ ] If runtime is not already available, start `start_web.ps1` in an owned background process from a separate shell, capture its PID, and verify `Invoke-RestMethod http://localhost:8000/healthz` returns `ok: true`; if queued execution is required, start `start_worker.ps1` only after Redis readiness, capture its PID, and record endpoint and provider identity.
+- [ ] Use only probe-owned processes for lifecycle cleanup; stop those PIDs after proof, and do not stop an existing runtime owned outside this probe.
 - [ ] Launch actual `/app` through normal local runtime.
 - [ ] Use approved supported profile input; review and confirm persisted active profile.
 - [ ] Run one bounded Scan against at most two tracked companies; inspect actual output.
@@ -234,7 +235,7 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 - [ ] Reopen FitCV and verify required persisted state/history.
 
 **Verification:**
-- [ ] Record `probe source SHA`, coordination checkpoint, runtime endpoint/health result, provider identity, profile ID/revision, Scan ID and terminal state, job count, Run ID and terminal state, representative fit result, CV version ID, preview result, download result, restart/persistence result, browser finding, and blocker.
+- [ ] Record `probe source SHA`, derived coordination checkpoint, runtime endpoint/health result, provider identity, profile ID/revision, Scan ID and terminal state, job count, Run ID and terminal state, representative fit result, CV version ID, preview result, download result, restart/persistence result, browser finding, and blocker.
 - [ ] Confirm visible states match persisted records/events/artifacts.
 - Expected: all required claims pass, or exact `BLOCKED`/`INCOMPLETE` result with smallest rerun scope.
 
@@ -258,10 +259,11 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 - Selection basis: reviewer is the independent validation lane.
 
 **Specification Coverage:**
-- Final `final_candidate_sha`, completed production specification, completed vertical-slice plan, success outcomes, and accepted Task 1–3 evidence.
+- Final `final_candidate_source_sha`, completed production specification, completed vertical-slice plan, success outcomes, and accepted Task 1–3 evidence.
 
 **Required Skills:**
-- `skill-plan-document-reviewer`
+- `skill-requesting-code-review`
+- `skill-receiving-code-review`
 
 **Files And Symbols:**
 - Inspect: exact final candidate source state, named canonical docs, Task 1 matrix, Task 2 coverage map, Task 3 probe evidence, frontend tests/E2E specs, and affected backend tests
@@ -276,17 +278,18 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 **Authority:**
 - Preauthorized local actions: read-only inspection and bounded existing checks.
 - Read-only boundary: reviewer must not modify plan, source, tests, Git index, branch refs, or commits.
+- [ ] CoS creates `.worktrees/fitcv-closure-review` with `git worktree add --detach` at `final_candidate_source_sha`, dispatches a fresh top-level `review` session through `skill-requesting-code-review` and the configured CoS review path, and retires the review worktree only after pre/post Git state is recorded.
 - Stop for: unexpected repository modification, missing evidence identity, source drift, or unreviewable runtime claim.
 
 **Steps:**
-- [ ] Bind review to exact repository, branch, `final_candidate_source_sha`, coordination checkpoint, and evidence identities.
+- [ ] Bind review to exact repository, detached review worktree, `final_candidate_source_sha`, derived coordination checkpoint, and evidence identities.
 - [ ] Inspect completion-critical behavior, fit/business truth, frontend/backend contracts, accessibility/usability, persistence, and probe contradictions.
 - [ ] Exclude enterprise hardening, speculative architecture, cosmetic redesign, legacy retirement, and performance without an approved requirement.
 - [ ] Return exactly `PASS`, `FAIL`, or `BLOCKED` with P1/P2/P3 findings and exact evidence.
 
 **Verification:**
 - [ ] Pre-review and post-review `git status --short --branch`, HEAD, and diff are unchanged.
-- Expected: independent verdict applies to exact final source candidate plus its coordination checkpoint, not a summary or prior commit.
+- Expected: independent verdict applies to exact final source candidate plus its derived coordination checkpoint, not a summary or prior commit.
 
 **Exit Criteria:**
 - Independent review returns a disposition accepted or routed by CoS. Completion-blocking P1/P2 findings remain unresolved until fixed and affected proof is rerun.
@@ -344,10 +347,10 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 ## Verification
 
 - Run planning validators after plan creation and after any coordination-state change.
-- Run existing frontend `typecheck`, unit tests, accessibility tests, build, and E2E commands from `frontend/package.json` when their evidence classes are applicable.
+- Rerun only applicable commands recorded by Tasks 1–3: `npm run typecheck`, `npm run test`, `npm run test:a11y`, `npm run build`, and `npm run test:e2e` from `frontend/`; `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_setup.py tests/test_fitcv_cp/test_frontend_host.py`; `python -m compileall -q src`; and `git diff --check`.
 - Run affected backend/API tests and `python -m compileall -q src` when backend evidence is applicable.
 - Use browser/runtime evidence for rendered and real-boundary claims; source inspection or mock tests cannot replace required live proof.
-- Run `git diff --check` and confirm final evidence binds to `final_candidate_sha`.
+- Run `git diff --check` and confirm final evidence binds to `final_candidate_source_sha`; derive checkpoint identity from `git log -1 --format=%H -- <plan-path>`.
 
 ## Completion Criteria
 
@@ -356,8 +359,8 @@ The plan is ready for completion verification when:
 1. Task 1 records explicit Stage 11 evidence dispositions.
 2. Task 2 maps every completion-critical Stage 12 claim and contains no `maybe` classification.
 3. Task 3 either proves every required live claim within bounds or records exact `BLOCKED`/`INCOMPLETE` evidence.
-4. Task 4 independently reviews the exact `final_candidate_source_sha` and coordination checkpoint.
+4. Task 4 independently reviews the exact `final_candidate_source_sha` and derived coordination checkpoint.
 5. Task 5 records one closure verdict and no unresolved required proof is hidden by a checkbox or agent summary.
 6. Plan/Git state, preserved user changes, validators, tests, and deviations are reconciled.
 
-User approval changes this plan from `proposed` to eligible for CoS activation. CoS activation sets `status: active`, records `activation_source_sha`, and activates Task 1; approval alone does not execute a task.
+User approval changes this plan from `proposed` to eligible for CoS activation. CoS activation sets `status: active`, records `activation_source_sha`, and activates Task 1; approval alone does not execute a task. If activation finds `HEAD != origin/main`, CoS stops and requests explicit push/sync authorization or a recorded exception before Task 1.
