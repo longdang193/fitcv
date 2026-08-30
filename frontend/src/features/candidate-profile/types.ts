@@ -205,4 +205,3 @@ export interface StoredReconciliation {
   operations: CandidateProfileReviewOperation[];
   timestamp: number;
 }
-
