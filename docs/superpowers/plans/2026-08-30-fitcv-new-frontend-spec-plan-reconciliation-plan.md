@@ -59,13 +59,13 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Branch: `main`
 - Base commit: `b861d13e`
 - Expected workspace: clean at `b861d13e` before this plan is added; after drafting, only declared planning artifacts may be uncommitted and unrelated user changes remain preserved
-- Next action: obtain fresh independent `xhigh` and `review` assessment of this proposed meta-plan
-- Blockers: meta-plan owner approval is required before Task 1; Design Export decisions `EX-01` and `EX-12` require current owner resolution and complete applicable gate evidence before parent-spec promotion; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference; parent-spec owner approval is required before Task 4; final production-plan owner approval is required before production implementation
+- Next action: create proposed parent specification in Task 2
+- Blockers: Design Export decisions `EX-01` and `EX-12` require current owner resolution and complete applicable gate evidence before parent-spec promotion; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference; parent-spec owner approval is required before Task 4; final production-plan owner approval is required before production implementation
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `pending` | current | `codex` | meta-plan owner approval | inventory, source/test evidence, stale-owner and Design Export gate scan | pending |
-| Task 2 | `pending` | current | `codex` | Task 1 | draft-spec template and lifecycle validation | pending |
+| Task 1 | `completed` | current | `codex` | meta-plan owner approval | inventory, source/test evidence, stale-owner and Design Export gate scan | six focused specs active; G-02/G-03/G-04 direct proof recorded; retired roadmap reference is historical; EX-01/EX-12 remain promotion gates |
+| Task 2 | `active` | current | `codex` | Task 1 | draft-spec template and lifecycle validation | active; xhigh writer owns parent spec only |
 | Task 3 | `pending` | current | `codex` | Task 2 | independent draft-spec verdict | pending |
 | Task 4 | `pending` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | pending |
 | Task 5 | `pending` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | pending |
@@ -75,7 +75,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 ## META-PLAN OWNER APPROVAL GATE
 
 - Independent `xhigh` and `review` assessment must return no unresolved P1/P2 approval blockers.
-- Product owner approves exact artifact `docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md`.
+- Product owner approved exact artifact `docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md` in Codex task on 2026-08-30.
 - Before Task 1, lead controller records approval reference, changes this plan from `status: proposed` to `status: active`, leaves every task `pending`, and commits that active-plan state.
 - After the active-plan checkpoint exists, lead controller marks Task 1 `active`, records the next action, and commits that ledger state before Task 1 work begins. Never copy a checkpoint SHA into the plan.
 - Without explicit owner approval, do not run Task 1 as coordinated execution, create downstream specifications, revise the vertical-slice plan, or implement production code.
@@ -124,17 +124,17 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Stop for: missing canonical input, contradictory approved UX/design evidence, unresolved behavior, unresolved Design Export gate that affects durable frontend decisions, or any requested production-code change.
 
 **Steps:**
-- [ ] Inventory every current specification, record status, accepted outcome, verification evidence, frontend relevance, and consuming vertical-slice task.
-- [ ] Confirm backend corrections directly verified for `G-02`, `G-03`, and `G-04`; distinguish backend proof from missing frontend proof.
-- [ ] Identify stale roadmap/workstream references, including absent `docs/intent/master-workstream-roadmap.md`; mark them historical or replacement-required without treating them as current authority.
-- [ ] Classify Design Export `EX-01`, `EX-05`, `EX-06`, `EX-07`, `EX-08`, `EX-09`, and `EX-12` gate state, durable identity, independent-review binding, and owner decision needs.
-- [ ] Define the smallest cross-cutting contract missing from current specifications and pass exact scope to Task 2.
-- [ ] Recommend no focused-spec status transition unless complete contract implementation and verification prove it; any needed transition requires a bounded plan revision before writing.
+- [x] Inventory every current specification, record status, accepted outcome, verification evidence, frontend relevance, and consuming vertical-slice task.
+- [x] Confirm backend corrections directly verified for `G-02`, `G-03`, and `G-04`; distinguish backend proof from missing frontend proof.
+- [x] Identify stale roadmap/workstream references, including absent `docs/intent/master-workstream-roadmap.md`; mark them historical or replacement-required without treating them as current authority.
+- [x] Classify Design Export `EX-01`, `EX-05`, `EX-06`, `EX-07`, `EX-08`, `EX-09`, and `EX-12` gate state, durable identity, independent-review binding, and owner decision needs.
+- [x] Define the smallest cross-cutting contract missing from current specifications and pass exact scope to Task 2.
+- [x] Recommend no focused-spec status transition unless complete contract implementation and verification prove it; any needed transition requires a bounded plan revision before writing.
 
 **Verification:**
-- [ ] `git status --short --branch`; Expected: approved-plan execution starts only from declared branch/base with unrelated changes preserved.
-- [ ] `Test-Path docs/intent/master-workstream-roadmap.md`; Expected: `False`; missing retired artifact is not required for execution.
-- [ ] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: existing artifacts validate or any pre-existing finding is recorded without unrelated edits.
+- [x] `git status --short --branch`; Expected: approved-plan execution starts only from declared branch/base with unrelated changes preserved.
+- [x] `Test-Path docs/intent/master-workstream-roadmap.md`; Expected: `False`; missing retired artifact is not required for execution.
+- [x] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: existing artifacts validate or any pre-existing finding is recorded without unrelated edits.
 
 **Exit Criteria:**
 - Evidence-backed inventory, status recommendations, Design Export gate assessment, and parent-spec scope are returned; no audit artifact is created.
