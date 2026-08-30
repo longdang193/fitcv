@@ -3,7 +3,7 @@ layer: change
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: proposed
+status: active
 name: fitcv-new-frontend-vertical-slices
 parent_spec: docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md
 targets:
@@ -505,17 +505,17 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 - Coordination schema: `2`
 - Coordination owner: lead Codex controller
 - Branch: `main`
-- Base commit: `9a83da1d` planning candidate; replace with exact clean pre-activation `HEAD` after prerequisite/profile preflight passes.
+- Base commit: `e98ce80df2f5a73ae88a2815af62143256aec8da`
 - Expected workspace: `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT`
-- Next action: final owner approval before production implementation; keep plan `status: proposed` and do not activate or execute slices
-- Blockers: activation blocked until an approved repository-configuration change tracks required `ui`/`review` profiles and `skill-chief-of-staff` in the activation base; current dirty or untracked files do not satisfy that prerequisite.
-- Preserved pre-existing changes: none at the clean baseline commit; preserve any user changes that appear after plan creation before execution starts.
+- Next action: dispatch Task 1 through `scripts/herdr_main_launcher.py` after lane identity and runtime binding gates pass
+- Blockers: none
+- Preserved pre-existing changes: user-owned `.gitignore` modification in lead workspace; preserved and excluded from task lane.
 
 Before activation, lead controller records one durable lane entry per task in this ledger: exact branch, isolated worktree path, base commit, current `HEAD`, allowed paths, dependency gate, checkpoint commit, accepted proof, fan-in source and target, blocker, and next action. Values come from Git and fresh command output, not runtime session state. Lead remains sole ledger writer; lane commits do not change task state. Task 8 integration starts only from the verified fan-in commit in its dedicated integration worktree. Replace every pending activation value before dispatch; no runtime session may supply missing recovery state.
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | pending | activation-assigned isolated worktree | codex | none | build, host, browser, package | pending |
+| Task 1 | active | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-1` | codex | none | build, host, browser, package | pending |
 | Task 2 | pending | activation-assigned isolated worktree | codex | Task 1 | lifecycle API and browser journey | pending |
 | Task 3 | pending | activation-assigned isolated worktree | codex | Task 1 | scan API and browser journey | pending |
 | Task 4 | pending | activation-assigned isolated worktree | codex | Tasks 1–3 | run API and recovery browser journey | pending |
@@ -528,7 +528,7 @@ Before activation, lead controller records one durable lane entry per task in th
 
 | Task | Branch | Worktree | Base / HEAD | Allowed Paths | Checkpoint | Accepted Proof | Fan-in | Blocker / Next Action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | activation-assigned | activation-assigned | activation-captured / pending | Task 1 Modify paths | pending | pending | source for Tasks 2–8 | record before dispatch |
+| Task 1 | active | `codex/fitcv-task-1` | `e98ce80df2f5a73ae88a2815af62143256aec8da` / pending | Task 1 Modify paths | pending | pending | source for Tasks 2–8 | runtime gate, then dispatch |
 | Task 2 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 2 Modify paths | pending | pending | source for Task 4 | record after Task 1 |
 | Task 3 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 3 Modify paths | pending | pending | source for Task 4 | record after Task 1 |
 | Task 4 | activation-assigned | activation-assigned | Tasks 2–3 accepted / pending | Task 4 Modify paths | pending | pending | source for Task 5 | record after Tasks 2–3 |
