@@ -12,6 +12,8 @@ import {
   deleteScans,
   fetchScanEvents,
   fetchScanJobs,
+  fetchScanOutputJson,
+  buildRunSourcesHash,
 } from "../features/scans/api";
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
@@ -264,5 +266,13 @@ describe("scans feature route and api slice", () => {
     expect(getSpy).toHaveBeenCalledWith("/scans/scan-1/jobs?page=1&page_size=20");
     expect(jobsRes.data.length).toBe(1);
     expect(jobsRes.data[0].title).toBe("Frontend Engineer");
+  });
+
+  it("preserves output bytes for preview and encodes Run source handoff", async () => {
+    const previewSpy = vi.spyOn(apiClient, "previewText").mockResolvedValueOnce('[{"title":"Exact"}]');
+
+    await expect(fetchScanOutputJson("scan/1")).resolves.toBe('[{"title":"Exact"}]');
+    expect(previewSpy).toHaveBeenCalledWith("/scans/scan%2F1/output");
+    expect(buildRunSourcesHash(["scan-1", "scan/2"])).toBe("#/runs?scan_ids=scan-1&scan_ids=scan%2F2");
   });
 });

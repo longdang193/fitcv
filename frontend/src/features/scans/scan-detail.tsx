@@ -106,8 +106,8 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   const loadJson = useCallback(async () => {
     setJsonLoading(true);
     try {
-      const data = await fetchScanOutputJson(scanId);
-      setJsonOutput(JSON.stringify(data, null, 2));
+       const data = await fetchScanOutputJson(scanId);
+       setJsonOutput(data);
     } catch {
       setJsonOutput(null);
     } finally {
@@ -179,7 +179,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
     try {
       const created = await runScanAgain(scan.scan_id, undefined, scan.row_revision);
       setActionNotice(`Created new Scan ${created.scan_id}`);
-      window.location.hash = `#/scans?selected_id=${encodeURIComponent(created.scan_id)}`;
+       window.location.hash = `#/scans?scan_id=${encodeURIComponent(created.scan_id)}`;
     } catch (err: any) {
       setActionNotice(`Run Again failed: ${err.message}`);
     } finally {
@@ -225,6 +225,11 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
     } catch (err: any) {
       setActionNotice(`Download failed: ${err.message}`);
     }
+  };
+
+  const handleUseForRun = () => {
+    if (!scan) return;
+    window.location.hash = `#/runs?scan_ids=${encodeURIComponent(scan.scan_id)}`;
   };
 
   if (loading) {
@@ -311,6 +316,11 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
               disabled={actionInProgress}
             >
               Download JSON
+            </Button>
+          )}
+          {scan.capabilities.use_for_run && (
+            <Button variant="primary" onClick={handleUseForRun} disabled={actionInProgress}>
+              Use in Run
             </Button>
           )}
           {scan.capabilities.cancel && (

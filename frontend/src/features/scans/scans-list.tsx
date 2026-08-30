@@ -15,6 +15,7 @@ import {
   unarchiveScans,
   previewDeleteScans,
   deleteScans,
+  buildRunSourcesHash,
 } from "./api";
 import { ScanResource, ScanLifecycle, DeletePreviewResult } from "./types";
 import { NewScanDialog } from "./new-scan-dialog";
@@ -123,6 +124,20 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
     if (selectedScans.length === 0) return false;
     return selectedScans.every((s) => s.capabilities.unarchive);
   }, [selectedScans]);
+
+  const canUseSelectedForRun = useMemo(
+    () => lifecycle === "active" && selectedScans.some((s) => s.capabilities.use_for_run),
+    [lifecycle, selectedScans]
+  );
+
+  const handleUseSelectedForRun = () => {
+    const scanIds = selectedScans.filter((s) => s.capabilities.use_for_run).map((s) => s.scan_id);
+    if (scanIds.length === 0) {
+      setActionNotice("Selected scans are not eligible for a Run.");
+      return;
+    }
+    window.location.hash = buildRunSourcesHash(scanIds);
+  };
 
   const handleBulkArchive = async () => {
     if (selectedScans.length === 0) return;
@@ -334,6 +349,16 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
             <strong>{selectedScanIds.size} Scan(s) selected</strong>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
+            {lifecycle === "active" && (
+              <Button
+                variant="primary"
+                size="compact"
+                onClick={handleUseSelectedForRun}
+                disabled={!canUseSelectedForRun || actionInProgress}
+              >
+                Use in Run
+              </Button>
+            )}
             {lifecycle === "active" ? (
               <Button
                 variant="secondary"

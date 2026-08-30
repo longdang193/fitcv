@@ -207,7 +207,13 @@ export async function fetchScanJobs(
   return res.data;
 }
 
-export async function fetchScanOutputJson(scanId: string): Promise<unknown> {
-  const res = await apiClient.get<unknown>(`/scans/${encodeURIComponent(scanId)}/output`);
-  return res.data;
+export async function fetchScanOutputJson(scanId: string): Promise<string> {
+  return apiClient.previewText(`/scans/${encodeURIComponent(scanId)}/output`);
+}
+
+export function buildRunSourcesHash(scanIds: string[]): string {
+  const params = new URLSearchParams();
+  for (const scanId of scanIds) params.append("scan_ids", scanId);
+  const query = params.toString();
+  return query ? `#/runs?${query}` : "#/runs";
 }
