@@ -10,10 +10,10 @@ test.describe("Candidate Profile Feature Journey", () => {
     await expect(page.locator("button:has-text('Create Profile')")).toBeVisible();
 
     // Check tabs
-    const activeTab = page.locator("button[role='tab'][data-profile-tab='active'], button[role='tab']:has-text('Active')");
+    const activeTab = page.locator("button[role='tab']:has-text('Active')");
     await expect(activeTab).toBeVisible();
 
-    const archivedTab = page.locator("button[role='tab'][data-profile-tab='archived'], button[role='tab']:has-text('Archived')");
+    const archivedTab = page.locator("button[role='tab']:has-text('Archived')");
     await expect(archivedTab).toBeVisible();
 
     // Navigate to Create Profile view
@@ -24,6 +24,15 @@ test.describe("Candidate Profile Feature Journey", () => {
 
     // Cancel back to catalog
     await page.click("button:has-text('Back to Candidate Profiles'), button:has-text('Cancel')");
+    await expect(page.locator("h2")).toContainText("Candidate Profiles");
+  });
+
+  test("deep-links directly to creation upload stage and back", async ({ page }) => {
+    await page.goto("/app/#/candidate-profile/create");
+    await expect(page.locator("h2")).toContainText("Upload candidate document");
+    await expect(page.locator("input[placeholder*='Alex Morgan']")).toBeVisible();
+
+    await page.click("button:has-text('Back to Candidate Profiles')");
     await expect(page.locator("h2")).toContainText("Candidate Profiles");
   });
 });

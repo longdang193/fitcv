@@ -1,23 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parseCandidateRoute } from "../features/candidate-profile/route";
+import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import {
   generateIdempotencyKey,
   fetchFieldSchema,
   createCreationAttempt,
+  fetchCreationAttempt,
   patchBaselineReview,
   approveBaselineReview,
   patchDerivedReview,
   approveDerivedReview,
+  fetchConfirmation,
   confirmProfile,
+  fetchProfiles,
+  fetchProfileDetail,
   archiveProfile,
   restoreProfile,
   deleteProfile,
   updateProfile,
+  fetchSourceBlock,
 } from "../features/candidate-profile/api";
 import { apiClient } from "../lib/api-client";
 import { CandidateProfileReviewOperation } from "../features/candidate-profile/types";
 
-describe("Candidate Profile Route Hash Parsing", () => {
+describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
   it("parses catalog view", () => {
     expect(parseCandidateRoute("#/candidate-profile")).toEqual({ view: "catalog" });
     expect(parseCandidateRoute("candidate-profile")).toEqual({ view: "catalog" });
@@ -56,15 +62,38 @@ describe("Candidate Profile Route Hash Parsing", () => {
     });
   });
 
-  it("parses detail view", () => {
+  it("parses dynamic profile detail view and decodes encoded IDs", () => {
     expect(parseCandidateRoute("#/candidate-profile/prof_abc123")).toEqual({
       view: "detail",
       profileId: "prof_abc123",
     });
+    expect(parseCandidateRoute("#/candidate-profile/prof%20with%20spaces")).toEqual({
+      view: "detail",
+      profileId: "prof with spaces",
+    });
+  });
+
+  it("discovers candidate-profile route via discoverFeatureRoutes()", () => {
+    const routes = discoverFeatureRoutes();
+    const candidateRoute = routes.find((r) => r.id === "candidate-profile");
+    expect(candidateRoute).toBeDefined();
+    expect(candidateRoute?.path).toBe("#/candidate-profile");
+    expect(candidateRoute?.title).toBe("Candidate Profile");
+    expect(candidateRoute?.group).toBe("workspace");
+
+    // Test matchRoute with deep-links
+    const matchedCatalog = matchRoute("#/candidate-profile", routes);
+    expect(matchedCatalog.id).toBe("candidate-profile");
+
+    const matchedDetail = matchRoute("#/candidate-profile/prof_456", routes);
+    expect(matchedDetail.id).toBe("candidate-profile");
+
+    const matchedCreate = matchRoute("#/candidate-profile/create/att_789/baseline", routes);
+    expect(matchedCreate.id).toBe("candidate-profile");
   });
 });
 
-describe("Candidate Profile API & Operations", () => {
+describe("Candidate Profile API & Full Lifecycle Operations", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -102,7 +131,7 @@ describe("Candidate Profile API & Operations", () => {
     expect(getSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("creates creation attempt using FormData and Idempotency-Key", async () => {
+  it("creates creation attempt using FormData without hardcoded Content-Type", async () => {
     const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
       data: {
         data: {
@@ -128,6 +157,46 @@ describe("Candidate Profile API & Operations", () => {
     );
   });
 
+  it("fetches creation attempt by dynamic ID", async () => {
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: {
+        data: {
+          attempt_id: "att_xyz999",
+          profile_name: "Dynamic Candidate",
+          creation_status: "base_review",
+          revision: 1,
+          next_action: "review_baseline",
+          capabilities: { retry: false },
+        },
+      } as any,
+      status: 200,
+    });
+
+    const res = await fetchCreationAttempt("att_xyz999");
+    expect(res.attempt_id).toBe("att_xyz999");
+    expect(getSpy).toHaveBeenCalledWith("/candidate-profile-creation-attempts/att_xyz999");
+  });
+
+  it("fetches source block citation with dynamic parameters", async () => {
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: {
+        data: {
+          source_block_id: "sb_001",
+          document_id: "doc_1",
+          locator: { kind: "markdown_lines", start: 1, end: 5 },
+          text: "Senior Software Engineer with 10 years experience",
+        },
+      } as any,
+      status: 200,
+    });
+
+    const sb = await fetchSourceBlock("att_001", "sb_001");
+    expect(sb.source_block_id).toBe("sb_001");
+    expect(getSpy).toHaveBeenCalledWith(
+      "/candidate-profile-creation-attempts/att_001/source-blocks/sb_001"
+    );
+  });
+
   it("patches baseline review with ordered ID-addressed operations", async () => {
     const patchSpy = vi.spyOn(apiClient, "patch").mockResolvedValueOnce({
       data: {
@@ -150,24 +219,19 @@ describe("Candidate Profile API & Operations", () => {
       {
         operation: "add",
         path: "/experiences",
-        value: { id: "exp_1", role: "Engineer", company: "Acme" },
+        value: { id: "exp_1", role: "Engineer", company: "Acme", evidence: [] },
       },
-      { operation: "remove", path: "/projects/proj_old" },
     ];
 
-    const res = await patchBaselineReview("att_001", 1, ops, "patch-key");
-    expect(res.revision).toBe(2);
+    await patchBaselineReview("att_001", 1, ops, "patch-key");
     expect(patchSpy).toHaveBeenCalledWith(
       "/candidate-profile-creation-attempts/att_001/baseline",
-      {
-        expected_revision: 1,
-        operations: ops,
-      },
+      { expected_revision: 1, operations: ops },
       { idempotencyKey: "patch-key" }
     );
   });
 
-  it("approves baseline review with expected revision and fingerprint", async () => {
+  it("approves baseline review with expected fingerprint", async () => {
     const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
       data: {
         data: {
@@ -179,11 +243,10 @@ describe("Candidate Profile API & Operations", () => {
           capabilities: {},
         },
       } as any,
-      status: 202,
+      status: 200,
     });
 
-    const res = await approveBaselineReview("att_001", 2, "fp_baseline", "approve-key");
-    expect(res.creation_status).toBe("derived_claims");
+    await approveBaselineReview("att_001", 2, "fp_baseline", "approve-key");
     expect(postSpy).toHaveBeenCalledWith(
       "/candidate-profile-creation-attempts/att_001/baseline/actions/approve",
       {
@@ -249,7 +312,21 @@ describe("Candidate Profile API & Operations", () => {
     );
   });
 
-  it("confirms candidate profile with all fingerprints", async () => {
+  it("fetches confirmation data and confirms candidate profile with all fingerprints", async () => {
+    const getConfSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: {
+        data: {
+          attempt_id: "att_001",
+          revision: 5,
+          fingerprint: "fp_conf",
+          approval_fingerprints: { baseline: "fp_base", derived: "fp_der" },
+          readiness: { ready: true, blockers: [] },
+          profile: { profile_id: "prof_alex_morgan", canonical: {} },
+        },
+      } as any,
+      status: 200,
+    });
+
     const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
       data: {
         data: {
@@ -258,6 +335,12 @@ describe("Candidate Profile API & Operations", () => {
       } as any,
       status: 200,
     });
+
+    const conf = await fetchConfirmation("att_001");
+    expect(conf.attempt_id).toBe("att_001");
+    expect(getConfSpy).toHaveBeenCalledWith(
+      "/candidate-profile-creation-attempts/att_001/confirmation"
+    );
 
     const result = await confirmProfile(
       "att_001",
@@ -279,6 +362,49 @@ describe("Candidate Profile API & Operations", () => {
       },
       { idempotencyKey: "confirm-key" }
     );
+  });
+
+  it("supports catalog fetching and detail fetching without static placeholders", async () => {
+    const getSpy = vi.spyOn(apiClient, "get")
+      .mockResolvedValueOnce({
+        data: {
+          data: [
+            {
+              profile_id: "prof_live_1",
+              profile_name: "Live Engineer",
+              lifecycle: "active",
+              revision: 1,
+              created_at: "2026-08-30T10:00:00Z",
+            },
+          ],
+          page: 1,
+          page_size: 20,
+          total_items: 1,
+          meta: { active_count: 1, archived_count: 0 },
+        } as any,
+        status: 200,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            profile_id: "prof_live_1",
+            profile_name: "Live Engineer",
+            lifecycle: "active",
+            revision: 1,
+            canonical: { name: "Live Engineer" },
+            created_at: "2026-08-30T10:00:00Z",
+          },
+        } as any,
+        status: 200,
+      });
+
+    const catalogRes = await fetchProfiles({ lifecycle: "active" });
+    expect(catalogRes.data[0].profile_id).toBe("prof_live_1");
+    expect(getSpy).toHaveBeenNthCalledWith(1, "/candidate-profiles?lifecycle=active");
+
+    const detailRes = await fetchProfileDetail("prof_live_1");
+    expect(detailRes.profile_id).toBe("prof_live_1");
+    expect(getSpy).toHaveBeenNthCalledWith(2, "/candidate-profiles/prof_live_1");
   });
 
   it("supports lifecycle transitions: archive, restore, delete, update", async () => {

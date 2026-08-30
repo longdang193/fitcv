@@ -66,6 +66,7 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
   const loadReview = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setStaleError(null);
     try {
       const [schemaData, derivedData, baselineData, attemptData] = await Promise.all([
         fetchFieldSchema(),
@@ -228,17 +229,42 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
 
   // Reapply unsaved operations
   const reapplyUnsavedEdits = async () => {
+    setSaving(true);
+    setError(null);
     try {
+      const freshReview = await fetchDerivedReview(attemptId);
+      setReview(freshReview);
+      setDocument(freshReview.document || {});
+
+      let ops = Array.from(pendingOps.values());
       const stored = sessionStorage.getItem(reconciliationKey);
-      if (stored) {
-        const ops: CandidateProfileReviewOperation[] = JSON.parse(stored);
-        ops.forEach((op) => queueOperation(op));
-        sessionStorage.removeItem(reconciliationKey);
-        setStaleError(null);
-        await flushOperations();
+      if (stored && ops.length === 0) {
+        ops = JSON.parse(stored);
       }
+
+      if (ops.length === 0) {
+        setStaleError(null);
+        setSaving(false);
+        return;
+      }
+
+      const updated = await patchDerivedReview(attemptId, freshReview.revision, ops);
+      setReview(updated);
+      setDocument(updated.document || {});
+      setPendingOps(new Map());
+      setStaleError(null);
+      try {
+        sessionStorage.removeItem(reconciliationKey);
+      } catch {}
+      setStatusMessage("Unsaved edits successfully reapplied and saved.");
     } catch (e: any) {
-      setError("Failed to reapply unsaved changes: " + e.message);
+      if (e.status === 409 || e.code === "candidate_profile_revision_conflict" || e.code === "candidate_profile_fingerprint_conflict") {
+        setStaleError("Conflict persists on server. Reload latest draft to inspect recent changes.");
+      } else {
+        setError("Failed to reapply unsaved changes: " + e.message);
+      }
+    } finally {
+      setSaving(false);
     }
   };
 

@@ -16,10 +16,10 @@ export interface ParsedCandidateRoute {
 }
 
 export function parseCandidateRoute(hash: string): ParsedCandidateRoute {
-  const clean = (hash || "").replace(/^#\/?/, "");
+  const clean = (hash || "").replace(/^#\/?/, "").split("?")[0];
   const parts = clean.split("/").filter(Boolean);
 
-  if (parts[0] !== "candidate-profile") {
+  if (parts.length === 0 || parts[0] !== "candidate-profile") {
     return { view: "catalog" };
   }
 
@@ -31,7 +31,7 @@ export function parseCandidateRoute(hash: string): ParsedCandidateRoute {
     if (parts.length === 2) {
       return { view: "create_upload" };
     }
-    const attemptId = parts[2];
+    const attemptId = decodeURIComponent(parts[2]);
     const sub = parts[3];
 
     if (sub === "baseline") {
@@ -47,7 +47,7 @@ export function parseCandidateRoute(hash: string): ParsedCandidateRoute {
   }
 
   // Otherwise it is a profileId
-  const profileId = parts[1];
+  const profileId = decodeURIComponent(parts[1]);
   return { view: "detail", profileId };
 }
 

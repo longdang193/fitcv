@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Dialog, Button, LoadingState, ErrorState } from "../../../components";
 import { fetchSourceBlock } from "../api";
 import { SourceBlock } from "../types";
@@ -37,7 +37,61 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
   const [sourceBlock, setSourceBlock] = useState<SourceBlock | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const triggerElementRef = useRef<HTMLElement | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Focus return & keydown (Escape & Focus Containment) management
+  useEffect(() => {
+    if (open) {
+      triggerElementRef.current = document.activeElement as HTMLElement;
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+          return;
+        }
+
+        if (e.key === "Tab" && containerRef.current) {
+          const root = containerRef.current.closest("dialog") || containerRef.current;
+          const focusable = root.querySelectorAll<HTMLElement>(
+            "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
+          );
+          if (focusable.length === 0) {
+            e.preventDefault();
+            return;
+          }
+
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+
+          if (e.shiftKey) {
+            if (document.activeElement === first || !root.contains(document.activeElement)) {
+              e.preventDefault();
+              last.focus();
+            }
+          } else {
+            if (document.activeElement === last || !root.contains(document.activeElement)) {
+              e.preventDefault();
+              first.focus();
+            }
+          }
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown, true);
+
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown, true);
+        if (triggerElementRef.current && typeof triggerElementRef.current.focus === "function") {
+          triggerElementRef.current.focus();
+        }
+      };
+    }
+  }, [open, onClose]);
+
+  // Fetch source block data when dialog opens
   useEffect(() => {
     if (!open || !sourceBlockId) {
       setSourceBlock(null);
@@ -86,12 +140,12 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
       title={title}
       description={description}
       footer={
-        <Button variant="primary" onClick={onClose}>
+        <Button variant="primary" onClick={onClose} autoFocus>
           Close
         </Button>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontSize: 13 }}>
+      <div ref={containerRef} style={{ display: "flex", flexDirection: "column", gap: 16, fontSize: 13 }}>
         {reviewedValue && (
           <div style={{ padding: "12px 14px", background: "var(--surface-2)", borderRadius: "var(--radius-md)" }}>
             <strong style={{ display: "block", fontSize: 11, textTransform: "uppercase", color: "var(--muted)", marginBottom: 4 }}>
@@ -102,7 +156,13 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
         )}
 
         {loading && <LoadingState message="Fetching source evidence..." />}
-        {error && <ErrorState message={error} onRetry={() => sourceBlockId && fetchSourceBlock(attemptId, sourceBlockId)} />}
+        {error && (
+          <ErrorState
+            message={error}
+            actionLabel="Retry"
+            onRetry={() => sourceBlockId && fetchSourceBlock(attemptId, sourceBlockId)}
+          />
+        )}
 
         {sourceBlock && (
           <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
