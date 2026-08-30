@@ -157,10 +157,10 @@ export const AppShell: React.FC = () => {
       {/* Main Content Area */}
       <div className="main-content-area">
         <header className="app-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="header-title-area">
             <button
               type="button"
-              className="mobile-toggle-btn"
+              className="mobile-menu-btn mobile-toggle-btn"
               aria-label="Open navigation menu"
               aria-expanded={isMobileMenuOpen}
               onClick={() => setIsMobileMenuOpen((prev) => !prev)}
@@ -172,11 +172,12 @@ export const AppShell: React.FC = () => {
             </h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="header-actions">
             {/* Notifications Dropdown */}
             <div style={{ position: "relative" }}>
               <Button
                 variant="icon"
+                className="notification-bell-btn"
                 aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
                 aria-expanded={isNotifOpen}
                 onClick={() => setIsNotifOpen((prev) => !prev)}
@@ -200,7 +201,7 @@ export const AppShell: React.FC = () => {
 
               {isNotifOpen && (
                 <div
-                  className="dropdown-panel"
+                  className="notification-dropdown dropdown-panel"
                   role="region"
                   aria-label="Notifications panel"
                   style={{
@@ -277,7 +278,14 @@ export const AppShell: React.FC = () => {
                             </button>
                           </div>
                           {n.message && <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>{n.message}</p>}
-                          {n.actionLabel && n.onAction && (
+                          {n.actionLabel && n.href && (
+                            <div style={{ marginTop: 6 }}>
+                              <a className="btn btn-primary" href={n.href} onClick={() => notificationStore.markAsRead(n.id)}>
+                                {n.actionLabel}
+                              </a>
+                            </div>
+                          )}
+                          {n.actionLabel && n.onAction && !n.href && (
                             <div style={{ marginTop: 6 }}>
                               <Button
                                 size="compact"

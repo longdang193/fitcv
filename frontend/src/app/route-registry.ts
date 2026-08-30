@@ -25,7 +25,6 @@ export function discoverFeatureRoutes(): FeatureRoute[] {
   const knownIds = new Set(discovered.map((r) => r.id));
 
   try {
-    // Vite compile-time discovery across feature modules
     const modules: Record<string, unknown> = import.meta.glob("../features/**/route.tsx", {
       eager: true,
     });
@@ -55,8 +54,8 @@ export function discoverFeatureRoutes(): FeatureRoute[] {
         }
       }
     }
-  } catch {
-    // Non-Vite or testing environment fallback
+  } catch (error) {
+    console.error("Failed to discover feature routes.", error);
   }
 
   return discovered.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
@@ -72,22 +71,23 @@ export function matchRoute(hash: string, routes: FeatureRoute[]): FeatureRoute {
     return exact;
   }
 
-  // 2. Alias normalizations
-  if (pathOnly === "#/settings/synonyms" || pathOnly === "#/synonyms") {
-    const syn = routes.find((r) => r.id === "synonyms");
-    if (syn) return syn;
-  }
-  if (pathOnly === "#/candidate-profiles" || pathOnly === "#/candidate-profile") {
-    const cp = routes.find((r) => r.id === "candidate-profile");
-    if (cp) return cp;
-  }
-  if (pathOnly === "#/job-evaluations" || pathOnly === "#/job-evaluation") {
-    const je = routes.find((r) => r.id === "job-evaluation");
-    if (je) return je;
-  }
-  if (pathOnly === "#/cv-reviews" || pathOnly === "#/cv-review") {
-    const cv = routes.find((r) => r.id === "cv-review");
-    if (cv) return cv;
+  // 2. Alias normalizations, including nested deep links.
+  const aliases: Record<string, string> = {
+    "#/settings/synonyms": "synonyms",
+    "#/synonyms": "synonyms",
+    "#/candidate-profiles": "candidate-profile",
+    "#/candidate-profile": "candidate-profile",
+    "#/job-evaluations": "job-evaluation",
+    "#/job-evaluation": "job-evaluation",
+    "#/cv-reviews": "cv-review",
+    "#/cv-review": "cv-review",
+  };
+  const alias = Object.entries(aliases).find(
+    ([prefix]) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`)
+  );
+  if (alias) {
+    const aliasRoute = routes.find((r) => r.id === alias[1]);
+    if (aliasRoute) return aliasRoute;
   }
 
   // 3. Prefix match for parameterized/sub-paths (e.g. #/candidate-profile/create)

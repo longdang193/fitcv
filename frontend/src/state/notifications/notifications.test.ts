@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   notificationStore,
   buildDedupeKey,
+  TransientNotificationStore,
 } from "./index";
 
 describe("transient notifications store", () => {
@@ -78,5 +79,50 @@ describe("transient notifications store", () => {
 
     notificationStore.clearAll();
     expect(notificationStore.getNotifications()).toHaveLength(0);
+  });
+
+  it("filters malformed persisted entries and preserves href recovery actions", () => {
+    const values = new Map<string, string>();
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        sessionStorage: {
+          getItem: (key: string) => values.get(key) ?? null,
+          setItem: (key: string, value: string) => values.set(key, value),
+        },
+      },
+    });
+    values.set(
+      "fitcv:session_notifications:v1",
+      JSON.stringify([
+        {
+          id: "notif-1",
+          dedupeKey: "recover",
+          type: "info",
+          title: "Recover",
+          read: false,
+          createdAt: Date.now(),
+          actionLabel: "Open",
+          href: "#/runs",
+        },
+        { id: "bad", title: "Invalid" },
+      ])
+    );
+
+    const store = new TransientNotificationStore();
+    expect(store.getNotifications()).toHaveLength(1);
+    expect(store.getNotifications()[0].href).toBe("#/runs");
+
+    store.notify({
+      dedupe: "callback-only",
+      type: "info",
+      title: "Callback",
+      actionLabel: "Retry",
+      onAction: () => undefined,
+    });
+    const persisted = JSON.parse(values.get("fitcv:session_notifications:v1") ?? "[]");
+    expect(persisted.find((item: { dedupeKey: string }) => item.dedupeKey === "callback-only").actionLabel).toBeUndefined();
+
+    delete (globalThis as { window?: unknown }).window;
   });
 });

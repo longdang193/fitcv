@@ -221,7 +221,7 @@ Completed runs now emit `results_job_ledger_v4` with one immutable `decision_fee
 `src/fitcv_cp/optimization_service.py` now owns store-backed candidate creation for both CLI and HTTP adapters. `/admin/optimization` reads the typed request and lifecycle rows through `ControlPlaneStore`, derives its read-only Rating Evidence preview with the shared rating-event reducer, renders bounded newest-first evidence and history, and exposes native manual candidate, activation, rejection, and rollback forms. Candidate creation never activates automatically; SQLite lifecycle transactions remain policy truth.
 
 
-G# Frontend Architecture (`/app`)
+## Frontend Architecture (`/app`)
 
 The modern FitCV frontend is a Single-Page Application (`frontend/src/`) built with React 19, TypeScript, and Vite, served under `/app` by FastAPI:
 

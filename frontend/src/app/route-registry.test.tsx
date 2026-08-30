@@ -39,6 +39,8 @@ describe("route-registry", () => {
     // Alias compatibility
     expect(matchRoute("#/synonyms", routes).id).toBe("synonyms");
     expect(matchRoute("#/settings/synonyms", routes).id).toBe("synonyms");
+    expect(matchRoute("#/candidate-profiles/create", routes).id).toBe("candidate-profile");
+    expect(matchRoute("#/cv-reviews/run-1", routes).id).toBe("cv-review");
     expect(matchRoute("#/candidate-profiles", routes).id).toBe("candidate-profile");
 
     // Fallback for unknown

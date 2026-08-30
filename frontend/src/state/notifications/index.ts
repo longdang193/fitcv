@@ -68,6 +68,22 @@ type NotificationListener = (notifications: TransientNotification[]) => void;
 
 const STORAGE_KEY = "fitcv:session_notifications:v1";
 
+function isNotification(value: unknown): value is TransientNotification {
+  if (!value || typeof value !== "object") return false;
+  const notification = value as Partial<TransientNotification>;
+  return (
+    typeof notification.id === "string" &&
+    typeof notification.dedupeKey === "string" &&
+    typeof notification.title === "string" &&
+    ["info", "success", "warning", "error"].includes(notification.type as string) &&
+    typeof notification.read === "boolean" &&
+    typeof notification.createdAt === "number" &&
+    (notification.message === undefined || typeof notification.message === "string") &&
+    (notification.actionLabel === undefined || typeof notification.actionLabel === "string") &&
+    (notification.href === undefined || typeof notification.href === "string")
+  );
+}
+
 export class TransientNotificationStore {
   private notifications: TransientNotification[] = [];
   private listeners: Set<NotificationListener> = new Set();
@@ -84,9 +100,7 @@ export class TransientNotificationStore {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          this.notifications = parsed.filter(
-            (n) => n && typeof n === "object" && n.id && n.title && n.dedupeKey
-          );
+          this.notifications = parsed.filter(isNotification);
           const maxId = this.notifications.reduce((acc, n) => {
             const num = parseInt(String(n.id).replace(/[^0-9]/g, ""), 10);
             return isNaN(num) ? acc : Math.max(acc, num);
@@ -102,7 +116,10 @@ export class TransientNotificationStore {
   private saveToSessionStorage(): void {
     if (typeof window === "undefined" || !window.sessionStorage) return;
     try {
-      const serializable = this.notifications.map(({ onAction, ...rest }) => rest);
+      const serializable = this.notifications.map(({ onAction, actionLabel, ...rest }) => ({
+        ...rest,
+        ...(rest.href ? { actionLabel } : {}),
+      }));
       window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
     } catch {
       // Non-critical transient storage error tolerated
