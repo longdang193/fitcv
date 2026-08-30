@@ -3,7 +3,7 @@ layer: change
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: proposed
+status: active
 name: fitcv-frontend-closure-verification
 parent_spec: none
 targets:
@@ -52,13 +52,21 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Coordination owner: `CoS / lead Codex controller`
 - Coordination schema: `2`
 - Branch: `main`
-- Base commit: resolve exact value at activation; drafting candidate is non-authoritative
-- Expected workspace: clean after this plan is committed, with any explicitly preserved user-owned changes recorded before activation
-- Next action: obtain approval, capture activation baseline, then activate Task 1
+- Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
+- Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
+- Next action: complete Task 1 evidence reconciliation
 - Blockers: none at drafting
-- Source evidence baseline: `activation_source_commit`
-- Final source under review: `final_candidate_source_commit`; equal to activation source unless an approved bounded correction changes source
+- Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
+- Final source under review: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`; changes only if approved bounded correction occurs
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
+
+Activation baseline:
+
+- `main` HEAD: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
+- `origin/main`: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
+- Current worktree: clean
+- Preserved unrelated worktrees: `.worktrees/fitcv-task-4` and `.worktrees/fitcv-task-5`; both contain untracked `frontend/test-results/` only
+- Source changes authorized by this plan: none
 
 Before activation, commit this proposed plan so Git can recover its coordination ledger. Activation then changes plan `status` from `proposed` to `active` before Task 1 starts. At activation, CoS must record exact `main` HEAD, `origin/main`, worktree status, preserved unrelated changes, and `activation_source_commit`. Require `HEAD == origin/main` and no unexpected tracked changes. Every accepted evidence item records the source commit it proves. Each accepted task transition must update its complete ledger row, `Next action`, and evidence anchor in one lead checkpoint commit. Derive that checkpoint from plan history with `git log -1 --format=%H -- <plan-path>` when resuming or reviewing.
 
@@ -67,7 +75,7 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `pending` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | pending |
+| Task 1 | `active` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | in progress; activation baseline recorded |
 | Task 2 | `pending` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | pending |
 | Task 3 | `pending` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | pending |
 | Task 4 | `pending` | `.worktrees/fitcv-closure-review` | `codex` | Tasks 1–3 | independent `PASS`, `FAIL`, or `BLOCKED` review bound to final source SHA | pending
