@@ -70,7 +70,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 | Task 4 | `completed` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | metadata identity passed; source/output/task match; independent PASS bound to OpenDesign run and output blob; EX-01/EX-12 resolved |
 | Task 5 | `completed` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | same file promoted to active detailed specification; template/lifecycle/prohibited-marker checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | plan/integration reconciliation and validators | singular parent linkage; product/spec coverage matrix; historical integration ownership; proposed plan remains inactive |
-| Task 7 | `active` | current | `codex` | Task 6 | independent plan verdict | review agent owns read-only final plan review |
+| Task 7 | `active` | current | `codex` | Task 6 | independent plan verdict | required fixes addressed: baseline aligned to `9a83da1d`; synonym slice narrowed to feature-local scope; re-review pending |
 
 ## META-PLAN OWNER APPROVAL GATE
 

@@ -421,23 +421,23 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 - Controller-selected: `review`
 - Selection basis: scope and truth-boundary review.
 
-**Specification Coverage:** Active parent specification; synonym contracts and supporting-only disposition.
+**Specification Coverage:** Active parent specification supporting-synonym boundary; synonym route behavior in `src/fitcv_cp/app.py::create_app`, persistence behavior in `src/fitcv_cp/sqlite_store.py`, and the named synonym tests as current executable contract. No focused synonym specification exists; do not invent one during implementation planning.
 
 **Required Skills:** `skill-frontend-component-engineering`, `skill-full-stack-integration`.
 
 **Files And Symbols:**
 - Inspect: synonym route decorators in `src/fitcv_cp/app.py::create_app`, persistence helpers in `src/fitcv_cp/sqlite_store.py`, and `tests/test_fitcv_cp/test_synonym_global_policy_io.py`, `tests/test_fitcv_cp/test_synonym_promote_preview_field_aware.py`, `tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py`.
-- Modify: `frontend/src/features/synonyms/**`, `frontend/src/features/synonyms/route.tsx`, focused frontend tests.
+- Modify: `frontend/src/features/synonyms/**`, `frontend/src/features/synonyms/route.tsx`, focused frontend tests. Shared navigation and notification registration belongs to Task 8.
 - Verify: existing synonym route/store suites and browser flows.
 
-**Dependencies:** Task 1 shared shell and canonical synonym contracts; no dependency on Task 5 UI completion.
+**Dependencies:** Task 1 shared shell and current source/test synonym contract; no dependency on Task 5 UI completion.
 
 **Authority:** Declared frontend/test files; stop if work would change candidate, fit, or suitability truth.
 
 **Steps:**
 - [ ] Implement capability-driven list/detail and review states.
 - [ ] Implement atomic batch approve/decline/clear and import/export feedback.
-- [ ] Mark supporting status in navigation and notifications.
+- [ ] Keep synonym feature-local status and review feedback; shared navigation and notification registration belongs to Task 8.
 
 **Verification:** Existing direct tests; browser empty/loading/error/success/confirmation/accessibility flow.
 
@@ -499,9 +499,9 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 - Coordination schema: `1`
 - Coordination owner: lead Codex controller
 - Branch: `main`
-- Base commit: `75489ffce4d2ad44393141bb7e69fb3e1594b043`
+- Base commit: `9a83da1d`
 - Expected workspace: `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT`
-- Next action: complete independent xhigh and review-agent readiness review before user approval
+- Next action: complete independent xhigh and review-agent readiness review before production implementation
 - Blockers: none
 - Preserved pre-existing changes: none at the clean baseline commit; preserve any user changes that appear after plan creation before execution starts.
 
@@ -532,7 +532,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 
 ### Wave 3 — Decision and artifact slices
 
-- Task 5 then Task 6; Task 7 may run after Task 1 in a separate worktree because it owns its route module and does not edit shared registration; it should not delay completion-critical slices.
+- Task 5 then Task 6; Task 7 may run after Task 1 in a separate worktree because it owns its route module and does not edit shared registration; shared navigation/notification registration is serialized in Task 8; it should not delay completion-critical slices.
 
 ### Wave 4 — Cross-slice integration
 
