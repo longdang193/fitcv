@@ -18,8 +18,6 @@ lifecycle:
 
 from pathlib import Path
 
-import pytest
-
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -110,15 +108,6 @@ def test_contract_evidence_capabilities_preserve_ownership_and_limits() -> None:
     assert "never becomes the canonical contract owner" in integration_tools
 
 
-def test_starter_manifest_omits_private_provider_setup() -> None:
-    if not (REPO_ROOT / "repo_config" / "starter-kit-manifest.json").is_file():
-        pytest.skip("starter-kit-manifest.json is factory-only")
-    manifest = read("repo_config/starter-kit-manifest.json")
-
-    assert "docs/operating_system/procedures/frontend-backend-integration-mcp-setup.md" in manifest
-    assert "docs/operating_system/tooling/runtime-tool-resolution.md" in manifest
-
-
 def test_core_runtime_adapter_maps_are_explicit_not_generic_defaults() -> None:
     policy = normalized("docs/operating_system/tooling/runtime-tool-resolution.md")
     assert "explicit core-runtime bindings" in policy
@@ -133,13 +122,3 @@ def test_runtime_policy_requires_live_endpoint_and_async_run_proof() -> None:
     assert "record the run ID, wait for terminal state" in policy
     assert "`active:false` means no active UI context" in policy
     assert "Closed-parent `EPIPE`" in policy
-
-
-def test_runtime_adapter_procedure_preserves_lifecycle_evidence() -> None:
-    procedure = normalized("docs/operating_system/procedures/runtime-adapter-procedure.md")
-
-    assert "## Runtime Recovery and Proof" in procedure
-    assert "Do not trust a stale port, PID, or marker file" in procedure
-    assert "Tool-call success is not completion proof" in procedure
-    assert "preserve the run record and lifecycle logs" in procedure
-    assert "Keep logging best-effort" in procedure

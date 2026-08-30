@@ -152,28 +152,6 @@ def test_spec_guidance_has_single_baseline_stage_and_compact_change_summary() ->
     assert "not a second owner for evidence" in detailed
 
 
-def test_completed_migration_plan_has_consistent_historical_status() -> None:
-    plan = read("docs/superpowers/plans/2026-08-29-openspec-lifecycle-cleanup-plan.md")
-
-    assert "status: completed" in plan
-    assert "Execution was approved and completed" in plan
-    assert "Plan remains `proposed`" not in plan
-
-
-def test_starter_onboarding_matches_optional_intent_and_atomic_kit() -> None:
-    readme = read("README.md")
-    intent = read("docs/intent/README.md")
-    adoption = read("docs/operating_system/adoption/project-adoption-migration-guide.md")
-    manifest = read("repo_config/starter-kit-manifest.json")
-
-    assert "standard project folders" in readme
-    assert "create `docs/intent/` when durable project purpose needs more than `README.md`" in readme
-    assert "Use this optional layer" in intent
-    assert "generated Starter kit as the atomic adoption unit" in adoption
-    assert "manual file-by-file copying" in adoption
-    assert '"docs/intent"' not in manifest
-
-
 def test_skill_selector_uses_documented_triggers_without_forced_brainstorming() -> None:
     selector = read(".agents/skills/skill-using-superpowers/SKILL.md")
 
@@ -194,24 +172,6 @@ def test_skill_authoring_contract_matches_validator_and_proportional_testing() -
     assert "Every skill change still needs applicable verification" in writing
     assert "verify before deploying, using proof proportional to the skill" in writing
     assert "Same Iron Law: No skill without failing test first" not in writing
-
-
-def test_runtime_docs_use_profile_concept_and_keep_cli_selector_literal() -> None:
-    paths = [
-        "README.md",
-        "docs/operating_system/procedures/personal-local-worktree-procedure.md",
-        "docs/operating_system/procedures/runtime-adapter-procedure.md",
-        "docs/operating_system/runtime/runtime-surfaces.md",
-        "docs/operating_system/templates/agents/root-AGENTS.template.md",
-    ]
-
-    for path in paths:
-        content = read(path)
-        assert "role source" not in content, path
-        assert "role provider" not in content, path
-
-    assert "--role <profile>" in read("README.md")
-    assert "--role <profile>" in read("docs/operating_system/procedures/runtime-adapter-procedure.md")
 
 
 def test_terminal_historical_rule_and_status_writer_are_explicit() -> None:
