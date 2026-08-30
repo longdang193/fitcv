@@ -1,5 +1,5 @@
 import React from "react";
-import overviewRoute from "../features/overview/route";
+import overviewRoute from "./overview-route";
 
 export type RouteGroup = "workspace" | "settings" | "system";
 
