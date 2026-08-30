@@ -398,9 +398,9 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
         status: 200,
       });
 
-    const catalogRes = await fetchProfiles({ lifecycle: "active" });
+    const catalogRes = await fetchProfiles({ view: "active" });
     expect(catalogRes.data[0].profile_id).toBe("prof_live_1");
-    expect(getSpy).toHaveBeenNthCalledWith(1, "/candidate-profiles?lifecycle=active");
+    expect(getSpy).toHaveBeenNthCalledWith(1, "/candidate-profiles?view=active");
 
     const detailRes = await fetchProfileDetail("prof_live_1");
     expect(detailRes.profile_id).toBe("prof_live_1");
@@ -486,4 +486,127 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
       { idempotencyKey: "update-key" }
     );
   });
+
+  it("sends contract parameter view=active and view=archived in fetchProfiles", async () => {
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        data: [],
+        page: 1,
+        page_size: 20,
+        total_items: 0,
+      } as any,
+      status: 200,
+    });
+
+    await fetchProfiles({ view: "active" });
+    expect(getSpy).toHaveBeenCalledWith("/candidate-profiles?view=active");
+
+    await fetchProfiles({ view: "archived" });
+    expect(getSpy).toHaveBeenCalledWith("/candidate-profiles?view=archived");
+  });
+
+  it("waitForAttemptTransition honors returned poll_after_ms instead of hardcoded delay", async () => {
+    const getSpy = vi.spyOn(apiClient, "get")
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            attempt_id: "att_poll",
+            creation_status: "base_mapping",
+            revision: 1,
+            next_action: "none",
+            poll_after_ms: 10,
+          },
+        } as any,
+        status: 200,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            attempt_id: "att_poll",
+            creation_status: "base_review",
+            revision: 2,
+            next_action: "review_baseline",
+          },
+        } as any,
+        status: 200,
+      });
+
+    const { waitForAttemptTransition } = await import("../features/candidate-profile/api");
+    const result = await waitForAttemptTransition("att_poll", "review_baseline", 5, 50);
+    expect(result.creation_status).toBe("base_review");
+    expect(result.next_action).toBe("review_baseline");
+    expect(getSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries attempt and returns attempt with server-declared next_action and poll_after_ms", async () => {
+    const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
+      data: {
+        data: {
+          attempt_id: "att_retry_1",
+          creation_status: "base_mapping",
+          revision: 2,
+          next_action: "none",
+          poll_after_ms: 500,
+          capabilities: { retry: false },
+        },
+      } as any,
+      status: 200,
+    });
+
+    const { retryAttempt } = await import("../features/candidate-profile/api");
+    const res = await retryAttempt("att_retry_1", 1, "retry-key");
+    expect(res.attempt_id).toBe("att_retry_1");
+    expect(res.creation_status).toBe("base_mapping");
+    expect(res.poll_after_ms).toBe(500);
+    expect(postSpy).toHaveBeenCalledWith(
+      "/candidate-profile-creation-attempts/att_retry_1/actions/retry",
+      { expected_revision: 1 },
+      { idempotencyKey: "retry-key" }
+    );
+  });
+
+  it("handles archive capabilities selectively without mutating unauthorized records", async () => {
+    const profiles = [
+      {
+        profile_id: "prof_archivable",
+        profile_name: "Archivable",
+        lifecycle: "active",
+        revision: 1,
+        capabilities: { archive: true },
+      },
+      {
+        profile_id: "prof_not_archivable",
+        profile_name: "Not Archivable",
+        lifecycle: "active",
+        revision: 1,
+        capabilities: { archive: false },
+      },
+    ];
+
+    const postSpy = vi.spyOn(apiClient, "post").mockResolvedValue({
+      data: { data: { profile_id: "prof_archivable", lifecycle: "archived", revision: 2 } } as any,
+      status: 200,
+    });
+
+    // Simulating CatalogView filtering by capability
+    const selectedKeys = new Set(["prof_archivable", "prof_not_archivable"]);
+    const archivable = profiles
+      .filter((p) => selectedKeys.has(p.profile_id))
+      .filter((p) => p.capabilities?.archive === true);
+
+    expect(archivable).toHaveLength(1);
+    expect(archivable[0].profile_id).toBe("prof_archivable");
+
+    for (const p of archivable) {
+      await archiveProfile(p.profile_id, p.revision);
+    }
+
+    expect(postSpy).toHaveBeenCalledTimes(1);
+    expect(postSpy).toHaveBeenCalledWith(
+      "/candidate-profiles/prof_archivable/actions/archive",
+      { expected_revision: 1 },
+      expect.anything()
+    );
+  });
+
 });

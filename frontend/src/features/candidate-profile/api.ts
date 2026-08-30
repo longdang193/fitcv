@@ -307,13 +307,15 @@ export async function retryAttempt(
 }
 
 export async function fetchProfiles(params?: {
+  view?: "active" | "archived";
   lifecycle?: "active" | "archived";
   search?: string;
   page?: number;
   page_size?: number;
 }): Promise<PaginationEnvelope<CandidateProfile>> {
   const query = new URLSearchParams();
-  if (params?.lifecycle) query.set("lifecycle", params.lifecycle);
+  const viewParam = params?.view || params?.lifecycle;
+  if (viewParam) query.set("view", viewParam);
   if (params?.search) query.set("search", params.search);
   if (params?.page) query.set("page", String(params.page));
   if (params?.page_size) query.set("page_size", String(params.page_size));
@@ -406,7 +408,11 @@ export async function waitForAttemptTransition(
     if (attempt.creation_status === "failed") {
       return attempt;
     }
-    await new Promise((resolve) => setTimeout(resolve, delay));
+    const pollDelay =
+      typeof attempt.poll_after_ms === "number" && attempt.poll_after_ms > 0
+        ? attempt.poll_after_ms
+        : delay;
+    await new Promise((resolve) => setTimeout(resolve, pollDelay));
   }
   return fetchCreationAttempt(attemptId);
 }

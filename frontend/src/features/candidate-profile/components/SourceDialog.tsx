@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Dialog, Button, LoadingState, ErrorState } from "../../../components";
 import { fetchSourceBlock } from "../api";
 import { SourceBlock } from "../types";
@@ -39,6 +39,7 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
   const triggerElementRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
 
   // Focus return & keydown (Escape & Focus Containment) management
   useEffect(() => {
@@ -91,36 +92,44 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
     }
   }, [open, onClose]);
 
-  // Fetch source block data when dialog opens
-  useEffect(() => {
-    if (!open || !sourceBlockId) {
+  const loadSourceBlock = useCallback(async () => {
+    if (!sourceBlockId) {
       setSourceBlock(null);
       setError(null);
       return;
     }
-
-    let isMounted = true;
     setLoading(true);
     setError(null);
+    try {
+      const data = await fetchSourceBlock(attemptId, sourceBlockId);
+      if (isMountedRef.current) {
+        setSourceBlock(data);
+        setError(null);
+      }
+    } catch (err: any) {
+      if (isMountedRef.current) {
+        setError(err.message || "Failed to load source block");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [attemptId, sourceBlockId]);
 
-    fetchSourceBlock(attemptId, sourceBlockId)
-      .then((data) => {
-        if (isMounted) {
-          setSourceBlock(data);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setError(err.message || "Failed to load source block");
-          setLoading(false);
-        }
-      });
-
+  useEffect(() => {
+    isMountedRef.current = true;
+    if (open && sourceBlockId) {
+      loadSourceBlock();
+    } else {
+      setSourceBlock(null);
+      setError(null);
+      setLoading(false);
+    }
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
     };
-  }, [open, attemptId, sourceBlockId]);
+  }, [open, sourceBlockId, loadSourceBlock]);
 
   function formatLocator(locator?: Record<string, any>): string {
     if (!locator) return "unresolved";
@@ -160,11 +169,11 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
           <ErrorState
             message={error}
             actionLabel="Retry"
-            onRetry={() => sourceBlockId && fetchSourceBlock(attemptId, sourceBlockId)}
+            onRetry={loadSourceBlock}
           />
         )}
 
-        {sourceBlock && (
+        {sourceBlock && !loading && (
           <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
             <div
               style={{
@@ -195,7 +204,7 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
           </div>
         )}
 
-        {sourceRefs && sourceRefs.length > 0 && !sourceBlock && (
+        {sourceRefs && sourceRefs.length > 0 && !sourceBlock && !loading && (
           <div>
             <strong style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>
               Document Locators

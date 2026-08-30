@@ -44,7 +44,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     try {
       const [draftsRes, profsRes] = await Promise.all([
         fetchCreationAttempts({ page: 1, page_size: 20 }),
-        fetchProfiles({ lifecycle: activeTab, page, page_size: pageSize }),
+        fetchProfiles({ view: activeTab, page, page_size: pageSize }),
       ]);
 
       const drafts = (draftsRes as any)?.data?.items || (draftsRes as any)?.items || draftsRes.data || [];
@@ -89,15 +89,17 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
 
   // Lifecycle bulk actions
   const handleArchiveSelected = async () => {
-    const selectedProfiles = profiles.filter((p) => selectedKeys.has(p.profile_id));
-    if (selectedProfiles.length === 0) return;
+    const archivableProfiles = profiles
+      .filter((p) => selectedKeys.has(p.profile_id))
+      .filter((p) => p.capabilities?.archive === true);
+    if (archivableProfiles.length === 0) return;
 
     setActionLoading(true);
     setError(null);
-    setStatusMessage(`Archiving ${selectedProfiles.length} profile(s)...`);
+    setStatusMessage(`Archiving ${archivableProfiles.length} profile(s)...`);
 
     try {
-      for (const p of selectedProfiles) {
+      for (const p of archivableProfiles) {
         await archiveProfile(p.profile_id, p.revision);
       }
       setStatusMessage("Profiles archived.");
@@ -137,7 +139,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     try {
       const retried = await retryAttempt(attempt.attempt_id, attempt.revision);
       setActionLoading(false);
-      onResumeAttempt(retried.attempt_id, retried.next_action === "review_derived" ? "derived" : "baseline");
+      onResumeAttempt(retried.attempt_id);
     } catch (err: any) {
       setError(err.message || "Failed to retry draft.");
       setActionLoading(false);
@@ -145,6 +147,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   };
 
   const selectedList = profiles.filter((p) => selectedKeys.has(p.profile_id));
+  const hasNonArchivable = activeTab === "active" && selectedList.some((p) => !p.capabilities?.archive);
   const hasNonDeletable = activeTab === "archived" && selectedList.some((p) => !p.capabilities?.delete);
 
   return (
@@ -320,7 +323,12 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
 
             <div style={{ display: "flex", gap: 8 }}>
               {activeTab === "active" ? (
-                <Button size="compact" onClick={handleArchiveSelected} disabled={actionLoading}>
+                <Button
+                  size="compact"
+                  onClick={handleArchiveSelected}
+                  disabled={actionLoading || hasNonArchivable || selectedList.length === 0}
+                  title={hasNonArchivable ? "Some selected profiles cannot be archived." : undefined}
+                >
                   Archive Profile(s)
                 </Button>
               ) : (
@@ -328,7 +336,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                   size="compact"
                   variant="danger"
                   onClick={() => setDeleteConfirmOpen(true)}
-                  disabled={actionLoading || hasNonDeletable}
+                  disabled={actionLoading || hasNonDeletable || selectedList.length === 0}
                   title={hasNonDeletable ? "Some selected profiles cannot be deleted because they are used by historical Runs." : undefined}
                 >
                   Delete Profile(s)

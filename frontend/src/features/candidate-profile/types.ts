@@ -45,6 +45,7 @@ export interface CreationAttempt {
     | string;
   revision: number;
   next_action: "review_baseline" | "review_derived" | "confirm" | "none" | string;
+  poll_after_ms?: number;
   source_format?: string;
   source_document?: {
     original_filename?: string;
@@ -204,3 +205,4 @@ export interface StoredReconciliation {
   operations: CandidateProfileReviewOperation[];
   timestamp: number;
 }
+
