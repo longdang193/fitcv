@@ -54,8 +54,8 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Branch: `main`
 - Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
-- Next action: complete Task 2 journey coverage reconciliation
-- Blockers: none at drafting
+- Next action: restore Herdr `review` main-agent provider path, then rerun Task 1 validator
+- Blockers: Task 1 Herdr validator stuck reconnecting after provider request failure; no profile/provider substitution authorized
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Final source under review: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`; changes only if approved bounded correction occurs
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
@@ -75,8 +75,8 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | accepted with one incomplete live personalization claim; matrix below |
-| Task 2 | `active` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | in progress |
+| Task 1 | `blocked` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | matrix recorded; Herdr review validator blocked by provider request failure |
+| Task 2 | `pending` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | waiting for Task 1 validator |
 | Task 3 | `pending` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | pending |
 | Task 4 | `pending` | `.worktrees/fitcv-closure-review` | `codex` | Tasks 1–3 | independent `PASS`, `FAIL`, or `BLOCKED` review bound to final source SHA | pending
 | Task 5 | `pending` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | pending |
@@ -148,6 +148,7 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 | Backend/API focused boundaries and local host | `src/fitcv_cp/app.py`, `src/fitcv_cp/local_routes.py`, `src/fitcv_cp/local_app.py` | focused pytest command in Task 1; `python -m compileall -q src` | `534 passed`; compile passed | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | live provider/data-dependent paths not covered by focused suite |
 | Planning and artifact integrity | planning scripts and Git | both planning validators; `git diff --check` | all passed | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | none |
 | Browser shell and route journeys | `/app` frontend host and E2E specs | `npm run test:e2e` against healthy `http://127.0.0.1:8000` (`/healthz` returned `{"status":"ok"}`) | `11 passed`, `1 failed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `INCOMPLETE` | `GET /personalization` returns `500 Internal Server Error`; page remains loading and integration route assertion fails |
+| Independent Task 1 validator | Herdr top-level Codex main agent via `scripts/herdr_main_launcher.py` | Herdr session `fitcv-task-1`, agent `fitcv-task-1-validator`, profile `review` | blocked: `combo-review` reconnected after request failure and produced no verdict | `9320217875b538fa100d471cf59d77570e0f511c` | fresh-this-turn | `BLOCKED` | Restore configured Herdr/provider path; rerun same validator without changing profile/provider |
 
 ### Task 2: Reconcile Stage 12 journey coverage
 
