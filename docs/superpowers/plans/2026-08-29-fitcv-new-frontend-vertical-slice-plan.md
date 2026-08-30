@@ -507,7 +507,7 @@ Slice 4 begins after Tasks 2 and 3 complete with task-local proof. Slice 5 requi
 - Branch: `main`
 - Base commit: `e98ce80df2f5a73ae88a2815af62143256aec8da`
 - Expected workspace: `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT`
-- Next action: dispatch Task 1 through `scripts/herdr_main_launcher.py` after lane identity and runtime binding gates pass
+- Next action: select Task 2 or Task 3 as next dependency-ready slice; Task 1 is accepted
 - Blockers: none
 - Preserved pre-existing changes: user-owned `.gitignore` modification in lead workspace; preserved and excluded from task lane.
 
@@ -515,7 +515,7 @@ Before activation, lead controller records one durable lane entry per task in th
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | active | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-1` | codex | none | build, host, browser, package | pending |
+| Task 1 | completed | `C:/Users/HOANG PHI LONG DANG/repos/JOB-PROJECT/.worktrees/fitcv-task-1` | codex | none | build, host, browser, package | accepted at `39e3c113cf3fb6575836ea02a50bb3cdc294b11c`; frontend bootstrap/typecheck/unit/a11y/build passed; browser preview shell/theme/deep-link proof passed; 534 backend/host regression tests passed |
 | Task 2 | pending | activation-assigned isolated worktree | codex | Task 1 | lifecycle API and browser journey | pending |
 | Task 3 | pending | activation-assigned isolated worktree | codex | Task 1 | scan API and browser journey | pending |
 | Task 4 | pending | activation-assigned isolated worktree | codex | Tasks 1–3 | run API and recovery browser journey | pending |
@@ -528,7 +528,7 @@ Before activation, lead controller records one durable lane entry per task in th
 
 | Task | Branch | Worktree | Base / HEAD | Allowed Paths | Checkpoint | Accepted Proof | Fan-in | Blocker / Next Action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | active | `codex/fitcv-task-1` | `e98ce80df2f5a73ae88a2815af62143256aec8da` / pending | Task 1 Modify paths | pending | pending | source for Tasks 2–8 | runtime gate, then dispatch |
+| Task 1 | completed | `codex/fitcv-task-1` | `e98ce80df2f5a73ae88a2815af62143256aec8da` / `39e3c113cf3fb6575836ea02a50bb3cdc294b11c` | Task 1 Modify paths | `39e3c113cf3fb6575836ea02a50bb3cdc294b11c` | npm ci with pinned Node/npm; frontend typecheck, Vitest, a11y, Vite build; browser preview `/app/#/overview`, navigation, title, light/dark toggle; `pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_local_app.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_local_setup.py tests/test_fitcv_cp/test_frontend_host.py` = 534 passed; `python -m compileall -q src`; `git diff --check` | source for Tasks 2–8 | Task 1 accepted; select Task 2 or Task 3 |
 | Task 2 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 2 Modify paths | pending | pending | source for Task 4 | record after Task 1 |
 | Task 3 | activation-assigned | activation-assigned | Task 1 accepted / pending | Task 3 Modify paths | pending | pending | source for Task 4 | record after Task 1 |
 | Task 4 | activation-assigned | activation-assigned | Tasks 2–3 accepted / pending | Task 4 Modify paths | pending | pending | source for Task 5 | record after Tasks 2–3 |
