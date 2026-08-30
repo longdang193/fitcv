@@ -59,14 +59,14 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Branch: `main`
 - Base commit: `b861d13e`
 - Expected workspace: clean at `b861d13e` before this plan is added; after drafting, only declared planning artifacts may be uncommitted and unrelated user changes remain preserved
-- Next action: independently review proposed parent specification in Task 3
+- Next action: obtain explicit product-owner approval for proposed parent specification before Task 4
 - Blockers: Design Export decisions `EX-01` and `EX-12` require current owner resolution and complete applicable gate evidence before parent-spec promotion; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference; parent-spec owner approval is required before Task 4; final production-plan owner approval is required before production implementation
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | `completed` | current | `codex` | meta-plan owner approval | inventory, source/test evidence, stale-owner and Design Export gate scan | six focused specs active; G-02/G-03/G-04 direct proof recorded; retired roadmap reference is historical; EX-01/EX-12 remain promotion gates |
 | Task 2 | `completed` | current | `codex` | Task 1 | draft-spec template and lifecycle validation | proposed parent spec created; template and lifecycle validators passed; prohibited-marker scan passed |
-| Task 3 | `active` | current | `codex` | Task 2 | independent draft-spec verdict | review agent owns read-only review |
+| Task 3 | `completed` | current | `codex` | Task 2 | independent draft-spec verdict | `SPEC READY FOR OWNER APPROVAL`; review agent found no P1/P2; template, lifecycle, repo-contract, and diff checks passed |
 | Task 4 | `pending` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | pending |
 | Task 5 | `pending` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | pending |
 | Task 6 | `pending` | current | `codex` | Task 5 | plan/integration reconciliation and validators | pending |
@@ -229,13 +229,13 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Stop for: missing input, inability to verify a material claim, or request to silently edit the draft.
 
 **Steps:**
-- [ ] Review SSOT/double ownership, contradiction with focused specifications, unresolved behavior, architecture ambiguity, accidental implementation detail, missing security/accessibility/compatibility boundaries, stale references, Design Export evidence, and parent-spec scope.
-- [ ] Return exactly one verdict: `SPEC READY FOR OWNER APPROVAL`, `SPEC REQUIRES FIXES`, or `BLOCKED`, with P1/P2/P3 findings and exact path/line evidence.
-- [ ] If fixes are required, return bounded findings to Task 2; writer revises same file and this review repeats.
+- [x] Review SSOT/double ownership, contradiction with focused specifications, unresolved behavior, architecture ambiguity, accidental implementation detail, missing security/accessibility/compatibility boundaries, stale references, Design Export evidence, and parent-spec scope.
+- [x] Return exactly one verdict: `SPEC READY FOR OWNER APPROVAL`, `SPEC REQUIRES FIXES`, or `BLOCKED`, with P1/P2/P3 findings and exact path/line evidence.
+- [x] If fixes are required, return bounded findings to Task 2; writer revises same file and this review repeats.
 
 **Verification:**
-- [ ] Reviewer report contains one allowed verdict and no repository modifications.
-- [ ] `git diff --check`; Expected: no whitespace errors in reviewed planning/specification changes.
+- [x] Reviewer report contains one allowed verdict and no repository modifications.
+- [x] `git diff --check`; Expected: no whitespace errors in reviewed planning/specification changes.
 
 **Exit Criteria:**
 - Independent reviewer returns `SPEC READY FOR OWNER APPROVAL`, or the plan stops at exact blocker/fix loop.
@@ -243,7 +243,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 ### OWNER APPROVAL GATE — parent specification
 
 - Stop after Task 3 passes.
-- Product owner explicitly approves `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`, resolves every behavior-changing Design Export question, and confirms complete applicable gate evidence. Future non-behavior deferrals require explicit owner, rationale, trigger, and approval reference.
+- Product owner explicitly approves `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`, resolves every behavior-changing Design Export question, and confirms complete applicable gate evidence. Future non-behavior deferrals require explicit owner, rationale, trigger, and approval reference. Approval is not yet recorded.
 - Reviewer readiness is not approval.
 - Approval evidence is recorded before Task 4; no production plan edit occurs before promotion.
 
