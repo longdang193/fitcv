@@ -1,7 +1,13 @@
 # FitCV New Frontend ↔ Backend Reconciliation
 
-**Status:** reconciliation closed; no frontend implementation plan or tasks created
+**Status:** historical reconciliation evidence; current ownership is the active parent specification and proposed vertical-slice implementation plan
 **Date:** 2026-08-29
+
+This August 29, 2026 note preserves closed backend/frontend contract evidence.
+It is non-normative for current implementation ownership. Current durable
+behavior is owned by `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`;
+current implementation sequencing is owned by
+`docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md`.
 
 ## Authority Boundary
 
@@ -11,7 +17,7 @@ implementation, visual, and interaction authority.
 | Concern | Authority |
 | --- | --- |
 | Product outcome and scope | `docs/intent/success-outcomes.md`, `docs/intent/constraints-and-non-goals.md`, `docs/intent/project-charter.md` |
-| Product ownership and dependencies | `docs/intent/master-workstream-roadmap.md` |
+| Product ownership and dependencies | `docs/intent/project-charter.md`, `docs/intent/success-outcomes.md`, `docs/intent/constraints-and-non-goals.md` |
 | UX structure, interaction, responsive behavior | `docs/fitcv-settings-ui-prototype.html` |
 | Visual tokens and reusable component guidance | Agentic Design System SSOT; verified export guidance in `design/fitcv-settings-ux-audit/fitcv-design-system-export.md` |
 | Request/response and lifecycle behavior | `docs/api.md`, `/openapi.json`, `src/fitcv_cp/app.py`, `src/fitcv_cp/local_routes.py` |
@@ -98,6 +104,9 @@ client-owned by design; no persistent notification infrastructure was added.
 
 ## Stop Point
 
-Reconciliation is closed. No frontend implementation plan or tasks were
-created. This note does not grant UX Freeze authority; product-owner approval
-remains separate.
+Reconciliation remains closed as historical evidence. The active parent
+specification owns durable frontend behavior and the proposed vertical-slice
+plan owns implementation tasks. This note does not grant UX Freeze authority,
+activate the production plan, or authorize frontend/backend implementation.
+Delete this note only after its mapping and verification evidence are absorbed
+by current owners and no active consumer remains.

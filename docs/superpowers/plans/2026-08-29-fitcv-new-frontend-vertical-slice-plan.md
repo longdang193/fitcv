@@ -5,7 +5,7 @@ template_id: implementation-plan
 contract_version: "1"
 status: proposed
 name: fitcv-new-frontend-vertical-slices
-parent_spec: none
+parent_spec: docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md
 targets:
   - frontend/
   - frontend/package-lock.json
@@ -31,12 +31,12 @@ Create one executable, Git-tracked plan for rebuilding FitCV frontend from scrat
 - Reconciliation is closed and marks journey contracts aligned. Backend status is `READY` for product slices, except the static-asset/SPA host and packaged-resource boundary, which is `PATCH_REQUIRED`.
 - Current local launch redirects from `src/fitcv_cp/app.py::local_root` to legacy routes. Legacy `/admin/*` surfaces remain compatibility surfaces during migration.
 - PyInstaller currently packages Jinja templates and prompts through `packaging/windows/fitcv-local.spec`; frontend build output is not yet packaged.
-- Git baseline is clean at `75489ffce4d2ad44393141bb7e69fb3e1594b043`; this plan is the only declared working-tree addition. Future execution must preserve any new user changes and modify only declared plan targets.
+- Execution-base candidate is `9a83da1d`; production activation must capture the exact clean pre-activation `HEAD`. Future execution must preserve user changes and modify only declared plan targets.
 
 ## Preserved invariants
 
 - Product outcome remains Personal FitCV for one trusted Windows user: setup, candidate profile, job collection, run, fit decision, bookmark/interest, grounded CV review, and return use.
-- `docs/intent/success-outcomes.md` and `docs/intent/master-workstream-roadmap.md` own product scope and completion priority.
+- `docs/intent/project-charter.md`, `docs/intent/success-outcomes.md`, and `docs/intent/constraints-and-non-goals.md` own product scope and completion priority. The retired roadmap is not current authority.
 - `docs/fitcv-settings-ui-prototype.html` owns frozen information architecture, interaction, responsive behavior, and visual intent; its implementation is not reused.
 - Active Agentic design tokens own production values. Terracotta/cream remains approved product palette, bound through semantic tokens rather than a second token SSOT.
 - Native controls, visible focus, keyboard operation, Escape handling, focus containment/return, live regions, reduced motion, responsive navigation, and table-local overflow remain required.
@@ -47,21 +47,20 @@ Create one executable, Git-tracked plan for rebuilding FitCV frontend from scrat
 - CV preview is exact persisted safe text; unsafe HTML/script execution is prohibited. Download remains attachment-only.
 - Legacy routes remain available until retirement gates pass; new frontend never parses legacy HTML or sample prototype data for truth.
 
-## Product/workstream coverage matrix
+## Product/specification coverage matrix
 
-| Completion-critical workstream | Vertical slice coverage | Representative proof |
-| --- | --- | --- |
-| `workstream-fitcv-local-experience` | Slice 1: Local readiness and application shell | fresh local launch, readiness/error/recovery, settings mutation, packaged asset smoke |
-| `workstream-candidate-profile-lifecycle` | Slice 2: Candidate Profile lifecycle | upload through confirmation, revision conflict, archive/restore, profile selection |
-| `workstream-job-collection-and-scans` | Slice 3: Scans and job collection | company selection, scan lifecycle, output Table/JSON, reuse and Run input |
-| `workstream-run-continuity-and-recovery` | Slice 4: Run trigger and continuity | managed trigger, polling/events, stages, cancellation, retryable queue failure |
-| `workstream-job-evaluation-and-personalization` | Slice 5: Fit, interest, bookmarks, personalization | fit evidence, independent interest, bookmark workspace, CAS personalization |
-| `workstream-grounded-cv-generation-and-review` | Slice 6: Grounded CV review | immutable version list, safe preview, download, regenerate, review state |
-| `workstream-decision-and-history-truth` | Slices 2–6 plus Slice 8 | snapshots, evidence, history, source-backed notification projection |
-| `workstream-reliability-and-diagnostics` | Slice 8; supporting acceptance in Slices 1, 3, 4, 6 | diagnostic bundle, event console, retry/recovery states |
-| `workstream-efficiency-and-cost-control` | Slice 4 and Slice 6 reuse/status presentation | reuse indicators and no duplicate client work; supporting only |
+| Product outcome | Specification owner | Vertical slice coverage | Representative proof |
+| --- | --- | --- | --- |
+| FitCV Local setup and readiness | Active parent spec; local readiness/profile authority spec | Slice 1: Local readiness and application shell | fresh launch, readiness/error/recovery, settings mutation, packaged asset smoke |
+| Candidate Profile lifecycle | Active parent spec; candidate evidence spec | Slice 2: Candidate Profile lifecycle | upload through confirmation, revision conflict, archive/restore, profile selection |
+| Job collection and Scans | Active parent spec; managed Scan lifecycle spec | Slice 3: Scans and job collection | company selection, Scan lifecycle, output Table/JSON, reuse and Run input |
+| Run continuity and recovery | Active parent spec; managed Scan and Run contracts | Slice 4: Run trigger and continuity | managed trigger, polling/events, stages, cancellation, retryable queue failure |
+| Job evaluation and personalization | Active parent spec; personalization JSON spec | Slice 5: Fit, interest, bookmarks, personalization | fit evidence, independent interest, bookmark workspace, CAS personalization |
+| Grounded CV generation and review | Active parent spec; CV preview transport spec | Slice 6: Grounded CV review | immutable version list, safe preview, download, regenerate, review state |
+| Decision/history and diagnostics | Active parent spec; transient notification spec | Slice 8 plus cross-slice acceptance | snapshots, evidence, history, event console, source-backed notification projection |
+| Supporting synonym management | Active parent spec; canonical API and synonym tests | Slice 7: supporting synonym management | review actions, import/export, processing status, supporting-only boundary |
 
-Supporting synonym management is Slice 7 and cannot block completion unless it breaks a completion-critical journey or makes results untruthful.
+Supporting synonym management cannot block completion unless it breaks a completion-critical journey or makes results untruthful. Identifiers from retired planning are historical only and not normative ownership.
 
 ## Vertical-slice definitions
 
@@ -105,7 +104,7 @@ Supporting synonym management is Slice 7 and cannot block completion unless it b
 
 - **User outcome:** User starts a profile-based Run from supported input, sees truthful lifecycle progress and stage results, returns later, and recovers from cancellation, queue failure, or incomplete processing.
 - **Frozen UX:** Runs list, Trigger Run, Run Details, six stages, job input summary, lifecycle actions, event console, debug bundle, archived history.
-- **Owning sources:** run contracts in `docs/api.md`; `workstream-run-continuity-and-recovery` roadmap entry; prototype Run surfaces; orchestration/store tests.
+- **Owning sources:** active parent specification; run contracts in `docs/api.md`; prototype Run surfaces; orchestration/store tests.
 - **Backend status:** `READY`.
 - **Boundaries:** managed `POST /runs`; `/runs`; `/runs/{run_id}`; stages/jobs; lifecycle actions; cursor events; debug bundle; immutable input/profile/settings snapshots.
 - **Dependencies:** Slices 1–3; active confirmed profile from Slice 2; eligible Scan output from Slice 3 when used.
@@ -129,7 +128,7 @@ Supporting synonym management is Slice 7 and cannot block completion unless it b
 
 - **User outcome:** User selects a suitable job, views ordered immutable CV versions, safely previews exact persisted content, regenerates when allowed, reviews evaluation state, and downloads the selected artifact.
 - **Frozen UX:** CV history, View CV, Download CV, Regenerate CV, pending/running/failed/corrupt/unsupported preview, evaluation/review state.
-- **Owning sources:** `docs/superpowers/specs/2026-08-29-fitcv-cv-preview-transport-spec.md`; grounded CV roadmap entry; `/cv-versions/*` contracts; reconciliation G-02.
+- **Owning sources:** active parent specification; `docs/superpowers/specs/2026-08-29-fitcv-cv-preview-transport-spec.md`; `/cv-versions/*` contracts; reconciliation G-02.
 - **Backend status:** `READY`.
 - **Boundaries:** CV history; exact text preview; attachment download; regenerate action; persisted evaluation/review state.
 - **Dependencies:** Slice 4 and Slice 5 selected Run Job.
@@ -141,7 +140,7 @@ Supporting synonym management is Slice 7 and cannot block completion unless it b
 
 - **User outcome:** User can inspect and manage synonym suggestions without confusing supporting taxonomy work with core fit truth.
 - **Frozen UX:** Synonym list/details, approve/decline/clear, import/export, processing status, backup boundary.
-- **Owning sources:** synonym route decorators in `src/fitcv_cp/app.py::create_app`, `tests/test_fitcv_cp/test_synonym_global_policy_io.py`, `tests/test_fitcv_cp/test_synonym_promote_preview_field_aware.py`, `tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py`; synonym surfaces in `docs/fitcv-settings-ui-prototype.html`; roadmap supporting disposition.
+- **Owning sources:** active parent specification; synonym route decorators in `src/fitcv_cp/app.py::create_app`, `tests/test_fitcv_cp/test_synonym_global_policy_io.py`, `tests/test_fitcv_cp/test_synonym_promote_preview_field_aware.py`, `tests/test_fitcv_cp/test_synonym_promote_commit_field_aware.py`; synonym surfaces in `docs/fitcv-settings-ui-prototype.html`; supporting-only disposition.
 - **Backend status:** `READY`.
 - **Boundaries:** `/synonym-policies*`, `/synonym-suggestions*`, `/synonym-processing-runs`, synonym backup routes.
 - **Dependencies:** Slice 1 shared shell and canonical synonym contracts; no dependency on Task 5 UI completion.
@@ -153,7 +152,7 @@ Supporting synonym management is Slice 7 and cannot block completion unless it b
 
 - **User outcome:** User can understand what happened, clear transient notices, return to prior work, and recover without losing server-owned history.
 - **Frozen UX:** Global notification bell, per-Run/Scan Console, prior decisions, recovery actions, diagnostics, zero-badge and clear-one/clear-all behavior.
-- **Owning sources:** `docs/superpowers/specs/2026-08-29-fitcv-client-transient-notifications-spec.md`; reconciliation G-01; Run/Scan event and debug-bundle contracts; roadmap decision/history and reliability entries.
+- **Owning sources:** active parent specification; `docs/superpowers/specs/2026-08-29-fitcv-client-transient-notifications-spec.md`; reconciliation G-01; Run/Scan event and debug-bundle contracts; decision/history and reliability requirements.
 - **Backend status:** `READY`; notifications remain client-only, with no notification service.
 - **Boundaries:** Run/Scan immutable events and debug bundle; client dedupe identities and session-scoped notification projection.
 - **Dependencies:** Slices 1–7; only cross-slice concerns belong here.
@@ -278,7 +277,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 - Controller-selected: `review`
 - Selection basis: independent contract and acceptance review.
 
-**Specification Coverage:** Managed Scan lifecycle spec; scan contracts in `docs/api.md`; job collection workstream.
+**Specification Coverage:** Active parent specification; Managed Scan lifecycle spec; scan contracts in `docs/api.md`.
 
 **Required Skills:** `skill-frontend-component-engineering`, `skill-full-stack-integration`, `skill-backend-verification`.
 
@@ -386,7 +385,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 - Controller-selected: `review`
 - Selection basis: independent artifact integrity and unsafe-content validation.
 
-**Specification Coverage:** CV preview transport spec; grounded CV workstream; reconciliation G-02.
+**Specification Coverage:** Active parent specification; CV preview transport spec; reconciliation G-02.
 
 **Required Skills:** `skill-frontend-component-engineering`, `skill-full-stack-integration`, `skill-backend-verification`.
 
@@ -422,7 +421,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 - Controller-selected: `review`
 - Selection basis: scope and truth-boundary review.
 
-**Specification Coverage:** Synonym contracts and supporting roadmap disposition.
+**Specification Coverage:** Active parent specification; synonym contracts and supporting-only disposition.
 
 **Required Skills:** `skill-frontend-component-engineering`, `skill-full-stack-integration`.
 
@@ -458,7 +457,7 @@ Slice 4 may begin after Slice 2 and Slice 3 contract fixtures exist; it does not
 - Controller-selected: `review`
 - Selection basis: independent whole-product readiness review.
 
-**Specification Coverage:** transient notifications spec; reconciliation G-01; decision/history and reliability workstreams.
+**Specification Coverage:** Active parent specification; transient notifications spec; reconciliation G-01; decision/history and reliability requirements.
 
 **Required Skills:** `skill-full-stack-integration`, `skill-backend-verification`, `skill-verification-before-completion`.
 

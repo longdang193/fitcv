@@ -59,7 +59,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Branch: `main`
 - Base commit: `b861d13e`
 - Expected workspace: clean at `b861d13e` before this plan is added; after drafting, only declared planning artifacts may be uncommitted and unrelated user changes remain preserved
-- Next action: reconcile existing vertical-slice plan and integration note in Task 6
+- Next action: independently review reconciled production plan in Task 7
 - Blockers: final production-plan owner approval is required before production implementation; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -69,8 +69,8 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 | Task 3 | `completed` | current | `codex` | Task 2 | independent draft-spec verdict | `SPEC READY FOR OWNER APPROVAL`; review agent found no P1/P2; template, lifecycle, repo-contract, and diff checks passed |
 | Task 4 | `completed` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | metadata identity passed; source/output/task match; independent PASS bound to OpenDesign run and output blob; EX-01/EX-12 resolved |
 | Task 5 | `completed` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | same file promoted to active detailed specification; template/lifecycle/prohibited-marker checks passed |
-| Task 6 | `active` | current | `codex` | Task 5 | plan/integration reconciliation and validators | existing vertical-slice plan and closed integration note edit active |
-| Task 7 | `pending` | current | `codex` | Task 6 | independent plan verdict | pending |
+| Task 6 | `completed` | current | `codex` | Task 5 | plan/integration reconciliation and validators | singular parent linkage; product/spec coverage matrix; historical integration ownership; proposed plan remains inactive |
+| Task 7 | `active` | current | `codex` | Task 6 | independent plan verdict | review agent owns read-only final plan review |
 
 ## META-PLAN OWNER APPROVAL GATE
 
@@ -386,21 +386,21 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Stop for: material implementation-outcome change, new product behavior, unresolved parent-spec contradiction, base mismatch, shared-write ambiguity, or request to create a `v2` plan.
 
 **Steps:**
-- [ ] Set exactly `parent_spec: docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; never add `parent_specs`.
-- [ ] Replace current Product/workstream coverage matrix with product/specification coverage mapping success outcomes, parent-spec requirements, focused specs, canonical contracts, vertical slices, and representative proof.
-- [ ] Remove active dependence on retired roadmap/workstream artifacts from production plan; retain identifiers only when clearly historical and non-normative.
-- [ ] Correct `docs/fitcv-new-frontend.integration.md` status, stop-point, and ownership wording; mark the August 29, 2026 reconciliation note historical where needed, make current intent plus active parent specification authoritative, preserve closed reconciliation evidence, and define deletion only after its mapping is absorbed and no active consumer remains.
-- [ ] Move durable architecture, hosting, routing, state ownership, security, accessibility, and legacy-coexistence decisions into parent specification; retain exact implementation mechanisms in plan.
-- [ ] Preserve valid vertical slicing: frontend work, required backend delta only, integration, focused verification, and slice acceptance; change topology only when approved spec or repository truth proves dependency or boundary wrong.
-- [ ] Reconcile every production-plan task's Specification Coverage, exact files/symbols, dependencies, disjoint ownership, executor/profile, required skills, local verification, slice acceptance, generated-surface order, and escalation boundaries.
-- [ ] Record production-plan execution-base candidate ancestry only; after Task 6 changes are checkpointed, Task 7 reviews ancestry, and later production activation captures exact clean pre-activation HEAD after final owner approval rather than using a self-referential SHA.
-- [ ] Keep production plan `status: proposed` until Task 7 passes and final owner approval is received; do not activate it or execute production tasks.
+- [x] Set exactly `parent_spec: docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; never add `parent_specs`.
+- [x] Replace current Product/workstream coverage matrix with product/specification coverage mapping success outcomes, parent-spec requirements, focused specs, canonical contracts, vertical slices, and representative proof.
+- [x] Remove active dependence on retired roadmap/workstream artifacts from production plan; retain identifiers only when clearly historical and non-normative.
+- [x] Correct `docs/fitcv-new-frontend.integration.md` status, stop-point, and ownership wording; mark the August 29, 2026 reconciliation note historical where needed, make current intent plus active parent specification authoritative, preserve closed reconciliation evidence, and define deletion only after its mapping is absorbed and no active consumer remains.
+- [x] Move durable architecture, hosting, routing, state ownership, security, accessibility, and legacy-coexistence decisions into parent specification; retain exact implementation mechanisms in plan.
+- [x] Preserve valid vertical slicing: frontend work, required backend delta only, integration, focused verification, and slice acceptance; change topology only when approved spec or repository truth proves dependency or boundary wrong.
+- [x] Reconcile every production-plan task's Specification Coverage, exact files/symbols, dependencies, disjoint ownership, executor/profile, required skills, local verification, slice acceptance, generated-surface order, and escalation boundaries.
+- [x] Record production-plan execution-base candidate ancestry only; after Task 6 changes are checkpointed, Task 7 reviews ancestry, and later production activation captures exact clean pre-activation HEAD after final owner approval rather than using a self-referential SHA.
+- [x] Keep production plan `status: proposed` until Task 7 passes and final owner approval is received; do not activate it or execute production tasks.
 
 **Verification:**
-- [ ] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Expected: parent specification and production plan satisfy current templates.
-- [ ] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: singular parent linkage, Git-tracked coordination schema, task ledger, and lifecycle state validate.
-- [ ] `rg -n "parent_specs|Product/workstream|master-workstream-roadmap|workstream-" docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md docs/fitcv-new-frontend.integration.md`; Expected: no active retired ownership or plural parent linkage; historical references are explicitly non-normative.
-- [ ] `git diff --check`; Expected: no whitespace errors.
+- [x] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Expected: parent specification and production plan satisfy current templates.
+- [x] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: singular parent linkage, Git-tracked coordination schema, task ledger, and lifecycle state validate.
+- [x] `rg -n "parent_specs|Product/workstream|master-workstream-roadmap|workstream-" docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md docs/fitcv-new-frontend.integration.md`; Expected: no active retired ownership or plural parent linkage; historical references are explicitly non-normative.
+- [x] `git diff --check`; Expected: no whitespace errors.
 
 **Exit Criteria:**
 - Existing vertical-slice plan is reconciled in place, integration evidence has no dead normative owner, parent linkage is singular and active, and production plan remains inactive pending independent review and owner approval.
