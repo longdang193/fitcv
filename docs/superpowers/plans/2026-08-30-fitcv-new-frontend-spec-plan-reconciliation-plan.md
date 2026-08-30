@@ -3,7 +3,7 @@ layer: change
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: active
+status: completed
 name: fitcv-new-frontend-spec-plan-reconciliation
 parent_spec: none
 targets:
@@ -60,8 +60,8 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Branch: `main`
 - Base commit: `b861d13e`
 - Expected workspace: clean at `b861d13e` before this plan is added; after drafting, only declared planning artifacts may be uncommitted and unrelated user changes remain preserved
-- Next action: independently review reconciled production plan in Task 7
-- Blockers: final production-plan owner approval is required before production implementation; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference
+- Next action: final owner approval for production execution; do not activate or execute the proposed vertical-slice plan
+- Blockers: none
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -71,7 +71,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 | Task 4 | `completed` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | metadata identity passed; source/output/task match; independent PASS bound to OpenDesign run and output blob; EX-01/EX-12 resolved |
 | Task 5 | `completed` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | same file promoted to active detailed specification; template/lifecycle/prohibited-marker checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | plan/integration reconciliation and validators | singular parent linkage; product/spec coverage matrix; historical integration ownership; proposed plan remains inactive |
-| Task 7 | `active` | current | `codex` | Task 6 | independent plan verdict | required fixes addressed: baseline aligned to `9a83da1d`; synonym slice narrowed to feature-local scope; re-review pending |
+| Task 7 | `completed` | current | `codex` | Task 6 | independent plan verdict | `xhigh` and `review` both returned `IMPLEMENTATION-READY` at `d04dd119`; no P1/P2/P3 findings; production implementation not executed |
 
 ## META-PLAN OWNER APPROVAL GATE
 
@@ -441,14 +441,14 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Stop for: any task requiring invented product behavior, unresolved plan/spec conflict, unsafe shared write, stale base, missing proof command, or unverified generated-surface ownership.
 
 **Steps:**
-- [ ] Review exact parent-spec coverage, complete vertical-slice coverage, stale ownership removal, exact files/symbols, dependencies, shared writes, waves, downstream CoS suitability, backend-delta assumptions, task-local proof, slice acceptance, final proof, legacy retirement gate, Git binding, generated surfaces, authority boundaries, and activation-time production-base ancestry.
-- [ ] Return exactly one verdict: `IMPLEMENTATION-READY`, `REQUIRED FIXES`, or `BLOCKED`, with P1/P2/P3 findings and exact evidence.
-- [ ] If fixes are required, return to Task 6 for bounded reconciliation and repeat review; do not implement production code.
+- [x] Review exact parent-spec coverage, complete vertical-slice coverage, stale ownership removal, exact files/symbols, dependencies, shared writes, waves, downstream CoS suitability, backend-delta assumptions, task-local proof, slice acceptance, final proof, legacy retirement gate, Git binding, generated surfaces, authority boundaries, and activation-time production-base ancestry.
+- [x] Return exactly one verdict: `IMPLEMENTATION-READY`, `REQUIRED FIXES`, or `BLOCKED`, with P1/P2/P3 findings and exact evidence. Both assigned reviewers returned `IMPLEMENTATION-READY` at `d04dd119` with no P1/P2/P3 findings.
+- [x] Prior P2 fixes were re-reviewed; no production code was implemented.
 
 **Verification:**
-- [ ] Reviewer report contains one allowed verdict and no repository modifications.
-- [ ] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Expected: validation passes after reconciliation.
-- [ ] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: validation passes after reconciliation.
+- [x] Reviewer reports contain one allowed verdict each and no repository modifications.
+- [x] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Result: validation passed after reconciliation.
+- [x] `python scripts/validate_planning_lifecycle.py --repo-root .`; Result: validation passed after reconciliation.
 
 **Exit Criteria:**
 - Independent reviewer returns `IMPLEMENTATION-READY`, or execution stops at exact required fix or blocker.
@@ -463,16 +463,16 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 
 ## Verification
 
-- [ ] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Expected: template validation passes.
-- [ ] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: lifecycle and coordination validation pass.
-- [ ] `python -m pytest tests/test_validate_template_required_sections.py tests/test_validate_planning_lifecycle.py`; Expected: planning validator tests pass.
-- [ ] `git diff --check`; Expected: no whitespace errors in tracked changes.
-- [ ] `Test-Path docs/intent/master-workstream-roadmap.md`; Expected: `False`; no retired roadmap is required.
-- [ ] `$allowed = @('docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md','docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md','docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md','docs/superpowers/specs/README.md','docs/fitcv-new-frontend.integration.md'); $changed = @((git diff --name-only --cached) + (git diff --name-only) + (git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique); $unexpected = @($changed | Where-Object { $_ -notin $allowed }); if ($unexpected.Count -gt 0) { throw 'Unexpected current-workspace paths' }; $untracked = @(git ls-files --others --exclude-standard); $badWhitespace = @($untracked | ForEach-Object { if (Test-Path -LiteralPath $_ -PathType Leaf) { $line = 0; Get-Content -LiteralPath $_ | ForEach-Object { $line++; if ($_ -match '[ \t]+$') { "$($_):$line" } } } }); if ($badWhitespace.Count -gt 0) { throw 'Whitespace in untracked files' }`; Expected: current workspace delta contains only declared planning/integration documents; unrelated pre-existing changes remain preserved; no production path changes; untracked files contain no trailing whitespace.
-- [ ] `Test-Path docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; Expected `False` before Task 2, `True` after Task 2; same file remains through Task 5 promotion.
-- [ ] `Test-Path docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md` and `Test-Path docs/fitcv-new-frontend.integration.md`; Expected: both `True` before and after reconciliation, unless separately authorized sidecar cleanup occurs after evidence migration.
-- [ ] `rg -n "parent_specs|Product/workstream|master-workstream-roadmap|workstream-" docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md docs/fitcv-new-frontend.integration.md`; Expected: no active retired ownership or plural parent linkage; historical references are explicitly non-normative.
-- [ ] Independent meta-plan review by one `xhigh` profile and one `review` profile; Expected: both return `IMPLEMENTATION-READY` with no unresolved P1/P2 approval blockers before meta-plan owner approval. Review reports may use task-specific verdicts; they do not satisfy owner approval.
+- [x] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Result: template validation passed.
+- [x] `python scripts/validate_planning_lifecycle.py --repo-root .`; Result: lifecycle and coordination validation passed.
+- [x] `python -m pytest tests/test_validate_template_required_sections.py tests/test_validate_planning_lifecycle.py`; Result: 38 passed.
+- [x] `git diff --check`; Result: no whitespace errors.
+- [x] `Test-Path docs/intent/master-workstream-roadmap.md`; Result: `False`; no retired roadmap is required.
+- [x] `$allowed = @('docs/superpowers/plans/2026-08-30-fitcv-new-frontend-spec-plan-reconciliation-plan.md','docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md','docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md','docs/superpowers/specs/README.md','docs/fitcv-new-frontend.integration.md'); $changed = @((git diff --name-only --cached) + (git diff --name-only) + (git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique); $unexpected = @($changed | Where-Object { $_ -notin $allowed }); if ($unexpected.Count -gt 0) { throw 'Unexpected current-workspace paths' }; $untracked = @(git ls-files --others --exclude-standard); $badWhitespace = @($untracked | ForEach-Object { if (Test-Path -LiteralPath $_ -PathType Leaf) { $line = 0; Get-Content -LiteralPath $_ | ForEach-Object { $line++; if ($_ -match '[ \t]+$') { "$($_):$line" } } } }); if ($badWhitespace.Count -gt 0) { throw 'Whitespace in untracked files' }`; Result: workspace clean, declared scope only, no production path changes.
+- [x] `Test-Path docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; Result: `True`; same file remains through Task 5 promotion.
+- [x] `Test-Path docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md` and `Test-Path docs/fitcv-new-frontend.integration.md`; Result: both `True` after reconciliation.
+- [x] `rg -n "parent_specs|Product/workstream|master-workstream-roadmap|workstream-" docs/superpowers/plans/2026-08-29-fitcv-new-frontend-vertical-slice-plan.md docs/fitcv-new-frontend.integration.md`; Result: no stale normative references.
+- [x] Independent meta-plan review by one `xhigh` profile and one `review` profile; Result: both returned `IMPLEMENTATION-READY` at `d04dd119` with no unresolved P1/P2 approval blockers.
 
 No frontend build, backend mutation, browser implementation, package build, migration, or production E2E execution belongs to this meta-plan.
 
