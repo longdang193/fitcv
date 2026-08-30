@@ -138,7 +138,7 @@ def test_candidate_profile_fixture_contract_covers_formats_lifecycle_and_snapsho
     routes = {
         (route.path, method)
         for route in app_factory().routes
-        for method in (route.methods or set())
+        for method in (getattr(route, "methods", None) or set())
         if "candidate-profile" in route.path
     }
 
@@ -1874,7 +1874,7 @@ def test_admin_route_manifest_matches_native_fastapi_contract() -> None:
     manifest = sorted(
         (
             route.path,
-            tuple(sorted(method for method in (route.methods or set()) if method not in {"HEAD", "OPTIONS"})),
+            tuple(sorted(method for method in (getattr(route, "methods", None) or set()) if method not in {"HEAD", "OPTIONS"})),
             route.name,
             _response_class_name(route),
         )

@@ -27,6 +27,7 @@ import os
 import re
 import secrets
 import sqlite3
+import sys
 import time
 import uuid
 import zipfile
@@ -281,6 +282,13 @@ from fitcv_cp.app_run_support import (
     load_cv_generation_trace_payload,
 )
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+
+def _resolve_frontend_dist_dir() -> Path:
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if frozen_root:
+        return Path(str(frozen_root)) / "frontend"
+    return Path(__file__).resolve().parents[2] / "frontend" / "dist"
 ORCHESTRATION_ADAPTER = get_orchestration_adapter()
 _RUN_SUBMISSION_CACHE_TTL_SECS = float(os.environ.get("FITCV_CP_SUBMISSION_CACHE_TTL_SECS") or 15 * 60)
 _RUN_SUBMISSION_CACHE_MAX = int(os.environ.get("FITCV_CP_SUBMISSION_CACHE_MAX") or 256)
@@ -7106,15 +7114,20 @@ def create_app(
                 if not secrets.compare_digest(supplied_token, csrf_token):
                     return Response("Invalid CSRF token", status_code=403)
             setup_path = request.url.path
-            allowed_before_setup = setup_path.startswith(
-                (
-                    "/local/",
-                    "/api-providers",
-                    "/llm-configuration",
-                    "/admin/api-providers",
-                    "/admin/llm-configuration",
+            allowed_before_setup = (
+                setup_path == "/app"
+                or setup_path.startswith(
+                    (
+                        "/app/",
+                        "/local/",
+                        "/api-providers",
+                        "/llm-configuration",
+                        "/admin/api-providers",
+                        "/admin/llm-configuration",
+                    )
                 )
-            ) or setup_path in {"/healthz", "/openapi.json"}
+                or setup_path in {"/", "/healthz", "/openapi.json"}
+            )
             if not allowed_before_setup and not onboarding_is_complete():
                 if unsafe:
                     return Response("FitCV Local onboarding is incomplete", status_code=409)
@@ -7142,8 +7155,7 @@ def create_app(
 
         @app.get("/", include_in_schema=False)
         async def local_root() -> RedirectResponse:
-            target = "/admin/runs" if onboarding_is_complete() else "/local/onboarding"
-            return RedirectResponse(target, status_code=307)
+            return RedirectResponse("/app", status_code=307)
 
         app.include_router(build_local_router(templates))
 
@@ -15116,6 +15128,33 @@ def create_app(
             action=action,
             acted_by=acted_by,
             note=note,
+        )
+
+    frontend_dist_dir = _resolve_frontend_dist_dir()
+    frontend_assets_dir = frontend_dist_dir / "assets"
+    if frontend_assets_dir.exists():
+        from fastapi.staticfiles import StaticFiles
+
+        app.mount(
+            "/app/assets",
+            StaticFiles(directory=str(frontend_assets_dir)),
+            name="frontend_assets",
+        )
+
+    @app.get("/app", include_in_schema=False)
+    @app.get("/app/{full_path:path}", include_in_schema=False)
+    async def serve_app(full_path: str = "") -> Response:
+        index_file = _resolve_frontend_dist_dir() / "index.html"
+        if not index_file.is_file():
+            return HTMLResponse(
+                "<!doctype html><html><head><title>FitCV</title></head>"
+                "<body><h1>FitCV Frontend</h1>"
+                "<p>Frontend assets not built. Run npm run build in frontend/.</p></body></html>",
+                status_code=503,
+            )
+        return HTMLResponse(
+            index_file.read_text(encoding="utf-8"),
+            headers={"Cache-Control": "no-cache"},
         )
 
     return app
