@@ -36,15 +36,19 @@ export interface CreationAttempt {
   profile_name: string;
   creation_status:
     | "queued"
+    | "extracting_base"
     | "base_mapping"
     | "base_review"
+    | "deriving"
     | "derived_claims"
     | "derived_review"
+    | "ready_to_confirm"
     | "confirmed"
+    | "succeeded"
     | "failed"
     | string;
   revision: number;
-  next_action: "review_baseline" | "review_derived" | "confirm" | "none" | string;
+  next_action: "review_baseline" | "review_derived" | "confirm" | "view_profile" | "wait" | "none" | string;
   poll_after_ms?: number;
   source_format?: string;
   source_document?: {

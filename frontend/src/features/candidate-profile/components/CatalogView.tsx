@@ -214,20 +214,26 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {attempts.map((att) => {
               const statusLabel =
-                att.next_action === "confirm"
+                att.creation_status === "succeeded" || att.next_action === "view_profile"
+                  ? "Completed"
+                  : att.next_action === "confirm" || att.creation_status === "ready_to_confirm"
                   ? "Ready to confirm"
-                  : att.next_action === "review_derived"
+                  : att.next_action === "review_derived" || att.creation_status === "derived_review"
                   ? "Derived review"
+                  : att.next_action === "review_baseline" || att.creation_status === "base_review"
+                  ? "Baseline review"
                   : att.creation_status === "failed"
                   ? "Needs attention"
-                  : "Baseline review";
+                  : "Processing";
 
               const stageParam =
-                att.next_action === "confirm"
+                att.next_action === "confirm" || att.creation_status === "ready_to_confirm"
                   ? "confirm"
-                  : att.next_action === "review_derived"
+                  : att.next_action === "review_derived" || att.creation_status === "derived_review"
                   ? "derived"
-                  : "baseline";
+                  : att.next_action === "review_baseline" || att.creation_status === "base_review"
+                  ? "baseline"
+                  : undefined;
 
               return (
                 <div
@@ -245,13 +251,19 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <StatusBadge
-                      status={att.creation_status === "failed" ? "danger" : "info"}
+                      status={
+                        att.creation_status === "failed"
+                          ? "danger"
+                          : att.creation_status === "succeeded"
+                          ? "success"
+                          : "info"
+                      }
                       label={statusLabel}
                     />
                     <div>
                       <strong style={{ display: "block", fontSize: 13 }}>{att.profile_name}</strong>
                       <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                        {att.source_document?.original_filename || "candidate.md"} · Updated {att.updated_at || "recently"}
+                        {att.source_document?.original_filename || "candidate.md"} - Updated {att.updated_at || "recently"}
                       </span>
                     </div>
                   </div>
@@ -267,13 +279,17 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                           Start new upload
                         </Button>
                       )
-                    ) : att.profile_id ? (
+                    ) : att.profile_id && (att.creation_status === "succeeded" || att.next_action === "view_profile") ? (
                       <Button size="compact" onClick={() => onOpenDetail(att.profile_id!)}>
                         View Profile
                       </Button>
-                    ) : (
+                    ) : stageParam ? (
                       <Button size="compact" variant="primary" onClick={() => onResumeAttempt(att.attempt_id, stageParam)}>
                         Resume review
+                      </Button>
+                    ) : (
+                      <Button size="compact" onClick={() => onResumeAttempt(att.attempt_id)}>
+                        View progress
                       </Button>
                     )}
                   </div>

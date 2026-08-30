@@ -28,6 +28,9 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
       return true;
     }
     if (
+      data.creation_status === "succeeded" ||
+      data.next_action === "view_profile" ||
+      Boolean(data.profile_id && data.creation_status === "succeeded") ||
       data.next_action === "review_baseline" ||
       data.next_action === "review_derived" ||
       data.next_action === "confirm" ||
@@ -66,9 +69,9 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
         }
 
         setStatusMessage(
-          data.creation_status === "base_mapping"
+          data.creation_status === "base_mapping" || data.creation_status === "extracting_base"
             ? "Extracting baseline document structure and locators..."
-            : data.creation_status === "derived_claims"
+            : data.creation_status === "derived_claims" || data.creation_status === "deriving"
             ? "Inferring derived claims and evidence references..."
             : "Processing candidate document..."
         );
@@ -109,9 +112,9 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
         }
 
         setStatusMessage(
-          data.creation_status === "base_mapping"
+          data.creation_status === "base_mapping" || data.creation_status === "extracting_base"
             ? "Extracting baseline document structure and locators..."
-            : data.creation_status === "derived_claims"
+            : data.creation_status === "derived_claims" || data.creation_status === "deriving"
             ? "Inferring derived claims and evidence references..."
             : "Processing candidate document..."
         );

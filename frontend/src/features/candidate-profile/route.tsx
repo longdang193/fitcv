@@ -88,7 +88,20 @@ export const CandidateProfileRoute: React.FC = () => {
   };
 
   const handleUploadSuccess = (attempt: CreationAttempt) => {
-    if (attempt.next_action === "review_baseline" || attempt.creation_status === "base_review") {
+    if (
+      (attempt.profile_id && (attempt.creation_status === "succeeded" || attempt.next_action === "view_profile")) ||
+      attempt.creation_status === "succeeded" ||
+      attempt.next_action === "view_profile"
+    ) {
+      if (attempt.profile_id) {
+        navigate(`#/candidate-profile/${encodeURIComponent(attempt.profile_id)}`);
+      } else {
+        navigate("#/candidate-profile");
+      }
+    } else if (
+      attempt.next_action === "review_baseline" ||
+      attempt.creation_status === "base_review"
+    ) {
       navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/baseline`);
     } else {
       navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}`);
@@ -96,10 +109,34 @@ export const CandidateProfileRoute: React.FC = () => {
   };
 
   const handleProcessingReady = (attempt: CreationAttempt) => {
-    if (attempt.next_action === "review_derived" || attempt.creation_status === "derived_review") {
+    if (
+      (attempt.profile_id && (attempt.creation_status === "succeeded" || attempt.next_action === "view_profile")) ||
+      attempt.creation_status === "succeeded" ||
+      attempt.next_action === "view_profile"
+    ) {
+      if (attempt.profile_id) {
+        navigate(`#/candidate-profile/${encodeURIComponent(attempt.profile_id)}`);
+      } else {
+        navigate("#/candidate-profile");
+      }
+    } else if (
+      attempt.next_action === "review_derived" ||
+      attempt.creation_status === "derived_review"
+    ) {
       navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/derived`);
-    } else if (attempt.next_action === "confirm" || attempt.creation_status === "confirmed") {
+    } else if (
+      attempt.next_action === "confirm" ||
+      attempt.creation_status === "ready_to_confirm" ||
+      attempt.creation_status === "confirmed"
+    ) {
       navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/confirm`);
+    } else if (
+      attempt.next_action === "review_baseline" ||
+      attempt.creation_status === "base_review"
+    ) {
+      navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/baseline`);
+    } else if (attempt.profile_id) {
+      navigate(`#/candidate-profile/${encodeURIComponent(attempt.profile_id)}`);
     } else {
       navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/baseline`);
     }

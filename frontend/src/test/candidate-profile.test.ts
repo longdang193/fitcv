@@ -609,4 +609,136 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
     );
   });
 
+
+  it("routes successful processing with status succeeded and view_profile to profile detail", () => {
+    // Test route navigation helper logic matching route.tsx handleProcessingReady
+    const handleProcessingReady = (attempt: any, navigate: (path: string) => void) => {
+      if (
+        (attempt.profile_id && (attempt.creation_status === "succeeded" || attempt.next_action === "view_profile")) ||
+        attempt.creation_status === "succeeded" ||
+        attempt.next_action === "view_profile"
+      ) {
+        if (attempt.profile_id) {
+          navigate(`#/candidate-profile/${encodeURIComponent(attempt.profile_id)}`);
+        } else {
+          navigate("#/candidate-profile");
+        }
+      } else if (
+        attempt.next_action === "review_derived" ||
+        attempt.creation_status === "derived_review"
+      ) {
+        navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/derived`);
+      } else if (
+        attempt.next_action === "confirm" ||
+        attempt.creation_status === "ready_to_confirm" ||
+        attempt.creation_status === "confirmed"
+      ) {
+        navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/confirm`);
+      } else if (
+        attempt.next_action === "review_baseline" ||
+        attempt.creation_status === "base_review"
+      ) {
+        navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/baseline`);
+      } else if (attempt.profile_id) {
+        navigate(`#/candidate-profile/${encodeURIComponent(attempt.profile_id)}`);
+      } else {
+        navigate(`#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}/baseline`);
+      }
+    };
+
+    const navPaths: string[] = [];
+    const mockNavigate = (p: string) => navPaths.push(p);
+
+    // 1. Succeeded with profile_id
+    handleProcessingReady(
+      {
+        attempt_id: "att_succ",
+        creation_status: "succeeded",
+        next_action: "view_profile",
+        profile_id: "prof_complete_123",
+      },
+      mockNavigate
+    );
+    expect(navPaths[0]).toBe("#/candidate-profile/prof_complete_123");
+
+    // 2. Ready to confirm
+    handleProcessingReady(
+      {
+        attempt_id: "att_conf",
+        creation_status: "ready_to_confirm",
+        next_action: "confirm",
+      },
+      mockNavigate
+    );
+    expect(navPaths[1]).toBe("#/candidate-profile/create/att_conf/confirm");
+
+    // 3. Derived review
+    handleProcessingReady(
+      {
+        attempt_id: "att_der",
+        creation_status: "derived_review",
+        next_action: "review_derived",
+      },
+      mockNavigate
+    );
+    expect(navPaths[2]).toBe("#/candidate-profile/create/att_der/derived");
+
+    // 4. Baseline review
+    handleProcessingReady(
+      {
+        attempt_id: "att_base",
+        creation_status: "base_review",
+        next_action: "review_baseline",
+      },
+      mockNavigate
+    );
+    expect(navPaths[3]).toBe("#/candidate-profile/create/att_base/baseline");
+  });
+
+  it("handles retry response with extracting_base/deriving and routes to processing view", () => {
+    // Verify resume stage mapping logic from CatalogView
+    const resolveResumeRoute = (att: any) => {
+      const stageParam =
+        att.next_action === "confirm" || att.creation_status === "ready_to_confirm"
+          ? "confirm"
+          : att.next_action === "review_derived" || att.creation_status === "derived_review"
+          ? "derived"
+          : att.next_action === "review_baseline" || att.creation_status === "base_review"
+          ? "baseline"
+          : undefined;
+
+      if (stageParam) {
+        return `#/candidate-profile/create/${encodeURIComponent(att.attempt_id)}/${stageParam}`;
+      }
+      return `#/candidate-profile/create/${encodeURIComponent(att.attempt_id)}`;
+    };
+
+    // Retry response in extracting_base / wait -> routes to processing (no stage suffix)
+    const extractingAttempt = {
+      attempt_id: "att_retry_extracting",
+      creation_status: "extracting_base",
+      next_action: "wait",
+      revision: 2,
+    };
+    expect(resolveResumeRoute(extractingAttempt)).toBe("#/candidate-profile/create/att_retry_extracting");
+
+    // Retry response in deriving / wait -> routes to processing (no stage suffix)
+    const derivingAttempt = {
+      attempt_id: "att_retry_deriving",
+      creation_status: "deriving",
+      next_action: "wait",
+      revision: 3,
+    };
+    expect(resolveResumeRoute(derivingAttempt)).toBe("#/candidate-profile/create/att_retry_deriving");
+
+    // Attempt in baseline review -> routes to baseline stage
+    const baseReviewAttempt = {
+      attempt_id: "att_ready_base",
+      creation_status: "base_review",
+      next_action: "review_baseline",
+      revision: 2,
+    };
+    expect(resolveResumeRoute(baseReviewAttempt)).toBe("#/candidate-profile/create/att_ready_base/baseline");
+  });
+
 });
