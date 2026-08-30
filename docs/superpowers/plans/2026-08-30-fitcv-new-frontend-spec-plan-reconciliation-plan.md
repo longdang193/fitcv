@@ -59,7 +59,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Branch: `main`
 - Base commit: `b861d13e`
 - Expected workspace: clean at `b861d13e` before this plan is added; after drafting, only declared planning artifacts may be uncommitted and unrelated user changes remain preserved
-- Next action: promote approved parent specification in place in Task 5
+- Next action: reconcile existing vertical-slice plan and integration note in Task 6
 - Blockers: final production-plan owner approval is required before production implementation; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -68,8 +68,8 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 | Task 2 | `completed` | current | `codex` | Task 1 | draft-spec template and lifecycle validation | proposed parent spec created; template and lifecycle validators passed; prohibited-marker scan passed |
 | Task 3 | `completed` | current | `codex` | Task 2 | independent draft-spec verdict | `SPEC READY FOR OWNER APPROVAL`; review agent found no P1/P2; template, lifecycle, repo-contract, and diff checks passed |
 | Task 4 | `completed` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | metadata identity passed; source/output/task match; independent PASS bound to OpenDesign run and output blob; EX-01/EX-12 resolved |
-| Task 5 | `active` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | same-file promotion active |
-| Task 6 | `pending` | current | `codex` | Task 5 | plan/integration reconciliation and validators | pending |
+| Task 5 | `completed` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | same file promoted to active detailed specification; template/lifecycle/prohibited-marker checks passed |
+| Task 6 | `active` | current | `codex` | Task 5 | plan/integration reconciliation and validators | existing vertical-slice plan and closed integration note edit active |
 | Task 7 | `pending` | current | `codex` | Task 6 | independent plan verdict | pending |
 
 ## META-PLAN OWNER APPROVAL GATE
@@ -334,14 +334,14 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Stop for: missing approval, incomplete Design Export gate, unresolved behavior-changing question, completed/superseded focused-spec edit request, or request to create a second parent specification.
 
 **Steps:**
-- [ ] Replace draft headings with detailed-specification headings while preserving verified facts, accepted behavior, rejected alternatives, prototype approval, Design Export evidence, and approved deferrals.
-- [ ] Ensure active specification owns behavior, interfaces, design decisions, invariants, acceptance criteria, and validation intent; keep file order, execution waves, commands, and CoS topology out.
-- [ ] Set `status: active` and verify exactly one canonical parent specification exists for this frontend outcome.
+- [x] Replace draft headings with detailed-specification headings while preserving verified facts, accepted behavior, rejected alternatives, prototype approval, Design Export evidence, and approved deferrals.
+- [x] Ensure active specification owns behavior, interfaces, design decisions, invariants, acceptance criteria, and validation intent; keep file order, execution waves, commands, and CoS topology out.
+- [x] Set `status: active` and verify exactly one canonical parent specification exists for this frontend outcome.
 
 **Verification:**
-- [ ] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Expected: active detailed specification satisfies required sections.
-- [ ] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: active specification lifecycle validates.
-- [ ] `rg -n "TODO|TBD|placeholder|parent_specs|workstream-|master-workstream-roadmap" docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; Expected: no unresolved placeholder, plural parent linkage, or retired planning authority.
+- [x] `python scripts/validate_template_required_sections.py --repo-root . --require-template-selection`; Expected: active detailed specification satisfies required sections.
+- [x] `python scripts/validate_planning_lifecycle.py --repo-root .`; Expected: active specification lifecycle validates.
+- [x] `rg -n "TODO|TBD|placeholder|parent_specs|workstream-|master-workstream-roadmap" docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`; Expected: no unresolved placeholder, plural parent linkage, or retired planning authority.
 
 **Exit Criteria:**
 - Same parent-spec file is active, detailed-template compliant, owner-approved, evidence-preserving, and ready to own downstream plan decisions.
