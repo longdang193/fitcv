@@ -59,16 +59,16 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Branch: `main`
 - Base commit: `b861d13e`
 - Expected workspace: clean at `b861d13e` before this plan is added; after drafting, only declared planning artifacts may be uncommitted and unrelated user changes remain preserved
-- Next action: obtain explicit product-owner approval for proposed parent specification before Task 4
-- Blockers: Design Export decisions `EX-01` and `EX-12` require current owner resolution and complete applicable gate evidence before parent-spec promotion; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference; parent-spec owner approval is required before Task 4; final production-plan owner approval is required before production implementation
+- Next action: promote approved parent specification in place in Task 5
+- Blockers: final production-plan owner approval is required before production implementation; future non-behavior deferrals need explicit owner, rationale, trigger, and approval reference
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `completed` | current | `codex` | meta-plan owner approval | inventory, source/test evidence, stale-owner and Design Export gate scan | six focused specs active; G-02/G-03/G-04 direct proof recorded; retired roadmap reference is historical; EX-01/EX-12 remain promotion gates |
+| Task 1 | `completed` | current | `codex` | meta-plan owner approval | inventory, source/test evidence, stale-owner and Design Export gate scan | six focused specs active; G-02/G-03/G-04 direct proof recorded; retired roadmap reference is historical; EX-01/EX-12 owner decisions recorded |
 | Task 2 | `completed` | current | `codex` | Task 1 | draft-spec template and lifecycle validation | proposed parent spec created; template and lifecycle validators passed; prohibited-marker scan passed |
 | Task 3 | `completed` | current | `codex` | Task 2 | independent draft-spec verdict | `SPEC READY FOR OWNER APPROVAL`; review agent found no P1/P2; template, lifecycle, repo-contract, and diff checks passed |
-| Task 4 | `pending` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | pending |
-| Task 5 | `pending` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | pending |
+| Task 4 | `completed` | current | `codex` | Task 3 and explicit parent-spec owner approval | Design Export identity, owner decisions, independent PASS | metadata identity passed; source/output/task match; independent PASS bound to OpenDesign run and output blob; EX-01/EX-12 resolved |
+| Task 5 | `active` | current | `codex` | Task 4 | active detailed-spec template and lifecycle validation | same-file promotion active |
 | Task 6 | `pending` | current | `codex` | Task 5 | plan/integration reconciliation and validators | pending |
 | Task 7 | `pending` | current | `codex` | Task 6 | independent plan verdict | pending |
 
@@ -243,7 +243,7 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 ### OWNER APPROVAL GATE — parent specification
 
 - Stop after Task 3 passes.
-- Product owner explicitly approves `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md`, resolves every behavior-changing Design Export question, and confirms complete applicable gate evidence. Future non-behavior deferrals require explicit owner, rationale, trigger, and approval reference. Approval is not yet recorded.
+- Product owner explicitly approved `docs/superpowers/specs/2026-08-30-fitcv-new-frontend-production-spec.md` on 2026-08-30, resolved `EX-01` and `EX-12`, and authorized continuation to Task 4. Final production-plan approval remains separate.
 - Reviewer readiness is not approval.
 - Approval evidence is recorded before Task 4; no production plan edit occurs before promotion.
 
@@ -284,16 +284,16 @@ Independent `xhigh` and `review` assessments cover this meta-plan before owner a
 - Stop for: missing independent PASS, unresolved `EX-01` or `EX-12`, incomplete export identity, request to invent palette/inspectability behavior, or request to modify design evidence without a bounded approved change.
 
 **Steps:**
-- [ ] Confirm current export identity: source `fitcv-settings-ui-prototype.html`, output `fitcv-design-system-export.md`, metadata task `final-design-export-curation`, and matching artifact metadata.
-- [ ] Require an independent PASS bound to the same source/output identity; an unrelated review or export `status: complete` field is insufficient.
-- [ ] Require current owner resolution for `EX-01` palette alignment and `EX-12` inspectability; future non-behavior deferrals may remain only with explicit owner, rationale, trigger, and approval reference.
-- [ ] If existing evidence cannot satisfy these checks, stop with exact blocker; do not promote the parent specification or create a substitute design-system SSOT.
-- [ ] Return accepted evidence and gate result to the lead; only the lead records proof in this plan's Coordination State and commits the ledger transition.
+- [x] Confirm current export identity: source `fitcv-settings-ui-prototype.html`, output `fitcv-design-system-export.md`, metadata task `final-design-export-curation`, and matching artifact metadata.
+- [x] Require an independent PASS bound to the same source/output identity; an unrelated review or export `status: complete` field is insufficient.
+- [x] Require current owner resolution for `EX-01` palette alignment and `EX-12` inspectability; future non-behavior deferrals may remain only with explicit owner, rationale, trigger, and approval reference.
+- [x] If existing evidence cannot satisfy these checks, stop with exact blocker; do not promote the parent specification or create a substitute design-system SSOT.
+- [x] Return accepted evidence and gate result to the lead; only the lead records proof in this plan's Coordination State and commits the ledger transition.
 
 **Verification:**
-- [ ] `Get-Content -Raw design/fitcv-settings-ux-audit/fitcv-design-system-export.md.artifact.json`; Expected: output identity, source identity, task identity, and status are present.
-- [ ] `rg -n "EX-01|EX-12|REQUIRES_REVIEW|independent review|PASS" design/fitcv-settings-ux-audit/fitcv-design-system-export.md`; Expected: unresolved decisions are absent from accepted gate result, or exact blocker is recorded and promotion stops.
-- [ ] Independent review evidence names same source and output identities; Expected: identity match, not merely generic approval.
+- [x] `Get-Content -Raw design/fitcv-settings-ux-audit/fitcv-design-system-export.md.artifact.json`; Expected: output identity, source identity, task identity, and status are present.
+- [x] `rg -n "EX-01|EX-12|REQUIRES_REVIEW|independent review|PASS" design/fitcv-settings-ux-audit/fitcv-design-system-export.md`; Expected: owner decisions are recorded in parent spec; export evidence remains unchanged and historical `REQUIRES_REVIEW` labels are not treated as unresolved current authority.
+- [x] Independent review evidence names same source and output identities; Expected: identity match, not merely generic approval.
 
 **Exit Criteria:**
 - Design Export gate is complete and identity-bound, or execution is blocked with exact unresolved evidence/owner decision.

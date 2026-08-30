@@ -62,7 +62,7 @@ related_features:
 - Focused specifications for managed scans, candidate evidence, transient notifications, personalization JSON, CV preview transport, and local readiness/profile authority are active.
 - The frozen prototype is `docs/fitcv-settings-ui-prototype.html`; it is immutable interaction evidence and must not be reused as production implementation.
 - Design Export output is `design/fitcv-settings-ux-audit/fitcv-design-system-export.md`, generated from `fitcv-settings-ui-prototype.html` by task `final-design-export-curation`; metadata status is `complete`.
-- Design Export records `EX-01` palette alignment and `EX-12` inspectability as unresolved review items; these are promotion blockers until owner decisions are recorded.
+- Design Export `EX-01` and `EX-12` owner decisions are recorded below; export identity and independent review remain subject to Task 4 confirmation.
 
 ### Assumptions
 
@@ -70,10 +70,13 @@ related_features:
 - A production frontend build can be packaged as static resources while legacy templates remain available for compatibility.
 - Existing API response shapes and error envelopes remain the source of truth; frontend behavior adapts to those contracts rather than duplicating them.
 
+### Resolved Owner Decisions
+
+- Owner decision: FitCV terracotta/cream is approved as a product brand override, bound through active Agentic semantic tokens without changing information architecture or UX behavior.
+- Owner decision: production delivery does not require inspectability IDs such as `data-od-id`; adding them later requires a separate approved runtime need and does not change current UX behavior.
+
 ### Open Questions
 
-- Is FitCV terracotta/cream an approved brand override to active Agentic navy/blue semantic tokens? This changes production visual behavior and blocks promotion.
-- Does production delivery require inspectability IDs such as `data-od-id`? This changes the delivery contract and blocks promotion until resolved.
 - Which exact browser support floor and packaged-resource manifest format are required? These may be deferred to implementation planning only if they do not change approved user behavior or security boundaries.
 
 ## Prototype and Validation Findings
@@ -85,21 +88,21 @@ related_features:
   - export task reference: `final-design-export-curation`.
   - requested deliverable: FitCV design-system guidance.
   - durable output identity: `design/fitcv-settings-ux-audit/fitcv-design-system-export.md` with matching metadata in `design/fitcv-settings-ux-audit/fitcv-design-system-export.md.artifact.json`.
-  - independent review: prior focused specs record `PASS` for the same OpenDesign run and durable output; current meta-plan requires identity-bound confirmation before promotion.
-  - gate state: incomplete.
+  - independent review: `PASS` recorded for OpenDesign run `ea9169ad-d5e0-4e7e-9480-98de93b62a6e` and durable output `design/fitcv-settings-ux-audit/fitcv-design-system-export.md` at blob `8586f2d64bef1ef2ab11db9768877de020e13b89`.
+  - gate state: complete.
 - scenario tested: frozen prototype desktop and mobile rendering, light/dark theme behavior, grouped navigation, dialogs, tabs, forms, status feedback, table overflow, and notification panel.
-- observed result: prototype provides approved information architecture and interaction evidence; export guidance preserves native controls, responsive navigation, semantic feedback, focus behavior, and token ownership while identifying palette and inspectability decisions needing owner resolution.
+- observed result: prototype provides approved information architecture and interaction evidence; export guidance preserves native controls, responsive navigation, semantic feedback, focus behavior, and token ownership. Owner approved the palette override and resolved inspectability as not required for current delivery.
 - accepted behavior: greenfield frontend preserves product journeys, native semantics, server truth, client-only transient notifications, safe CV preview text, and legacy coexistence.
 - rejected behavior: importing legacy templates or prototype JavaScript, parsing legacy HTML, persisting provider secrets in client storage, treating interest as suitability, or adding a backend notification service.
-- remaining uncertainty: `EX-01` palette alignment, `EX-12` inspectability requirement, exact packaged static-resource manifest, and browser support floor.
+- remaining uncertainty: exact packaged static-resource manifest and browser support floor; these do not change approved behavior and remain implementation-plan concerns.
 - boundary implication when material: frontend owns presentation and client state; backend and canonical APIs own durable truth; shared contract is limited to documented request/response, capability, identity, revision, error, and media semantics.
 
 ## Promotion Readiness
 
-- owner approval or `Not approved: draft awaits independent review and explicit product-owner approval.`
-- approval reference: `Not recorded.`
-- remaining blockers or `Design Export gate incomplete: owner decisions for EX-01 and EX-12 plus identity-bound independent PASS must be recorded before same-file promotion.`
-- approved deferrals with owner, rationale, trigger, and approval reference or `None`: `None approved.`
-- unresolved behavior-changing questions or `EX-01 palette alignment; EX-12 inspectability requirement.`
+- owner approval: Product owner approved this draft in Codex task on 2026-08-30.
+- approval reference: Codex approval message on 2026-08-30.
+- remaining blockers: None identified; Task 4 records final identity-bound gate evidence before same-file promotion.
+- approved deferrals with owner, rationale, trigger, and approval reference or `None`: `None.`
+- unresolved behavior-changing questions: `None.`
 
 This draft intentionally contains no production implementation sequence. After independent review, explicit product-owner approval, and completion of applicable Design Export evidence, replace this content in the same file with the detailed specification template and set `status: active`.
