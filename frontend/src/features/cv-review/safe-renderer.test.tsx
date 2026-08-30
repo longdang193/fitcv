@@ -57,13 +57,13 @@ describe("Safe Markdown parser and renderer", () => {
     const nodes = parseSafeMarkdown(markdownWithLists);
     expect(nodes).toHaveLength(2);
 
-    const ulNode = nodes[0] as React.ReactElement;
+    const ulNode = nodes[0] as React.ReactElement<{ className?: string; children?: any }>;
     expect(ulNode.type).toBe("ul");
     expect(ulNode.props.className).toBe("cv-ul");
     expect(ulNode.props.children).toHaveLength(2);
     expect((ulNode.props.children as React.ReactElement[])[0].type).toBe("li");
 
-    const olNode = nodes[1] as React.ReactElement;
+    const olNode = nodes[1] as React.ReactElement<{ className?: string; children?: any }>;
     expect(olNode.type).toBe("ol");
     expect(olNode.props.className).toBe("cv-ol");
     expect(olNode.props.children).toHaveLength(2);

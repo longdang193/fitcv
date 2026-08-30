@@ -109,5 +109,24 @@ describe("job evaluation slice and api", () => {
     });
     expect(preview.matched_count).toBe(2);
     expect(preview.preview_revision).toBe("prev-rev-123");
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["col1,col2\nval1,val2"], { type: "text/csv" }),
+    });
+
+    // Mock URL and DOM APIs
+    if (typeof window !== "undefined") {
+      window.URL.createObjectURL = vi.fn().mockReturnValue("blob:mock-url");
+      window.URL.revokeObjectURL = vi.fn();
+    }
+
+    await exportRunJobSelection("run-1", {
+      selected_run_job_ids: ["job-1"],
+      preview_revision: "prev-rev-123",
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalled();
   });
 });

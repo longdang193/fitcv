@@ -64,16 +64,41 @@ export function discoverFeatureRoutes(): FeatureRoute[] {
 
 export function matchRoute(hash: string, routes: FeatureRoute[]): FeatureRoute {
   const normalized = hash ? (hash.startsWith("#") ? hash : `#${hash}`) : "#/overview";
-  const found = routes.find((r) => r.path === normalized);
-  if (found) {
-    return found;
+  const pathOnly = normalized.split("?")[0];
+
+  // 1. Exact match with pathOnly or full normalized
+  const exact = routes.find((r) => r.path === pathOnly || r.path === normalized);
+  if (exact) {
+    return exact;
   }
-  // Try prefix match for parameterized routes
+
+  // 2. Alias normalizations
+  if (pathOnly === "#/settings/synonyms" || pathOnly === "#/synonyms") {
+    const syn = routes.find((r) => r.id === "synonyms");
+    if (syn) return syn;
+  }
+  if (pathOnly === "#/candidate-profiles" || pathOnly === "#/candidate-profile") {
+    const cp = routes.find((r) => r.id === "candidate-profile");
+    if (cp) return cp;
+  }
+  if (pathOnly === "#/job-evaluations" || pathOnly === "#/job-evaluation") {
+    const je = routes.find((r) => r.id === "job-evaluation");
+    if (je) return je;
+  }
+  if (pathOnly === "#/cv-reviews" || pathOnly === "#/cv-review") {
+    const cv = routes.find((r) => r.id === "cv-review");
+    if (cv) return cv;
+  }
+
+  // 3. Prefix match for parameterized/sub-paths (e.g. #/candidate-profile/create)
   const prefixMatch = routes.find(
-    (r) => r.path !== "#/overview" && normalized.startsWith(r.path)
+    (r) =>
+      r.path !== "#/overview" &&
+      (pathOnly.startsWith(r.path + "/") || pathOnly.startsWith(r.path + "?"))
   );
   if (prefixMatch) {
     return prefixMatch;
   }
+
   return routes.find((r) => r.id === "overview") || routes[0];
 }

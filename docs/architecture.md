@@ -219,3 +219,21 @@ legacy routes may delegate to shared owners but may not create divergent truth.
 Completed runs now emit `results_job_ledger_v4` with one immutable `decision_feedback_source_v1`. Production scoring rows carry normalized embedding evidence through one URL-boundary adapter, then use `raw_job_fingerprint` as alternative identity. The control plane materializes one canonical episode and complete alternative set on first rating, appends immutable rating events in SQLite sequence order, and derives effective `unrated | 1..5` state through one shared reducer. Phase 5 compiles complete event snapshots into deterministic weighted preference edges with provenance and diagnostics; no edge is persisted or consumed by ranking. GET remains read-only; old v3 runs remain explicitly unrated.
 
 `src/fitcv_cp/optimization_service.py` now owns store-backed candidate creation for both CLI and HTTP adapters. `/admin/optimization` reads the typed request and lifecycle rows through `ControlPlaneStore`, derives its read-only Rating Evidence preview with the shared rating-event reducer, renders bounded newest-first evidence and history, and exposes native manual candidate, activation, rejection, and rollback forms. Candidate creation never activates automatically; SQLite lifecycle transactions remain policy truth.
+
+
+G# Frontend Architecture (`/app`)
+
+The modern FitCV frontend is a Single-Page Application (`frontend/src/`) built with React 19, TypeScript, and Vite, served under `/app` by FastAPI:
+
+- **Route Discovery & Registry (`frontend/src/app/route-registry.ts`)**: Discovers feature route modules dynamically across `frontend/src/features/**/route.tsx`, sorting by `order` without duplicated registries.
+- **Application Shell (`frontend/src/app/app-shell.tsx`)**: Integrates grouped navigation (`Workspace`, `Settings & System`), responsive mobile drawer, accessible dark/light theme switching, and global toast/notification panels.
+- **Transient Notifications (`frontend/src/state/notifications/index.ts`)**: Session-scoped client-owned projection with priority deduplication (`action:{action_id}`, `event:{event_id}`, `state:{source_type}:{source_id}:{revision}:{state}`, `request:{operation}:{source_id}:{errorCode}:{attemptIdentity}`), unread tracking, mark-as-read, dismiss-one, clear-all, and hidden zero-badge rule.
+- **Production Slices**:
+  - `candidate-profile`: staged profile creation (upload, baseline, derived, confirm) and catalog.
+  - `scans`: tracked companies, scan trigger, output inspection (table/json), and lifecycle actions.
+  - `runs`: run submissions, execution progress, stage cards, job outcomes, and event console.
+  - `job-evaluation`: suitability and fit evidence review, independent application interest ratings, and filtered exports.
+  - `cv-review`: grounded CV generation history, safe text/markdown preview renderer, attachment download, and review decisions.
+  - `bookmarks`: saved job workspace, search/filtering, and CSV exports.
+  - `personalization`: core ranking mode configuration with ETag CAS revision conflict handling.
+  - `synonyms`: supporting alias taxonomy policies, suggestion review queue, and backup management.

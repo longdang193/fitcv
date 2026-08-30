@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   discoverFeatureRoutes,
   matchRoute,
@@ -83,34 +83,41 @@ export const AppShell: React.FC = () => {
     setIsMobileMenuOpen(false);
   }, []);
 
-  // Build navigation groups from routes and standard structure
-  const navGroups: NavGroup[] = [
-    {
-      id: "workspace",
-      title: "Workspace",
-      defaultOpen: true,
-      items: [
-        { id: "overview", label: "Overview", href: "#/overview" },
-        { id: "candidate-profile", label: "Candidate Profile", href: "#/candidate-profile" },
-        { id: "scans", label: "Scans", href: "#/scans" },
-        { id: "runs", label: "Runs", href: "#/runs" },
-        { id: "bookmarks", label: "Bookmarks", href: "#/bookmarks" },
-      ],
-    },
-    {
-      id: "settings",
-      title: "Settings & System",
-      defaultOpen: true,
-      items: [
-        { id: "providers", label: "API Providers", href: "#/settings/providers" },
-        { id: "llm", label: "LLM Configuration", href: "#/settings/llm" },
-        { id: "prompts", label: "Prompts", href: "#/settings/prompts" },
-        { id: "synonyms", label: "Synonyms", href: "#/settings/synonyms" },
-        { id: "personalization", label: "Personalization", href: "#/settings/personalization" },
-        { id: "system", label: "System Diagnostics", href: "#/settings/system" },
-      ],
-    },
-  ];
+  // Build navigation groups dynamically from discovered routes SSOT
+  const navGroups: NavGroup[] = useMemo(() => {
+    const workspaceItems = routes
+      .filter((r) => r.group === "workspace")
+      .map((r) => ({
+        id: r.id,
+        label: r.title,
+        href: r.path,
+        icon: r.icon,
+      }));
+
+    const settingsItems = routes
+      .filter((r) => r.group === "settings" || r.group === "system")
+      .map((r) => ({
+        id: r.id,
+        label: r.title,
+        href: r.path,
+        icon: r.icon,
+      }));
+
+    return [
+      {
+        id: "workspace",
+        title: "Workspace",
+        defaultOpen: true,
+        items: workspaceItems,
+      },
+      {
+        id: "settings",
+        title: "Settings & System",
+        defaultOpen: true,
+        items: settingsItems,
+      },
+    ];
+  }, [routes]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -150,49 +157,71 @@ export const AppShell: React.FC = () => {
       {/* Main Content Area */}
       <div className="main-content-area">
         <header className="app-header">
-          <div className="header-title-area">
-            <Button
-              className="mobile-menu-btn"
-              variant="icon"
-              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              type="button"
+              className="mobile-toggle-btn"
+              aria-label="Open navigation menu"
               aria-expanded={isMobileMenuOpen}
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
             >
               ☰
-            </Button>
-            <h1>{activeRoute.title}</h1>
+            </button>
+            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+              {activeRoute.title}
+            </h1>
           </div>
 
-          <div className="header-actions">
-            {/* Global Notification Bell */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Notifications Dropdown */}
             <div style={{ position: "relative" }}>
               <Button
                 variant="icon"
-                className="notification-bell-btn"
-                aria-label={`Notifications (${unreadCount} unread)`}
+                aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
                 aria-expanded={isNotifOpen}
-                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                onClick={() => setIsNotifOpen((prev) => !prev)}
               >
                 🔔
                 {unreadCount > 0 && (
-                  <span className="notification-badge" aria-hidden="true">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: "var(--accent)",
+                    }}
+                    aria-hidden="true"
+                  />
                 )}
               </Button>
 
               {isNotifOpen && (
                 <div
-                  className="notification-dropdown"
-                  role="dialog"
-                  aria-label="Transient Notifications"
+                  className="dropdown-panel"
+                  role="region"
+                  aria-label="Notifications panel"
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: "calc(100% + 8px)",
+                    width: 320,
+                    maxWidth: "90vw",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    boxShadow: "var(--shadow)",
+                    zIndex: 50,
+                  }}
                 >
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
                       justifyContent: "space-between",
-                      padding: "12px 16px",
+                      alignItems: "center",
+                      padding: "10px 14px",
                       borderBottom: "1px solid var(--border-soft)",
                     }}
                   >
