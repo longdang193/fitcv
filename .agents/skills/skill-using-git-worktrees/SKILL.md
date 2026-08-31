@@ -21,8 +21,8 @@ Use isolation when:
 - multiple independent lanes need disjoint write ownership
 - branch comparison or safe integration benefits from separate workspaces
 
-For a write-capable Herdr main-agent lane, isolation is mandatory even when
-ordinary local work could safely reuse the current checkout.
+For a write-capable Herdr implementation lane, isolation is mandatory even
+when ordinary local work could safely reuse the current checkout.
 
 Skip isolation for small, local, reversible work when current checkout is safe and user has not requested a worktree.
 
@@ -159,7 +159,7 @@ matches the exact worktree before writes begin.
 ## Cleanup Boundary
 
 This skill does not remove worktree. Cleanup requires confirmation that no live
-main-agent process owns the path.
+top-level lane process owns the path.
 
 `skill-finishing-a-development-branch` owns cleanup after verified Git disposition and explicit authorization. It must use native cleanup for native-created workspace and `git worktree remove` only for manually created worktree.
 

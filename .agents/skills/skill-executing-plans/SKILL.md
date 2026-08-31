@@ -115,9 +115,9 @@ profile is `none`; when a fixed profile is selected for delegated work, use the
 active native Codex subagent capability only when CoS is not selected. When the
 approved plan lists `skill-chief-of-staff` in `Required skills`, keep
 this skill as the execution owner and allow CoS to select only a Herdr-
-supervised top-level Codex
-main agent after plan, runtime parity, lane identity,
-and profile-binding gates pass; CoS must not fall back to native subagents.
+supervised top-level Codex main agent or bounded DeepAgents pane process after
+plan, runtime parity, lane identity, and profile-binding gates pass; CoS must
+not fall back to native subagents.
 CoS must not call `multi_agent_v1`, native Codex subagents, DeepAgents internal
 `task` workers, Tura internal workers, or executor-local reviewers or helpers.
 `Executor Selection` owns executor choice, while `Template Profile` and
@@ -216,10 +216,11 @@ When all required plan tasks appear complete:
 Create a local checkpoint commit only when active plan `Commit policy` explicitly
 preauthorizes verified per-task checkpoints. The lead creates it after accepting
 task proof and updating the task ledger, so implementation and accepted workflow
-state share one checkpoint. An exact active-plan lane grant may authorize lane
-push, PR create/update, assigned review action, exact approved PR merge, and
-post-retirement cleanup. Branch or PR publication may follow accepted lane
-proof; final merge and cleanup require whole-plan verification. Exceptional or
+state share one checkpoint. An exact active-plan lane grant may authorize implementation-lane push, PR
+create/update, and post-retirement cleanup. Only a Codex implementation lane may
+receive assigned review or exact approved PR merge authority. Branch or PR
+publication may follow accepted lane proof; final merge and cleanup require
+whole-plan verification. Exceptional or
 destructive actions still require explicit user authorization.
 
 ## Handoff

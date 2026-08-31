@@ -1,4 +1,4 @@
-"""Launch one registry-bound top-level Codex agent through Herdr."""
+"""Launch one registry-bound top-level implementation lane through Herdr."""
 
 from __future__ import annotations
 
@@ -20,6 +20,12 @@ except ModuleNotFoundError:
 
 class LaunchBlocked(RuntimeError):
     """Raised when a required runtime binding is unavailable or mismatched."""
+
+
+_EXECUTORS = {"codex", "deepagents"}
+_MAX_TASK_LENGTH = 4096
+_DEEPAGENTS_MAX_TURNS = "4"
+_DEEPAGENTS_TIMEOUT = "120"
 
 
 def _run(
@@ -213,9 +219,17 @@ def _redacted_arguments(arguments: list[str]) -> list[str]:
             redacted.extend([value, setting])
             index += 2
             continue
+        if value in {"-n", "--task"} and index + 1 < len(arguments):
+            redacted.extend([value, f"task=<sha256:{_sha256_text(arguments[index + 1])}>"])
+            index += 2
+            continue
         redacted.append(value)
         index += 1
     return redacted
+
+
+def _powershell_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
 
 def resolve_launch(
@@ -225,38 +239,78 @@ def resolve_launch(
     pane: str,
     cwd: Path,
     expected_base: str,
+    executor: str = "codex",
+    task: str | None = None,
     name: str | None = None,
     codex_home: Path | None = None,
 ) -> tuple[list[str], dict[str, Any]]:
-    repo_root = Path(__file__).resolve().parents[1]
-    selected = _profile(repo_root / "agents", profile_name)
-    runtime = _codex_runtime(cwd, codex_home)
-    environment = _codex_environment(Path(runtime["codex_home"]))
+    if executor not in _EXECUTORS:
+        raise LaunchBlocked(f"Unsupported executor: {executor}")
+    if executor == "deepagents":
+        if task is None or not task.strip():
+            raise LaunchBlocked("DeepAgents launch requires non-empty bounded task text.")
+        if len(task) > _MAX_TASK_LENGTH:
+            raise LaunchBlocked(
+                f"DeepAgents task text exceeds {_MAX_TASK_LENGTH} characters."
+            )
+        if "\r" in task or "\n" in task:
+            raise LaunchBlocked("DeepAgents task text cannot contain newlines.")
+    lane_root = cwd.resolve()
+    selected = _profile(lane_root / "agents", profile_name)
+    if executor == "deepagents" and not selected.deepagents_compatible:
+        raise LaunchBlocked(
+            f"Profile is not compatible with DeepAgents: {selected.name}"
+        )
+    runtime = _codex_runtime(cwd, codex_home) if executor == "codex" else None
+    environment = (
+        _codex_environment(Path(runtime["codex_home"]))
+        if runtime is not None
+        else os.environ.copy()
+    )
     herdr = _executable("herdr")
-    codex = _executable("codex")
+    codex = _executable("codex") if executor == "codex" else None
+    dcode = _executable("dcode-project") if executor == "deepagents" else None
     git = _git_identity(cwd, expected_base)
     pane_state = _herdr_pane(cwd, session, pane, herdr, env=environment)
     agent_name = name or f"{selected.name}-main"
-    codex_arguments = _codex_arguments(selected, cwd)
-    command = [
-        herdr,
-        "--session",
-        session,
-        "agent",
-        "start",
-        agent_name,
-        "--kind",
-        "codex",
-        "--pane",
-        pane,
-        "--",
-        *codex_arguments,
-    ]
+    if executor == "codex":
+        runtime_arguments = _codex_arguments(selected, cwd)
+        command = [
+            herdr,
+            "--session",
+            session,
+            "agent",
+            "start",
+            agent_name,
+            "--kind",
+            "codex",
+            "--pane",
+            pane,
+            "--",
+            *runtime_arguments,
+        ]
+    else:
+        runtime_arguments = [
+            "&",
+            _powershell_literal(str(dcode)),
+            "--role",
+            selected.name,
+            "--json",
+            "--quiet",
+            "--no-mcp",
+            "--max-turns",
+            _DEEPAGENTS_MAX_TURNS,
+            "--timeout",
+            _DEEPAGENTS_TIMEOUT,
+            "-n",
+            _powershell_literal(task.strip()),
+        ]
+        command = [herdr, "--session", session, "pane", "run", pane, *runtime_arguments]
     evidence = {
         "registry_launcher": {
             "profile": selected.name,
             "profile_source": str(selected.source),
-            "executor": "codex",
+            "executor": executor,
             "model_provider": selected.model_provider,
             "model": selected.model,
             "developer_instructions_sha256": _sha256_text(selected.developer_instructions),
@@ -265,7 +319,7 @@ def resolve_launch(
                 "model",
                 "developer_instructions",
             ],
-            "redacted_codex_argv": _redacted_arguments(codex_arguments),
+            "redacted_runtime_argv": _redacted_arguments(runtime_arguments),
         },
         "git": git,
         "herdr": {
@@ -274,16 +328,22 @@ def resolve_launch(
             "session": session,
             "pane": pane,
             "agent_name": agent_name,
-            "agent_kind": "codex",
+            "agent_kind": "codex" if executor == "codex" else "pane-process",
             "pane_cwd": str(Path(str(pane_state["pane"].get("cwd"))).resolve()),
         },
-        "codex": {
-            "executable": codex,
-            "version": _version(codex, env=environment),
-            **runtime,
-            "argv_shape": _redacted_arguments(codex_arguments),
-        },
+        "runtime": {
+            "executable": codex or dcode,
+            "argv_shape": _redacted_arguments(runtime_arguments),
+        }
     }
+    if runtime is not None:
+        evidence["codex"] = {
+            "executable": codex,
+            "version": _version(str(codex), env=environment),
+            **runtime,
+        }
+    else:
+        evidence["deepagents"] = {"executable": dcode}
     return command, evidence
 
 
@@ -294,6 +354,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pane", required=True)
     parser.add_argument("--cwd", required=True, type=Path)
     parser.add_argument("--expected-base", required=True)
+    parser.add_argument("--executor", choices=sorted(_EXECUTORS), default="codex")
+    parser.add_argument("--task")
     parser.add_argument("--name")
     parser.add_argument("--codex-home", type=Path)
     parser.add_argument("--dry-run", action="store_true")
@@ -309,16 +371,22 @@ def main(argv: list[str] | None = None) -> int:
             pane=args.pane,
             cwd=args.cwd,
             expected_base=args.expected_base,
+            executor=args.executor,
+            task=args.task,
             name=args.name,
             codex_home=args.codex_home,
         )
         print(json.dumps(evidence, sort_keys=True))
         if args.dry_run:
             return 0
-        codex_evidence = evidence.get("codex")
-        if not isinstance(codex_evidence, dict) or not codex_evidence.get("codex_home"):
-            raise LaunchBlocked("Launcher evidence missing codex_home.")
-        result = _run(command, env=_codex_environment(Path(str(codex_evidence["codex_home"]))))
+        if args.executor == "codex":
+            codex_evidence = evidence.get("codex")
+            if not isinstance(codex_evidence, dict) or not codex_evidence.get("codex_home"):
+                raise LaunchBlocked("Launcher evidence missing codex_home.")
+            environment = _codex_environment(Path(str(codex_evidence["codex_home"])))
+        else:
+            environment = os.environ.copy()
+        result = _run(command, env=environment)
         if result.stdout:
             print(result.stdout, end="")
         if result.stderr:

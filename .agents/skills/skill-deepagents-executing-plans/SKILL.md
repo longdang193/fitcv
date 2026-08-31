@@ -31,6 +31,28 @@ dispatched task contract and applicable worker or validator skills.
 - Agent output is a claim until Codex reconciles Plan plus Git and accepts
   required proof.
 
+## MCP Escalation Contract
+
+- Classify each required MCP capability as pre-dispatch or mid-task.
+- DeepAgents must not call MCP directly.
+- If mid-task MCP data is missing, stale, or requires live refresh, return
+  `NEEDS_CONTEXT` with the missing capability, required facts, and freshness
+  requirement.
+- CoS performs the MCP call, validates the result, writes a fresh handoff, and
+  retries the same plan task.
+- CoS does not advance the task ledger from `NEEDS_CONTEXT`.
+- Acceptance requires handoff identity, capability digest, freshness, and
+  returned evidence.
+
+## Outer Return Contract
+
+The top-level DeepAgents dispatch brief returns exactly one of
+`DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED`. This is a semantic
+claim, not process evidence. Codex reconciles it with Git, plan state, Herdr
+outer-pane evidence, and `dcode-project` worker wait, exit, timeout, and
+descendant-cleanup evidence before acceptance. DeepAgents internal `task`
+workers remain executor-local and opaque.
+
 ## Preconditions
 
 Before dispatch, Codex must:

@@ -1075,10 +1075,10 @@ def test_setup_launcher_uses_current_repository_source() -> None:
     assert "DEEPAGENTS_HOME" in setup
     assert "GetUnresolvedProviderPathFromPSPath" in setup
     assert "Direct DeepAgents MCP config detected" in setup
-    assert '$DeepAgentsCodeVersion = "0.1.64"' in setup
+    assert '$DeepAgentsCodeVersion = "0.1.65"' in setup
     assert 'deepagents-code==$DeepAgentsCodeVersion' in setup
     assert 'langgraph-api==0.13.0' in setup
-    assert 'langgraph-runtime-inmem==0.33.0' in setup
+    assert 'langgraph-runtime-inmem==0.33.2' in setup
     assert 'uvicorn==0.51.0' in setup
     assert '$env:UV_TOOL_DIR = $deepAgentsToolRoot' in setup
     assert '$env:UV_TOOL_BIN_DIR = $deepAgentsBinRoot' in setup

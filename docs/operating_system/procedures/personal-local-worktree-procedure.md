@@ -274,9 +274,10 @@ thread IDs, DeepAgents thread IDs, or `dcode -r` as repository coordination stat
 When task contract preauthorizes verified checkpoint commits, completed task
 changes and lead-controller ledger update share one checkpoint commit after
 task-local proof. Git owns checkpoint identity; do not copy the resulting SHA
-into the plan. An exact active-plan lane grant may authorize lane push, PR
-create/update, assigned review action, exact approved PR merge, and cleanup;
-exceptional or destructive actions still require explicit user authorization.
+into the plan. An exact active-plan lane grant may authorize implementation-lane
+push, PR create/update, and cleanup. Only a Codex implementation lane may receive
+assigned review or exact approved PR merge authority; exceptional or destructive
+actions still require explicit user authorization.
 
 ## Check And Review
 

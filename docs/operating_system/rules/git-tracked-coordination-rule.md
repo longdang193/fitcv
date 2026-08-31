@@ -27,22 +27,23 @@ For Git-tracked coordinated work:
 - Same-workspace writers execute sequentially.
 - Concurrent writers require isolated Git worktrees, disjoint write ownership,
   and a dependency-ready wave.
-- A write-capable main-agent lane uses one exact branch and isolated worktree.
-  The active plan may grant that agent bounded lane authority for lane commits,
-  lane push, PR create/update, assigned review action, the exact approved PR
-  merge into its declared base after gates, and post-retirement cleanup.
+- A write-capable coordinated implementation lane uses one exact branch and
+  isolated worktree. The active plan may grant that lane bounded authority for
+  lane commits, lane push, PR create/update, and post-retirement cleanup. Only a
+  Codex implementation lane may receive assigned review or exact approved PR
+  merge authority.
 - Lane commits are implementation artifacts, not coordination checkpoints. The
   lead remains the sole ledger writer and creates a checkpoint in the lead
   workspace only after accepting proof and updating the ledger. A lane commit
   cannot mark its task complete or change coordination state.
 - Integration targeting one base branch is serialized. The lead grants one
-  dependency-ready integration action at a time to one designated main agent.
-  Merge requires the expected reviewed head, required proof, clean state, and
-  no post-review lane commit. Direct or exceptional base mutation, force push,
+  dependency-ready integration action at a time to one designated Codex
+  integration lane. Merge requires the expected reviewed head, required proof,
+  clean state, and no post-review lane commit. Direct or exceptional base mutation, force push,
   PR retargeting, protection bypass, semantic conflict resolution, unrelated
   mutation, and destructive recovery remain explicitly user-authorized.
-- Before worktree cleanup, retire the associated main-agent process and confirm
-  no live process owns that path. The active agent never removes its own
+- Before worktree cleanup, retire the associated top-level lane process and
+  confirm no live process owns that path. The active agent never removes its own
   worktree.
 - Task completion requires declared proof accepted by the lead controller.
 - The lead creates an authorized checkpoint commit only after accepting task

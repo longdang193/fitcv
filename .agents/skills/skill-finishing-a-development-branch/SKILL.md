@@ -49,7 +49,7 @@ Verification makes closure actions eligible. For an assigned lane, an explicit
 active-plan lane grant selects bounded lifecycle actions. User authorization
 remains required for exceptional or destructive actions.
 
-Do not commit, fetch, pull, create branch, rebase, merge, push, create or update pull request, apply or drop stash, delete branch, prune metadata, or remove worktree without explicit authorization for that action. An active approved plan may grant an assigned main agent bounded authority for its exact lane: branch/worktree creation or reuse, lane commits, lane push, PR create/update, assigned review action, exact approved PR merge into declared base after gates, and cleanup after retirement and clean-state proof. Direct or exceptional base mutation, force push, PR retargeting, branch-protection bypass, semantic conflict resolution, unrelated branch/worktree mutation, destructive recovery, unknown-file discard, and merging another lane remain user-authorized.
+Do not commit, fetch, pull, create branch, rebase, merge, push, create or update pull request, apply or drop stash, delete branch, prune metadata, or remove worktree without explicit authorization for that action. An active approved plan may grant an assigned implementation lane bounded authority for its exact lane: branch/worktree creation or reuse, lane commits, lane push, PR create/update, and cleanup after retirement and clean-state proof. Only a Codex implementation lane may receive assigned review action or exact approved PR merge authority. Direct or exceptional base mutation, force push, PR retargeting, branch-protection bypass, semantic conflict resolution, unrelated branch/worktree mutation, destructive recovery, unknown-file discard, and merging another lane remain user-authorized.
 
 Never infer a file is “superseded.” Before reconciliation can remove or overwrite
 content, show every overlapping file with hashes and diff summary, then require an
@@ -153,7 +153,7 @@ user authorization:
 5. create or update pull request when the active lane grant allows it and support exists
 6. record branch, remote, commit SHA, and pull-request result
 7. keep the lane process and worktree available for review fixes and integration
-8. after whole-plan verification, review acceptance, and expected-head confirmation, retire the lane main-agent process, confirm no live process owns the worktree, then remove it only when cleanup is granted and safe
+8. after whole-plan verification, review acceptance, and expected-head confirmation, retire the top-level lane process, confirm no live process owns the worktree, then remove it only when cleanup is granted and safe
 
 Do not merge local base first when pull request path is selected.
 
