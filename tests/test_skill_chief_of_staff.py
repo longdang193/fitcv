@@ -191,3 +191,21 @@ def test_planning_dispatch_selects_cos_only_for_sustained_codex_coordination() -
     assert "only independent Herdr\ntop-level Codex main-agent sessions" in dispatch
     assert "never calls\n`multi_agent_v1`, native Codex subagents" in dispatch
     assert "`deepagents` and\n`tura` retain their existing peer executor paths" in dispatch
+
+
+def test_planning_dispatch_defines_observable_level_2_readiness() -> None:
+    dispatch = read("docs/operating_system/planning/planning-dispatch.md")
+    section = dispatch.split("## Level-2 Readiness Evidence", 1)[1].split("## Delivery Lifecycle", 1)[0]
+    normalized = " ".join(section.split())
+    for text in (
+        "approved Git-tracked plan opts into CoS",
+        "two independent write-capable lanes",
+        "verified Herdr runtime identity",
+        "expected head SHA",
+        "stale-head evidence blocks acceptance",
+        "retires its Herdr session",
+        "resume from plan plus Git",
+        "focused contract tests, adapter sync, repository validation, and diff checks",
+        "do not create a Level-2 registry",
+    ):
+        assert text in normalized

@@ -60,6 +60,26 @@ runtime projection, exact session/pane/cwd checks, and Git-fact reporting; the
 launcher resolves provider, model, and developer instructions from
 `agents/*.toml`.
 
+## Level-2 Readiness Evidence
+
+Do not claim Level-2 readiness from contract text or passing unit tests alone.
+A representative plan-bound run needs fresh evidence for all of these:
+
+- an approved Git-tracked plan opts into CoS and binds repository, worktree,
+  branch, base, and `HEAD`;
+- two independent write-capable lanes have exact branch and worktree ownership,
+  plus verified Herdr runtime identity;
+- review evidence binds the same repository, base, head, and expected head SHA,
+  and stale-head evidence blocks acceptance;
+- accepted work retires its Herdr session and confirms no live process owns the
+  worktree;
+- a fresh controller can resume from plan plus Git without runtime-session state;
+- focused contract tests, adapter sync, repository validation, and diff checks
+  pass for the changed canonical sources.
+
+These criteria measure evidence coverage. They do not create a Level-2 registry,
+workflow state machine, or persistent CoS state.
+
 ## Delivery Lifecycle
 
 Use these gates only when their trigger applies:
