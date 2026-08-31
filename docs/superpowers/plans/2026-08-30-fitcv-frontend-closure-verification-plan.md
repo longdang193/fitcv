@@ -54,12 +54,12 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Branch: `main`
 - Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
-- Next action: Task 3 blocked at Scan boundary; fresh Task 4 review required against updated evidence; Task 5 closure reconciliation follows
+- Next action: Task 3 remains blocked at Scan boundary; Task 4 accepted as PASS with P3 documentation drift; Task 5 records `STAGES 11–13 INCOMPLETE`; next rerun needs supported disposable fixture with tracked company or explicit seed/import approval
 - Blockers: Approved disposable Task 3 runtime reached profile confirmation but Scan stopped with `tracked_company_unavailable` because disposable DB has 0 tracked companies; no fallback seeding or extra input is authorized; original data/fitcv_cp.sqlite3 remains untouched; Stage 12 claims 7, 9, 11, 19, 22, 26 remain BLOCKED and claims 1–6, 8, 10, 12–18, 20–21, 23–25 still lack full browser-to-completion proof
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Final source under review: `87e4280392e27a0709ac39ae88b098134094802e`; product source candidate remains unchanged since `c1466eb66174f3d7bda22db44df204679312b57d`
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
-- Closure verdict: prior `STAGES 11–13 INCOMPLETE` is reopened for fresh reconciliation after approved disposable Task 3 evidence; Stage 14 remains inactive
+- Closure verdict: `STAGES 11–13 INCOMPLETE`; Task 3 stopped at HTTP `422 tracked_company_unavailable`; Task 4 fresh review `PASS` with P3 documentation drift only; Task 5 fresh verification passed all executable checks but required end-to-end proof remains unavailable; Stage 14 remains inactive
 
 Activation baseline:
 
@@ -79,8 +79,8 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 | Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | bounded baseline policy-lookup correction committed at `c1466eb66174f3d7bda22db44df204679312b57d`; Herdr review validator `PASS`; live dark-theme `/personalization` returned HTTP 200 |
 | Task 2 | `completed` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | Stage 12 map and bounded contract recorded; 20 claims require live proof, 6 claims explicitly blocked; no claim is not applicable |
 | Task 3 | `blocked` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | `BLOCKED` at Scan boundary; approved disposable runtime on port `8767` returned health `200`, profile upload `202`, baseline approve `202`, derived approve `200`, confirm `201`; provider egress used with approved source; profile `profile_5ddac651235340728ebd4c7f0216cf41`, revision `profile_revision_27534bc3041846e9925794f593d13f5a`; one-company Scan for `5230173` returned `422 tracked_company_unavailable`; disposable DB had 0 tracked companies; no Scan output, Run, CV, bookmark, interest, or reopen performed; original DB untouched |
-| Task 4 | `pending` | `.worktrees/fitcv-closure-review` | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and Task 3 evidence | prior review `BLOCKED`; fresh review required because approved Task 3 evidence changed the evidence set |
-| Task 5 | `pending` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | prior `incomplete` verdict reopened; rerun after fresh Task 4 review |
+| Task 4 | `completed` | `.worktrees/fitcv-closure-review` (retired after clean pre/post state) | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and Task 3 evidence | `PASS`; Herdr main agent `fitcv-task-4-reviewer-3` reviewed `87e4280392e27a0709ac39ae88b098134094802e`; P3 only: plan references `frontend/src/types/api.ts` and `src/fitcv_cp/schemas.py`, actual paths are `frontend/src/api.ts` and `src/fitcv_cp/schema.py`; no completion blocker; clean detached worktree before/after |
+| Task 5 | `completed` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | `incomplete`; frontend typecheck, unit tests `96 passed`, a11y `1 passed`, build, backend focused tests `535 passed`, compileall, planning validators, and diff check passed; Task 3 required live Scan/Run/CV/reopen proof remains blocked by `tracked_company_unavailable`; fresh E2E `12 failed` with `ERR_CONNECTION_REFUSED`; Stage 14 remains inactive |
 
 ## Task Breakdown
 
@@ -383,7 +383,7 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 - [x] Bind review to exact repository, detached review worktree, `final_candidate_source_commit`, derived coordination checkpoint, and evidence identities.
 - [x] Inspect completion-critical behavior, fit/business truth, frontend/backend contracts, accessibility/usability, persistence, and probe contradictions.
 - [x] Exclude enterprise hardening, speculative architecture, cosmetic redesign, legacy retirement, and performance without an approved requirement.
-- [x] Return exactly `PASS`, `FAIL`, or `BLOCKED` with P1/P2/P3 findings and exact evidence: `BLOCKED`; P1 required live Personal FitCV proof unavailable; P1 claims `7, 9, 11, 19, 22, 26` remain blocked; P2 closure verdict not yet recorded at review time.
+- [x] Return exactly `PASS`, `FAIL`, or `BLOCKED` with P1/P2/P3 findings and exact evidence: `PASS`; P3 documentation path drift only (`frontend/src/types/api.ts` → `frontend/src/api.ts`; `src/fitcv_cp/schemas.py` → `src/fitcv_cp/schema.py`); Task 3 Scan blocker remains accurately recorded and prevents closure, not review acceptance.
 
 **Verification:**
 - [x] Pre-review and post-review `git status --short --branch`, HEAD, and diff are unchanged; detached review worktree was clean at `c1466eb66174f3d7bda22db44df204679312b57d` and retired.
