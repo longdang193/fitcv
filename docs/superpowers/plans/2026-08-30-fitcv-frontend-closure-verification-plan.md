@@ -54,12 +54,12 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Branch: `main`
 - Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
-- Next action: Task 3 blocked; Task 4 accepted as BLOCKED; Task 5 closure recorded as INCOMPLETE pending approved runtime/database unblock
-- Blockers: Task 3 is BLOCKED: start_web.ps1 startup failed with DatabaseSchemaIncompatibleError (found version 0, expected 5) on data/fitcv_cp.sqlite3; probe stopped per contract without modifying user data; live proof requires user-approved database schema repair or clean supported runtime/data fixture; Stage 12 claims 7, 9, 11, 19, 22, 26 remain BLOCKED
+- Next action: Task 3 blocked at Scan boundary; fresh Task 4 review required against updated evidence; Task 5 closure reconciliation follows
+- Blockers: Approved disposable Task 3 runtime reached profile confirmation but Scan stopped with `tracked_company_unavailable` because disposable DB has 0 tracked companies; no fallback seeding or extra input is authorized; original data/fitcv_cp.sqlite3 remains untouched; Stage 12 claims 7, 9, 11, 19, 22, 26 remain BLOCKED and claims 1–6, 8, 10, 12–18, 20–21, 23–25 still lack full browser-to-completion proof
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
-- Final source under review: `c1466eb66174f3d7bda22db44df204679312b57d`; Task 1 bounded correction is approved and committed
+- Final source under review: `87e4280392e27a0709ac39ae88b098134094802e`; product source candidate remains unchanged since `c1466eb66174f3d7bda22db44df204679312b57d`
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
-- Closure verdict: `STAGES 11–13 INCOMPLETE`; Task 3 live proof remains blocked by `DatabaseSchemaIncompatibleError: found version 0, expected 5`; Task 4 independent review returned `BLOCKED` with P1 live-proof findings; Stage 14 remains inactive
+- Closure verdict: prior `STAGES 11–13 INCOMPLETE` is reopened for fresh reconciliation after approved disposable Task 3 evidence; Stage 14 remains inactive
 
 Activation baseline:
 
@@ -78,9 +78,9 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | bounded baseline policy-lookup correction committed at `c1466eb66174f3d7bda22db44df204679312b57d`; Herdr review validator `PASS`; live dark-theme `/personalization` returned HTTP 200 |
 | Task 2 | `completed` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | Stage 12 map and bounded contract recorded; 20 claims require live proof, 6 claims explicitly blocked; no claim is not applicable |
-| Task 3 | `blocked` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | `BLOCKED`; runtime preflight detected orphan listener PID 42600 (outdated build); stopped orphan after parent death was confirmed; startup via declared `start_web.ps1` failed with `DatabaseSchemaIncompatibleError: found version 0, expected 5` on `data/fitcv_cp.sqlite3` (12 tables, `PRAGMA user_version = 0`); probe stopped without mutating/resetting user data; no Candidate Profile, Scan, Run, or CV generation performed; smallest unblock condition: user-approved DB repair/migration or clean supported runtime/data fixture |
-| Task 4 | `completed` | `.worktrees/fitcv-closure-review` (retired after clean pre/post state) | `codex` | Tasks 1–3 | independent `PASS`, `FAIL`, or `BLOCKED` review bound to final source SHA | `BLOCKED`; review at `c1466eb66174f3d7bda22db44df204679312b57d` found P1 live Personal FitCV proof unavailable and P2 closure evidence incomplete; detached worktree clean before and after review |
-| Task 5 | `completed` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | `incomplete`; frontend typecheck, unit tests `96 passed`, a11y `1 passed`, build, backend focused tests `535 passed`, compileall, planning validators, and diff check passed; fresh E2E `12 failed` with `ERR_CONNECTION_REFUSED` at `127.0.0.1:8000`; Task 3 required live proof remains blocked |
+| Task 3 | `blocked` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | `BLOCKED` at Scan boundary; approved disposable runtime on port `8767` returned health `200`, profile upload `202`, baseline approve `202`, derived approve `200`, confirm `201`; provider egress used with approved source; profile `profile_5ddac651235340728ebd4c7f0216cf41`, revision `profile_revision_27534bc3041846e9925794f593d13f5a`; one-company Scan for `5230173` returned `422 tracked_company_unavailable`; disposable DB had 0 tracked companies; no Scan output, Run, CV, bookmark, interest, or reopen performed; original DB untouched |
+| Task 4 | `pending` | `.worktrees/fitcv-closure-review` | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and Task 3 evidence | prior review `BLOCKED`; fresh review required because approved Task 3 evidence changed the evidence set |
+| Task 5 | `pending` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | prior `incomplete` verdict reopened; rerun after fresh Task 4 review |
 
 ## Task Breakdown
 
@@ -295,20 +295,15 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 - Mock rule: no mock/fake fallback for claims classified `REQUIRED AND MISSING`.
 
 **Steps:**
-- [x] Preflight Get-NetTCPConnection -LocalPort 8000 -State Listen and Invoke-RestMethod http://localhost:8000/healthz; recorded listener PID 42600 (started Aug 30, pre-fix memory state, parent PID 18356 dead); stopped orphan process.
-- [x] Executed declared start_web.ps1 to launch local runtime; startup failed with DatabaseSchemaIncompatibleError: Database schema is incompatible: found version 0, expected 5. on data/fitcv_cp.sqlite3.
-- [x] Stopped probe per contract without modifying, resetting, migrating, or copying data/fitcv_cp.sqlite3 or any user data.
-- [ ] Launch actual /app through normal local runtime (BLOCKED by runtime startup failure).
-- [ ] Use approved supported profile input; review and confirm persisted active profile (BLOCKED; 0 actions performed).
-- [ ] Run one bounded Scan against at most two tracked companies; inspect actual output (BLOCKED; 0 actions performed).
-- [ ] Use Scan output in one Run; inspect actual fit/evidence state and direct API/persisted state (BLOCKED; 0 actions performed).
-- [ ] Exercise only required interest/bookmark or negative-condition proof (BLOCKED; 0 actions performed).
-- [ ] Generate one grounded CV for a suitable job; preview persisted version and download it (BLOCKED; 0 actions performed).
-- [ ] Reopen FitCV and verify required persisted state/history (BLOCKED; 0 actions performed).
+- [x] Preflighted disposable `start_web.ps1` runtime on port `8767`; `GET /healthz` returned HTTP `200` with `{"status":"ok"}`; no user DB access.
+- [x] Uploaded approved source `data/2026-06-24-Munich_Electrification-CV.md` and completed baseline/derived review and profile confirmation; persisted one active profile in disposable DB.
+- [x] Submitted one bounded one-company Scan for company `5230173`; endpoint returned HTTP `422` with `tracked_company_unavailable` because disposable DB had 0 tracked companies.
+- [x] Stopped at first Scan blocker; no fallback seeding, extra input, Scan retry, Run, CV, bookmark, interest, or reopen action performed.
+- [x] Preserved original `data/fitcv_cp.sqlite3`; no migration, reset, copy, overwrite, or deletion performed.
 
 **Verification:**
 - [x] Record probe source commit, derived coordination checkpoint, runtime endpoint/health result, provider identity, profile ID/revision, Scan ID and terminal state, job count, Run ID and terminal state, representative fit result, CV version ID, preview result, download result, restart/persistence result, browser finding, and blocker.
-- [x] Confirm visible states match persisted records/events/artifacts (no actions executed; database untouched).
+- [x] Confirmed visible API states match disposable persisted records for completed profile lifecycle; no Scan output or later artifact existed after the bounded blocker.
 - Expected: all required claims pass, or exact BLOCKED/INCOMPLETE result with smallest rerun scope.
 
 **Task 3 Probe Execution & Evidence Record:**
@@ -329,6 +324,17 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
   - Bookmarks / Interest: 0 modified
 - **Claims Disposition:** All 20 Stage 12 REQUIRED AND MISSING claims (1–6, 8, 10, 12–18, 20–21, 23–25) are marked BLOCKED due to runtime startup schema failure. Claims 7, 9, 11, 19, 22, 26 remain BLOCKED per Task 2 contract.
 - **Smallest Unblock Condition:** User-approved repair/migration of data/fitcv_cp.sqlite3 schema to version 5, or provision of a clean supported runtime/data fixture.
+
+### Approved Disposable Probe Record (2026-08-31)
+
+- **Probe Source Commit:** `87e4280392e27a0709ac39ae88b098134094802e`; product source candidate unchanged from `c1466eb66174f3d7bda22db44df204679312b57d`.
+- **Runtime / Database:** `start_web.ps1` inline mode on port `8767`; disposable DB `.tmp/task3-preflight-live/fitcv_cp.sqlite3`, schema version `5`; `GET /healthz` returned HTTP `200`; runtime stopped after blocker.
+- **Provider / Egress:** `openai_compatible` at `http://127.0.0.1:20128/v1` through `9router`, model `cx/gpt-5.4-mini`; approved Candidate Profile source sent for `candidate_profile_base_mapping` and `candidate_profile_derived_claims`; no new authentication or provider install.
+- **Completed profile lifecycle:** source `data/2026-06-24-Munich_Electrification-CV.md` (`5843` bytes); attempt `attempt_2ab6cc3167b34c52ae0dfb564c2bbf51`; profile `profile_5ddac651235340728ebd4c7f0216cf41`; revision `profile_revision_27534bc3041846e9925794f593d13f5a`; HTTP upload `202`, baseline approve `202`, derived approve `200`, confirm `201`; disposable DB contained 1 active profile.
+- **Scan blocker:** one-company request for `5230173` and one row returned HTTP `422` with `tracked_company_unavailable`; disposable DB contained 0 tracked companies. No supported path permits seeding without broadening scope.
+- **Unperformed stages:** 0 Scan outputs, 0 Runs, 0 CV versions/previews/downloads, 0 bookmark or interest mutations, and 0 reopen actions.
+- **User-data / Git safety:** original `data/fitcv_cp.sqlite3` was untouched; current Git tracked state was clean; task-owned disposable path remains preserved because cleanup command was blocked by local command policy.
+- **Current disposition:** `BLOCKED` at Scan boundary; smallest unblock is a supported disposable fixture containing at least one tracked company, or explicit approval to seed/import the approved job/company fixture without broadening the probe.
 
 **Exit Criteria:**
 - Probe evidence is complete for every required claim, or CoS records a bounded blocker. Defects do not become an unplanned debugging lane.
@@ -423,7 +429,7 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 **Steps:**
 - [x] Run `skill-verification-before-completion` against exact final candidate state.
 - [x] Classify every task and completion claim as proven, incomplete, blocked, deferred with approval, or not applicable with reason.
-- [x] Record `STAGES 11–13 INCOMPLETE`, exact blocker, and smallest rerun/fix scope: obtain approval for database schema repair/migration or provision clean supported runtime/data fixture, then rerun bounded Task 3 proof and affected E2E/browser proof.
+- [x] Record `STAGES 11–13 INCOMPLETE`, exact blocker, and smallest rerun/fix scope: provision supported disposable fixture containing at least one tracked company, or obtain explicit approval to seed/import the approved fixture, then rerun bounded Task 3 proof and affected E2E/browser proof.
 - [x] Never activate Stage 14, retire legacy frontend, push, merge, or release from this plan.
 
 **Verification:**
