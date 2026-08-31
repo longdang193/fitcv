@@ -59,7 +59,7 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Final source under review: `87e4280392e27a0709ac39ae88b098134094802e`; product source candidate remains unchanged since `c1466eb66174f3d7bda22db44df204679312b57d`
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
-- Closure verdict: `STAGES 11–13 INCOMPLETE`; corrected Task 3 completed Scan, Run, bookmark, and interest boundaries but remained `BLOCKED` because no job passed reranker threshold and CV history has zero versions; fresh Task 4 `PASS` with P3 path drift only; fresh Task 5 verification passes executable checks but E2E remains unavailable and live completion proof remains incomplete; Stage 14 remains inactive
+- Closure verdict: `STAGES 11–13 INCOMPLETE`; corrected Task 3 completed Scan, Run, bookmark, and interest boundaries but remained `BLOCKED` because no job passed reranker threshold and CV history has zero versions; fresh Task 4 `PASS` with no substantiated P1/P2/P3 findings; fresh Task 5 verification passes executable checks but E2E remains unavailable and CV/browser completion proof remains incomplete; Stage 14 remains inactive
 
 Activation baseline:
 
@@ -79,8 +79,8 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 | Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | bounded baseline policy-lookup correction committed at `c1466eb66174f3d7bda22db44df204679312b57d`; Herdr review validator `PASS`; live dark-theme `/personalization` returned HTTP 200 |
 | Task 2 | `completed` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | Stage 12 map and bounded contract recorded; 20 claims require live proof, 6 claims explicitly blocked; no claim is not applicable |
 | Task 3 | `blocked` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | `BLOCKED` after corrected disposable rerun; profile `.tmp/task3-corrected-live/candidate_profile.yaml` added required `preferences`, remapped nested evidence refs to owning `exp_`/`proj_` IDs, and dropped unsupported certificate ref; disposable DB `.tmp/task3-corrected-live/fitcv_cp.sqlite3`; Awin `company-475efed79a1a`; Scan `scan-a2734e993072` HTTP `201` then `200`, `succeeded`, 50 rows; Run `a2c0bc7f-ff02-4913-b511-65b1db0f49b7` HTTP `201` then `200`, `succeeded`, 0 passed / 15 rejected / 35 skipped; bookmark `a676a273-eea8-4bb3-89e5-dff061e80c06` create/remove HTTP `200`, final `false`; interest rating 4 for job `72daeea6-0b15-5103-bb25-2b0ed2e08959` HTTP `200`; CV blocked at 0 versions and all jobs `download_cv=false`; no cancel/recover, preview/download, or reopen/reload; original DB untouched |
-| Task 4 | `completed` | `.worktrees/fitcv-closure-review` (retired after clean pre/post state) | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and latest Task 3 evidence | `PASS`; Herdr main agent `fitcv-task-4-review-latest-main` reviewed `1a1d1520c144de271e7360063e3e072efa262f94`; P3 path drift only at plan line 78 (`frontend/src/types/api.ts` → `frontend/src/api.ts`; `src/fitcv_cp/schemas.py` → `src/fitcv_cp/schema.py`); latest Run blocker consistent; clean detached worktree before/after |
-| Task 5 | `completed` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | `incomplete`; fresh frontend typecheck, unit tests `96 passed`, a11y `1 passed`, build, backend focused tests `535 passed`, compileall, planning validators, and diff check passed; fresh E2E `12 failed` with `ERR_CONNECTION_REFUSED`; corrected Task 3 live Run produced no passed jobs, so CV preview/download and reopen/reload remain unavailable; Stage 14 remains inactive |
+| Task 4 | `completed` | `C:\fitcv-review` (detached, clean pre/post) | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and latest Task 3 evidence | `PASS`; Herdr main agent `fitcv-t4-final-main` reviewed `588f4bf45c5ea92741dae3f3da7724445bacf290`; no P1/P2/P3 finding substantiated; canonical `/app`, contracts, accessibility evidence, deprecated `/admin/*` boundary, and corrected Task 3 evidence consistent |
+| Task 5 | `completed` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | `incomplete`; fresh `npm run typecheck`, unit tests `96 passed`, a11y `1 passed`, build, backend focused tests `535 passed`, compileall, planning validators, and diff check passed; fresh E2E `12 failed` with `ERR_CONNECTION_REFUSED` at `127.0.0.1:8000`; corrected Task 3 Run produced no passed jobs, so CV generation/preview/download and reopen/reload remain unavailable; Stage 14 remains inactive |
 
 ## Task Breakdown
 
@@ -352,17 +352,17 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 **Authority:**
 - Preauthorized local actions: read-only inspection and bounded existing checks.
 - Read-only boundary: reviewer must not modify plan, source, tests, Git index, branch refs, or commits.
-- [x] CoS created `.worktrees/fitcv-closure-review` at `1a1d1520c144de271e7360063e3e072efa262f94`, dispatched fresh Herdr main agent `fitcv-task-4-review-latest-main` with profile `review`, recorded clean pre/post Git state, and retired the review worktree.
+- [x] CoS created detached review worktree `C:\fitcv-review` at `588f4bf45c5ea92741dae3f3da7724445bacf290`, dispatched fresh Herdr main agent `fitcv-t4-final-main` with profile `review`, and recorded clean pre/post Git state.
 - Stop for: unexpected repository modification, missing evidence identity, source drift, or unreviewable runtime claim.
 
 **Steps:**
 - [x] Bind review to exact repository, detached review worktree, `final_candidate_source_commit`, derived coordination checkpoint, and evidence identities.
 - [x] Inspect completion-critical behavior, fit/business truth, frontend/backend contracts, accessibility/usability, persistence, and probe contradictions.
 - [x] Exclude enterprise hardening, speculative architecture, cosmetic redesign, legacy retirement, and performance without an approved requirement.
-- [x] Return exactly `PASS`, `FAIL`, or `BLOCKED` with P1/P2/P3 findings and exact evidence: `PASS`; P3 plan path drift only (`frontend/src/types/api.ts` → `frontend/src/api.ts`; `src/fitcv_cp/schemas.py` → `src/fitcv_cp/schema.py`); Task 3 Run blocker remains accurately recorded and prevents closure, not review acceptance.
+- [x] Return exactly `PASS`, `FAIL`, or `BLOCKED` with P1/P2/P3 findings and exact evidence: `PASS`; no P1/P2/P3 finding substantiated. Reviewer verified canonical `/app` at `frontend/src/App.tsx`, `/app` mount and API bindings in `src/fitcv_cp/local_routes.py:53-162`, accessibility evidence in `frontend/src/App.tsx:94-288` and `frontend/src/App.test.tsx:36-44`, deprecated `/admin/*` scope remains outside Stage 14, and corrected Task 3 counts/evidence are consistent.
 
 **Verification:**
-- [x] Pre-review and post-review `git status --short --branch`, HEAD, and diff are unchanged; detached review worktree was clean at `1a1d1520c144de271e7360063e3e072efa262f94` and retired.
+- [x] Pre-review and post-review `git status --short --branch`, HEAD, and diff are unchanged; detached review worktree `C:\fitcv-review` was clean at `588f4bf45c5ea92741dae3f3da7724445bacf290`.
 - Expected: independent verdict applies to exact final source candidate plus its derived coordination checkpoint, not a summary or prior commit.
 
 **Exit Criteria:**
@@ -405,13 +405,13 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 **Steps:**
 - [x] Run `skill-verification-before-completion` against exact final candidate state.
 - [x] Classify every task and completion claim as proven, incomplete, blocked, deferred with approval, or not applicable with reason.
-- [x] Record `STAGES 11–13 INCOMPLETE`, exact blocker, and smallest next scope: no corrected Run job passed, so CV/browser completion proof remains unavailable; any disposable job-data correction or compatible fixture import requires explicit scope expansion before a new bounded Scan/Run and E2E/browser proof.
+- [x] Record `STAGES 11–13 INCOMPLETE`, exact blocker, and smallest next scope: no corrected Run job passed, so CV generation, preview/download, reopen/reload, and full browser completion proof remain unavailable; any disposable job-data correction or compatible fixture import requires explicit scope expansion before a new bounded Scan/Run and E2E/browser proof.
 - [x] Never activate Stage 14, retire legacy frontend, push, merge, or release from this plan.
 
 **Verification:**
 - [x] `python scripts/validate_template_required_sections.py --repo-root .` passed.
 - [x] `python scripts/validate_planning_lifecycle.py --repo-root .` passed.
-- [x] Fresh applicable frontend tests, E2E/browser evidence, affected backend tests, `python -m compileall -q src`, planning validators, and `git diff --check` recorded; E2E remains incomplete because host returned `ERR_CONNECTION_REFUSED`, and live completion remains blocked because corrected Run produced no passed job and CV history has zero versions.
+- [x] Fresh frontend checks passed: `npm run typecheck`, `npm run test` (`96 passed`), `npm run test:a11y` (`1 passed`), and `npm run build`; fresh E2E `12 failed` with `ERR_CONNECTION_REFUSED` against `127.0.0.1:8000`; backend focused suite `535 passed`; `python -m compileall -q src`, planning validators, and `git diff --check` passed. Live completion remains blocked because corrected Run produced no passed job and CV history has zero versions.
 - Expected: final result is evidence-backed, SHA-bound, and reproducible from plan plus Git.
 
 **Exit Criteria:**
