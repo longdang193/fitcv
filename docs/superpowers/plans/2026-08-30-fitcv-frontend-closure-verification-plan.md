@@ -54,10 +54,10 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Branch: `main`
 - Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
-- Next action: obtain approval for bounded `/personalization` contract correction, then invalidate affected proof and rerun Task 1
-- Blockers: Task 1 validator returned `FAIL`; `src/fitcv/control_plane/local_routes.py:619-633` source-confirms HTTP 500 for stored theme `dark`; source correction is not authorized by this plan
+- Next action: dispatch Task 2 journey-map main agent through Herdr
+- Blockers: none; Task 1 correction approved, committed, and independently validated
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
-- Final source under review: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`; changes only if approved bounded correction occurs
+- Final source under review: `c1466eb66174f3d7bda22db44df204679312b57d`; Task 1 bounded correction is approved and committed
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
 
 Activation baseline:
@@ -75,8 +75,8 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `blocked` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | matrix recorded; Herdr review validator returned `FAIL`; `/personalization` source-confirmed HTTP 500 |
-| Task 2 | `pending` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | waiting for Task 1 validator |
+| Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | bounded baseline policy-lookup correction committed at `c1466eb66174f3d7bda22db44df204679312b57d`; Herdr review validator `PASS`; live dark-theme `/personalization` returned HTTP 200 |
+| Task 2 | `pending` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | ready; Task 1 accepted |
 | Task 3 | `pending` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | pending |
 | Task 4 | `pending` | `.worktrees/fitcv-closure-review` | `codex` | Tasks 1–3 | independent `PASS`, `FAIL`, or `BLOCKED` review bound to final source SHA | pending
 | Task 5 | `pending` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | pending |
@@ -145,10 +145,10 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 | Frontend type safety and unit/state coverage | `frontend/` and frontend tests | `npm run typecheck`; `npm run test` from `frontend/` | typecheck passed; `96 passed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | none |
 | Frontend accessibility coverage | `frontend/src/test/a11y.test.ts` | `npm run test:a11y` from `frontend/` | `1 passed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | browser accessibility states remain covered only by E2E scope below |
 | Frontend production build | `frontend/` and `src/fitcv_cp/app.py` host | `npm run build` from `frontend/` | Vite build passed; `94 modules transformed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | packaged-resource proof not rerun |
-| Backend/API focused boundaries and local host | `src/fitcv_cp/app.py`, `src/fitcv_cp/local_routes.py`, `src/fitcv_cp/local_app.py` | focused pytest command in Task 1; `python -m compileall -q src` | `534 passed`; compile passed | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | live provider/data-dependent paths not covered by focused suite |
+| Backend/API focused boundaries and local host | `src/fitcv_cp/app.py`, `src/fitcv_cp/local_routes.py`, `src/fitcv_cp/local_app.py` | Task 1 focused pytest commands; `python -m compileall -q src`; live `POST /settings` and `GET /personalization` | `3 passed` personalization regression; `464 passed` app suite; compile passed; live dark-theme `/personalization` HTTP 200 | `c1466eb66174f3d7bda22db44df204679312b57d` | fresh-this-turn | `ALREADY PROVEN` | live provider/data-dependent paths not covered by focused suite |
 | Planning and artifact integrity | planning scripts and Git | both planning validators; `git diff --check` | all passed | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `ALREADY PROVEN` | none |
-| Browser shell and route journeys | `/app` frontend host and E2E specs | `npm run test:e2e` against healthy `http://127.0.0.1:8000` (`/healthz` returned `{"status":"ok"}`) | `11 passed`, `1 failed` | `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75` | fresh-this-turn | `INCOMPLETE` | `GET /personalization` returns `500 Internal Server Error`; page remains loading and integration route assertion fails |
-| Independent Task 1 validator | Herdr top-level Codex main agent via `scripts/herdr_main_launcher.py` | Herdr session `fitcv-task-1`, agent `fitcv-task-1-validator`, profile `review` | `FAIL`; matrix evidence insufficient for closure; `src/fitcv/control_plane/local_routes.py:619-633` returns HTTP 500 for stored theme `dark`; current `http://localhost:8000` refused during live check | `9320217875b538fa100d471cf59d77570e0f511c` | fresh-this-turn | `INCOMPLETE` | Approve bounded `/personalization` contract correction, rerun affected backend/frontend/E2E proof, then repeat independent review |
+| Browser shell and route journeys | `/app` frontend host and E2E specs | prior `npm run test:e2e`; Task 1 live route check against `http://127.0.0.1:8000` | prior `11 passed`, `1 failed`; live dark-theme `/personalization` now HTTP 200 | `c1466eb66174f3d7bda22db44df204679312b57d` | fresh-this-turn | `INCOMPLETE` | Full E2E rerun after source correction remains required |
+| Independent Task 1 validator | Herdr top-level Codex main agent via `scripts/herdr_main_launcher.py` | Herdr session `fitcv-task-1`, agent `fitcv-task-1-validator`, profile `review` | `PASS`; verified source patch, regression coverage, focused suite, and live dark-theme `/personalization` HTTP 200; Task 2 may proceed | `c1466eb66174f3d7bda22db44df204679312b57d` | fresh-this-turn | `ALREADY PROVEN` | none for Task 1 acceptance; full E2E rerun remains tracked above |
 
 ### Task 2: Reconcile Stage 12 journey coverage
 
