@@ -54,12 +54,12 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Branch: `main`
 - Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
-- Next action: Task 3 remains blocked at Scan boundary; Task 4 accepted as PASS with P3 documentation drift; Task 5 records `STAGES 11–13 INCOMPLETE`; next rerun needs supported disposable fixture with tracked company or explicit seed/import approval
-- Blockers: Approved disposable Task 3 runtime reached profile confirmation but Scan stopped with `tracked_company_unavailable` because disposable DB has 0 tracked companies; no fallback seeding or extra input is authorized; original data/fitcv_cp.sqlite3 remains untouched; Stage 12 claims 7, 9, 11, 19, 22, 26 remain BLOCKED and claims 1–6, 8, 10, 12–18, 20–21, 23–25 still lack full browser-to-completion proof
+- Next action: Record latest bounded Task 3 evidence, rerun fresh Task 4 review against that evidence, then rerun Task 5 closure verification
+- Blockers: A supported Awin Greenhouse fixture was imported into disposable data and Scan succeeded, but Run stopped with `Missing required section: 'preferences'`; claims 7, 9, 11, 19, 22, 26 remain BLOCKED and claims 1–6, 8, 10, 12–18, 20–21, 23–25 still lack full browser-to-completion proof; original data/fitcv_cp.sqlite3 remains untouched
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Final source under review: `87e4280392e27a0709ac39ae88b098134094802e`; product source candidate remains unchanged since `c1466eb66174f3d7bda22db44df204679312b57d`
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
-- Closure verdict: `STAGES 11–13 INCOMPLETE`; Task 3 stopped at HTTP `422 tracked_company_unavailable`; Task 4 fresh review `PASS` with P3 documentation drift only; Task 5 fresh verification passed all executable checks but required end-to-end proof remains unavailable; Stage 14 remains inactive
+- Closure verdict: `STAGES 11–13 INCOMPLETE`; latest Task 3 stopped at Run validation; Task 4 and Task 5 prior evidence invalidated by later Task 3 evidence and require fresh reruns; Stage 14 remains inactive
 
 Activation baseline:
 
@@ -78,9 +78,9 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | bounded baseline policy-lookup correction committed at `c1466eb66174f3d7bda22db44df204679312b57d`; Herdr review validator `PASS`; live dark-theme `/personalization` returned HTTP 200 |
 | Task 2 | `completed` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | Stage 12 map and bounded contract recorded; 20 claims require live proof, 6 claims explicitly blocked; no claim is not applicable |
-| Task 3 | `blocked` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | `BLOCKED` at Scan boundary; approved disposable runtime on port `8767` returned health `200`, profile upload `202`, baseline approve `202`, derived approve `200`, confirm `201`; provider egress used with approved source; profile `profile_5ddac651235340728ebd4c7f0216cf41`, revision `profile_revision_27534bc3041846e9925794f593d13f5a`; one-company Scan for `5230173` returned `422 tracked_company_unavailable`; disposable DB had 0 tracked companies; no Scan output, Run, CV, bookmark, interest, or reopen performed; original DB untouched |
-| Task 4 | `completed` | `.worktrees/fitcv-closure-review` (retired after clean pre/post state) | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and Task 3 evidence | `PASS`; Herdr main agent `fitcv-task-4-reviewer-3` reviewed `87e4280392e27a0709ac39ae88b098134094802e`; P3 only: plan references `frontend/src/types/api.ts` and `src/fitcv_cp/schemas.py`, actual paths are `frontend/src/api.ts` and `src/fitcv_cp/schema.py`; no completion blocker; clean detached worktree before/after |
-| Task 5 | `completed` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | `incomplete`; frontend typecheck, unit tests `96 passed`, a11y `1 passed`, build, backend focused tests `535 passed`, compileall, planning validators, and diff check passed; Task 3 required live Scan/Run/CV/reopen proof remains blocked by `tracked_company_unavailable`; fresh E2E `12 failed` with `ERR_CONNECTION_REFUSED`; Stage 14 remains inactive |
+| Task 3 | `blocked` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | `BLOCKED` at Run validation; disposable runtime on port `18000` returned company import `201`, profile upload `202`, baseline approve `202`, derived `200`, confirm `201`; provider egress used with approved source; company `company-475efed79a1a` (`Awin Global`, `greenhouse`), profile `profile_9c17983c121944e994bb1ebcd5c66f16`, Scan `scan-888e73590570` succeeded with 2 rows, Run `046cfb42-c4e5-4766-b9bc-b5ec7a2e4819` failed with `Missing required section: 'preferences'`; no CV, bookmark, interest, cancel/recover, or reopen performed; original DB untouched |
+| Task 4 | `pending` | fresh isolated review workspace | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and latest Task 3 evidence | Prior `PASS` invalidated by later Task 3 evidence; rerun required |
+| Task 5 | `pending` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | Prior `incomplete` verification invalidated by later Task 3 evidence; rerun required |
 
 ## Task Breakdown
 
@@ -335,6 +335,19 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 - **Unperformed stages:** 0 Scan outputs, 0 Runs, 0 CV versions/previews/downloads, 0 bookmark or interest mutations, and 0 reopen actions.
 - **User-data / Git safety:** original `data/fitcv_cp.sqlite3` was untouched; current Git tracked state was clean; task-owned disposable path remains preserved because cleanup command was blocked by local command policy.
 - **Current disposition:** `BLOCKED` at Scan boundary; smallest unblock is a supported disposable fixture containing at least one tracked company, or explicit approval to seed/import the approved job/company fixture without broadening the probe.
+
+### Approved Disposable Fixture Import Probe Record (2026-08-31)
+
+- **Probe Source Commit:** `614019f6490bf0bccbd617209c3ec689ac0d3892`; product source candidate unchanged from `c1466eb66174f3d7bda22db44df204679312b57d`.
+- **Runtime / Database:** inline runtime on port `18000`; disposable DB `.tmp/task3-import-live/fitcv_cp.sqlite3`; `GET /healthz` returned HTTP `200`; owned Uvicorn PID `30112` stopped cleanly; port `18000` closed.
+- **Fixture Import:** `data/product150-dataset_linkedin-jobs-scraper_2026-05-23_08-05-06-456.json`; selected Awin Global Greenhouse board `https://job-boards.greenhouse.io/awin`; company import HTTP `201`, ID `company-475efed79a1a`, provider `greenhouse`; resolved endpoint `https://boards-api.greenhouse.io/v1/boards/awin/jobs?content=true`.
+- **Provider / Egress:** `openai_compatible` at `http://127.0.0.1:20128/v1` through `9router`, model `cx/gpt-5.4-mini`, wire API `responses`; approved Candidate Profile source sent for `candidate_profile_base_mapping` and `candidate_profile_derived_claims`.
+- **Completed profile lifecycle:** source `data/2026-06-24-Munich_Electrification-CV.md`; attempt `attempt_989864b828d94a08a609cb56bf3aab7c`; upload HTTP `202`; baseline HTTP `202`; derived HTTP `200`; confirm HTTP `201`; active profile `profile_9c17983c121944e994bb1ebcd5c66f16`.
+- **Scan:** HTTP `201`; ID `scan-888e73590570`; final `succeeded`; one company, 2 rows, valid output integrity.
+- **Run blocker:** HTTP `201`; ID `046cfb42-c4e5-4766-b9bc-b5ec7a2e4819`; final `failed`; `Candidate profile validation failed: Missing required section: 'preferences'`; failure occurred before ranking/CV generation.
+- **Persisted truth:** disposable SQLite contains 1 company, 1 scan, 1 run, 1 active profile, `bookmarks=0`, `ratings=0`, `cv_versions=0`, and `integrity_check=ok`; no source/config/test/plan/user-data edits; `.tmp/task3-import-live` preserved; pre-existing `frontend/test-results/` remains untracked.
+- **Unperformed stages:** cancel/recover, bookmark create/remove, interest rating, CV preview/download, and reopen/reload; claims 7, 9, 11, 19, 22, 26 untouched.
+- **Current disposition:** `BLOCKED` at Run validation; smallest unblock is a supported Candidate Profile fixture containing required `preferences`, or an approved product/data correction followed by a new bounded probe.
 
 **Exit Criteria:**
 - Probe evidence is complete for every required claim, or CoS records a bounded blocker. Defects do not become an unplanned debugging lane.
