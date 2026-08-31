@@ -4416,6 +4416,26 @@ def test_personalization_resource_uses_one_settings_snapshot() -> None:
     assert "updated_at" not in response.json()["data"]
 
 
+def test_personalization_baseline_ignores_stored_dark_theme_without_policy_lookup() -> None:
+    app = _app()
+    snapshot = {
+        "theme": "dark",
+        "preference_optimization.ranking_mode": "baseline",
+        "preference_optimization.personalization_strength": 0.05,
+    }
+    app.state.run_store.resolve_active_ranking_policy_fn = lambda *_args: (_ for _ in ()).throw(
+        AssertionError("baseline personalization must not resolve an active policy")
+    )
+
+    with patch("fitcv_cp.app.load_active_settings", return_value=snapshot):
+        response = TestClient(app).get("/personalization")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["ranking_mode"] == "baseline"
+    assert response.json()["data"]["effective_ranking_mode"] == "baseline"
+    assert response.json()["data"]["active_policy_id"] is None
+
+
 def test_personalization_json_contract_uses_settings_revision() -> None:
     app = _app()
     client = TestClient(app)

@@ -11529,16 +11529,6 @@ def create_app(
             entry for entry in SETTINGS_SCHEMA
             if entry["key"] == "preference_optimization.personalization_strength"
         )
-        run_store = _resolve_run_store()
-        bootstrap_provenance = current_activation_provenance(
-            {"domain_id": domain_id},
-            config,
-            personalization_strength=float(strength_entry["default"]),
-        )
-        run_store.resolve_active_ranking_policy(
-            domain_id,
-            bootstrap_provenance["current_runtime_contract_fingerprint"],
-        )
         active = load_active_settings()
         ranking_mode = str(active.get("preference_optimization.ranking_mode", "baseline"))
         strength = float(
@@ -11547,12 +11537,14 @@ def create_app(
                 strength_entry["default"],
             )
         )
-        provenance = current_activation_provenance(
-            {"domain_id": domain_id}, config, personalization_strength=strength
-        )
-        compatible = run_store.resolve_active_ranking_policy(
-            domain_id, provenance["current_runtime_contract_fingerprint"]
-        )
+        compatible = None
+        if ranking_mode == "personalized":
+            provenance = current_activation_provenance(
+                {"domain_id": domain_id}, config, personalization_strength=strength
+            )
+            compatible = _resolve_run_store().resolve_active_ranking_policy(
+                domain_id, provenance["current_runtime_contract_fingerprint"]
+            )
         fallback = ranking_mode == "personalized" and compatible is None
         return {
             "ranking_mode": ranking_mode,
