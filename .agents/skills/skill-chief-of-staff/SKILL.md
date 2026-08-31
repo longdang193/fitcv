@@ -41,6 +41,12 @@ CoS, create peer agents, or reactivate coordination. CoS applies only to
 generated adapters may carry this skill, but their non-Codex lead must return
 `BLOCKED` rather than activate it.
 
+CoS may invoke only top-level Codex main agents. Every CoS main-agent dispatch
+goes through Herdr; CoS never invokes subagents directly. Use the repository
+Herdr command `py -B scripts/herdr_main_launcher.py ...` for dispatch. Monitor
+main-agent progress in the Herdr terminal through provider-resolved wait/read
+operations; do not monitor or supervise executor-local subagents from CoS.
+
 ## Conditional References
 
 - For `plan-bound-execution`, read `skill-executing-plans` for approved-plan execution and executor precedence.

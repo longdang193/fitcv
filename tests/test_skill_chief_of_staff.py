@@ -155,6 +155,10 @@ def test_chief_of_staff_blocks_delegated_reactivation_and_separates_returns() ->
 def test_chief_of_staff_uses_herdr_only_for_agent_dispatch() -> None:
     skill = read(".agents/skills/skill-chief-of-staff/SKILL.md")
     assert "CoS dispatches only an\nindependent Herdr top-level Codex main-agent session." in skill
+    assert "Every CoS main-agent dispatch\ngoes through Herdr" in skill
+    assert "`py -B scripts/herdr_main_launcher.py ...`" in skill
+    assert "Monitor\nmain-agent progress in the Herdr terminal" in skill
+    assert "never invokes subagents directly" in skill
     for forbidden in (
         "`multi_agent_v1`",
         "native Codex subagents",
