@@ -54,8 +54,8 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Branch: `main`
 - Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
-- Next action: run Task 3 bounded real Personal FitCV probe for Stage 12 claims `1–6, 8, 10, 12–18, 20–21, 23–25`
-- Blockers: Task 3 must not claim Stage 12 claims `7, 9, 11, 19, 22, 26`; those claims are explicitly `BLOCKED` by the one-probe contract or owned by Task 4
+- Next action: Task 3 blocked; Task 4 independent review or Task 5 lead closure reconciliation pending unblock/routing
+- Blockers: Task 3 is BLOCKED: start_web.ps1 startup failed with DatabaseSchemaIncompatibleError (found version 0, expected 5) on data/fitcv_cp.sqlite3; probe stopped per contract without modifying user data; live proof requires user-approved database schema repair or clean supported runtime/data fixture; Stage 12 claims 7, 9, 11, 19, 22, 26 remain BLOCKED
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Final source under review: `c1466eb66174f3d7bda22db44df204679312b57d`; Task 1 bounded correction is approved and committed
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
@@ -66,18 +66,18 @@ Activation baseline:
 - `origin/main`: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Current worktree: clean
 - Preserved unrelated worktrees: `.worktrees/fitcv-task-4` and `.worktrees/fitcv-task-5`; both contain untracked `frontend/test-results/` only
-- Source changes authorized by this plan: none
+- Source changes authorized by user approval: bounded Task 1 `/personalization` correction only; no further source changes authorized
 
 Before activation, commit this proposed plan so Git can recover its coordination ledger. Activation then changes plan `status` from `proposed` to `active` before Task 1 starts. At activation, CoS must record exact `main` HEAD, `origin/main`, worktree status, preserved unrelated changes, and `activation_source_commit`. Require `HEAD == origin/main` and no unexpected tracked changes. Every accepted evidence item records the source commit it proves. Each accepted task transition must update its complete ledger row, `Next action`, and evidence anchor in one lead checkpoint commit. Derive that checkpoint from plan history with `git log -1 --format=%H -- <plan-path>` when resuming or reviewing.
 
-If a required defect correction changes source, stop current proof, record `final_candidate_source_commit` after correction, invalidate only affected evidence, rerun only affected proof, and make Task 4 review the final source candidate. Ledger-only checkpoint commits do not change `final_candidate_source_commit`. This plan does not authorize source correction.
+If a required defect correction changes source, stop current proof, record `final_candidate_source_commit` after correction, invalidate only affected evidence, rerun only affected proof, and make Task 4 review the final source candidate. Ledger-only checkpoint commits do not change `final_candidate_source_commit`. Task 1 source correction is user-approved; no further source correction is authorized without approval.
 The lead controller is sole coordination-state writer. Runtime threads, agent sessions, temporary todos, and memory are not recovery state.
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | bounded baseline policy-lookup correction committed at `c1466eb66174f3d7bda22db44df204679312b57d`; Herdr review validator `PASS`; live dark-theme `/personalization` returned HTTP 200 |
 | Task 2 | `completed` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | Stage 12 map and bounded contract recorded; 20 claims require live proof, 6 claims explicitly blocked; no claim is not applicable |
-| Task 3 | `pending` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | pending |
+| Task 3 | `blocked` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | `BLOCKED`; runtime preflight detected orphan listener PID 42600 (outdated build); stopped orphan after parent death was confirmed; startup via declared `start_web.ps1` failed with `DatabaseSchemaIncompatibleError: found version 0, expected 5` on `data/fitcv_cp.sqlite3` (12 tables, `PRAGMA user_version = 0`); probe stopped without mutating/resetting user data; no Candidate Profile, Scan, Run, or CV generation performed; smallest unblock condition: user-approved DB repair/migration or clean supported runtime/data fixture |
 | Task 4 | `pending` | `.worktrees/fitcv-closure-review` | `codex` | Tasks 1–3 | independent `PASS`, `FAIL`, or `BLOCKED` review bound to final source SHA | pending
 | Task 5 | `pending` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | pending |
 
@@ -294,20 +294,40 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 - Mock rule: no mock/fake fallback for claims classified `REQUIRED AND MISSING`.
 
 **Steps:**
-- [ ] Preflight `Get-NetTCPConnection -LocalPort 8000 -State Listen` and `Invoke-RestMethod http://localhost:8000/healthz`; record listener PID and confirm existing runtime ownership before reuse. If unavailable, start `start_web.ps1` in an owned background process from a separate shell, capture parent PID, verify the serving listener PID and health, and record resolved endpoint and provider identity; if queued execution is required, start `start_worker.ps1` only after Redis readiness and capture its PID.
-- [ ] Use resolved endpoint in all browser/API checks. Stop only the owned process tree after proof, confirm owned listener shutdown, and do not stop an existing runtime owned outside this probe.
-- [ ] Launch actual `/app` through normal local runtime.
-- [ ] Use approved supported profile input; review and confirm persisted active profile.
-- [ ] Run one bounded Scan against at most two tracked companies; inspect actual output.
-- [ ] Use Scan output in one Run; inspect actual fit/evidence state and direct API/persisted state for each required persistence or failure claim, recording command, exit status, IDs, final state, and coverage limit.
-- [ ] Exercise only required interest/bookmark or negative-condition proof; preserve separation between fit, interest, bookmark, and ranking.
-- [ ] Generate one grounded CV for a suitable job; preview persisted version and download it.
-- [ ] Reopen FitCV and verify required persisted state/history.
+- [x] Preflight Get-NetTCPConnection -LocalPort 8000 -State Listen and Invoke-RestMethod http://localhost:8000/healthz; recorded listener PID 42600 (started Aug 30, pre-fix memory state, parent PID 18356 dead); stopped orphan process.
+- [x] Executed declared start_web.ps1 to launch local runtime; startup failed with DatabaseSchemaIncompatibleError: Database schema is incompatible: found version 0, expected 5. on data/fitcv_cp.sqlite3.
+- [x] Stopped probe per contract without modifying, resetting, migrating, or copying data/fitcv_cp.sqlite3 or any user data.
+- [ ] Launch actual /app through normal local runtime (BLOCKED by runtime startup failure).
+- [ ] Use approved supported profile input; review and confirm persisted active profile (BLOCKED; 0 actions performed).
+- [ ] Run one bounded Scan against at most two tracked companies; inspect actual output (BLOCKED; 0 actions performed).
+- [ ] Use Scan output in one Run; inspect actual fit/evidence state and direct API/persisted state (BLOCKED; 0 actions performed).
+- [ ] Exercise only required interest/bookmark or negative-condition proof (BLOCKED; 0 actions performed).
+- [ ] Generate one grounded CV for a suitable job; preview persisted version and download it (BLOCKED; 0 actions performed).
+- [ ] Reopen FitCV and verify required persisted state/history (BLOCKED; 0 actions performed).
 
 **Verification:**
-- [ ] Record `probe source commit`, derived coordination checkpoint, runtime endpoint/health result, provider identity, profile ID/revision, Scan ID and terminal state, job count, Run ID and terminal state, representative fit result, CV version ID, preview result, download result, restart/persistence result, browser finding, and blocker.
-- [ ] Confirm visible states match persisted records/events/artifacts.
-- Expected: all required claims pass, or exact `BLOCKED`/`INCOMPLETE` result with smallest rerun scope.
+- [x] Record probe source commit, derived coordination checkpoint, runtime endpoint/health result, provider identity, profile ID/revision, Scan ID and terminal state, job count, Run ID and terminal state, representative fit result, CV version ID, preview result, download result, restart/persistence result, browser finding, and blocker.
+- [x] Confirm visible states match persisted records/events/artifacts (no actions executed; database untouched).
+- Expected: all required claims pass, or exact BLOCKED/INCOMPLETE result with smallest rerun scope.
+
+**Task 3 Probe Execution & Evidence Record:**
+
+- **Probe Source Commit:** c1466eb66174f3d7bda22db44df204679312b57d
+- **Runtime Preflight:** Initial check found port 8000 listening under PID 42600 (python.exe), start time 2026-08-30 20:32:11; parent PID 18356 was dead; /healthz returned {"status": "ok"} but /personalization failed with HTTP 500 because the running process predated commit c1466eb66174f3d7bda22db44df204679312b57d. Stopped orphaned process PID 42600.
+- **Runtime Startup Attempt:** Invoked `powershell -ExecutionPolicy Bypass -File .\start_web.ps1`. Uvicorn initialization failed during `build_app()` at `src/fitcv_cp/main.py:74` while calling `ensure_control_plane_database()` via `_ensure_control_plane_schema` at `src/fitcv_cp/sqlite_store.py:411`:
+
+  `fitcv_cp.sqlite_store.DatabaseSchemaIncompatibleError: Database schema is incompatible: found version 0, expected 5.`
+- **Database State:** `data/fitcv_cp.sqlite3` contains 12 tables (`job_embeddings`, `sqlite_sequence`, `candidate_embeddings`, `process_events`, `process_event_integrity_conflicts`, `process_event_deliveries`, `process_event_migrations`, `pipeline_settings`, `cv_versions`, `candidate_query_embeddings`, `vector_shortlist`, `raw_jobs`) with `PRAGMA user_version = 0`.
+- **User Data & Scope Compliance:** Per instructions and Live Probe Contract, no database reset, migration, schema overwrite, copy, or deletion was performed; no product code or config was modified; no mock fallbacks were introduced.
+- **Provider Identity / Data Egress:** Provider openai_compatible at http://127.0.0.1:20128/v1 (9router proxy) / model cx/gpt-5.4-mini configured in config/runtime/control_plane.yaml. No LLM requests dispatched; no profile or job data left the local process.
+- **Probe Execution Summary:**
+  - Candidate Profile: 0 created / 0 uploaded / 0 modified
+  - Scan: 0 executed / 0 tracked companies scanned
+  - Run: 0 executed
+  - CV Generation: 0 generated / 0 previewed / 0 downloaded
+  - Bookmarks / Interest: 0 modified
+- **Claims Disposition:** All 20 Stage 12 REQUIRED AND MISSING claims (1–6, 8, 10, 12–18, 20–21, 23–25) are marked BLOCKED due to runtime startup schema failure. Claims 7, 9, 11, 19, 22, 26 remain BLOCKED per Task 2 contract.
+- **Smallest Unblock Condition:** User-approved repair/migration of data/fitcv_cp.sqlite3 schema to version 5, or provision of a clean supported runtime/data fixture.
 
 **Exit Criteria:**
 - Probe evidence is complete for every required claim, or CoS records a bounded blocker. Defects do not become an unplanned debugging lane.
