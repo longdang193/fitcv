@@ -656,6 +656,7 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
     """Return one validated v2-compatible runtime snapshot without mutating input."""
     if profile.get("schema_version") == "candidate-profile.v2":
         normalized = copy.deepcopy(profile)
+        normalized.pop("preferences", None)
     else:
         checksum = canonical_candidate_checksum(profile)
         normalized = adapt_candidate_profile_to_v2(

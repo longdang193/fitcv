@@ -82,6 +82,9 @@ def test_runtime_loader_accepts_canonical_v2_preferences() -> None:
 
     assert loaded["schema_version"] == "candidate-profile.v2"
     assert loaded["preferences"] == canonical["search_preferences"]
+    converged = converge_candidate_profile_for_runtime(loaded)
+    assert "preferences" not in converged
+    assert converged["search_preferences"] == canonical["search_preferences"]
 
 def test_runtime_convergence_normalizes_legacy_year_only_ranges() -> None:
     converged = converge_candidate_profile_for_runtime(
