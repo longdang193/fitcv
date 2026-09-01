@@ -54,12 +54,13 @@ An independent read-only reviewer assesses the final closure candidate SHA and e
 - Branch: `main`
 - Base commit: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
 - Expected workspace: clean current `main` worktree; existing task worktrees are preserved and out of scope
-- Next action: Retain `STAGES 11–13 INCOMPLETE`; latest aligned disposable probe is consumed. Review and disposition the uncommitted convergence fix, then obtain new explicit scope before any further Scan/Run. Do not lower reranker thresholds or reuse current probe budget.
-- Blockers: Fresh aligned GROPYUS probe reached Scan and Run success, ranking passed with `baseline_fit=0.62` (`stretch`), but CV analysis failed before provider call because runtime-only `preferences` remained in strict v2 validation (`unsupported top-level field: preferences`). The minimal fix is uncommitted at `src/fitcv/candidate.py:659` with regression at `tests/test_candidate.py:78`; `cv-generation` was skipped and `cv_versions=0`. Claims 7, 9, 11, 19, 22, 26 remain `BLOCKED`; CV/browser completion claims remain incomplete; original `data/fitcv_cp.sqlite3` remains untouched.
+- Next action: Retain `STAGES 11–13 INCOMPLETE`; source convergence fix is committed at `49e25b2653ca214f9c065e7b1465a0c1ad1f51d8` and independently reviewed `PASS`. Do not run another Scan/Run without new explicit scope and unique fixture that clears reranker fit; do not lower thresholds or reuse current probe budget.
+- Blockers: Fresh aligned GROPYUS probe reached Scan and Run success, ranking passed at `baseline_fit=0.62` (`stretch`), and the v2 convergence defect is fixed at `src/fitcv/candidate.py:659` with regression at `tests/test_candidate.py:78`. No post-fix live Run exists; `cv-generation` was skipped and `cv_versions=0`. Claims 7, 9, 11, 19, 22, 26 remain `BLOCKED`; CV/browser completion claims remain incomplete; original `data/fitcv_cp.sqlite3` remains untouched.
 - Source evidence baseline: `0e9d8b35bbb36dc0d2e85136480cc8b4b7b5cd75`
-- Final source under review: `HEAD 1d081f4af5f7747517f1e409b191aa65548ba849` plus uncommitted `src/fitcv/candidate.py` and `tests/test_candidate.py` convergence correction; prior final-source review is invalidated.
+- Final candidate source commit: `49e25b2653ca214f9c065e7b1465a0c1ad1f51d8`
+- Final source under review: `HEAD 49e25b2653ca214f9c065e7b1465a0c1ad1f51d8`; independent Task 4 review returned `PASS` for source binding and evidence consistency, with downstream live-proof gaps retained.
 - Coordination checkpoint: derive latest checkpoint with `git log -1 --format=%H -- <plan-path>`; do not copy checkpoint SHA into plan text
-- Closure verdict: `STAGES 11–13 INCOMPLETE`; one fresh aligned Task 3 probe reached Scan/Run and ranking, then exposed and reproduced the v2 convergence alias defect. Minimal fix and focused regression pass, but no post-fix live Run exists; CV generation, preview, download, bookmark/rating, and full reload proof remain unavailable. Fresh Task 4 review is invalidated by the new uncommitted source; Task 5 records incomplete closure; Stage 14 remains inactive.
+- Closure verdict: `STAGES 11–13 INCOMPLETE`; one fresh aligned Task 3 probe exposed the v2 convergence alias defect, and committed fix `49e25b2653ca214f9c065e7b1465a0c1ad1f51d8` passes focused regression plus independent Task 4 review. No post-fix live Run exists; CV generation, preview, download, bookmark/rating, and full reload proof remain unavailable. Task 5 records incomplete closure; Stage 14 remains inactive.
 
 Activation baseline:
 
@@ -79,8 +80,8 @@ The lead controller is sole coordination-state writer. Runtime threads, agent se
 | Task 1 | `completed` | current | `codex` | none | Stage 11 evidence matrix and fresh validators | bounded baseline policy-lookup correction committed at `c1466eb66174f3d7bda22db44df204679312b57d`; Herdr review validator `PASS`; live dark-theme `/personalization` returned HTTP 200 |
 | Task 2 | `completed` | current | `codex` | Task 1 | deterministic journey map and Live Probe Contract | Stage 12 map and bounded contract recorded; 20 claims require live proof, 6 claims explicitly blocked; no claim is not applicable |
 | Task 3 | `blocked` | current | `codex` | Task 2 | bounded real Personal FitCV probe or explicit blocked/incomplete result | `BLOCKED` after exactly one aligned disposable probe; profile `profile_d8e0cc51cd584a61a50a7c212f879fe7`, company `company-ef7134c43d7b`, Scan `scan-9cd0abb0be51` HTTP `201`/terminal succeeded, Run `8c014244-893b-41bf-bdd2-4abceeefea20` HTTP `201`/terminal succeeded, job `986f3ee5-c509-5dbf-b396-f6116cd86b72`; ranking passed at `0.62`/`stretch`, then `cv-analysis` failed locally on `unsupported top-level field: preferences` before CV provider call; minimal fix `src/fitcv/candidate.py:659`, regression `tests/test_candidate.py:78`, `63 passed, 1 skipped`, compile/planning validators/diff check passed; CV stage skipped, `cv_versions=0`; evidence `.tmp/task3-final-gropyus-20260901-v1/evidence/`; protected DB untouched |
-| Task 4 | `blocked` | `C:\fitcv-review` (detached, clean pre/post) | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and latest Task 3 evidence | `BLOCKED`; prior review is invalidated by uncommitted convergence fix; new independent review and post-fix live proof are required |
-| Task 5 | `completed` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | `incomplete`; `STAGES 11–13 INCOMPLETE`; one fresh aligned Run exposed a real loader/convergence defect, minimal fix passes focused regression, but no post-fix live Run proves CV generation, preview, download, bookmark/rating, or full reload; Stage 14 remains inactive |
+| Task 4 | `completed` | `C:\fitcv-review` (detached, clean pre/post) | `codex` | Tasks 1–3 | fresh independent `PASS`, `FAIL`, or `BLOCKED` review bound to updated final source and latest Task 3 evidence | `PASS`; exact source commit `49e25b2653ca214f9c065e7b1465a0c1ad1f51d8` and source/test binding verified; no P1/P2/P3 finding; downstream CV/browser proof remains incomplete |
+| Task 5 | `completed` | current | `codex` | Tasks 1–4 | fresh completion verification and closure verdict | `incomplete`; `STAGES 11–13 INCOMPLETE`; committed loader/convergence fix and independent review pass, but no post-fix live Run proves CV generation, preview, download, bookmark/rating, or full reload; Stage 14 remains inactive |
 
 ## Task Breakdown
 
@@ -368,17 +369,17 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 **Authority:**
 - Preauthorized local actions: read-only inspection and bounded existing checks.
 - Read-only boundary: reviewer must not modify plan, source, tests, Git index, branch refs, or commits.
-- [x] CoS created detached review worktree `C:\fitcv-review` at `588f4bf45c5ea92741dae3f3da7724445bacf290`, dispatched fresh Herdr main agent `fitcv-t4-final-main` with profile `review`, and recorded clean pre/post Git state.
+- [x] CoS used detached review worktree `C:\fitcv-review` at `49e25b2653ca214f9c065e7b1465a0c1ad1f51d8`, dispatched fresh Herdr main agent `fitcv-t4-review-main` with profile `review`, and recorded clean pre/post Git state.
 - Stop for: unexpected repository modification, missing evidence identity, source drift, or unreviewable runtime claim.
 
 **Steps:**
 - [x] Bind review to exact repository, detached review worktree, `final_candidate_source_commit`, derived coordination checkpoint, and evidence identities.
 - [x] Inspect completion-critical behavior, fit/business truth, frontend/backend contracts, accessibility/usability, persistence, and probe contradictions.
 - [x] Exclude enterprise hardening, speculative architecture, cosmetic redesign, legacy retirement, and performance without an approved requirement.
-- [x] Return exactly `PASS`, `FAIL`, or `BLOCKED` with P1/P2/P3 findings and exact evidence: `PASS`; no P1/P2/P3 finding substantiated. Reviewer verified canonical `/app` at `frontend/src/App.tsx`, `/app` mount and API bindings in `src/fitcv_cp/local_routes.py:53-162`, accessibility evidence in `frontend/src/App.tsx:94-288` and `frontend/src/App.test.tsx:36-44`, deprecated `/admin/*` scope remains outside Stage 14, and corrected Task 3 counts/evidence are consistent.
+- [x] Return exactly `PASS`, `FAIL`, or `BLOCKED` with P1/P2/P3 findings and exact evidence: `PASS`; no P1/P2/P3 finding substantiated. Reviewer verified exact source commit `49e25b2653ca214f9c065e7b1465a0c1ad1f51d8`, convergence/loader binding at `src/fitcv/candidate.py:655-676` and `src/fitcv/candidate.py:1032-1038`, regression at `tests/test_candidate.py:78-87`, and retained incomplete CV/browser closure due absent post-fix live evidence.
 
 **Verification:**
-- [x] Pre-review and post-review `git status --short --branch`, HEAD, and diff are unchanged; detached review worktree `C:\fitcv-review` was clean at `588f4bf45c5ea92741dae3f3da7724445bacf290`.
+- [x] Pre-review and post-review `git status --short --branch`, HEAD, and diff are unchanged; detached review worktree `C:\fitcv-review` was clean at `49e25b2653ca214f9c065e7b1465a0c1ad1f51d8`.
 - Expected: independent verdict applies to exact final source candidate plus its derived coordination checkpoint, not a summary or prior commit.
 
 **Exit Criteria:**
@@ -421,13 +422,13 @@ Only `REQUIRED AND MISSING` claims enter Task 3: `1–6, 8, 10, 12–18, 20–21
 **Steps:**
 - [x] Run `skill-verification-before-completion` against exact final candidate state.
 - [x] Classify every task and completion claim as proven, incomplete, blocked, deferred with approval, or not applicable with reason.
-- [x] Record `STAGES 11–13 INCOMPLETE`, exact blocker, and smallest next scope: corrected upload was skipped as `duplicate_job_url`, no Run job passed, and CV generation/preview/download/reopen remains unavailable; E2E host recovery passed `12/12`, but further job correction needs unique disposable identity and new explicit approval.
+- [x] Record `STAGES 11–13 INCOMPLETE`, exact blocker, and smallest next scope: source convergence fix is committed and independently reviewed `PASS`; no post-fix live Run passed through CV generation, so preview/download/bookmark/rating/full reload remain unproven; further probing needs unique disposable identity, reranker-fit clearance, and new explicit approval.
 - [x] Never activate Stage 14, retire legacy frontend, push, merge, or release from this plan.
 
 **Verification:**
 - [x] `python scripts/validate_template_required_sections.py --repo-root .` passed.
 - [x] `python scripts/validate_planning_lifecycle.py --repo-root .` passed.
-- [x] Prior frontend checks passed: `npm run typecheck`, `npm run test` (`96 passed`), `npm run test:a11y` (`1 passed`), and `npm run build`; recovered supported host at `127.0.0.1:8000`, fresh `npm run test:e2e` exited `0` with `12 passed`; backend focused suite `535 passed`, `python -m compileall -q src`, planning validators, and `git diff --check` passed. Live completion remains blocked because scope-expanded Run produced no passed job and CV history has zero versions.
+- [x] Prior frontend checks passed: `npm run typecheck`, `npm run test` (`96 passed`), `npm run test:a11y` (`1 passed`), and `npm run build`; recovered supported host at `127.0.0.1:8000`, fresh `npm run test:e2e` exited `0` with `12 passed`; candidate regression suite `41 passed, 1 skipped`, `python -m compileall -q src`, planning validators, and `git diff --check` passed. Live completion remains blocked because no post-fix Run produced a CV version and CV/browser closure is unproven.
 - Expected: final result is evidence-backed, SHA-bound, and reproducible from plan plus Git.
 
 **Exit Criteria:**
@@ -526,5 +527,13 @@ User approval changes this plan from `proposed` to eligible for CoS activation. 
 - **Fresh probe:** Disposable profile `profile_830e8d823adc4997bf8f827a962c0cea`; Scan `scan-676ccebc8a5d` create HTTP `201`, terminal HTTP `200`, succeeded, 2 outputs; Run `315e46a1-436a-4d2b-a974-b5d2c566637e` create HTTP `201`, terminal HTTP `200`, succeeded; two fresh run-detail reload GETs returned HTTP `200`.
 - **Hard blocker:** Both run jobs reached `cv-analysis` and persisted `reason_code=reranker_fit_below_threshold`; `cv-generation` was skipped, `current_cv_version_id=null`, `cv_versions=0`. CV list returned HTTP `200` with `{"data":[]}`; preview/download unavailable. Raw disposable DB evidence confirms exact stage rows. Evidence root: `.tmp/task3-v2-loader-fix-20260831/evidence/`.
 - **Boundary:** Provider `custom-legacy-2df46163b609`, model `cx/gpt-5.4-mini`, verified through `http://127.0.0.1:20128/v1`; disposable DB integrity `ok`; protected `data/fitcv_cp.sqlite3` untouched; runtime stopped; no Docker, Redis, new auth, retry, or additional Scan/Run.
-- **Review:** Fresh Herdr reviewer `fitcv-t4-review-main` returned `BLOCKED` because CV/browser closure remains unproven and final source candidate is uncommitted. Raw evidence supports reranker blocker; no new P1/P2/P3 source defect was established beyond stale binding and narrow regression scope.
+- **Review:** Prior pre-commit review returned `BLOCKED` because CV/browser closure remained unproven and final source candidate was uncommitted. Raw evidence supported reranker blocker; no new P1/P2/P3 source defect was established beyond stale binding and narrow regression scope. Superseded by the 2026-09-01 independent review below.
 - **Disposition:** `STAGES 11–13 INCOMPLETE`; no Stage 14. Further Scan/Run requires new explicit scope approval and a unique fixture that clears reranker fit.
+
+## Task 4/5 Reconciliation (2026-09-01)
+
+- **Source checkpoint:** `49e25b2653ca214f9c065e7b1465a0c1ad1f51d8` contains the minimal v2 runtime-alias fix, regression, and prior coordination checkpoint.
+- **Independent review:** Fresh Herdr main agent `fitcv-t4-review-main` used profile `review` in detached `C:\fitcv-review` at the exact source checkpoint. Final verdict `PASS`; no P1/P2/P3 finding. Initial `FAIL` was corrected after exact-line recheck; reported lines `703`/`706` were validator contact/document checks, not alias ordering.
+- **Review evidence:** `src/fitcv/candidate.py:655-676` strips runtime-only `preferences` before strict v2 validation; `src/fitcv/candidate.py:1032-1038` supplies the in-memory compatibility alias; `tests/test_candidate.py:78-87` proves alias removal and canonical `search_preferences` preservation. Reviewer confirmed detached worktree remained clean. Task 3 evidence directory was absent from detached review worktree, so evidence identity was checked through the committed plan record without copying disposable data.
+- **Final disposition:** Task 4 `completed` with `PASS`; Task 5 `completed` with `incomplete`. `STAGES 11–13 INCOMPLETE` remains correct because no post-fix live Run produced a CV version, preview, download, bookmark/rating, or full reload proof. Stage 14 remains inactive.
+- **Next scope:** Any further live attempt requires new explicit scope, unique disposable profile-compatible fixture, one fresh Scan/Run budget, and reranker fit above the configured threshold. Do not lower thresholds, reuse consumed probe budgets, or mutate protected user data.
