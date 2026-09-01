@@ -21,7 +21,7 @@ import math
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
-from fitcv.candidate import flatten_skills
+from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
     build_cv_analysis_input_fingerprint,
@@ -557,6 +557,7 @@ def analyze_ranked_job(
     evidence_selection_summary: dict[str, Any] = {}
     gap_summary: dict[str, Any] | None = None
     try:
+        profile = converge_candidate_profile_for_runtime(profile)
         ranking_fit_label = resolve_ranked_job_fit(job, config)
         if ranking_fit_label == "skip":
             return build_cv_analysis_record(

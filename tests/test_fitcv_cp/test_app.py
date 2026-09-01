@@ -1739,6 +1739,63 @@ def test_real_run_route_accepts_upload_only_and_scan_only(
     assert scan_run.jobs_input_source == "scan"
     assert sqlite_store.query_run_jobs(scan_run.run_id)["items"][0]["title"] == "Scan Job"
 
+def test_managed_run_keeps_profile_metadata_outside_analysis_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv.candidate import validate_candidate_profile_v2
+
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    from fitcv.candidate import converge_candidate_profile_for_runtime
+    import hashlib
+
+    app = _app()
+    profile_id = _seed_active_profile()
+    detail = sqlite_store.get_candidate_profile_detail(profile_id)
+    assert detail is not None
+    canonical = converge_candidate_profile_for_runtime(detail["profile"]["canonical"])
+    profile_json = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+        connection.execute(
+            "UPDATE candidate_profile_revisions SET profile_json = ?, checksum = ?, schema_revision = ? WHERE candidate_profile_id = ? AND revision = 1",
+            (profile_json, hashlib.sha256(profile_json.encode("utf-8")).hexdigest(), "candidate-profile.v2", profile_id),
+        )
+        connection.commit()
+    scan = _seed_succeeded_scan(name="profile-snapshot", jobs=[_valid_fitcv_job()])
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch(
+        "fitcv_cp.app.submit_run",
+        return_value=RunSubmission(
+            run_id="ignored",
+            queue_job_id="queue-1",
+            backend_run_id="queue-1",
+            backend="default_queue",
+        ),
+    ):
+        response = TestClient(app).post(
+            "/runs",
+            data={"profile_id": profile_id, "scan_ids": scan["scan_id"]},
+            headers={"Idempotency-Key": "managed-profile-snapshot"},
+        )
+
+    assert response.status_code == 201, response.text
+    run_id = response.json()["data"]["run_id"]
+    run = sqlite_store.get_run(run_id)
+    assert run is not None
+    snapshot = json.loads(run.candidate_profile_json)
+    assert validate_candidate_profile_v2(snapshot) == []
+    assert "candidate_profile_id" not in snapshot
+    assert "revision" not in snapshot
+    runtime_snapshot = json.loads(json.loads(run.effective_settings_json)["runtime_inputs"]["candidate_profile_json"])
+    assert runtime_snapshot == snapshot
+
+    with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+        persisted = connection.execute(
+            "SELECT candidate_profile_id, candidate_profile_revision FROM run_inputs WHERE run_id = ?",
+            (run_id,),
+        ).fetchone()
+    assert persisted == (profile_id, 1)
+
+
 def test_real_managed_run_preserves_upload_then_selected_scan_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

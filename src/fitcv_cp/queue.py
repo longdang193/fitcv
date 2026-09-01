@@ -341,7 +341,7 @@ def enqueue_scan_with_job_id(
         existing_job_id = None
     if existing_job_id:
         return existing_job_id
-    job_id = f"scan:{scan_id}"
+    job_id = f"scan-{scan_id}"
     if _inline_execution_enabled():
         from fitcv_cp.local_app import get_local_job_executor
 

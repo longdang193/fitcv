@@ -86,6 +86,48 @@ def test_analyze_ranked_job_emits_extended_analysis_fields(
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_analyze_ranked_job_converges_legacy_profile_before_evidence(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::legacy"}
+    mock_bundle.return_value = {
+        "source_profile_schema_version": "candidate-profile.v2",
+        "selected_evidence": [],
+    }
+    mock_gap.return_value = {"matched": ["SQL"], "missing": []}
+    profile = {
+        "name": "Legacy Candidate",
+        "experiences": [
+            {
+                "id": "exp_1",
+                "role": "Data Engineer",
+                "company": "Example",
+                "bullets": [{"text": "Built SQL pipelines.", "skills": ["SQL"]}],
+            }
+        ],
+        "education": [{"id": "edu_1", "degree": "MSc", "institution": "Example", "gpa": "1.0"}],
+        "projects": [],
+        "achievements": [{"id": "ach_1", "text": "Improved reporting", "category": "performance", "evidence_refs": ["exp_1"]}],
+        "certifications": [],
+        "volunteering": [],
+        "languages": [{"id": "lang_1", "name": "English", "native": False}],
+        "skills": [{"id": "skill_1", "name": "SQL", "category": "Data", "level": "advanced", "years": 5, "evidence_refs": ["exp_1"]}],
+        "interests": [],
+        "preferences": {},
+    }
+
+    result = analyze_ranked_job(_job(), profile, _config())
+
+    assert result["status"] == "ready_for_generation"
+    assert mock_bundle.called
+    assert mock_bundle.call_args.args[0]["schema_version"] == "candidate-profile.v2"
+
+
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
 def test_analyze_ranked_job_preserves_bundle_evidence_summary_fields(
     mock_fingerprint,
     mock_bundle,

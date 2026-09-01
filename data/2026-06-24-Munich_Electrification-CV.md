@@ -100,6 +100,10 @@ Focus: Data pipelines, workflow orchestration, warehouses, validation, and repro
 
 **Data Engineering / Databases:** BigQuery, SQLite, Bruin, data transformation, data-quality controls, workflow orchestration
 
+**Data Modeling & BI:** Data modeling, semantic models, business intelligence, cloud data warehouse (BigQuery)
+
+**Engineering Workflow:** Version control (Git), CI validation, data quality, documentation
+
 **Tools & Frameworks:** FastAPI, API integration, GitHub Actions, Docker, Git, Microsoft Excel, PowerPoint, Power BI
 
 **Business / Domain Knowledge:** Digital operations, application testing, process documentation, SOP development, workflow improvement, stakeholder coordination

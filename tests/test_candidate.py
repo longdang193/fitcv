@@ -75,6 +75,14 @@ def test_runtime_convergence_adapts_v1_without_mutating_snapshot() -> None:
     assert canonical_candidate_checksum(profile) == checksum
     assert converge_candidate_profile_for_runtime(profile) == converged
 
+def test_runtime_loader_accepts_canonical_v2_preferences() -> None:
+    canonical = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})
+
+    loaded = load_profile_json_text(json.dumps(canonical))
+
+    assert loaded["schema_version"] == "candidate-profile.v2"
+    assert loaded["preferences"] == canonical["search_preferences"]
+
 def test_runtime_convergence_normalizes_legacy_year_only_ranges() -> None:
     converged = converge_candidate_profile_for_runtime(
         {

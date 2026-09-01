@@ -9352,8 +9352,6 @@ def create_app(
                     raise ApiError(422, "validation_failed", str(exc)) from exc
                 profile_snapshot = dict(profile.get("profile") or {})
                 profile_snapshot.setdefault("name", profile.get("name"))
-                profile_snapshot["revision"] = profile.get("revision")
-                profile_snapshot["candidate_profile_id"] = profile_id
                 source_kind = "combined" if upload_name else "scan"
                 result = _execute_trigger_with_inputs(
                     jobs_path=upload_name or scan_ids[0],

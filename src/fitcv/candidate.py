@@ -473,6 +473,13 @@ def _adapt_legacy_parent(
     for field_name, end_boundary in (("start", False), ("end", True), ("date", False), ("expires", True)):
         if field_name in normalized:
             normalized[field_name] = _normalize_legacy_month(normalized[field_name], end=end_boundary)
+    section_definition = next(
+        definition
+        for definition in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+        if definition["id"] == section
+    )
+    allowed_fields = {"id", "source_refs", "evidence", *section_definition.get("item", {})}
+    normalized = {key: value for key, value in normalized.items() if key in allowed_fields}
     normalized["evidence"] = evidence
     return normalized, [entry["id"] for entry in evidence]
 
@@ -552,7 +559,11 @@ def adapt_candidate_profile_to_v2(
         if section == "languages":
             normalized[section] = [
                 {
-                    **copy.deepcopy(value),
+                    **{
+                        key: copy.deepcopy(value[key])
+                        for key in ("id", "name", "level")
+                        if key in value
+                    },
                     "source_refs": [_uploaded_source_ref(document_id)],
                 }
                 for value in profile.get(section) or []
@@ -588,7 +599,15 @@ def adapt_candidate_profile_to_v2(
         normalized[section] = adapted
     skills: list[dict[str, Any]] = []
     for index, value in enumerate(profile.get("skills") or []):
-        claim = copy.deepcopy(value) if isinstance(value, dict) else {"name": value}
+        claim = (
+            {
+                key: copy.deepcopy(value[key])
+                for key in ("id", "name", "origin", "confidence", "support_status", "evidence_refs")
+                if key in value
+            }
+            if isinstance(value, dict)
+            else {"name": value}
+        )
         refs: list[str] = []
         for ref in claim.get("evidence_refs") or []:
             refs.extend(parent_evidence.get(ref, [ref]))
@@ -991,7 +1010,7 @@ def load_profile_json_text(payload: str) -> dict[str, Any]:
 
     Raises:
         ValueError: if payload is not valid JSON, not a top-level object,
-                    or fails existing `validate_profile()` validation.
+                    or fails candidate profile schema validation.
     """
     profile = _parse_json_profile_payload(payload)
     return _validate_profile_payload(profile, "JSON")
@@ -1009,6 +1028,13 @@ def _validate_profile_payload(profile: Any, source_format: str) -> dict[str, Any
         raise ValueError(
             f"Candidate profile must be a {source_format} object, got {type(profile).__name__}"
         )
+    if profile.get("schema_version") == "candidate-profile.v2":
+        errors = validate_candidate_profile_v2(profile)
+        if errors:
+            raise ValueError(f"Candidate profile validation failed: {'; '.join(errors)}")
+        normalized_profile = copy.deepcopy(profile)
+        normalized_profile["preferences"] = copy.deepcopy(profile.get("search_preferences") or {})
+        return normalized_profile
     errors = validate_profile(profile)
     if errors:
         raise ValueError(f"Candidate profile validation failed: {'; '.join(errors)}")
