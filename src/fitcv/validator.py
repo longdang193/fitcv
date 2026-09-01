@@ -596,7 +596,15 @@ def _normalize_analysis_grounding(
 
         evidence_type = str(item.get("evidence_type") or "").strip().lower()
         project_name = str(item.get("name") or "").strip()
-        if project_name and evidence_type in {"project", "project_entry"}:
+        if evidence_type == "candidate_evidence" and str(item.get("source_section") or "").strip().lower() == "projects":
+            project_name = str(item.get("parent_title") or project_name).strip()
+        if project_name and (
+            evidence_type in {"project", "project_entry"}
+            or (
+                evidence_type == "candidate_evidence"
+                and str(item.get("source_section") or "").strip().lower() == "projects"
+            )
+        ):
             projects.add(project_name.lower())
 
         for raw_skill in list(item.get("skills") or []):

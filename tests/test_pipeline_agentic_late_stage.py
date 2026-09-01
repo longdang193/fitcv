@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from fitcv.pipeline import run_pipeline
+from fitcv.pipeline import _is_persistable_cv_generation_result, run_pipeline
 from fitcv.agentic_cv_generation import (
     _LIVE_TRACE_DEBUG_ENV_KEYS,
     _backfill_required_sections_from_profile,
@@ -27,6 +27,7 @@ from fitcv.agentic_cv_generation import (
     generate_from_analysis,
     transition_cv_generation_persistence_failed,
 )
+from fitcv_cp.backend_runtime import set_backend_runtime
 
 
 def _minimal_config() -> dict:
@@ -697,7 +698,7 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
-def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_triggers(
+def test_run_pipeline_persists_review_required_when_agentic_gate_has_content(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_normalize: MagicMock,
@@ -719,7 +720,11 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
     mock_store_cv_version: MagicMock,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
+    set_backend_runtime(None)
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
     job = _minimal_job()
     profile = _minimal_profile()
     config = _minimal_config()
@@ -784,12 +789,12 @@ def test_run_pipeline_marks_review_required_and_skips_persist_when_agentic_gate_
     ):
         result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="late-stage-agentic-review")
 
-    assert result["cvs_generated"] == 0
+    assert result["cvs_generated"] == 1
     assert result["cv_generation_debug_records"][0]["status"] == "review_required"
     assert result["cv_generation_debug_records"][0]["error"] is None
     assert result["cv_generation_debug_records"][0]["outcome_reason"]["stage"] == "review"
     assert "Low confidence sections" in str(result["cv_generation_debug_records"][0]["outcome_reason"]["message"])
-    mock_store_cv_version.assert_not_called()
+    mock_store_cv_version.assert_called_once()
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -835,7 +840,11 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
     mock_store_cv_version: MagicMock,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
+    set_backend_runtime(None)
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
     job = _minimal_job()
     profile = _minimal_profile()
     config = _minimal_config()
@@ -910,12 +919,12 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
     ):
         result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="late-stage-agentic-markdown-review")
 
-    assert result["cvs_generated"] == 0
+    assert result["cvs_generated"] == 1
     assert result["cv_generation_debug_records"][0]["status"] == "review_required"
     assert result["cv_generation_debug_records"][0]["error"] is None
     assert result["cv_generation_debug_records"][0]["outcome_reason"]["stage"] == "review"
     assert "Markdown quality requires review" in str(result["cv_generation_debug_records"][0]["outcome_reason"]["message"])
-    mock_store_cv_version.assert_not_called()
+    mock_store_cv_version.assert_called_once()
 
 
 
@@ -1067,6 +1076,28 @@ def test_generate_from_analysis_emits_review_required_as_outcome(
     assert result["structured_cv_final"] is not None
     assert result["markdown_final"]
     assert result["validation_evidence_fingerprint"]
+
+
+
+def test_review_required_with_valid_content_is_persistable_only_without_validation_violations() -> None:
+    result = {
+        "status": "review_required",
+        "structured_cv_final": _minimal_structured_cv(),
+        "markdown_final": "# Test Candidate\n## Experience\nGrounded work.",
+        "validation": {
+            "valid": True,
+            "missing_sections": [],
+            "grounding_violations": [],
+            "deterministic_grounding_violations": [],
+            "semantic_grounding_violations": [],
+            "skill_violations": [],
+            "markdown_quality_blocking_issues": [],
+        },
+    }
+
+    assert _is_persistable_cv_generation_result(result) is True
+    result["validation"]["skill_violations"] = ["unsupported_skill"]
+    assert _is_persistable_cv_generation_result(result) is False
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")

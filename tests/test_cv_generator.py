@@ -103,18 +103,112 @@ def test_build_generation_prompt_empty_evidence_no_crash() -> None:
 def test_build_generation_prompt_includes_grounding_constraints_from_profile() -> None:
     prompt = build_generation_prompt(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},
-        evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
+        evidence=[
+            {
+                "evidence_type": "experience_entry",
+                "company": "Acme Analytics GmbH",
+                "role": "Data Engineer",
+                "bullets": ["Built grounded reporting workflows."],
+                "skills": ["SQL"],
+            },
+            {
+                "evidence_type": "project_entry",
+                "name": "FitCV Pipeline",
+                "highlights": ["Built grounded CV automation."],
+            },
+        ],
         gap={"matched": ["SQL"], "missing": []},
         template="",
         profile={
-            "experiences": [{"company": "Acme Analytics GmbH"}],
+            "experiences": [
+                {"company": "Acme Analytics GmbH"},
+                {"company": "Fintech Startup GmbH"},
+            ],
             "projects": [{"name": "FitCV Pipeline"}],
         },
     )
     assert "Acme Analytics GmbH" in prompt
     assert "FitCV Pipeline" in prompt
-    assert "Do not invent employer names" in prompt
-    assert "Do not invent project names" in prompt
+    assert "Only use employers named in selected evidence: Acme Analytics GmbH" in prompt
+    assert "Only use project names named in selected evidence: FitCV Pipeline" in prompt
+    assert "Fintech Startup GmbH" not in prompt
+    assert "Every summary, experience bullet, and project bullet must be supported by selected evidence text" in prompt
+
+
+def test_build_generation_prompt_preserves_projected_selected_evidence_contract() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["Python"]},
+        evidence=[
+            {
+                "evidence_type": "candidate_evidence",
+                "source_section": "experiences",
+                "parent_title": "Senior Data Engineer",
+                "organization": "Acme Analytics GmbH",
+                "name": "Built grounded data pipelines.",
+                "text": "Built grounded data pipelines.",
+                "skills": ["Python"],
+            }
+        ],
+        gap={"matched": ["Python"], "missing": []},
+        template="",
+        profile={
+            "experiences": [
+                {"company": "Acme Analytics GmbH"},
+                {"company": "Fintech Startup GmbH"},
+            ],
+            "projects": [],
+        },
+        config={},
+    )
+
+    assert "Selected Experience Evidence" in prompt
+    assert "Company: Acme Analytics GmbH" in prompt
+    assert "Relevant bullet: Built grounded data pipelines." in prompt
+    assert "Only use employers named in selected evidence: Acme Analytics GmbH" in prompt
+    assert "Fintech Startup GmbH" not in prompt
+
+
+def test_build_generation_prompt_keeps_project_only_evidence_out_of_experience() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["Python"]},
+        evidence=[
+            {
+                "evidence_type": "candidate_evidence",
+                "source_section": "projects",
+                "parent_title": "FitCV Pipeline",
+                "name": "Built grounded CV automation.",
+                "text": "Built grounded CV automation.",
+            }
+        ],
+        gap={"matched": ["Python"], "missing": []},
+        template="",
+        profile={"experiences": [{"company": "Acme Analytics GmbH"}], "projects": []},
+        config={},
+    )
+
+    assert "set the Experience section to []" in prompt
+    assert "never use a project name as an Experience.company or employer" in prompt
+
+
+def test_build_generation_prompt_marks_non_work_evidence() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": []},
+        evidence=[
+            {
+                "evidence_type": "candidate_evidence",
+                "source_section": "education",
+                "name": "Data Engineering Student Club — co-organizer",
+                "text": "Data Engineering Student Club — co-organizer",
+            }
+        ],
+        gap={"matched": [], "missing": []},
+        template="",
+        profile={"experiences": [{"company": "Acme Analytics GmbH"}], "projects": []},
+        config={},
+    )
+
+    assert "Selected Education Evidence (not work history)" in prompt
+    assert "education, achievement, volunteering, or project evidence into employment" in prompt
 
 
 def test_build_generation_prompt_requires_exact_candidate_name_in_header() -> None:
@@ -481,6 +575,24 @@ def test_live_schema_required_sections_match_config_required_sections() -> None:
     schema = build_live_structured_cv_response_schema(config=config)
     required = schema["properties"]["sections"]["required"]  # type: ignore[index]
     assert required == ["header", "experience", "skills"]
+
+
+def test_live_schema_config_properties_match_required_sections_for_strict_json_schema() -> None:
+    for publications_enabled in (False, True):
+        config = {
+            "cv": {
+                "composition": {
+                    "summary": {"enabled": False},
+                    "experience": {"enabled": True, "required": True},
+                    "skills": {"enabled": True, "required": True},
+                    "publications": {"enabled": publications_enabled, "required": True},
+                }
+            }
+        }
+        sections_schema = build_live_structured_cv_response_schema(config=config)["properties"]["sections"]
+
+        assert set(sections_schema["properties"]) == set(sections_schema["required"])
+        assert ("publications" in sections_schema["properties"]) is publications_enabled
 
 
 def test_validate_structured_cv_rejects_malformed_skills_groups() -> None:

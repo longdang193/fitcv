@@ -3187,6 +3187,55 @@ def test_post_runs_path_trigger_captures_cv_generation_runtime_expectation(tmp_p
     assert expectation["api_key_available"] is False
 
 
+def test_local_runtime_expectation_uses_packaged_llm_snapshot(monkeypatch) -> None:
+    from fitcv_cp import app as app_module
+
+    monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
+    monkeypatch.setattr(
+        app_module,
+        "build_packaged_llm_configuration_snapshot",
+        lambda: {
+            "revision": 7,
+            "tasks": {
+                "cv_generation_structured_write": {
+                    "provider": "custom-provider",
+                    "model": "cx/test-model",
+                    "base_url": "http://127.0.0.1:20128/v1",
+                    "wire_api": "chat_completions",
+                    "model_record_id": "model-ref",
+                    "timeout_seconds": 120,
+                    "temperature": 0.2,
+                }
+            },
+        },
+    )
+    monkeypatch.setattr(
+        app_module,
+        "resolve_cv_generation_runtime_expectation",
+        lambda **_: {
+            "provider": "openai_compatible",
+            "model": "legacy-model",
+            "base_url": "http://legacy.local/v1",
+            "wire_api": "responses",
+        },
+    )
+    monkeypatch.setattr(app_module, "resolve_openai_compatible_api_key", lambda _: "secret")
+
+    expectation = app_module._resolve_live_runtime_expectation(
+        "cv_generation_structured_write",
+        default_model="",
+        default_wire_api="responses",
+    )
+
+    assert expectation["provider"] == "custom-provider"
+    assert expectation["model"] == "cx/test-model"
+    assert expectation["wire_api"] == "chat_completions"
+    assert expectation["model_record_id"] == "model-ref"
+    assert expectation["configuration_revision"] == 7
+    assert expectation["source"] == "llm_configuration"
+    assert expectation["api_key_available"] is True
+
+
 def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tmp_path) -> None:
     jobs_file = tmp_path / "jobs.json"
     jobs_file.write_text(json.dumps([_valid_fitcv_job(jobUrl="http://a.com", job_url="http://a.com")]), encoding="utf-8")

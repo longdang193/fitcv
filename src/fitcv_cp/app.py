@@ -3162,6 +3162,26 @@ def _resolve_live_runtime_expectation(
     default_model: str,
     default_wire_api: str,
 ) -> dict[str, Any]:
+    if str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower() in {"1", "true", "yes", "on"}:
+        configuration = build_packaged_llm_configuration_snapshot()
+        route = dict((configuration.get("tasks") or {}).get(part_name) or {})
+        if route:
+            provider = str(route.get("provider") or "").strip().lower()
+            return {
+                **route,
+                "configuration_revision": configuration.get("revision"),
+                "source": "llm_configuration",
+                **build_runtime_routing_snapshot(
+                    provider=provider,
+                    model=route.get("model"),
+                    base_url=route.get("base_url"),
+                    wire_api=route.get("wire_api"),
+                    api_key=resolve_openai_compatible_api_key(provider),
+                    default_provider="fitcv_builtin",
+                    default_model=default_model,
+                    default_wire_api=default_wire_api,
+                ),
+            }
     try:
         expected = dict(resolve_cv_generation_runtime_expectation(part_name=part_name))
     except Exception:

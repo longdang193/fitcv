@@ -4582,6 +4582,55 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
         sqlite_store.get_cv_download("cv-1")
 
 
+def test_cv_version_binds_existing_run_job_when_pipeline_omits_id() -> None:
+    run_id = "run-cv-boundary"
+    job_url = "https://jobs.example.test/cv-boundary"
+    run_job_id = _create_normalized_run_with_jobs(
+        run_id, [{"title": "cv-boundary", "job_url": job_url}]
+    )[0]
+
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-boundary-1",
+            "run_id": run_id,
+            "job_url": job_url,
+            "generation_status": "review_required",
+            "cv_markdown": "# CV\n",
+        }
+    )
+
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        stored = conn.execute(
+            "SELECT run_job_id FROM cv_versions WHERE version_id=?", ("cv-boundary-1",)
+        ).fetchone()
+
+    assert stored[0] == run_job_id
+    assert sqlite_store.list_cv_versions(run_job_id)[0]["version_id"] == "cv-boundary-1"
+
+    ambiguous_run_id = "run-cv-ambiguous"
+    ambiguous_job_ids = _create_normalized_run_with_jobs(
+        ambiguous_run_id,
+        [{"title": "cv-ambiguous", "job_url": job_url}] * 2,
+    )
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-ambiguous-1",
+            "run_id": ambiguous_run_id,
+            "job_url": job_url,
+            "generation_status": "review_required",
+            "cv_markdown": "# Ambiguous CV\n",
+        }
+    )
+
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        ambiguous = conn.execute(
+            "SELECT run_job_id FROM cv_versions WHERE version_id=?", ("cv-ambiguous-1",)
+        ).fetchone()
+
+    assert len(ambiguous_job_ids) == 2
+    assert ambiguous[0] is None
+
+
 def test_cv_preview_distinguishes_pending_from_missing() -> None:
     run_job_id = _create_normalized_run_with_jobs("run-cv-preview-state", [{"title": "CV Job"}])[0]
     sqlite_store.reserve_cv_regeneration(

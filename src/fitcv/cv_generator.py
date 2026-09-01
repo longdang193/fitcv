@@ -282,6 +282,38 @@ def _format_evidence_block(item: dict[str, Any]) -> str:
             parts.append("Relevant highlights:")
             parts.extend(highlights)
         return "\n".join(parts)
+    if evidence_type == "candidate_evidence":
+        source_section = str(item.get("source_section") or "").strip().lower()
+        text = str(item.get("text") or item.get("name") or "").strip()
+        if source_section == "experiences":
+            role = str(item.get("parent_title") or item.get("role") or "").strip()
+            company = str(item.get("organization") or item.get("company") or "").strip()
+            skills = ", ".join(str(skill).strip() for skill in item.get("skills") or [] if str(skill).strip())
+            parts = [
+                "Selected Experience Evidence",
+                f"Role: {role or '(role unavailable)'}",
+                f"Company: {company or '(company unavailable)'}",
+                f"Relevant bullet: {text or '(text unavailable)'}",
+            ]
+            if skills:
+                parts.append(f"Skills: {skills}")
+            return "\n".join(parts)
+        if source_section == "projects":
+            project_name = str(item.get("parent_title") or item.get("name") or "").strip()
+            return "\n".join(
+                [
+                    "Selected Project Evidence",
+                    f"Name: {project_name or '(name unavailable)'}",
+                    f"Relevant detail: {text or '(text unavailable)'}",
+                ]
+            )
+        if source_section:
+            return "\n".join(
+                [
+                    f"Selected {source_section.title()} Evidence (not work history)",
+                    f"Relevant detail: {text or '(text unavailable)'}",
+                ]
+            )
 
     name = str(item.get("name", "Unknown"))
     skills = ", ".join(item.get("skills") or [])
@@ -373,7 +405,14 @@ def _build_selected_evidence_lines(
     enabled_section_names: list[str],
 ) -> str:
     lines: list[str] = []
-    has_experience_entries = any(str(item.get("evidence_type") or "") == "experience_entry" for item in evidence)
+    has_experience_entries = any(
+        str(item.get("evidence_type") or "") == "experience_entry"
+        or (
+            str(item.get("evidence_type") or "") == "candidate_evidence"
+            and str(item.get("source_section") or "").strip().lower() == "experiences"
+        )
+        for item in evidence
+    )
     for item in evidence:
         evidence_type = str(item.get("evidence_type") or "")
         if evidence_type == "achievement" and has_experience_entries:
@@ -525,25 +564,78 @@ def _build_generation_prompt_context(
             constraint_lines.append(
                 "Do not output placeholder names such as Candidate Name, [Candidate Name], Your Name, or [Your Name]."
             )
-        known_employers = [
-            str(exp.get("company") or "")
-            for exp in (profile.get("experiences") or [])
-            if exp.get("company")
-        ]
-        known_projects = [
-            str(project.get("name") or "")
-            for project in (profile.get("projects") or [])
-            if project.get("name")
-        ]
-        if known_employers:
-            constraint_lines.append(
-                "Do not invent employer names. Only use employers from the candidate profile: "
-                + ", ".join(known_employers)
+        selected_employers = sorted(
+            {
+                str(item.get("company") or item.get("organization") or "").strip()
+                for item in evidence
+                if (
+                    str(item.get("evidence_type") or "").strip().lower() == "experience_entry"
+                    or (
+                        str(item.get("evidence_type") or "").strip().lower() == "candidate_evidence"
+                        and str(item.get("source_section") or "").strip().lower() == "experiences"
+                    )
+                )
+                and str(item.get("company") or item.get("organization") or "").strip()
+            }
+        )
+        selected_projects = sorted(
+            {
+                str(item.get("parent_title") or item.get("name") or "").strip()
+                for item in evidence
+                if (
+                    str(item.get("evidence_type") or "").strip().lower() in {"project", "project_entry"}
+                    or (
+                        str(item.get("evidence_type") or "").strip().lower() == "candidate_evidence"
+                        and str(item.get("source_section") or "").strip().lower() == "projects"
+                    )
+                )
+                and str(item.get("parent_title") or item.get("name") or "").strip()
+            }
+        )
+        selected_experience_evidence = any(
+            str(item.get("evidence_type") or "").strip().lower() == "experience_entry"
+            or (
+                str(item.get("evidence_type") or "").strip().lower() == "candidate_evidence"
+                and str(item.get("source_section") or "").strip().lower() == "experiences"
             )
-        if known_projects:
+            for item in evidence
+        )
+        has_non_experience_evidence = any(
+            str(item.get("evidence_type") or "").strip().lower() == "candidate_evidence"
+            and str(item.get("source_section") or "").strip().lower() != "experiences"
+            for item in evidence
+        )
+        if selected_employers:
             constraint_lines.append(
-                "Do not invent project names. Only use project names from the candidate profile: "
-                + ", ".join(known_projects)
+                "Only use employers named in selected evidence: "
+                + ", ".join(selected_employers)
+            )
+        elif evidence:
+            constraint_lines.append(
+                "Do not include employer names unless they appear in selected evidence."
+            )
+            constraint_lines.append(
+                "No selected experience evidence exists: set the Experience section to [] and do not convert project, education, or achievement evidence into work history."
+            )
+        if selected_experience_evidence:
+            constraint_lines.append(
+                "Use only selected Experience evidence for the Experience section; never convert education, achievement, volunteering, or project evidence into employment."
+            )
+        elif has_non_experience_evidence:
+            constraint_lines.append(
+                "Non-experience evidence belongs only in its matching section; never convert education, achievement, volunteering, or project evidence into employment."
+            )
+        if selected_projects:
+            constraint_lines.append(
+                "Only use project names named in selected evidence: "
+                + ", ".join(selected_projects)
+            )
+            constraint_lines.append(
+                "Keep project evidence in the Projects section; never use a project name as an Experience.company or employer."
+            )
+        elif evidence:
+            constraint_lines.append(
+                "Do not include project names unless they appear in selected evidence."
             )
         if allowed_skills:
             constraint_lines.append(
@@ -629,6 +721,9 @@ def _build_generation_prompt_context(
         )
         constraint_lines.append(
             "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
+        )
+        constraint_lines.append(
+            "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
         )
 
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
@@ -769,7 +864,7 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
     ]
     if config is not None:
         required_sections = ["header", *get_required_structured_section_keys(config)]
-    return {
+    schema = {
         "type": "object",
         "additionalProperties": False,
         "required": ["sections"],
@@ -912,6 +1007,12 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
             },
         },
     }
+    if config is not None:
+        section_properties = schema["properties"]["sections"]["properties"]
+        schema["properties"]["sections"]["properties"] = {
+            key: section_properties[key] for key in required_sections
+        }
+    return schema
 
 def validate_structured_cv(
     structured_cv: dict[str, Any],

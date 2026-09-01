@@ -10820,6 +10820,15 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
         run_id = str(row.get("run_id") or "").strip() or None
         job_url = str(row.get("job_url") or "").strip() or None
         ordinal = row.get("ordinal")
+        if run_job_id is None and run_id is not None and job_url is not None:
+            jobs = conn.execute(
+                """SELECT run_job_id FROM run_jobs
+                   WHERE run_id=? AND source_url=?
+                   ORDER BY source_index""",
+                (run_id, job_url),
+            ).fetchall()
+            if len(jobs) == 1:
+                run_job_id = str(jobs[0]["run_job_id"])
         if run_job_id is not None:
             job = conn.execute(
                 "SELECT run_id, source_url FROM run_jobs WHERE run_job_id=?", (run_job_id,)
