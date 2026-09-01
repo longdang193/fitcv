@@ -1409,6 +1409,9 @@ def _generate_fresh_from_analysis(
             cv_generation_trace=trace_payload,
         )
     except Exception as exc:
+        runtime_failure_evidence = getattr(exc, "llm_runtime_evidence", None)
+        if isinstance(runtime_failure_evidence, dict):
+            runtime_evidence.append(dict(runtime_failure_evidence))
         if trace_payload is not None:
             if not trace_payload["attempts"]:
                 trace_payload["attempts"].append({"attempt_index": 1, "attempt_type": "initial_generation"})

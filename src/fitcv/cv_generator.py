@@ -1680,7 +1680,9 @@ def _runtime_value_or_raise(result: LlmRuntimeResult) -> dict[str, Any]:
         value["llm_runtime_evidence"] = project_llm_runtime_evidence(result)
         return value
     message = result.failure.message if result.failure else "LLM runtime failed."
-    raise RuntimeError(message)
+    error = RuntimeError(message)
+    setattr(error, "llm_runtime_evidence", project_llm_runtime_evidence(result))
+    raise error
 
 
 def generate_structured_cv(

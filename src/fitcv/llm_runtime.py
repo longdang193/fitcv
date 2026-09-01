@@ -45,6 +45,18 @@ _REQUEST_START_LOCK = threading.Lock()
 _NEXT_REQUEST_START_BY_PROVIDER: dict[str, float] = {}
 _REQUEST_START_MONOTONIC = time.monotonic
 _REQUEST_START_SLEEP = time.sleep
+_PROVIDER_DIAGNOSTIC_KEYS = ("message", "type", "code", "param", "request_id")
+_PROVIDER_DIAGNOSTIC_MAX_STRING_LENGTH = 500
+_PROVIDER_REQUEST_ID_HEADERS = ("x-request-id", "request-id", "x-correlation-id", "correlation-id")
+_PROVIDER_SENSITIVE_VALUE_MARKERS = (
+    "api_key=",
+    "authorization:",
+    "bearer ",
+    "password=",
+    "secret=",
+    "token=",
+    "token:",
+)
 
 
 @dataclass(frozen=True)
@@ -84,6 +96,7 @@ class LlmRuntimeFailure:
     message: str
     retryable: bool = False
     http_status: int | None = None
+    provider_diagnostics: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -153,6 +166,10 @@ def project_llm_runtime_evidence(result: LlmRuntimeResult) -> dict[str, Any]:
             else None
         ),
     }
+    if failure is not None and failure.provider_diagnostics:
+        safe_diagnostics = _sanitize_provider_diagnostics(failure.provider_diagnostics)
+        if safe_diagnostics and isinstance(evidence["failure"], dict):
+            evidence["failure"]["provider_diagnostics"] = safe_diagnostics
     adapter_response = result.adapter_response
     if adapter_response is not None:
         provider_payload = adapter_response.provider_payload or {}
@@ -181,6 +198,7 @@ class LlmAdapterError(RuntimeError):
         *,
         adapter: str | None = None,
         runtime_path: str | None = None,
+        provider_diagnostics: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
@@ -188,6 +206,73 @@ class LlmAdapterError(RuntimeError):
         self.http_status = http_status
         self.adapter = adapter
         self.runtime_path = runtime_path
+        self.provider_diagnostics = provider_diagnostics
+
+
+def _sanitize_provider_diagnostics(
+    value: Any,
+    *,
+    api_key: str = "",
+) -> dict[str, str | int]:
+    if not isinstance(value, dict):
+        return {}
+    sanitized: dict[str, str | int] = {}
+    status = value.get("status")
+    if isinstance(status, int) and not isinstance(status, bool):
+        sanitized["status"] = status
+    for key in _PROVIDER_DIAGNOSTIC_KEYS:
+        field_value = value.get(key)
+        if not isinstance(field_value, str):
+            continue
+        text = field_value.strip()
+        if not text:
+            continue
+        lowered = text.lower()
+        if api_key and api_key.lower() in lowered:
+            continue
+        if any(marker in lowered for marker in _PROVIDER_SENSITIVE_VALUE_MARKERS):
+            continue
+        if len(text) > _PROVIDER_DIAGNOSTIC_MAX_STRING_LENGTH:
+            text = text[:_PROVIDER_DIAGNOSTIC_MAX_STRING_LENGTH] + "...[truncated]"
+        sanitized[key] = text
+    return sanitized
+
+
+def _provider_http_diagnostics(
+    response: Any,
+    *,
+    status: int,
+    api_key: str,
+) -> dict[str, str | int]:
+    try:
+        body = decode_openai_compat_response_body(response)
+    except Exception:
+        body = {}
+    error = body.get("error") if isinstance(body, dict) else None
+    error_fields = (
+        error
+        if isinstance(error, dict)
+        else {"message": error}
+        if isinstance(error, str)
+        else {}
+    )
+    raw: dict[str, Any] = {"status": status}
+    for key in ("message", "type", "code", "param"):
+        if key in error_fields:
+            raw[key] = error_fields[key]
+        elif isinstance(body, dict) and key in body:
+            raw[key] = body[key]
+    headers = getattr(response, "headers", {}) or {}
+    for header_name, header_value in getattr(headers, "items", lambda: ())():
+        if str(header_name).lower() in _PROVIDER_REQUEST_ID_HEADERS:
+            raw["request_id"] = header_value
+            break
+    if "request_id" not in raw:
+        for source in (error_fields, body):
+            if isinstance(source, dict) and "request_id" in source:
+                raw["request_id"] = source["request_id"]
+                break
+    return _sanitize_provider_diagnostics(raw, api_key=api_key)
 
 def _wait_for_provider_request_start(route: LlmRouting) -> None:
     interval = route.request_start_interval_secs
@@ -337,6 +422,7 @@ def execute_llm_task(
                 message=str(exc),
                 retryable=exc.retryable,
                 http_status=exc.http_status,
+                provider_diagnostics=exc.provider_diagnostics,
             ),
             started=started,
             adapter=exc.adapter or adapter_name,
@@ -527,6 +613,11 @@ def _openai_compatible_adapter(
             status,
             adapter="openai_compatible",
             runtime_path="fitcv_llm_openai_compatible",
+            provider_diagnostics=_provider_http_diagnostics(
+                exc.response,
+                status=status,
+                api_key=api_key,
+            ),
         ) from exc
     except httpx.TransportError as exc:
         raise LlmAdapterError(

@@ -3579,6 +3579,41 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
     }
     profile = _minimal_profile()
     config = _minimal_config()
+    from fitcv.llm_runtime import LlmRuntimeFailure, LlmRuntimeProvenance, LlmRuntimeResult
+
+    failed_runtime_result = LlmRuntimeResult(
+        status="failed",
+        parsed_value=None,
+        validation=None,
+        failure=LlmRuntimeFailure(
+            stage="adapter",
+            code="adapter_http_error",
+            message="http error",
+            http_status=400,
+            provider_diagnostics={
+                "status": 400,
+                "message": "Invalid request body",
+                "type": "invalid_request_error",
+                "code": "invalid_input",
+                "param": "input",
+                "request_id": "trace-http",
+                "raw_body": '{"api_key":"sk-do-not-leak","secret":"provider-secret"}',
+            },
+        ),
+        provenance=LlmRuntimeProvenance(
+            routing_part="cv_generation_structured_write",
+            runtime_path="fitcv_llm_openai_compatible",
+            adapter="openai_compatible",
+            provider="openai",
+            model="cx/gpt-5.2",
+            wire_api="responses",
+            attempt_count=1,
+            response_id=None,
+            trace_id=None,
+            latency_ms=1,
+        ),
+        adapter_response=None,
+    )
 
     with ExitStack() as stack:
         stack.enter_context(patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span))
@@ -3649,14 +3684,11 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
         stack.enter_context(patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)))
         stack.enter_context(
             patch(
-                "fitcv.pipeline.run_agentic_cv_generation",
-                return_value=_agentic_generation_result(
-                    status="generation_failed",
-                    error={"stage": "generation", "message": "llm down"},
-                ),
+                "fitcv.cv_generator._execute_cv_generation_runtime",
+                return_value=failed_runtime_result,
             )
         )
-        run_pipeline(
+        pipeline_result = run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
         )
@@ -3667,9 +3699,26 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
     metadata = json.loads(item_attributes["langfuse.observation.metadata"])
     assert metadata["status"] == "generation_failed"
     assert metadata["output_structured"]["status"] == "generation_failed"
-    assert metadata["output_structured"]["failure_summary"] == "llm down"
+    assert metadata["output_structured"]["failure_summary"] == "http error"
     assert metadata["output_structured"]["persistence_outcome"] == "generation_failed"
     assert "## Failure Summary" in item_attributes["langfuse.observation.output"]
+
+    record = pipeline_result["cv_generation_debug_records"][0]
+    observation = record["llm_runtime_observations"][0]
+    assert observation["evidence"]["failure"]["provider_diagnostics"] == {
+        "status": 400,
+        "message": "Invalid request body",
+        "type": "invalid_request_error",
+        "code": "invalid_input",
+        "param": "input",
+        "request_id": "trace-http",
+    }
+    stage_summary = pipeline_result["stage_transition_artifacts"]["stages"]["cv_generation"]["llm_runtime_summary"]
+    assert stage_summary["failed_total"] == 1
+    assert stage_summary["failure_counts_by_code"] == {"adapter_http_error": 1}
+    serialized = json.dumps(pipeline_result, sort_keys=True)
+    assert "sk-do-not-leak" not in serialized
+    assert "provider-secret" not in serialized
 
 
 

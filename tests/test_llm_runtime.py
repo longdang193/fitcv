@@ -286,7 +286,16 @@ class _HttpResponse:
             import httpx
 
             request = httpx.Request("POST", "https://provider.example/v1/responses")
-            raise httpx.HTTPStatusError("http error", request=request, response=httpx.Response(self.status_code, request=request))
+            raise httpx.HTTPStatusError(
+                "http error",
+                request=request,
+                response=httpx.Response(
+                    self.status_code,
+                    headers=self.headers,
+                    content=self.text,
+                    request=request,
+                ),
+            )
 
 
 class _HttpClient:
@@ -352,6 +361,60 @@ def test_default_adapter_preserves_json_schema_on_responses_404_fallback() -> No
     assert result.adapter_response.attempt_count == 2
     assert result.adapter_response.response_id == "resp-chat"
     assert result.adapter_response.telemetry["usage"] == {"total_tokens": 9}
+
+
+def test_default_adapter_preserves_safe_http_400_diagnostics_without_secrets() -> None:
+    calls: list[dict[str, Any]] = []
+    responses = [
+        _HttpResponse(
+            400,
+            {
+                "error": {
+                    "message": "Invalid request body",
+                    "type": "invalid_request_error",
+                    "code": "invalid_input",
+                    "param": "input",
+                    "request_id": "body-request-id",
+                    "api_key": "sk-do-not-leak",
+                    "token": "nested-secret",
+                },
+                "request_id": "body-request-id",
+                "secret": "top-level-secret",
+            },
+        )
+    ]
+
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing", return_value=_route()),
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+        patch("httpx.Client", return_value=_HttpClient(responses, calls)),
+    ):
+        result = execute_llm_task(
+            _request(),
+            parser=lambda response: json.loads(response.raw_text),
+            validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+        )
+
+    assert result.status == "failed"
+    assert result.failure is not None
+    assert result.failure.code == "adapter_http_error"
+    assert result.failure.message == "http error"
+    assert result.failure.http_status == 400
+    assert result.failure.provider_diagnostics == {
+        "status": 400,
+        "message": "Invalid request body",
+        "type": "invalid_request_error",
+        "code": "invalid_input",
+        "param": "input",
+        "request_id": "trace-http",
+    }
+
+    evidence = project_llm_runtime_evidence(result)
+    assert evidence["failure"]["provider_diagnostics"] == result.failure.provider_diagnostics
+    serialized = json.dumps(evidence, sort_keys=True)
+    assert "sk-do-not-leak" not in serialized
+    assert "nested-secret" not in serialized
+    assert "top-level-secret" not in serialized
 
 def test_execute_llm_task_passes_empty_adapter_text_to_parser() -> None:
     seen: list[str] = []
