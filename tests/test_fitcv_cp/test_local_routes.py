@@ -893,6 +893,22 @@ def test_import_rejects_unsafe_archive(local_client: TestClient, tmp_path: Path)
     assert "unsafe path" in response.text
 
 
+def test_run_readiness_blocker_uses_canonical_error_action(local_client: TestClient) -> None:
+    _complete_onboarding()
+
+    response = local_client.post(
+        "/runs",
+        data={"profile_id": "profile-synthetic", "scan_ids": "scan-synthetic"},
+        headers={**_csrf_headers(local_client), "Idempotency-Key": "readiness-blocker-test"},
+    )
+
+    assert response.status_code == 409
+    payload = response.json()
+    assert payload["error"]["code"] == "local_readiness_required"
+    assert "No verified provider model is available" in payload["error"]["message"]
+    assert "API Providers and LLM Configuration" in payload["error"]["action"]
+    assert payload["data"]["readiness"]["ready"] is False
+
 def test_onboarding_links_to_canonical_configuration_and_omits_legacy_forms(
     local_client: TestClient,
 ) -> None:
@@ -900,8 +916,9 @@ def test_onboarding_links_to_canonical_configuration_and_omits_legacy_forms(
 
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
-    assert 'href="/admin/api-providers"' in response.text
-    assert 'href="/admin/llm-configuration"' in response.text
+    assert 'href="/app#/settings/providers"' in response.text
+    assert 'href="/admin/api-providers"' not in response.text
+    assert 'href="/admin/llm-configuration"' not in response.text
     assert 'name="controller_settings_present"' not in response.text
     assert 'name="retry_max_attempts"' not in response.text
     assert 'name="prompt_addendum_' not in response.text

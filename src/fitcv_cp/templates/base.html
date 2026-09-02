@@ -794,8 +794,8 @@ canonical: true
           <a class="nav-link child" href="/admin/settings/prompt-management" aria-current="{{ 'page' if current_path == '/admin/settings/prompt-management' else 'false' }}">Prompt Management</a>
         </div></details>
         <details class="nav-group" open><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Application</summary><div class="nav-children">
-          <a class="nav-link child" href="/admin/api-providers" aria-current="{{ 'page' if current_path.startswith('/admin/api-providers') else 'false' }}">API Providers</a>
-          <a class="nav-link child" href="/admin/llm-configuration" aria-current="{{ 'page' if current_path == '/admin/llm-configuration' else 'false' }}">LLM Configuration</a>
+          <a class="nav-link child" href="{{ '/app#/settings/providers' if local_mode else '/admin/api-providers' }}" aria-current="{{ 'page' if current_path.startswith('/admin/api-providers') else 'false' }}">API Providers</a>
+          <a class="nav-link child" href="{{ '/app#/settings/providers' if local_mode else '/admin/llm-configuration' }}" aria-current="{{ 'page' if current_path == '/admin/llm-configuration' else 'false' }}">LLM Configuration</a>
           <a class="nav-link child" href="/admin/system" aria-current="{{ 'page' if current_path == '/admin/system' else 'false' }}">System</a>
         </div></details>
       </nav>

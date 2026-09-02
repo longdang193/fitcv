@@ -7282,8 +7282,19 @@ def create_app(
             elif unsafe and request.url.path in {"/runs", "/admin/upload-trigger"}:
                 readiness_status = local_readiness_status()
                 if not readiness_status["ready"]:
+                    error = ApiError(
+                        409,
+                        "local_readiness_required",
+                        "FitCV is not ready to run: "
+                        + "; ".join(str(reason) for reason in readiness_status["reasons"]),
+                        action=(
+                            "Open /app Settings: API Providers and LLM Configuration, "
+                            "verify a provider and model, set Default Route, then retry."
+                        ),
+                        data={"readiness": readiness_status},
+                    )
                     return Response(
-                        _json.dumps(readiness_status),
+                        _json.dumps(error.payload),
                         status_code=409,
                         media_type="application/json",
                     )

@@ -41,11 +41,13 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
   // Form submission state
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open) {
       setError(null);
+      setErrorAction(null);
       setFieldErrors({});
       setSubmitting(false);
       setFile(null);
@@ -113,6 +115,7 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setErrorAction(null);
     const errors: Record<string, string> = {};
 
     if (!selectedProfileId) {
@@ -179,6 +182,7 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
           setFieldErrors(mapped);
         }
         setError(err.message || "Failed to trigger run.");
+        setErrorAction(err.action || null);
         const detailsData = (err.details as any)?.data || (err.details as any);
         if (detailsData?.run_id) {
           onSuccess(detailsData.run_id);
@@ -219,7 +223,8 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {error && (
             <div className="notice error" role="alert">
-              {error}
+              <div>{error}</div>
+              {errorAction && <div style={{ marginTop: 6 }}>{errorAction}</div>}
             </div>
           )}
 
