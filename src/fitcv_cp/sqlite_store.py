@@ -10829,6 +10829,8 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
             ).fetchall()
             if len(jobs) == 1:
                 run_job_id = str(jobs[0]["run_job_id"])
+        if run_job_id is None:
+            raise ValueError("cv_version_run_job_binding_required")
         if run_job_id is not None:
             job = conn.execute(
                 "SELECT run_id, source_url FROM run_jobs WHERE run_job_id=?", (run_job_id,)

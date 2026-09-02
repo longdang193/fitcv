@@ -3712,6 +3712,9 @@ def test_reject_exact_retry_does_not_append_second_event_and_reason_conflicts() 
 
 
 def test_cv_version_lookup_and_markdown_round_trip() -> None:
+    run_job_id = _create_normalized_run_with_jobs(
+        "run-cv", [{"title": "CV Job", "job_url": "https://example.com/job-1"}]
+    )[0]
     row = {
         "version_id": "ver-1",
         "run_id": "run-cv",
@@ -4572,7 +4575,7 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
     assert preview is not None and preview["content"] == content
     with pytest.raises(sqlite3.IntegrityError):
         sqlite_store.insert_cv_version_row(
-            {"version_id": "cv-1", "generation_status": "pending"}
+            {"version_id": "cv-1", "run_job_id": run_job_id, "generation_status": "pending"}
         )
 
     with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
@@ -4582,7 +4585,7 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
         sqlite_store.get_cv_download("cv-1")
 
 
-def test_cv_version_binds_existing_run_job_when_pipeline_omits_id() -> None:
+def test_cv_version_requires_unique_run_job_binding_when_pipeline_omits_id() -> None:
     run_id = "run-cv-boundary"
     job_url = "https://jobs.example.test/cv-boundary"
     run_job_id = _create_normalized_run_with_jobs(
@@ -4612,23 +4615,42 @@ def test_cv_version_binds_existing_run_job_when_pipeline_omits_id() -> None:
         ambiguous_run_id,
         [{"title": "cv-ambiguous", "job_url": job_url}] * 2,
     )
-    sqlite_store.insert_cv_version_row(
-        {
-            "version_id": "cv-ambiguous-1",
-            "run_id": ambiguous_run_id,
-            "job_url": job_url,
-            "generation_status": "review_required",
-            "cv_markdown": "# Ambiguous CV\n",
-        }
-    )
+    with pytest.raises(ValueError, match="cv_version_run_job_binding_required"):
+        sqlite_store.insert_cv_version_row(
+            {
+                "version_id": "cv-ambiguous-1",
+                "run_id": ambiguous_run_id,
+                "job_url": job_url,
+                "generation_status": "review_required",
+                "cv_markdown": "# Ambiguous CV\n",
+            }
+        )
 
     with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
         ambiguous = conn.execute(
-            "SELECT run_job_id FROM cv_versions WHERE version_id=?", ("cv-ambiguous-1",)
-        ).fetchone()
+            "SELECT COUNT(*) FROM cv_versions WHERE version_id=?", ("cv-ambiguous-1",)
+        ).fetchone()[0]
 
     assert len(ambiguous_job_ids) == 2
-    assert ambiguous[0] is None
+    assert ambiguous == 0
+
+    with pytest.raises(ValueError, match="cv_version_run_job_binding_required"):
+        sqlite_store.insert_cv_version_row(
+            {
+                "version_id": "cv-unmatched-1",
+                "run_id": "run-cv-unmatched",
+                "job_url": job_url,
+                "generation_status": "review_required",
+                "cv_markdown": "# Unmatched CV\n",
+            }
+        )
+
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        unmatched = conn.execute(
+            "SELECT COUNT(*) FROM cv_versions WHERE version_id=?", ("cv-unmatched-1",)
+        ).fetchone()[0]
+
+    assert unmatched == 0
 
 
 def test_cv_preview_distinguishes_pending_from_missing() -> None:
