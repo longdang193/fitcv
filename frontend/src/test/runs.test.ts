@@ -158,12 +158,13 @@ describe("runs feature route and api slice", () => {
             status: "passed",
             result_bucket: "passed",
             bookmarked: false,
-            interest_rating: 4,
+            rating: 5,
+            rating_contract_revision: "application-interest-v1",
             cv_versions_count: 1,
           },
         ],
         page: 1,
-        page_size: 10,
+        page_size: 50,
         total_items: 1,
         meta: {
           run_id: "run-004",
@@ -183,15 +184,17 @@ describe("runs feature route and api slice", () => {
 
     const res = await fetchRunJobs("run-004", {
       page: 1,
-      page_size: 10,
+      page_size: 50,
       stage: "screening",
       result_bucket: "passed",
       search: "Software",
     });
 
-    expect(getSpy).toHaveBeenCalledWith("/runs/run-004/jobs?page=1&page_size=10&search=Software&stage=screening&result_bucket=passed");
+    expect(getSpy).toHaveBeenCalledWith("/runs/run-004/jobs?page=1&page_size=50&search=Software&stage=screening&result_bucket=passed");
     expect(res.data.length).toBe(1);
     expect(res.data[0].title).toBe("Software Engineer");
+    expect(res.data[0].interest_rating).toBe(5);
+    expect(res.data[0].rating_contract_revision).toBe("application-interest-v1");
   });
 
   it("fetches run events with cursor pagination", async () => {

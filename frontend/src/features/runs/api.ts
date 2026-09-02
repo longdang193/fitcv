@@ -78,7 +78,14 @@ export async function fetchRunJobs(
   const qs = query.toString();
   const path = `/runs/${encodeURIComponent(runId)}/jobs${qs ? `?${qs}` : ""}`;
   const res = await apiClient.get<PaginationEnvelope<RunJobItem, RunJobsPaginationMeta>>(path);
-  return res.data;
+  return {
+    ...res.data,
+    data: res.data.data.map((job) => ({
+      ...job,
+      interest_rating:
+        job.interest_rating ?? (typeof job.rating === "number" ? job.rating : null),
+    })),
+  };
 }
 
 export async function fetchRunEvents(

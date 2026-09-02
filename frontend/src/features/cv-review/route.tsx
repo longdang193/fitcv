@@ -78,7 +78,7 @@ export const CvReviewPage: React.FC = () => {
     async function loadJobs() {
       setLoadingJobs(true);
       try {
-        const res = await fetchRunJobs(selectedRunId, { page: 1, page_size: 100 });
+        const res = await fetchRunJobs(selectedRunId, { page: 1, page_size: 50 });
         const items = res.data || [];
         setJobs(items);
         if (items.length > 0) {
