@@ -19,6 +19,7 @@ import {
   deleteProfile,
   updateProfile,
   fetchSourceBlock,
+  normalizeCandidateProfileDetail,
 } from "../features/candidate-profile/api";
 import { apiClient } from "../lib/api-client";
 import { CandidateProfileReviewOperation } from "../features/candidate-profile/types";
@@ -94,6 +95,79 @@ describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
 });
 
 describe("Candidate Profile API & Full Lifecycle Operations", () => {
+  it("normalizes CandidateProfileDetail with nested profile.canonical or overview", () => {
+    const rawWithNestedProfile: any = {
+      profile_id: "prof_test_1",
+      profile_name: "Test Candidate",
+      display_name: "Test Candidate",
+      lifecycle: "active",
+      creation_status: "succeeded",
+      revision: 1,
+      created_at: "2026-09-01T00:00:00Z",
+      capabilities: { inspect: true, archive: true, restore: false, delete: false, use_for_run: true },
+      overview: {
+        name: "Test Overview Name",
+      },
+      profile: {
+        profile_revision_id: "rev_1",
+        revision: 1,
+        checksum: "abc",
+        schema_version: "candidate-profile.v2",
+        canonical: {
+          name: "Jordan Lee",
+          headline: "Senior Full Stack Engineer",
+          summary: "Experienced software engineer specializing in Python and React.",
+          contact: {
+            email: "jordan.lee@example.com",
+            phone: "+49 170 1234567",
+            location: "Berlin, Germany",
+          },
+          experiences: [
+            {
+              id: "exp_1",
+              role: "Senior Software Engineer",
+              company: "TechCore Labs",
+              start: "2022-03",
+              end: "Present",
+              evidence: [
+                { id: "ev_1", text: "Architected high-throughput services." }
+              ]
+            }
+          ],
+          education: [
+            {
+              id: "edu_1",
+              degree: "B.Sc. Computer Science",
+              institution: "Technical University of Munich",
+              start: "2015-10",
+              end: "2019-05"
+            }
+          ],
+          skills: [
+            {
+              id: "skill_1",
+              name: "FastAPI",
+              confidence: 0.98,
+              support_status: "supported",
+              evidence_refs: ["ev_1"]
+            }
+          ]
+        }
+      }
+    };
+
+    const normalized = normalizeCandidateProfileDetail(rawWithNestedProfile);
+    expect(normalized.canonical).toBeDefined();
+    expect(normalized.canonical?.name).toBe("Jordan Lee");
+    expect(normalized.canonical?.headline).toBe("Senior Full Stack Engineer");
+    expect(normalized.canonical?.summary).toBe("Experienced software engineer specializing in Python and React.");
+    expect(normalized.canonical?.contact?.email).toBe("jordan.lee@example.com");
+    expect(normalized.canonical?.experiences?.[0].role).toBe("Senior Software Engineer");
+    expect(normalized.canonical?.experiences?.[0].company).toBe("TechCore Labs");
+    expect(normalized.canonical?.education?.[0].institution).toBe("Technical University of Munich");
+    expect(normalized.canonical?.skills?.[0].name).toBe("FastAPI");
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });

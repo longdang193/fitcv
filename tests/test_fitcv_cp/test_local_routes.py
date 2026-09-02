@@ -600,7 +600,7 @@ def test_completed_onboarding_redirects_to_runs(
     response = local_client.get("/local/onboarding", follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/admin/runs"
+    assert response.headers["location"] == "/app"
 
 def test_onboarding_resumes_saved_step(local_client: TestClient) -> None:
     state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"

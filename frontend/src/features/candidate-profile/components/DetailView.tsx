@@ -38,7 +38,8 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack }) => 
       const profData = await fetchProfileDetail(profileId);
       setProfile(profData);
       setEditProfileName(profData.profile_name || "");
-      setEditCanonicalJson(JSON.stringify(profData.canonical || {}, null, 2));
+      const resolvedCanonical = profData.canonical || profData.profile?.canonical || profData.overview || {};
+      setEditCanonicalJson(JSON.stringify(resolvedCanonical, null, 2));
       setLoading(false);
     } catch (err: any) {
       setError(err.message || "Failed to load candidate profile details.");
@@ -50,7 +51,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack }) => 
     loadDetail();
   }, [profileId]);
 
-  const canonical = profile?.canonical || {};
+  const canonical = profile?.canonical || profile?.profile?.canonical || profile?.overview || {};
 
   // Lifecycle actions
   const handleArchive = async () => {

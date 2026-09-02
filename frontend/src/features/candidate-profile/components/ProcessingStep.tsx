@@ -12,7 +12,7 @@ export interface ProcessingStepProps {
 
 export const ProcessingStep: React.FC<ProcessingStepProps> = ({
   attemptId,
-  targetStage = "review_baseline",
+  targetStage,
   onReady,
   onCancel,
 }) => {

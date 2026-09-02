@@ -143,7 +143,7 @@ export const CandidateProfileRoute: React.FC = () => {
   };
 
   const handleBaselineApproved = (attemptId: string) => {
-    navigate(`#/candidate-profile/create/${encodeURIComponent(attemptId)}/derived`);
+    navigate(`#/candidate-profile/create/${encodeURIComponent(attemptId)}`);
   };
 
   const handleDerivedApproved = (attemptId: string) => {
@@ -192,7 +192,6 @@ export const CandidateProfileRoute: React.FC = () => {
       {routeState.view === "create_processing" && routeState.attemptId && (
         <ProcessingStep
           attemptId={routeState.attemptId}
-          targetStage="review_baseline"
           onReady={handleProcessingReady}
           onCancel={handleBackToCatalog}
         />

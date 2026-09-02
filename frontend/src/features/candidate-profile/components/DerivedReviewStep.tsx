@@ -9,6 +9,7 @@ import {
   undoDerivedRegeneration,
   approveDerivedReview,
   fetchCreationAttempt,
+  waitForAttemptTransition,
 } from "../api";
 import {
   CandidateProfileReviewOperation,
@@ -68,12 +69,17 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
     setError(null);
     setStaleError(null);
     try {
-      const [schemaData, derivedData, baselineData, attemptData] = await Promise.all([
+      const [schemaData, baselineData, initialAttempt] = await Promise.all([
         fetchFieldSchema(),
-        fetchDerivedReview(attemptId),
         fetchBaselineReview(attemptId),
         fetchCreationAttempt(attemptId),
       ]);
+      let attemptData = initialAttempt;
+      if (attemptData.creation_status === "deriving" || attemptData.next_action === "wait") {
+        setStatusMessage("Generating derived claims...");
+        attemptData = await waitForAttemptTransition(attemptId, ["review_derived", "confirm"]);
+      }
+      const derivedData = await fetchDerivedReview(attemptId);
       setSchema(schemaData);
       setReview(derivedData);
       setDocument(derivedData.document || {});

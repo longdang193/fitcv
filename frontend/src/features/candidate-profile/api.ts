@@ -326,11 +326,20 @@ export async function fetchProfiles(params?: {
   return res.data;
 }
 
+export function normalizeCandidateProfileDetail(raw: CandidateProfileDetail): CandidateProfileDetail {
+  const canonical = raw.canonical || raw.profile?.canonical || raw.overview || {};
+  return {
+    ...raw,
+    canonical,
+  };
+}
+
 export async function fetchProfileDetail(profileId: string): Promise<CandidateProfileDetail> {
   const res = await apiClient.get<{ data: CandidateProfileDetail }>(
     `/candidate-profiles/${encodeURIComponent(profileId)}`
   );
-  return (res.data as any)?.data || res.data;
+  const data = (res.data as any)?.data || res.data;
+  return normalizeCandidateProfileDetail(data);
 }
 
 export async function updateProfile(

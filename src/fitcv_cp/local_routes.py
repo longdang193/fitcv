@@ -445,7 +445,7 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
     async def onboarding(request: Request):
         state = load_onboarding_state()
         if state.get("complete"):
-            return RedirectResponse("/admin/runs", status_code=303)
+            return RedirectResponse("/app", status_code=303)
         profile_path = Path(os.environ["FITCV_LOCAL_CANDIDATE_PROFILE_PATH"])
         profile_draft = str((state.get("drafts") or {}).get("profile") or "")
         if not profile_draft and profile_path.exists():
@@ -515,7 +515,7 @@ def build_local_router(templates: Jinja2Templates) -> APIRouter:
         state = load_onboarding_state()
         state.update({"current_step": "complete", "complete": True})
         save_onboarding_state(state)
-        return RedirectResponse("/admin/runs", status_code=303)
+        return RedirectResponse("/app", status_code=303)
 
     @router.get("/readiness")
     async def local_readiness() -> JSONResponse:

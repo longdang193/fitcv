@@ -150,6 +150,14 @@ export interface CandidateProfile {
 
 export interface CandidateProfileDetail extends CandidateProfile {
   canonical?: Record<string, any>;
+  overview?: Record<string, any>;
+  profile?: {
+    profile_revision_id?: string;
+    revision?: number;
+    checksum?: string;
+    schema_version?: string;
+    canonical?: Record<string, any>;
+  };
   related_runs?: Array<{
     run_id: string;
     created_at?: string;
