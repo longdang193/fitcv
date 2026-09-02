@@ -997,17 +997,23 @@ def test_generate_cv_uses_openai_compatible_routed_client(
         def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
             captured["url"] = url
             captured["model"] = json.get("model")
+            captured["input"] = json.get("input")
             return FakeResponse()
 
     fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
     monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setenv("FITCV_LLM_API_KEY", "test-key")
 
+    profile = {
+        "name": "Jane Doe",
+        "candidate_profile_id": "candidate-1",
+        "revision": 7,
+    }
     result = generate_cv(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},
         evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
         gap={"matched": ["SQL"], "missing": []},
-        profile={"name": "Jane Doe"},
+        profile=profile,
         config={
             "gcp_project": "fitcv-491123",
             "location": "us-central1",
@@ -1031,6 +1037,15 @@ def test_generate_cv_uses_openai_compatible_routed_client(
     assert "Designs reliable data platforms." in result["markdown"]
     assert captured["model"] == "cx/gpt-5.2"
     assert str(captured["url"]).endswith("/responses")
+    provider_input = str(captured["input"])
+    assert "Jane Doe" in provider_input
+    assert "candidate_profile_id" not in provider_input
+    assert "candidate-1" not in provider_input
+    assert profile == {
+        "name": "Jane Doe",
+        "candidate_profile_id": "candidate-1",
+        "revision": 7,
+    }
 
 
 def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(

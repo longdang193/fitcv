@@ -1,6 +1,10 @@
 import React from "react";
 import { StatusBadge, Button } from "../../../components";
-import { PersonalizationResource, RankingMode } from "../types";
+import {
+  PersonalizationOptimizationResource,
+  PersonalizationResource,
+  RankingMode,
+} from "../types";
 
 export interface PersonalizationCardProps {
   personalization: PersonalizationResource;
@@ -12,6 +16,13 @@ export interface PersonalizationCardProps {
   onReset: () => void;
   saving?: boolean;
   hasChanges?: boolean;
+  optimization?: PersonalizationOptimizationResource | null;
+  optimizationBusy?: boolean;
+  optimizationStatus?: string | null;
+  actor?: string;
+  onActorChange?: (actor: string) => void;
+  onCreateCandidate?: () => void;
+  onActivateCandidate?: () => void;
 }
 
 export const PersonalizationCard: React.FC<PersonalizationCardProps> = ({
@@ -24,6 +35,13 @@ export const PersonalizationCard: React.FC<PersonalizationCardProps> = ({
   onReset,
   saving = false,
   hasChanges = false,
+  optimization,
+  optimizationBusy = false,
+  optimizationStatus,
+  actor = "",
+  onActorChange,
+  onCreateCandidate,
+  onActivateCandidate,
 }) => {
   const bounds = personalization.bounds || { minimum: 0.0, maximum: 1.0, step: 0.01 };
 
@@ -82,6 +100,68 @@ export const PersonalizationCard: React.FC<PersonalizationCardProps> = ({
           <span style={{ fontSize: 12, color: "var(--muted)" }}>
             Personalized ranking is selected, but no compatible active optimization policy is currently available. The pipeline will truthfully use baseline ranking until a compatible policy exists.
           </span>
+        </div>
+      )}
+
+      {optimization && rankingMode === "personalized" && (
+        <div
+          className="notice"
+          role={optimizationStatus ? "alert" : "status"}
+          style={{
+            marginBottom: 20,
+            padding: "12px 14px",
+            border: "1px solid var(--border-soft)",
+            borderRadius: 8,
+          }}
+        >
+          <strong style={{ display: "block", fontSize: 13, color: "var(--text)" }}>
+            Preference Evidence
+          </strong>
+          <span style={{ display: "block", fontSize: 12, color: "var(--muted)" }}>
+            {optimization.episode_count} episode{optimization.episode_count === 1 ? "" : "s"} · {optimization.rating_event_count} rating event{optimization.rating_event_count === 1 ? "" : "s"}
+          </span>
+          <code style={{ display: "block", marginTop: 6, fontSize: 11 }}>
+            Parent: {optimization.current_parent_ref}
+          </code>
+          {optimizationStatus && (
+            <span style={{ display: "block", marginTop: 8, fontSize: 12 }}>
+              {optimizationStatus}
+            </span>
+          )}
+          {optimization.baseline_fallback && optimization.evidence_ready && onCreateCandidate && (
+            <Button
+              variant="secondary"
+              onClick={onCreateCandidate}
+              disabled={optimizationBusy}
+              style={{ marginTop: 10 }}
+            >
+              {optimizationBusy ? "Creating..." : "Create Policy Candidate"}
+            </Button>
+          )}
+          {optimization.policy_snapshot_id &&
+            (optimization.status === "candidate_created" ||
+              optimization.latest_candidate?.status === "candidate") &&
+            onActivateCandidate && (
+              <div style={{ display: "flex", alignItems: "end", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                <label style={{ display: "grid", gap: 4, fontSize: 11, color: "var(--muted)" }}>
+                  Actor
+                  <input
+                    value={actor}
+                    onChange={(event) => onActorChange?.(event.target.value)}
+                    disabled={optimizationBusy}
+                    aria-label="Activation actor"
+                    style={{ padding: "7px 8px", border: "1px solid var(--border)", borderRadius: 6 }}
+                  />
+                </label>
+                <Button
+                  variant="primary"
+                  onClick={onActivateCandidate}
+                  disabled={optimizationBusy || !actor.trim()}
+                >
+                  {optimizationBusy ? "Activating..." : "Activate Candidate"}
+                </Button>
+              </div>
+            )}
         </div>
       )}
 

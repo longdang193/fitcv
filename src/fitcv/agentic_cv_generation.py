@@ -699,12 +699,18 @@ def _build_fallback_provider_generator(
     fit: str,
     evidence_selection_summary: dict[str, Any],
 ) -> Callable[[list[str] | None], Any]:
+    provider_profile = {
+        key: value
+        for key, value in profile.items()
+        if key not in {"candidate_profile_id", "revision"}
+    }
+
     def _call(repair_missing_sections: list[str] | None) -> Any:
         return generate_cv(
             job,
             evidence_payload,
             gap_summary,
-            profile,
+            provider_profile,
             config,
             fit_classification=fit,
             evidence_selection_summary=evidence_selection_summary,

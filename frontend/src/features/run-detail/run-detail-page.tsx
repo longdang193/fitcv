@@ -187,8 +187,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
     setActionInProgress(true);
     setActionNotice(null);
     try {
-      await cancelRun(runId);
-      setActionNotice("Cancellation request sent.");
+      const cancelledRun = await cancelRun(runId);
+      setActionNotice(
+        cancelledRun.backend_status === "cancelled"
+          ? "Run cancelled."
+          : "Cancellation request sent."
+      );
       setConfirmAction(null);
       await loadRunDetail(false);
       await pollEvents();
@@ -383,6 +387,9 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
     variant: "neutral" as StatusVariant,
     label: run.display_status || run.backend_status,
   };
+  const runStatusLabel = run.backend_status === "cancelled"
+    ? runStatusCfg.label
+    : run.display_status || runStatusCfg.label;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -395,7 +402,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>
             {run.run_name || run.run_id}
           </h1>
-          <StatusBadge status={runStatusCfg.variant} label={run.display_status || runStatusCfg.label} />
+          <StatusBadge status={runStatusCfg.variant} label={runStatusLabel} />
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -485,7 +492,11 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
       {(run.backend_status === "failed" || run.partial_completion || run.errors?.code || (run.integrity_warnings && run.integrity_warnings.length > 0)) && (
         <div className="notice danger" role="alert" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontWeight: 600, fontSize: 15 }}>
-            {run.backend_status === "failed" ? "Run Failed or Interrupted" : "Run Completed with Warnings / Partial Completion"}
+            {run.backend_status === "cancelled"
+              ? "Run Cancelled"
+              : run.backend_status === "failed"
+              ? "Run Failed or Interrupted"
+              : "Run Completed with Warnings / Partial Completion"}
           </div>
           {run.errors?.message && <div>{run.errors.message}</div>}
           {run.status_detail && <div style={{ fontSize: 13 }}>Detail: {run.status_detail}</div>}

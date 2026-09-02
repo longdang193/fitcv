@@ -256,6 +256,7 @@ from fitcv_cp.store import ControlPlaneStore
 from fitcv_cp.optimization_service import (
     create_ranking_policy_candidate,
     current_activation_provenance,
+    materialize_run_job_rating,
 )
 from fitcv_cp.review_identity import (
     ensure_review_item_id,
@@ -6084,6 +6085,8 @@ class SelectionPreviewEnvelope(BaseModel):
 class InterestRequest(BaseModel):
     rating: int
     rating_contract_revision: str
+    actor: str = "local_operator"
+    expected_evidence_head_fingerprint: str | None = None
 
     @field_validator("rating")
     @classmethod
@@ -6104,6 +6107,49 @@ class PersonalizationPatchRequest(BaseModel):
     personalization_strength: float | None = None
     expected_revision: str
     updated_by: str = "admin"
+
+
+class PersonalizationOptimizationCandidateRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    expected_evidence_head_fingerprint: str
+    expected_parent_ref: str
+
+
+class PersonalizationOptimizationActivationRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    actor: str
+    expected_evidence_head_fingerprint: str
+    expected_parent_ref: str
+
+
+class PersonalizationOptimizationResource(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    domain_id: str
+    ranking_mode: Literal["baseline", "personalized"]
+    effective_ranking_mode: Literal["baseline", "personalized"]
+    personalization_strength: float
+    baseline_fallback: bool
+    active_policy_id: str | None
+    settings_revision: str
+    evidence_head_fingerprint: str
+    evidence_ready: bool
+    episode_count: int
+    rating_event_count: int
+    current_parent_ref: str
+    latest_candidate: dict[str, Any] | None
+    candidate_activation_eligible: bool
+    status: str | None = None
+    error_code: str | None = None
+    message: str | None = None
+    policy_snapshot_id: str | None = None
+    preference_optimization_run_id: str | None = None
+
+
+class PersonalizationOptimizationEnvelope(BaseModel):
+    data: PersonalizationOptimizationResource
 
 
 class BulkRunActionRequest(BaseModel):
@@ -6870,6 +6916,7 @@ def _optimization_page_context(
         if compatible_active is not None
         else None
     )
+    rating_evidence = _optimization_rating_evidence(optimization_request)
     optimization_runs = [
         {
             **row,
@@ -6933,10 +6980,10 @@ def _optimization_page_context(
             if entry["key"] == "preference_optimization.personalization_strength"
         ),
         "evidence": evidence,
-        "rating_evidence": _optimization_rating_evidence(optimization_request),
+        "rating_evidence": rating_evidence,
         "episode_count": episode_count,
         "rating_event_count": rating_event_count,
-        "evidence_ready": episode_count > 0 and rating_event_count > 0,
+        "evidence_ready": bool(rating_evidence),
         "current_mode": current_mode,
         "personalized_enabled": ranking_mode == "personalized",
         "baseline_fallback": ranking_mode == "personalized" and compatible_active is None,
@@ -6963,6 +7010,86 @@ def _optimization_page_context(
         "optimization_runs": optimization_runs,
         "process_console": store.get_process_events("optimization", domain_id, limit=200),
     }
+
+
+def _personalization_optimization_resource(
+    store: ControlPlaneStore,
+    *,
+    result: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    context = _optimization_page_context(store)
+    candidate = context["latest_candidate"]
+    candidate_summary = (
+        {
+            key: candidate.get(key)
+            for key in (
+                "policy_snapshot_id",
+                "domain_id",
+                "status",
+                "parent_policy_ref",
+                "created_at",
+                "event_watermark",
+            )
+            if key in candidate
+        }
+        if candidate is not None
+        else None
+    )
+    action_result = dict(result or {})
+    status = action_result.get("status")
+    error_code = action_result.get("error_code")
+    notice = _optimization_notice_projection(str(error_code or status or ""))
+    return {
+        "domain_id": context["domain_id"],
+        "ranking_mode": context["ranking_mode"],
+        "effective_ranking_mode": (
+            "baseline" if context["baseline_fallback"] else context["ranking_mode"]
+        ),
+        "personalization_strength": context["personalization_strength"],
+        "baseline_fallback": context["baseline_fallback"],
+        "active_policy_id": (
+            str(context["compatible_active"]["policy_snapshot_id"])
+            if context["compatible_active"] is not None
+            else None
+        ),
+        "settings_revision": context["settings_revision"],
+        "evidence_head_fingerprint": context["evidence"]["evidence_head_fingerprint"],
+        "evidence_ready": context["evidence_ready"],
+        "episode_count": context["episode_count"],
+        "rating_event_count": context["rating_event_count"],
+        "current_parent_ref": context["current_parent_ref"],
+        "latest_candidate": candidate_summary,
+        "candidate_activation_eligible": context["candidate_activation_eligible"],
+        "status": status,
+        "error_code": error_code,
+        "message": notice["message"] if notice is not None else None,
+        "policy_snapshot_id": action_result.get("policy_snapshot_id")
+        or (candidate_summary or {}).get("policy_snapshot_id"),
+        "preference_optimization_run_id": action_result.get(
+            "preference_optimization_run_id"
+        ),
+    }
+
+
+def _raise_personalization_optimization_error(
+    result: dict[str, Any], resource: dict[str, Any]
+) -> None:
+    error_code = str(result.get("error_code") or result.get("status") or "operation_failed")
+    notice = _optimization_notice_projection(error_code)
+    status_code = (
+        409
+        if error_code in _OPTIMIZATION_STALE_NOTICE_CODES
+        else 404
+        if error_code == "snapshot_not_found"
+        else 422
+    )
+    raise ApiError(
+        status_code,
+        error_code,
+        notice["message"] if notice is not None else "Optimization action failed.",
+        action=notice["action"] if notice is not None else "Review current state and retry.",
+        data=resource,
+    )
 
 def _optimization_detail_context(
     store: ControlPlaneStore,
@@ -11110,7 +11237,8 @@ def create_app(
         run_job_id: str,
         body: InterestRequest,
     ) -> dict[str, Any]:
-        _require_canonical_run_job(run_id, run_job_id)
+        store = _resolve_run_store()
+        run_job = _require_canonical_run_job(run_id, run_job_id)
         if body.rating_contract_revision != "application-interest-v1":
             raise ApiError(
                 409,
@@ -11118,22 +11246,95 @@ def create_app(
                 "Application Interest contract is stale.",
                 action="Refresh Pipeline Results and retry.",
             )
-        result = _resolve_run_store().set_run_job_interest(
-            run_job_id,
-            body.rating,
-            rating_contract_revision=body.rating_contract_revision,
-            action_id=str(uuid.uuid4()),
-        )
-        return _data_response(result)
+        if not body.actor.strip():
+            raise ApiError(
+                422,
+                "actor_required",
+                "Operator label is required.",
+                action="Provide an operator label and retry.",
+            )
+        run = store.get_run(run_id)
+        if run is None:
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        source = _decision_feedback_source_from_run(run)
+        if source is None:
+            raise ApiError(
+                409,
+                "decision_feedback_unavailable",
+                "Decision evidence is unavailable for this Run.",
+                action="Rate an eligible completed Run and retry.",
+            )
+        action_id = str(uuid.uuid4())
+        try:
+            evidence_result = materialize_run_job_rating(
+                run_id=run_id,
+                run_job=run_job,
+                source=source,
+                rating=body.rating,
+                rating_contract_revision=body.rating_contract_revision,
+                acted_by=body.actor,
+                action_id=action_id,
+                store=store,
+                expected_evidence_head_fingerprint=body.expected_evidence_head_fingerprint,
+            )
+            interest_result = store.set_run_job_interest(
+                run_job_id,
+                body.rating,
+                rating_contract_revision=body.rating_contract_revision,
+                action_id=action_id,
+            )
+        except RuntimeError as exc:
+            raise ApiError(
+                409,
+                "decision_evidence_stale",
+                "Decision evidence changed since it was loaded.",
+                action="Refresh Run evidence and retry.",
+            ) from exc
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "decision_feedback_invalid",
+                str(exc),
+                action="Refresh Run evidence and retry.",
+            ) from exc
+        return _data_response({**interest_result, **evidence_result})
 
     @app.delete("/runs/{run_id}/jobs/{run_job_id}/interest")
     def clear_canonical_interest(run_id: str, run_job_id: str) -> dict[str, Any]:
-        _require_canonical_run_job(run_id, run_job_id)
-        result = _resolve_run_store().clear_run_job_interest(
-            run_job_id,
-            action_id=str(uuid.uuid4()),
-        )
-        return _data_response({**result, "rating": None})
+        store = _resolve_run_store()
+        run_job = _require_canonical_run_job(run_id, run_job_id)
+        run = store.get_run(run_id)
+        if run is None:
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        source = _decision_feedback_source_from_run(run)
+        if source is None:
+            raise ApiError(
+                409,
+                "decision_feedback_unavailable",
+                "Decision evidence is unavailable for this Run.",
+                action="Refresh Run evidence and retry.",
+            )
+        action_id = str(uuid.uuid4())
+        try:
+            evidence_result = materialize_run_job_rating(
+                run_id=run_id,
+                run_job=run_job,
+                source=source,
+                rating=None,
+                rating_contract_revision=str(source["rating_scale_version"]),
+                acted_by="local_operator",
+                action_id=action_id,
+                store=store,
+            )
+            result = store.clear_run_job_interest(run_job_id, action_id=action_id)
+        except (RuntimeError, ValueError) as exc:
+            raise ApiError(
+                409,
+                "decision_feedback_invalid",
+                str(exc),
+                action="Refresh Run evidence and retry.",
+            ) from exc
+        return _data_response({**result, **evidence_result, "rating": None})
 
     @app.get("/runs/{run_id}/jobs/export.csv")
     def export_canonical_run_jobs(
@@ -11615,6 +11816,135 @@ def create_app(
             ) from exc
         resource = _personalization_resource()
         response.headers["ETag"] = f'"{resource["revision"]}"'
+        return _data_response(resource)
+
+    @app.get(
+        "/personalization/optimization",
+        response_model=PersonalizationOptimizationEnvelope,
+    )
+    def get_personalization_optimization(response: Response) -> dict[str, Any]:
+        resource = _personalization_optimization_resource(_resolve_run_store())
+        response.headers["ETag"] = f'"{resource["settings_revision"]}"'
+        return _data_response(resource)
+
+    @app.post(
+        "/personalization/optimization/candidate",
+        response_model=PersonalizationOptimizationEnvelope,
+    )
+    def create_personalization_optimization_candidate(
+        body: PersonalizationOptimizationCandidateRequest,
+    ) -> dict[str, Any]:
+        store = _resolve_run_store()
+        active_settings = load_active_settings()
+        if active_settings.get("preference_optimization.ranking_mode") != "personalized":
+            result = {
+                "status": "invalid_input",
+                "error_code": "personalized_ranking_required",
+            }
+            _raise_personalization_optimization_error(
+                result, _personalization_optimization_resource(store, result=result)
+            )
+        context = _optimization_page_context(store)
+        if not context["evidence_ready"]:
+            result = {
+                "status": "insufficient_evidence",
+                "error_code": "zero_rating_evidence",
+            }
+            return _data_response(_personalization_optimization_resource(store, result=result))
+        try:
+            result = create_ranking_policy_candidate(
+                store.load_inverse_optimization_request(_OPTIMIZATION_DOMAIN_ID),
+                store=store,
+                config=load_config(),
+                ranking_mode=str(
+                    active_settings["preference_optimization.ranking_mode"]
+                ),
+                personalization_strength=float(
+                    active_settings[
+                        "preference_optimization.personalization_strength"
+                    ]
+                ),
+                settings_revision=settings_revision(active_settings),
+                expected_evidence_head_fingerprint=(
+                    body.expected_evidence_head_fingerprint
+                ),
+                expected_parent_ref=body.expected_parent_ref,
+            )
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            result = {"status": "failed", "error_code": _optimization_error_notice(exc)}
+        resource = _personalization_optimization_resource(store, result=result)
+        if result.get("status") not in {
+            "candidate_created",
+            "insufficient_evidence",
+            "no_op",
+            "evaluation_rejected",
+        }:
+            _raise_personalization_optimization_error(result, resource)
+        return _data_response(resource)
+
+    @app.post(
+        "/personalization/optimization/candidates/{snapshot_id}/activate",
+        response_model=PersonalizationOptimizationEnvelope,
+    )
+    def activate_personalization_optimization_candidate(
+        snapshot_id: str,
+        body: PersonalizationOptimizationActivationRequest,
+    ) -> dict[str, Any]:
+        actor = body.actor.strip()
+        if not actor:
+            raise ApiError(
+                422,
+                "actor_required",
+                "Operator label is required.",
+                action="Provide an operator label and retry.",
+            )
+        store = _resolve_run_store()
+        context = _optimization_page_context(store)
+        snapshot = next(
+            (
+                row
+                for row in context["history"]["snapshots"]
+                if row.get("policy_snapshot_id") == snapshot_id
+            ),
+            None,
+        )
+        if snapshot is None:
+            raise ApiError(
+                404,
+                "snapshot_not_found",
+                "Policy snapshot was not found.",
+                action="Reload current personalization state.",
+            )
+        if not context["evidence_ready"]:
+            result = {
+                "status": "insufficient_evidence",
+                "error_code": "zero_rating_evidence",
+            }
+            _raise_personalization_optimization_error(
+                result, _personalization_optimization_resource(store, result=result)
+            )
+        try:
+            result = store.activate_ranking_policy_candidate(
+                snapshot_id,
+                expected_parent_ref=body.expected_parent_ref,
+                evidence_head_fingerprint=body.expected_evidence_head_fingerprint,
+                acted_by=actor,
+                **current_activation_provenance(snapshot, load_config()),
+            )
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            result = {
+                "status": "failed",
+                "error_code": _optimization_error_notice(exc),
+            }
+        else:
+            result = {
+                **result,
+                "status": "activation_completed",
+                "policy_snapshot_id": snapshot_id,
+            }
+        resource = _personalization_optimization_resource(store, result=result)
+        if result.get("status") != "activation_completed":
+            _raise_personalization_optimization_error(result, resource)
         return _data_response(resource)
 
     @app.get("/settings/pipeline")

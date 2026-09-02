@@ -79,8 +79,8 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   const [deletePreview, setDeletePreview] = useState<DeleteArchivedRunsPreview | null>(null);
   const [isDeletePreviewOpen, setIsDeletePreviewOpen] = useState(false);
 
-  const loadRuns = useCallback(async () => {
-    setLoading(true);
+  const loadRuns = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError(null);
     try {
       const res = await fetchRuns({
@@ -95,10 +95,12 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
         if (typeof res.meta.active_count === "number") setActiveCount(res.meta.active_count);
         if (typeof res.meta.archived_count === "number") setArchivedCount(res.meta.archived_count);
       }
+      return true;
     } catch (err: any) {
       setError(err.message || "Failed to load runs.");
+      return false;
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [view, activeSearch, page, pageSize]);
 
@@ -106,6 +108,12 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
     setSelectedRunIds(new Set());
     loadRuns();
   }, [loadRuns]);
+
+  useEffect(() => {
+    if (!runs.some((run) => run.backend_status === "cancelling")) return;
+    const intervalId = window.setInterval(() => void loadRuns(false), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [runs, loadRuns]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,8 +147,12 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
     setActionNotice(null);
     try {
       if (confirmAction.type === "cancel") {
-        await cancelRun(confirmAction.run.run_id);
-        setActionNotice(`Cancellation requested for run ${confirmAction.run.run_id}.`);
+        const cancelledRun = await cancelRun(confirmAction.run.run_id);
+        setActionNotice(
+          cancelledRun.backend_status === "cancelled"
+            ? `Run ${confirmAction.run.run_id} cancelled.`
+            : `Cancellation requested for run ${confirmAction.run.run_id}.`
+        );
       } else if (confirmAction.type === "archive") {
         await archiveRun(confirmAction.run.run_id);
         setActionNotice(`Run ${confirmAction.run.run_id} archived.`);
@@ -149,8 +161,9 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
         setActionNotice(`Run ${confirmAction.run.run_id} restored to active.`);
       }
       setConfirmAction(null);
-      await loadRuns();
+      if (!(await loadRuns())) setActionNotice(null);
     } catch (err: any) {
+      setActionNotice(null);
       setError(err.message || `Failed to ${confirmAction.type} run.`);
     } finally {
       setActionInProgress(false);
@@ -249,9 +262,10 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
             variant: "neutral" as StatusVariant,
             label: item.display_status || item.backend_status,
           };
+          const label = item.backend_status === "cancelled" ? cfg.label : item.display_status || cfg.label;
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <StatusBadge status={cfg.variant} label={item.display_status || cfg.label} />
+              <StatusBadge status={cfg.variant} label={label} />
               {item.status_detail && (
                 <span style={{ fontSize: 11, color: "var(--muted)" }}>{item.status_detail}</span>
               )}

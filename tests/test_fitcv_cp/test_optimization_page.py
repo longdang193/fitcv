@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import re
+from unittest.mock import MagicMock
 from types import SimpleNamespace
 from typing import Any
 
@@ -821,6 +822,7 @@ def test_activate_candidate_normalizes_actor_and_uses_cas_tokens(monkeypatch: An
             "snapshots": [candidate],
             "events": [],
         },
+        load_inverse_optimization_request=lambda domain_id: _rated_request(),
         activate_ranking_policy_candidate=activate,
     ).post(
         "/admin/optimization/candidates/snapshot-1/activate",
@@ -861,3 +863,201 @@ def test_optimization_page_shows_canonical_saved_rating_evidence(monkeypatch: An
     assert 'href="https://example.test/job-1"' in response.text
     assert "5 / 5" in response.text
     assert ">7<" in response.text
+
+
+def test_personalization_optimization_api_projects_evidence_and_parent_state(
+    monkeypatch: Any,
+) -> None:
+    evidence = {
+        **EVIDENCE_HEAD,
+        "event_watermark": 1,
+        "episodes": [{"episode_id": "episode-1", "events": [{"event_id": "event-1"}]}],
+    }
+    response = _client(
+        monkeypatch,
+        get_decision_evidence_head=lambda domain_id: {**evidence, "domain_id": domain_id},
+        load_inverse_optimization_request=lambda domain_id: _rated_request(),
+    ).get("/personalization/optimization")
+
+    assert response.status_code == 200
+    resource = response.json()["data"]
+    assert resource["evidence_head_fingerprint"] == "evidence-head"
+    assert resource["evidence_ready"] is True
+    assert resource["episode_count"] == 1
+    assert resource["rating_event_count"] == 1
+    assert resource["current_parent_ref"].startswith("zero_residual:")
+    assert resource["latest_candidate"] is None
+    assert resource["status"] is None
+    assert resource["error_code"] is None
+
+
+def test_personalization_optimization_candidate_api_uses_compare_tokens(
+    monkeypatch: Any,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def create_candidate(request: Any, **kwargs: Any) -> dict[str, Any]:
+        captured["request"] = request
+        captured.update(kwargs)
+        return {
+            "status": "candidate_created",
+            "policy_snapshot_id": "snapshot-1",
+            "preference_optimization_run_id": "por-1",
+        }
+
+    monkeypatch.setattr(app_module, "create_ranking_policy_candidate", create_candidate)
+    response = _client(
+        monkeypatch,
+        load_inverse_optimization_request=lambda domain_id: _rated_request(),
+    ).post(
+        "/personalization/optimization/candidate",
+        json={
+            "expected_evidence_head_fingerprint": "evidence-head",
+            "expected_parent_ref": "zero_residual:baseline",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["request"].domain_id == DOMAIN_ID
+    assert captured["expected_evidence_head_fingerprint"] == "evidence-head"
+    assert captured["expected_parent_ref"] == "zero_residual:baseline"
+    assert response.json()["data"]["status"] == "candidate_created"
+    assert response.json()["data"]["policy_snapshot_id"] == "snapshot-1"
+
+
+def test_personalization_optimization_candidate_api_blocks_without_rated_evidence(
+    monkeypatch: Any,
+) -> None:
+    create_candidate = MagicMock()
+    monkeypatch.setattr(app_module, "create_ranking_policy_candidate", create_candidate)
+
+    response = _client(monkeypatch).post(
+        "/personalization/optimization/candidate",
+        json={
+            "expected_evidence_head_fingerprint": "evidence-head",
+            "expected_parent_ref": "zero_residual:baseline",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "insufficient_evidence"
+    assert response.json()["data"]["error_code"] == "zero_rating_evidence"
+    create_candidate.assert_not_called()
+
+
+def test_personalization_optimization_candidate_api_preserves_stale_error(
+    monkeypatch: Any,
+) -> None:
+    monkeypatch.setattr(
+        app_module,
+        "create_ranking_policy_candidate",
+        lambda *_args, **_kwargs: {
+            "status": "stale",
+            "error_code": "stale_evidence",
+        },
+    )
+
+    response = _client(
+        monkeypatch,
+        load_inverse_optimization_request=lambda domain_id: _rated_request(),
+    ).post(
+        "/personalization/optimization/candidate",
+        json={
+            "expected_evidence_head_fingerprint": "stale-head",
+            "expected_parent_ref": "zero_residual:baseline",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "stale_evidence"
+
+
+def test_personalization_optimization_activation_api_requires_actor_and_cas_tokens(
+    monkeypatch: Any,
+) -> None:
+    captured: dict[str, Any] = {}
+    candidate = {
+        "policy_snapshot_id": "snapshot-1",
+        "domain_id": DOMAIN_ID,
+        "status": "candidate",
+        "parent_policy_ref": "zero_residual:baseline",
+    }
+
+    def activate(snapshot_id: str, **kwargs: Any) -> dict[str, Any]:
+        captured["snapshot_id"] = snapshot_id
+        captured.update(kwargs)
+        return {**candidate, "status": "active"}
+
+    response = _client(
+        monkeypatch,
+        inspect_ranking_policy_lifecycle=lambda domain_id, limit=None: {
+            "training_runs": [],
+            "snapshots": [candidate],
+            "events": [],
+        },
+        load_inverse_optimization_request=lambda domain_id: _rated_request(),
+        activate_ranking_policy_candidate=activate,
+    ).post(
+        "/personalization/optimization/candidates/snapshot-1/activate",
+        json={
+            "actor": "  local operator  ",
+            "expected_evidence_head_fingerprint": "evidence-head",
+            "expected_parent_ref": "zero_residual:baseline",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["snapshot_id"] == "snapshot-1"
+    assert captured["acted_by"] == "local operator"
+    assert captured["expected_parent_ref"] == "zero_residual:baseline"
+    assert captured["evidence_head_fingerprint"] == "evidence-head"
+    assert response.json()["data"]["status"] == "activation_completed"
+
+
+def test_personalization_optimization_activation_api_blocks_without_rated_evidence(
+    monkeypatch: Any,
+) -> None:
+    candidate = {
+        "policy_snapshot_id": "snapshot-1",
+        "domain_id": DOMAIN_ID,
+        "status": "candidate",
+        "parent_policy_ref": "zero_residual:baseline",
+    }
+    activate = MagicMock()
+
+    response = _client(
+        monkeypatch,
+        inspect_ranking_policy_lifecycle=lambda domain_id, limit=None: {
+            "training_runs": [],
+            "snapshots": [candidate],
+            "events": [],
+        },
+        activate_ranking_policy_candidate=activate,
+    ).post(
+        "/personalization/optimization/candidates/snapshot-1/activate",
+        json={
+            "actor": "local operator",
+            "expected_evidence_head_fingerprint": "evidence-head",
+            "expected_parent_ref": "zero_residual:baseline",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "zero_rating_evidence"
+    activate.assert_not_called()
+
+
+def test_personalization_optimization_activation_api_requires_actor(
+    monkeypatch: Any,
+) -> None:
+    response = _client(monkeypatch).post(
+        "/personalization/optimization/candidates/snapshot-1/activate",
+        json={
+            "actor": "  ",
+            "expected_evidence_head_fingerprint": "evidence-head",
+            "expected_parent_ref": "zero_residual:baseline",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "actor_required"

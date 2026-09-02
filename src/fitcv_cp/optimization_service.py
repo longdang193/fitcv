@@ -19,11 +19,16 @@ lifecycle:
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import json
 from typing import Any
 
 from fitcv.config import load_config
 from fitcv.decision_feedback import (
+    DecisionRatingEvent,
+    RatingEventType,
+    RatingValue,
+    build_episode_records,
     optimizer_policy_fingerprint,
     reduce_rating_event_states,
     validate_decision_learning_policy,
@@ -51,6 +56,104 @@ from fitcv_cp.settings_store import (
     settings_revision as build_settings_revision,
 )
 from fitcv_cp.store import ControlPlaneStore
+
+
+def materialize_run_job_rating(
+    *,
+    run_id: str,
+    run_job: dict[str, Any],
+    source: dict[str, Any],
+    rating: int | None,
+    rating_contract_revision: str,
+    acted_by: str,
+    action_id: str,
+    store: ControlPlaneStore,
+    expected_evidence_head_fingerprint: str | None = None,
+) -> dict[str, Any]:
+    if rating is not None and rating not in range(1, 6):
+        raise ValueError("rating must be between 1 and 5")
+    actor = acted_by.strip()
+    if not actor:
+        raise ValueError("acted_by must be nonempty")
+    if rating_contract_revision != "application-interest-v1":
+        raise ValueError("rating contract is stale")
+    if str(source.get("run_id") or "") != run_id:
+        raise ValueError("decision feedback source run mismatch")
+    if str(source.get("rating_scale_version") or "") != rating_contract_revision:
+        raise ValueError("rating scale conflicts with source")
+
+    current_head = store.get_decision_evidence_head(str(source["domain_id"]))
+    if (
+        expected_evidence_head_fingerprint is not None
+        and expected_evidence_head_fingerprint
+        != current_head["evidence_head_fingerprint"]
+    ):
+        raise RuntimeError("decision evidence head is stale")
+
+    created_at = datetime.datetime.now(datetime.timezone.utc)
+    episode, alternatives = build_episode_records(source, created_at=created_at)
+    snapshot = run_job.get("source_snapshot")
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    alternative_ids = {
+        str(alternative.alternative_id): alternative for alternative in alternatives
+    }
+    identity_candidates = (
+        run_job.get("raw_job_fingerprint"),
+        snapshot.get("raw_job_fingerprint"),
+        run_job.get("job_id"),
+    )
+    alternative_id = next(
+        (
+            str(candidate)
+            for candidate in identity_candidates
+            if str(candidate or "") in alternative_ids
+        ),
+        None,
+    )
+    if alternative_id is None:
+        source_url = str(run_job.get("source_url") or "").strip()
+        alternative_id = next(
+            (
+                alternative.alternative_id
+                for alternative in alternatives
+                if alternative.source_job_url == source_url
+            ),
+            None,
+        )
+    if alternative_id is None:
+        raise ValueError("run job is not an eligible decision alternative")
+
+    event = DecisionRatingEvent(
+        event_sequence=None,
+        event_id=action_id,
+        episode_id=episode.episode_id,
+        alternative_id=alternative_id,
+        event_type=(
+            RatingEventType.SET_RATING
+            if rating is not None
+            else RatingEventType.CLEAR_RATING
+        ),
+        rating=RatingValue(rating) if rating is not None else None,
+        rating_scale_version=rating_contract_revision,
+        acted_by=actor,
+        created_at=created_at,
+    )
+    persisted = store.materialize_episode_and_append_rating(
+        episode,
+        alternatives,
+        event,
+    )
+    evidence_head = store.get_decision_evidence_head(str(source["domain_id"]))
+    return {
+        **persisted,
+        "episode_id": episode.episode_id,
+        "event_id": event.event_id,
+        "alternative_id": alternative_id,
+        "acted_by": actor,
+        "rating_contract_revision": rating_contract_revision,
+        "evidence_head_fingerprint": evidence_head["evidence_head_fingerprint"],
+    }
+
 
 def _request_evidence_head(request: InverseOptimizationRequest) -> dict[str, Any]:
     episodes = []
@@ -351,7 +454,7 @@ def create_ranking_policy_candidate(
         if terminal_error_code is not None:
             solved = None
             evaluated = None
-        elif not request.episodes:
+        elif not request.episodes or not source_rating_event_ids:
             solved = None
             evaluated = None
             terminal_error_code = "zero_rating_evidence"

@@ -52,7 +52,7 @@ def test_run_display_status_uses_prototype_labels() -> None:
     for status in (RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONTINUE, RunStatus.CANCELLING):
         assert run_lifecycle.run_display_status(status) == "Running"
     assert run_lifecycle.run_display_status(RunStatus.SUCCEEDED) == "Succeeded"
-    assert run_lifecycle.run_display_status(RunStatus.CANCELLED) == "Failed"
+    assert run_lifecycle.run_display_status(RunStatus.CANCELLED) == "Cancelled"
     assert run_lifecycle.run_display_status(RunStatus.FAILED) == "Failed"
 
 def test_job_result_bucket_is_exhaustive_only_for_evaluated_rows() -> None:

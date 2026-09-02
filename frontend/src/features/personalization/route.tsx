@@ -1,15 +1,29 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { PersonalizationCard } from "./components/PersonalizationCard";
-import { fetchPersonalization, patchPersonalization } from "./api";
-import { PersonalizationResource, RankingMode } from "./types";
+import {
+  activatePersonalizationCandidate,
+  createPersonalizationCandidate,
+  fetchPersonalization,
+  fetchPersonalizationOptimization,
+  patchPersonalization,
+} from "./api";
+import {
+  PersonalizationOptimizationResource,
+  PersonalizationResource,
+  RankingMode,
+} from "./types";
 import { LoadingState, Dialog, Button } from "../../components";
 import { notificationStore } from "../../lib/notifications";
 import { ApiClientError } from "../../lib/api-client";
 
 export const PersonalizationPage: React.FC = () => {
   const [personalization, setPersonalization] = useState<PersonalizationResource | null>(null);
+  const [optimization, setOptimization] = useState<PersonalizationOptimizationResource | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [optimizationBusy, setOptimizationBusy] = useState(false);
+  const [optimizationStatus, setOptimizationStatus] = useState<string | null>(null);
+  const [actor, setActor] = useState("local operator");
 
   // Form state
   const [rankingMode, setRankingMode] = useState<RankingMode>("baseline");
@@ -22,8 +36,12 @@ export const PersonalizationPage: React.FC = () => {
   const loadPersonalizationData = useCallback(async () => {
     setLoading(true);
     try {
-      const { resource } = await fetchPersonalization();
+      const [{ resource }, optimizationResource] = await Promise.all([
+        fetchPersonalization(),
+        fetchPersonalizationOptimization(),
+      ]);
       setPersonalization(resource);
+      setOptimization(optimizationResource);
       setRankingMode(resource.ranking_mode);
       setStrength(resource.personalization_strength);
     } catch (err: any) {
@@ -58,8 +76,10 @@ export const PersonalizationPage: React.FC = () => {
         personalization_strength: rankingMode === "personalized" ? strength : null,
         expected_revision: personalization.revision,
       });
+      const optimizationResource = await fetchPersonalizationOptimization();
 
       setPersonalization(resource);
+      setOptimization(optimizationResource);
       setRankingMode(resource.ranking_mode);
       setStrength(resource.personalization_strength);
 
@@ -91,6 +111,49 @@ export const PersonalizationPage: React.FC = () => {
   const handleReloadAfterConflict = async () => {
     setConflictOpen(false);
     await loadPersonalizationData();
+  };
+
+  const handleCreateCandidate = async () => {
+    if (!optimization) return;
+    setOptimizationBusy(true);
+    setOptimizationStatus(null);
+    try {
+      const resource = await createPersonalizationCandidate({
+        expected_evidence_head_fingerprint: optimization.evidence_head_fingerprint,
+        expected_parent_ref: optimization.current_parent_ref,
+      });
+      setOptimization(resource);
+      setOptimizationStatus(resource.message || "Candidate created. Activation remains manual.");
+    } catch (err: any) {
+      setOptimizationStatus(`${err.message || "Candidate creation failed."} (${err.code || "request_failed"})`);
+      await loadPersonalizationData();
+    } finally {
+      setOptimizationBusy(false);
+    }
+  };
+
+  const handleActivateCandidate = async () => {
+    if (!optimization) return;
+    const snapshotId =
+      optimization.latest_candidate?.policy_snapshot_id || optimization.policy_snapshot_id;
+    if (!snapshotId) return;
+    setOptimizationBusy(true);
+    setOptimizationStatus(null);
+    try {
+      const resource = await activatePersonalizationCandidate(snapshotId, {
+        actor,
+        expected_evidence_head_fingerprint: optimization.evidence_head_fingerprint,
+        expected_parent_ref: optimization.current_parent_ref,
+      });
+      setOptimization(resource);
+      setOptimizationStatus(resource.message || "Candidate activated.");
+      await loadPersonalizationData();
+    } catch (err: any) {
+      setOptimizationStatus(`${err.message || "Candidate activation failed."} (${err.code || "request_failed"})`);
+      await loadPersonalizationData();
+    } finally {
+      setOptimizationBusy(false);
+    }
   };
 
   if (loading || !personalization) {
@@ -146,6 +209,13 @@ export const PersonalizationPage: React.FC = () => {
         onReset={handleReset}
         saving={saving}
         hasChanges={hasChanges}
+        optimization={optimization}
+        optimizationBusy={optimizationBusy}
+        optimizationStatus={optimizationStatus}
+        actor={actor}
+        onActorChange={setActor}
+        onCreateCandidate={handleCreateCandidate}
+        onActivateCandidate={handleActivateCandidate}
       />
 
       {/* Conflict Dialog */}

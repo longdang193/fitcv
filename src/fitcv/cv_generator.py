@@ -1718,6 +1718,11 @@ def _execute_cv_generation_runtime(
     adapter: LlmAdapter | None = None,
     validator: Any | None = None,
 ) -> LlmRuntimeResult:
+    provider_profile = {
+        key: value
+        for key, value in profile.items()
+        if key not in {"candidate_profile_id", "revision"}
+    }
     template_path = _resolve_template_path(config)
     template_str = Path(template_path).read_text(encoding="utf-8")
     prompt = build_structured_generation_prompt(
@@ -1725,7 +1730,7 @@ def _execute_cv_generation_runtime(
         evidence=evidence,
         gap=gap,
         template=template_str,
-        profile=profile,
+        profile=provider_profile,
         config=config,
         evidence_selection_summary=evidence_selection_summary,
         repair_missing_sections=repair_missing_sections,
@@ -1748,7 +1753,7 @@ def _execute_cv_generation_runtime(
             response_payload,
             jd=jd,
             evidence=evidence,
-            profile=profile,
+            profile=provider_profile,
             config=config,
             fit_classification=fit_classification,
         )

@@ -55,7 +55,7 @@ _RUN_DISPLAY_STATUS = {
     RunStatus.AWAITING_CONTINUE: "Running",
     RunStatus.CANCELLING: "Running",
     RunStatus.SUCCEEDED: "Succeeded",
-    RunStatus.CANCELLED: "Failed",
+    RunStatus.CANCELLED: "Cancelled",
     RunStatus.FAILED: "Failed",
 }
 

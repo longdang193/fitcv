@@ -4330,9 +4330,22 @@ def test_cancel_and_unarchive_repeats_are_idempotent() -> None:
 
 def test_bookmark_and_interest_actions_use_run_job_identity() -> None:
     app = _app()
+    _config, _source, payload = _decision_feedback_fixture()
+    app.state.run_store.get_run_fn = lambda run_id: PipelineRun(
+        run_id=run_id,
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime(2026, 3, 27, 9, 0, 0, tzinfo=datetime.timezone.utc),
+        results_export_json=payload,
+    )
     app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
         "run_id": run_id,
         "run_job_id": run_job_id,
+        "source_url": "https://jobs.example.com/1",
+        "source_snapshot": {"raw_job_fingerprint": "raw-job-1"},
     }
     app.state.run_store.set_bookmark_fn = lambda run_job_id: {
         "run_job_id": run_job_id,
@@ -4344,9 +4357,9 @@ def test_bookmark_and_interest_actions_use_run_job_identity() -> None:
         "rating_contract_revision": kwargs["rating_contract_revision"],
     }
 
-    bookmark = TestClient(app).put("/runs/run-1/jobs/job-1/bookmark")
+    bookmark = TestClient(app).put("/runs/run-detail-test/jobs/job-1/bookmark")
     interest = TestClient(app).put(
-        "/runs/run-1/jobs/job-1/interest",
+        "/runs/run-detail-test/jobs/job-1/interest",
         json={"rating": 5, "rating_contract_revision": "application-interest-v1"},
     )
 
@@ -4358,9 +4371,22 @@ def test_bookmark_and_interest_actions_use_run_job_identity() -> None:
 
 def test_bookmark_interest_clear_and_stale_rating_contract() -> None:
     app = _app()
+    _config, _source, payload = _decision_feedback_fixture()
+    app.state.run_store.get_run_fn = lambda run_id: PipelineRun(
+        run_id=run_id,
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime(2026, 3, 27, 9, 0, 0, tzinfo=datetime.timezone.utc),
+        results_export_json=payload,
+    )
     app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
         "run_id": run_id,
         "run_job_id": run_job_id,
+        "source_url": "https://jobs.example.com/1",
+        "source_snapshot": {"raw_job_fingerprint": "raw-job-1"},
     }
     cleared_bookmarks: list[str] = []
     app.state.run_store.clear_bookmark_fn = cleared_bookmarks.append
@@ -4368,11 +4394,14 @@ def test_bookmark_interest_clear_and_stale_rating_contract() -> None:
         "run_job_id": run_job_id,
         "rating_contract_revision": "application-interest-v1",
     }
+    app.state.run_store.materialize_episode_and_append_rating_fn = lambda *_args: {
+        "persistence_status": "persisted"
+    }
 
-    bookmark = TestClient(app).delete("/runs/run-1/jobs/job-1/bookmark")
-    interest = TestClient(app).delete("/runs/run-1/jobs/job-1/interest")
+    bookmark = TestClient(app).delete("/runs/run-detail-test/jobs/job-1/bookmark")
+    interest = TestClient(app).delete("/runs/run-detail-test/jobs/job-1/interest")
     stale = TestClient(app).put(
-        "/runs/run-1/jobs/job-1/interest",
+        "/runs/run-detail-test/jobs/job-1/interest",
         json={"rating": 4, "rating_contract_revision": "application-interest-v0"},
     )
 
@@ -4381,6 +4410,94 @@ def test_bookmark_interest_clear_and_stale_rating_contract() -> None:
     assert cleared_bookmarks == ["job-1"]
     assert stale.status_code == 409
     assert stale.json()["error"]["code"] == "rating_contract_stale"
+
+
+def test_interest_rating_materializes_decision_evidence_with_actor_and_revision() -> None:
+    _config, source, payload = _decision_feedback_fixture()
+    run = PipelineRun(
+        run_id="run-detail-test",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime(2026, 3, 27, 9, 0, 0, tzinfo=datetime.timezone.utc),
+        results_export_json=payload,
+    )
+    app = _app()
+    app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
+        "run_id": run_id,
+        "run_job_id": run_job_id,
+        "source_url": "https://jobs.example.com/1",
+        "source_snapshot": {"raw_job_fingerprint": "raw-job-1"},
+    }
+    app.state.run_store.get_run_fn = lambda run_id: run
+    app.state.run_store.set_run_job_interest_fn = lambda run_job_id, rating, **kwargs: {
+        "run_job_id": run_job_id,
+        "rating": rating,
+        "rating_contract_revision": kwargs["rating_contract_revision"],
+    }
+    materialize = MagicMock(return_value={"persistence_status": "persisted"})
+    app.state.run_store.materialize_episode_and_append_rating_fn = materialize
+
+    response = TestClient(app).put(
+        "/runs/run-detail-test/jobs/job-1/interest",
+        json={
+            "rating": 5,
+            "rating_contract_revision": "application-interest-v1",
+            "actor": "  reviewer-1  ",
+        },
+    )
+
+    assert response.status_code == 200
+    materialize.assert_called_once()
+    episode, alternatives, event = materialize.call_args.args
+    assert episode.run_id == source["run_id"]
+    assert event.alternative_id == "raw-job-1"
+    assert event.rating == 5
+    assert event.acted_by == "reviewer-1"
+    assert event.rating_scale_version == "application-interest-v1"
+
+
+def test_interest_rating_rejects_stale_evidence_before_persistence() -> None:
+    _config, _source, payload = _decision_feedback_fixture()
+    run = PipelineRun(
+        run_id="run-detail-test",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime(2026, 3, 27, 9, 0, 0, tzinfo=datetime.timezone.utc),
+        results_export_json=payload,
+    )
+    app = _app()
+    app.state.run_store.get_run_fn = lambda run_id: run
+    app.state.run_store.get_run_job_fn = lambda run_id, run_job_id: {
+        "run_id": run_id,
+        "run_job_id": run_job_id,
+        "source_url": "https://jobs.example.com/1",
+        "source_snapshot": {"raw_job_fingerprint": "raw-job-1"},
+    }
+    app.state.run_store.get_decision_evidence_head_fn = lambda domain_id: {
+        "domain_id": domain_id,
+        "evidence_head_fingerprint": "current-head",
+    }
+    materialize = MagicMock()
+    app.state.run_store.materialize_episode_and_append_rating_fn = materialize
+
+    response = TestClient(app).put(
+        "/runs/run-detail-test/jobs/job-1/interest",
+        json={
+            "rating": 5,
+            "rating_contract_revision": "application-interest-v1",
+            "expected_evidence_head_fingerprint": "stale-head",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "decision_evidence_stale"
+    materialize.assert_not_called()
 
 
 def test_jobs_export_uses_full_filtered_rows_and_escapes_formulas() -> None:

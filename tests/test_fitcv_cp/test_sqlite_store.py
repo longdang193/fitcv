@@ -47,6 +47,32 @@ def _canonical_job(name: str) -> dict[str, str]:
     }
 
 
+def test_local_cancel_terminalizes_unclaimed_and_awaiting_runs() -> None:
+    queued = _make_run("run-queued-cancel")
+    awaiting = _make_run("run-awaiting-cancel")
+    awaiting.status = RunStatus.AWAITING_CONTINUE
+    sqlite_store.insert_run(queued)
+    sqlite_store.insert_run(awaiting)
+
+    assert sqlite_store.request_run_cancel(
+        queued.run_id, "admin", RunStatus.CANCELLING.value
+    ) is True
+    assert sqlite_store.request_run_cancel(
+        awaiting.run_id, "admin", RunStatus.CANCELLED.value
+    ) is True
+
+    queued_after = sqlite_store.get_run(queued.run_id)
+    awaiting_after = sqlite_store.get_run(awaiting.run_id)
+    assert queued_after is not None
+    assert awaiting_after is not None
+    assert queued_after.status is RunStatus.CANCELLED
+    assert awaiting_after.status is RunStatus.CANCELLED
+    assert queued_after.finished_at is not None
+    assert awaiting_after.finished_at is not None
+    assert sqlite_store.get_run_detail(queued.run_id)["capabilities"]["cancel"] is False
+    assert sqlite_store.get_run_detail(awaiting.run_id)["capabilities"]["cancel"] is False
+
+
 def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -> None:
     with sqlite3.connect(":memory:") as conn:
         sqlite_store._configure_sqlite_connection(conn)
@@ -4318,6 +4344,89 @@ def _create_normalized_run_with_jobs(run_id: str, jobs: list[dict[str, object]])
         jobs=jobs,
     )
     return list(result["run_job_ids"])
+
+
+def test_cancel_normalized_run_terminalizes_open_stages_and_is_idempotent() -> None:
+    _create_normalized_run_with_jobs(
+        "run-awaiting-cancel-stages", [{"title": "Analyst", "job_url": "https://example.com/1"}]
+    )
+    sqlite_store.update_run_status("run-awaiting-cancel-stages", RunStatus.AWAITING_CONTINUE)
+
+    assert sqlite_store.request_run_cancel(
+        "run-awaiting-cancel-stages", "admin", RunStatus.CANCELLED.value
+    ) is True
+    cancelled = sqlite_store.get_run("run-awaiting-cancel-stages")
+    assert cancelled is not None
+    finished_at = cancelled.finished_at
+    assert cancelled.status is RunStatus.CANCELLED
+    assert finished_at is not None
+    assert all(row["status"] == "cancelled" for row in sqlite_store.list_run_stages("run-awaiting-cancel-stages"))
+
+    assert sqlite_store.request_run_cancel(
+        "run-awaiting-cancel-stages", "admin", RunStatus.CANCELLED.value
+    ) is True
+    replayed = sqlite_store.get_run("run-awaiting-cancel-stages")
+    assert replayed is not None
+    assert replayed.finished_at == finished_at
+
+
+def test_fresh_cancel_reconciles_counts_display_and_replay() -> None:
+    run_id = "run-fresh-cancel-reconcile"
+    _create_normalized_run_with_jobs(
+        run_id, [{"title": "Analyst", "job_url": "https://example.com/1"}]
+    )
+
+    assert sqlite_store.request_run_cancel(
+        run_id, "admin", RunStatus.CANCELLING.value
+    ) is True
+
+    detail = sqlite_store.get_run_detail(run_id)
+    assert detail is not None
+    assert detail["backend_status"] == RunStatus.CANCELLED.value
+    assert detail["display_status"] == "Cancelled"
+    assert detail["counts"] == {
+        "total": 1,
+        "passed": 0,
+        "rejected": 0,
+        "skipped": 1,
+        "cvs_generated": 0,
+    }
+    assert detail["integrity_warnings"] == []
+    assert detail["capabilities"]["cancel"] is False
+    assert sqlite_store.query_run_jobs(run_id)["skipped"] == 1
+
+    assert sqlite_store.request_run_cancel(
+        run_id, "admin", RunStatus.CANCELLED.value
+    ) is True
+    replayed = sqlite_store.get_run_detail(run_id)
+    assert replayed is not None
+    assert replayed["counts"] == detail["counts"]
+    assert replayed["integrity_warnings"] == []
+
+
+def test_worker_cancel_snapshot_reconciles_terminal_counts() -> None:
+    run_id = "run-worker-cancel-reconcile"
+    _create_normalized_run_with_jobs(
+        run_id, [{"title": "Analyst", "job_url": "https://example.com/2"}]
+    )
+    started_at = datetime.datetime(2026, 9, 2, 12, tzinfo=datetime.timezone.utc)
+    sqlite_store.update_run_status(run_id, RunStatus.RUNNING, started_at=started_at)
+    assert sqlite_store.request_run_cancel(
+        run_id, "admin", RunStatus.CANCELLING.value
+    ) is True
+
+    sqlite_store.persist_pipeline_snapshot(
+        run_id,
+        {},
+        run_status=RunStatus.CANCELLED,
+        snapshot_at=started_at + datetime.timedelta(minutes=1),
+    )
+
+    detail = sqlite_store.get_run_detail(run_id)
+    assert detail is not None
+    assert detail["backend_status"] == RunStatus.CANCELLED.value
+    assert detail["counts"]["skipped"] == 1
+    assert detail["integrity_warnings"] == []
 
 
 def test_query_run_jobs_stage_all_conserves_duplicate_pending_occurrences() -> None:

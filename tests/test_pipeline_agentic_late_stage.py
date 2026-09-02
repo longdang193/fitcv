@@ -970,6 +970,30 @@ def test_generate_from_analysis_direct_path_has_canonical_trace(
     assert trace["validation_summary"]["final_valid"] is (result["status"] == "accepted")
 
 
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_generate_from_analysis_keeps_profile_metadata_out_of_provider_payload(
+    mock_generate_cv: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    profile = _minimal_profile()
+    profile.update({"candidate_profile_id": "candidate-1", "revision": 7})
+    config = _minimal_config()
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+    }
+
+    generate_from_analysis(analysis_record, profile, config)
+
+    provider_profile = mock_generate_cv.call_args.args[3]
+    assert provider_profile["name"] == "Test Candidate"
+    assert provider_profile["experiences"] == profile["experiences"]
+    assert "candidate_profile_id" not in provider_profile
+    assert "revision" not in provider_profile
+    assert profile["candidate_profile_id"] == "candidate-1"
+    assert profile["revision"] == 7
+
+
 
 def test_cv_generation_fingerprint_ignores_mode_labels_and_mutable_job_url() -> None:
     analysis_record = _minimal_analysis_record()
