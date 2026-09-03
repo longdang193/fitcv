@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 import os
+import re
 from typing import Any, Callable
 
 from fitcv.candidate import (
@@ -419,9 +420,88 @@ def _run_llm(
 def _local_deterministic_baseline_fallback(
     document: dict[str, Any],
     annotations: dict[str, Any],
+    source_blocks: tuple[dict[str, Any], ...],
     unresolved_count: int,
     reason: str,
 ) -> CandidateProfileStageResult:
+    block_lookup = {str(block["block_id"]): block for block in source_blocks}
+    section_specs = {
+        "experience": ("experiences", "work_achievement", ("role", "company")),
+        "education": ("education", "course", ("degree", "institution")),
+        "project": ("projects", "project_highlight", ("name",)),
+        "certificates": ("certifications", "certification_proof", ("name", "issuer")),
+        "certifications": ("certifications", "certification_proof", ("name", "issuer")),
+    }
+    current_section: str | None = None
+    current_entry: dict[str, Any] | None = None
+    entries: list[dict[str, Any]] = []
+    for block in source_blocks:
+        if block["kind"] == "heading":
+            current_section = str(block["text"]).strip().casefold()
+            current_entry = None
+            continue
+        spec = section_specs.get(current_section or "")
+        if spec is None or block["kind"] not in {"paragraph", "list_item"}:
+            continue
+        section, evidence_kind, fields = spec
+        bold_values = re.findall(r"\*\*([^*]+?)\*\*", str(block["text"]))
+        if len(bold_values) >= len(fields):
+            current_entry = {
+                "section": section,
+                "kind": evidence_kind,
+                "fields": fields,
+                "header": block,
+                "evidence": [],
+            }
+            for field, value in zip(fields, bold_values):
+                current_entry[field] = value.strip()
+            entries.append(current_entry)
+        elif current_entry is not None:
+            current_entry["evidence"].append(block)
+    for entry in entries:
+        evidence_blocks = list(entry["evidence"])
+        if not evidence_blocks:
+            continue
+        section = str(entry["section"])
+        entry_id = _stable_id(
+            _COLLECTION_ID_PREFIX.get(section, section.removesuffix("s")),
+            [section, entry.get("header", {}).get("block_id"), [block["block_id"] for block in evidence_blocks]],
+        )
+        entry_source_ids = [str(entry["header"]["block_id"]), *(str(block["block_id"]) for block in evidence_blocks)]
+        document_entry: dict[str, Any] = {
+            "id": entry_id,
+            **{field: entry[field] for field in entry["fields"] if field in entry},
+            "source_refs": _block_refs(entry_source_ids, block_lookup),
+            "evidence": [],
+        }
+        annotations_for_entry = {
+            f"/{section}/{entry_id}/{field}": _annotation(
+                origin="deterministic",
+                source_block_ids=[str(entry["header"]["block_id"])],
+                confidence=1.0,
+                regenerable=False,
+            )
+            for field in entry["fields"]
+            if field in entry
+        }
+        for index, block in enumerate(evidence_blocks):
+            evidence_id = _stable_id("ev_" + entry_id, [index, block["block_id"], block["text"]])
+            document_entry["evidence"].append(
+                {
+                    "id": evidence_id,
+                    "kind": str(entry["kind"]),
+                    "text": str(block["text"]),
+                    "source_refs": _block_refs([str(block["block_id"])], block_lookup),
+                }
+            )
+            annotations_for_entry[f"/{section}/{entry_id}/evidence/{evidence_id}/text"] = _annotation(
+                origin="deterministic",
+                source_block_ids=[str(block["block_id"])],
+                confidence=1.0,
+                regenerable=False,
+            )
+        document.setdefault(section, []).append(document_entry)
+        annotations.update(annotations_for_entry)
     return CandidateProfileStageResult(
         document=document,
         annotations=annotations,
@@ -429,7 +509,7 @@ def _local_deterministic_baseline_fallback(
         runtime_evidence={
             "contract_version": "candidate_profile_deterministic_extraction_v1",
             "status": "deterministic",
-            "method": "source_ingest_headings_only",
+            "method": "source_ingest_structured_fields_and_raw_evidence",
             "llm_called": False,
             "unresolved_source_block_count": unresolved_count,
             "reason": reason,
@@ -576,6 +656,7 @@ def build_baseline_review(
             return _local_deterministic_baseline_fallback(
                 document,
                 annotations,
+                ingest.source_blocks,
                 len(unresolved),
                 str(exc),
             )

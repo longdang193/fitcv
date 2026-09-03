@@ -107,7 +107,7 @@ def _complete_onboarding() -> None:
         (
             "candidate.md",
             "text/markdown",
-            b"# Alex Example\n\nData analyst focused on reporting.\n",
+            Path("data/2026-06-27-Beiersdorf-CV.md").read_bytes(),
         ),
         (
             "candidate.yaml",
@@ -147,7 +147,9 @@ def test_candidate_profile_import_and_progression_work_before_onboarding_complet
     if filename.endswith(".md"):
         assert baseline_data["runtime_evidence"]["status"] == "deterministic"
         assert baseline_data["runtime_evidence"]["llm_called"] is False
-        return
+        assert baseline_data["document"]["experiences"]
+        assert baseline_data["document"]["experiences"][0]["evidence"]
+        local_client.app.state.enqueue_candidate_profile_stage = MagicMock()
     approved = local_client.post(
         f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/baseline/actions/approve",
         headers={**_csrf_headers(local_client), "Idempotency-Key": "local-profile-approve"},
@@ -157,7 +159,11 @@ def test_candidate_profile_import_and_progression_work_before_onboarding_complet
         },
     )
 
-    assert approved.status_code == 202
+    assert approved.status_code == 202, approved.json()
+    if filename.endswith(".md"):
+        local_client.app.state.enqueue_candidate_profile_stage.assert_called_once()
+        assert local_client.app.state.enqueue_candidate_profile_stage.call_args.kwargs["stage"] == "derived_claims"
+        return
     assert local_client.get(
         f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/derived"
     ).status_code == 200
