@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { DataTable } from "../components";
 import {
   fetchScans,
   createScan,
@@ -16,6 +19,8 @@ import {
   buildRunSourcesHash,
 } from "../features/scans/api";
 import { apiClient } from "../lib/api-client";
+import { buildScanJobColumns, getScanEventMessage } from "../features/scans/scan-detail";
+import { ScanJobItem } from "../features/scans/types";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 
 describe("scans feature route and api slice", () => {
@@ -274,5 +279,40 @@ describe("scans feature route and api slice", () => {
     await expect(fetchScanOutputJson("scan/1")).resolves.toBe('[{"title":"Exact"}]');
     expect(previewSpy).toHaveBeenCalledWith("/scans/scan%2F1/output");
     expect(buildRunSourcesHash(["scan-1", "scan/2"])).toBe("#/runs?scan_ids=scan-1&scan_ids=scan%2F2");
+  });
+
+  it("renders canonical scan output fields and readable event messages", () => {
+    const job = {
+      id: "job-1",
+      title: "Senior Platform Engineer",
+      job_url: "https://example.com/jobs/1",
+      company_name: "Acme",
+      location: "Remote",
+      published_at: "2026-08-30",
+      contract_type: "Full-time",
+      experience_level: "Senior",
+      work_type: "Remote",
+      salary: "$150k",
+    };
+
+    const markup = renderToStaticMarkup(
+      React.createElement(DataTable<ScanJobItem>, { columns: buildScanJobColumns(), data: [job], keyField: "id" })
+    );
+
+    expect(markup).toContain("https://example.com/jobs/1");
+    expect(markup).toContain("Acme");
+    expect(markup).toContain("2026-08-30");
+    expect(markup).toContain("Full-time");
+    expect(getScanEventMessage({
+      event_id: "event-1",
+      event_seq: 1,
+      process_type: "scan",
+      process_id: "scan-1",
+      stage_name: "acquire",
+      event_type: "jobs_loaded",
+      event_level: "info",
+      payload: { message: "Loaded 3 jobs." },
+      recorded_at: "2026-08-30T12:00:00Z",
+    })).toBe("Loaded 3 jobs.");
   });
 });

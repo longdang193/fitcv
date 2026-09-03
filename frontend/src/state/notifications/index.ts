@@ -213,6 +213,13 @@ export class TransientNotificationStore {
     }
   }
 
+  public activateAction(id: string): void {
+    const target = this.notifications.find((n) => n.id === id);
+    if (!target?.onAction) return;
+    this.markAsRead(id);
+    target.onAction();
+  }
+
   public markAllAsRead(): void {
     let changed = false;
     for (const n of this.notifications) {

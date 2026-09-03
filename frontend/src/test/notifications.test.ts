@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   notificationStore,
   buildDedupeKey,
@@ -78,5 +78,21 @@ describe("transient notifications store", () => {
 
     notificationStore.clearAll();
     expect(notificationStore.getNotifications()).toHaveLength(0);
+  });
+
+  it("marks actionable notifications read before invoking action", () => {
+    const onAction = vi.fn();
+    const notification = notificationStore.notify({
+      dedupe: "actionable",
+      type: "info",
+      title: "Open scan",
+      actionLabel: "View",
+      onAction,
+    });
+
+    notificationStore.activateAction(notification.id);
+
+    expect(onAction).toHaveBeenCalledOnce();
+    expect(notificationStore.getUnreadCount()).toBe(0);
   });
 });

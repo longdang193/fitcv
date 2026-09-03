@@ -93,10 +93,21 @@ export interface ProcessEventsPage {
 export interface ScanJobItem {
   id?: string;
   title: string;
-  company: string;
+  job_url?: string;
+  company?: string;
+  company_name?: string;
   location?: string;
   url?: string;
   posted_at?: string;
+  posted_time?: string;
+  published_at?: string | null;
+  apply_url?: string;
+  contract_type?: string;
+  experience_level?: string;
+  work_type?: string;
+  sector?: string;
+  salary?: string;
+  applications_count?: string | number;
   [key: string]: unknown;
 }
 
