@@ -625,6 +625,38 @@ def test_candidate_profile_reconciliation_marks_abandoned_and_purges_expired_sou
         ).fetchone()[0] == 6
 
 
+def test_candidate_profile_get_reconciles_expired_processing_attempt(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    created = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Profile",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Alex\n",
+        idempotency_key="get-stale-attempt",
+        database_path=database_path,
+    )
+    claimed = sqlite_store.claim_candidate_profile_processing(
+        created["attempt_id"], stage="base_mapping", expected_revision=1, lease_seconds=60,
+        database_path=database_path,
+    )
+    expired = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=1)
+    with sqlite3.connect(database_path) as conn:
+        conn.execute(
+            "UPDATE candidate_profile_creation_attempts SET lease_expires_at=? WHERE attempt_id=?",
+            (expired.isoformat(), created["attempt_id"]),
+        )
+        conn.commit()
+
+    refreshed = sqlite_store.get_candidate_profile_creation_attempt(
+        claimed["attempt_id"], database_path=database_path
+    )
+
+    assert refreshed is not None
+    assert refreshed["creation_status"] == "failed"
+    assert refreshed["failure"]["code"] == "candidate_profile_processing_abandoned"
+    assert refreshed["capabilities"]["retry"] is True
+
+
 def test_candidate_profile_retry_resumes_failed_processing_stage(tmp_path: Path) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
     created = sqlite_store.create_candidate_profile_creation_attempt(

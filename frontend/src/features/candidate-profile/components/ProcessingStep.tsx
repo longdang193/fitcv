@@ -28,6 +28,25 @@ export function getCandidateProfileFailurePresentation(
   };
 }
 
+export function isCandidateProfileAttemptTerminal(
+  attempt: CreationAttempt,
+  targetStage?: string
+): boolean {
+  return (
+    attempt.creation_status === "failed" ||
+    attempt.creation_status === "succeeded" ||
+    attempt.creation_status === "base_review" ||
+    attempt.creation_status === "derived_review" ||
+    attempt.creation_status === "ready_to_confirm" ||
+    attempt.creation_status === "confirmed" ||
+    attempt.next_action === "view_profile" ||
+    attempt.next_action === "review_baseline" ||
+    attempt.next_action === "review_derived" ||
+    attempt.next_action === "confirm" ||
+    (targetStage !== undefined && attempt.next_action === targetStage)
+  );
+}
+
 export interface ProcessingStepProps {
   attemptId: string;
   targetStage?: "review_baseline" | "review_derived" | "confirm" | string;
@@ -48,27 +67,10 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
 
-  const isTerminalOrReady = useCallback((data: CreationAttempt) => {
-    if (data.creation_status === "failed") {
-      return true;
-    }
-    if (
-      data.creation_status === "succeeded" ||
-      data.next_action === "view_profile" ||
-      Boolean(data.profile_id && data.creation_status === "succeeded") ||
-      data.next_action === "review_baseline" ||
-      data.next_action === "review_derived" ||
-      data.next_action === "confirm" ||
-      data.creation_status === "base_review" ||
-      data.creation_status === "derived_review" ||
-      data.creation_status === "ready_to_confirm" ||
-      data.creation_status === "confirmed" ||
-      (targetStage && data.next_action === targetStage)
-    ) {
-      return true;
-    }
-    return false;
-  }, [targetStage]);
+  const isTerminalOrReady = useCallback(
+    (data: CreationAttempt) => isCandidateProfileAttemptTerminal(data, targetStage),
+    [targetStage]
+  );
 
   const scheduleNextPoll = useCallback((delayMs = 1000) => {
     if (pollTimerRef.current) {

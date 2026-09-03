@@ -117,6 +117,44 @@ def test_execute_candidate_profile_stage_registers_blocks_before_retryable_basel
     assert failed[0]["stage"] == "base_mapping"
 
 
+def test_execute_candidate_profile_stage_terminalizes_unexpected_worker_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    failures: list[dict[str, object]] = []
+
+    class Store:
+        def get_candidate_profile_source(self, attempt_id: str):
+            return {"filename": "candidate.md", "media_type": "text/markdown", "content": b"# Alex\n"}
+
+        def fail_candidate_profile_stage(self, attempt_id: str, **kwargs):
+            failures.append({"attempt_id": attempt_id, **kwargs})
+            return {}
+
+    monkeypatch.setattr(
+        "fitcv_cp.candidate_profile_service.ingest_candidate_source",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("worker exploded")),
+    )
+
+    with pytest.raises(RuntimeError, match="worker exploded"):
+        execute_candidate_profile_stage(
+            attempt_id="attempt-unexpected-error",
+            stage="base_mapping",
+            claim_id="claim-unexpected-error",
+            expected_revision=2,
+            store=Store(),
+        )
+
+    assert failures == [
+        {
+            "attempt_id": "attempt-unexpected-error",
+            "claim_id": "claim-unexpected-error",
+            "expected_revision": 2,
+            "code": "candidate_profile_processing_failed",
+            "message": "worker exploded",
+            "retryable": True,
+            "stage": "base_mapping",
+        }
+    ]
+
+
 def _success(value: dict) -> LlmRuntimeResult:
     response = LlmAdapterResponse(
         adapter="fake",

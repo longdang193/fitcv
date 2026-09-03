@@ -30,7 +30,10 @@ import {
 } from "../features/candidate-profile/api";
 import { apiClient } from "../lib/api-client";
 import { CandidateProfileReviewOperation } from "../features/candidate-profile/types";
-import { getCandidateProfileFailurePresentation } from "../features/candidate-profile/components/ProcessingStep";
+import {
+  getCandidateProfileFailurePresentation,
+  isCandidateProfileAttemptTerminal,
+} from "../features/candidate-profile/components/ProcessingStep";
 
 describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
   it("parses catalog view", () => {
@@ -126,6 +129,27 @@ describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
 });
 
 describe("Candidate Profile processing failure actions", () => {
+  it("treats hydrated failed and completed attempts as terminal", () => {
+    expect(
+      isCandidateProfileAttemptTerminal({
+        creation_status: "failed",
+        next_action: "retry",
+      } as any)
+    ).toBe(true);
+    expect(
+      isCandidateProfileAttemptTerminal({
+        creation_status: "succeeded",
+        next_action: "view_profile",
+      } as any)
+    ).toBe(true);
+    expect(
+      isCandidateProfileAttemptTerminal({
+        creation_status: "extracting_base",
+        next_action: "wait",
+      } as any)
+    ).toBe(false);
+  });
+
   it("maps unavailable LLM routing to provider setup while keeping retry available", () => {
     expect(
       getCandidateProfileFailurePresentation({

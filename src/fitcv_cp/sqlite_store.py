@@ -2312,6 +2312,7 @@ def create_candidate_profile_creation_attempt(
 
 def get_candidate_profile_creation_attempt(attempt_id: str, *, database_path: Path | None = None) -> dict[str, Any] | None:
     path = database_path or Path(_local_sqlite_path())
+    reconcile_candidate_profile_attempts(database_path=path)
     with _sqlite_connection(path) as conn:
         _ensure_control_plane_schema(conn)
         return _candidate_profile_attempt_resource(conn, attempt_id)
@@ -2319,6 +2320,7 @@ def get_candidate_profile_creation_attempt(attempt_id: str, *, database_path: Pa
 
 def query_candidate_profile_creation_attempts(*, database_path: Path | None = None, **_kwargs: Any) -> dict[str, Any]:
     path = database_path or Path(_local_sqlite_path())
+    reconcile_candidate_profile_attempts(database_path=path)
     with _sqlite_connection(path) as conn:
         _ensure_control_plane_schema(conn)
         ids = [
