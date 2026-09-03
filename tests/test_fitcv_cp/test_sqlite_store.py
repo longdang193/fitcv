@@ -5267,7 +5267,7 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
     assert restored_profile["lifecycle"] == "active"
     assert restored_profile["revision"] == editing_profile["revision"] + 1
 
-    # Changed baseline keeps normal derivation behavior.
+    # Changed baseline reuses copied derived claims and evidence by default.
     changed_edit = sqlite_store.create_candidate_profile_edit_attempt(
         profile_id,
         idempotency_key="edit-key-2",
@@ -5289,10 +5289,48 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
         idempotency_key="approve-changed-edit",
         database_path=database_path,
     )
-    assert changed_approval["creation_status"] == "deriving"
-    assert changed_approval["next_action"] == "wait"
-    assert changed_approval["processing"]["stage"] == "derived_claims"
-    assert changed_approval["processing"]["claim_id"]
+    assert changed_approval["creation_status"] == "derived_review"
+    assert changed_approval["next_action"] == "review_derived"
+    assert changed_approval["processing"]["stage"] is None
+    changed_derived = sqlite_store.get_candidate_profile_review(
+        changed_edit["attempt_id"], "derived", database_path=database_path
+    )
+    assert changed_derived is not None
+    assert changed_derived["document"] == derived_review["document"]
+    assert changed_derived["document"]["skills"][0]["evidence_refs"]
+
+    sqlite_store.discard_candidate_profile_creation_attempt(
+        changed_edit["attempt_id"],
+        expected_revision=changed_approval["revision"],
+        idempotency_key="discard-edit-2",
+        database_path=database_path,
+    )
+
+    regenerated_edit = sqlite_store.create_candidate_profile_edit_attempt(
+        profile_id,
+        idempotency_key="edit-key-3",
+        database_path=database_path,
+    )
+    regenerated_baseline = sqlite_store.patch_candidate_profile_review(
+        regenerated_edit["attempt_id"],
+        "baseline",
+        expected_revision=regenerated_edit["revision"],
+        operations=[{"operation": "replace", "path": "/headline", "value": "Regenerate headline"}],
+        idempotency_key="patch-edit-baseline-2",
+        database_path=database_path,
+    )
+    regenerated_approval = sqlite_store.approve_candidate_profile_review(
+        regenerated_edit["attempt_id"],
+        "baseline",
+        expected_revision=regenerated_baseline["revision"],
+        expected_fingerprint=regenerated_baseline["fingerprint"],
+        derived_action="regenerate",
+        idempotency_key="approve-regenerated-edit",
+        database_path=database_path,
+    )
+    assert regenerated_approval["creation_status"] == "deriving"
+    assert regenerated_approval["next_action"] == "wait"
+    assert regenerated_approval["processing"]["stage"] == "derived_claims"
 
 
 def test_default_candidate_profile_edit_discard_restores_default(tmp_path: Path) -> None:

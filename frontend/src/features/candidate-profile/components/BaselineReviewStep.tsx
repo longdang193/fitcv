@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Button, LoadingState, ErrorState, LiveStatus } from "../../../components";
+import { Button, LoadingState, ErrorState, LiveStatus, Dialog } from "../../../components";
 import {
   fetchBaselineReview,
   fetchCreationAttempt,
@@ -44,6 +44,8 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [staleError, setStaleError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Review baseline extracted facts.");
+  const [attempt, setAttempt] = useState<CreationAttempt | null>(null);
+  const [derivedActionOpen, setDerivedActionOpen] = useState(false);
 
   // Source Dialog state
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
@@ -80,6 +82,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         return;
       }
 
+      setAttempt(currentAttempt);
       const reviewData = await fetchBaselineReview(attemptId);
       setReview(reviewData);
       setDocument(reviewData.document || {});
@@ -329,9 +332,9 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
     }
   };
 
-  // Approve baseline
-  const handleApprove = async () => {
+  const submitApproval = async (derivedAction: "reuse" | "regenerate") => {
     if (!review) return;
+    setDerivedActionOpen(false);
     setApproving(true);
     setError(null);
     setStatusMessage("Flushing changes and approving baseline evidence...");
@@ -343,13 +346,28 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         if (updated) currentReview = updated;
       }
 
-      const attempt = await approveBaselineReview(attemptId, currentReview.revision, currentReview.fingerprint);
+      const approvedAttempt = await approveBaselineReview(
+        attemptId,
+        currentReview.revision,
+        currentReview.fingerprint,
+        undefined,
+        derivedAction
+      );
       setStatusMessage("Baseline approved! Moving to controlled derivation...");
-      onApproveSuccess(attempt);
+      onApproveSuccess(approvedAttempt);
     } catch (err: any) {
       setApproving(false);
       setError(err.message || "Failed to approve baseline review.");
     }
+  };
+
+  const handleApprove = () => {
+    if (!review) return;
+    if (attempt?.profile_id) {
+      setDerivedActionOpen(true);
+      return;
+    }
+    void submitApproval("reuse");
   };
 
   const handleSaveAndExit = async () => {
@@ -852,6 +870,27 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         sourceBlockId={activeSourceBlockId}
         reviewedValue={activeReviewedValue}
       />
+
+      <Dialog
+        open={derivedActionOpen}
+        onClose={() => setDerivedActionOpen(false)}
+        title="Keep or regenerate derived claims?"
+        description="Existing Stage 3 claims, evidence links, and manual edits can be kept while saving your profile field changes."
+        footer={
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <Button variant="secondary" onClick={() => void submitApproval("reuse")} disabled={approving}>
+              Keep existing claims
+            </Button>
+            <Button variant="primary" onClick={() => void submitApproval("regenerate")} disabled={approving}>
+              Regenerate claims
+            </Button>
+          </div>
+        }
+      >
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text)" }}>
+          Default keeps current derived claims and evidence. Regeneration replaces them with fresh AI output.
+        </p>
+      </Dialog>
     </div>
   );
 };

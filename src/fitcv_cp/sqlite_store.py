@@ -3209,7 +3209,7 @@ def patch_candidate_profile_review(
                     """
                     UPDATE candidate_profile_creation_attempts
                     SET revision=revision+1, baseline_fingerprint=?, approved_baseline_fingerprint=NULL,
-                        derived_fingerprint=NULL, approved_derived_fingerprint=NULL,
+                        approved_derived_fingerprint=NULL,
                         confirmation_fingerprint=NULL, creation_status='base_review',
                         next_action='review_baseline', updated_at=?
                     WHERE attempt_id=?
@@ -3453,6 +3453,7 @@ def approve_candidate_profile_review(
     expected_fingerprint: str,
     idempotency_key: str,
     expected_baseline_fingerprint: str | None = None,
+    derived_action: str = "reuse",
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     _, fingerprint_column = _candidate_profile_snapshot_table(stage)
@@ -3462,6 +3463,7 @@ def approve_candidate_profile_review(
             "expected_revision": expected_revision,
             "expected_fingerprint": expected_fingerprint,
             "expected_baseline_fingerprint": expected_baseline_fingerprint,
+            "derived_action": derived_action,
         }
     )
     path = database_path or Path(_local_sqlite_path())
@@ -3493,6 +3495,8 @@ def approve_candidate_profile_review(
                 raise ValueError("candidate_profile_invalid_transition")
             if attempt["fingerprint"] != expected_fingerprint:
                 raise ValueError("candidate_profile_fingerprint_conflict")
+            if stage == "baseline" and derived_action not in {"reuse", "regenerate"}:
+                raise ValueError("candidate_profile_derived_action_invalid")
             if stage == "derived" and attempt["approved_baseline_fingerprint"] != expected_baseline_fingerprint:
                 raise ValueError("candidate_profile_fingerprint_conflict")
             if stage == "baseline":
@@ -3506,16 +3510,30 @@ def approve_candidate_profile_review(
                 )
                 if not _evidence_ids(baseline_snapshot["document"]):
                     raise ValueError("candidate_profile_no_evidence")
-                preserved_derived = conn.execute(
-                    """
-                    SELECT 1
-                    FROM candidate_profile_derived_snapshots
-                    WHERE attempt_id=? AND baseline_fingerprint=?
-                    ORDER BY rowid DESC LIMIT 1
-                    """,
-                    (attempt_id, expected_fingerprint),
-                ).fetchone()
+                preserved_derived = None
+                if derived_action == "reuse":
+                    preserved_derived = conn.execute(
+                        """
+                        SELECT baseline_fingerprint, fingerprint
+                        FROM candidate_profile_derived_snapshots
+                        WHERE attempt_id=? AND fingerprint=(
+                            SELECT derived_fingerprint
+                            FROM candidate_profile_creation_attempts
+                            WHERE attempt_id=?
+                        )
+                        """,
+                        (attempt_id, attempt_id),
+                    ).fetchone()
                 if preserved_derived is not None:
+                    if preserved_derived["baseline_fingerprint"] != expected_fingerprint:
+                        conn.execute(
+                            """
+                            UPDATE candidate_profile_derived_snapshots
+                            SET baseline_fingerprint=?
+                            WHERE attempt_id=? AND fingerprint=?
+                            """,
+                            (expected_fingerprint, attempt_id, preserved_derived["fingerprint"]),
+                        )
                     conn.execute(
                         """
                         UPDATE candidate_profile_creation_attempts

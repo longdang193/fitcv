@@ -3767,6 +3767,43 @@ def test_candidate_profile_update_route_forwards_cas_and_idempotency() -> None:
     }
 
 
+def test_candidate_profile_baseline_approval_forwards_derived_action() -> None:
+    app = _app()
+    captured: dict[str, object] = {}
+
+    def approve(attempt_id: str, stage: str, **kwargs: object) -> dict[str, object]:
+        captured.update({"attempt_id": attempt_id, "stage": stage, **kwargs})
+        return {
+            "attempt_id": attempt_id,
+            "profile_name": "Candidate",
+            "creation_status": "derived_review",
+            "revision": 2,
+            "next_action": "review_derived",
+            "capabilities": {},
+        }
+
+    app.state.run_store.approve_candidate_profile_review_fn = approve
+    response = TestClient(app).post(
+        "/candidate-profile-creation-attempts/attempt-1/baseline/actions/approve",
+        headers={"Idempotency-Key": "approve-reuse"},
+        json={
+            "expected_revision": 1,
+            "expected_fingerprint": "fp-base",
+            "derived_action": "reuse",
+        },
+    )
+
+    assert response.status_code == 202
+    assert captured == {
+        "attempt_id": "attempt-1",
+        "stage": "baseline",
+        "expected_revision": 1,
+        "expected_fingerprint": "fp-base",
+        "derived_action": "reuse",
+        "idempotency_key": "approve-reuse",
+    }
+
+
 
 def test_candidate_profile_update_route_passes_cas_and_idempotency() -> None:
     app = _app()
