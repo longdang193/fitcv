@@ -7266,6 +7266,7 @@ def create_app(
                 or setup_path.startswith(
                     (
                         "/app/",
+                        "/candidate-profile",
                         "/local/",
                         "/api-providers",
                         "/llm-configuration",
@@ -7273,7 +7274,13 @@ def create_app(
                         "/admin/llm-configuration",
                     )
                 )
-                or setup_path in {"/", "/healthz", "/openapi.json"}
+                or setup_path in {
+                    "/",
+                    "/healthz",
+                    "/openapi.json",
+                    "/runs",
+                    "/admin/upload-trigger",
+                }
             )
             if not allowed_before_setup and not onboarding_is_complete():
                 if unsafe:

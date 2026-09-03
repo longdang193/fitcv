@@ -101,6 +101,47 @@ def _complete_onboarding() -> None:
     state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
     state_path.write_text(json.dumps({"version": 1, "complete": True}), encoding="utf-8")
 
+def test_candidate_profile_import_and_progression_work_before_onboarding_completion(
+    local_client: TestClient,
+) -> None:
+    from fitcv_cp.candidate_profile_service import execute_candidate_profile_stage
+
+    local_client.app.state.enqueue_candidate_profile_stage = lambda **kwargs: (
+        execute_candidate_profile_stage(**kwargs) or f"inline:{kwargs['attempt_id']}:{kwargs['stage']}"
+    )
+    source = Path("data/candidate_profile.v2.sample.yaml").read_bytes()
+    headers = {**_csrf_headers(local_client), "Idempotency-Key": "local-profile-create"}
+
+    created = local_client.post(
+        "/candidate-profile-creation-attempts",
+        headers=headers,
+        data={"profile_name": "Imported Candidate"},
+        files={"profile_file": ("candidate.yaml", source, "application/yaml")},
+    )
+
+    assert created.status_code == 202
+    attempt = created.json()["data"]
+    assert attempt["next_action"] == "review_baseline"
+    baseline = local_client.get(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/baseline"
+    )
+    assert baseline.status_code == 200
+    baseline_data = baseline.json()["data"]
+    approved = local_client.post(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/baseline/actions/approve",
+        headers={**_csrf_headers(local_client), "Idempotency-Key": "local-profile-approve"},
+        json={
+            "expected_revision": baseline_data["revision"],
+            "expected_fingerprint": baseline_data["fingerprint"],
+        },
+    )
+
+    assert approved.status_code == 202
+    assert local_client.get(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/derived"
+    ).status_code == 200
+
+
 def test_packaged_local_admin_pages_render_canonical_resources(local_client: TestClient) -> None:
     _complete_onboarding()
 
@@ -714,7 +755,7 @@ def test_incomplete_readiness_blocks_completion_and_run_submission(local_client:
     assert "Candidate profile is not configured" in completion.text
     assert "provider_test_ok" not in completion.text
     assert trigger.status_code == 409
-    assert "onboarding is incomplete" in trigger.text.lower()
+    assert trigger.json()["error"]["code"] == "local_readiness_required"
 
 
 def test_readiness_ignores_legacy_profile_flag(local_client: TestClient) -> None:
