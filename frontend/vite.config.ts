@@ -26,6 +26,7 @@ export default defineConfig({
       "/tracked-companies": "http://127.0.0.1:8000",
       "/candidate-profiles": "http://127.0.0.1:8000",
       "/candidate-profile-creation-attempts": "http://127.0.0.1:8000",
+      "/candidate-profile-field-schema": "http://127.0.0.1:8000",
       "/bookmarks": "http://127.0.0.1:8000",
       "/synonym-policies": "http://127.0.0.1:8000",
       "/synonym-suggestions": "http://127.0.0.1:8000",

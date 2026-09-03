@@ -895,4 +895,10 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
     expect(targetHash).not.toContain("json");
   });
 
+  it("configures dev proxy for /candidate-profile-field-schema to avoid 404 in baseline review", async () => {
+    const viteConfig = await import("../../vite.config");
+    const proxy = (viteConfig.default as any)?.server?.proxy || {};
+    expect(proxy["/candidate-profile-field-schema"]).toBe("http://127.0.0.1:8000");
+  });
+
 });
