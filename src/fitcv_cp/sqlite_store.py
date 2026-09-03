@@ -2375,6 +2375,12 @@ def discard_candidate_profile_creation_attempt(
                     (parent_profile_id,),
                 ).fetchone()
                 if parent is not None and parent["lifecycle"] == "archived":
+                    restore_default = conn.execute(
+                        """SELECT 1
+                           FROM candidate_profiles
+                           WHERE creation_status='succeeded' AND lifecycle='active' AND is_default=1
+                           LIMIT 1"""
+                    ).fetchone() is None
                     parent_revision = int(parent["revision"])
                     revision = conn.execute(
                         """SELECT profile_json, checksum, schema_revision
@@ -2401,9 +2407,9 @@ def discard_candidate_profile_creation_attempt(
                     )
                     conn.execute(
                         """UPDATE candidate_profiles
-                           SET lifecycle='active', archived_at=NULL, updated_at=?, revision=?
+                           SET lifecycle='active', archived_at=NULL, updated_at=?, revision=?, is_default=?
                            WHERE candidate_profile_id=? AND lifecycle='archived' AND revision=?""",
-                        (now, parent_revision + 1, parent_profile_id, parent_revision),
+                        (now, parent_revision + 1, int(restore_default), parent_profile_id, parent_revision),
                     )
                     if conn.execute("SELECT changes()").fetchone()[0] != 1:
                         raise ValueError("revision_conflict")
