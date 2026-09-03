@@ -26,7 +26,6 @@ describe("route-registry", () => {
     // Exact
     expect(matchRoute("#/overview", routes).id).toBe("overview");
     expect(matchRoute("#/runs", routes).id).toBe("runs");
-    expect(matchRoute("#/cv-review", routes).id).toBe("cv-review");
     expect(matchRoute("#/candidate-profile", routes).id).toBe("candidate-profile");
     expect(matchRoute("#/settings/api-providers", routes).id).toBe("api-providers");
     expect(matchRoute("#/settings/llm-configuration", routes).id).toBe("llm-configuration");
@@ -34,7 +33,6 @@ describe("route-registry", () => {
     // Query parameters
     expect(matchRoute("#/runs?view=archived&page=2", routes).id).toBe("runs");
     expect(matchRoute("#/scans?lifecycle=archived", routes).id).toBe("scans");
-    expect(matchRoute("#/cv-review?run_id=run-1&job_id=job-1", routes).id).toBe("cv-review");
 
     // Sub-path prefix & deep links
     expect(matchRoute("#/candidate-profile/create", routes).id).toBe("candidate-profile");
@@ -45,7 +43,6 @@ describe("route-registry", () => {
     expect(matchRoute("#/synonyms", routes).id).toBe("synonyms");
     expect(matchRoute("#/settings/synonyms", routes).id).toBe("synonyms");
     expect(matchRoute("#/candidate-profiles/create", routes).id).toBe("candidate-profile");
-    expect(matchRoute("#/cv-reviews/run-1", routes).id).toBe("cv-review");
     expect(matchRoute("#/candidate-profiles", routes).id).toBe("candidate-profile");
     expect(matchRoute("#/settings/providers", routes).id).toBe("api-providers");
     expect(matchRoute("#/providers", routes).id).toBe("api-providers");

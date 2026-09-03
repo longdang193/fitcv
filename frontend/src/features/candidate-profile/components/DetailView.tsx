@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { SourceDialog } from "./SourceDialog";
 import { Button, LoadingState, ErrorState, StatusBadge, Dialog, LiveStatus } from "../../../components";
 import {
   fetchProfileDetail,
@@ -25,6 +26,11 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
 
   // Delete confirm dialog state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  // Source dialog state for derived claim evidence inspection
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
+  const [activeClaimName, setActiveClaimName] = useState("");
+  const [activeReferencedEvidence, setActiveReferencedEvidence] = useState<any[]>([]);
+
   const handleEdit = async () => {
     if (!profile) return;
     setActionLoading(true);
@@ -59,6 +65,38 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
   }, [profileId]);
 
   const canonical = profile?.canonical || profile?.profile?.canonical || profile?.overview || {};
+  // Index all baseline evidence items
+  const allBaselineEvidence = useMemo(() => {
+    const list: any[] = [];
+    const sections = ["experiences", "education", "projects", "certifications", "achievements", "volunteering"];
+    sections.forEach((sec) => {
+      const parents = canonical[sec] || [];
+      parents.forEach((parent: any) => {
+        const parentTitle = parent.role || parent.name || parent.institution || parent.title || parent.id;
+        const evs = parent.evidence || [];
+        evs.forEach((ev: any) => {
+          list.push({
+            id: ev.id,
+            section: sec,
+            parentTitle,
+            title: ev.title,
+            text: ev.text,
+            source_refs: ev.source_refs,
+          });
+        });
+      });
+    });
+    return list;
+  }, [canonical]);
+
+  const openEvidenceDialogForClaim = (claim: any) => {
+    const refs: string[] = claim.evidence_refs || [];
+    const matched = allBaselineEvidence.filter((ev) => refs.includes(ev.id));
+    setActiveClaimName(claim.name || claim.id);
+    setActiveReferencedEvidence(matched);
+    setSourceDialogOpen(true);
+  };
+
 
   // Lifecycle actions
   const handleArchive = async () => {
@@ -420,7 +458,25 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
                           <span>Origin: {item.origin === "llm_inferred" ? "Inferred" : item.origin || "Inferred"}</span>
-                          <span>{item.evidence_refs?.length || 0} evidence refs</span>
+                          <button
+    type="button"
+    className="btn-subtle"
+    style={{
+      padding: "2px 6px",
+      fontSize: 11,
+      cursor: (item.evidence_refs?.length || 0) > 0 ? "pointer" : "default",
+      color: "var(--accent)",
+      border: "1px solid var(--border-soft)",
+      borderRadius: "var(--radius-sm)",
+      background: "var(--surface-2)",
+      fontWeight: 600,
+    }}
+    onClick={() => openEvidenceDialogForClaim(item)}
+    aria-label={`View ${item.evidence_refs?.length || 0} evidence references for ${item.name}`}
+    disabled={!item.evidence_refs || item.evidence_refs.length === 0}
+  >
+    {item.evidence_refs?.length || 0} evidence refs
+  </button>
                         </div>
                       </div>
                     ))}
@@ -430,41 +486,18 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
             })}
           </div>
         </section>
-
-        {/* Related Runs */}
-        <section className="table-card" style={{ padding: 20 }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>Related Matching Runs</h3>
-          {profile.related_runs && profile.related_runs.length > 0 ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {profile.related_runs.map((r) => (
-                <a
-                  key={r.run_id}
-                  href={`#/runs/${r.run_id}`}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "6px 12px",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-sm)",
-                    textDecoration: "none",
-                    color: "var(--accent)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                >
-                  <span>{r.run_id}</span>
-                  {r.status && <StatusBadge status="neutral" label={r.status} />}
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13, fontStyle: "italic" }}>
-              No matching runs have used this profile snapshot yet.
-            </p>
-          )}
-        </section>
       </div>
+
+
+      {/* Evidence Source Dialog for Derived Claims */}
+      <SourceDialog
+        open={sourceDialogOpen}
+        onClose={() => setSourceDialogOpen(false)}
+        attemptId={profile.creation?.attempt_id || profile.profile_id}
+        title={activeClaimName ? `Evidence for "${activeClaimName}"` : "Referenced Evidence"}
+        description="Approved baseline evidence supporting this derived claim."
+        evidenceItems={activeReferencedEvidence}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog

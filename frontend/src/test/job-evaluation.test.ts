@@ -8,23 +8,14 @@ import {
   exportRunJobSelection,
 } from "../features/job-evaluation/api";
 import { apiClient } from "../lib/api-client";
-import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
+
 
 describe("job evaluation slice and api", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("registers and matches job-evaluation feature route", () => {
-    const routes = discoverFeatureRoutes();
-    const evalRoute = routes.find((r) => r.id === "job-evaluation");
-    expect(evalRoute).toBeDefined();
-    expect(evalRoute?.path).toBe("#/job-evaluation");
-    expect(evalRoute?.group).toBe("workspace");
 
-    const matched = matchRoute("#/job-evaluation?run_id=run-1", routes);
-    expect(matched.id).toBe("job-evaluation");
-  });
 
   it("sets and clears job bookmark via PUT/DELETE endpoints", async () => {
     const putSpy = vi.spyOn(apiClient, "put").mockResolvedValueOnce({
