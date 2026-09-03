@@ -1224,3 +1224,14 @@ def execute_candidate_profile_stage(
             stage=stage,
         )
         raise
+    except Exception as exc:
+        store.fail_candidate_profile_stage(
+            attempt_id,
+            claim_id=claim_id,
+            expected_revision=expected_revision,
+            code="candidate_profile_processing_failed",
+            message=str(exc) or "Candidate Profile processing failed.",
+            retryable=True,
+            stage=stage,
+        )
+        raise
