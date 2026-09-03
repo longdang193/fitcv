@@ -35,4 +35,33 @@ describe("candidate profile review UX", () => {
     expect(html).toContain("att_123");
     expect(html).toContain("fp_base");
   });
+  it("does not render redundant top back buttons in baseline review and preserves approve action", async () => {
+    const { BaselineReviewStep } = await import("./BaselineReviewStep");
+    const html = renderToStaticMarkup(
+      React.createElement(BaselineReviewStep as any, {
+        attemptId: "att_test",
+        onApproveSuccess: () => undefined,
+        onSaveAndExit: () => undefined,
+      })
+    );
+
+    // Initial loading or loaded markup must not contain redundant header back button
+    expect(html).not.toContain("backToDerivedFromBaseline");
+  });
+
+  it("does not render redundant top back buttons in derived review and preserves bottom navigation", async () => {
+    const { DerivedReviewStep } = await import("./DerivedReviewStep");
+    const html = renderToStaticMarkup(
+      React.createElement(DerivedReviewStep as any, {
+        attemptId: "att_test",
+        onBackToBaseline: () => undefined,
+        onBackToConfirmation: () => undefined,
+        onApproveSuccess: () => undefined,
+        onSaveAndExit: () => undefined,
+      })
+    );
+
+    expect(html).not.toContain("backToConfirmationHeader");
+    expect(html).not.toContain("backToBaselineHeader");
+  });
 });

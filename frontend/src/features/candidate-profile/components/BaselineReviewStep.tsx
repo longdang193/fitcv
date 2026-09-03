@@ -23,7 +23,6 @@ import { ReviewLogConsole } from "./ReviewLogConsole";
 
 export interface BaselineReviewStepProps {
   attemptId: string;
-  onBackToDerived?: () => void;
   onApproveSuccess: (attempt: CreationAttempt) => void;
   onSaveAndExit: () => void;
 }
@@ -34,7 +33,6 @@ function generateRandomId(prefix: string): string {
 
 export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
   attemptId,
-  onBackToDerived,
   onApproveSuccess,
   onSaveAndExit,
 }) => {
@@ -433,11 +431,6 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {onBackToDerived && review.capabilities.approve !== true && (
-            <Button size="compact" variant="secondary" id="backToDerivedFromBaseline" onClick={onBackToDerived}>
-              ← Back to derived
-            </Button>
-          )}
           {review.capabilities.regenerate_all && (
             <Button size="compact" onClick={() => handleRegenerate("*")} loading={saving} disabled={saving || approving}>
               ✨ Regenerate AI fields

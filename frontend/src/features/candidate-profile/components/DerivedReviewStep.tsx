@@ -431,16 +431,6 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {onBackToConfirmation && review.capabilities.approve !== true && (
-            <Button size="compact" variant="secondary" id="backToConfirmationHeader" onClick={onBackToConfirmation}>
-              ← Back to confirmation
-            </Button>
-          )}
-          {onBackToBaseline && (
-            <Button size="compact" variant="secondary" id="backToBaselineHeader" onClick={onBackToBaseline}>
-              ← Back to baseline
-            </Button>
-          )}
           {review.capabilities.regenerate_all && (
             <Button size="compact" onClick={() => handleRegenerate("*")} loading={saving} disabled={saving || approving}>
               ✨ Regenerate all derived claims
