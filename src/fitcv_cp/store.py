@@ -54,6 +54,7 @@ class RunStore(Protocol):
     def get_candidate_profile_creation_attempt(self, attempt_id: str) -> dict[str, Any] | None: ...
     def get_candidate_profile_source(self, attempt_id: str) -> dict[str, Any] | None: ...
     def get_candidate_profile_source_block(self, attempt_id: str, source_block_id: str) -> dict[str, Any] | None: ...
+    def register_candidate_profile_source_blocks(self, attempt_id: str, **kwargs: Any) -> None: ...
     def get_candidate_profile_review(self, attempt_id: str, stage: str) -> dict[str, Any] | None: ...
     def patch_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
     def regenerate_candidate_profile_review(self, attempt_id: str, stage: str, **kwargs: Any) -> dict[str, Any]: ...
@@ -228,6 +229,7 @@ class ControlPlaneStore:
     get_candidate_profile_creation_attempt_fn: Any | None = None
     get_candidate_profile_source_fn: Any | None = None
     get_candidate_profile_source_block_fn: Any | None = None
+    register_candidate_profile_source_blocks_fn: Any | None = None
     get_candidate_profile_review_fn: Any | None = None
     patch_candidate_profile_review_fn: Any | None = None
     regenerate_candidate_profile_review_fn: Any | None = None
@@ -623,6 +625,14 @@ class ControlPlaneStore:
         return cast(
             dict[str, Any] | None,
             self._call(self.get_candidate_profile_source_block_fn, sqlite_store.get_candidate_profile_source_block, attempt_id, source_block_id),
+        )
+
+    def register_candidate_profile_source_blocks(self, attempt_id: str, **kwargs: Any) -> None:
+        self._call_dict(
+            self.register_candidate_profile_source_blocks_fn,
+            sqlite_store.register_candidate_profile_source_blocks,
+            attempt_id,
+            **kwargs,
         )
 
     def get_candidate_profile_review(self, attempt_id: str, stage: str) -> dict[str, Any] | None:

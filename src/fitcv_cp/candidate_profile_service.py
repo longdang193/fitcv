@@ -196,6 +196,17 @@ def _stable_id(prefix: str, value: Any) -> str:
     return f"{prefix}_{_fingerprint(value)[:16]}"
 
 
+def _scope_source_blocks(attempt_id: str, source_blocks: tuple[dict[str, Any], ...]) -> tuple[dict[str, Any], ...]:
+    scoped_ids = {
+        str(block["block_id"]): _stable_id("block", [attempt_id, block["block_id"]])
+        for block in source_blocks
+    }
+    scoped = copy.deepcopy(list(source_blocks))
+    for block in scoped:
+        block["block_id"] = scoped_ids[str(block["block_id"])]
+    return tuple(scoped)
+
+
 def _empty_baseline(source_document: dict[str, Any]) -> dict[str, Any]:
     return {
         "source_documents": [copy.deepcopy(source_document)],
@@ -1104,19 +1115,17 @@ def execute_candidate_profile_stage(
                 )
                 source_blocks = None
             else:
-                result = build_baseline_review(ingest)
-                source_blocks = copy.deepcopy(list(ingest.source_blocks))
-                scoped_ids = {
-                    str(block["block_id"]): _stable_id("block", [attempt_id, block["block_id"]])
-                    for block in source_blocks
-                }
-                for block in source_blocks:
-                    block["block_id"] = scoped_ids[str(block["block_id"])]
-                for annotation in result.annotations.values():
-                    annotation["source_block_ids"] = [
-                        scoped_ids.get(str(block_id), str(block_id))
-                        for block_id in annotation.get("source_block_ids") or []
-                    ]
+                source_blocks = _scope_source_blocks(attempt_id, ingest.source_blocks)
+                register_source_blocks = getattr(store, "register_candidate_profile_source_blocks", None)
+                if register_source_blocks is not None:
+                    register_source_blocks(attempt_id, source_blocks=list(source_blocks))
+                scoped_ingest = CandidateIngestResult(
+                    source_document=ingest.source_document,
+                    source_blocks=source_blocks,
+                    extraction_fingerprint=ingest.extraction_fingerprint,
+                    profile=ingest.profile,
+                )
+                result = build_baseline_review(scoped_ingest)
             payload = _stage_result_payload(result)
             payload["extraction_fingerprint"] = ingest.extraction_fingerprint
             return store.publish_candidate_profile_stage_result(

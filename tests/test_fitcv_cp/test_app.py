@@ -460,6 +460,64 @@ def test_candidate_profile_enqueue_failure_returns_retryable_api_error() -> None
     assert failed["capabilities"]["retry"] is True
 
 
+def test_candidate_profile_baseline_validation_failure_registers_blocks_and_retries() -> None:
+    from fitcv_cp.candidate_profile_service import CandidateProfileServiceError, execute_candidate_profile_stage
+
+    app = _app()
+    app.state.enqueue_candidate_profile_stage = MagicMock()
+    client = TestClient(app)
+    created = client.post(
+        "/candidate-profile-creation-attempts",
+        headers={"Idempotency-Key": "baseline-validation-create"},
+        data={"profile_name": "Baseline Validation Profile"},
+        files={"profile_file": ("candidate.md", b"# Alex Morgan\n\nData analyst experience.\n", "text/markdown")},
+    )
+    assert created.status_code == 202
+    initial = created.json()["data"]
+
+    with patch(
+        "fitcv_cp.candidate_profile_service.build_baseline_review",
+        side_effect=CandidateProfileServiceError(
+            "candidate_profile_llm_output_invalid",
+            "baseline collection requires valid source_block_ids",
+            retryable=True,
+        ),
+    ):
+        with pytest.raises(CandidateProfileServiceError, match="baseline collection requires valid source_block_ids"):
+            execute_candidate_profile_stage(
+                attempt_id=initial["attempt_id"],
+                stage="base_mapping",
+                claim_id=initial["processing"]["claim_id"],
+                expected_revision=initial["revision"],
+                store=app.state.run_store,
+            )
+
+    failed = client.get(f"/candidate-profile-creation-attempts/{initial['attempt_id']}").json()["data"]
+    assert failed["creation_status"] == "failed"
+    assert failed["failure"]["message"] == "baseline collection requires valid source_block_ids"
+    assert failed["capabilities"]["retry"] is True
+    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
+        assert conn.execute(
+            "SELECT COUNT(*) FROM candidate_profile_source_blocks WHERE attempt_id=?",
+            (initial["attempt_id"],),
+        ).fetchone()[0] == 2
+
+    app.state.enqueue_candidate_profile_stage.reset_mock()
+    retried = client.post(
+        f"/candidate-profile-creation-attempts/{initial['attempt_id']}/actions/retry",
+        headers={"Idempotency-Key": "baseline-validation-retry"},
+        json={"expected_revision": failed["revision"]},
+    )
+
+    assert retried.status_code == 202
+    retry_data = retried.json()["data"]
+    assert retry_data["creation_status"] == "extracting_base"
+    assert retry_data["processing"]["stage"] == "base_mapping"
+    assert retry_data["processing"]["claim_id"] != failed["processing"]["claim_id"]
+    app.state.enqueue_candidate_profile_stage.assert_called_once()
+    assert app.state.enqueue_candidate_profile_stage.call_args.kwargs["stage"] == "base_mapping"
+
+
 def test_candidate_profile_regeneration_rejection_exposes_reload_action() -> None:
     app = _app()
     app.state.enqueue_candidate_profile_stage = _execute_candidate_profile_stage_now

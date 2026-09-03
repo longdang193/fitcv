@@ -31,6 +31,7 @@ from fitcv_cp.candidate_profile_service import (
 
 def test_execute_candidate_profile_stage_publishes_deterministic_baseline() -> None:
     published: list[dict[str, object]] = []
+    registered: list[dict[str, object]] = []
 
     class Store:
         def get_candidate_profile_source(self, attempt_id: str):
@@ -43,6 +44,9 @@ def test_execute_candidate_profile_stage_publishes_deterministic_baseline() -> N
         def publish_candidate_profile_stage_result(self, attempt_id: str, **kwargs):
             published.append({"attempt_id": attempt_id, **kwargs})
             return {"attempt_id": attempt_id, "creation_status": "base_review"}
+
+        def register_candidate_profile_source_blocks(self, attempt_id: str, **kwargs):
+            registered.append({"attempt_id": attempt_id, **kwargs})
 
         def fail_candidate_profile_stage(self, attempt_id: str, **kwargs):
             raise AssertionError((attempt_id, kwargs))
@@ -59,11 +63,58 @@ def test_execute_candidate_profile_stage_publishes_deterministic_baseline() -> N
     assert published[0]["claim_id"] == "claim-1"
     assert published[0]["stage"] == "baseline"
     assert published[0]["result"]["document"]["name"] == "Alex Morgan"
+    assert registered[0]["attempt_id"] == "attempt-1"
+    assert registered[0]["source_blocks"][0]["block_id"] == published[0]["source_blocks"][0]["block_id"]
     first_block_id = published[0]["source_blocks"][0]["block_id"]
     second_block_id = published[1]["source_blocks"][0]["block_id"]
     assert first_block_id != second_block_id
     assert published[0]["result"]["annotations"]["/name"]["source_block_ids"] == [first_block_id]
     assert published[1]["result"]["annotations"]["/name"]["source_block_ids"] == [second_block_id]
+
+
+def test_execute_candidate_profile_stage_registers_blocks_before_retryable_baseline_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    registered: list[dict[str, object]] = []
+    failed: list[dict[str, object]] = []
+
+    class Store:
+        def get_candidate_profile_source(self, attempt_id: str):
+            return {
+                "filename": "candidate.md",
+                "media_type": "text/markdown",
+                "content": b"# Alex Morgan\n\nData analyst focused on reliable reporting.\n",
+            }
+
+        def register_candidate_profile_source_blocks(self, attempt_id: str, **kwargs):
+            registered.append({"attempt_id": attempt_id, **kwargs})
+
+        def publish_candidate_profile_stage_result(self, attempt_id: str, **kwargs):
+            raise AssertionError("failed baseline must not publish")
+
+        def fail_candidate_profile_stage(self, attempt_id: str, **kwargs):
+            failed.append({"attempt_id": attempt_id, **kwargs})
+            return {}
+
+    def fail_baseline(*_args, **_kwargs):
+        raise CandidateProfileServiceError(
+            "candidate_profile_llm_output_invalid",
+            "baseline collection requires valid source_block_ids",
+            retryable=True,
+        )
+
+    monkeypatch.setattr("fitcv_cp.candidate_profile_service.build_baseline_review", fail_baseline)
+    with pytest.raises(CandidateProfileServiceError, match="baseline collection requires valid source_block_ids"):
+        execute_candidate_profile_stage(
+            attempt_id="attempt-failed",
+            stage="base_mapping",
+            claim_id="claim-failed",
+            expected_revision=2,
+            store=Store(),
+        )
+
+    assert registered[0]["attempt_id"] == "attempt-failed"
+    assert registered[0]["source_blocks"]
+    assert failed[0]["retryable"] is True
+    assert failed[0]["stage"] == "base_mapping"
 
 
 def _success(value: dict) -> LlmRuntimeResult:

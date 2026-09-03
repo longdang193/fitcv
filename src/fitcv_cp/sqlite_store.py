@@ -2592,6 +2592,74 @@ def get_candidate_profile_source(attempt_id: str, *, database_path: Path | None 
         return {"filename": row[0], "media_type": row[1], "checksum": row[2], "content": bytes(row[3])}
 
 
+def _register_candidate_profile_source_blocks(
+    conn: sqlite3.Connection,
+    *,
+    attempt_id: str,
+    source_document_id: str,
+    source_blocks: list[dict[str, Any]],
+) -> None:
+    for ordinal, block in enumerate(source_blocks, start=1):
+        stored = (
+            block.get("source_block_id") or block.get("block_id"),
+            source_document_id,
+            str(block.get("kind") or "text"),
+            json.dumps(block.get("locator") or {}, sort_keys=True, separators=(",", ":")),
+            str(block.get("text") or ""),
+            str(block.get("checksum") or hashlib.sha256(str(block.get("text") or "").encode("utf-8")).hexdigest()),
+        )
+        existing = conn.execute(
+            """
+            SELECT source_block_id, source_document_id, kind, locator_json, text, checksum
+            FROM candidate_profile_source_blocks WHERE attempt_id=? AND ordinal=?
+            """,
+            (attempt_id, ordinal),
+        ).fetchone()
+        if existing is not None:
+            if tuple(existing) != stored:
+                raise ValueError("candidate_profile_source_block_conflict")
+            continue
+        conn.execute(
+            """
+            INSERT INTO candidate_profile_source_blocks (
+                source_block_id, attempt_id, source_document_id, ordinal, kind,
+                locator_json, text, checksum
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (stored[0], attempt_id, stored[1], ordinal, *stored[2:]),
+        )
+
+
+def register_candidate_profile_source_blocks(
+    attempt_id: str,
+    *,
+    source_blocks: list[dict[str, Any]],
+    database_path: Path | None = None,
+) -> None:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            attempt = conn.execute(
+                "SELECT source_document_id FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            _register_candidate_profile_source_blocks(
+                conn,
+                attempt_id=attempt_id,
+                source_document_id=str(attempt["source_document_id"]),
+                source_blocks=source_blocks,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+
 def get_candidate_profile_source_block(
     attempt_id: str,
     source_block_id: str,
@@ -2717,41 +2785,12 @@ def publish_candidate_profile_stage_result(
             if attempt["processing_stage"] != processing_stage or attempt["processing_claim_id"] != claim_id:
                 raise ValueError("candidate_profile_processing_claim_conflict")
             if stage == "baseline":
-                for ordinal, block in enumerate(source_blocks or [], start=1):
-                    stored = (
-                        block.get("source_block_id") or block.get("block_id"),
-                        attempt["source_document_id"],
-                        str(block.get("kind") or "text"),
-                        json.dumps(block.get("locator") or {}, sort_keys=True, separators=(",", ":")),
-                        str(block.get("text") or ""),
-                        str(block.get("checksum") or hashlib.sha256(str(block.get("text") or "").encode("utf-8")).hexdigest()),
-                    )
-                    existing = conn.execute(
-                        """
-                        SELECT source_block_id, source_document_id, kind, locator_json, text, checksum
-                        FROM candidate_profile_source_blocks WHERE attempt_id=? AND ordinal=?
-                        """,
-                        (attempt_id, ordinal),
-                    ).fetchone()
-                    if existing is not None:
-                        if tuple(existing) != stored:
-                            raise ValueError("candidate_profile_source_block_conflict")
-                        continue
-                    conn.execute(
-                        """
-                        INSERT INTO candidate_profile_source_blocks (
-                            source_block_id, attempt_id, source_document_id, ordinal, kind,
-                            locator_json, text, checksum
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            stored[0],
-                            attempt_id,
-                            stored[1],
-                            ordinal,
-                            *stored[2:],
-                        ),
-                    )
+                _register_candidate_profile_source_blocks(
+                    conn,
+                    attempt_id=attempt_id,
+                    source_document_id=str(attempt["source_document_id"]),
+                    source_blocks=source_blocks or [],
+                )
             snapshot_id = f"snapshot_{uuid.uuid4().hex}"
             values: list[Any] = [
                 snapshot_id,
