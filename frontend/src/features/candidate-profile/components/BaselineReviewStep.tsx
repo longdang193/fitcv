@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Button, LoadingState, ErrorState, LiveStatus } from "../../../components";
+import { Button, LoadingState, ErrorState } from "../../../components";
 import {
   fetchBaselineReview,
-  fetchCreationAttempt,
   fetchFieldSchema,
   patchBaselineReview,
   regenerateBaselineReview,
@@ -18,9 +17,12 @@ import {
 } from "../types";
 import { SourceDialog } from "./SourceDialog";
 import { getCandidateProfileFailurePresentation } from "./ProcessingStep";
+import { EvidenceReferenceButton } from "./EvidenceReferenceButton";
+import { ReviewLogConsole } from "./ReviewLogConsole";
 
 export interface BaselineReviewStepProps {
   attemptId: string;
+  onBackToDerived?: () => void;
   onApproveSuccess: (attempt: CreationAttempt) => void;
   onSaveAndExit: () => void;
 }
@@ -31,6 +33,7 @@ function generateRandomId(prefix: string): string {
 
 export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
   attemptId,
+  onBackToDerived,
   onApproveSuccess,
   onSaveAndExit,
 }) => {
@@ -50,6 +53,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
   const [activeSourceBlockId, setActiveSourceBlockId] = useState<string | undefined>();
   const [activeSourceTitle, setActiveSourceTitle] = useState("");
   const [activeReviewedValue, setActiveReviewedValue] = useState("");
+  const [activeSourceRefs, setActiveSourceRefs] = useState<Array<{ document_id?: string; locator?: Record<string, any> }>>([]);
 
   const reconciliationKey = `fitcv_recon_baseline_${attemptId}`;
 
@@ -59,28 +63,11 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
     setError(null);
     setStaleError(null);
     try {
-      const [schemaData, attemptData] = await Promise.all([
+      const [schemaData, reviewData] = await Promise.all([
         fetchFieldSchema(),
-        fetchCreationAttempt(attemptId),
+        fetchBaselineReview(attemptId),
       ]);
       setSchema(schemaData);
-
-      let currentAttempt = attemptData;
-      if (
-        currentAttempt.creation_status === "base_mapping" ||
-        currentAttempt.creation_status === "extracting_base" ||
-        currentAttempt.next_action === "wait"
-      ) {
-        setStatusMessage("Extracting baseline facts...");
-        currentAttempt = await waitForAttemptTransition(attemptId, ["review_baseline", "review_derived", "confirm"]);
-      }
-
-      if (currentAttempt.creation_status === "derived_review" || currentAttempt.next_action === "review_derived") {
-        onApproveSuccess(currentAttempt);
-        return;
-      }
-
-      const reviewData = await fetchBaselineReview(attemptId);
       setReview(reviewData);
       setDocument(reviewData.document || {});
       setLoading(false);
@@ -89,7 +76,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
       setError(err.message || "Failed to load baseline review.");
       setLoading(false);
     }
-  }, [attemptId, onApproveSuccess]);
+  }, [attemptId]);
 
   useEffect(() => {
     loadReview();
@@ -331,7 +318,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
 
   // Approve baseline
   const handleApprove = async () => {
-    if (!review) return;
+    if (!review || review.capabilities.approve !== true) return;
     setApproving(true);
     setError(null);
     setStatusMessage("Flushing changes and approving baseline evidence...");
@@ -361,10 +348,16 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
     } catch {}
   };
 
-  const openSourceDialog = (blockId: string, title: string, value: string) => {
+  const openSourceDialog = (
+    blockId: string | undefined,
+    title: string,
+    value: string,
+    sourceRefs: Array<{ document_id?: string; locator?: Record<string, any> }> = []
+  ) => {
     setActiveSourceBlockId(blockId);
     setActiveSourceTitle(title);
     setActiveReviewedValue(value);
+    setActiveSourceRefs(sourceRefs);
     setSourceDialogOpen(true);
   };
 
@@ -407,6 +400,11 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {onBackToDerived && review.capabilities.approve !== true && (
+            <Button size="compact" variant="secondary" id="backToDerivedFromBaseline" onClick={onBackToDerived}>
+              ← Back to derived
+            </Button>
+          )}
           {review.capabilities.regenerate_all && (
             <Button size="compact" onClick={() => handleRegenerate("*")} loading={saving} disabled={saving || approving}>
               ✨ Regenerate AI fields
@@ -478,8 +476,6 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
           {error}
         </div>
       )}
-
-      <LiveStatus message={statusMessage} />
 
       {/* Review Sections */}
       <div style={{ display: "flex", flexDirection: "column", gap: 24, marginTop: 16 }}>
@@ -758,22 +754,17 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                                       <code style={{ fontSize: 11, color: "var(--accent)" }}>{ev.id}</code>
                                     </div>
                                     <div style={{ display: "flex", gap: 6 }}>
-                                      {evAnnotation.source_block_ids && evAnnotation.source_block_ids.length > 0 && (
-                                        <button
-                                          type="button"
-                                          className="btn-subtle"
-                                          style={{ fontSize: 11, padding: "2px 6px", cursor: "pointer", color: "var(--accent)" }}
-                                          onClick={() =>
-                                            openSourceDialog(
-                                              evAnnotation.source_block_ids![0],
-                                              `Evidence ${ev.id}`,
-                                              ev.text || ""
-                                            )
-                                          }
-                                        >
-                                          Source
-                                        </button>
-                                      )}
+                                      <EvidenceReferenceButton
+                                        referenceIds={[ev.id]}
+                                        onOpen={() =>
+                                          openSourceDialog(
+                                            evAnnotation.source_block_ids?.[0],
+                                            `Evidence ${ev.id}`,
+                                            ev.text || "",
+                                            ev.source_refs || []
+                                          )
+                                        }
+                                      />
                                       <button
                                         type="button"
                                         className="btn-subtle"
@@ -819,6 +810,14 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         ))}
       </div>
 
+      <ReviewLogConsole
+        stage="baseline"
+        attemptId={attemptId}
+        statusMessage={statusMessage}
+        revision={review.revision}
+        fingerprint={review.fingerprint}
+      />
+
       {/* Bottom Actions */}
       <div
         style={{
@@ -837,7 +836,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
           variant="primary"
           onClick={handleApprove}
           loading={approving}
-          disabled={saving || approving || Boolean(staleError)}
+          disabled={saving || approving || Boolean(staleError) || review.capabilities.approve !== true}
         >
           Approve baseline and continue →
         </Button>
@@ -850,6 +849,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         attemptId={attemptId}
         title={`Source citation: ${activeSourceTitle}`}
         sourceBlockId={activeSourceBlockId}
+        sourceRefs={activeSourceRefs}
         reviewedValue={activeReviewedValue}
       />
     </div>

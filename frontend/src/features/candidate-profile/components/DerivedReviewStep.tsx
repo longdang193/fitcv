@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Button, LoadingState, ErrorState, LiveStatus, StatusBadge } from "../../../components";
+import { Button, LoadingState, ErrorState, StatusBadge } from "../../../components";
 import {
   fetchBaselineReview,
   fetchDerivedReview,
@@ -19,10 +19,13 @@ import {
 } from "../types";
 import { SourceDialog } from "./SourceDialog";
 import { getCandidateProfileFailurePresentation } from "./ProcessingStep";
+import { EvidenceReferenceButton } from "./EvidenceReferenceButton";
+import { ReviewLogConsole } from "./ReviewLogConsole";
 
 export interface DerivedReviewStepProps {
   attemptId: string;
   onBackToBaseline?: () => void;
+  onBackToConfirmation?: () => void;
   onApproveSuccess: () => void;
   onSaveAndExit: () => void;
 }
@@ -43,6 +46,7 @@ interface EvidenceLookupItem {
 export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
   attemptId,
   onBackToBaseline,
+  onBackToConfirmation,
   onApproveSuccess,
   onSaveAndExit,
 }) => {
@@ -347,7 +351,7 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
 
   // Approve derived claims
   const handleApprove = async () => {
-    if (!review || !attempt) return;
+    if (!review || !attempt || review.capabilities.approve !== true) return;
     setApproving(true);
     setError(null);
     setStatusMessage("Flushing changes and approving derived claims...");
@@ -427,6 +431,11 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {onBackToConfirmation && review.capabilities.approve !== true && (
+            <Button size="compact" variant="secondary" id="backToConfirmationHeader" onClick={onBackToConfirmation}>
+              ← Back to confirmation
+            </Button>
+          )}
           {onBackToBaseline && (
             <Button size="compact" variant="secondary" id="backToBaselineHeader" onClick={onBackToBaseline}>
               ← Back to baseline
@@ -451,7 +460,7 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
             variant="primary"
             onClick={handleApprove}
             loading={approving}
-            disabled={saving || approving || Boolean(staleError)}
+            disabled={saving || approving || Boolean(staleError) || review.capabilities.approve !== true}
           >
             Approve derived claims →
           </Button>
@@ -503,8 +512,6 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
           {error}
         </div>
       )}
-
-      <LiveStatus message={statusMessage} />
 
       {/* Derived Sections */}
       <div style={{ display: "flex", flexDirection: "column", gap: 24, marginTop: 16 }}>
@@ -593,12 +600,10 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                           </div>
 
                           <div style={{ display: "flex", gap: 6 }}>
-                            <Button
-                              size="compact"
-                              onClick={() => openSourceDialogForClaim(claim)}
-                            >
-                              Source ({claim.evidence_refs?.length || 0})
-                            </Button>
+                            <EvidenceReferenceButton
+                              referenceIds={claim.evidence_refs || []}
+                              onOpen={() => openSourceDialogForClaim(claim)}
+                            />
                             <Button
                               size="compact"
                               variant="danger"
@@ -746,6 +751,15 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
         })}
       </div>
 
+      <ReviewLogConsole
+        stage="derived"
+        attemptId={attemptId}
+        statusMessage={statusMessage}
+        revision={review.revision}
+        fingerprint={review.fingerprint}
+        baselineFingerprint={attempt?.fingerprints?.approved_baseline}
+      />
+
       {/* Bottom Actions */}
       <div
         style={{
@@ -758,6 +772,11 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
         }}
       >
         <div style={{ display: "flex", gap: 8 }}>
+          {onBackToConfirmation && review.capabilities.approve !== true && (
+            <Button variant="secondary" id="backToConfirmation" onClick={onBackToConfirmation}>
+              ← Back to confirmation
+            </Button>
+          )}
           {onBackToBaseline && (
             <Button variant="secondary" id="backToBaseline" onClick={onBackToBaseline}>
               ← Back to baseline
@@ -771,7 +790,7 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
           variant="primary"
           onClick={handleApprove}
           loading={approving}
-          disabled={saving || approving || Boolean(staleError)}
+          disabled={saving || approving || Boolean(staleError) || review.capabilities.approve !== true}
         >
           Approve derived claims →
         </Button>

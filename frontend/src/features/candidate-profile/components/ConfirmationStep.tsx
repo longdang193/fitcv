@@ -7,6 +7,9 @@ import {
   downloadAttemptSource,
 } from "../api";
 import { ConfirmationResource, CreationAttempt } from "../types";
+import { SourceDialog } from "./SourceDialog";
+import { EvidenceReferenceButton } from "./EvidenceReferenceButton";
+import { ReviewLogConsole } from "./ReviewLogConsole";
 
 export interface ConfirmationStepProps {
   attemptId: string;
@@ -29,7 +32,11 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   // Collapsible section toggles
   const [baselineOpen, setBaselineOpen] = useState(true);
   const [derivedOpen, setDerivedOpen] = useState(true);
-  const [technicalLogOpen, setTechnicalLogOpen] = useState(false);
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
+  const [activeEvidenceTitle, setActiveEvidenceTitle] = useState("");
+  const [activeReviewedValue, setActiveReviewedValue] = useState("");
+  const [activeSourceRefs, setActiveSourceRefs] = useState<Array<{ document_id?: string; locator?: Record<string, any> }>>([]);
+  const [activeReferencedEvidence, setActiveReferencedEvidence] = useState<any[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -60,6 +67,31 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   }, [attemptId]);
 
   const canonical = confirmation?.profile?.canonical || {};
+
+  const baselineEvidence = useMemo(() => {
+    const evidence = new Map<string, any>();
+    ["experiences", "education", "projects", "certifications", "achievements", "volunteering"].forEach((section) => {
+      (canonical[section] || []).forEach((item: any) => {
+        (item.evidence || []).forEach((entry: any) => evidence.set(entry.id, entry));
+      });
+    });
+    return evidence;
+  }, [canonical]);
+
+  const openEvidenceDetails = (title: string, value: string, sourceRefs: Array<{ document_id?: string; locator?: Record<string, any> }> = [], evidenceItems: any[] = []) => {
+    setActiveEvidenceTitle(title);
+    setActiveReviewedValue(value);
+    setActiveSourceRefs(sourceRefs);
+    setActiveReferencedEvidence(evidenceItems);
+    setSourceDialogOpen(true);
+  };
+
+  const openClaimEvidence = (claim: any) => {
+    const evidenceItems = (claim.evidence_refs || [])
+      .map((id: string) => baselineEvidence.get(id))
+      .filter(Boolean);
+    openEvidenceDetails(`Evidence citation: ${claim.name || claim.id}`, "", [], evidenceItems);
+  };
 
   // Compute counts
   const counts = useMemo(() => {
@@ -326,8 +358,14 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                         <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: "2px solid var(--accent-soft)" }}>
                           {exp.evidence.map((ev: any) => (
                             <div key={ev.id} style={{ fontSize: 12, margin: "4px 0", minWidth: 0 }}>
-                              <code style={{ fontSize: 11, color: "var(--accent)" }}>{ev.id}: </code>
-                              <span title={ev.text} style={{ wordBreak: "break-word" }}>{ev.text}</span>
+                              <button
+                                type="button"
+                                className="btn-subtle"
+                                onClick={() => openEvidenceDetails(`Evidence details: ${ev.id}`, ev.text || "", ev.source_refs || [])}
+                                style={{ fontSize: 12, padding: 0, textAlign: "left", color: "var(--accent)", wordBreak: "break-word" }}
+                              >
+                                <code style={{ fontSize: 11 }}>{ev.id}: </code>{ev.text}
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -417,9 +455,10 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                           <strong title={item.name} style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {item.name}
                           </strong>
-                          <span title={(item.evidence_refs || []).join(", ")} style={{ fontSize: 11, color: "var(--muted)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {item.evidence_refs?.length || 0} evidence refs
-                          </span>
+                          <EvidenceReferenceButton
+                            referenceIds={item.evidence_refs || []}
+                            onOpen={() => openClaimEvidence(item)}
+                          />
                         </div>
                         <StatusBadge
                           status={item.support_status === "supported" ? "success" : "neutral"}
@@ -435,52 +474,15 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         )}
       </div>
 
-      {/* Technical Event Log Console & Traceability */}
-      <div className="table-card" style={{ marginBottom: 24, overflow: "hidden" }}>
-        <button
-          type="button"
-          onClick={() => setTechnicalLogOpen(!technicalLogOpen)}
-          style={{
-            width: "100%",
-            padding: "16px 20px",
-            background: "var(--surface-2)",
-            border: 0,
-            borderBottom: technicalLogOpen ? "1px solid var(--border-soft)" : "none",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          <div>
-            <strong style={{ fontSize: 15, color: "var(--text)" }}>Traceability & Technical Event Log</strong>
-            <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-              Document locators, claim-level evidence citations, attempt ID, and confirmation fingerprints
-            </span>
-          </div>
-          <span style={{ fontSize: 14, color: "var(--muted)" }}>{technicalLogOpen ? "▲" : "▼"}</span>
-        </button>
-
-        {technicalLogOpen && (
-          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, fontSize: 12, fontFamily: "var(--font-mono)" }}>
-            <div style={{ padding: 12, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
-              <div style={{ color: "var(--muted)", marginBottom: 4 }}>Attempt ID: <strong style={{ color: "var(--text)" }}>{attemptId}</strong></div>
-              <div style={{ color: "var(--muted)", marginBottom: 4 }}>Confirmation Fingerprint: <code style={{ color: "var(--accent)" }}>{confirmation.fingerprint || "—"}</code></div>
-              <div style={{ color: "var(--muted)", marginBottom: 4 }}>Baseline Fingerprint: <code style={{ color: "var(--text)" }}>{confirmation.approval_fingerprints?.baseline || "—"}</code></div>
-              <div style={{ color: "var(--muted)" }}>Derived Fingerprint: <code style={{ color: "var(--text)" }}>{confirmation.approval_fingerprints?.derived || "—"}</code></div>
-            </div>
-            <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
-              {["skills", "role_families", "domain_tags", "responsibility_themes"].flatMap((sec) => (canonical[sec] || []).map((c: any) => (
-                <div key={`${sec}_${c.id}`} style={{ padding: "6px 8px", background: "var(--surface)", border: "1px solid var(--border-soft)", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text)" }} title={c.name}>{c.name}</span>
-                  <span style={{ color: "var(--muted)" }}>Refs: {(c.evidence_refs || []).join(", ") || "unsupported"}</span>
-                </div>
-              )))}
-            </div>
-          </div>
-        )}
-      </div>
+      <ReviewLogConsole
+        stage="confirmation"
+        attemptId={attemptId}
+        statusMessage="Confirmation data loaded."
+        revision={confirmation.revision}
+        fingerprint={confirmation.fingerprint}
+        baselineFingerprint={confirmation.approval_fingerprints?.baseline}
+        derivedFingerprint={confirmation.approval_fingerprints?.derived}
+      />
 
       {/* Bottom Confirm Bar */}
       <div
@@ -520,6 +522,16 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           </Button>
         </div>
       </div>
+
+      <SourceDialog
+        open={sourceDialogOpen}
+        onClose={() => setSourceDialogOpen(false)}
+        attemptId={attemptId}
+        title={activeEvidenceTitle}
+        sourceRefs={activeSourceRefs}
+        reviewedValue={activeReviewedValue}
+        evidenceItems={activeReferencedEvidence}
+      />
     </div>
   );
 };

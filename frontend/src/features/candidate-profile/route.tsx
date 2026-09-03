@@ -228,6 +228,7 @@ export const CandidateProfileRoute: React.FC = () => {
       {routeState.view === "create_baseline" && routeState.attemptId && (
         <BaselineReviewStep
           attemptId={routeState.attemptId}
+          onBackToDerived={() => handleBackToDerived(routeState.attemptId!)}
           onApproveSuccess={handleBaselineApproved}
           onSaveAndExit={handleBackToCatalog}
         />
@@ -237,6 +238,7 @@ export const CandidateProfileRoute: React.FC = () => {
         <DerivedReviewStep
           attemptId={routeState.attemptId}
           onBackToBaseline={() => handleBackToBaseline(routeState.attemptId!)}
+          onBackToConfirmation={() => handleDerivedApproved(routeState.attemptId!)}
           onApproveSuccess={() => handleDerivedApproved(routeState.attemptId!)}
           onSaveAndExit={handleBackToCatalog}
         />
