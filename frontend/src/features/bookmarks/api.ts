@@ -1,4 +1,5 @@
 import { apiClient } from "../../lib/api-client";
+import { setJobInterest, clearJobInterest } from "../job-evaluation/api";
 import {
   BookmarksPaginationEnvelope,
   SelectionContextPayload,
@@ -32,6 +33,19 @@ export async function fetchBookmarks(params?: {
   const path = `/bookmarks${qs ? `?${qs}` : ""}`;
   const res = await apiClient.get<BookmarksPaginationEnvelope>(path);
   return res.data;
+}
+
+export async function updateBookmarkInterest(
+  runId: string,
+  runJobId: string,
+  rating: number | null
+): Promise<{ rating: number | null }> {
+  if (rating === null || rating <= 0) {
+    const res = await clearJobInterest(runId, runJobId);
+    return { rating: res.rating ?? null };
+  }
+  const res = await setJobInterest(runId, runJobId, rating);
+  return { rating: res.rating ?? rating };
 }
 
 export async function previewBookmarkExport(
