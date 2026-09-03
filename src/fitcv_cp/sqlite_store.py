@@ -2245,7 +2245,7 @@ def _candidate_profile_attempt_resource(conn: sqlite3.Connection, attempt_id: st
             "approve_derived": status == "derived_review",
             "confirm": status == "ready_to_confirm",
             "retry": status == "failed" and bool(failure and failure.get("retryable")),
-            "discard": status != "succeeded" and row["profile_id"] is None,
+            "discard": status != "succeeded",
         },
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -2366,7 +2366,7 @@ def discard_candidate_profile_creation_attempt(
                 raise ValueError("candidate_profile_attempt_not_found")
             if int(attempt["revision"]) != expected_revision:
                 raise ValueError("candidate_profile_revision_conflict")
-            if attempt["creation_status"] == "succeeded" or attempt["profile_id"] is not None:
+            if attempt["creation_status"] == "succeeded":
                 raise ValueError("candidate_profile_discard_confirmed")
             conn.execute("DELETE FROM candidate_profile_creation_attempts WHERE attempt_id=?", (attempt_id,))
             response = {"attempt_id": attempt_id, "discarded": True}
@@ -2383,6 +2383,201 @@ def discard_candidate_profile_creation_attempt(
             conn.rollback()
             raise
     return response
+
+
+def create_candidate_profile_edit_attempt(
+    profile_id: str,
+    *,
+    idempotency_key: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    path = database_path or Path(_local_sqlite_path())
+    scope = f"candidate_profile:{profile_id}:edit"
+    request_fingerprint = _candidate_profile_request_fingerprint({"profile_id": profile_id})
+    current = datetime.datetime.now(datetime.timezone.utc)
+    now = current.isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            row = conn.execute(
+                """
+                SELECT cp.*, pr.profile_json
+                FROM candidate_profiles AS cp
+                LEFT JOIN candidate_profile_revisions AS pr
+                  ON pr.candidate_profile_id = cp.candidate_profile_id
+                 AND pr.revision = cp.revision
+                WHERE cp.candidate_profile_id = ?
+                """,
+                (profile_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("profile_not_found")
+            if row["lifecycle"] != "active":
+                raise ValueError("candidate_profile_archived")
+            if row["creation_status"] != "succeeded":
+                raise ValueError("candidate_profile_edit_unavailable")
+
+            from fitcv_cp.candidate_profile_service import (
+                _split_canonical,
+                _canonical_annotations,
+                _fingerprint,
+                _BASELINE_COLLECTIONS,
+            )
+
+            canonical = json.loads(row["profile_json"]) if row["profile_json"] else {}
+            baseline, _ = _split_canonical(canonical)
+            if not baseline.get("source_documents"):
+                baseline["source_documents"] = [
+                    {
+                        "id": "doc-upload",
+                        "filename": row["original_filename"] or f"profile-{profile_id}.yaml",
+                        "media_type": row["media_type"] or "application/yaml",
+                        "sha256": "0" * 64,
+                        "parser": {"name": "fitcv-profile-edit", "version": "v2"},
+                    }
+                ]
+            for section in _BASELINE_COLLECTIONS:
+                for idx, entry in enumerate(baseline.get(section) or []):
+                    if not isinstance(entry, dict):
+                        continue
+                    if not entry.get("id"):
+                        entry["id"] = f"{section[:4]}_{idx+1}"
+                    if "evidence" in entry:
+                        if not isinstance(entry["evidence"], list) or not entry["evidence"]:
+                            entry["evidence"] = [
+                                {
+                                    "id": f"ev_{entry['id']}_1",
+                                    "kind": "work_achievement" if section == "experiences" else "certification_proof" if section == "certifications" else "other",
+                                    "title": str(entry.get("role") or entry.get("title") or entry.get("name") or "Evidence"),
+                                    "start": str(entry.get("start") or ""),
+                                    "end": str(entry.get("end") or ""),
+                                    "text": str(entry.get("summary") or entry.get("description") or f"Record for {entry['id']}"),
+                                    "source_refs": [],
+                                }
+                            ]
+                        else:
+                            for ev_idx, ev in enumerate(entry["evidence"]):
+                                if isinstance(ev, dict) and not ev.get("id"):
+                                    ev["id"] = f"ev_{entry['id']}_{ev_idx+1}"
+
+            annotations = _canonical_annotations(baseline)
+            baseline_fp = _fingerprint(baseline)
+
+            attempt_id = f"attempt_{uuid.uuid4().hex}"
+            source_document_id = f"doc_{attempt_id.removeprefix('attempt_')}"
+            profile_name = str(row["profile_name"] or "Candidate Profile")
+            original_filename = str(row["original_filename"] or f"profile-{profile_id}.yaml")
+            media_type = str(row["media_type"] or "application/yaml")
+            source_bytes = json.dumps(canonical, ensure_ascii=False, indent=2).encode("utf-8")
+            purge_after = (current + datetime.timedelta(days=30)).isoformat()
+
+            conn.execute(
+                """
+                INSERT INTO candidate_profile_creation_attempts (
+                    attempt_id, profile_name, creation_status, revision, source_document_id,
+                    next_action, baseline_fingerprint, source_purge_after, profile_id,
+                    created_at, updated_at
+                ) VALUES (?, ?, 'base_review', 1, ?, 'review_baseline', ?, ?, ?, ?, ?)
+                """,
+                (
+                    attempt_id,
+                    profile_name,
+                    source_document_id,
+                    baseline_fp,
+                    purge_after,
+                    profile_id,
+                    now,
+                    now,
+                ),
+            )
+
+            conn.execute(
+                """
+                INSERT INTO candidate_profile_source_documents (
+                    source_document_id, attempt_id, original_filename, media_type, byte_length,
+                    checksum, source_bytes, source_available, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+                """,
+                (
+                    source_document_id,
+                    attempt_id,
+                    original_filename,
+                    media_type,
+                    len(source_bytes),
+                    hashlib.sha256(source_bytes).hexdigest(),
+                    source_bytes,
+                    now,
+                ),
+            )
+
+            snapshot_id = f"snapshot_{uuid.uuid4().hex}"
+            conn.execute(
+                """
+                INSERT INTO candidate_profile_baseline_snapshots (
+                    snapshot_id, attempt_id, fingerprint, document_json, annotations_json,
+                    runtime_evidence_json, approved, created_at
+                ) VALUES (?, ?, ?, ?, ?, NULL, 0, ?)
+                """,
+                (
+                    snapshot_id,
+                    attempt_id,
+                    baseline_fp,
+                    json.dumps(baseline, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    json.dumps(annotations, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    now,
+                ),
+            )
+
+            conn.execute(
+                """
+                INSERT INTO candidate_profile_source_blocks (
+                    source_block_id, attempt_id, source_document_id, ordinal, kind,
+                    locator_json, text, checksum
+                )
+                SELECT
+                    'sb_edit_' || substr(source_block_id, 1, 12) || '_' || ordinal,
+                    ?,
+                    ?,
+                    ordinal,
+                    kind,
+                    locator_json,
+                    text,
+                    checksum
+                FROM candidate_profile_source_blocks
+                WHERE attempt_id = (
+                    SELECT attempt_id FROM candidate_profile_creation_attempts
+                    WHERE profile_id = ? AND creation_status = 'succeeded' LIMIT 1
+                )
+                """,
+                (attempt_id, source_document_id, profile_id),
+            )
+
+            response = _candidate_profile_attempt_resource(conn, attempt_id)
+            assert response is not None
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+            return response
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def get_candidate_profile_source(attempt_id: str, *, database_path: Path | None = None) -> dict[str, Any] | None:
@@ -3335,7 +3530,7 @@ def confirm_candidate_profile_creation_attempt(
                 conn.rollback()
                 return replay
             attempt = conn.execute(
-                "SELECT revision, profile_id FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                "SELECT revision, creation_status, profile_id FROM candidate_profile_creation_attempts WHERE attempt_id=?",
                 (attempt_id,),
             ).fetchone()
             if attempt is None:
@@ -3347,18 +3542,28 @@ def confirm_candidate_profile_creation_attempt(
                 raise ValueError("candidate_profile_fingerprint_conflict")
             if confirmation["fingerprint"] != expected_confirmation_fingerprint:
                 raise ValueError("candidate_profile_fingerprint_conflict")
-            if attempt["profile_id"]:
+            if attempt["creation_status"] == "succeeded" and attempt["profile_id"]:
                 response = _candidate_profile_resource(conn, str(attempt["profile_id"]))
                 assert response is not None
             else:
                 if int(attempt["revision"]) != expected_revision:
                     raise ValueError("candidate_profile_revision_conflict")
+                parent_profile_id = str(attempt["profile_id"]) if attempt["profile_id"] else None
                 profile_id = _insert_confirmed_candidate_profile(
                     conn,
                     attempt_id=attempt_id,
                     confirmation=confirmation,
                     now=now,
                 )
+                if parent_profile_id:
+                    conn.execute(
+                        """
+                        UPDATE candidate_profiles
+                        SET lifecycle='archived', archived_at=?, updated_at=?, revision=revision+1
+                        WHERE candidate_profile_id=? AND lifecycle='active'
+                        """,
+                        (now, now, parent_profile_id),
+                    )
                 conn.execute(
                     """
                     UPDATE candidate_profile_creation_attempts

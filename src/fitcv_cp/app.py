@@ -10567,6 +10567,24 @@ def create_app(
         store.complete_idempotent_action(str(reservation["action_id"]), resource)
         return _data_response(resource)
 
+    @app.post(
+        "/candidate-profiles/{profile_id}/actions/edit",
+        status_code=201,
+        response_model=CandidateProfileCreationAttemptEnvelope,
+    )
+    def create_candidate_profile_edit_attempt(
+        request: Request,
+        profile_id: str,
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        resource = _candidate_profile_call(
+            lambda: _resolve_run_store().create_candidate_profile_edit_attempt(
+                profile_id,
+                idempotency_key=key,
+            )
+        )
+        return _data_response(resource)
+
     @app.post("/candidate-profiles/{profile_id}/actions/archive", response_model=CandidateProfileEnvelope)
     def archive_candidate_profile(
         request: Request, profile_id: str, body: CandidateProfileLifecycleRequest

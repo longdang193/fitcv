@@ -21,6 +21,7 @@ import {
   updateProfile,
   fetchSourceBlock,
   normalizeCandidateProfileDetail,
+  createEditAttempt,
 } from "../features/candidate-profile/api";
 import { apiClient } from "../lib/api-client";
 import { CandidateProfileReviewOperation } from "../features/candidate-profile/types";
@@ -855,6 +856,43 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
       revision: 2,
     };
     expect(resolveResumeRoute(baseReviewAttempt)).toBe("#/candidate-profile/create/att_ready_base/baseline");
+  });
+
+  it("creates edit attempt for active profile and routes to Step 2 baseline review without canonical JSON editor", async () => {
+    const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
+      data: {
+        data: {
+          attempt_id: "att_edit_live",
+          profile_name: "Active Lead",
+          creation_status: "base_review",
+          next_action: "review_baseline",
+          revision: 1,
+          capabilities: { review_baseline: true, approve_baseline: true },
+        },
+      } as any,
+      status: 201,
+    });
+
+    const editAttempt = await createEditAttempt("prof_live_99", "edit-key-99");
+    expect(editAttempt.attempt_id).toBe("att_edit_live");
+    expect(editAttempt.creation_status).toBe("base_review");
+    expect(editAttempt.next_action).toBe("review_baseline");
+    expect(postSpy).toHaveBeenCalledWith(
+      "/candidate-profiles/prof_live_99/actions/edit",
+      {},
+      { idempotencyKey: "edit-key-99" }
+    );
+
+    // Opening edit routes to Step 2 Baseline review
+    const targetHash = candidateProfileEditHash(editAttempt.attempt_id);
+    expect(targetHash).toBe("#/candidate-profile/create/att_edit_live/baseline");
+
+    const parsed = parseCandidateRoute(targetHash);
+    expect(parsed.view).toBe("create_baseline");
+    expect(parsed.attemptId).toBe("att_edit_live");
+    // Target is never a raw JSON editor or /admin JSON route
+    expect(targetHash).not.toContain("canonical");
+    expect(targetHash).not.toContain("json");
   });
 
 });

@@ -5139,3 +5139,55 @@ def test_persist_pipeline_snapshot_maps_stage_aliases_and_job_outcomes() -> None
             (run_job_id,),
         ).fetchall()
     assert ("ranking", "skipped") in rows
+
+
+def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    confirmation = sqlite_store.get_candidate_profile_confirmation(
+        ready["attempt_id"], database_path=database_path
+    )
+    assert confirmation is not None
+    profile = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-for-edit-test",
+        database_path=database_path,
+    )
+    assert profile["lifecycle"] == "active"
+    profile_id = profile["profile_id"]
+
+    edit_attempt = sqlite_store.create_candidate_profile_edit_attempt(
+        profile_id,
+        idempotency_key="edit-key-1",
+        database_path=database_path,
+    )
+
+    assert edit_attempt["creation_status"] == "base_review"
+    assert edit_attempt["next_action"] == "review_baseline"
+    assert edit_attempt["capabilities"]["review_baseline"] is True
+    assert edit_attempt["capabilities"]["approve_baseline"] is True
+    assert edit_attempt["capabilities"]["discard"] is True
+
+    baseline_review = sqlite_store.get_candidate_profile_review(
+        edit_attempt["attempt_id"], "baseline", database_path=database_path
+    )
+    assert baseline_review is not None
+    assert baseline_review["stage"] == "baseline"
+    assert edit_attempt["profile_name"] == profile["profile_name"]
+    assert baseline_review["capabilities"]["patch"] is True
+    assert baseline_review["capabilities"]["approve"] is True
+
+    # Approve baseline -> derives -> confirms successor
+    approved_base = sqlite_store.approve_candidate_profile_review(
+        edit_attempt["attempt_id"],
+        "baseline",
+        expected_revision=edit_attempt["revision"],
+        expected_fingerprint=edit_attempt["fingerprints"]["baseline_draft"],
+        idempotency_key="approve-base-edit",
+        database_path=database_path,
+    )
+    assert approved_base["creation_status"] == "deriving"

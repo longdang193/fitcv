@@ -355,6 +355,18 @@ export async function fetchProfileDetail(profileId: string): Promise<CandidatePr
   return normalizeCandidateProfileDetail(data);
 }
 
+export async function createEditAttempt(
+  profileId: string,
+  idempotencyKey = generateIdempotencyKey()
+): Promise<CreationAttempt> {
+  const res = await apiClient.post<{ data: CreationAttempt }>(
+    `/candidate-profiles/${encodeURIComponent(profileId)}/actions/edit`,
+    {},
+    { idempotencyKey }
+  );
+  return (res.data as any)?.data || res.data;
+}
+
 export async function updateProfile(
   profileId: string,
   expectedRevision: number,

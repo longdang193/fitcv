@@ -6,6 +6,7 @@ import {
   restoreProfile,
   deleteProfile,
   downloadAttemptSource,
+  createEditAttempt,
 } from "../api";
 import { CandidateProfileDetail } from "../types";
 
@@ -24,6 +25,21 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
 
   // Delete confirm dialog state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const handleEdit = async () => {
+    if (!profile) return;
+    setActionLoading(true);
+    setError(null);
+    setStatusMessage("Opening profile editor...");
+    try {
+      const attempt = await createEditAttempt(profile.profile_id);
+      setActionLoading(false);
+      onEdit(attempt.attempt_id);
+    } catch (err: any) {
+      setError(err.message || "Failed to edit candidate profile.");
+      setActionLoading(false);
+    }
+  };
+
 
   const loadDetail = async () => {
     setLoading(true);
@@ -169,9 +185,9 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
                 Delete Profile
               </Button>
             )}
-            {profile.capabilities?.use_for_run && profile.creation?.attempt_id && (
-              <Button onClick={() => onEdit(profile.creation!.attempt_id!)} disabled={actionLoading}>
-                Edit Successor Revision
+            {!isArchived && (
+              <Button onClick={handleEdit} disabled={actionLoading}>
+                Edit Profile
               </Button>
             )}
           </div>
