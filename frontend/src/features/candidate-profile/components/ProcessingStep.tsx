@@ -3,6 +3,31 @@ import { Button, LoadingState, ErrorState, LiveStatus } from "../../../component
 import { fetchCreationAttempt, retryAttempt } from "../api";
 import { CreationAttempt } from "../types";
 
+export interface CandidateProfileFailurePresentation {
+  title: string;
+  message: string;
+  requiresProviderSetup: boolean;
+}
+
+export function getCandidateProfileFailurePresentation(
+  failure?: CreationAttempt["failure"]
+): CandidateProfileFailurePresentation {
+  if (failure?.code === "candidate_profile_llm_unavailable") {
+    return {
+      title: "Provider setup required",
+      message:
+        "Candidate Profile cannot generate derived claims because its LLM route is unavailable. Open Provider Settings, verify a provider connection, add a validated model, set Default Route, then return and retry processing.",
+      requiresProviderSetup: true,
+    };
+  }
+
+  return {
+    title: "Processing Failed",
+    message: failure?.message || "Processing failed.",
+    requiresProviderSetup: false,
+  };
+}
+
 export interface ProcessingStepProps {
   attemptId: string;
   targetStage?: "review_baseline" | "review_derived" | "confirm" | string;
@@ -177,6 +202,8 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
     }
   };
 
+  const failurePresentation = getCandidateProfileFailurePresentation(attempt?.failure);
+
   return (
     <div className="table-card" style={{ padding: 48, textAlign: "center" }}>
       {!error ? (
@@ -193,11 +220,20 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
           <ErrorState
-            title="Processing Failed"
-            message={error}
+            title={failurePresentation.title}
+            message={failurePresentation.requiresProviderSetup ? failurePresentation.message : error}
             actionLabel={attempt?.capabilities?.retry ? (isRetrying ? "Retrying..." : "Retry Processing") : "Start New Upload"}
             onRetry={attempt?.capabilities?.retry ? handleRetry : onCancel}
           />
+          {failurePresentation.requiresProviderSetup && (
+            <a
+              href="#/settings/providers"
+              className="btn btn-primary"
+              style={{ textDecoration: "none" }}
+            >
+              Open Provider Settings
+            </a>
+          )}
           <LiveStatus message={`Error: ${error}`} level="assertive" />
           <Button variant="secondary" onClick={onCancel}>
             Return to Candidate Profiles

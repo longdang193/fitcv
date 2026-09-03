@@ -23,6 +23,7 @@ import {
 } from "../features/candidate-profile/api";
 import { apiClient } from "../lib/api-client";
 import { CandidateProfileReviewOperation } from "../features/candidate-profile/types";
+import { getCandidateProfileFailurePresentation } from "../features/candidate-profile/components/ProcessingStep";
 
 describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
   it("parses catalog view", () => {
@@ -91,6 +92,23 @@ describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
 
     const matchedCreate = matchRoute("#/candidate-profile/create/att_789/baseline", routes);
     expect(matchedCreate.id).toBe("candidate-profile");
+  });
+});
+
+describe("Candidate Profile processing failure actions", () => {
+  it("maps unavailable LLM routing to provider setup while keeping retry available", () => {
+    expect(
+      getCandidateProfileFailurePresentation({
+        code: "candidate_profile_llm_unavailable",
+        message: "LLM routing is unavailable for candidate_profile_derived_claims",
+        retryable: true,
+      })
+    ).toEqual({
+      title: "Provider setup required",
+      message:
+        "Candidate Profile cannot generate derived claims because its LLM route is unavailable. Open Provider Settings, verify a provider connection, add a validated model, set Default Route, then return and retry processing.",
+      requiresProviderSetup: true,
+    });
   });
 });
 
