@@ -7283,6 +7283,7 @@ def create_app(
                     "/runs",
                     "/admin/upload-trigger",
                 }
+                or (setup_path == "/settings/pipeline" and request.method.upper() == "GET")
             )
             if not allowed_before_setup and not onboarding_is_complete():
                 if unsafe:

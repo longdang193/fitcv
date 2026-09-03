@@ -649,6 +649,24 @@ def test_onboarding_sets_csrf_cookie_and_redirects_incomplete_app(local_client: 
     assert redirect.headers["location"] == "/local/onboarding"
 
 
+def test_pipeline_settings_get_is_available_before_onboarding_without_allowing_mutation(
+    local_client: TestClient,
+) -> None:
+    response = local_client.get("/settings/pipeline", follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.json()["data"]["revision"]
+
+    blocked = local_client.patch(
+        "/settings/pipeline",
+        headers=_csrf_headers(local_client),
+        json={"changes": {"pipeline.final_top_n": 5}},
+    )
+
+    assert blocked.status_code == 409
+    assert blocked.text == "FitCV Local onboarding is incomplete"
+
+
 def test_local_root_redirects_to_runs_when_setup_complete(local_client: TestClient) -> None:
     state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
     state_path.write_text(json.dumps({"version": 1, "complete": True}), encoding="utf-8")
