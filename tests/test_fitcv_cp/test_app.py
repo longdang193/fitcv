@@ -1261,6 +1261,20 @@ def test_mock_scan_api_lists_resources_and_exact_output() -> None:
     assert output.headers["etag"] == f'"{detail.json()["data"]["output_manifest"]["sha256"]}"'
 
 
+def test_mock_scan_api_exposes_canonical_output_and_event_contracts() -> None:
+    from tests.test_fitcv_cp.scan_fixtures import create_mock_app
+
+    client = TestClient(create_mock_app())
+    jobs = client.get("/scans/scan-1048/jobs", params={"page": 1, "page_size": 20})
+    events = client.get("/scans/scan-1048/events", params={"limit": 50})
+
+    assert jobs.status_code == 200
+    assert {"title", "companyName", "jobUrl", "publishedAt"} <= jobs.json()["data"][0].keys()
+    assert events.status_code == 200
+    event = events.json()["data"]["events"][0]
+    assert {"schema_version", "operation", "state", "level", "message", "event_fingerprint"} <= event.keys()
+
+
 def test_mock_scan_creation_replays_same_scan_for_same_idempotency_key() -> None:
     from tests.test_fitcv_cp.scan_fixtures import create_mock_app
 

@@ -407,20 +407,26 @@ class MockScanBackend:
             return {"events": [], "integrity_conflicts": [], "deliveries": [], "total_count": 0, "next_cursor": None}
         resource = self.scans[process_id]
         events = [
-            {
-                "event_id": f"{process_id}-requested",
+                {
+                    "schema_version": "process_event_v1",
+                    "event_id": f"{process_id}-requested",
                 "process_type": "scan",
                 "process_id": process_id,
                 "operation": "registry_resolution",
                 "state": "requested",
-                "level": "info",
-                "message": "Scan request accepted.",
-                "recorded_at": resource["created_at"],
+                    "level": "info",
+                    "message": "Scan request accepted.",
+                    "payload_json": None,
+                    "diagnostic_refs_json": None,
+                    "trace_context_json": None,
+                    "recorded_at": resource["created_at"],
+                    "event_fingerprint": f"{process_id}-requested-fingerprint",
             }
         ]
         if resource["execution_status"] != "queued":
             events.append(
                 {
+                    "schema_version": "process_event_v1",
                     "event_id": f"{process_id}-progress",
                     "process_type": "scan",
                     "process_id": process_id,
@@ -428,7 +434,11 @@ class MockScanBackend:
                     "state": "progress",
                     "level": "info",
                     "message": f"Processed {resource.get('progress_completed') or resource.get('company_count')} of {resource.get('progress_total') or resource.get('company_count')} companies.",
+                    "payload_json": None,
+                    "diagnostic_refs_json": None,
+                    "trace_context_json": None,
                     "recorded_at": resource["created_at"],
+                    "event_fingerprint": f"{process_id}-progress-fingerprint",
                 }
             )
         return {"events": events[:limit], "integrity_conflicts": [], "deliveries": [], "total_count": len(events), "next_cursor": None}

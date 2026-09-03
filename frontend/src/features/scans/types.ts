@@ -73,30 +73,38 @@ export interface ScanResource {
 }
 
 export interface ProcessEventRecord {
+  schema_version: string;
   event_id: string;
-  event_seq: number;
   process_type: string;
   process_id: string;
-  stage_name: string;
-  event_type: string;
-  event_level: "info" | "warning" | "error";
-  payload: Record<string, unknown>;
+  operation: string;
+  state: string;
+  level: "info" | "warning" | "error";
+  message: string;
+  payload_json?: string | null;
+  diagnostic_refs_json?: string | null;
+  trace_context_json?: string | null;
   recorded_at: string;
+  event_fingerprint: string;
 }
 
 export interface ProcessEventsPage {
   events: ProcessEventRecord[];
   next_cursor?: string | null;
-  has_more: boolean;
+  total_count?: number;
 }
 
 export interface ScanJobItem {
   id?: string;
   title: string;
-  company: string;
+  companyName: string;
   location?: string;
-  url?: string;
-  posted_at?: string;
+  jobUrl?: string;
+  applyUrl?: string;
+  publishedAt?: string;
+  contractType?: string;
+  experienceLevel?: string;
+  description?: string;
   [key: string]: unknown;
 }
 

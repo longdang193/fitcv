@@ -21,6 +21,7 @@ import {
 } from "./api";
 import {
   ScanResource,
+  ScanExecutionStatus,
   ProcessEventRecord,
   ScanJobItem,
 } from "./types";
@@ -29,6 +30,14 @@ import { apiClient } from "../../lib/api-client";
 export interface ScanDetailProps {
   scanId: string;
   onBack: () => void;
+}
+
+export function shouldLoadScanOutput(
+  status: ScanExecutionStatus | undefined,
+  loaded: boolean,
+  loading: boolean,
+): boolean {
+  return status === "succeeded" && !loaded && !loading;
 }
 
 const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
@@ -55,10 +64,12 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   const [outputTab, setOutputTab] = useState<"table" | "json">("table");
   const [jobs, setJobs] = useState<ScanJobItem[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsLoaded, setJobsLoaded] = useState(false);
   const [jobsPage, setJobsPage] = useState(1);
   const [jobsTotal, setJobsTotal] = useState(0);
   const [jsonOutput, setJsonOutput] = useState<string | null>(null);
   const [jsonLoading, setJsonLoading] = useState(false);
+  const [jsonLoaded, setJsonLoaded] = useState(false);
 
   const pollTimerRef = useRef<number | null>(null);
 
@@ -97,8 +108,9 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
       setJobsPage(res.page || page);
       setJobsTotal(res.total_items || res.total || 0);
     } catch {
-      // Ignored if output not ready
+      setJobs([]);
     } finally {
+      setJobsLoaded(true);
       setJobsLoading(false);
     }
   }, [scanId]);
@@ -111,6 +123,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
     } catch {
       setJsonOutput(null);
     } finally {
+      setJsonLoaded(true);
       setJsonLoading(false);
     }
   }, [scanId]);
@@ -119,6 +132,12 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   useEffect(() => {
     eventCursorRef.current = null;
     setEvents([]);
+    setJobs([]);
+    setJobsLoaded(false);
+    setJobsPage(1);
+    setJobsTotal(0);
+    setJsonOutput(null);
+    setJsonLoaded(false);
     loadScanData(true);
   }, [loadScanData]);
 
@@ -127,9 +146,6 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
     if (!scan) return;
     const isPending = ["queued", "running", "cancelling"].includes(scan.execution_status);
     if (!isPending) {
-      if (scan.execution_status === "succeeded") {
-        loadJobs(1);
-      }
       return;
     }
 
@@ -144,18 +160,18 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
         clearTimeout(pollTimerRef.current);
       }
     };
-  }, [scan?.execution_status, loadScanData, loadJobs]);
+  }, [scan?.execution_status, loadScanData]);
 
   // Load output when tab switches or scan finishes
   useEffect(() => {
     if (scan?.execution_status === "succeeded") {
-      if (outputTab === "table" && jobs.length === 0 && !jobsLoading) {
+      if (outputTab === "table" && shouldLoadScanOutput(scan.execution_status, jobsLoaded, jobsLoading)) {
         loadJobs(1);
-      } else if (outputTab === "json" && jsonOutput === null && !jsonLoading) {
+      } else if (outputTab === "json" && shouldLoadScanOutput(scan.execution_status, jsonLoaded, jsonLoading)) {
         loadJson();
       }
     }
-  }, [scan?.execution_status, outputTab, jobs.length, jobsLoading, jsonOutput, jsonLoading, loadJobs, loadJson]);
+  }, [scan?.execution_status, outputTab, jobsLoaded, jobsLoading, jsonLoaded, jsonLoading, loadJobs, loadJson]);
 
   const handleCancel = async () => {
     if (!scan) return;
@@ -261,9 +277,9 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
       render: (job) => (
         <div>
           <strong style={{ fontSize: 13 }}>{job.title}</strong>
-          {job.url && (
-            <a
-              href={job.url}
+          {job.jobUrl && (
+              <a
+              href={job.jobUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: "block", fontSize: 11, color: "var(--accent)", textDecoration: "none" }}
@@ -274,9 +290,9 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
         </div>
       ),
     },
-    { key: "company", header: "Company" },
+    { key: "companyName", header: "Company", render: (job) => job.companyName || "—" },
     { key: "location", header: "Location", render: (job) => job.location || "—" },
-    { key: "posted_at", header: "Posted", render: (job) => job.posted_at || "—" },
+    { key: "publishedAt", header: "Posted", render: (job) => job.publishedAt || "—" },
   ];
 
   return (
@@ -457,10 +473,10 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
                 <span style={{ color: "var(--muted)" }}>
                   {new Date(evt.recorded_at).toLocaleTimeString()}
                 </span>
-                <span style={{ color: evt.event_level === "error" ? "var(--danger)" : "var(--accent)" }}>
-                  [{evt.stage_name || evt.event_type}]
+                <span style={{ color: evt.level === "error" ? "var(--danger)" : "var(--accent)" }}>
+                  [{evt.operation}:{evt.state}]
                 </span>
-                <span>{JSON.stringify(evt.payload)}</span>
+                <span>{evt.message}{evt.payload_json ? ` · ${evt.payload_json}` : ""}</span>
               </div>
             ))}
           </div>
@@ -496,7 +512,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
             <DataTable
               columns={jobColumns}
               data={jobs}
-              keyField={(job) => job.id || job.title + (job.company || "")}
+              keyField={(job) => job.id || job.title + (job.companyName || "")}
               page={jobsPage}
               pageSize={20}
               total={jobsTotal}
