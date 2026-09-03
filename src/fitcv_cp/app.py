@@ -10049,7 +10049,7 @@ def create_app(
                 ) from exc
             raise
         except ValueError as exc:
-            code = str(exc)
+            code = str(getattr(exc, "code", str(exc)))
             status = (
                 404
                 if code in {
@@ -10074,8 +10074,9 @@ def create_app(
                     "candidate_profile_delete_requires_archive",
                     "candidate_profile_delete_referenced",
                     "candidate_profile_discard_confirmed",
-                      "candidate_profile_archived",
-                      "candidate_profile_update_unavailable",                    "idempotency_conflict",
+                    "candidate_profile_archived",
+                    "candidate_profile_update_unavailable",
+                    "idempotency_conflict",
                 }
                 else 413
                 if code in {
@@ -10089,7 +10090,58 @@ def create_app(
                 }
                 else 422
             )
-            raise ApiError(status, code, "Candidate Profile action could not be completed.") from exc
+            action = {
+                "candidate_profile_field_not_regenerable": "Reload the latest review, then retry regeneration.",
+                "candidate_profile_field_not_found": "Reload the latest review, then retry regeneration.",
+                "candidate_profile_no_evidence": "Add at least one evidence statement, then approve the baseline again.",
+            }.get(code)
+            raise ApiError(
+                status,
+                code,
+                "Candidate Profile action could not be completed.",
+                action=action,
+            ) from exc
+
+    def _enqueue_candidate_profile_stage(
+        request: Request,
+        *,
+        attempt_id: str,
+        resource: dict[str, Any],
+        targets: list[str] | None,
+    ) -> None:
+        processing = dict(resource.get("processing") or {})
+        stage = str(processing.get("stage") or "")
+        claim_id = str(processing.get("claim_id") or "")
+        expected_revision = int(resource["revision"])
+        try:
+            request.app.state.enqueue_candidate_profile_stage(
+                attempt_id=attempt_id,
+                stage=stage,
+                claim_id=claim_id,
+                expected_revision=expected_revision,
+                targets=targets,
+            )
+        except Exception as exc:
+            logger.exception("Candidate Profile processing enqueue failed for %s", attempt_id)
+            try:
+                _resolve_run_store().fail_candidate_profile_stage(
+                    attempt_id,
+                    claim_id=claim_id,
+                    expected_revision=expected_revision,
+                    code="candidate_profile_queue_unavailable",
+                    message="Candidate Profile processing queue is unavailable. Restart FitCV, then retry processing.",
+                    retryable=True,
+                    stage=stage,
+                )
+            except Exception:
+                logger.exception("Could not retain Candidate Profile enqueue failure for %s", attempt_id)
+            raise ApiError(
+                503,
+                "candidate_profile_queue_unavailable",
+                "Candidate Profile processing queue is unavailable.",
+                retryable=True,
+                action="Restart FitCV, then retry processing.",
+            ) from exc
 
     @app.get("/candidate-profile-field-schema")
     def get_candidate_profile_field_schema(request: Request) -> Response:
@@ -10152,11 +10204,10 @@ def create_app(
                 lease_seconds=900,
             )
         )
-        request.app.state.enqueue_candidate_profile_stage(
+        _enqueue_candidate_profile_stage(
+            request,
             attempt_id=claimed["attempt_id"],
-            stage="base_mapping",
-            claim_id=claimed["processing"]["claim_id"],
-            expected_revision=claimed["revision"],
+            resource=claimed,
             targets=None,
         )
         return _data_response(store.get_candidate_profile_creation_attempt(claimed["attempt_id"]) or claimed)
@@ -10279,11 +10330,10 @@ def create_app(
                 idempotency_key=_required_idempotency_key(request),
             )
         )
-        request.app.state.enqueue_candidate_profile_stage(
+        _enqueue_candidate_profile_stage(
+            request,
             attempt_id=attempt_id,
-            stage=str(resource["processing"]["stage"]),
-            claim_id=str(resource["processing"]["claim_id"]),
-            expected_revision=int(resource["revision"]),
+            resource=resource,
             targets=body.targets,
         )
         return _data_response(store.get_candidate_profile_creation_attempt(attempt_id) or resource)
@@ -10369,11 +10419,10 @@ def create_app(
                 idempotency_key=_required_idempotency_key(request),
             )
         )
-        request.app.state.enqueue_candidate_profile_stage(
+        _enqueue_candidate_profile_stage(
+            request,
             attempt_id=attempt_id,
-            stage="derived_claims",
-            claim_id=str(resource["processing"]["claim_id"]),
-            expected_revision=int(resource["revision"]),
+            resource=resource,
             targets=None,
         )
         return _data_response(
@@ -10449,11 +10498,10 @@ def create_app(
                 idempotency_key=_required_idempotency_key(request),
             )
         )
-        request.app.state.enqueue_candidate_profile_stage(
+        _enqueue_candidate_profile_stage(
+            request,
             attempt_id=attempt_id,
-            stage=str(resource["processing"]["stage"]),
-            claim_id=str(resource["processing"]["claim_id"]),
-            expected_revision=int(resource["revision"]),
+            resource=resource,
             targets=None,
         )
         return _data_response(

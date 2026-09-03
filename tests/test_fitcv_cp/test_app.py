@@ -420,6 +420,76 @@ def test_candidate_profile_baseline_approval_returns_no_evidence_api_error() -> 
     assert response.json()["error"]["retryable"] is False
     app.state.enqueue_candidate_profile_stage.assert_not_called()
 
+
+def test_candidate_profile_enqueue_failure_returns_retryable_api_error() -> None:
+    app = _app()
+    app.state.enqueue_candidate_profile_stage = _execute_candidate_profile_stage_now
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    source = Path("data/candidate_profile.v2.sample.yaml").read_bytes()
+    client = TestClient(app)
+
+    created = client.post(
+        "/candidate-profile-creation-attempts",
+        headers={"Idempotency-Key": "queue-failure-create"},
+        data={"profile_name": "Queue Failure Profile"},
+        files={"profile_file": ("candidate.yaml", source, "application/yaml")},
+    )
+    baseline = client.get(
+        f"/candidate-profile-creation-attempts/{created.json()['data']['attempt_id']}/baseline"
+    ).json()["data"]
+    app.state.enqueue_candidate_profile_stage = MagicMock(side_effect=RuntimeError("queue offline"))
+
+    response = client.post(
+        f"/candidate-profile-creation-attempts/{baseline['attempt_id']}/baseline/actions/approve",
+        headers={"Idempotency-Key": "queue-failure-approve"},
+        json={
+            "expected_revision": baseline["revision"],
+            "expected_fingerprint": baseline["fingerprint"],
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "candidate_profile_queue_unavailable"
+    assert response.json()["error"]["retryable"] is True
+    failed = sqlite_store.get_candidate_profile_creation_attempt(
+        baseline["attempt_id"], database_path=database_path
+    )
+    assert failed is not None
+    assert failed["creation_status"] == "failed"
+    assert failed["failure"]["code"] == "candidate_profile_queue_unavailable"
+    assert failed["capabilities"]["retry"] is True
+
+
+def test_candidate_profile_regeneration_rejection_exposes_reload_action() -> None:
+    app = _app()
+    app.state.enqueue_candidate_profile_stage = _execute_candidate_profile_stage_now
+    client = TestClient(app)
+    source = Path("data/candidate_profile.v2.sample.yaml").read_bytes()
+    created = client.post(
+        "/candidate-profile-creation-attempts",
+        headers={"Idempotency-Key": "regenerate-invalid-create"},
+        data={"profile_name": "Invalid Regeneration Target"},
+        files={"profile_file": ("candidate.yaml", source, "application/yaml")},
+    )
+    baseline = client.get(
+        f"/candidate-profile-creation-attempts/{created.json()['data']['attempt_id']}/baseline"
+    ).json()["data"]
+    app.state.enqueue_candidate_profile_stage = MagicMock()
+
+    response = client.post(
+        f"/candidate-profile-creation-attempts/{baseline['attempt_id']}/baseline/actions/regenerate",
+        headers={"Idempotency-Key": "regenerate-invalid-target"},
+        json={
+            "expected_revision": baseline["revision"],
+            "targets": ["/summary"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "candidate_profile_field_not_regenerable"
+    assert response.json()["error"]["action"] == "Reload the latest review, then retry regeneration."
+    app.state.enqueue_candidate_profile_stage.assert_not_called()
+
 @pytest.mark.parametrize(
     ("filename", "media_type", "content"),
     [

@@ -114,7 +114,7 @@ describe("Candidate Profile processing failure actions", () => {
     ).toEqual({
       title: "Provider setup required",
       message:
-        "Candidate Profile cannot generate derived claims because its LLM route is unavailable. Open Provider Settings, verify a provider connection, add a validated model, set Default Route, then return and retry processing.",
+        "Candidate Profile cannot regenerate AI-assisted fields because its LLM route is unavailable. Open Provider Settings, verify a provider connection, add a validated model, set Default Route, then return and retry processing.",
       requiresProviderSetup: true,
     });
   });

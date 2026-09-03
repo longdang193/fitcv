@@ -7,6 +7,7 @@ import {
   regenerateBaselineReview,
   undoBaselineRegeneration,
   approveBaselineReview,
+  waitForAttemptTransition,
 } from "../api";
 import {
   CandidateProfileReviewOperation,
@@ -14,6 +15,7 @@ import {
   ReviewResource,
 } from "../types";
 import { SourceDialog } from "./SourceDialog";
+import { getCandidateProfileFailurePresentation } from "./ProcessingStep";
 
 export interface BaselineReviewStepProps {
   attemptId: string;
@@ -275,10 +277,15 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
 
     try {
       await regenerateBaselineReview(attemptId, review.revision, [target]);
+      const attempt = await waitForAttemptTransition(attemptId, "review_baseline");
+      if (attempt.creation_status === "failed") {
+        throw new Error(getCandidateProfileFailurePresentation(attempt.failure).message);
+      }
       await loadReview();
       setStatusMessage("Regeneration complete.");
     } catch (err: any) {
-      setError(err.message || "Regeneration failed.");
+      setError([err.message, err.action].filter(Boolean).join(" ") || "Regeneration failed.");
+    } finally {
       setSaving(false);
     }
   };
@@ -382,7 +389,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {review.capabilities.regenerate_all && (
-            <Button size="compact" onClick={() => handleRegenerate("*")} disabled={saving || approving}>
+            <Button size="compact" onClick={() => handleRegenerate("*")} loading={saving} disabled={saving || approving}>
               ✨ Regenerate AI fields
             </Button>
           )}
