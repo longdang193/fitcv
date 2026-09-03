@@ -11,6 +11,7 @@ import {
 import {
   fetchRun,
   fetchRunJobs,
+  extractJobSkills,
   fetchRunEvents,
   cancelRun,
   archiveRun,
@@ -434,8 +435,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
   // Format skills list with prototype 5 + overflow chip
   const renderSkillChips = (item: RunJobItem) => {
-    const rawSkills = item.skills || (item.source_snapshot as any)?.skills || (item.attributes as any)?.skills || [];
-    const skillsList: string[] = Array.isArray(rawSkills) ? rawSkills.map(String) : [];
+    const skillsList = extractJobSkills(item);
     if (skillsList.length === 0) {
       return <span style={{ color: "var(--muted)", fontSize: 12 }}>—</span>;
     }
@@ -485,9 +485,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   };
 
   // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(jobsTotal / jobsPageSize));
-  const pageStart = jobsTotal ? (jobsPage - 1) * jobsPageSize + 1 : 0;
-  const pageEnd = Math.min(jobsTotal, jobsPage * jobsPageSize);
+  const safeJobsTotal = Number.isFinite(jobsTotal) && jobsTotal >= 0 ? jobsTotal : 0;
+  const safeJobsPageSize = Number.isFinite(jobsPageSize) && jobsPageSize > 0 ? jobsPageSize : 10;
+  const safeJobsPage = Number.isFinite(jobsPage) && jobsPage > 0 ? jobsPage : 1;
+  const totalPages = Math.max(1, Math.ceil(safeJobsTotal / safeJobsPageSize));
+  const pageStart = safeJobsTotal ? (safeJobsPage - 1) * safeJobsPageSize + 1 : 0;
+  const pageEnd = Math.min(safeJobsTotal, safeJobsPage * safeJobsPageSize);
 
   // Toggle select all visible jobs
   const isAllVisibleSelected = jobs.length > 0 && jobs.every((j) => selectedJobIds.includes(j.run_job_id));
@@ -1055,7 +1058,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                 {/* Table Pagination per Prototype */}
                 <div className="run-pagination">
                   <span>
-                    Showing <strong>{pageStart}</strong> to <strong>{pageEnd}</strong> of <strong>{jobsTotal}</strong> results
+                    Showing <strong>{pageStart}</strong> to <strong>{pageEnd}</strong> of <strong>{safeJobsTotal}</strong> results
                   </span>
                   <div className="run-pagination-controls">
                     <label className="run-page-size" htmlFor="jobResultsPageSize">

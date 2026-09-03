@@ -16,6 +16,7 @@ import {
   downloadDebugBundle,
   exportRunJobsCsv,
   generateIdempotencyKey,
+  extractJobSkills,
 } from "../features/runs/api";
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
@@ -227,6 +228,44 @@ describe("runs feature route and api slice", () => {
     expect(res.data[0].title).toBe("Software Engineer");
     expect(res.data[0].interest_rating).toBe(5);
     expect(res.data[0].rating_contract_revision).toBe("application-interest-v1");
+  });
+
+  it("normalizes nested job pagination and required skills aliases", async () => {
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: {
+        data: [{ required_skills: [{ name: "Python" }, "SQL"] }],
+        page: { number: 2, size: 20, total_items: 41, total_pages: 3 },
+      },
+      status: 200,
+    } as any);
+
+    const result = await fetchRunJobs("run-normalized", { page: 2, page_size: 20 });
+
+    expect(result.data[0].skills).toEqual(["Python", "SQL"]);
+    expect(result.page).toBe(2);
+    expect(result.page_size).toBe(20);
+    expect(result.total_items).toBe(41);
+    expect(result.total_pages).toBe(3);
+    expect(getSpy).toHaveBeenCalledWith("/runs/run-normalized/jobs?page=2&page_size=20");
+  });
+
+  it("falls back to finite pagination values when API metadata is invalid", async () => {
+    vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: {
+        data: [{ required_skills: "Python; SQL\nAirflow" }],
+        page: { number: Number.NaN, size: Number.NaN, total_items: Number.NaN, total_pages: Number.NaN },
+      },
+      status: 200,
+    } as any);
+
+    const result = await fetchRunJobs("run-finite");
+
+    expect(extractJobSkills(result.data[0])).toEqual(["Python", "SQL", "Airflow"]);
+    expect(result.page).toBe(1);
+    expect(result.page_size).toBe(10);
+    expect(result.total_items).toBe(1);
+    expect(result.total_pages).toBe(1);
+    expect([result.page, result.page_size, result.total_items, result.total_pages].every(Number.isFinite)).toBe(true);
   });
 
   it("fetches run events with cursor pagination", async () => {

@@ -4394,6 +4394,20 @@ def _create_normalized_run_with_jobs(run_id: str, jobs: list[dict[str, object]])
     return list(result["run_job_ids"])
 
 
+def test_query_run_jobs_recovers_required_skills_from_source_snapshot() -> None:
+    run_job_id = _create_normalized_run_with_jobs(
+        "run-required-skills-fallback",
+        [{"title": "Data Engineer", "required_skills": ["Python", "SQL"]}],
+    )[0]
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute("UPDATE run_jobs SET skills_json = '[]' WHERE run_job_id = ?", (run_job_id,))
+        conn.commit()
+
+    result = sqlite_store.query_run_jobs("run-required-skills-fallback", page_size=10)
+
+    assert result["items"][0]["skills"] == ["Python", "SQL"]
+
+
 def test_cancel_normalized_run_terminalizes_open_stages_and_is_idempotent() -> None:
     _create_normalized_run_with_jobs(
         "run-awaiting-cancel-stages", [{"title": "Analyst", "job_url": "https://example.com/1"}]

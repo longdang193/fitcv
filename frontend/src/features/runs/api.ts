@@ -19,6 +19,29 @@ export interface PaginationEnvelope<T, M = Record<string, unknown>> {
   meta?: M;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseInteger(value: unknown, fallback: number, minimum: number): number {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) && parsed >= minimum ? Math.floor(parsed) : fallback;
+}
+
+function normalizeSkillValues(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : [value];
+  return values.flatMap((skill) => {
+    if (typeof skill === "string") {
+      return skill.split(/[,;\n]+/).map((part) => part.trim()).filter(Boolean);
+    }
+    if (isRecord(skill)) {
+      const label = skill.name ?? skill.skill ?? skill.title ?? skill.canonical;
+      return typeof label === "string" ? [label.trim()].filter(Boolean) : [];
+    }
+    return [];
+  });
+}
+
 export function generateIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -36,8 +59,7 @@ export async function fetchRuns(params?: {
   if (params?.view) query.set("view", params.view);
   if (params?.search) query.set("search", params.search);
   if (params?.page !== undefined && params?.page !== null) {
-    const parsedPage = typeof params.page === "number" ? params.page : parseInt(String(params.page), 10);
-    query.set("page", String(!isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1));
+    query.set("page", String(parseInteger(params.page, 1, 1)));
   }
   if (params?.page_size) query.set("page_size", String(params.page_size));
 
@@ -61,6 +83,26 @@ export async function fetchRunStages(runId: string): Promise<RunStageResource[]>
   return (res.data as any)?.data || res.data;
 }
 
+export function extractJobSkills(item: unknown): string[] {
+  if (!isRecord(item)) return [];
+  const snapshot = isRecord(item.source_snapshot) ? item.source_snapshot : {};
+  const attributes = isRecord(item.attributes) ? item.attributes : {};
+  const job = isRecord(item.job) ? item.job : {};
+  const candidates = [
+    item.skills, item.required_skills, item.required_skills_display,
+    item.required_skills_canonical, item.must_have_skills,
+    snapshot.required_skills, snapshot.required_skills_display,
+    snapshot.required_skills_canonical, snapshot.skills,
+    snapshot.must_have_skills, attributes.required_skills,
+    attributes.skills, job.skills, job.required_skills,
+  ];
+  for (const c of candidates) {
+    const skills = normalizeSkillValues(c);
+    if (skills.length > 0) return skills;
+  }
+  return [];
+}
+
 export async function fetchRunJobs(
   runId: string,
   params?: {
@@ -73,24 +115,52 @@ export async function fetchRunJobs(
 ): Promise<PaginationEnvelope<RunJobItem, RunJobsPaginationMeta>> {
   const query = new URLSearchParams();
   if (params?.page !== undefined && params?.page !== null) {
-    const parsedPage = typeof params.page === "number" ? params.page : parseInt(String(params.page), 10);
-    query.set("page", String(!isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1));
+    query.set("page", String(parseInteger(params.page, 1, 1)));
   }
-  if (params?.page_size) query.set("page_size", String(params.page_size));
+  if (params?.page_size !== undefined && params?.page_size !== null) {
+    query.set("page_size", String(parseInteger(params.page_size, 10, 1)));
+  }
   if (params?.search) query.set("search", params.search);
   if (params?.stage && params.stage !== "all") query.set("stage", params.stage);
   if (params?.result_bucket && params.result_bucket !== "all") query.set("result_bucket", params.result_bucket);
 
   const qs = query.toString();
   const path = `/runs/${encodeURIComponent(runId)}/jobs${qs ? `?${qs}` : ""}`;
-  const res = await apiClient.get<PaginationEnvelope<RunJobItem, RunJobsPaginationMeta>>(path);
+  const res = await apiClient.get<any>(path);
+  const payload = res.data;
+  const payloadRecord = isRecord(payload) ? payload : {};
+  const rawData: unknown[] = Array.isArray(payloadRecord.data)
+    ? payloadRecord.data
+    : Array.isArray(payloadRecord.items)
+      ? payloadRecord.items
+      : Array.isArray(payload)
+        ? payload
+        : [];
+  const rawPage = isRecord(payloadRecord.page) ? payloadRecord.page : {};
+  const rawTotal = payloadRecord.total_items ?? payloadRecord.total ?? payloadRecord.total_count ?? rawPage.total_items ?? rawPage.total;
+  const totalItems = parseInteger(rawTotal, rawData.length, 0);
+  const rawPageNum = rawPage.number ?? payloadRecord.page_number ?? params?.page ?? 1;
+  const pageNum = parseInteger(rawPageNum, 1, 1);
+  const rawPageSize = payloadRecord.page_size ?? rawPage.size ?? params?.page_size ?? 10;
+  const pageSize = parseInteger(rawPageSize, 10, 1);
+  const totalPages = parseInteger(rawPage.total_pages, Math.max(1, Math.ceil(totalItems / pageSize)), 1);
   return {
-    ...res.data,
-    data: res.data.data.map((job) => ({
-      ...job,
-      interest_rating:
-        job.interest_rating ?? (typeof job.rating === "number" ? job.rating : null),
-    })),
+    data: rawData.map((job: any) => {
+      const skills = extractJobSkills(job);
+      return {
+        ...job,
+        skills,
+        required_skills: skills,
+        interest_rating: job.interest_rating ?? (typeof job.rating === 'number' ? job.rating : null),
+      };
+    }),
+    page: pageNum,
+    page_size: pageSize,
+    total_items: totalItems,
+    total_pages: totalPages,
+    meta: isRecord(payloadRecord.meta)
+      ? payloadRecord.meta as unknown as RunJobsPaginationMeta
+      : undefined,
   };
 }
 
