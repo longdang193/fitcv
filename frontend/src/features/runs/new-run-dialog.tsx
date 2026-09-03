@@ -6,6 +6,25 @@ import { RunSourceSelectionDialog } from "../scans/run-source-selection";
 import { triggerRun, generateIdempotencyKey } from "./api";
 import { ApiClientError } from "../../lib/api-client";
 
+export const PROVIDER_SETTINGS_HREF = "/app#/settings/providers";
+
+export interface RunErrorActionProps {
+  code: string | null;
+  action: string | null;
+}
+
+export const RunErrorAction: React.FC<RunErrorActionProps> = ({ code, action }) => {
+  if (code !== "local_readiness_required" && !action) {
+    return null;
+  }
+
+  return (
+    <a href={PROVIDER_SETTINGS_HREF}>
+      {action || "Open provider settings"}
+    </a>
+  );
+};
+
 export interface NewRunDialogProps {
   open: boolean;
   onClose: () => void;
@@ -43,12 +62,14 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
   // Form submission state
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [errorAction, setErrorAction] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open) {
       setError(null);
+      setErrorCode(null);
       setErrorAction(null);
       setFieldErrors({});
       setSubmitting(false);
@@ -117,6 +138,7 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setErrorCode(null);
     setErrorAction(null);
     const errors: Record<string, string> = {};
 
@@ -184,6 +206,7 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
           setFieldErrors(mapped);
         }
         setError(err.message || "Failed to trigger run.");
+        setErrorCode(err.code);
         setErrorAction(err.action || null);
         const detailsData = (err.details as any)?.data || (err.details as any);
         if (detailsData?.run_id) {
@@ -226,7 +249,11 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
           {error && (
             <div className="notice error" role="alert">
               <div>{error}</div>
-              {errorAction && <div style={{ marginTop: 6 }}>{errorAction}</div>}
+              {(errorAction || errorCode === "local_readiness_required") && (
+                <div style={{ marginTop: 6 }}>
+                  <RunErrorAction code={errorCode} action={errorAction} />
+                </div>
+              )}
             </div>
           )}
 

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   fetchRuns,
   fetchRun,
@@ -18,6 +20,7 @@ import {
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { parseRunSourceIds } from "../features/runs/route";
+import { PROVIDER_SETTINGS_HREF, RunErrorAction } from "../features/runs/new-run-dialog";
 
 describe("runs feature route and api slice", () => {
   beforeEach(() => {
@@ -49,6 +52,29 @@ describe("runs feature route and api slice", () => {
     expect(key1).toBeTruthy();
     expect(key2).toBeTruthy();
     expect(key1).not.toBe(key2);
+  });
+
+  it("links run readiness actions to provider settings and preserves action text", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(RunErrorAction, {
+        code: "local_readiness_required",
+        action: "Configure an API provider before launching a run.",
+      })
+    );
+
+    expect(markup).toBe(
+      `<a href="${PROVIDER_SETTINGS_HREF}">Configure an API provider before launching a run.</a>`
+    );
+    expect(
+      renderToStaticMarkup(
+        React.createElement(RunErrorAction, { code: "local_readiness_required", action: null })
+      )
+    ).toBe(`<a href="${PROVIDER_SETTINGS_HREF}">Open provider settings</a>`);
+    expect(
+      renderToStaticMarkup(
+        React.createElement(RunErrorAction, { code: "other_error", action: "Retry the request." })
+      )
+    ).toBe(`<a href="${PROVIDER_SETTINGS_HREF}">Retry the request.</a>`);
   });
 
   it("fetches runs collection with query parameters", async () => {
