@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Button, LoadingState, ErrorState, LiveStatus, StatusBadge } from "../../../components";
+import { Button, LoadingState, ErrorState, StatusBadge } from "../../../components";
 import {
   fetchConfirmation,
   fetchCreationAttempt,
@@ -26,8 +26,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState("Review final profile facts and confirmation.");
-
   // Collapsible section toggles
   const [baselineOpen, setBaselineOpen] = useState(true);
   const [derivedOpen, setDerivedOpen] = useState(true);
@@ -97,8 +95,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     if (!confirmation || !attempt) return;
     setConfirming(true);
     setError(null);
-    setStatusMessage("Publishing candidate profile revision...");
-
     try {
       const baselineFp = confirmation.approval_fingerprints?.baseline || attempt.fingerprints?.approved_baseline || "";
       const derivedFp = confirmation.approval_fingerprints?.derived || attempt.fingerprints?.approved_derived || "";
@@ -112,7 +108,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         confFp
       );
 
-      setStatusMessage("Profile confirmed and saved!");
       onConfirmed(res.profile_id);
     } catch (err: any) {
       if (err.code === "candidate_profile_already_confirmed") {
