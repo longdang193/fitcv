@@ -3817,6 +3817,36 @@ def test_candidate_profile_delete_route_is_idempotent_and_persists_deletion() ->
     assert client.get(f"/candidate-profiles/{profile['profile_id']}").status_code == 404
 
 
+def test_candidate_profile_edit_route_archives_parent_until_draft_discard() -> None:
+    app = _app()
+    profile = app.state.run_store.create_candidate_profile_attempt(
+        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Candidate",
+    )
+    client = TestClient(app)
+
+    before = client.get(f"/candidate-profiles/{profile['profile_id']}")
+    edit = client.post(
+        f"/candidate-profiles/{profile['profile_id']}/actions/edit",
+        headers={"Idempotency-Key": "edit-profile"},
+    )
+
+    assert before.status_code == 200
+    assert before.json()["data"]["lifecycle"] == "active"
+    assert edit.status_code == 201
+    assert client.get(f"/candidate-profiles/{profile['profile_id']}").json()["data"]["lifecycle"] == "archived"
+
+    discarded = client.post(
+        f"/candidate-profile-creation-attempts/{edit.json()['data']['attempt_id']}/actions/discard",
+        headers={"Idempotency-Key": "discard-edit-profile"},
+        json={"expected_revision": edit.json()["data"]["revision"]},
+    )
+
+    assert discarded.status_code == 200
+    assert client.get(f"/candidate-profiles/{profile['profile_id']}").json()["data"]["lifecycle"] == "active"
+
+
 def test_candidate_profile_delete_route_rejects_referenced_profile() -> None:
     app = _app()
     profile = app.state.run_store.create_candidate_profile_attempt(

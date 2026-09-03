@@ -5159,12 +5159,18 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
     )
     assert profile["lifecycle"] == "active"
     profile_id = profile["profile_id"]
+    assert sqlite_store.get_candidate_profile_detail(profile_id, database_path=database_path)["lifecycle"] == "active"
 
     edit_attempt = sqlite_store.create_candidate_profile_edit_attempt(
         profile_id,
         idempotency_key="edit-key-1",
         database_path=database_path,
     )
+
+    editing_profile = sqlite_store.get_candidate_profile_detail(profile_id, database_path=database_path)
+    assert editing_profile is not None
+    assert editing_profile["lifecycle"] == "archived"
+    assert editing_profile["revision"] == profile["revision"] + 1
 
     assert edit_attempt["creation_status"] == "base_review"
     assert edit_attempt["next_action"] == "review_baseline"
@@ -5202,6 +5208,18 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
         for key in ("skills", "role_families", "domain_tags", "responsibility_themes")
     }
     assert derived_review["document"]["skills"][0]["evidence_refs"]
+
+    discarded = sqlite_store.discard_candidate_profile_creation_attempt(
+        edit_attempt["attempt_id"],
+        expected_revision=approved_base["revision"],
+        idempotency_key="discard-edit-1",
+        database_path=database_path,
+    )
+    assert discarded == {"attempt_id": edit_attempt["attempt_id"], "discarded": True}
+    restored_profile = sqlite_store.get_candidate_profile_detail(profile_id, database_path=database_path)
+    assert restored_profile is not None
+    assert restored_profile["lifecycle"] == "active"
+    assert restored_profile["revision"] == editing_profile["revision"] + 1
 
     # Changed baseline keeps normal derivation behavior.
     changed_edit = sqlite_store.create_candidate_profile_edit_attempt(
