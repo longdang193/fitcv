@@ -10,6 +10,7 @@ export interface NewRunDialogProps {
   open: boolean;
   onClose: () => void;
   onSuccess: (runId: string) => void;
+  initialScanIds?: string[];
 }
 
 export type SourceMode = "upload" | "scans" | "combined";
@@ -18,6 +19,7 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
   open,
   onClose,
   onSuccess,
+  initialScanIds = [],
 }) => {
   // Profiles
   const [profiles, setProfiles] = useState<CandidateProfile[]>([]);
@@ -51,10 +53,10 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
       setFieldErrors({});
       setSubmitting(false);
       setFile(null);
-      setSelectedScanIds([]);
+      setSelectedScanIds([...initialScanIds]);
       setRunName("");
       setConfigPath(".env.yaml");
-      setSourceMode("upload");
+      setSourceMode(initialScanIds.length > 0 ? "scans" : "upload");
 
       // Load active profiles
       setLoadingProfiles(true);
@@ -75,7 +77,7 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
           setLoadingProfiles(false);
         });
     }
-  }, [open]);
+  }, [open, initialScanIds]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0] || null;

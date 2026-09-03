@@ -32,6 +32,7 @@ export interface RunsListPageProps {
   onViewChange: (view: RunLifecycle) => void;
   page: number;
   onPageChange: (newPage: number) => void;
+  initialScanIds?: string[];
 }
 
 const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
@@ -50,6 +51,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   onViewChange,
   page,
   onPageChange,
+  initialScanIds = [],
 }) => {
   const [runs, setRuns] = useState<PipelineRunResource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -470,6 +472,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
       <NewRunDialog
         open={isNewRunOpen}
         onClose={() => setIsNewRunOpen(false)}
+        initialScanIds={initialScanIds}
         onSuccess={(runId) => {
           setIsNewRunOpen(false);
           onSelectRun(runId);

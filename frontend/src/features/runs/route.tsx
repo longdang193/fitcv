@@ -3,10 +3,19 @@ import { RunsListPage } from "./runs-list";
 import { RunDetailPage } from "../run-detail/run-detail-page";
 import { RunLifecycle } from "./types";
 
+export function parseRunSourceIds(hash: string): string[] {
+  const queryIndex = hash.indexOf("?");
+  if (queryIndex < 0) return [];
+  return Array.from(new URLSearchParams(hash.slice(queryIndex + 1)).getAll("scan_ids"))
+    .map((scanId) => scanId.trim())
+    .filter(Boolean);
+}
+
 export const RunsFeature: React.FC = () => {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [view, setView] = useState<RunLifecycle>("active");
   const [page, setPage] = useState<number>(1);
+  const [initialScanIds, setInitialScanIds] = useState<string[]>([]);
 
   // Sync state with URL hash: e.g. #/runs?view=archived&page=2&run_id=run-123
   useEffect(() => {
@@ -15,6 +24,7 @@ export const RunsFeature: React.FC = () => {
       setView("active");
       setPage(1);
       setSelectedRunId(null);
+      setInitialScanIds(parseRunSourceIds(hash));
       const parts = hash.split("?");
       if (parts.length > 1) {
         const params = new URLSearchParams(parts[1]);
@@ -80,6 +90,7 @@ export const RunsFeature: React.FC = () => {
       onViewChange={handleViewChange}
       onPageChange={handlePageChange}
       onSelectRun={handleSelectRun}
+      initialScanIds={initialScanIds}
     />
   );
 };

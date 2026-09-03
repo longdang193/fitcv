@@ -17,6 +17,7 @@ import {
 } from "../features/runs/api";
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
+import { parseRunSourceIds } from "../features/runs/route";
 
 describe("runs feature route and api slice", () => {
   beforeEach(() => {
@@ -35,6 +36,11 @@ describe("runs feature route and api slice", () => {
 
     const matchedDetail = matchRoute("#/runs?run_id=run-101", routes);
     expect(matchedDetail.id).toBe("runs");
+  });
+
+  it("parses scan IDs handed off from Scan outputs", () => {
+    expect(parseRunSourceIds("#/runs?scan_ids=scan-1&scan_ids=scan%2F2&scan_ids=%20"))
+      .toEqual(["scan-1", "scan/2"]);
   });
 
   it("generates unique idempotency keys", () => {
