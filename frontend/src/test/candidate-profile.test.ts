@@ -25,6 +25,7 @@ import {
   updateProfile,
   fetchSourceBlock,
   normalizeCandidateProfileDetail,
+  normalizeCandidateProfileReviewOperations,
   createEditAttempt,
 } from "../features/candidate-profile/api";
 import { apiClient } from "../lib/api-client";
@@ -238,6 +239,16 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
     expect(key1).toBeTruthy();
     expect(key2).toBeTruthy();
     expect(key1).not.toEqual(key2);
+  });
+
+  it("normalizes evidence refs before sending review operations", () => {
+    expect(
+      normalizeCandidateProfileReviewOperations([
+        { operation: "replace", path: "/skills/skill_1/evidence_refs", value: [" ev_2 ", "ev_1", "ev_2"] },
+      ])
+    ).toEqual([
+      { operation: "replace", path: "/skills/skill_1/evidence_refs", value: ["ev_1", "ev_2"] },
+    ]);
   });
 
   it("fetches field schema and caches it", async () => {

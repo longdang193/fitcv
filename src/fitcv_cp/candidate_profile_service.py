@@ -938,7 +938,19 @@ def apply_review_operations(
         action = str(operation.get("operation") or "")
         path = str(operation.get("path") or "")
         if action == "replace":
-            _replace_path(working, path, operation.get("value"))
+            value = operation.get("value")
+            if path.endswith("/evidence_refs"):
+                if not isinstance(value, list):
+                    raise CandidateProfileServiceError("validation_failed", "evidence_refs must be a list")
+                value = sorted({item.strip() for item in value if isinstance(item, str) and item.strip()})
+            _replace_path(working, path, value)
+            if path.endswith("/evidence_refs"):
+                segments = [segment for segment in path.split("/") if segment]
+                claim = working
+                for segment in segments[:-1]:
+                    claim = _find_list_item(claim, segment) if isinstance(claim, list) else claim.get(segment)
+                if isinstance(claim, dict):
+                    claim["support_status"] = "supported" if value else "unsupported"
         elif action == "add":
             segments = [segment for segment in path.split("/") if segment]
             target: Any = working

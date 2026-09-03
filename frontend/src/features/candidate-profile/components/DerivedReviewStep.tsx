@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Button, LoadingState, ErrorState, LiveStatus, StatusBadge } from "../../../components";
 import {
   fetchBaselineReview,
@@ -58,6 +58,9 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [staleError, setStaleError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Review derived claims and evidence links.");
+  const reviewRef = useRef<ReviewResource | null>(null);
+  const documentRef = useRef(document);
+  const pendingOpsRef = useRef(pendingOps);
 
   // Source Dialog state
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
@@ -97,8 +100,10 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
         fetchBaselineReview(attemptId),
         fetchDerivedReview(attemptId),
       ]);
+      reviewRef.current = derivedData;
+      documentRef.current = derivedData.document || {};
       setReview(derivedData);
-      setDocument(derivedData.document || {});
+      setDocument(documentRef.current);
       setBaselineDoc(baselineData.document || {});
       setAttempt(attemptData);
       setLoading(false);
@@ -142,35 +147,33 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
 
   // Queue operation
   const queueOperation = (op: CandidateProfileReviewOperation) => {
-    setPendingOps((prev) => {
-      const next = new Map(prev);
-      next.set(op.path, op);
-      return next;
-    });
+    const next = new Map(pendingOpsRef.current);
+    next.set(op.path, op);
+    pendingOpsRef.current = next;
+    setPendingOps(next);
   };
 
   // Field change on a derived claim
   const handleClaimFieldChange = (sectionId: string, claimId: string, fieldName: string, value: any) => {
     const path = `/${sectionId}/${claimId}/${fieldName}`;
-    setDocument((prev) => {
-      const doc = JSON.parse(JSON.stringify(prev));
-      const section = doc[sectionId] || [];
-      const claim = section.find((c: any) => c.id === claimId);
-      if (claim) {
-        claim[fieldName] = value;
-        if (fieldName === "evidence_refs") {
-          claim.support_status = Array.isArray(value) && value.length > 0 ? "supported" : "unsupported";
-        }
+    const doc = JSON.parse(JSON.stringify(documentRef.current));
+    const section = doc[sectionId] || [];
+    const claim = section.find((c: any) => c.id === claimId);
+    if (claim) {
+      claim[fieldName] = value;
+      if (fieldName === "evidence_refs") {
+        claim.support_status = Array.isArray(value) && value.length > 0 ? "supported" : "unsupported";
       }
-      return doc;
-    });
+    }
+    documentRef.current = doc;
+    setDocument(doc);
 
     queueOperation({ operation: "replace", path, value });
   };
 
   // Toggle evidence ref
   const handleToggleEvidenceRef = (sectionId: string, claimId: string, evId: string) => {
-    const currentClaim = (document[sectionId] || []).find((c: any) => c.id === claimId);
+    const currentClaim = (documentRef.current[sectionId] || []).find((c: any) => c.id === claimId);
     const currentRefs: string[] = Array.isArray(currentClaim?.evidence_refs) ? currentClaim.evidence_refs : [];
 
     const nextRefs = currentRefs.includes(evId)
@@ -192,42 +195,44 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
       evidence_refs: [],
     };
 
-    setDocument((prev) => {
-      const doc = JSON.parse(JSON.stringify(prev));
-      if (!Array.isArray(doc[sectionId])) doc[sectionId] = [];
-      doc[sectionId].push(newClaim);
-      return doc;
-    });
+    const doc = JSON.parse(JSON.stringify(documentRef.current));
+    if (!Array.isArray(doc[sectionId])) doc[sectionId] = [];
+    doc[sectionId].push(newClaim);
+    documentRef.current = doc;
+    setDocument(doc);
 
     queueOperation({ operation: "add", path: `/${sectionId}`, value: newClaim });
   };
 
   // Remove a claim
   const handleRemoveClaim = (sectionId: string, claimId: string) => {
-    setDocument((prev) => {
-      const doc = JSON.parse(JSON.stringify(prev));
-      if (Array.isArray(doc[sectionId])) {
-        doc[sectionId] = doc[sectionId].filter((c: any) => c.id !== claimId);
-      }
-      return doc;
-    });
+    const doc = JSON.parse(JSON.stringify(documentRef.current));
+    if (Array.isArray(doc[sectionId])) {
+      doc[sectionId] = doc[sectionId].filter((c: any) => c.id !== claimId);
+    }
+    documentRef.current = doc;
+    setDocument(doc);
 
     queueOperation({ operation: "remove", path: `/${sectionId}/${claimId}` });
   };
 
   // Flush operations
   const flushOperations = async (): Promise<ReviewResource | null> => {
-    if (pendingOps.size === 0 || !review) return review;
+    const currentReview = reviewRef.current;
+    const ops = Array.from(pendingOpsRef.current.values());
+    if (ops.length === 0 || !currentReview) return currentReview;
 
     setSaving(true);
     setError(null);
     setStatusMessage("Saving draft changes...");
 
-    const ops = Array.from(pendingOps.values());
     try {
-      const updated = await patchDerivedReview(attemptId, review.revision, ops);
+      const updated = await patchDerivedReview(attemptId, currentReview.revision, ops);
+      reviewRef.current = updated;
+      documentRef.current = updated.document || {};
+      pendingOpsRef.current = new Map();
       setReview(updated);
-      setDocument(updated.document || {});
+      setDocument(documentRef.current);
       setPendingOps(new Map());
       setSaving(false);
       setStatusMessage("Changes saved successfully.");
@@ -255,10 +260,12 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
     setError(null);
     try {
       const freshReview = await fetchDerivedReview(attemptId);
+      reviewRef.current = freshReview;
+      documentRef.current = freshReview.document || {};
       setReview(freshReview);
-      setDocument(freshReview.document || {});
+      setDocument(documentRef.current);
 
-      let ops = Array.from(pendingOps.values());
+      let ops = Array.from(pendingOpsRef.current.values());
       const stored = sessionStorage.getItem(reconciliationKey);
       if (stored && ops.length === 0) {
         ops = JSON.parse(stored);
@@ -271,8 +278,11 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
       }
 
       const updated = await patchDerivedReview(attemptId, freshReview.revision, ops);
+      reviewRef.current = updated;
+      documentRef.current = updated.document || {};
+      pendingOpsRef.current = new Map();
       setReview(updated);
-      setDocument(updated.document || {});
+      setDocument(documentRef.current);
       setPendingOps(new Map());
       setStaleError(null);
       try {
@@ -321,8 +331,11 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
 
     try {
       const restored = await undoDerivedRegeneration(attemptId, review.revision);
+      reviewRef.current = restored;
+      documentRef.current = restored.document || {};
+      pendingOpsRef.current = new Map();
       setReview(restored);
-      setDocument(restored.document || {});
+      setDocument(documentRef.current);
       setPendingOps(new Map());
       setSaving(false);
       setStatusMessage("Regeneration undone.");
@@ -340,11 +353,8 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
     setStatusMessage("Flushing changes and approving derived claims...");
 
     try {
-      let currentReview = review;
-      if (pendingOps.size > 0) {
-        const updated = await flushOperations();
-        if (updated) currentReview = updated;
-      }
+      const currentReview = (await flushOperations()) || reviewRef.current;
+      if (!currentReview) return;
 
       const baselineFingerprint = attempt.fingerprints?.approved_baseline || "";
 

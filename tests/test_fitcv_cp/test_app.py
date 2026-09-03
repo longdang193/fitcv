@@ -319,12 +319,36 @@ def test_candidate_profile_real_app_routes_process_yaml_through_staged_lifecycle
     )
     assert derived.status_code == 200
     derived_data = derived.json()["data"]
+    evidence_ids = [
+        evidence["id"]
+        for section in ("experiences", "education", "projects")
+        for entry in baseline_data["document"].get(section, [])
+        for evidence in entry.get("evidence", [])
+    ]
+    patched_derived = client.patch(
+        f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/derived",
+        headers={"Idempotency-Key": "real-patch-derived-evidence"},
+        json={
+            "expected_revision": derived_data["revision"],
+            "operations": [
+                {
+                    "operation": "replace",
+                    "path": f"/skills/{derived_data['document']['skills'][0]['id']}/evidence_refs",
+                    "value": [f" {evidence_ids[0]} ", evidence_ids[0]],
+                }
+            ],
+        },
+    )
+    assert patched_derived.status_code == 200
+    patched_derived_data = patched_derived.json()["data"]
+    assert patched_derived_data["document"]["skills"][0]["evidence_refs"] == [evidence_ids[0]]
+    assert patched_derived_data["document"]["skills"][0]["support_status"] == "supported"
     approved_derived = client.post(
         f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/derived/actions/approve",
         headers={"Idempotency-Key": "real-approve-derived"},
         json={
-            "expected_revision": derived_data["revision"],
-            "expected_fingerprint": derived_data["fingerprint"],
+            "expected_revision": patched_derived_data["revision"],
+            "expected_fingerprint": patched_derived_data["fingerprint"],
             "expected_baseline_fingerprint": approved_baseline.json()["data"]["fingerprints"]["approved_baseline"],
         },
     )

@@ -594,6 +594,37 @@ def test_review_patch_is_atomic_and_baseline_invalidates_all_downstream_state() 
     assert invalidation_for_stage("derived") == {"approved_derived": True, "confirmation": True}
 
 
+def test_derived_evidence_ref_patch_normalizes_refs_and_support_status() -> None:
+    derived = {
+        "skills": [
+            {
+                "id": "skill_sql",
+                "name": "SQL",
+                "origin": "user",
+                "confidence": 1.0,
+                "support_status": "unsupported",
+                "evidence_refs": [],
+            }
+        ]
+    }
+
+    supported = apply_review_operations(
+        "derived",
+        derived,
+        [{"operation": "replace", "path": "/skills/skill_sql/evidence_refs", "value": [" ev_2 ", "ev_1", "ev_2"]}],
+    )
+    unsupported = apply_review_operations(
+        "derived",
+        supported,
+        [{"operation": "replace", "path": "/skills/skill_sql/evidence_refs", "value": []}],
+    )
+
+    assert supported["skills"][0]["evidence_refs"] == ["ev_1", "ev_2"]
+    assert supported["skills"][0]["support_status"] == "supported"
+    assert unsupported["skills"][0]["evidence_refs"] == []
+    assert unsupported["skills"][0]["support_status"] == "unsupported"
+
+
 def test_approval_and_confirmation_bind_exact_fingerprints() -> None:
     baseline = _baseline_with_evidence()
     baseline_approval = approve_review("baseline", baseline, expected_fingerprint=None)
