@@ -5159,12 +5159,18 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
     )
     assert profile["lifecycle"] == "active"
     profile_id = profile["profile_id"]
+    assert sqlite_store.get_candidate_profile_detail(profile_id, database_path=database_path)["lifecycle"] == "active"
 
     edit_attempt = sqlite_store.create_candidate_profile_edit_attempt(
         profile_id,
         idempotency_key="edit-key-1",
         database_path=database_path,
     )
+
+    editing_profile = sqlite_store.get_candidate_profile_detail(profile_id, database_path=database_path)
+    assert editing_profile is not None
+    assert editing_profile["lifecycle"] == "archived"
+    assert editing_profile["revision"] == profile["revision"] + 1
 
     assert edit_attempt["creation_status"] == "base_review"
     assert edit_attempt["next_action"] == "review_baseline"
@@ -5203,6 +5209,18 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
     }
     assert derived_review["document"]["skills"][0]["evidence_refs"]
 
+    discarded = sqlite_store.discard_candidate_profile_creation_attempt(
+        edit_attempt["attempt_id"],
+        expected_revision=approved_base["revision"],
+        idempotency_key="discard-edit-1",
+        database_path=database_path,
+    )
+    assert discarded == {"attempt_id": edit_attempt["attempt_id"], "discarded": True}
+    restored_profile = sqlite_store.get_candidate_profile_detail(profile_id, database_path=database_path)
+    assert restored_profile is not None
+    assert restored_profile["lifecycle"] == "active"
+    assert restored_profile["revision"] == editing_profile["revision"] + 1
+
     # Changed baseline keeps normal derivation behavior.
     changed_edit = sqlite_store.create_candidate_profile_edit_attempt(
         profile_id,
@@ -5229,3 +5247,53 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
     assert changed_approval["next_action"] == "wait"
     assert changed_approval["processing"]["stage"] == "derived_claims"
     assert changed_approval["processing"]["claim_id"]
+
+
+def test_default_candidate_profile_edit_discard_restores_default(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    confirmation = sqlite_store.get_candidate_profile_confirmation(
+        ready["attempt_id"], database_path=database_path
+    )
+    assert confirmation is not None
+    profile = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-default-edit",
+        database_path=database_path,
+    )
+    with sqlite3.connect(database_path) as conn:
+        conn.execute(
+            "UPDATE candidate_profiles SET is_default=1 WHERE candidate_profile_id=?",
+            (profile["profile_id"],),
+        )
+        conn.commit()
+
+    edit_attempt = sqlite_store.create_candidate_profile_edit_attempt(
+        profile["profile_id"], idempotency_key="edit-default", database_path=database_path
+    )
+    archived = sqlite_store.get_candidate_profile_detail(profile["profile_id"], database_path=database_path)
+    assert archived is not None and archived["lifecycle"] == "archived"
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute(
+            "SELECT is_default FROM candidate_profiles WHERE candidate_profile_id=?",
+            (profile["profile_id"],),
+        ).fetchone()[0] == 0
+
+    sqlite_store.discard_candidate_profile_creation_attempt(
+        edit_attempt["attempt_id"],
+        expected_revision=edit_attempt["revision"],
+        idempotency_key="discard-default-edit",
+        database_path=database_path,
+    )
+    restored = sqlite_store.get_candidate_profile_detail(profile["profile_id"], database_path=database_path)
+    assert restored is not None
+    assert restored["lifecycle"] == "active"
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute(
+            "SELECT is_default FROM candidate_profiles WHERE candidate_profile_id=?",
+            (profile["profile_id"],),
+        ).fetchone()[0] == 1

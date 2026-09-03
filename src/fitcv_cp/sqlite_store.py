@@ -2368,6 +2368,51 @@ def discard_candidate_profile_creation_attempt(
                 raise ValueError("candidate_profile_revision_conflict")
             if attempt["creation_status"] == "succeeded":
                 raise ValueError("candidate_profile_discard_confirmed")
+            parent_profile_id = str(attempt["profile_id"] or "")
+            if parent_profile_id:
+                parent = conn.execute(
+                    "SELECT lifecycle, revision FROM candidate_profiles WHERE candidate_profile_id=?",
+                    (parent_profile_id,),
+                ).fetchone()
+                if parent is not None and parent["lifecycle"] == "archived":
+                    restore_default = conn.execute(
+                        """SELECT 1
+                           FROM candidate_profiles
+                           WHERE creation_status='succeeded' AND lifecycle='active' AND is_default=1
+                           LIMIT 1"""
+                    ).fetchone() is None
+                    parent_revision = int(parent["revision"])
+                    revision = conn.execute(
+                        """SELECT profile_json, checksum, schema_revision
+                           FROM candidate_profile_revisions
+                           WHERE candidate_profile_id=? AND revision=?""",
+                        (parent_profile_id, parent_revision),
+                    ).fetchone()
+                    if revision is None:
+                        raise ValueError("candidate_profile_revision_missing")
+                    conn.execute(
+                        """INSERT INTO candidate_profile_revisions (
+                               profile_revision_id, candidate_profile_id, revision,
+                               profile_json, checksum, schema_revision, created_at
+                           ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            f"profile_revision_{uuid.uuid4().hex}",
+                            parent_profile_id,
+                            parent_revision + 1,
+                            revision["profile_json"],
+                            revision["checksum"],
+                            revision["schema_revision"],
+                            now,
+                        ),
+                    )
+                    conn.execute(
+                        """UPDATE candidate_profiles
+                           SET lifecycle='active', archived_at=NULL, updated_at=?, revision=?, is_default=?
+                           WHERE candidate_profile_id=? AND lifecycle='archived' AND revision=?""",
+                        (now, parent_revision + 1, int(restore_default), parent_profile_id, parent_revision),
+                    )
+                    if conn.execute("SELECT changes()").fetchone()[0] != 1:
+                        raise ValueError("revision_conflict")
             conn.execute("DELETE FROM candidate_profile_creation_attempts WHERE attempt_id=?", (attempt_id,))
             response = {"attempt_id": attempt_id, "discarded": True}
             _record_candidate_profile_idempotent_result(
@@ -2427,6 +2472,39 @@ def create_candidate_profile_edit_attempt(
                 raise ValueError("candidate_profile_archived")
             if row["creation_status"] != "succeeded":
                 raise ValueError("candidate_profile_edit_unavailable")
+
+            current_revision = int(row["revision"])
+            profile_revision = conn.execute(
+                """SELECT profile_json, checksum, schema_revision
+                   FROM candidate_profile_revisions
+                   WHERE candidate_profile_id=? AND revision=?""",
+                (profile_id, current_revision),
+            ).fetchone()
+            if profile_revision is None:
+                raise ValueError("candidate_profile_revision_missing")
+            conn.execute(
+                """INSERT INTO candidate_profile_revisions (
+                       profile_revision_id, candidate_profile_id, revision,
+                       profile_json, checksum, schema_revision, created_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    f"profile_revision_{uuid.uuid4().hex}",
+                    profile_id,
+                    current_revision + 1,
+                    profile_revision["profile_json"],
+                    profile_revision["checksum"],
+                    profile_revision["schema_revision"],
+                    now,
+                ),
+            )
+            conn.execute(
+                """UPDATE candidate_profiles
+                   SET lifecycle='archived', archived_at=?, updated_at=?, revision=?, is_default=0
+                   WHERE candidate_profile_id=? AND lifecycle='active' AND revision=?""",
+                (now, now, current_revision + 1, profile_id, current_revision),
+            )
+            if conn.execute("SELECT changes()").fetchone()[0] != 1:
+                raise ValueError("revision_conflict")
 
             from fitcv_cp.candidate_profile_service import (
                 _split_canonical,
