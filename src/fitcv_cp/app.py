@@ -9596,8 +9596,6 @@ def create_app(
                 )
             profile_snapshot = dict(profile.get("profile") or {})
             profile_snapshot.setdefault("name", profile.get("name"))
-            profile_snapshot["revision"] = profile.get("revision")
-            profile_snapshot["candidate_profile_id"] = candidate_profile_id
             fingerprint_payload = {
                 "jobs_sha256": acquisition.artifact.sha256,
                 "candidate_profile_id": candidate_profile_id,
@@ -9816,8 +9814,6 @@ def create_app(
             ) from exc
         profile_snapshot = dict(profile.get("profile") or {})
         profile_snapshot.setdefault("name", profile.get("name"))
-        profile_snapshot["revision"] = profile.get("revision")
-        profile_snapshot["candidate_profile_id"] = candidate_profile_id
         fingerprint_payload = {
             "jobs_sha256": artifact.sha256,
             "candidate_profile_id": candidate_profile_id,

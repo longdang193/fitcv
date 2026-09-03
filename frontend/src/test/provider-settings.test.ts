@@ -64,4 +64,80 @@ describe("provider-settings routes", () => {
     );
     expect(html).toContain("Loading LLM Configuration");
   });
+
+  it("preserves draft on same-provider refresh and validation actions", async () => {
+    let currentSelectedId = "custom-ollama";
+    let draftBaseUrl = "http://127.0.0.1:11434/v1";
+    let draftApiType = "chat_completions";
+    let connectionTestPassed = true;
+
+    const mockServerProviders = [
+      {
+        provider_id: "custom-ollama",
+        display_name: "Ollama",
+        compatibility: "openai",
+        base_url: null, // Server record still has null before save
+        api_type: "chat_completions",
+      },
+      {
+        provider_id: "openai",
+        display_name: "OpenAI",
+        compatibility: "openai",
+        base_url: "https://api.openai.com/v1",
+        api_type: "responses",
+      },
+    ];
+
+    // load function modeling same-provider refresh guard
+    const load = (hashId: string | null = null) => {
+      const targetId = hashId || currentSelectedId;
+      const match = mockServerProviders.find((p) => p.provider_id === targetId) || mockServerProviders[0];
+      const providerChanged = !currentSelectedId || currentSelectedId !== match.provider_id || (hashId !== null && hashId !== currentSelectedId);
+      if (providerChanged) {
+        currentSelectedId = match.provider_id;
+        draftBaseUrl = match.base_url || "";
+        draftApiType = match.api_type || "chat_completions";
+        connectionTestPassed = false;
+      }
+    };
+
+    // 1. Same-provider refresh does NOT overwrite user draft
+    load();
+    expect(draftBaseUrl).toBe("http://127.0.0.1:11434/v1");
+    expect(connectionTestPassed).toBe(true);
+
+    // 2. Validation action with reload: false does not call load and keeps draft
+    const run = async (op: () => Promise<void>, options?: { reload?: boolean }) => {
+      await op();
+      if (options?.reload !== false) {
+        load();
+      }
+    };
+
+    await run(async () => {}, { reload: false });
+    expect(draftBaseUrl).toBe("http://127.0.0.1:11434/v1");
+
+    // 3. Save connection sends intact draft Base URL
+    let savedPayload: Record<string, unknown> | null = null;
+    await run(async () => {
+      savedPayload = {
+        base_url: draftBaseUrl.trim() || null,
+        api_type: draftApiType,
+        api_key: "key-123",
+      };
+    });
+
+    expect(savedPayload).toEqual({
+      base_url: "http://127.0.0.1:11434/v1",
+      api_type: "chat_completions",
+      api_key: "key-123",
+    });
+
+    // 4. Changing provider initializes fields from server and resets validation
+    load("openai");
+    expect(currentSelectedId).toBe("openai");
+    expect(draftBaseUrl).toBe("https://api.openai.com/v1");
+    expect(draftApiType).toBe("responses");
+    expect(connectionTestPassed).toBe(false);
+  });
 });

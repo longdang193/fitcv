@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button, LoadingState } from "../../components";
 import { apiClient } from "../../lib/api-client";
 
@@ -17,6 +17,8 @@ export type Provider = {
   compatibility: "openai" | "anthropic";
   base_url: string | null;
   base_url_editable: boolean;
+  supported_api_types?: string[];
+  api_type_fixed?: boolean;
   api_type: string;
   connection_status: string;
   credential_configured: boolean;
@@ -68,6 +70,10 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
   const [selectedId, setSelectedId] = useState<string>(() =>
     typeof window !== "undefined" ? getProviderIdFromHash(window.location.hash) || "" : ""
   );
+  const selectedIdRef = useRef<string>(selectedId);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [apiType, setApiType] = useState("chat_completions");
@@ -97,12 +103,20 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
         const next = res.data.data || [];
         setProviders(next);
         const hashId = typeof window !== "undefined" ? getProviderIdFromHash(window.location.hash) : null;
-        const targetId = hashId || selectedId;
+        const currentId = selectedIdRef.current;
+        const targetId = hashId || currentId;
         const match = next.find((p) => p.provider_id === targetId) || next[0];
         if (match) {
-          setSelectedId(match.provider_id);
-          setBaseUrl(match.base_url || "");
-          setApiType(match.api_type || "chat_completions");
+          const providerChanged = !currentId || currentId !== match.provider_id || (hashId !== null && hashId !== currentId);
+          if (providerChanged) {
+            setSelectedId(match.provider_id);
+            selectedIdRef.current = match.provider_id;
+            setBaseUrl(match.base_url || "");
+            setApiType(match.api_type || "chat_completions");
+            setApiKey("");
+            setConnectionTestPassed(false);
+            setConnectionStatusText("");
+          }
         }
       } else {
         const res = await apiClient.get<{ data: LlmConfig }>("/llm-configuration");
@@ -113,7 +127,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     } finally {
       setLoading(false);
     }
-  }, [mode, selectedId]);
+  }, [mode]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -121,12 +135,16 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     if (mode !== "api-providers") return;
     const handleHash = () => {
       const fromHash = getProviderIdFromHash(window.location.hash);
-      if (fromHash) {
+      if (fromHash && fromHash !== selectedIdRef.current) {
         setSelectedId(fromHash);
+        selectedIdRef.current = fromHash;
         const match = providers.find((p) => p.provider_id === fromHash);
         if (match) {
           setBaseUrl(match.base_url || "");
           setApiType(match.api_type || "chat_completions");
+          setApiKey("");
+          setConnectionTestPassed(false);
+          setConnectionStatusText("");
         }
       }
     };
@@ -136,12 +154,19 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
 
   const provider = providers.find((p) => p.provider_id === selectedId);
 
-  const run = async (operation: () => Promise<void>) => {
+  const run = async (operation: () => Promise<void>, options?: { reload?: boolean }) => {
     setBusy(true);
     setMessage("");
-    try { await operation(); await load(); }
-    catch (err: any) { setMessage(`${err.message || "Request failed."}${err.action ? ` ${err.action}` : ""}`); }
-    finally { setBusy(false); }
+    try {
+      await operation();
+      if (options?.reload !== false) {
+        await load();
+      }
+    } catch (err: any) {
+      setMessage(`${err.message || "Request failed."}${err.action ? ` ${err.action}` : ""}`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const createProvider = () => run(async () => {
@@ -187,7 +212,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
         setConnectionStatusText(`Connection test failed: ${res.data.data.failure_code || "Check details."}`);
         setMessage(`Connection test failed: ${res.data.data.failure_code || "Check details."}`);
       }
-    });
+    }, { reload: false });
   };
 
   const saveConnection = () => {
@@ -233,7 +258,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
         setModelTestPassed(false);
         setMessage(`Model test failed: ${res.data.data.failure_code || "Check Model ID."}`);
       }
-    });
+    }, { reload: false });
   };
 
   const addModel = () => {
@@ -327,14 +352,17 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
               className="field-input"
               value={selectedId}
               onChange={(event) => {
-                const next = providers.find((item) => item.provider_id === event.target.value);
-                setSelectedId(event.target.value);
+                const nextId = event.target.value;
+                const next = providers.find((item) => item.provider_id === nextId);
+                setSelectedId(nextId);
+                selectedIdRef.current = nextId;
                 setBaseUrl(next?.base_url || "");
                 setApiType(next?.api_type || "chat_completions");
+                setApiKey("");
                 setConnectionTestPassed(false);
                 setConnectionStatusText("");
-                if (event.target.value) {
-                  window.location.hash = `#/settings/api-providers/${encodeURIComponent(event.target.value)}`;
+                if (nextId) {
+                  window.location.hash = `#/settings/api-providers/${encodeURIComponent(nextId)}`;
                 }
               }}
             >
@@ -351,6 +379,33 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
               <span className="field-label">Base URL</span>
               <input className="field-input" value={baseUrl} onChange={(event) => { setBaseUrl(event.target.value); setConnectionTestPassed(false); }} disabled={!provider.base_url_editable || busy} />
             </label>
+            {provider.compatibility === "openai" && (
+              <label className="field-group">
+                <span className="field-label">API Type</span>
+                <select
+                  className="field-input"
+                  value={apiType}
+                  onChange={(event) => {
+                    setApiType(event.target.value);
+                    setConnectionTestPassed(false);
+                  }}
+                  disabled={provider.api_type_fixed || busy}
+                >
+                  {(provider.supported_api_types && provider.supported_api_types.length > 0
+                    ? provider.supported_api_types
+                    : ["chat_completions", "responses"]
+                  ).map((type) => (
+                    <option key={type} value={type}>
+                      {type === "chat_completions"
+                        ? "Chat Completions (/v1/chat/completions)"
+                        : type === "responses"
+                        ? "Responses (/v1/responses)"
+                        : type}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="field-group">
               <span className="field-label">API key</span>
               <input className="field-input" type="password" value={apiKey} onChange={(event) => { setApiKey(event.target.value); setConnectionTestPassed(false); }} autoComplete="off" disabled={busy} placeholder={provider.credential_configured ? "Stored key unchanged" : "Required to verify connection"} />
@@ -401,7 +456,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
                         </span>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <Button size="compact" variant="secondary" disabled={busy || provider.connection_status !== "verified"} onClick={() => run(async () => { await apiClient.post(`/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(item.model_record_id)}/actions/test`, { expected_revision: item.revision || provider.revision }); setMessage(`${item.model_id} retested.`); })}>Test</Button>
+                        <Button size="compact" variant="secondary" disabled={busy || provider.connection_status !== "verified"} onClick={() => run(async () => { await apiClient.post(`/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(item.model_record_id)}/actions/test`, { expected_revision: item.revision || provider.revision }); setMessage(`${item.model_id} retested.`); }, { reload: false })}>Test</Button>
                         <Button size="compact" variant="danger" disabled={busy} onClick={() => run(async () => { await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(item.model_record_id)}`, { body: { expected_revision: item.revision || provider.revision } }); setMessage(`${item.model_id} removed.`); })}>Remove</Button>
                       </div>
                     </div>

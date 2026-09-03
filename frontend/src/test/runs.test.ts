@@ -371,4 +371,27 @@ describe("runs feature route and api slice", () => {
       "fitcv-run-run-dbg-1-jobs.csv"
     );
   });
+it("guards against invalid or object page parameter serialization in fetchRunJobs", async () => {
+    const mockResponse = {
+      data: {
+        data: [],
+        page: 1,
+        page_size: 10,
+        total_items: 0,
+      },
+      status: 200,
+    };
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValue(mockResponse as any);
+
+    // Test with object passed as page (e.g., event object or corrupted state)
+    await fetchRunJobs("run-page-test", { page: {} as any });
+    expect(getSpy).toHaveBeenCalledWith("/runs/run-page-test/jobs?page=1");
+    expect(getSpy.mock.calls[0][0]).not.toContain("[object");
+
+    getSpy.mockClear();
+
+    // Test with valid number
+    await fetchRunJobs("run-page-test", { page: 3 });
+    expect(getSpy).toHaveBeenCalledWith("/runs/run-page-test/jobs?page=3");
+  });
 });

@@ -35,7 +35,10 @@ export async function fetchRuns(params?: {
   const query = new URLSearchParams();
   if (params?.view) query.set("view", params.view);
   if (params?.search) query.set("search", params.search);
-  if (params?.page) query.set("page", String(params.page));
+  if (params?.page !== undefined && params?.page !== null) {
+    const parsedPage = typeof params.page === "number" ? params.page : parseInt(String(params.page), 10);
+    query.set("page", String(!isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1));
+  }
   if (params?.page_size) query.set("page_size", String(params.page_size));
 
   const qs = query.toString();
@@ -69,7 +72,10 @@ export async function fetchRunJobs(
   }
 ): Promise<PaginationEnvelope<RunJobItem, RunJobsPaginationMeta>> {
   const query = new URLSearchParams();
-  if (params?.page) query.set("page", String(params.page));
+  if (params?.page !== undefined && params?.page !== null) {
+    const parsedPage = typeof params.page === "number" ? params.page : parseInt(String(params.page), 10);
+    query.set("page", String(!isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1));
+  }
   if (params?.page_size) query.set("page_size", String(params.page_size));
   if (params?.search) query.set("search", params.search);
   if (params?.stage && params.stage !== "all") query.set("stage", params.stage);

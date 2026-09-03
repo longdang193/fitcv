@@ -324,20 +324,71 @@ def test_source_bootstrap_runs_before_create_app_and_uses_configured_profile(
     assert calls == [("ensure", database_path, candidate_profile_path), "create"]
 
 
-def test_local_build_app_does_not_duplicate_packaged_database_initialization(
-    monkeypatch: pytest.MonkeyPatch,
+def test_local_build_app_bootstraps_fresh_database_after_storage_activation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     module = _reload_main_module(monkeypatch)
+    database_path = tmp_path / "local.sqlite3"
+    candidate_profile_path = tmp_path / "candidate_profile.yaml"
+    _candidate_profile(candidate_profile_path)
+    _configure_source_build(module, monkeypatch, database_path, candidate_profile_path)
     monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
-    monkeypatch.setattr("fitcv_cp.local_storage.activate_local_storage", lambda: None)
-    ensure_calls: list[object] = []
+    calls: list[tuple[str, Path, Path] | str] = []
+    monkeypatch.setattr(
+        "fitcv_cp.local_storage.activate_local_storage",
+        lambda: calls.append("activate"),
+    )
+
+    def ensure(database: Path, profile: Path) -> None:
+        calls.append(("ensure", database, profile))
+        sqlite_store.ensure_control_plane_database(database, profile)
+
     monkeypatch.setattr(
         module,
         "ensure_control_plane_database",
-        lambda *_args, **_kwargs: ensure_calls.append(True),
+        ensure,
         raising=False,
     )
-    monkeypatch.setattr(module, "create_app", lambda **_kwargs: "ok")
+
+    def create_app(**_kwargs: object) -> str:
+        calls.append("create")
+        return "ok"
+
+    monkeypatch.setattr(module, "create_app", create_app)
+
+    assert not database_path.exists()
+    assert module.build_app() == "ok"
+    assert calls == ["activate", ("ensure", database_path, candidate_profile_path), "create"]
+    _assert_control_plane_database(database_path)
+
+def test_local_build_app_applies_packaged_integration_migration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _reload_main_module(monkeypatch)
+    database_path = tmp_path / "local_migrated.sqlite3"
+    candidate_profile_path = tmp_path / "candidate_profile.yaml"
+    _candidate_profile(candidate_profile_path)
+    _configure_source_build(module, monkeypatch, database_path, candidate_profile_path)
+    monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
+
+    calls: list[str] = []
+    fake_paths = object()
+
+    monkeypatch.setattr(
+        "fitcv_cp.local_storage.activate_local_storage",
+        lambda: calls.append("activate") or fake_paths,
+    )
+    monkeypatch.setattr(
+        module,
+        "ensure_control_plane_database",
+        lambda _db, _profile: calls.append("ensure"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "fitcv_cp.local_storage.migrate_packaged_local_integration_state",
+        lambda paths: calls.append(f"migrate:{paths is fake_paths}"),
+    )
+    monkeypatch.setattr(module, "create_app", lambda **_kwargs: calls.append("create") or "ok")
 
     assert module.build_app() == "ok"
-    assert ensure_calls == []
+    assert calls == ["activate", "ensure", "migrate:True", "create"]

@@ -62,19 +62,25 @@ def _resolve_candidate_profile_path() -> Path:
 
 def build_app() -> Any:
     load_dotenv_defaults()
-    from fitcv_cp.local_storage import activate_local_storage, is_local_mode
+    from fitcv_cp.local_storage import (
+        activate_local_storage,
+        is_local_mode,
+        migrate_packaged_local_integration_state,
+    )
 
     local_mode = is_local_mode()
+    local_paths = None
     if local_mode:
-        activate_local_storage()
+        local_paths = activate_local_storage()
     _ensure_safe_local_execution_mode()
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
-    if not local_mode:
-        ensure_control_plane_database(
-            Path(runtime.sqlite_path),
-            _resolve_candidate_profile_path(),
-        )
+    ensure_control_plane_database(
+        Path(runtime.sqlite_path),
+        _resolve_candidate_profile_path(),
+    )
+    if local_mode and local_paths is not None:
+        migrate_packaged_local_integration_state(local_paths)
     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
     logger.info("control-plane backend mode: sqlite")
     application = create_app(redis_url=redis_url, backend_runtime=runtime)

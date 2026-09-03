@@ -14669,3 +14669,75 @@ def test_runs_list_renders_managed_scan_picker_instead_of_direct_scanner_fields(
     assert 'id="source_mode"' not in response.text
     assert 'id="scanner_provider"' not in response.text
     assert "scanner_careers_url" not in response.text
+
+def test_post_runs_uses_schema_valid_canonical_profile_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fitcv.candidate import validate_candidate_profile_v2
+    from test_fitcv_cp.candidate_profile_fixtures import candidate_profile_fixture_expectations
+
+    fixtures = candidate_profile_fixture_expectations()
+    canonical_v2 = fixtures["canonical_v2"]
+
+    monkeypatch.chdir(tmp_path)
+    captured: dict[str, Any] = {}
+    with patch("fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}):
+        app = _app()
+
+    app.state.run_store.get_candidate_profile_fn = lambda profile_id: {
+        "candidate_profile_id": profile_id,
+        "name": canonical_v2["name"],
+        "profile": canonical_v2,
+        "revision": 3,
+        "is_active": True,
+    }
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "action-canonical-test",
+        "replayed": False,
+        "response": None,
+    }
+    app.state.run_store.complete_idempotent_action_fn = lambda *_args: None
+
+    def capture_bundle(run, **_kwargs):
+        captured["run"] = run
+        return {"run_id": run.run_id}
+
+    app.state.run_store.create_run_bundle_fn = capture_bundle
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+
+    valid_job = _valid_fitcv_job()
+    job_bytes = json.dumps([valid_job]).encode("utf-8")
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch(
+        "fitcv_cp.app.submit_run",
+        side_effect=lambda **kwargs: RunSubmission(
+            run_id=kwargs["run_id"],
+            queue_job_id="rq-job-canonical-test",
+            backend_run_id=kwargs["run_id"],
+            backend="default_queue",
+        ),
+    ):
+        response = TestClient(app).post(
+            "/runs",
+            headers={"Idempotency-Key": "canonical-profile-run-test"},
+            data={
+                "source_mode": "upload",
+                "profile_id": "candidate-profile-123",
+                "run_name": "Schema Validity Test",
+            },
+            files={"jobs_file": ("jobs.json", job_bytes, "application/json")},
+        )
+
+    assert response.status_code == 201, response.text
+    run = captured["run"]
+    assert run.candidate_profile_source == "candidate-profile-123"
+
+    # Crucial assertion: Candidate profile JSON must be strictly schema valid
+    # and must NOT contain injected non-schema fields like candidate_profile_id or revision
+    deserialized_profile = json.loads(run.candidate_profile_json)
+    assert "candidate_profile_id" not in deserialized_profile
+    assert "revision" not in deserialized_profile
+    validation_errors = validate_candidate_profile_v2(deserialized_profile)
+    assert validation_errors == [], f"Candidate profile snapshot has validation errors: {validation_errors}"
