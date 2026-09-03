@@ -91,8 +91,12 @@ export const CandidateProfileRoute: React.FC = () => {
     navigate("#/candidate-profile/create");
   };
 
-  const handleResumeAttempt = (attemptId: string, stage = "baseline") => {
-    navigate(`#/candidate-profile/create/${encodeURIComponent(attemptId)}/${stage}`);
+  const handleResumeAttempt = (attemptId: string, stage?: string) => {
+    if (stage) {
+      navigate(`#/candidate-profile/create/${encodeURIComponent(attemptId)}/${stage}`);
+    } else {
+      navigate(`#/candidate-profile/create/${encodeURIComponent(attemptId)}`);
+    }
   };
 
   const handleOpenDetail = (profileId: string) => {
@@ -170,6 +174,14 @@ export const CandidateProfileRoute: React.FC = () => {
     navigate(`#/candidate-profile/${encodeURIComponent(profileId)}`);
   };
 
+  const handleBackToBaseline = (attemptId: string) => {
+    navigate(`#/candidate-profile/create/${encodeURIComponent(attemptId)}/baseline`);
+  };
+
+  const handleBackToDerived = (attemptId: string) => {
+    navigate(`#/candidate-profile/create/${encodeURIComponent(attemptId)}/derived`);
+  };
+
   const handleBackToCatalog = () => {
     navigate("#/candidate-profile");
   };
@@ -224,6 +236,7 @@ export const CandidateProfileRoute: React.FC = () => {
       {routeState.view === "create_derived" && routeState.attemptId && (
         <DerivedReviewStep
           attemptId={routeState.attemptId}
+          onBackToBaseline={() => handleBackToBaseline(routeState.attemptId!)}
           onApproveSuccess={() => handleDerivedApproved(routeState.attemptId!)}
           onSaveAndExit={handleBackToCatalog}
         />
@@ -232,6 +245,7 @@ export const CandidateProfileRoute: React.FC = () => {
       {routeState.view === "create_confirm" && routeState.attemptId && (
         <ConfirmationStep
           attemptId={routeState.attemptId}
+          onBackToDerived={() => handleBackToDerived(routeState.attemptId!)}
           onConfirmed={handleProfileConfirmed}
           onCancel={handleBackToCatalog}
         />
