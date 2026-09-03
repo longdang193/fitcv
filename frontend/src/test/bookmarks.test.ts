@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   fetchBookmarks,
   previewBookmarkExport,
   removeBookmarkSelection,
+  updateBookmarkInterest,
   generateIdempotencyKey,
 } from "../features/bookmarks/api";
+import { BookmarksPage } from "../features/bookmarks/route";
+import { BookmarksTable } from "../features/bookmarks/components/BookmarksTable";
+import { BookmarkItem } from "../features/bookmarks/types";
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 
@@ -71,6 +77,29 @@ describe("bookmarks slice and api", () => {
     expect(result.data[0].title).toBe("Senior Platform Engineer");
   });
 
+  it("updates and clears bookmark interest via rating endpoint", async () => {
+    const putSpy = vi.spyOn(apiClient, "put").mockResolvedValueOnce({
+      data: { run_job_id: "rj-01", rating: 4, rating_contract_revision: "application-interest-v1" },
+      status: 200,
+    } as any);
+
+    const setRes = await updateBookmarkInterest("run-01", "rj-01", 4);
+    expect(putSpy).toHaveBeenCalledWith("/runs/run-01/jobs/rj-01/interest", {
+      rating: 4,
+      rating_contract_revision: "application-interest-v1",
+    });
+    expect(setRes.rating).toBe(4);
+
+    const deleteSpy = vi.spyOn(apiClient, "delete").mockResolvedValueOnce({
+      data: { run_job_id: "rj-01", rating: null },
+      status: 200,
+    } as any);
+
+    const clearRes = await updateBookmarkInterest("run-01", "rj-01", null);
+    expect(deleteSpy).toHaveBeenCalledWith("/runs/run-01/jobs/rj-01/interest");
+    expect(clearRes.rating).toBeNull();
+  });
+
   it("handles export preview and removal of bookmarks", async () => {
     const mockPreview = {
       data: {
@@ -121,5 +150,79 @@ describe("bookmarks slice and api", () => {
       { idempotencyKey: "fixed-idem-bm" }
     );
     expect(removeRes.removed_count).toBe(1);
+  });
+
+  it("renders prototype-aligned BookmarksTable structure and interactive controls", () => {
+    const mockItem: BookmarkItem = {
+      bookmark_id: "bm-01",
+      bookmarked_at: "2026-08-30T10:00:00Z",
+      run_id: "RUN-7E4A92C1",
+      run_name: "Data Platform Lead",
+      run_job_id: "JOB-001",
+      title: "Senior Data Product Manager",
+      company: "Acme",
+      location: "Berlin, Germany",
+      work_mode: "Hybrid",
+      language: "English",
+      seniority: "Senior",
+      role_family: "Product Management",
+      domain: "Data Platforms",
+      skills: ["Product Strategy", "SQL", "Data Modeling", "Roadmapping", "Stakeholder Management", "Experimentation"],
+      rating: 4,
+      status: "passed",
+      result_bucket: "passed",
+      outcome_code: "Passed Shortlisting",
+      reason_code: "Met Shortlisting requirements.",
+    };
+
+    const markup = renderToStaticMarkup(
+      React.createElement(BookmarksTable, {
+        bookmarks: [mockItem],
+        loading: false,
+        page: 1,
+        pageSize: 20,
+        total: 1,
+        onPageChange: () => {},
+        selectedJobIds: [],
+        onToggleSelectJob: () => {},
+        onToggleSelectAll: () => {},
+        onRemoveSingle: () => {},
+        onInspectEvidence: () => {},
+        onChangeInterest: () => {},
+        onSelectRun: () => {},
+      })
+    );
+
+    expect(markup).toContain("RUN-7E4A92C1");
+    expect(markup).toContain("Senior Data Product Manager");
+    expect(markup).toContain("Job Attributes");
+    expect(markup).toContain("Required Skills");
+    expect(markup).toContain("Pipeline Outcome");
+    expect(markup).toContain("Evidence");
+    expect(markup).toContain("Remove");
+    expect(markup).toContain("Application Interest for Senior Data Product Manager");
+    expect(markup).toContain("+1 more");
+  });
+
+  it("renders BookmarksPage structure with prototype headings and pipeline stage tabs", () => {
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: { data: [], page: 1, page_size: 20, total_items: 0 },
+      status: 200,
+    } as any);
+
+    const markup = renderToStaticMarkup(React.createElement(BookmarksPage));
+
+    expect(markup).toContain("Workspace");
+    expect(markup).toContain("Bookmarks");
+    expect(markup).toContain("Review bookmarked jobs across runs using the same pipeline evidence as Run Details.");
+    expect(markup).toContain("pipeline-stage-tabs");
+    expect(markup).toContain("All Jobs");
+    expect(markup).toContain("Enrichment");
+    expect(markup).toContain("Screening");
+    expect(markup).toContain("Shortlisting");
+    expect(markup).toContain("Ranking");
+    expect(markup).toContain("CV Analysis");
+    expect(markup).toContain("CV Generation");
+    expect(markup).toContain("Search bookmarked jobs, runs, attributes, skills, or outcomes");
   });
 });

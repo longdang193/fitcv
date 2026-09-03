@@ -6,11 +6,22 @@ import {
   removeBookmarkSelection,
   previewBookmarkExport,
   exportBookmarkSelection,
+  updateBookmarkInterest,
 } from "./api";
 import { BookmarkItem } from "./types";
 import { RunJobItem } from "../runs/types";
 import { Button, Dialog } from "../../components";
 import { notificationStore } from "../../lib/notifications";
+
+const PIPELINE_STAGES: { id: string; label: string }[] = [
+  { id: "all", label: "All Jobs" },
+  { id: "enrichment", label: "Enrichment" },
+  { id: "screening", label: "Screening" },
+  { id: "shortlisting", label: "Shortlisting" },
+  { id: "ranking", label: "Ranking" },
+  { id: "cv-analysis", label: "CV Analysis" },
+  { id: "cv-generation", label: "CV Generation" },
+];
 
 export const BookmarksPage: React.FC = () => {
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
@@ -20,7 +31,6 @@ export const BookmarksPage: React.FC = () => {
   const [total, setTotal] = useState(0);
 
   const [stageFilter, setStageFilter] = useState("all");
-  const [resultFilter, setResultFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
 
@@ -41,8 +51,7 @@ export const BookmarksPage: React.FC = () => {
         const res = await fetchBookmarks({
           page: targetPage,
           page_size: pageSize,
-          stage: stageFilter,
-          result: resultFilter,
+          stage: stageFilter !== "all" ? stageFilter : undefined,
           search: activeSearch,
         });
         setBookmarks(res.data || []);
@@ -59,7 +68,7 @@ export const BookmarksPage: React.FC = () => {
         setLoading(false);
       }
     },
-    [pageSize, stageFilter, resultFilter, activeSearch]
+    [pageSize, stageFilter, activeSearch]
   );
 
   useEffect(() => {
@@ -90,8 +99,8 @@ export const BookmarksPage: React.FC = () => {
       company: bm.company,
       location: bm.location,
       current_stage_id: bm.stage_id || "screening",
-      status: bm.status || "passed",
-      result_bucket: bm.result_bucket || null,
+      status: bm.status as any || "passed",
+      result_bucket: (bm.result_bucket as any) || null,
       bookmarked: true,
       interest_rating: bm.rating,
       attributes: {
@@ -100,6 +109,31 @@ export const BookmarksPage: React.FC = () => {
       },
     };
     setInspectingJob(projectedJob);
+  };
+
+  const handleChangeInterest = async (bookmark: BookmarkItem, newRating: number | null) => {
+    const oldRating = bookmark.rating;
+    setBookmarks((prev) =>
+      prev.map((b) =>
+        b.run_job_id === bookmark.run_job_id ? { ...b, rating: newRating } : b
+      )
+    );
+
+    try {
+      await updateBookmarkInterest(bookmark.run_id, bookmark.run_job_id, newRating);
+    } catch (err: any) {
+      setBookmarks((prev) =>
+        prev.map((b) =>
+          b.run_job_id === bookmark.run_job_id ? { ...b, rating: oldRating } : b
+        )
+      );
+      notificationStore.notify({
+        dedupe: `interest:err:${bookmark.run_job_id}`,
+        type: "error",
+        title: "Interest update failed",
+        message: err.message || "Could not update interest rating.",
+      });
+    }
   };
 
   const handleConfirmRemove = async () => {
@@ -113,7 +147,6 @@ export const BookmarksPage: React.FC = () => {
       const res = await removeBookmarkSelection({
         selected_run_job_ids: idsToRemove,
         stage: stageFilter !== "all" ? stageFilter : undefined,
-        result: resultFilter !== "all" ? resultFilter : undefined,
         search: activeSearch || undefined,
       });
 
@@ -145,14 +178,12 @@ export const BookmarksPage: React.FC = () => {
       const preview = await previewBookmarkExport({
         selected_run_job_ids: selectedJobIds,
         stage: stageFilter !== "all" ? stageFilter : undefined,
-        result: resultFilter !== "all" ? resultFilter : undefined,
         search: activeSearch || undefined,
       });
 
       await exportBookmarkSelection({
         selected_run_job_ids: selectedJobIds,
         stage: stageFilter !== "all" ? stageFilter : undefined,
-        result: resultFilter !== "all" ? resultFilter : undefined,
         search: activeSearch || undefined,
         preview_revision: preview.preview_revision,
       });
@@ -175,169 +206,123 @@ export const BookmarksPage: React.FC = () => {
     }
   };
 
+  const handleSelectRun = (runId: string) => {
+    window.location.hash = `#/runs?run_id=${encodeURIComponent(runId)}`;
+  };
+
   return (
     <div className="content-container">
       {/* Page Head */}
       <div className="page-head" style={{ marginBottom: 20 }}>
         <div>
-          <p
-            className="eyebrow"
-            style={{
-              color: "var(--accent)",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              margin: "0 0 4px",
-            }}
-          >
-            Saved Workspace
-          </p>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: "var(--display-font)",
-              fontSize: 24,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Bookmarks
-          </h2>
-          <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
-            Review bookmarked jobs across pipeline runs with preserved fit evidence and interest ratings.
-          </p>
+          <p className="eyebrow">Workspace</p>
+          <h2>Bookmarks</h2>
+          <p>Review bookmarked jobs across runs using the same pipeline evidence as Run Details.</p>
         </div>
       </div>
 
-      {/* Filter and Action Toolbar */}
-      <div
-        className="table-card"
-        style={{
-          padding: "16px 20px",
-          marginBottom: 16,
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          {/* Stage Filter */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="bm-stage-select" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)" }}>
-              Stage
-            </label>
-            <select
-              id="bm-stage-select"
-              value={stageFilter}
-              onChange={(e) => {
-                setStageFilter(e.target.value);
+      <div className="run-panel">
+        {/* Pipeline Stage Tabs */}
+        <div className="pipeline-stage-tabs" role="tablist" aria-label="Bookmark pipeline stages">
+          {PIPELINE_STAGES.map((stage) => (
+            <button
+              key={stage.id}
+              className="btn"
+              type="button"
+              role="tab"
+              data-bookmark-stage={stage.id}
+              aria-selected={stageFilter === stage.id}
+              tabIndex={stageFilter === stage.id ? 0 : -1}
+              onClick={() => {
+                setStageFilter(stage.id);
                 setPage(1);
+                setSelectedJobIds([]);
               }}
-              className="field-input"
-              style={{ fontSize: 13, padding: "6px 10px" }}
             >
-              <option value="all">All Stages</option>
-              <option value="enrichment">Enrichment</option>
-              <option value="screening">Screening</option>
-              <option value="shortlisting">Shortlisting</option>
-              <option value="ranking">Ranking</option>
-              <option value="cv-analysis">CV Analysis</option>
-              <option value="cv-generation">CV Generation</option>
-            </select>
-          </div>
-
-          {/* Result Filter */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="bm-result-select" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)" }}>
-              Result
-            </label>
-            <select
-              id="bm-result-select"
-              value={resultFilter}
-              onChange={(e) => {
-                setResultFilter(e.target.value);
-                setPage(1);
-              }}
-              className="field-input"
-              style={{ fontSize: 13, padding: "6px 10px" }}
-            >
-              <option value="all">All Results</option>
-              <option value="passed">Passed</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
+              {stage.label}
+            </button>
+          ))}
         </div>
 
-        {/* Search, Batch Remove, Export */}
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setActiveSearch(search.trim());
+        {/* Results Toolbar */}
+        <div className="results-toolbar">
+          <input
+            className="field results-search"
+            id="bookmarkSearch"
+            type="search"
+            value={search}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSearch(val);
+              setActiveSearch(val.trim());
               setPage(1);
             }}
-            style={{ display: "flex", gap: 6 }}
-          >
-            <input
-              type="search"
-              placeholder="Search bookmarks..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="field-input"
-              style={{ fontSize: 13, padding: "6px 10px", width: 180 }}
-            />
-            <Button type="submit" variant="secondary" size="compact">
-              Search
-            </Button>
-          </form>
-
-          {selectedJobIds.length > 0 && (
+            placeholder="Search bookmarked jobs, runs, attributes, skills, or outcomes"
+            aria-label="Search bookmarked jobs"
+          />
+          <div className="results-toolbar-actions">
             <Button
-              variant="danger"
-              size="compact"
-              onClick={() => setConfirmRemove({ isBatch: true })}
-              disabled={actionInProgress}
+              id="exportBookmarks"
+              type="button"
+              variant="secondary"
+              disabled={selectedJobIds.length === 0 || actionInProgress}
+              onClick={handleExport}
             >
-              Remove ({selectedJobIds.length})
+              Export
             </Button>
-          )}
-
-          <Button
-            variant="secondary"
-            size="compact"
-            onClick={handleExport}
-            disabled={actionInProgress || total === 0}
-          >
-            Export CSV
-          </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="table-card">
-        <BookmarksTable
-          bookmarks={bookmarks}
-          loading={loading}
-          page={page}
-          pageSize={pageSize}
-          total={total}
-          onPageChange={(p) => {
-            setPage(p);
-            loadBookmarkList(p);
-          }}
-          selectedJobIds={selectedJobIds}
-          onToggleSelectJob={handleToggleSelectJob}
-          onToggleSelectAll={handleToggleSelectAll}
-          onRemoveSingle={(bm) =>
-            setConfirmRemove({
-              singleJobId: bm.run_job_id,
-              singleTitle: bm.title,
-            })
-          }
-          onInspectEvidence={handleInspect}
-        />
+        {/* Run Selection Bar */}
+        {selectedJobIds.length > 0 && (
+          <div className="run-selection">
+            <div className="run-selection-copy">
+              <strong>
+                {selectedJobIds.length} bookmarked job{selectedJobIds.length === 1 ? "" : "s"} selected
+              </strong>
+              <span>Export and Remove Bookmarks apply only to selected jobs in the current stage and search.</span>
+            </div>
+            <div className="run-selection-actions">
+              <Button
+                id="removeSelectedBookmarks"
+                type="button"
+                variant="danger"
+                size="compact"
+                disabled={actionInProgress}
+                onClick={() => setConfirmRemove({ isBatch: true })}
+              >
+                Remove Bookmarks
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Bookmarks Table Panel */}
+        <div id="bookmarkTablePanel">
+          <BookmarksTable
+            bookmarks={bookmarks}
+            loading={loading}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(p) => {
+              setPage(p);
+              loadBookmarkList(p);
+            }}
+            selectedJobIds={selectedJobIds}
+            onToggleSelectJob={handleToggleSelectJob}
+            onToggleSelectAll={handleToggleSelectAll}
+            onRemoveSingle={(bm) =>
+              setConfirmRemove({
+                singleJobId: bm.run_job_id,
+                singleTitle: bm.title,
+              })
+            }
+            onInspectEvidence={handleInspect}
+            onChangeInterest={handleChangeInterest}
+            onSelectRun={handleSelectRun}
+          />
+        </div>
       </div>
 
       {/* Removal Confirmation Dialog */}
