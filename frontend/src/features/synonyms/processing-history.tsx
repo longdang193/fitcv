@@ -20,7 +20,7 @@ export const ProcessingHistory: React.FC = () => {
       setRuns(data.items);
       setTotal(data.total);
     } catch (err: any) {
-      const msg = err instanceof ApiClientError ? err.message : 'Failed to load synonym processing history.';
+      const msg = err instanceof ApiClientError ? err.message : 'Failed to load synonym processing summary.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -34,7 +34,7 @@ export const ProcessingHistory: React.FC = () => {
   const totalPages = Math.ceil(total / pageSize) || 1;
 
   return (
-    <div className='synonym-processing-history' style={{ display: 'grid', gap: 16 }}>
+    <div className='synonym-processing-summary-log' style={{ display: 'grid', gap: 16 }}>
       <div
         className='table-card'
         style={{
@@ -45,24 +45,24 @@ export const ProcessingHistory: React.FC = () => {
         }}
       >
         <div>
-          <h3 style={{ margin: '0 0 2px', fontSize: 15 }}>Automated & Batch Processing History</h3>
+          <h3 style={{ margin: '0 0 2px', fontSize: 15 }}>Processing Summary Log</h3>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
-            Audit log of synonym ingestions, batch reviews, and policy activation cycles.
+            Review totals and successfully added mappings for each processing action.
           </p>
         </div>
         <Button variant='secondary' size='compact' onClick={loadRuns} disabled={loading}>
-          Refresh History
+          Refresh Summary Log
         </Button>
       </div>
 
       {loading ? (
-        <LoadingState message='Loading processing history...' />
+        <LoadingState message='Loading processing summary...' />
       ) : error ? (
         <ErrorState message={error} onRetry={loadRuns} />
       ) : runs.length === 0 ? (
         <EmptyState
-          title='No Processing Runs'
-          description='No synonym processing runs or auto-accept cycles have been recorded yet.'
+          title='No Processing Summary'
+          description='No synonym processing activity has been recorded yet.'
         />
       ) : (
         <div className='table-card'>
