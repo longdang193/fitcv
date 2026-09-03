@@ -347,7 +347,7 @@ export const AppShell: React.FC = () => {
                                 variant="primary"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  n.onAction?.();
+                                  notificationStore.activateAction(n.id);
                                 }}
                               >
                                 {n.actionLabel}

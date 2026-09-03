@@ -57,8 +57,12 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   const [jobsLoading, setJobsLoading] = useState(false);
   const [jobsPage, setJobsPage] = useState(1);
   const [jobsTotal, setJobsTotal] = useState(0);
+  const [jobsLoadAttempted, setJobsLoadAttempted] = useState(false);
+  const [jobsLoadError, setJobsLoadError] = useState<string | null>(null);
   const [jsonOutput, setJsonOutput] = useState<string | null>(null);
   const [jsonLoading, setJsonLoading] = useState(false);
+  const [jsonLoadAttempted, setJsonLoadAttempted] = useState(false);
+  const [jsonLoadError, setJsonLoadError] = useState<string | null>(null);
 
   const pollTimerRef = useRef<number | null>(null);
 
@@ -90,26 +94,31 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   }, [scanId]);
 
   const loadJobs = useCallback(async (page = 1) => {
+    setJobsLoadAttempted(true);
     setJobsLoading(true);
+    setJobsLoadError(null);
     try {
       const res = await fetchScanJobs(scanId, page, 20);
       setJobs(res.data || []);
       setJobsPage(res.page || page);
       setJobsTotal(res.total_items || res.total || 0);
-    } catch {
-      // Ignored if output not ready
+    } catch (err: any) {
+      setJobsLoadError(err.message || "Unable to load scan output.");
     } finally {
       setJobsLoading(false);
     }
   }, [scanId]);
 
   const loadJson = useCallback(async () => {
+    setJsonLoadAttempted(true);
     setJsonLoading(true);
+    setJsonLoadError(null);
     try {
-       const data = await fetchScanOutputJson(scanId);
-       setJsonOutput(data);
-    } catch {
+      const data = await fetchScanOutputJson(scanId);
+      setJsonOutput(data);
+    } catch (err: any) {
       setJsonOutput(null);
+      setJsonLoadError(err.message || "Unable to load JSON payload.");
     } finally {
       setJsonLoading(false);
     }
@@ -119,6 +128,14 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   useEffect(() => {
     eventCursorRef.current = null;
     setEvents([]);
+    setJobs([]);
+    setJobsPage(1);
+    setJobsTotal(0);
+    setJobsLoadAttempted(false);
+    setJobsLoadError(null);
+    setJsonOutput(null);
+    setJsonLoadAttempted(false);
+    setJsonLoadError(null);
     loadScanData(true);
   }, [loadScanData]);
 
@@ -127,9 +144,6 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
     if (!scan) return;
     const isPending = ["queued", "running", "cancelling"].includes(scan.execution_status);
     if (!isPending) {
-      if (scan.execution_status === "succeeded") {
-        loadJobs(1);
-      }
       return;
     }
 
@@ -149,13 +163,13 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   // Load output when tab switches or scan finishes
   useEffect(() => {
     if (scan?.execution_status === "succeeded") {
-      if (outputTab === "table" && jobs.length === 0 && !jobsLoading) {
+      if (outputTab === "table" && !jobsLoadAttempted && !jobsLoading) {
         loadJobs(1);
-      } else if (outputTab === "json" && jsonOutput === null && !jsonLoading) {
+      } else if (outputTab === "json" && !jsonLoadAttempted && !jsonLoading) {
         loadJson();
       }
     }
-  }, [scan?.execution_status, outputTab, jobs.length, jobsLoading, jsonOutput, jsonLoading, loadJobs, loadJson]);
+  }, [scan?.execution_status, outputTab, jobsLoadAttempted, jobsLoading, jsonLoadAttempted, jsonLoading, loadJobs, loadJson]);
 
   const handleCancel = async () => {
     if (!scan) return;
@@ -253,31 +267,6 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   }
 
   const badgeInfo = statusMap[scan.execution_status] || { variant: "neutral", label: scan.execution_status };
-
-  const jobColumns: TableColumn<ScanJobItem>[] = [
-    {
-      key: "title",
-      header: "Title",
-      render: (job) => (
-        <div>
-          <strong style={{ fontSize: 13 }}>{job.title}</strong>
-          {job.url && (
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: "block", fontSize: 11, color: "var(--accent)", textDecoration: "none" }}
-            >
-              View Posting ↗
-            </a>
-          )}
-        </div>
-      ),
-    },
-    { key: "company", header: "Company" },
-    { key: "location", header: "Location", render: (job) => job.location || "—" },
-    { key: "posted_at", header: "Posted", render: (job) => job.posted_at || "—" },
-  ];
 
   return (
     <div className="content-container" data-page="scan-detail">
@@ -422,49 +411,10 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
             </div>
             <div>
               <dt style={{ color: "var(--muted)", fontWeight: 600 }}>Output Records</dt>
-              <dd style={{ margin: 0 }}>{scan.output_record_count ?? "None"}</dd>
+              <dd style={{ margin: 0 }}>{scan.output_record_count ?? "Not available"}</dd>
             </div>
           </dl>
         </div>
-      </div>
-
-      {/* Console Events Section */}
-      <div className="table-card" style={{ padding: 16, marginBottom: 24 }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: 14, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>
-          Console & Events
-        </h3>
-        {events.length === 0 ? (
-          <div style={{ color: "var(--muted)", fontSize: 13, padding: "12px 0" }}>
-            No process events recorded.
-          </div>
-        ) : (
-          <div
-            style={{
-              maxHeight: 220,
-              overflowY: "auto",
-              fontFamily: "var(--font-mono)",
-              fontSize: 12,
-              background: "var(--surface-2)",
-              padding: 12,
-              borderRadius: "var(--radius-md)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            {events.map((evt) => (
-              <div key={evt.event_id} style={{ display: "flex", gap: 8 }}>
-                <span style={{ color: "var(--muted)" }}>
-                  {new Date(evt.recorded_at).toLocaleTimeString()}
-                </span>
-                <span style={{ color: evt.event_level === "error" ? "var(--danger)" : "var(--accent)" }}>
-                  [{evt.stage_name || evt.event_type}]
-                </span>
-                <span>{JSON.stringify(evt.payload)}</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Output Section */}
@@ -492,20 +442,29 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
         ) : outputTab === "table" ? (
           jobsLoading ? (
             <LoadingState message="Loading output jobs..." />
+          ) : jobsLoadError ? (
+            <div className="notice error" role="alert">
+              Could not load scan output jobs: {jobsLoadError}
+            </div>
           ) : (
             <DataTable
-              columns={jobColumns}
+              columns={buildScanJobColumns()}
               data={jobs}
               keyField={(job) => job.id || job.title + (job.company || "")}
               page={jobsPage}
               pageSize={20}
               total={jobsTotal}
               onPageChange={(p) => loadJobs(p)}
-              emptyMessage="No job records in output."
+              emptyMessage="No jobs were found in this scan output."
+              className="jobs-table"
             />
           )
         ) : jsonLoading ? (
           <LoadingState message="Loading JSON payload..." />
+        ) : jsonLoadError ? (
+          <div className="notice error" role="alert">
+            Could not load JSON payload: {jsonLoadError}
+          </div>
         ) : (
           <pre
             style={{
@@ -523,6 +482,126 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
           </pre>
         )}
       </div>
+
+      {/* Console Events Section */}
+      <div className="table-card" style={{ padding: 16, marginTop: 24 }}>
+        <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>Console &amp; Events</h3>
+        <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 12 }}>
+          Activity recorded while this scan collected job postings.
+        </p>
+        {events.length === 0 ? (
+          <div style={{ color: "var(--muted)", fontSize: 13, padding: "12px 0" }}>
+            No scan events recorded yet.
+          </div>
+        ) : (
+          <div className="console-log" role="log" aria-label="Scan console events" tabIndex={0}>
+            {events.map((evt) => {
+              const message = getScanEventMessage(evt);
+              return (
+                <div key={evt.event_id} className="console-line">
+                  <span className="console-time">{new Date(evt.recorded_at).toLocaleTimeString()}</span>
+                  <span className="console-level" data-level={evt.event_level}>{evt.event_level}</span>
+                  <span>{evt.stage_name || evt.event_type}</span>
+                  <span className="console-message">
+                    {message}
+                    {Object.keys(evt.payload).length > 0 && (
+                      <details>
+                        <summary>Event data</summary>
+                        <pre style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>
+                          {JSON.stringify(evt.payload, null, 2)}
+                        </pre>
+                      </details>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
+function getStringValue(job: ScanJobItem, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = job[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+  return "";
+}
+
+export function getScanJobUrl(job: ScanJobItem): string {
+  const url = getStringValue(job, "job_url", "apply_url", "url");
+  return /^https?:\/\//i.test(url) ? url : "";
+}
+
+export function getScanJobCompany(job: ScanJobItem): string {
+  return getStringValue(job, "company_name", "company") || "Unknown company";
+}
+
+export function getScanJobPostingDate(job: ScanJobItem): string {
+  return getStringValue(job, "published_at", "posted_at", "posted_time") || "—";
+}
+
+export function buildScanJobColumns(): TableColumn<ScanJobItem>[] {
+  return [
+    {
+      key: "title",
+      header: "Job",
+      render: (job) => {
+        const url = getScanJobUrl(job);
+        const title = getStringValue(job, "title") || "Untitled job";
+        return (
+          <div className="job-primary">
+            <div className="job-title-row">
+              {url ? (
+                <a className="job-title-link" href={url} target="_blank" rel="noopener noreferrer">
+                  {title} ↗
+                </a>
+              ) : (
+                <strong style={{ fontSize: 14 }}>{title}</strong>
+              )}
+            </div>
+            <div className="job-action-row">
+              {url ? <span style={{ color: "var(--muted)", fontSize: 11 }}>Open posting</span> : <span style={{ color: "var(--muted)", fontSize: 11 }}>No posting link</span>}
+            </div>
+          </div>
+        );
+      },
+    },
+    { key: "company_name", header: "Company", render: getScanJobCompany },
+    { key: "published_at", header: "Posting date", render: getScanJobPostingDate },
+    {
+      key: "metadata",
+      header: "Job metadata",
+      render: (job) => {
+        const fields = [
+          ["Location", getStringValue(job, "location")],
+          ["Contract", getStringValue(job, "contract_type")],
+          ["Experience", getStringValue(job, "experience_level")],
+          ["Work type", getStringValue(job, "work_type")],
+          ["Salary", getStringValue(job, "salary")],
+          ["Sector", getStringValue(job, "sector")],
+        ].filter(([, value]) => value);
+        return fields.length ? (
+          <div className="job-attributes">
+            {fields.map(([label, value]) => (
+              <div key={label} className="job-attribute">
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+        ) : <span style={{ color: "var(--muted)" }}>—</span>;
+      },
+    },
+  ];
+}
+
+export function getScanEventMessage(event: ProcessEventRecord): string {
+  const payloadMessage = event.payload.message;
+  if (typeof payloadMessage === "string" && payloadMessage.trim()) return payloadMessage;
+  return event.event_type.replace(/[_-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
