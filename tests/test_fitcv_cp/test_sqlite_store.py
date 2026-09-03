@@ -5255,9 +5255,61 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
     }
     assert derived_review["document"]["skills"][0]["evidence_refs"]
 
+    reopened_baseline = sqlite_store.patch_candidate_profile_review(
+        edit_attempt["attempt_id"],
+        "baseline",
+        expected_revision=approved_base["revision"],
+        operations=[{"operation": "replace", "path": "/headline", "value": "Reopened headline"}],
+        idempotency_key="patch-baseline-after-derived",
+        database_path=database_path,
+    )
+    assert reopened_baseline["capabilities"]["approve"] is True
+    assert reopened_baseline["document"]["headline"] == "Reopened headline"
+    assert reopened_baseline["stage"] == "baseline"
+    reapproved_base = sqlite_store.approve_candidate_profile_review(
+        edit_attempt["attempt_id"],
+        "baseline",
+        expected_revision=reopened_baseline["revision"],
+        expected_fingerprint=reopened_baseline["fingerprint"],
+        idempotency_key="approve-baseline-after-derived",
+        database_path=database_path,
+    )
+    assert reapproved_base["creation_status"] == "derived_review"
+
+    reapproved_derived_review = sqlite_store.get_candidate_profile_review(
+        edit_attempt["attempt_id"], "derived", database_path=database_path
+    )
+    assert reapproved_derived_review is not None
+    approved_derived = sqlite_store.approve_candidate_profile_review(
+        edit_attempt["attempt_id"],
+        "derived",
+        expected_revision=reapproved_base["revision"],
+        expected_fingerprint=reapproved_derived_review["fingerprint"],
+        expected_baseline_fingerprint=reapproved_base["fingerprints"]["approved_baseline"],
+        idempotency_key="approve-derived-before-reopen",
+        database_path=database_path,
+    )
+
+    reopened_derived = sqlite_store.patch_candidate_profile_review(
+        edit_attempt["attempt_id"],
+        "derived",
+        expected_revision=approved_derived["revision"],
+        operations=[
+            {
+                "operation": "replace",
+                "path": f"/skills/{reapproved_derived_review['document']['skills'][0]['id']}/name",
+                "value": "Python 3",
+            }
+        ],
+        idempotency_key="patch-derived-after-confirm-ready",
+        database_path=database_path,
+    )
+    assert reopened_derived["capabilities"]["approve"] is True
+    assert reopened_derived["stage"] == "derived"
+
     discarded = sqlite_store.discard_candidate_profile_creation_attempt(
         edit_attempt["attempt_id"],
-        expected_revision=approved_base["revision"],
+        expected_revision=reopened_derived["revision"],
         idempotency_key="discard-edit-1",
         database_path=database_path,
     )

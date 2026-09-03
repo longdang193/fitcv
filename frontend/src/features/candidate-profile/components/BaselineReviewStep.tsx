@@ -332,8 +332,10 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
     }
   };
 
+  const canSubmitApproval = review?.capabilities.approve === true || pendingOps.size > 0;
+
   const submitApproval = async (derivedAction: "reuse" | "regenerate") => {
-    if (!review || review.capabilities.approve !== true) return;
+    if (!review || !canSubmitApproval) return;
     setDerivedActionOpen(false);
     setApproving(true);
     setError(null);
@@ -362,7 +364,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
   };
 
   const handleApprove = () => {
-    if (!review || review.capabilities.approve !== true) return;
+    if (!review || !canSubmitApproval) return;
     if (attempt?.profile_id) {
       setDerivedActionOpen(true);
       return;
@@ -455,7 +457,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
             variant="primary"
             onClick={handleApprove}
             loading={approving}
-            disabled={saving || approving || Boolean(staleError)}
+            disabled={saving || approving || Boolean(staleError) || !canSubmitApproval}
           >
             Approve baseline and continue
           </Button>
@@ -867,7 +869,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
           variant="primary"
           onClick={handleApprove}
           loading={approving}
-          disabled={saving || approving || Boolean(staleError) || review.capabilities.approve !== true}
+          disabled={saving || approving || Boolean(staleError) || !canSubmitApproval}
         >
           Approve baseline and continue →
         </Button>

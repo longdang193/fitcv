@@ -3151,7 +3151,8 @@ def patch_candidate_profile_review(
                 raise ValueError("candidate_profile_attempt_not_found")
             if int(attempt["revision"]) != expected_revision:
                 raise ValueError("candidate_profile_revision_conflict")
-            if attempt["creation_status"] != ("base_review" if stage == "baseline" else "derived_review"):
+            editable_statuses = {"base_review", "derived_review", "ready_to_confirm"} if stage == "baseline" else {"derived_review", "ready_to_confirm"}
+            if attempt["creation_status"] not in editable_statuses:
                 raise ValueError("candidate_profile_invalid_transition")
             current = _candidate_profile_snapshot(conn, attempt_id, stage, str(attempt["fingerprint"]))
             document = apply_review_operations(stage, current["document"], operations)
