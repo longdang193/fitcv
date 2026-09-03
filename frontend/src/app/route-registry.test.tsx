@@ -16,6 +16,8 @@ describe("route-registry", () => {
     // Verify key routes
     const ids = routes.map((r) => r.id);
     expect(ids).toContain("overview");
+    expect(ids).toContain("api-providers");
+    expect(ids).toContain("llm-configuration");
   });
 
   it("matches exact routes, query parameter paths, and sub-paths", () => {
@@ -26,15 +28,18 @@ describe("route-registry", () => {
     expect(matchRoute("#/runs", routes).id).toBe("runs");
     expect(matchRoute("#/cv-review", routes).id).toBe("cv-review");
     expect(matchRoute("#/candidate-profile", routes).id).toBe("candidate-profile");
+    expect(matchRoute("#/settings/api-providers", routes).id).toBe("api-providers");
+    expect(matchRoute("#/settings/llm-configuration", routes).id).toBe("llm-configuration");
 
     // Query parameters
     expect(matchRoute("#/runs?view=archived&page=2", routes).id).toBe("runs");
     expect(matchRoute("#/scans?lifecycle=archived", routes).id).toBe("scans");
     expect(matchRoute("#/cv-review?run_id=run-1&job_id=job-1", routes).id).toBe("cv-review");
 
-    // Sub-path prefix
+    // Sub-path prefix & deep links
     expect(matchRoute("#/candidate-profile/create", routes).id).toBe("candidate-profile");
     expect(matchRoute("#/candidate-profile/create/attempt-123/baseline", routes).id).toBe("candidate-profile");
+    expect(matchRoute("#/settings/api-providers/openai", routes).id).toBe("api-providers");
 
     // Alias compatibility
     expect(matchRoute("#/synonyms", routes).id).toBe("synonyms");
@@ -42,6 +47,10 @@ describe("route-registry", () => {
     expect(matchRoute("#/candidate-profiles/create", routes).id).toBe("candidate-profile");
     expect(matchRoute("#/cv-reviews/run-1", routes).id).toBe("cv-review");
     expect(matchRoute("#/candidate-profiles", routes).id).toBe("candidate-profile");
+    expect(matchRoute("#/settings/providers", routes).id).toBe("api-providers");
+    expect(matchRoute("#/providers", routes).id).toBe("api-providers");
+    expect(matchRoute("#/api-providers", routes).id).toBe("api-providers");
+    expect(matchRoute("#/llm-configuration", routes).id).toBe("llm-configuration");
 
     // Fallback for unknown
     expect(matchRoute("#/non-existent-random-route", routes).id).toBe("overview");

@@ -69,6 +69,12 @@ export function matchRoute(hash: string, routes: FeatureRoute[]): FeatureRoute {
 
   // 2. Alias normalizations, including nested deep links.
   const aliases: Record<string, string> = {
+    "#/settings/api-providers": "api-providers",
+    "#/api-providers": "api-providers",
+    "#/settings/providers": "api-providers",
+    "#/providers": "api-providers",
+    "#/settings/llm-configuration": "llm-configuration",
+    "#/llm-configuration": "llm-configuration",
     "#/settings/synonyms": "synonyms",
     "#/synonyms": "synonyms",
     "#/candidate-profiles": "candidate-profile",
