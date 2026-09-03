@@ -29,6 +29,20 @@ export function generateIdempotencyKey(): string {
   return "idem_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 }
 
+export function normalizeCandidateProfileReviewOperations(
+  operations: CandidateProfileReviewOperation[]
+): CandidateProfileReviewOperation[] {
+  return operations.map((operation) => {
+    if (!operation.path.endsWith("/evidence_refs") || !Array.isArray(operation.value)) {
+      return operation;
+    }
+    return {
+      ...operation,
+      value: [...new Set(operation.value.map((value) => String(value).trim()).filter(Boolean))].sort(),
+    };
+  });
+}
+
 let cachedFieldSchema: { schema: FieldSchema; etag?: string | null } | null = null;
 
 export async function fetchFieldSchema(force = false): Promise<FieldSchema> {
@@ -134,7 +148,7 @@ export async function patchBaselineReview(
     `/candidate-profile-creation-attempts/${encodeURIComponent(attemptId)}/baseline`,
     {
       expected_revision: expectedRevision,
-      operations,
+      operations: normalizeCandidateProfileReviewOperations(operations),
     },
     { idempotencyKey }
   );
@@ -207,7 +221,7 @@ export async function patchDerivedReview(
     `/candidate-profile-creation-attempts/${encodeURIComponent(attemptId)}/derived`,
     {
       expected_revision: expectedRevision,
-      operations,
+      operations: normalizeCandidateProfileReviewOperations(operations),
     },
     { idempotencyKey }
   );
