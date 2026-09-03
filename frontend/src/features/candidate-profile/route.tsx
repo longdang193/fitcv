@@ -51,6 +51,10 @@ export function parseCandidateRoute(hash: string): ParsedCandidateRoute {
   return { view: "detail", profileId };
 }
 
+export function candidateProfileEditHash(attemptId: string): string {
+  return `#/candidate-profile/create/${encodeURIComponent(attemptId)}/baseline`;
+}
+
 export const CandidateProfileRoute: React.FC = () => {
   const [currentHash, setCurrentHash] = useState<string>(() => {
     if (typeof window !== "undefined" && window.location.hash) {
@@ -85,6 +89,10 @@ export const CandidateProfileRoute: React.FC = () => {
 
   const handleOpenDetail = (profileId: string) => {
     navigate(`#/candidate-profile/${encodeURIComponent(profileId)}`);
+  };
+
+  const handleEditProfile = (attemptId: string) => {
+    navigate(candidateProfileEditHash(attemptId));
   };
 
   const handleUploadSuccess = (attempt: CreationAttempt) => {
@@ -225,6 +233,7 @@ export const CandidateProfileRoute: React.FC = () => {
         <DetailView
           profileId={routeState.profileId}
           onBack={handleBackToCatalog}
+          onEdit={handleEditProfile}
         />
       )}
     </div>

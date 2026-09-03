@@ -143,6 +143,7 @@ def test_candidate_profile_fixture_contract_covers_formats_lifecycle_and_snapsho
     }
 
     assert ("/candidate-profile-creation-attempts", "POST") in routes
+    assert ("/candidate-profile-creation-attempts/{attempt_id}/actions/discard", "POST") in routes
     assert ("/candidate-profile-creation-attempts/{attempt_id}/baseline", "PATCH") in routes
     assert ("/candidate-profile-creation-attempts/{attempt_id}/actions/confirm", "POST") in routes
     assert ("/candidate-profiles", "GET") in routes

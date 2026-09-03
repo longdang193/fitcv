@@ -1557,6 +1557,54 @@ def test_candidate_profile_baseline_approval_rejects_empty_evidence_atomically(
     assert idempotent_rows == 0
 
 
+def test_discard_candidate_profile_creation_attempt_hides_draft_and_preserves_confirmed_profile(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    draft = sqlite_store.create_candidate_profile_creation_attempt(
+        profile_name="Disposable Draft",
+        original_filename="candidate.md",
+        media_type="text/markdown",
+        content=b"# Draft\n",
+        idempotency_key="create-disposable-draft",
+        database_path=database_path,
+    )
+    assert sqlite_store.query_candidate_profile_creation_attempts(database_path=database_path)["total"] == 1
+    discarded = sqlite_store.discard_candidate_profile_creation_attempt(
+        draft["attempt_id"],
+        expected_revision=draft["revision"],
+        idempotency_key="discard-disposable-draft",
+        database_path=database_path,
+    )
+    assert discarded == {"attempt_id": draft["attempt_id"], "discarded": True}
+    assert sqlite_store.get_candidate_profile_creation_attempt(draft["attempt_id"], database_path=database_path) is None
+    assert sqlite_store.query_candidate_profile_creation_attempts(database_path=database_path)["total"] == 0
+
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    with sqlite_store._sqlite_connection(database_path) as conn:
+        confirmation = sqlite_store._candidate_profile_confirmation_in_transaction(conn, ready["attempt_id"])
+    confirmed = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=ready["fingerprints"]["approved_baseline"],
+        expected_derived_fingerprint=ready["fingerprints"]["approved_derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-discard-guard",
+        database_path=database_path,
+    )
+    confirmed_attempt = sqlite_store.get_candidate_profile_creation_attempt(
+        ready["attempt_id"], database_path=database_path
+    )
+    assert confirmed_attempt is not None
+    with pytest.raises(ValueError, match="candidate_profile_discard_confirmed"):
+        sqlite_store.discard_candidate_profile_creation_attempt(
+            ready["attempt_id"],
+            expected_revision=confirmed_attempt["revision"],
+            idempotency_key="discard-confirmed-profile",
+            database_path=database_path,
+        )
+    assert sqlite_store.get_candidate_profile_detail(confirmed["profile_id"], database_path=database_path) is not None
+    assert sqlite_store.query_candidate_profile_creation_attempts(database_path=database_path)["total"] == 0
+
+
 def test_update_candidate_profile_creates_immutable_successor_with_cas_and_replay(tmp_path: Path) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
     ready, _ = _candidate_profile_ready_to_confirm(database_path)

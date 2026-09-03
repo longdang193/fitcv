@@ -73,6 +73,10 @@ class CandidateProfileRetryRequest(BaseModel):
     expected_revision: int
 
 
+class CandidateProfileDiscardRequest(BaseModel):
+    expected_revision: int
+
+
 class CandidateProfileCreationAttemptResource(BaseModel):
     model_config = {"extra": "allow"}
 
@@ -112,6 +116,15 @@ class CandidateProfileDeleteResource(BaseModel):
 
 class CandidateProfileDeleteEnvelope(BaseModel):
     data: CandidateProfileDeleteResource
+
+
+class CandidateProfileDiscardResource(BaseModel):
+    attempt_id: str
+    discarded: bool
+
+
+class CandidateProfileDiscardEnvelope(BaseModel):
+    data: CandidateProfileDiscardResource
 
 
 class CandidateProfileConfirmationResource(BaseModel):

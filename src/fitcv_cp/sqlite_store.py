@@ -2237,7 +2237,7 @@ def _candidate_profile_attempt_resource(conn: sqlite3.Connection, attempt_id: st
         },
         "failure": failure,
         "next_action": row["next_action"],
-            "capabilities": {
+        "capabilities": {
             "view_source": bool(row["source_available"]),
             "review_baseline": status == "base_review",
             "approve_baseline": status == "base_review",
@@ -2245,6 +2245,7 @@ def _candidate_profile_attempt_resource(conn: sqlite3.Connection, attempt_id: st
             "approve_derived": status == "derived_review",
             "confirm": status == "ready_to_confirm",
             "retry": status == "failed" and bool(failure and failure.get("retryable")),
+            "discard": status != "succeeded" and row["profile_id"] is None,
         },
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -2320,9 +2321,68 @@ def query_candidate_profile_creation_attempts(*, database_path: Path | None = No
     path = database_path or Path(_local_sqlite_path())
     with _sqlite_connection(path) as conn:
         _ensure_control_plane_schema(conn)
-        ids = [str(row[0]) for row in conn.execute("SELECT attempt_id FROM candidate_profile_creation_attempts ORDER BY created_at DESC")]
+        ids = [
+            str(row[0])
+            for row in conn.execute(
+                "SELECT attempt_id FROM candidate_profile_creation_attempts WHERE creation_status != 'succeeded' ORDER BY created_at DESC"
+            )
+        ]
         items = [_candidate_profile_attempt_resource(conn, attempt_id) for attempt_id in ids]
     return {"items": [item for item in items if item is not None], "total": len(items)}
+
+
+def discard_candidate_profile_creation_attempt(
+    attempt_id: str,
+    *,
+    expected_revision: int,
+    idempotency_key: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    scope = f"candidate_profile:{attempt_id}:discard"
+    request_fingerprint = _candidate_profile_request_fingerprint(
+        {"expected_revision": expected_revision}
+    )
+    path = database_path or Path(_local_sqlite_path())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            replay = _candidate_profile_idempotent_replay(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            if replay is not None:
+                conn.rollback()
+                return replay
+            attempt = conn.execute(
+                "SELECT revision, creation_status, profile_id FROM candidate_profile_creation_attempts WHERE attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if attempt is None:
+                raise ValueError("candidate_profile_attempt_not_found")
+            if int(attempt["revision"]) != expected_revision:
+                raise ValueError("candidate_profile_revision_conflict")
+            if attempt["creation_status"] == "succeeded" or attempt["profile_id"] is not None:
+                raise ValueError("candidate_profile_discard_confirmed")
+            conn.execute("DELETE FROM candidate_profile_creation_attempts WHERE attempt_id=?", (attempt_id,))
+            response = {"attempt_id": attempt_id, "discarded": True}
+            _record_candidate_profile_idempotent_result(
+                conn,
+                scope=scope,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                response=response,
+                now=now,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return response
 
 
 def get_candidate_profile_source(attempt_id: str, *, database_path: Path | None = None) -> dict[str, Any] | None:

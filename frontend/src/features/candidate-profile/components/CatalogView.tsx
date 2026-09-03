@@ -5,6 +5,7 @@ import {
   fetchProfiles,
   archiveProfile,
   deleteProfile,
+  discardCreationAttempt,
   retryAttempt,
 } from "../api";
 import { CandidateProfile, CreationAttempt } from "../types";
@@ -34,6 +35,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [draftDeleteTarget, setDraftDeleteTarget] = useState<CreationAttempt | null>(null);
 
   // Load drafts and profiles
   const loadData = useCallback(async () => {
@@ -48,7 +50,12 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       ]);
 
       const drafts = (draftsRes as any)?.data?.items || (draftsRes as any)?.items || draftsRes.data || [];
-      setAttempts(drafts);
+      setAttempts(
+        drafts.filter(
+          (attempt: CreationAttempt) =>
+            attempt.creation_status !== "succeeded" && attempt.next_action !== "view_profile"
+        )
+      );
 
       const profileItems = (profsRes as any)?.data?.items || (profsRes as any)?.items || profsRes.data || [];
       setProfiles(profileItems);
@@ -142,6 +149,23 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       onResumeAttempt(retried.attempt_id);
     } catch (err: any) {
       setError(err.message || "Failed to retry draft.");
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!draftDeleteTarget) return;
+    setActionLoading(true);
+    setError(null);
+    setStatusMessage(`Deleting draft ${draftDeleteTarget.profile_name}...`);
+    try {
+      await discardCreationAttempt(draftDeleteTarget.attempt_id, draftDeleteTarget.revision);
+      setDraftDeleteTarget(null);
+      setStatusMessage("Draft deleted.");
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || "Failed to delete draft.");
+    } finally {
       setActionLoading(false);
     }
   };
@@ -290,6 +314,16 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                     ) : (
                       <Button size="compact" onClick={() => onResumeAttempt(att.attempt_id)}>
                         View progress
+                      </Button>
+                    )}
+                    {att.capabilities?.discard && (
+                      <Button
+                        size="compact"
+                        variant="danger"
+                        onClick={() => setDraftDeleteTarget(att)}
+                        disabled={actionLoading}
+                      >
+                        Delete draft
                       </Button>
                     )}
                   </div>
@@ -453,6 +487,27 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       >
         <p style={{ margin: 0, fontSize: 13, color: "var(--text)" }}>
           Are you sure you want to permanently delete {selectedKeys.size} archived profile(s)?
+        </p>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(draftDeleteTarget)}
+        onClose={() => setDraftDeleteTarget(null)}
+        title="Delete Candidate Draft?"
+        description="Only this unconfirmed draft and its source data will be deleted. Confirmed profiles and historical Runs stay unchanged."
+        footer={
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button variant="secondary" onClick={() => setDraftDeleteTarget(null)} disabled={actionLoading}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDeleteDraft} loading={actionLoading}>
+              Delete draft
+            </Button>
+          </div>
+        }
+      >
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text)" }}>
+          Delete <strong>{draftDeleteTarget?.profile_name}</strong>? This cannot be undone.
         </p>
       </Dialog>
     </div>

@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Button, LoadingState, ErrorState, StatusBadge, Dialog, Field, LiveStatus } from "../../../components";
+import { Button, LoadingState, ErrorState, StatusBadge, Dialog, LiveStatus } from "../../../components";
 import {
   fetchProfileDetail,
   archiveProfile,
   restoreProfile,
   deleteProfile,
-  updateProfile,
   downloadAttemptSource,
 } from "../api";
 import { CandidateProfileDetail } from "../types";
@@ -13,20 +12,15 @@ import { CandidateProfileDetail } from "../types";
 export interface DetailViewProps {
   profileId: string;
   onBack: () => void;
+  onEdit: (attemptId: string) => void;
 }
 
-export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack }) => {
+export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdit }) => {
   const [profile, setProfile] = useState<CandidateProfileDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
-
-  // Edit successor revision modal state
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editProfileName, setEditProfileName] = useState("");
-  const [editCanonicalJson, setEditCanonicalJson] = useState("");
-  const [editJsonError, setEditJsonError] = useState<string | null>(null);
 
   // Delete confirm dialog state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -37,9 +31,6 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack }) => 
     try {
       const profData = await fetchProfileDetail(profileId);
       setProfile(profData);
-      setEditProfileName(profData.profile_name || "");
-      const resolvedCanonical = profData.canonical || profData.profile?.canonical || profData.overview || {};
-      setEditCanonicalJson(JSON.stringify(resolvedCanonical, null, 2));
       setLoading(false);
     } catch (err: any) {
       setError(err.message || "Failed to load candidate profile details.");
@@ -97,39 +88,6 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack }) => 
       onBack();
     } catch (err: any) {
       setError(err.message || "Failed to delete profile.");
-      setActionLoading(false);
-    }
-  };
-
-  const handleSaveSuccessor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profile) return;
-
-    let parsedJson: Record<string, any>;
-    try {
-      parsedJson = JSON.parse(editCanonicalJson);
-    } catch {
-      setEditJsonError("Canonical profile JSON is invalid. Please fix syntax errors.");
-      return;
-    }
-
-    setEditJsonError(null);
-    setActionLoading(true);
-    setStatusMessage("Saving successor revision...");
-
-    try {
-      const updated = await updateProfile(
-        profile.profile_id,
-        profile.revision,
-        editProfileName.trim() || undefined,
-        parsedJson
-      );
-      setProfile(updated);
-      setEditModalOpen(false);
-      setActionLoading(false);
-      setStatusMessage("Successor revision saved.");
-    } catch (err: any) {
-      setEditJsonError(err.message || "Failed to save successor revision.");
       setActionLoading(false);
     }
   };
@@ -211,8 +169,8 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack }) => 
                 Delete Profile
               </Button>
             )}
-            {profile.capabilities?.use_for_run && (
-              <Button onClick={() => setEditModalOpen(true)} disabled={actionLoading}>
+            {profile.capabilities?.use_for_run && profile.creation?.attempt_id && (
+              <Button onClick={() => onEdit(profile.creation!.attempt_id!)} disabled={actionLoading}>
                 Edit Successor Revision
               </Button>
             )}
@@ -491,43 +449,6 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack }) => 
           )}
         </section>
       </div>
-
-      {/* Edit Successor Revision Dialog */}
-      <Dialog
-        open={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        title="Edit Candidate Profile (Successor Revision)"
-        description="Creates a new successor revision for this candidate profile. Prior revisions and run snapshots remain immutable."
-        footer={
-          <div style={{ display: "flex", gap: 10 }}>
-            <Button variant="secondary" onClick={() => setEditModalOpen(false)} disabled={actionLoading}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleSaveSuccessor} loading={actionLoading}>
-              Save successor revision
-            </Button>
-          </div>
-        }
-      >
-        <form onSubmit={handleSaveSuccessor} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Field
-            label="Profile Name"
-            value={editProfileName}
-            onChange={(e) => setEditProfileName(e.target.value)}
-            required
-          />
-
-          <Field
-            label="Canonical Profile JSON"
-            type="textarea"
-            rows={14}
-            value={editCanonicalJson}
-            onChange={(e) => setEditCanonicalJson(e.target.value)}
-            hint="Must be valid candidate-profile.v2 canonical JSON structure."
-            error={editJsonError || undefined}
-          />
-        </form>
-      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog

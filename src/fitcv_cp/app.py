@@ -132,6 +132,8 @@ from fitcv_cp.models import (
     CandidateProfileApproveRequest,
     CandidateProfileConfirmRequest,
     CandidateProfileCreationAttemptEnvelope,
+    CandidateProfileDiscardEnvelope,
+    CandidateProfileDiscardRequest,
     CandidateProfileDeleteEnvelope,
     CandidateProfileDerivedApproveRequest,
     CandidateProfileRegenerateRequest,
@@ -10075,6 +10077,7 @@ def create_app(
                     "candidate_profile_regeneration_undo_unavailable",
                     "candidate_profile_delete_requires_archive",
                     "candidate_profile_delete_referenced",
+                    "candidate_profile_discard_confirmed",
                       "candidate_profile_archived",
                       "candidate_profile_update_unavailable",                    "idempotency_conflict",
                 }
@@ -10460,6 +10463,24 @@ def create_app(
         return _data_response(
             _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id) or resource
         )
+
+    @app.post(
+        "/candidate-profile-creation-attempts/{attempt_id}/actions/discard",
+        response_model=CandidateProfileDiscardEnvelope,
+    )
+    def discard_candidate_profile_creation_attempt(
+        request: Request,
+        attempt_id: str,
+        body: CandidateProfileDiscardRequest,
+    ) -> dict[str, Any]:
+        resource = _candidate_profile_call(
+            lambda: _resolve_run_store().discard_candidate_profile_creation_attempt(
+                attempt_id,
+                expected_revision=body.expected_revision,
+                idempotency_key=_required_idempotency_key(request),
+            )
+        )
+        return _data_response(resource)
 
     @app.get("/candidate-profiles", response_model=CandidateProfileCollectionEnvelope)
     def get_candidate_profiles(

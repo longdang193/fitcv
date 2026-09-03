@@ -306,6 +306,19 @@ export async function retryAttempt(
   return (res.data as any)?.data || res.data;
 }
 
+export async function discardCreationAttempt(
+  attemptId: string,
+  expectedRevision: number,
+  idempotencyKey = generateIdempotencyKey()
+): Promise<{ attempt_id: string; discarded: boolean }> {
+  const res = await apiClient.post<{ data: { attempt_id: string; discarded: boolean } }>(
+    `/candidate-profile-creation-attempts/${encodeURIComponent(attemptId)}/actions/discard`,
+    { expected_revision: expectedRevision },
+    { idempotencyKey }
+  );
+  return (res.data as any)?.data || res.data;
+}
+
 export async function fetchProfiles(params?: {
   view?: "active" | "archived";
   lifecycle?: "active" | "archived";

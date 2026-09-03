@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { parseCandidateRoute } from "../features/candidate-profile/route";
+import { candidateProfileEditHash, parseCandidateRoute } from "../features/candidate-profile/route";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import {
   generateIdempotencyKey,
@@ -17,6 +17,7 @@ import {
   archiveProfile,
   restoreProfile,
   deleteProfile,
+  discardCreationAttempt,
   updateProfile,
   fetchSourceBlock,
   normalizeCandidateProfileDetail,
@@ -73,6 +74,12 @@ describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
       view: "detail",
       profileId: "prof with spaces",
     });
+  });
+
+  it("builds baseline edit deep-link from confirmed attempt", () => {
+    expect(candidateProfileEditHash("attempt with spaces")).toBe(
+      "#/candidate-profile/create/attempt%20with%20spaces/baseline"
+    );
   });
 
   it("discovers candidate-profile route via discoverFeatureRoutes()", () => {
@@ -654,6 +661,23 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
       "/candidate-profile-creation-attempts/att_retry_1/actions/retry",
       { expected_revision: 1 },
       { idempotencyKey: "retry-key" }
+    );
+  });
+
+  it("discards only draft attempts through revision-safe API", async () => {
+    const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
+      data: { data: { attempt_id: "att_draft", discarded: true } } as any,
+      status: 200,
+    });
+
+    await expect(discardCreationAttempt("att_draft", 3, "discard-key")).resolves.toEqual({
+      attempt_id: "att_draft",
+      discarded: true,
+    });
+    expect(postSpy).toHaveBeenCalledWith(
+      "/candidate-profile-creation-attempts/att_draft/actions/discard",
+      { expected_revision: 3 },
+      { idempotencyKey: "discard-key" }
     );
   });
 
