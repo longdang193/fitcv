@@ -42,6 +42,18 @@ export function customProviderPayload(compatibility: "openai" | "anthropic") {
   };
 }
 
+export function providerInitials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "AI"
+  );
+}
+
 export const LLM_TASKS = [
   { id: "candidate_profile_base_mapping", label: "Candidate Profile Base Mapping" },
   { id: "candidate_profile_derived_claims", label: "Candidate Profile Derived Claims" },
@@ -76,21 +88,26 @@ export interface ProviderSettingsCoreProps {
 export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode }) => {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [llm, setLlm] = useState<LlmConfig | null>(null);
-  const [selectedId, setSelectedId] = useState<string>(() =>
-    typeof window !== "undefined" ? getProviderIdFromHash(window.location.hash) || "" : ""
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    typeof window !== "undefined" ? getProviderIdFromHash(window.location.hash) : null
   );
-  const selectedIdRef = useRef<string>(selectedId);
+  const selectedIdRef = useRef<string | null>(selectedId);
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
+  const [displayName, setDisplayName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [apiType, setApiType] = useState("chat_completions");
-  const [modelId, setModelId] = useState("");
-  const [testedModelId, setTestedModelId] = useState("");
+  const [apiType, setApiType] = useState("responses");
+  const [isModelDialogOpen, setIsModelDialogOpen] = useState(false);
+  const [newModelId, setNewModelId] = useState("");
+  const [testedNewModelId, setTestedNewModelId] = useState("");
   const [modelTestPassed, setModelTestPassed] = useState(false);
+  const [modelStatusMessage, setModelStatusMessage] = useState("");
+  const [modelStatusKind, setModelStatusKind] = useState<"" | "valid" | "error">("");
   const [connectionTestPassed, setConnectionTestPassed] = useState(false);
   const [connectionStatusText, setConnectionStatusText] = useState("");
+  const [connectionStatusKind, setConnectionStatusKind] = useState<"" | "valid" | "error">("");
   const [providerSearch, setProviderSearch] = useState("");
 
   // LLM task editing state
@@ -113,17 +130,18 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
         const hashId = typeof window !== "undefined" ? getProviderIdFromHash(window.location.hash) : null;
         const currentId = selectedIdRef.current;
         const targetId = hashId || currentId;
-        const match = next.find((p) => p.provider_id === targetId) || next[0];
-        if (match) {
-          const providerChanged = !currentId || currentId !== match.provider_id || (hashId !== null && hashId !== currentId);
-          if (providerChanged) {
-            setSelectedId(match.provider_id);
-            selectedIdRef.current = match.provider_id;
+        setSelectedId(hashId);
+        selectedIdRef.current = hashId;
+        if (targetId) {
+          const match = next.find((p) => p.provider_id === targetId);
+          if (match) {
+            setDisplayName(match.display_name);
             setBaseUrl(match.base_url || "");
-            setApiType(match.api_type || "chat_completions");
+            setApiType(match.compatibility === "anthropic" ? "messages" : match.api_type === "chat_completions" ? "chat-completions" : "responses");
             setApiKey("");
             setConnectionTestPassed(false);
             setConnectionStatusText("");
+            setConnectionStatusKind("");
           }
         }
       } else {
@@ -143,24 +161,26 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     if (mode !== "api-providers") return;
     const handleHash = () => {
       const fromHash = getProviderIdFromHash(window.location.hash);
-      if (fromHash && fromHash !== selectedIdRef.current) {
-        setSelectedId(fromHash);
-        selectedIdRef.current = fromHash;
-        const match = providers.find((p) => p.provider_id === fromHash);
-        if (match) {
-          setBaseUrl(match.base_url || "");
-          setApiType(match.api_type || "chat_completions");
-          setApiKey("");
-          setConnectionTestPassed(false);
-          setConnectionStatusText("");
-        }
-      }
+      setSelectedId(fromHash);
+      selectedIdRef.current = fromHash;
     };
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
-  }, [mode, providers]);
+  }, [mode]);
 
   const provider = providers.find((p) => p.provider_id === selectedId);
+
+  useEffect(() => {
+    if (provider) {
+      setDisplayName(provider.display_name);
+      setBaseUrl(provider.base_url || "");
+      setApiType(provider.compatibility === "anthropic" ? "messages" : provider.api_type === "chat_completions" ? "chat-completions" : "responses");
+      setApiKey("");
+      setConnectionTestPassed(false);
+      setConnectionStatusText("");
+      setConnectionStatusKind("");
+    }
+  }, [provider?.provider_id, provider?.revision]);
 
   const run = async (operation: () => Promise<void>, options?: { reload?: boolean }) => {
     setBusy(true);
@@ -177,107 +197,292 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     }
   };
 
-  const createProvider = (compatibility: "openai" | "anthropic") => run(async () => {
-    const res = await apiClient.post<{ data: Provider }>("/api-providers", customProviderPayload(compatibility), { idempotencyKey: crypto.randomUUID() });
-    setSelectedId(res.data.data.provider_id);
-    window.location.hash = `#/settings/api-providers/${encodeURIComponent(res.data.data.provider_id)}`;
-    setMessage("Provider created.");
-  });
-
-  const deleteProvider = () => {
-    if (!provider || !confirm(`Delete ${provider.display_name}?`)) return;
+  const handleAddCustomProvider = (compatibility: "openai" | "anthropic") => {
     void run(async () => {
-      await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}`, {
-        body: { expected_revision: provider.revision },
-      });
-      setSelectedId("");
-      window.location.hash = "#/settings/api-providers";
-      setMessage("Provider deleted.");
+      const res = await apiClient.post<{ data: Provider }>(
+        "/api-providers",
+        customProviderPayload(compatibility),
+        { idempotencyKey: crypto.randomUUID() }
+      );
+      const created = res.data.data;
+      window.location.hash = `#/settings/api-providers/${encodeURIComponent(created.provider_id)}`;
     });
+  };
+
+  const resetConnectionTest = () => {
+    setConnectionTestPassed(false);
+    setConnectionStatusText(
+      provider && provider.connection_status === "verified"
+        ? "Current connection remains active. Test changes before updating."
+        : "Test connection details before adding."
+    );
+    setConnectionStatusKind("");
+  };
+
+  const validateConnectionDraft = (): { name: string; baseUrl: string; apiKey: string; apiType: string } | null => {
+    if (!provider) return null;
+    const isCustom = provider.kind === "custom" || provider.base_url_editable || provider.provider_id.startsWith("custom-");
+    const trimmedName = displayName.trim() || provider.display_name;
+    if (isCustom && !trimmedName) {
+      setConnectionTestPassed(false);
+      setConnectionStatusText("Display Name is required.");
+      setConnectionStatusKind("error");
+      return null;
+    }
+    const trimmedBaseUrl = baseUrl.trim();
+    try {
+      const parsed = new URL(trimmedBaseUrl);
+      if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+    } catch {
+      setConnectionTestPassed(false);
+      setConnectionStatusText("Base URL must be a valid HTTP or HTTPS URL.");
+      setConnectionStatusKind("error");
+      return null;
+    }
+    if (!provider.credential_configured && !apiKey.trim()) {
+      setConnectionTestPassed(false);
+      setConnectionStatusText("API Key is required for first connection.");
+      setConnectionStatusKind("error");
+      return null;
+    }
+    return {
+      name: trimmedName,
+      baseUrl: trimmedBaseUrl,
+      apiKey: apiKey.trim(),
+      apiType: provider.compatibility === "anthropic" ? "messages" : apiType === "chat-completions" ? "chat_completions" : "responses",
+    };
   };
 
   const testConnection = () => {
     if (!provider) return;
+    const draft = validateConnectionDraft();
+    if (!draft) return;
     void run(async () => {
-      const res = await apiClient.post<{ data: { ok: boolean; failure_code?: string } }>(
+      setConnectionStatusText("Testing connection...");
+      setConnectionStatusKind("");
+      const res = await apiClient.post<{ data: { ok: boolean; failure_code?: string; supported_api_types?: string[] } }>(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/connection/actions/test`,
         {
-          base_url: baseUrl.trim() || null,
-          api_type: provider.compatibility === "anthropic" ? "messages" : apiType,
-          ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}),
+          base_url: draft.baseUrl || null,
+          api_type: draft.apiType,
+          api_key: draft.apiKey || null,
         }
       );
       if (res.data.data.ok) {
         setConnectionTestPassed(true);
-        setConnectionStatusText("Connection test succeeded. Save Connection is ready.");
-        setMessage("Connection test succeeded.");
+        const isConnected = provider.connection_status === "verified";
+        setConnectionStatusText(`Connection test succeeded in prototype. ${isConnected ? "Update" : "Add"} Connection is ready.`);
+        setConnectionStatusKind("valid");
       } else {
         setConnectionTestPassed(false);
-        setConnectionStatusText(`Connection test failed: ${res.data.data.failure_code || "Check details."}`);
-        setMessage(`Connection test failed: ${res.data.data.failure_code || "Check details."}`);
+        setConnectionStatusText(`Connection test failed: ${res.data.data.failure_code || "Check Base URL, API Type, or API key."}`);
+        setConnectionStatusKind("error");
       }
     }, { reload: false });
   };
 
   const saveConnection = () => {
     if (!provider) return;
+    if (!connectionTestPassed) {
+      setConnectionStatusText("Test this connection successfully before saving it.");
+      setConnectionStatusKind("error");
+      return;
+    }
+    const draft = validateConnectionDraft();
+    if (!draft) return;
+
     void run(async () => {
-      await apiClient.put(`/api-providers/${encodeURIComponent(provider.provider_id)}/connection`, {
-        base_url: baseUrl.trim() || null,
-        api_type: provider.compatibility === "anthropic" ? "messages" : apiType,
-        api_key: apiKey.trim() || null,
-        expected_revision: provider.revision,
-      });
+      const isCustom = provider.kind === "custom" || provider.base_url_editable || provider.provider_id.startsWith("custom-");
+      if (isCustom && draft.name !== provider.display_name) {
+        await apiClient.patch(
+          `/api-providers/${encodeURIComponent(provider.provider_id)}`,
+          { display_name: draft.name, expected_revision: provider.revision }
+        );
+      }
+
+      await apiClient.put(
+        `/api-providers/${encodeURIComponent(provider.provider_id)}/connection`,
+        {
+          base_url: draft.baseUrl || null,
+          api_type: draft.apiType,
+          api_key: draft.apiKey || null,
+          expected_revision: provider.revision,
+        }
+      );
+
       setApiKey("");
       setConnectionTestPassed(false);
       setConnectionStatusText("");
-      setMessage("Connection saved.");
+      setConnectionStatusKind("");
     });
   };
 
   const removeConnection = () => {
     if (!provider) return;
     void run(async () => {
-      await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}/connection`, {
-        body: { expected_revision: provider.revision },
-      });
+      await apiClient.delete(
+        `/api-providers/${encodeURIComponent(provider.provider_id)}/connection`,
+        { body: { expected_revision: provider.revision } }
+      );
       setConnectionTestPassed(false);
-      setMessage("Connection removed.");
+      setConnectionStatusText("");
+      setConnectionStatusKind("");
     });
   };
 
-  const testModel = () => {
-    if (!provider || !modelId.trim()) return;
-    const trimmed = modelId.trim();
+  const deleteCustomProvider = () => {
+    if (!provider) return;
     void run(async () => {
+      await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}`, {
+        body: { expected_revision: provider.revision },
+      });
+      window.location.hash = "#/settings/api-providers";
+    });
+  };
+
+  const openModelDialog = () => {
+    if (!provider || provider.connection_status !== "verified") return;
+    setNewModelId("");
+    setTestedNewModelId("");
+    setModelTestPassed(false);
+    setModelStatusMessage("Add Model saves only after a successful test.");
+    setModelStatusKind("");
+    setIsModelDialogOpen(true);
+  };
+
+  const closeModelDialog = () => {
+    setIsModelDialogOpen(false);
+    setNewModelId("");
+    setTestedNewModelId("");
+    setModelTestPassed(false);
+  };
+
+  const resetModelTest = (msg = "Add Model saves only after a successful test.") => {
+    setTestedNewModelId("");
+    setModelTestPassed(false);
+    setModelStatusMessage(msg);
+    setModelStatusKind("");
+  };
+
+  const testNewModel = () => {
+    if (!provider || provider.connection_status !== "verified") {
+      setModelStatusMessage("Configure and test a provider connection before testing models.");
+      setModelStatusKind("error");
+      return;
+    }
+    const trimmed = newModelId.trim();
+    if (!trimmed) {
+      setModelStatusMessage("Enter a Model ID before testing.");
+      setModelStatusKind("error");
+      return;
+    }
+    if (provider.models.some((m) => m.model_id === trimmed)) {
+      setModelStatusMessage("This model is already available for the provider.");
+      setModelStatusKind("error");
+      return;
+    }
+
+    void run(async () => {
+      setModelStatusMessage("Testing model...");
+      setModelStatusKind("");
       const res = await apiClient.post<{ data: { ok: boolean; failure_code?: string } }>(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models/actions/test`,
         { model_id: trimmed }
       );
       if (res.data.data.ok) {
-        setTestedModelId(trimmed);
+        setTestedNewModelId(trimmed);
         setModelTestPassed(true);
-        setMessage(`Model ${trimmed} validation succeeded. Add Model is ready.`);
+        setModelStatusMessage("Model validation succeeded in prototype. Add Model is ready.");
+        setModelStatusKind("valid");
       } else {
         setModelTestPassed(false);
-        setMessage(`Model test failed: ${res.data.data.failure_code || "Check Model ID."}`);
+        setModelStatusMessage(`Model test failed: ${res.data.data.failure_code || "Check Model ID."}`);
+        setModelStatusKind("error");
       }
     }, { reload: false });
   };
 
   const addModel = () => {
-    if (!provider || !modelTestPassed || testedModelId !== modelId.trim()) return;
+    if (!provider || !modelTestPassed || testedNewModelId !== newModelId.trim()) {
+      setModelStatusMessage("Test this Model ID successfully before adding it.");
+      setModelStatusKind("error");
+      return;
+    }
+    const trimmed = newModelId.trim();
     void run(async () => {
       await apiClient.post(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models`,
-        { model_id: testedModelId, expected_revision: provider.revision },
+        { model_id: trimmed, expected_revision: provider.revision },
         { idempotencyKey: crypto.randomUUID() }
       );
-      setModelId("");
-      setTestedModelId("");
-      setModelTestPassed(false);
-      setMessage(`Model ${testedModelId} added.`);
+      closeModelDialog();
     });
+  };
+
+  const retestModel = (model: ProviderModel) => {
+    if (!provider || provider.connection_status !== "verified") return;
+    void run(async () => {
+      await apiClient.post(
+        `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}/actions/test`,
+        { expected_revision: model.revision || provider.revision }
+      );
+    }, { reload: true });
+  };
+
+  const removeModel = (model: ProviderModel) => {
+    if (!provider || provider.connection_status !== "verified") return;
+    void run(async () => {
+      await apiClient.delete(
+        `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}`,
+        { body: { expected_revision: model.revision || provider.revision } }
+      );
+    });
+  };
+
+  const customProviders = providers.filter(
+    (p) => p.kind === "custom" || p.base_url_editable || p.provider_id.startsWith("custom-")
+  );
+  const predefinedProviders = providers.filter(
+    (p) => !(p.kind === "custom" || p.base_url_editable || p.provider_id.startsWith("custom-"))
+  );
+
+  const searchNormalized = providerSearch.trim().toLowerCase();
+  const matchesSearch = (p: Provider) =>
+    !searchNormalized ||
+    `${p.display_name} ${p.compatibility === "anthropic" ? "anthropic-compatible anthropic" : "openai-compatible openai"}`
+      .toLowerCase()
+      .includes(searchNormalized);
+
+  const filteredCustom = customProviders.filter(matchesSearch);
+  const filteredPredefined = predefinedProviders.filter(matchesSearch);
+
+  const renderProviderCard = (p: Provider) => {
+    const isConnected = p.connection_status === "verified";
+    return (
+      <a
+        key={p.provider_id}
+        className="provider-card"
+        href={`#/settings/api-providers/${encodeURIComponent(p.provider_id)}`}
+        data-provider-card
+        data-provider-search={`${p.display_name} ${p.compatibility === "anthropic" ? "anthropic-compatible" : "openai-compatible"}`.toLowerCase()}
+      >
+        <span className="provider-monogram" aria-hidden="true">
+          {providerInitials(p.display_name)}
+        </span>
+        <span className="provider-card-copy">
+          <strong>{p.display_name}</strong>
+          <span>
+            {p.compatibility === "anthropic" ? "Anthropic-compatible" : "OpenAI-compatible"}
+          </span>
+        </span>
+        <span className={`provider-status${isConnected ? " connected" : ""}`}>
+          {isConnected ? "Connected" : "No connection"}
+        </span>
+        <span className="provider-chevron" aria-hidden="true">
+          ›
+        </span>
+      </a>
+    );
   };
 
   const updateDefaultModel = (newModelRef: string) => {
@@ -323,6 +528,364 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
 
   // API Providers Page Mode
   if (mode === "api-providers") {
+    if (selectedId) {
+      if (!provider) {
+        return (
+          <div className="content-container">
+            <div className="details-page-head">
+              <a className="details-page-back" href="#/settings/api-providers">
+                ← Back to API Providers
+              </a>
+              <div className="page-head">
+                <div>
+                  <p className="eyebrow">Application</p>
+                  <h2>Provider Not Found</h2>
+                  <p>The requested provider could not be found.</p>
+                </div>
+              </div>
+            </div>
+            <div className="provider-empty">
+              Provider \"{selectedId}\" was not found. <a href="#/settings/api-providers">Return to API Providers</a>
+            </div>
+          </div>
+        );
+      }
+
+      const isCustom = provider.kind === "custom" || provider.base_url_editable || provider.provider_id.startsWith("custom-");
+      const connected = provider.connection_status === "verified";
+      const hasCredential = provider.credential_configured;
+      const fixedApiType = provider.compatibility === "anthropic" || provider.api_type_fixed;
+
+      return (
+        <div className="content-container">
+          <div className="details-page-head">
+            <a className="details-page-back" href="#/settings/api-providers">
+              ← Back to API Providers
+            </a>
+            <div className="page-head">
+              <div>
+                <p className="eyebrow">API Provider</p>
+                <h2>{provider.display_name}</h2>
+                <p>
+                  {provider.compatibility === "anthropic"
+                    ? "Anthropic-compatible provider using Messages API."
+                    : "OpenAI-compatible provider."}
+                </p>
+              </div>
+              {isCustom && (
+                <button
+                  className="btn danger"
+                  id="deleteCustomProvider"
+                  type="button"
+                  onClick={deleteCustomProvider}
+                  disabled={busy}
+                >
+                  Delete Provider
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="provider-detail-stack">
+            <section className="section-card provider-connection-card" aria-labelledby="connectionTitle">
+              <div className="provider-connection-head">
+                <div className="provider-connection-copy">
+                  <h3 id="connectionTitle">Connection</h3>
+                  <p>{connected ? "Connection tested and ready." : "No verified connection."}</p>
+                </div>
+                <span className={`provider-status${connected ? " connected" : ""}`}>
+                  {connected ? "Connected" : "No connection"}
+                </span>
+              </div>
+              <div className="provider-form-grid">
+                {isCustom && (
+                  <div className="provider-field full">
+                    <label htmlFor="providerDisplayName">Display Name</label>
+                    <input
+                      className="field"
+                      id="providerDisplayName"
+                      type="text"
+                      maxLength={80}
+                      value={displayName}
+                      onChange={(e) => {
+                        setDisplayName(e.target.value);
+                        resetConnectionTest();
+                      }}
+                      required
+                      disabled={busy}
+                    />
+                  </div>
+                )}
+                <div className="provider-field full">
+                  <label htmlFor="providerBaseUrl">Base URL</label>
+                  <input
+                    className="field"
+                    id="providerBaseUrl"
+                    type="url"
+                    value={baseUrl}
+                    placeholder="https://api.example.com/v1"
+                    disabled={!isCustom || busy}
+                    onChange={(e) => {
+                      setBaseUrl(e.target.value);
+                      resetConnectionTest();
+                    }}
+                    required
+                  />
+                  <small>{isCustom ? "Configure provider endpoint." : "Defined by FitCV for this provider."}</small>
+                </div>
+                <div className="provider-field">
+                  <label htmlFor="providerApiKey">API Key</label>
+                  <input
+                    className="field"
+                    id="providerApiKey"
+                    type="password"
+                    autoComplete="new-password"
+                    spellCheck={false}
+                    placeholder={hasCredential ? "••••••••••••" : "Enter API key"}
+                    value={apiKey}
+                    onChange={(e) => {
+                      setApiKey(e.target.value);
+                      resetConnectionTest();
+                    }}
+                    disabled={busy}
+                  />
+                  <small>
+                    {hasCredential
+                      ? "Saved as a credential. Enter a new key only to replace it."
+                      : "Required to create connection."}
+                  </small>
+                </div>
+                <div className="provider-field">
+                  <label htmlFor="providerApiType">API Type</label>
+                  <select
+                    className="field"
+                    id="providerApiType"
+                    disabled={fixedApiType || busy}
+                    value={apiType}
+                    onChange={(e) => {
+                      setApiType(e.target.value);
+                      resetConnectionTest();
+                    }}
+                  >
+                    {fixedApiType ? (
+                      <option value="messages">Messages API</option>
+                    ) : (
+                      <>
+                        <option value="chat-completions">Chat Completions</option>
+                        <option value="responses">Responses API</option>
+                      </>
+                    )}
+                  </select>
+                  <small>{fixedApiType ? "Fixed by provider protocol." : "Choose provider request format."}</small>
+                </div>
+              </div>
+              <p className="provider-helper">
+                <strong>Credential safety:</strong> API keys are never saved in browser storage. Later backend integration stores credentials in Windows Credential Manager.
+              </p>
+              <p
+                className={`provider-form-status${connectionStatusKind === "error" ? " error" : connectionStatusKind === "valid" ? " valid" : ""}`}
+                id="providerConnectionStatus"
+                role="status"
+                aria-live="polite"
+              >
+                {connectionStatusText ||
+                  (connected
+                    ? "Current connection remains active. Test changes before updating."
+                    : hasCredential
+                    ? "Test the saved connection before adding it."
+                    : "Test connection details before adding.")}
+              </p>
+              <div className="backup-actions">
+                <button className="btn" id="testProviderConnection" type="button" onClick={testConnection} disabled={busy}>
+                  Test
+                </button>
+                <button
+                  className="btn primary"
+                  id="saveProviderConnection"
+                  type="button"
+                  disabled={!connectionTestPassed || busy}
+                  onClick={saveConnection}
+                >
+                  {connected ? "Update Connection" : "Add Connection"}
+                </button>
+                {hasCredential && (
+                  <button
+                    className="btn danger"
+                    id="removeProviderConnection"
+                    type="button"
+                    onClick={removeConnection}
+                    disabled={busy}
+                  >
+                    Remove Connection
+                  </button>
+                )}
+              </div>
+            </section>
+
+            <section
+              className={`section-card provider-models${connected ? "" : " is-disabled"}`}
+              aria-labelledby="modelsTitle"
+              aria-disabled={!connected}
+            >
+              <div className="provider-models-head">
+                <div>
+                  <h3 id="modelsTitle">Available Models</h3>
+                  <p>
+                    {connected
+                      ? "Models become available after successful validation."
+                      : "Connection required before adding or testing models."}
+                  </p>
+                </div>
+                <button
+                  className="btn"
+                  id="openProviderModelDialog"
+                  type="button"
+                  disabled={!connected || busy}
+                  onClick={openModelDialog}
+                >
+                  Add Model
+                </button>
+              </div>
+              {provider.models && provider.models.length > 0 ? (
+                <div className="model-grid">
+                  {provider.models.map((model) => (
+                    <article className="model-card" key={model.model_record_id || model.model_id}>
+                      <div>
+                        <code>{model.model_id}</code>
+                        <div className={`model-state${model.validation_status === "verified" ? " verified" : ""}`}>
+                          {model.validation_status === "verified" ? "Validated" : "Needs retest"}
+                        </div>
+                      </div>
+                      <div className="model-card-actions">
+                        <button
+                          className="btn"
+                          type="button"
+                          data-test-model={model.model_id}
+                          disabled={!connected || busy}
+                          onClick={() => retestModel(model)}
+                        >
+                          Test
+                        </button>
+                        <button
+                          className="btn danger"
+                          type="button"
+                          data-remove-model={model.model_id}
+                          disabled={!connected || busy}
+                          onClick={() => removeModel(model)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="provider-empty">
+                  {connected ? "No models added yet." : "Test and add a connection to manage models."}
+                </div>
+              )}
+            </section>
+          </div>
+
+          {isModelDialogOpen && (
+            <dialog
+              className="run-dialog provider-model-dialog"
+              id="providerModelDialog"
+              aria-labelledby="providerModelDialogTitle"
+              aria-describedby="providerModelDialogDescription"
+              open
+            >
+              <div className="dialog-head">
+                <div>
+                  <h2 id="providerModelDialogTitle">Add Model</h2>
+                  <p id="providerModelDialogDescription">Test one model identifier before adding it.</p>
+                </div>
+                <button
+                  className="dialog-close"
+                  id="closeProviderModelDialog"
+                  type="button"
+                  aria-label="Close Add Model dialog"
+                  onClick={closeModelDialog}
+                >
+                  ×
+                </button>
+              </div>
+              <form
+                className="run-form"
+                id="providerModelForm"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (modelTestPassed) addModel();
+                }}
+              >
+                <div className="run-field">
+                  <label htmlFor="providerModelIdentifier">Model ID</label>
+                  <div className="model-test-row">
+                    <input
+                      className="field"
+                      id="providerModelIdentifier"
+                      type="text"
+                      maxLength={160}
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder="model-id"
+                      value={newModelId}
+                      onChange={(e) => {
+                        setNewModelId(e.target.value);
+                        resetModelTest();
+                      }}
+                      required
+                      disabled={busy}
+                    />
+                    <button
+                      className="btn"
+                      id="testProviderModel"
+                      type="button"
+                      onClick={testNewModel}
+                      disabled={busy || !newModelId.trim()}
+                    >
+                      Test
+                    </button>
+                  </div>
+                  <small className="provider-model-preview">
+                    Sent to provider as: <code id="providerModelPreview">{newModelId.trim() || "—"}</code>
+                  </small>
+                </div>
+              </form>
+              <p
+                className={`run-dialog-status provider-model-status${modelStatusKind === "valid" ? " valid" : modelStatusKind === "error" ? " error" : ""}`}
+                id="providerModelStatus"
+                role="status"
+                aria-live="polite"
+              >
+                {modelStatusMessage || "Add Model saves only after a successful test."}
+              </p>
+              <div className="dialog-actions">
+                <button
+                  className="btn"
+                  id="cancelProviderModelDialog"
+                  type="button"
+                  onClick={closeModelDialog}
+                  disabled={busy}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn primary"
+                  id="saveProviderModel"
+                  type="button"
+                  disabled={!modelTestPassed || testedNewModelId !== newModelId.trim() || busy}
+                  onClick={addModel}
+                >
+                  Add Model
+                </button>
+              </div>
+            </dialog>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="content-container">
         <div className="page-head">
@@ -333,150 +896,80 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
           </div>
         </div>
         {message && <div className="notice" role="status">{message}</div>}
-        <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
-          <input className="field-input" type="search" value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} placeholder="Search providers" aria-label="Search API providers" />
-          <div style={{ display: "grid", gap: 8 }}>
-            {providers.filter((item) => !providerSearch.trim() || `${item.display_name} ${item.compatibility}`.toLowerCase().includes(providerSearch.trim().toLowerCase())).map((item) => (
-              <a key={item.provider_id} href={`#/settings/api-providers/${encodeURIComponent(item.provider_id)}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", border: "1px solid var(--border)", borderRadius: 8, color: "inherit", textDecoration: "none", background: "var(--surface)" }}>
-                <span><strong>{item.display_name}</strong><span style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{item.compatibility === "anthropic" ? "Anthropic-compatible" : "OpenAI-compatible"}</span></span>
-                <span style={{ color: item.connection_status === "verified" ? "var(--success)" : "var(--muted)", fontSize: 12 }}>{item.connection_status === "verified" ? "Connected" : "No connection"} ›</span>
-              </a>
-            ))}
-          </div>
-        </div>
-        <section className="section-card" style={{ padding: 20, display: "grid", gap: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-            <h3 style={{ margin: 0 }}>Manage Provider</h3>
-            {provider?.kind === "custom" && (
-              <Button variant="danger" disabled={busy} onClick={deleteProvider}>
-                Delete Custom Provider
-              </Button>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Button variant="secondary" disabled={busy} onClick={() => createProvider("openai")}>Add OpenAI-compatible</Button>
-            <Button variant="secondary" disabled={busy} onClick={() => createProvider("anthropic")}>Add Anthropic-compatible</Button>
-          </div>
-          <label className="field-group">
-            <span className="field-label">Provider</span>
-            <select
-              className="field-input"
-              value={selectedId}
-              onChange={(event) => {
-                const nextId = event.target.value;
-                const next = providers.find((item) => item.provider_id === nextId);
-                setSelectedId(nextId);
-                selectedIdRef.current = nextId;
-                setBaseUrl(next?.base_url || "");
-                setApiType(next?.api_type || "chat_completions");
-                setApiKey("");
-                setConnectionTestPassed(false);
-                setConnectionStatusText("");
-                if (nextId) {
-                  window.location.hash = `#/settings/api-providers/${encodeURIComponent(nextId)}`;
-                }
-              }}
-            >
-              <option value="">Select provider</option>
-              {providers.map((item) => (
-                <option key={item.provider_id} value={item.provider_id}>
-                  {item.display_name} ({item.compatibility})
-                </option>
-              ))}
-            </select>
-          </label>
-          {provider && <>
-            <label className="field-group">
-              <span className="field-label">Base URL</span>
-              <input className="field-input" value={baseUrl} onChange={(event) => { setBaseUrl(event.target.value); setConnectionTestPassed(false); }} disabled={!provider.base_url_editable || busy} />
+        <div className="provider-section">
+          <div className="provider-page-actions">
+            <label className="provider-field provider-search">
+              <span className="sr-only">Search providers</span>
+              <input
+                className="field"
+                id="providerSearch"
+                type="search"
+                placeholder="Search providers"
+                aria-label="Search API providers"
+                value={providerSearch}
+                onChange={(e) => setProviderSearch(e.target.value)}
+              />
             </label>
-            {provider.compatibility === "openai" && (
-              <label className="field-group">
-                <span className="field-label">API Type</span>
-                <select
-                  className="field-input"
-                  value={apiType}
-                  onChange={(event) => {
-                    setApiType(event.target.value);
-                    setConnectionTestPassed(false);
-                  }}
-                  disabled={provider.api_type_fixed || busy}
-                >
-                  {(provider.supported_api_types && provider.supported_api_types.length > 0
-                    ? provider.supported_api_types
-                    : ["chat_completions", "responses"]
-                  ).map((type) => (
-                    <option key={type} value={type}>
-                      {type === "chat_completions"
-                        ? "Chat Completions (/v1/chat/completions)"
-                        : type === "responses"
-                        ? "Responses (/v1/responses)"
-                        : type}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label className="field-group">
-              <span className="field-label">API key</span>
-              <input className="field-input" type="password" value={apiKey} onChange={(event) => { setApiKey(event.target.value); setConnectionTestPassed(false); }} autoComplete="off" disabled={busy} placeholder={provider.credential_configured ? "Stored key unchanged" : "Required to verify connection"} />
-            </label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <Button variant="secondary" disabled={busy || (!apiKey.trim() && !provider.credential_configured)} onClick={testConnection}>Test Connection</Button>
-              <Button variant="primary" disabled={busy || !connectionTestPassed} onClick={saveConnection}>
-                {provider.connection_status === "verified" ? "Update Connection" : "Save Connection"}
-              </Button>
-              {provider.credential_configured && (
-                <Button variant="danger" disabled={busy} onClick={removeConnection}>Remove Connection</Button>
-              )}
-              <span style={{ color: provider.connection_status === "verified" ? "var(--success)" : "var(--muted)", fontSize: 12 }}>
-                {provider.connection_status === "verified" ? "✓ Connection verified" : "Not configured"}
+            <div className="provider-add-actions">
+              <button
+                className="btn"
+                type="button"
+                data-add-custom-provider="openai-compatible"
+                onClick={() => handleAddCustomProvider("openai")}
+                disabled={busy}
+              >
+                Add OpenAI-compatible
+              </button>
+              <button
+                className="btn"
+                type="button"
+                data-add-custom-provider="anthropic-compatible"
+                onClick={() => handleAddCustomProvider("anthropic")}
+                disabled={busy}
+              >
+                Add Anthropic-compatible
+              </button>
+            </div>
+          </div>
+          <details className="section-card collapsible-section setting-section" open>
+            <summary>
+              <span className="section-heading">
+                <strong>Custom Providers</strong>
+                <span>Connect OpenAI-compatible or Anthropic-compatible endpoints.</span>
               </span>
-            </div>
-            {connectionStatusText && <div style={{ fontSize: 13, color: connectionTestPassed ? "var(--success)" : "var(--danger)" }}>{connectionStatusText}</div>}
-
-            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border-soft)", display: "grid", gap: 10 }}>
-              <h4 style={{ margin: 0 }}>Models</h4>
-              <label className="field-group">
-                <span className="field-label">Model ID</span>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <input
-                    className="field-input"
-                    style={{ flex: 1, minWidth: 200 }}
-                    value={modelId}
-                    onChange={(event) => {
-                      setModelId(event.target.value);
-                      setModelTestPassed(false);
-                    }}
-                    disabled={busy}
-                    placeholder="e.g. openai/gpt-4o-mini"
-                  />
-                  <Button variant="secondary" disabled={busy || !modelId.trim() || provider.connection_status !== "verified"} onClick={testModel}>Test Model</Button>
-                  <Button variant="primary" disabled={busy || !modelTestPassed || testedModelId !== modelId.trim()} onClick={addModel}>Add Model</Button>
+            </summary>
+            <div className="section-content settings-card">
+              {filteredCustom.length > 0 ? (
+                <div className="provider-grid">
+                  {filteredCustom.map(renderProviderCard)}
                 </div>
-                <small style={{ color: "var(--muted)", fontSize: 12 }}>Test model identifier before adding.</small>
-              </label>
-              {provider.models.length > 0 && (
-                <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
-                  {provider.models.map((item) => (
-                    <div key={item.model_record_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6 }}>
-                      <div>
-                        <code>{item.model_id}</code>
-                        <span style={{ marginLeft: 8, fontSize: 12, color: item.validation_status === "validated" ? "var(--success)" : "var(--muted)" }}>
-                          ({item.validation_status})
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <Button size="compact" variant="secondary" disabled={busy || provider.connection_status !== "verified"} onClick={() => run(async () => { await apiClient.post(`/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(item.model_record_id)}/actions/test`, { expected_revision: item.revision || provider.revision }); setMessage(`${item.model_id} retested.`); }, { reload: false })}>Test</Button>
-                        <Button size="compact" variant="danger" disabled={busy} onClick={() => run(async () => { await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(item.model_record_id)}`, { body: { expected_revision: item.revision || provider.revision } }); setMessage(`${item.model_id} removed.`); })}>Remove</Button>
-                      </div>
-                    </div>
-                  ))}
+              ) : (
+                <div className="provider-empty">
+                  No custom providers yet. Add one from buttons above.
                 </div>
               )}
             </div>
-          </>}
-        </section>
+          </details>
+          <details className="section-card collapsible-section setting-section" open>
+            <summary>
+              <span className="section-heading">
+                <strong>API Key Providers</strong>
+                <span>Predefined API-key providers supplied by FitCV.</span>
+              </span>
+            </summary>
+            <div className="section-content settings-card">
+              {filteredPredefined.length > 0 ? (
+                <div className="provider-grid">
+                  {filteredPredefined.map(renderProviderCard)}
+                </div>
+              ) : (
+                <div className="provider-empty">
+                  No predefined providers found.
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
       </div>
     );
   }

@@ -3,7 +3,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { route as apiProvidersRoute } from "../features/api-providers/route";
 import { route as llmConfigRoute } from "../features/llm-configuration/route";
-import { customProviderPayload, ProviderSettingsCore, getProviderIdFromHash } from "../features/api-providers/provider-settings-core";
+import { customProviderPayload, providerInitials, ProviderSettingsCore, getProviderIdFromHash } from "../features/api-providers/provider-settings-core";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 
 describe("provider-settings routes", () => {
@@ -150,5 +150,12 @@ describe("provider-settings routes", () => {
       display_name: "New Anthropic-compatible provider",
       compatibility: "anthropic",
     });
+  });
+
+  it("computes uppercase two-letter provider monogram initials", () => {
+    expect(providerInitials("OpenAI")).toBe("O");
+    expect(providerInitials("OpenAI Compatible")).toBe("OC");
+    expect(providerInitials("Anthropic Claude")).toBe("AC");
+    expect(providerInitials("")).toBe("AI");
   });
 });
