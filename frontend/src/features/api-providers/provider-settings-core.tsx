@@ -159,7 +159,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     if (!provider || !confirm(`Delete ${provider.display_name}?`)) return;
     void run(async () => {
       await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}`, {
-        expected_revision: provider.revision,
+        body: { expected_revision: provider.revision },
       });
       setSelectedId("");
       window.location.hash = "#/settings/api-providers";
@@ -210,7 +210,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     if (!provider) return;
     void run(async () => {
       await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}/connection`, {
-        expected_revision: provider.revision,
+        body: { expected_revision: provider.revision },
       });
       setConnectionTestPassed(false);
       setMessage("Connection removed.");
@@ -402,7 +402,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
                         <Button size="compact" variant="secondary" disabled={busy || provider.connection_status !== "verified"} onClick={() => run(async () => { await apiClient.post(`/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(item.model_record_id)}/actions/test`, { expected_revision: item.revision || provider.revision }); setMessage(`${item.model_id} retested.`); })}>Test</Button>
-                        <Button size="compact" variant="danger" disabled={busy} onClick={() => run(async () => { await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(item.model_record_id)}`, { expected_revision: item.revision || provider.revision }); setMessage(`${item.model_id} removed.`); })}>Remove</Button>
+                        <Button size="compact" variant="danger" disabled={busy} onClick={() => run(async () => { await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(item.model_record_id)}`, { body: { expected_revision: item.revision || provider.revision } }); setMessage(`${item.model_id} removed.`); })}>Remove</Button>
                       </div>
                     </div>
                   ))}
