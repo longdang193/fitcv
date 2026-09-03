@@ -118,6 +118,19 @@ describe("Candidate Profile processing failure actions", () => {
       requiresProviderSetup: true,
     });
   });
+
+  it("maps generic failure presentation keeping backend message verbatim", () => {
+    expect(
+      getCandidateProfileFailurePresentation({
+        code: "parse_error",
+        message: "Failed to parse markdown heading structure.",
+      })
+    ).toEqual({
+      title: "Processing Failed",
+      message: "Failed to parse markdown heading structure.",
+      requiresProviderSetup: false,
+    });
+  });
 });
 
 describe("Candidate Profile API & Full Lifecycle Operations", () => {

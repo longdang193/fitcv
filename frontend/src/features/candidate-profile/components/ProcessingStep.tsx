@@ -222,8 +222,8 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
           <ErrorState
             title={failurePresentation.title}
             message={failurePresentation.requiresProviderSetup ? failurePresentation.message : error}
-            actionLabel={attempt?.capabilities?.retry ? (isRetrying ? "Retrying..." : "Retry Processing") : "Start New Upload"}
-            onRetry={attempt?.capabilities?.retry ? handleRetry : onCancel}
+            actionLabel={attempt ? (isRetrying ? "Retrying..." : "Retry Processing") : "Start New Upload"}
+            onRetry={attempt ? handleRetry : onCancel}
           />
           {failurePresentation.requiresProviderSetup && (
             <a

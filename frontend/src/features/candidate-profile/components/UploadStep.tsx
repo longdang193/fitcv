@@ -140,6 +140,7 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onSuccess, onCancel }) =
           >
             <input
               ref={fileInputRef}
+              id="candidate-document-file"
               type="file"
               accept=".md,.docx,.yaml,.yml,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/yaml,text/yaml"
               style={{ display: "none" }}
@@ -154,6 +155,14 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onSuccess, onCancel }) =
                 Markdown (.md), Word (.docx), or YAML (.yaml)
               </span>
             </div>
+            <label
+              htmlFor="candidate-document-file"
+              className="btn"
+              style={{ cursor: "pointer" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              Browse files
+            </label>
             {file && (
               <span
                 style={{
