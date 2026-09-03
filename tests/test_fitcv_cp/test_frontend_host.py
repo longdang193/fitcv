@@ -144,3 +144,21 @@ def test_csrf_cookie_issuance_and_unsafe_request_guard(local_client: TestClient)
         headers={"Origin": "http://127.0.0.1"},
     )
     assert bad_post.status_code == 403
+
+
+def test_vite_dev_origin_can_submit_unsafe_local_request(local_client: TestClient):
+    init_res = local_client.get("/healthz")
+    csrf_token = local_client.cookies["fitcv_csrf"]
+
+    response = local_client.post(
+        "/api-providers",
+        json={"display_name": "Local test provider", "compatibility": "openai"},
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "X-FitCV-CSRF": csrf_token,
+            "Idempotency-Key": "vite-dev-origin-test",
+        },
+    )
+
+    assert init_res.status_code == 200
+    assert response.status_code != 403

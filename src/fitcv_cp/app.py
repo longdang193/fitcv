@@ -7253,7 +7253,7 @@ def create_app(
                 source_url = urlparse(source)
                 if (
                     source_url.hostname != request.url.hostname
-                    or source_url.port != request.url.port
+                    or source_url.port not in {request.url.port, 5173, 4173}
                     or source_url.scheme != request.url.scheme
                 ):
                     return Response("Invalid Origin", status_code=403)
