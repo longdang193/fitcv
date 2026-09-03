@@ -21,6 +21,7 @@ import {
 } from "./api";
 import {
   ScanResource,
+  ScanExecutionStatus,
   ProcessEventRecord,
   ScanJobItem,
 } from "./types";
@@ -29,6 +30,14 @@ import { apiClient } from "../../lib/api-client";
 export interface ScanDetailProps {
   scanId: string;
   onBack: () => void;
+}
+
+export function shouldLoadScanOutput(
+  status: ScanExecutionStatus | undefined,
+  loaded: boolean,
+  loading: boolean,
+): boolean {
+  return status === "succeeded" && !loaded && !loading;
 }
 
 const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
@@ -158,7 +167,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
         clearTimeout(pollTimerRef.current);
       }
     };
-  }, [scan?.execution_status, loadScanData, loadJobs]);
+  }, [scan?.execution_status, loadScanData]);
 
   // Load output when tab switches or scan finishes
   useEffect(() => {
@@ -450,7 +459,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
             <DataTable
               columns={buildScanJobColumns()}
               data={jobs}
-              keyField={(job) => job.id || job.title + (job.company || "")}
+              keyField={(job) => job.id || job.title + (job.companyName || "")}
               page={jobsPage}
               pageSize={20}
               total={jobsTotal}
@@ -497,18 +506,21 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
           <div className="console-log" role="log" aria-label="Scan console events" tabIndex={0}>
             {events.map((evt) => {
               const message = getScanEventMessage(evt);
+              const payload = evt.payload ?? parseEventJson(evt.payload_json);
+              const level = evt.event_level ?? evt.level ?? "info";
+              const stage = evt.stage_name ?? evt.operation ?? evt.event_type ?? evt.state ?? "Event";
               return (
                 <div key={evt.event_id} className="console-line">
                   <span className="console-time">{new Date(evt.recorded_at).toLocaleTimeString()}</span>
-                  <span className="console-level" data-level={evt.event_level}>{evt.event_level}</span>
-                  <span>{evt.stage_name || evt.event_type}</span>
+                  <span className="console-level" data-level={level}>{level}</span>
+                  <span>{stage}</span>
                   <span className="console-message">
                     {message}
-                    {Object.keys(evt.payload).length > 0 && (
+                    {Object.keys(payload).length > 0 && (
                       <details>
                         <summary>Event data</summary>
                         <pre style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>
-                          {JSON.stringify(evt.payload, null, 2)}
+                          {JSON.stringify(payload, null, 2)}
                         </pre>
                       </details>
                     )}
@@ -533,16 +545,16 @@ function getStringValue(job: ScanJobItem, ...keys: string[]): string {
 }
 
 export function getScanJobUrl(job: ScanJobItem): string {
-  const url = getStringValue(job, "job_url", "apply_url", "url");
+  const url = getStringValue(job, "jobUrl", "applyUrl", "job_url", "apply_url", "url");
   return /^https?:\/\//i.test(url) ? url : "";
 }
 
 export function getScanJobCompany(job: ScanJobItem): string {
-  return getStringValue(job, "company_name", "company") || "Unknown company";
+  return getStringValue(job, "companyName", "company_name", "company") || "Unknown company";
 }
 
 export function getScanJobPostingDate(job: ScanJobItem): string {
-  return getStringValue(job, "published_at", "posted_at", "posted_time") || "—";
+  return getStringValue(job, "publishedAt", "published_at", "posted_at", "posted_time") || "—";
 }
 
 export function buildScanJobColumns(): TableColumn<ScanJobItem>[] {
@@ -571,16 +583,16 @@ export function buildScanJobColumns(): TableColumn<ScanJobItem>[] {
         );
       },
     },
-    { key: "company_name", header: "Company", render: getScanJobCompany },
-    { key: "published_at", header: "Posting date", render: getScanJobPostingDate },
+    { key: "companyName", header: "Company", render: getScanJobCompany },
+    { key: "publishedAt", header: "Posting date", render: getScanJobPostingDate },
     {
       key: "metadata",
       header: "Job metadata",
       render: (job) => {
         const fields = [
           ["Location", getStringValue(job, "location")],
-          ["Contract", getStringValue(job, "contract_type")],
-          ["Experience", getStringValue(job, "experience_level")],
+          ["Contract", getStringValue(job, "contractType", "contract_type")],
+          ["Experience", getStringValue(job, "experienceLevel", "experience_level")],
           ["Work type", getStringValue(job, "work_type")],
           ["Salary", getStringValue(job, "salary")],
           ["Sector", getStringValue(job, "sector")],
@@ -601,7 +613,20 @@ export function buildScanJobColumns(): TableColumn<ScanJobItem>[] {
 }
 
 export function getScanEventMessage(event: ProcessEventRecord): string {
-  const payloadMessage = event.payload.message;
+  const payload = event.payload ?? parseEventJson(event.payload_json);
+  const payloadMessage = payload?.message;
   if (typeof payloadMessage === "string" && payloadMessage.trim()) return payloadMessage;
-  return event.event_type.replace(/[_-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+  if (event.message?.trim()) return event.message.trim();
+  const label = event.event_type || event.operation || event.state || "event";
+  return label.replace(/[_-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function parseEventJson(value?: string | null): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 }

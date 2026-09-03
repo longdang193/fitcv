@@ -22,6 +22,7 @@ import { apiClient } from "../lib/api-client";
 import { buildScanJobColumns, getScanEventMessage } from "../features/scans/scan-detail";
 import { ScanJobItem } from "../features/scans/types";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
+import { shouldLoadScanOutput } from "../features/scans/scan-detail";
 
 describe("scans feature route and api slice", () => {
   beforeEach(() => {
@@ -37,6 +38,13 @@ describe("scans feature route and api slice", () => {
 
     const matched = matchRoute("#/scans?lifecycle=archived", routes);
     expect(matched.id).toBe("scans");
+  });
+
+  it("loads succeeded scan output once, including empty output", () => {
+    expect(shouldLoadScanOutput("succeeded", false, false)).toBe(true);
+    expect(shouldLoadScanOutput("succeeded", true, false)).toBe(false);
+    expect(shouldLoadScanOutput("succeeded", false, true)).toBe(false);
+    expect(shouldLoadScanOutput("running", false, false)).toBe(false);
   });
 
   it("fetches scans collection with query parameters", async () => {
@@ -237,17 +245,19 @@ describe("scans feature route and api slice", () => {
           events: [
             {
               event_id: "evt-1",
-              event_seq: 1,
+              schema_version: "process_event_v1",
               process_type: "scan",
               process_id: "scan-1",
-              stage_name: "acquire",
-              event_type: "started",
-              event_level: "info",
-              payload: { message: "Acquiring jobs" },
+              operation: "acquire",
+              state: "started",
+              level: "info",
+              message: "Acquiring jobs",
+              payload_json: null,
               recorded_at: "2026-08-30T12:00:01Z",
+              event_fingerprint: "evt-1-fingerprint",
             },
           ],
-          has_more: false,
+          total_count: 1,
         },
       },
       status: 200,
@@ -259,7 +269,7 @@ describe("scans feature route and api slice", () => {
 
     getSpy.mockResolvedValueOnce({
       data: {
-        data: [{ title: "Frontend Engineer", company: "Acme" }],
+        data: [{ title: "Frontend Engineer", companyName: "Acme", jobUrl: "https://jobs.example/acme/frontend", publishedAt: "2026-08-30T10:00:00Z" }],
         page: 1,
         page_size: 20,
         total_items: 1,
