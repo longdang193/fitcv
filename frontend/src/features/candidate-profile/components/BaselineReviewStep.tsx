@@ -82,11 +82,6 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         currentAttempt = await waitForAttemptTransition(attemptId, ["review_baseline", "review_derived", "confirm"]);
       }
 
-      if (currentAttempt.creation_status === "derived_review" || currentAttempt.next_action === "review_derived") {
-        onApproveSuccess(currentAttempt);
-        return;
-      }
-
       setAttempt(currentAttempt);
       const reviewData = await fetchBaselineReview(attemptId);
       setReview(reviewData);
