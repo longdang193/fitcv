@@ -79,6 +79,8 @@ export function matchRoute(hash: string, routes: FeatureRoute[]): FeatureRoute {
     "#/synonyms": "synonyms",
     "#/candidate-profiles": "candidate-profile",
     "#/candidate-profile": "candidate-profile",
+    "#/settings/pipeline": "pipeline-settings",
+    "#/pipeline-settings": "pipeline-settings",
   };
   const alias = Object.entries(aliases).find(
     ([prefix]) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`)

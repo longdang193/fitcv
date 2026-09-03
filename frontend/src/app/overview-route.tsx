@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../lib/api-client";
 import { Button, LoadingState } from "../components";
 import { notificationStore } from "../lib/notifications";
+import { PipelineSettingsDialog } from "../features/pipeline-settings/pipeline-settings-dialog";
 
 interface SettingFieldDef {
   key: string;
@@ -100,6 +101,7 @@ export const OverviewPage: React.FC = () => {
   const [revision, setRevision] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [, setSavingKey] = useState<string | null>(null);
+  const [isPipelineDialogOpen, setIsPipelineDialogOpen] = useState(false);
 
   // Load pipeline settings
   const loadSettings = useCallback(async () => {
@@ -201,6 +203,9 @@ export const OverviewPage: React.FC = () => {
           <p>Set the most important pipeline volumes and output limits. Changes apply to future runs.</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Button variant="primary" onClick={() => setIsPipelineDialogOpen(true)}>
+            Pipeline Settings
+          </Button>
           <Button variant="secondary" onClick={handleRestoreDefaults}>
             Restore Defaults
           </Button>
@@ -293,6 +298,11 @@ export const OverviewPage: React.FC = () => {
           ))}
         </div>
       )}
+      <PipelineSettingsDialog
+        open={isPipelineDialogOpen}
+        onClose={() => setIsPipelineDialogOpen(false)}
+        onSaved={loadSettings}
+      />
     </div>
   );
 };

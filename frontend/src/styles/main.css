@@ -1844,3 +1844,174 @@ dialog.native-dialog::backdrop {
   align-items: center;
   gap: 4px;
 }
+
+/* Pipeline Settings Dialog & Controls */
+.switch {
+  position: relative;
+  display: inline-flex;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.track {
+  display: block;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.track::after {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 3px;
+  border-radius: 50%;
+  background: #fff;
+  content: "";
+  transition: transform 0.15s ease;
+}
+.switch input:checked + .track {
+  background: var(--accent);
+}
+.switch input:checked + .track::after {
+  transform: translateX(18px);
+}
+.switch input:focus-visible + .track {
+  outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  outline-offset: 2px;
+}
+.switch input:disabled + .track {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+dialog.native-dialog.pipeline-settings-dialog {
+  width: min(940px, calc(100vw - 32px));
+  max-width: 940px;
+  height: min(720px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.pipeline-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.pipeline-settings-body {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pipeline-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  overflow-y: auto;
+}
+
+.pipeline-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.pipeline-nav-item:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.pipeline-nav-item.active {
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 650;
+  box-shadow: var(--shadow-sm);
+}
+
+.pipeline-settings-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.section-panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-family: var(--display-font);
+  letter-spacing: -0.01em;
+}
+
+.section-panel-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pipeline-groups-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pipeline-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-soft);
+  margin-top: 0;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.setting-row.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
