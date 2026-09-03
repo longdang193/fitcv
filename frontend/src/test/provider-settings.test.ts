@@ -3,7 +3,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { route as apiProvidersRoute } from "../features/api-providers/route";
 import { route as llmConfigRoute } from "../features/llm-configuration/route";
-import { ProviderSettingsCore, getProviderIdFromHash } from "../features/api-providers/provider-settings-core";
+import { customProviderPayload, ProviderSettingsCore, getProviderIdFromHash } from "../features/api-providers/provider-settings-core";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 
 describe("provider-settings routes", () => {
@@ -139,5 +139,16 @@ describe("provider-settings routes", () => {
     expect(draftBaseUrl).toBe("https://api.openai.com/v1");
     expect(draftApiType).toBe("responses");
     expect(connectionTestPassed).toBe(false);
+  });
+
+  it("builds backend-compatible custom provider payloads for both protocols", () => {
+    expect(customProviderPayload("openai")).toEqual({
+      display_name: "New OpenAI-compatible provider",
+      compatibility: "openai",
+    });
+    expect(customProviderPayload("anthropic")).toEqual({
+      display_name: "New Anthropic-compatible provider",
+      compatibility: "anthropic",
+    });
   });
 });

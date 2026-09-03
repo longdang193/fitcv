@@ -33,6 +33,15 @@ export type LlmConfig = {
   eligible_models: Array<{ model_record_id: string; provider_display_name: string; model_id: string }>;
 };
 
+export function customProviderPayload(compatibility: "openai" | "anthropic") {
+  return {
+    display_name: compatibility === "anthropic"
+      ? "New Anthropic-compatible provider"
+      : "New OpenAI-compatible provider",
+    compatibility,
+  };
+}
+
 export const LLM_TASKS = [
   { id: "candidate_profile_base_mapping", label: "Candidate Profile Base Mapping" },
   { id: "candidate_profile_derived_claims", label: "Candidate Profile Derived Claims" },
@@ -82,8 +91,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
   const [modelTestPassed, setModelTestPassed] = useState(false);
   const [connectionTestPassed, setConnectionTestPassed] = useState(false);
   const [connectionStatusText, setConnectionStatusText] = useState("");
-  const [newProviderName, setNewProviderName] = useState("");
-  const [newCompatibility, setNewCompatibility] = useState<"openai" | "anthropic">("openai");
+  const [providerSearch, setProviderSearch] = useState("");
 
   // LLM task editing state
   const [editingTask, setEditingTask] = useState<string | null>(null);
@@ -169,12 +177,8 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     }
   };
 
-  const createProvider = () => run(async () => {
-    const res = await apiClient.post<{ data: Provider }>("/api-providers", {
-      display_name: newProviderName.trim(),
-      compatibility: newCompatibility,
-    }, { idempotencyKey: crypto.randomUUID() });
-    setNewProviderName("");
+  const createProvider = (compatibility: "openai" | "anthropic") => run(async () => {
+    const res = await apiClient.post<{ data: Provider }>("/api-providers", customProviderPayload(compatibility), { idempotencyKey: crypto.randomUUID() });
     setSelectedId(res.data.data.provider_id);
     window.location.hash = `#/settings/api-providers/${encodeURIComponent(res.data.data.provider_id)}`;
     setMessage("Provider created.");
@@ -329,6 +333,17 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
           </div>
         </div>
         {message && <div className="notice" role="status">{message}</div>}
+        <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+          <input className="field-input" type="search" value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} placeholder="Search providers" aria-label="Search API providers" />
+          <div style={{ display: "grid", gap: 8 }}>
+            {providers.filter((item) => !providerSearch.trim() || `${item.display_name} ${item.compatibility}`.toLowerCase().includes(providerSearch.trim().toLowerCase())).map((item) => (
+              <a key={item.provider_id} href={`#/settings/api-providers/${encodeURIComponent(item.provider_id)}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", border: "1px solid var(--border)", borderRadius: 8, color: "inherit", textDecoration: "none", background: "var(--surface)" }}>
+                <span><strong>{item.display_name}</strong><span style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{item.compatibility === "anthropic" ? "Anthropic-compatible" : "OpenAI-compatible"}</span></span>
+                <span style={{ color: item.connection_status === "verified" ? "var(--success)" : "var(--muted)", fontSize: 12 }}>{item.connection_status === "verified" ? "Connected" : "No connection"} ›</span>
+              </a>
+            ))}
+          </div>
+        </div>
         <section className="section-card" style={{ padding: 20, display: "grid", gap: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <h3 style={{ margin: 0 }}>Manage Provider</h3>
@@ -339,12 +354,8 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
             )}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input className="field-input" style={{ flex: 1, minWidth: 220 }} value={newProviderName} onChange={(event) => setNewProviderName(event.target.value)} placeholder="New custom provider name" disabled={busy} />
-            <select className="field-input" style={{ width: 180 }} value={newCompatibility} onChange={(event) => setNewCompatibility(event.target.value as "openai" | "anthropic")} disabled={busy}>
-              <option value="openai">OpenAI-compatible</option>
-              <option value="anthropic">Anthropic-compatible</option>
-            </select>
-            <Button variant="secondary" disabled={busy || !newProviderName.trim()} onClick={createProvider}>Add Custom Provider</Button>
+            <Button variant="secondary" disabled={busy} onClick={() => createProvider("openai")}>Add OpenAI-compatible</Button>
+            <Button variant="secondary" disabled={busy} onClick={() => createProvider("anthropic")}>Add Anthropic-compatible</Button>
           </div>
           <label className="field-group">
             <span className="field-label">Provider</span>
