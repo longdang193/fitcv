@@ -10292,8 +10292,15 @@ def query_bookmarks(
         if projection is None:
             continue
         item["source_snapshot"] = json.loads(item.pop("source_snapshot_json"))
-        item["skills"] = json.loads(item.pop("skills_json"))
+        item.pop("skills_json")
         for key in (
+            "location",
+            "work_mode",
+            "language",
+            "seniority",
+            "role_family",
+            "domain",
+            "skills",
             "stage_id",
             "status",
             "outcome_code",
@@ -11113,6 +11120,49 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
     }
 
 
+def _normalise_job_skill_values(value: Any) -> list[str]:
+    values = value if isinstance(value, list) else [value]
+    normalized: list[str] = []
+    for skill in values:
+        if isinstance(skill, dict):
+            skill = skill.get("canonical") or skill.get("name") or skill.get("skill") or skill.get("title")
+        if isinstance(skill, str):
+            normalized.extend(part.strip() for part in skill.replace(";", ",").split(",") if part.strip())
+        elif skill is not None and str(skill).strip():
+            normalized.append(str(skill).strip())
+    return normalized
+
+
+def _run_structured_payloads(conn: sqlite3.Connection, run_id: str) -> dict[str, dict[str, Any]]:
+    try:
+        rows = conn.execute(
+            "SELECT job_url, payload_json FROM run_structured_jobs WHERE run_id=?",
+            (run_id,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    payloads: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        try:
+            payload = json.loads(str(row[1] or "{}"))
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if isinstance(payload, dict):
+            payloads[str(row[0] or payload.get("job_url") or "").strip()] = payload
+    return {key: value for key, value in payloads.items() if key}
+
+
+def _language_display(value: Any) -> str | None:
+    values = value if isinstance(value, list) else [value]
+    languages: list[str] = []
+    for requirement in values:
+        if isinstance(requirement, dict):
+            requirement = requirement.get("language")
+        if isinstance(requirement, str) and requirement.strip() and requirement.strip() not in languages:
+            languages.append(requirement.strip())
+    return ", ".join(languages) or None
+
+
 def _filtered_run_job_rows(
     run_id: str,
     *,
@@ -11145,6 +11195,7 @@ def _filtered_run_job_rows(
                JOIN run_jobs j ON j.run_job_id=i.run_job_id WHERE j.run_id=?""",
             (run_id,),
         ).fetchall()
+        structured_by_url = _run_structured_payloads(conn, run_id)
         usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
 
     results_by_job: dict[str, dict[str, sqlite3.Row]] = {}
@@ -11195,32 +11246,49 @@ def _filtered_run_job_rows(
                 break
         if stage not in {None, "all"} and selected_category is None:
             continue
-        skills = json.loads(str(job_row["skills_json"] or "[]"))
+        skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
+        canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        if not skills:
+            skills = _normalise_job_skill_values(canonical.get("required_skills_canonical"))
+        if not skills:
+            skills = _normalise_job_skill_values(canonical.get("required_skills"))
         if not skills and isinstance(source_snapshot, dict):
-            snapshot_skills = (
-                source_snapshot.get("skills")
-                or source_snapshot.get("required_skills")
-                or source_snapshot.get("required_skills_display")
-                or source_snapshot.get("required_skills_canonical")
-                or source_snapshot.get("must_have_skills")
-                or []
-            )
-            if isinstance(snapshot_skills, str):
-                skills = [s.strip() for s in snapshot_skills.split(",") if s.strip()]
-            elif isinstance(snapshot_skills, list):
-                skills = [
-                    str(s.get("name") or s.get("skill") or s.get("title") if isinstance(s, dict) else s).strip()
-                    for s in snapshot_skills
-                    if str(s).strip()
-                ]
+            for field_name in ("skills", "required_skills", "required_skills_display", "required_skills_canonical", "must_have_skills"):
+                skills = _normalise_job_skill_values(source_snapshot.get(field_name))
+                if skills:
+                    break
+        job_fields = {
+            key: job_row[key]
+            for key in job_row.keys()
+            if key not in {"source_snapshot_json", "skills_json"}
+        }
+        actual_location = canonical.get("actual_location")
+        canonical_location = canonical.get("location")
+        if not canonical_location and isinstance(actual_location, dict):
+            canonical_location = actual_location.get("raw_text") or ", ".join(
+                str(actual_location.get(field_name)).strip()
+                for field_name in ("city", "region", "country")
+                if str(actual_location.get(field_name) or "").strip()
+            ) or None
+        canonical_fields = {
+            "location": canonical_location,
+            "work_mode": canonical.get("location_type"),
+            "language": _language_display(canonical.get("language_requirements")),
+            "seniority": canonical.get("seniority"),
+            "role_family": canonical.get("job_family"),
+            "domain": canonical.get("domain"),
+        }
+        for field_name, value in canonical_fields.items():
+            if not job_fields.get(field_name) and value not in (None, "", [], {}):
+                job_fields[field_name] = value
         outcome_code = selected_result["outcome_code"] if selected_result is not None else None
         reason_code = selected_result["reason_code"] if selected_result is not None else None
         searchable = " ".join(
             str(value or "")
             for value in (
-                job_row["title"], job_row["company"], job_row["location"], job_row["work_mode"],
-                job_row["language"], job_row["seniority"], job_row["role_family"], job_row["domain"],
+                job_fields["title"], job_fields["company"], job_fields["location"], job_fields["work_mode"],
+                job_fields["language"], job_fields["seniority"], job_fields["role_family"], job_fields["domain"],
                 " ".join(str(item) for item in skills), outcome_code, reason_code,
             )
         ).casefold()
@@ -11230,7 +11298,7 @@ def _filtered_run_job_rows(
         interest = interests.get(run_job_id)
         projected.append(
             {
-                **{key: job_row[key] for key in job_row.keys() if key not in {"source_snapshot_json", "skills_json"}},
+                **job_fields,
                 "source_snapshot": source_snapshot,
                 "skills": skills,
                 "stage_id": selected_result["stage_id"] if selected_result is not None else None,

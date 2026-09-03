@@ -4440,6 +4440,47 @@ def test_query_run_jobs_recovers_required_skills_from_source_snapshot() -> None:
     assert result["items"][0]["skills"] == ["Python", "SQL"]
 
 
+def test_job_collections_project_canonical_enrichment_fields() -> None:
+    from fitcv.enrich import load_run_structured_jobs
+
+    run_id = "run-canonical-job-fields"
+    job_url = "https://jobs.example.test/canonical"
+    run_job_id = _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Canonical Job", "company": "Acme", "job_url": job_url}],
+    )[0]
+    load_run_structured_jobs(
+        [{
+            "job_url": job_url,
+            "location": "Berlin, Germany",
+            "location_type": "hybrid",
+            "language_requirements": [{"language": "English", "expected_level": "b2"}],
+            "seniority": "senior",
+            "job_family": "analytics",
+            "domain": "fintech",
+            "required_skills": ["SQL", "Python"],
+            "required_skills_canonical": ["sql", "python"],
+        }],
+        run_id,
+        {},
+    )
+    sqlite_store.set_bookmark(run_job_id)
+
+    expected = {
+        "location": "Berlin, Germany",
+        "work_mode": "hybrid",
+        "language": "English",
+        "seniority": "senior",
+        "domain": "fintech",
+        "skills": ["sql", "python"],
+    }
+    run_item = sqlite_store.query_run_jobs(run_id, page_size=10)["items"][0]
+    bookmark_item = sqlite_store.query_bookmarks(page_size=10)["items"][0]
+    assert run_item["run_job_id"] == run_job_id
+    assert {key: run_item[key] for key in expected} == expected
+    assert {key: bookmark_item[key] for key in expected} == expected
+
+
 def test_cancel_normalized_run_terminalizes_open_stages_and_is_idempotent() -> None:
     _create_normalized_run_with_jobs(
         "run-awaiting-cancel-stages", [{"title": "Analyst", "job_url": "https://example.com/1"}]
