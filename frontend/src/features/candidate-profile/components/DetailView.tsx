@@ -449,8 +449,8 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
                           borderRadius: "var(--radius-sm)",
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <strong style={{ fontSize: 13 }}>{item.name}</strong>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
+                          <strong title={item.name} style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</strong>
                           <StatusBadge
                             status={item.support_status === "supported" ? "success" : "neutral"}
                             label={`${Math.round((Number(item.confidence) || 1) * 100)}%`}

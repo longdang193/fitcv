@@ -10,12 +10,14 @@ import { ConfirmationResource, CreationAttempt } from "../types";
 
 export interface ConfirmationStepProps {
   attemptId: string;
+  onBackToDerived?: () => void;
   onConfirmed: (profileId: string) => void;
   onCancel: () => void;
 }
 
 export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   attemptId,
+  onBackToDerived,
   onConfirmed,
   onCancel,
 }) => {
@@ -29,6 +31,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   // Collapsible section toggles
   const [baselineOpen, setBaselineOpen] = useState(true);
   const [derivedOpen, setDerivedOpen] = useState(true);
+  const [technicalLogOpen, setTechnicalLogOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -166,7 +169,12 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {onBackToDerived && (
+            <Button variant="secondary" id="backToDerived" onClick={onBackToDerived}>
+              ← Back to derived review
+            </Button>
+          )}
           <Button variant="secondary" onClick={onCancel}>
             Exit
           </Button>
@@ -198,7 +206,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         </div>
       )}
 
-      <LiveStatus message={statusMessage} />
 
       {/* Grid of Summary Cards */}
       <div
@@ -323,9 +330,9 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                       {exp.evidence && exp.evidence.length > 0 && (
                         <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: "2px solid var(--accent-soft)" }}>
                           {exp.evidence.map((ev: any) => (
-                            <div key={ev.id} style={{ fontSize: 12, margin: "4px 0" }}>
+                            <div key={ev.id} style={{ fontSize: 12, margin: "4px 0", minWidth: 0 }}>
                               <code style={{ fontSize: 11, color: "var(--accent)" }}>{ev.id}: </code>
-                              <span>{ev.text}</span>
+                              <span title={ev.text} style={{ wordBreak: "break-word" }}>{ev.text}</span>
                             </div>
                           ))}
                         </div>
@@ -411,9 +418,11 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                           alignItems: "center",
                         }}
                       >
-                        <div>
-                          <strong style={{ fontSize: 13, display: "block" }}>{item.name}</strong>
-                          <span style={{ fontSize: 11, color: "var(--muted)" }}>
+                        <div style={{ minWidth: 0, flex: 1, marginRight: 8 }}>
+                          <strong title={item.name} style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {item.name}
+                          </strong>
+                          <span title={(item.evidence_refs || []).join(", ")} style={{ fontSize: 11, color: "var(--muted)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {item.evidence_refs?.length || 0} evidence refs
                           </span>
                         </div>
@@ -427,6 +436,53 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Technical Event Log Console & Traceability */}
+      <div className="table-card" style={{ marginBottom: 24, overflow: "hidden" }}>
+        <button
+          type="button"
+          onClick={() => setTechnicalLogOpen(!technicalLogOpen)}
+          style={{
+            width: "100%",
+            padding: "16px 20px",
+            background: "var(--surface-2)",
+            border: 0,
+            borderBottom: technicalLogOpen ? "1px solid var(--border-soft)" : "none",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          <div>
+            <strong style={{ fontSize: 15, color: "var(--text)" }}>Traceability & Technical Event Log</strong>
+            <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+              Document locators, claim-level evidence citations, attempt ID, and confirmation fingerprints
+            </span>
+          </div>
+          <span style={{ fontSize: 14, color: "var(--muted)" }}>{technicalLogOpen ? "▲" : "▼"}</span>
+        </button>
+
+        {technicalLogOpen && (
+          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, fontSize: 12, fontFamily: "var(--font-mono)" }}>
+            <div style={{ padding: 12, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
+              <div style={{ color: "var(--muted)", marginBottom: 4 }}>Attempt ID: <strong style={{ color: "var(--text)" }}>{attemptId}</strong></div>
+              <div style={{ color: "var(--muted)", marginBottom: 4 }}>Confirmation Fingerprint: <code style={{ color: "var(--accent)" }}>{confirmation.fingerprint || "—"}</code></div>
+              <div style={{ color: "var(--muted)", marginBottom: 4 }}>Baseline Fingerprint: <code style={{ color: "var(--text)" }}>{confirmation.approval_fingerprints?.baseline || "—"}</code></div>
+              <div style={{ color: "var(--muted)" }}>Derived Fingerprint: <code style={{ color: "var(--text)" }}>{confirmation.approval_fingerprints?.derived || "—"}</code></div>
+            </div>
+            <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+              {["skills", "role_families", "domain_tags", "responsibility_themes"].flatMap((sec) => (canonical[sec] || []).map((c: any) => (
+                <div key={`${sec}_${c.id}`} style={{ padding: "6px 8px", background: "var(--surface)", border: "1px solid var(--border-soft)", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text)" }} title={c.name}>{c.name}</span>
+                  <span style={{ color: "var(--muted)" }}>Refs: {(c.evidence_refs || []).join(", ") || "unsupported"}</span>
+                </div>
+              )))}
+            </div>
           </div>
         )}
       </div>
@@ -451,8 +507,13 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
+          {onBackToDerived && (
+            <Button variant="secondary" id="backToDerivedFooter" onClick={onBackToDerived}>
+              ← Back to derived review
+            </Button>
+          )}
           <Button variant="secondary" onClick={onCancel}>
-            Cancel
+            Exit
           </Button>
           <Button
             variant="primary"

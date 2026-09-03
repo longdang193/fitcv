@@ -58,11 +58,28 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
     setError(null);
     setStaleError(null);
     try {
-      const [schemaData, reviewData] = await Promise.all([
+      const [schemaData, attemptData] = await Promise.all([
         fetchFieldSchema(),
-        fetchBaselineReview(attemptId),
+        fetchCreationAttempt(attemptId),
       ]);
       setSchema(schemaData);
+
+      let currentAttempt = attemptData;
+      if (
+        currentAttempt.creation_status === "base_mapping" ||
+        currentAttempt.creation_status === "extracting_base" ||
+        currentAttempt.next_action === "wait"
+      ) {
+        setStatusMessage("Extracting baseline facts...");
+        currentAttempt = await waitForAttemptTransition(attemptId, ["review_baseline", "review_derived", "confirm"]);
+      }
+
+      if (currentAttempt.creation_status === "derived_review" || currentAttempt.next_action === "review_derived") {
+        onApproveSuccess(currentAttempt);
+        return;
+      }
+
+      const reviewData = await fetchBaselineReview(attemptId);
       setReview(reviewData);
       setDocument(reviewData.document || {});
       setLoading(false);
@@ -71,7 +88,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
       setError(err.message || "Failed to load baseline review.");
       setLoading(false);
     }
-  }, [attemptId]);
+  }, [attemptId, onApproveSuccess]);
 
   useEffect(() => {
     loadReview();
@@ -779,6 +796,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                                     <textarea
                                       className="field-textarea"
                                       placeholder="Traceable evidence statement verbatim or normalized from source"
+                                      title={ev.text || ""}
                                       value={ev.text || ""}
                                       rows={2}
                                       onChange={(e) => handleFieldChange(`${evPath}/text`, e.target.value)}

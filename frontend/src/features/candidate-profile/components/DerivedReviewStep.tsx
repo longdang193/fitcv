@@ -22,6 +22,7 @@ import { getCandidateProfileFailurePresentation } from "./ProcessingStep";
 
 export interface DerivedReviewStepProps {
   attemptId: string;
+  onBackToBaseline?: () => void;
   onApproveSuccess: () => void;
   onSaveAndExit: () => void;
 }
@@ -41,6 +42,7 @@ interface EvidenceLookupItem {
 
 export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
   attemptId,
+  onBackToBaseline,
   onApproveSuccess,
   onSaveAndExit,
 }) => {
@@ -70,18 +72,31 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
     setError(null);
     setStaleError(null);
     try {
-      const [schemaData, baselineData, initialAttempt] = await Promise.all([
-        fetchFieldSchema(),
-        fetchBaselineReview(attemptId),
-        fetchCreationAttempt(attemptId),
-      ]);
-      let attemptData = initialAttempt;
-      if (attemptData.creation_status === "deriving" || attemptData.next_action === "wait") {
-        setStatusMessage("Generating derived claims...");
-        attemptData = await waitForAttemptTransition(attemptId, ["review_derived", "confirm"]);
-      }
-      const derivedData = await fetchDerivedReview(attemptId);
+      const schemaData = await fetchFieldSchema();
       setSchema(schemaData);
+
+      let attemptData = await fetchCreationAttempt(attemptId);
+      if (
+        attemptData.creation_status === "deriving" ||
+        attemptData.creation_status === "base_mapping" ||
+        attemptData.creation_status === "extracting_base" ||
+        attemptData.next_action === "wait"
+      ) {
+        setStatusMessage("Processing candidate document...");
+        attemptData = await waitForAttemptTransition(attemptId, ["review_derived", "confirm", "review_baseline"]);
+      }
+
+      if (attemptData.creation_status === "base_review" || attemptData.next_action === "review_baseline") {
+        if (onBackToBaseline) {
+          onBackToBaseline();
+          return;
+        }
+      }
+
+      const [baselineData, derivedData] = await Promise.all([
+        fetchBaselineReview(attemptId),
+        fetchDerivedReview(attemptId),
+      ]);
       setReview(derivedData);
       setDocument(derivedData.document || {});
       setBaselineDoc(baselineData.document || {});
@@ -92,7 +107,7 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
       setError(err.message || "Failed to load derived review.");
       setLoading(false);
     }
-  }, [attemptId]);
+  }, [attemptId, onBackToBaseline]);
 
   useEffect(() => {
     loadReview();
@@ -402,6 +417,11 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {onBackToBaseline && (
+            <Button size="compact" variant="secondary" id="backToBaselineHeader" onClick={onBackToBaseline}>
+              ← Back to baseline
+            </Button>
+          )}
           {review.capabilities.regenerate_all && (
             <Button size="compact" onClick={() => handleRegenerate("*")} loading={saving} disabled={saving || approving}>
               ✨ Regenerate all derived claims
@@ -595,6 +615,7 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                             <input
                               className="field-input"
                               type="text"
+                              title={claim.name || ""}
                               value={claim.name || ""}
                               onChange={(e) =>
                                 handleClaimFieldChange(section.id, claimId, "name", e.target.value)
@@ -659,6 +680,7 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                                 return (
                                   <label
                                     key={ev.id}
+                                    title={ev.text ? `${ev.parentTitle}: ${ev.title ? ev.title + " — " : ""}${ev.text}` : `${ev.parentTitle}: ${ev.title || ""}`}
                                     style={{
                                       display: "flex",
                                       alignItems: "flex-start",
@@ -668,19 +690,21 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                                       borderRadius: "var(--radius-sm)",
                                       background: isChecked ? "var(--accent-soft)" : "transparent",
                                       cursor: "pointer",
+                                      minWidth: 0,
                                     }}
                                   >
                                     <input
                                       type="checkbox"
                                       checked={isChecked}
                                       onChange={() => handleToggleEvidenceRef(section.id, claimId, ev.id)}
-                                      style={{ marginTop: 2 }}
+                                      style={{ marginTop: 2, flexShrink: 0 }}
                                     />
-                                    <div style={{ minWidth: 0, lineHeight: 1.3 }}>
+                                    <div style={{ minWidth: 0, flex: 1, lineHeight: 1.3 }}>
                                       <code style={{ fontSize: 11, color: isChecked ? "var(--accent)" : "var(--text)" }}>
                                         {ev.id}
                                       </code>
                                       <span
+                                        title={ev.text ? `${ev.parentTitle}: ${ev.title ? ev.title + " — " : ""}${ev.text}` : `${ev.parentTitle}: ${ev.title || ""}`}
                                         style={{
                                           display: "block",
                                           color: "var(--muted)",
@@ -723,9 +747,16 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
           borderTop: "1px solid var(--border-soft)",
         }}
       >
-        <Button variant="secondary" onClick={handleSaveAndExit}>
-          Save and exit
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {onBackToBaseline && (
+            <Button variant="secondary" id="backToBaseline" onClick={onBackToBaseline}>
+              ← Back to baseline
+            </Button>
+          )}
+          <Button variant="secondary" onClick={handleSaveAndExit}>
+            Save and exit
+          </Button>
+        </div>
         <Button
           variant="primary"
           onClick={handleApprove}

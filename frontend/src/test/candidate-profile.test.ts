@@ -935,4 +935,83 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
     expect(proxy["/candidate-profile-field-schema"]).toBe("http://127.0.0.1:8000");
   });
 
+
+  it("resumes in-progress processing attempt without stage directly into processing view", () => {
+    // When stage is omitted / undefined, route navigates to creation processing without failing
+    const resumeProcessing = (attemptId: string, stage?: string) => {
+      if (stage) {
+        return `#/candidate-profile/create/${encodeURIComponent(attemptId)}/${stage}`;
+      }
+      return `#/candidate-profile/create/${encodeURIComponent(attemptId)}`;
+    };
+
+    const processingHash = resumeProcessing("att_in_flight");
+    expect(processingHash).toBe("#/candidate-profile/create/att_in_flight");
+    const parsed = parseCandidateRoute(processingHash);
+    expect(parsed.view).toBe("create_processing");
+    expect(parsed.attemptId).toBe("att_in_flight");
+  });
+
+  it("provides back-to-previous-stage navigation on stage 3 (derived -> baseline) and stage 4 (confirm -> derived)", () => {
+    const attemptId = "att_nav_test";
+
+    // Stage 3 to Stage 2 back target
+    const backToBaselineHash = `#/candidate-profile/create/${encodeURIComponent(attemptId)}/baseline`;
+    const parsedBaseline = parseCandidateRoute(backToBaselineHash);
+    expect(parsedBaseline.view).toBe("create_baseline");
+    expect(parsedBaseline.attemptId).toBe(attemptId);
+
+    // Stage 4 to Stage 3 back target
+    const backToDerivedHash = `#/candidate-profile/create/${encodeURIComponent(attemptId)}/derived`;
+    const parsedDerived = parseCandidateRoute(backToDerivedHash);
+    expect(parsedDerived.view).toBe("create_derived");
+    expect(parsedDerived.attemptId).toBe(attemptId);
+  });
+
+  it("preserves active candidate profile state as active during draft editing until confirmation", async () => {
+    // 1. Fetch active profile
+    const activeProfile = {
+      profile_id: "prof_active_01",
+      profile_name: "Staff Engineer",
+      lifecycle: "active",
+      creation_status: "succeeded",
+      revision: 1,
+      display_name: "Staff Engineer",
+    };
+
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: { data: activeProfile } as any,
+      status: 200,
+    });
+
+    const prof = await fetchProfileDetail("prof_active_01");
+    expect(prof.lifecycle).toBe("active");
+    expect(getSpy).toHaveBeenCalled();
+
+    // 2. Start editing active profile -> creates draft attempt in base_review
+    const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
+      data: {
+        data: {
+          attempt_id: "att_draft_01",
+          profile_id: "prof_active_01",
+          profile_name: "Staff Engineer",
+          creation_status: "base_review",
+          next_action: "review_baseline",
+          revision: 1,
+        },
+      } as any,
+      status: 201,
+    });
+
+    const editDraft = await createEditAttempt("prof_active_01", "key_edit_active");
+    expect(editDraft.attempt_id).toBe("att_draft_01");
+    expect(editDraft.creation_status).toBe("base_review");
+    // Original profile ID is referenced but not modified
+    expect(editDraft.profile_id).toBe("prof_active_01");
+    expect(postSpy).toHaveBeenCalledWith(
+      "/candidate-profiles/prof_active_01/actions/edit",
+      {},
+      { idempotencyKey: "key_edit_active" }
+    );
+  });
 });

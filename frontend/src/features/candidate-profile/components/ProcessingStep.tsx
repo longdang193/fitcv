@@ -209,7 +209,6 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
       {!error ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
           <LoadingState message={statusMessage} />
-          <LiveStatus message={statusMessage} />
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 13, maxWidth: 460 }}>
             Deterministic document ingestion in progress. Source blocks are being registered and locators mapped.
           </p>
