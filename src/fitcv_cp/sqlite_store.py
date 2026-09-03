@@ -2436,7 +2436,7 @@ def create_candidate_profile_edit_attempt(
             )
 
             canonical = json.loads(row["profile_json"]) if row["profile_json"] else {}
-            baseline, _ = _split_canonical(canonical)
+            baseline, derived = _split_canonical(canonical)
             if not baseline.get("source_documents"):
                 baseline["source_documents"] = [
                     {
@@ -2473,6 +2473,35 @@ def create_candidate_profile_edit_attempt(
 
             annotations = _canonical_annotations(baseline)
             baseline_fp = _fingerprint(baseline)
+            derived_annotations: dict[str, Any] = {}
+            derived_runtime_evidence = None
+            source_attempt = conn.execute(
+                """
+                SELECT attempt_id, approved_derived_fingerprint
+                FROM candidate_profile_creation_attempts
+                WHERE profile_id=? AND creation_status='succeeded'
+                ORDER BY updated_at DESC LIMIT 1
+                """,
+                (profile_id,),
+            ).fetchone()
+            if source_attempt is not None and source_attempt["approved_derived_fingerprint"]:
+                source_derived = conn.execute(
+                    """
+                    SELECT document_json, annotations_json, runtime_evidence_json
+                    FROM candidate_profile_derived_snapshots
+                    WHERE attempt_id=? AND fingerprint=?
+                    """,
+                    (source_attempt["attempt_id"], source_attempt["approved_derived_fingerprint"]),
+                ).fetchone()
+                if source_derived is not None:
+                    derived = json.loads(source_derived["document_json"])
+                    derived_annotations = json.loads(source_derived["annotations_json"])
+                    derived_runtime_evidence = (
+                        json.loads(source_derived["runtime_evidence_json"])
+                        if source_derived["runtime_evidence_json"]
+                        else None
+                    )
+            derived_fp = _fingerprint(derived)
 
             attempt_id = f"attempt_{uuid.uuid4().hex}"
             source_document_id = f"doc_{attempt_id.removeprefix('attempt_')}"
@@ -2486,15 +2515,16 @@ def create_candidate_profile_edit_attempt(
                 """
                 INSERT INTO candidate_profile_creation_attempts (
                     attempt_id, profile_name, creation_status, revision, source_document_id,
-                    next_action, baseline_fingerprint, source_purge_after, profile_id,
+                    next_action, baseline_fingerprint, derived_fingerprint, source_purge_after, profile_id,
                     created_at, updated_at
-                ) VALUES (?, ?, 'base_review', 1, ?, 'review_baseline', ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, 'base_review', 1, ?, 'review_baseline', ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     attempt_id,
                     profile_name,
                     source_document_id,
                     baseline_fp,
+                    derived_fp,
                     purge_after,
                     profile_id,
                     now,
@@ -2535,6 +2565,29 @@ def create_candidate_profile_edit_attempt(
                     baseline_fp,
                     json.dumps(baseline, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
                     json.dumps(annotations, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    now,
+                ),
+            )
+
+            conn.execute(
+                """
+                INSERT INTO candidate_profile_derived_snapshots (
+                    snapshot_id, attempt_id, baseline_fingerprint, fingerprint,
+                    document_json, annotations_json, runtime_evidence_json, approved, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+                """,
+                (
+                    f"snapshot_{uuid.uuid4().hex}",
+                    attempt_id,
+                    baseline_fp,
+                    derived_fp,
+                    json.dumps(derived, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    json.dumps(derived_annotations, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    (
+                        json.dumps(derived_runtime_evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                        if derived_runtime_evidence is not None
+                        else None
+                    ),
                     now,
                 ),
             )
@@ -3373,23 +3426,46 @@ def approve_candidate_profile_review(
                 )
                 if not _evidence_ids(baseline_snapshot["document"]):
                     raise ValueError("candidate_profile_no_evidence")
-                conn.execute(
+                preserved_derived = conn.execute(
                     """
-                    UPDATE candidate_profile_creation_attempts
-                    SET revision=revision+1, approved_baseline_fingerprint=?,
-                        creation_status='deriving', processing_stage='derived_claims',
-                        processing_claim_id=?, processing_attempt=processing_attempt+1,
-                        lease_expires_at=?, next_action='wait', updated_at=?
-                    WHERE attempt_id=?
+                    SELECT 1
+                    FROM candidate_profile_derived_snapshots
+                    WHERE attempt_id=? AND baseline_fingerprint=?
+                    ORDER BY rowid DESC LIMIT 1
                     """,
-                    (
-                        expected_fingerprint,
-                        f"claim_{uuid.uuid4().hex}",
-                        (current + datetime.timedelta(seconds=_CANDIDATE_PROFILE_LEASE_SECONDS)).isoformat(),
-                        now,
-                        attempt_id,
-                    ),
-                )
+                    (attempt_id, expected_fingerprint),
+                ).fetchone()
+                if preserved_derived is not None:
+                    conn.execute(
+                        """
+                        UPDATE candidate_profile_creation_attempts
+                        SET revision=revision+1, approved_baseline_fingerprint=?,
+                            approved_derived_fingerprint=NULL, confirmation_fingerprint=NULL,
+                            creation_status='derived_review', processing_stage=NULL,
+                            processing_claim_id=NULL, lease_expires_at=NULL,
+                            next_action='review_derived', updated_at=?
+                        WHERE attempt_id=?
+                        """,
+                        (expected_fingerprint, now, attempt_id),
+                    )
+                else:
+                    conn.execute(
+                        """
+                        UPDATE candidate_profile_creation_attempts
+                        SET revision=revision+1, approved_baseline_fingerprint=?,
+                            creation_status='deriving', processing_stage='derived_claims',
+                            processing_claim_id=?, processing_attempt=processing_attempt+1,
+                            lease_expires_at=?, next_action='wait', updated_at=?
+                        WHERE attempt_id=?
+                        """,
+                        (
+                            expected_fingerprint,
+                            f"claim_{uuid.uuid4().hex}",
+                            (current + datetime.timedelta(seconds=_CANDIDATE_PROFILE_LEASE_SECONDS)).isoformat(),
+                            now,
+                            attempt_id,
+                        ),
+                    )
             else:
                 conn.execute(
                     """

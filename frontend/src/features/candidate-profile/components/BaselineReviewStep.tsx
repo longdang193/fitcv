@@ -11,6 +11,7 @@ import {
 } from "../api";
 import {
   CandidateProfileReviewOperation,
+  CreationAttempt,
   FieldSchema,
   ReviewResource,
 } from "../types";
@@ -19,7 +20,7 @@ import { getCandidateProfileFailurePresentation } from "./ProcessingStep";
 
 export interface BaselineReviewStepProps {
   attemptId: string;
-  onApproveSuccess: () => void;
+  onApproveSuccess: (attempt: CreationAttempt) => void;
   onSaveAndExit: () => void;
 }
 
@@ -324,9 +325,9 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
         if (updated) currentReview = updated;
       }
 
-      await approveBaselineReview(attemptId, currentReview.revision, currentReview.fingerprint);
+      const attempt = await approveBaselineReview(attemptId, currentReview.revision, currentReview.fingerprint);
       setStatusMessage("Baseline approved! Moving to controlled derivation...");
-      onApproveSuccess();
+      onApproveSuccess(attempt);
     } catch (err: any) {
       setApproving(false);
       setError(err.message || "Failed to approve baseline review.");

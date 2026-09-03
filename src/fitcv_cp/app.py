@@ -10419,12 +10419,13 @@ def create_app(
                 idempotency_key=_required_idempotency_key(request),
             )
         )
-        _enqueue_candidate_profile_stage(
-            request,
-            attempt_id=attempt_id,
-            resource=resource,
-            targets=None,
-        )
+        if resource["creation_status"] == "deriving":
+            _enqueue_candidate_profile_stage(
+                request,
+                attempt_id=attempt_id,
+                resource=resource,
+                targets=None,
+            )
         return _data_response(
             _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id) or resource
         )
