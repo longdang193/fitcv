@@ -10410,13 +10410,16 @@ def create_app(
         attempt_id: str,
         body: CandidateProfileApproveRequest,
     ) -> dict[str, Any]:
+        approval_kwargs: dict[str, Any] = {
+            "expected_revision": body.expected_revision,
+            "expected_fingerprint": body.expected_fingerprint,
+            "idempotency_key": _required_idempotency_key(request),
+        }
+        if body.derived_action is not None:
+            approval_kwargs["derived_action"] = body.derived_action
         resource = _candidate_profile_call(
             lambda: _resolve_run_store().approve_candidate_profile_review(
-                attempt_id,
-                "baseline",
-                expected_revision=body.expected_revision,
-                expected_fingerprint=body.expected_fingerprint,
-                idempotency_key=_required_idempotency_key(request),
+                attempt_id, "baseline", **approval_kwargs
             )
         )
         if resource["creation_status"] == "deriving":

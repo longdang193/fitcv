@@ -56,6 +56,7 @@ class CandidateProfileUndoRegenerationRequest(BaseModel):
 class CandidateProfileApproveRequest(BaseModel):
     expected_revision: int
     expected_fingerprint: str
+    derived_action: Literal["reuse", "regenerate"] | None = None
 
 
 class CandidateProfileDerivedApproveRequest(CandidateProfileApproveRequest):

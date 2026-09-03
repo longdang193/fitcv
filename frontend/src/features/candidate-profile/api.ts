@@ -191,14 +191,19 @@ export async function approveBaselineReview(
   attemptId: string,
   expectedRevision: number,
   expectedFingerprint: string,
-  idempotencyKey = generateIdempotencyKey()
+  idempotencyKey = generateIdempotencyKey(),
+  derivedAction: "reuse" | "regenerate" = "reuse"
 ): Promise<CreationAttempt> {
+  const payload: Record<string, unknown> = {
+    expected_revision: expectedRevision,
+    expected_fingerprint: expectedFingerprint,
+  };
+  if (derivedAction === "regenerate") {
+    payload.derived_action = derivedAction;
+  }
   const res = await apiClient.post<{ data: CreationAttempt }>(
     `/candidate-profile-creation-attempts/${encodeURIComponent(attemptId)}/baseline/actions/approve`,
-    {
-      expected_revision: expectedRevision,
-      expected_fingerprint: expectedFingerprint,
-    },
+    payload,
     { idempotencyKey }
   );
   return (res.data as any)?.data || res.data;

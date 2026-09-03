@@ -376,7 +376,7 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
     );
   });
 
-  it("approves baseline review with expected fingerprint", async () => {
+  it("approves baseline review with reuse as default derived action", async () => {
     const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
       data: {
         data: {
@@ -399,6 +399,24 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
         expected_fingerprint: "fp_baseline",
       },
       { idempotencyKey: "approve-key" }
+    );
+  });
+
+  it("sends explicit regeneration choice for baseline approval", async () => {
+    const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
+      data: { data: { attempt_id: "att_001", creation_status: "deriving" } } as any,
+      status: 202,
+    });
+
+    await approveBaselineReview("att_001", 2, "fp_baseline", "approve-regenerate", "regenerate");
+    expect(postSpy).toHaveBeenCalledWith(
+      "/candidate-profile-creation-attempts/att_001/baseline/actions/approve",
+      {
+        expected_revision: 2,
+        expected_fingerprint: "fp_baseline",
+        derived_action: "regenerate",
+      },
+      { idempotencyKey: "approve-regenerate" }
     );
   });
 
