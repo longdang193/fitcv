@@ -6,6 +6,7 @@ import copy
 from dataclasses import dataclass
 import hashlib
 import json
+import os
 from typing import Any, Callable
 
 from fitcv.candidate import (
@@ -415,6 +416,28 @@ def _run_llm(
     return result
 
 
+def _local_deterministic_baseline_fallback(
+    document: dict[str, Any],
+    annotations: dict[str, Any],
+    unresolved_count: int,
+    reason: str,
+) -> CandidateProfileStageResult:
+    return CandidateProfileStageResult(
+        document=document,
+        annotations=annotations,
+        fingerprint=_fingerprint(document),
+        runtime_evidence={
+            "contract_version": "candidate_profile_deterministic_extraction_v1",
+            "status": "deterministic",
+            "method": "source_ingest_headings_only",
+            "llm_called": False,
+            "unresolved_source_block_count": unresolved_count,
+            "reason": reason,
+        },
+        llm_called=False,
+    )
+
+
 def _apply_scalar_proposal(
     document: dict[str, Any],
     proposal: dict[str, Any],
@@ -533,15 +556,30 @@ def build_baseline_review(
         schema=_BASELINE_RESPONSE_SCHEMA,
         schema_strict=False,
     )
-    result = _run_llm(
-        request,
-        lambda value: _validate_baseline_payload(
-            _hydrate_baseline_source_block_ids(value, block_lookup),
-            set(block_lookup),
-        ),
-        llm_runner,
-        document,
-    )
+    try:
+        result = _run_llm(
+            request,
+            lambda value: _validate_baseline_payload(
+                _hydrate_baseline_source_block_ids(value, block_lookup),
+                set(block_lookup),
+            ),
+            llm_runner,
+            document,
+        )
+    except CandidateProfileServiceError as exc:
+        if (
+            str(os.environ.get("FITCV_LOCAL_MODE") or "").strip().lower()
+            in {"1", "true", "yes", "on"}
+            and exc.code == "candidate_profile_llm_unavailable"
+            and str(exc).startswith("LLM routing is unavailable for ")
+        ):
+            return _local_deterministic_baseline_fallback(
+                document,
+                annotations,
+                len(unresolved),
+                str(exc),
+            )
+        raise
     value = result.parsed_value
     for proposal in value["proposals"]:
         _apply_scalar_proposal(document, proposal, annotations)

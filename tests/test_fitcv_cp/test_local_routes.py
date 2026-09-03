@@ -101,22 +101,39 @@ def _complete_onboarding() -> None:
     state_path = Path(__import__("os").environ["FITCV_LOCAL_DATA_ROOT"]) / "onboarding.json"
     state_path.write_text(json.dumps({"version": 1, "complete": True}), encoding="utf-8")
 
+@pytest.mark.parametrize(
+    ("filename", "media_type", "content"),
+    [
+        (
+            "candidate.md",
+            "text/markdown",
+            b"# Alex Example\n\nData analyst focused on reporting.\n",
+        ),
+        (
+            "candidate.yaml",
+            "application/yaml",
+            Path("data/candidate_profile.v2.sample.yaml").read_bytes(),
+        ),
+    ],
+)
 def test_candidate_profile_import_and_progression_work_before_onboarding_completion(
     local_client: TestClient,
+    filename: str,
+    media_type: str,
+    content: bytes,
 ) -> None:
     from fitcv_cp.candidate_profile_service import execute_candidate_profile_stage
 
     local_client.app.state.enqueue_candidate_profile_stage = lambda **kwargs: (
         execute_candidate_profile_stage(**kwargs) or f"inline:{kwargs['attempt_id']}:{kwargs['stage']}"
     )
-    source = Path("data/candidate_profile.v2.sample.yaml").read_bytes()
     headers = {**_csrf_headers(local_client), "Idempotency-Key": "local-profile-create"}
 
     created = local_client.post(
         "/candidate-profile-creation-attempts",
         headers=headers,
         data={"profile_name": "Imported Candidate"},
-        files={"profile_file": ("candidate.yaml", source, "application/yaml")},
+        files={"profile_file": (filename, content, media_type)},
     )
 
     assert created.status_code == 202
@@ -127,6 +144,10 @@ def test_candidate_profile_import_and_progression_work_before_onboarding_complet
     )
     assert baseline.status_code == 200
     baseline_data = baseline.json()["data"]
+    if filename.endswith(".md"):
+        assert baseline_data["runtime_evidence"]["status"] == "deterministic"
+        assert baseline_data["runtime_evidence"]["llm_called"] is False
+        return
     approved = local_client.post(
         f"/candidate-profile-creation-attempts/{attempt['attempt_id']}/baseline/actions/approve",
         headers={**_csrf_headers(local_client), "Idempotency-Key": "local-profile-approve"},
