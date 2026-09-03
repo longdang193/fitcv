@@ -5,7 +5,7 @@ import { PolicyEditor } from './policy-editor';
 import { ProcessingHistory } from './processing-history';
 import { BackupManager } from './backup-manager';
 
-export type SynonymTab = 'queue' | 'editor' | 'history' | 'backup';
+export type SynonymTab = 'queue' | 'editor' | 'backup';
 
 export const SynonymsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('queue');
@@ -18,7 +18,6 @@ export const SynonymsPage: React.FC = () => {
   const tabs = [
     { id: 'queue', label: 'Review Queue' },
     { id: 'editor', label: 'Policy Editors' },
-    { id: 'history', label: 'Processing History' },
     { id: 'backup', label: 'Backup & Restore' },
   ];
 
@@ -63,13 +62,13 @@ export const SynonymsPage: React.FC = () => {
       >
         <div style={{ marginTop: 20 }}>
           {activeTab === 'queue' && (
-            <SuggestionQueue key={'queue-' + refreshTrigger} onQueueChanged={handleGlobalRefresh} />
+            <div style={{ display: 'grid', gap: 24 }}>
+              <SuggestionQueue key={'queue-' + refreshTrigger} onQueueChanged={handleGlobalRefresh} />
+              <ProcessingHistory key={'history-' + refreshTrigger} />
+            </div>
           )}
           {activeTab === 'editor' && (
             <PolicyEditor key={'editor-' + refreshTrigger} onPolicyUpdated={handleGlobalRefresh} />
-          )}
-          {activeTab === 'history' && (
-            <ProcessingHistory key={'history-' + refreshTrigger} />
           )}
           {activeTab === 'backup' && (
             <BackupManager key={'backup-' + refreshTrigger} onBackupImported={handleGlobalRefresh} />

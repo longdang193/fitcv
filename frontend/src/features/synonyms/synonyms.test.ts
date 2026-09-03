@@ -14,6 +14,9 @@ import {
 import { route } from "./route";
 import { discoverFeatureRoutes, matchRoute } from "../../app/route-registry";
 import { apiClient } from "../../lib/api-client";
+import { renderToStaticMarkup } from "react-dom/server";
+import { SynonymsPage } from "./synonyms-page";
+import React from "react";
 
 describe("Synonyms Feature API", () => {
   const originalFetch = globalThis.fetch;
@@ -314,5 +317,17 @@ describe("Synonyms Route Registration", () => {
 
     const matched = matchRoute("#/synonyms", routes);
     expect(matched.id).toBe("synonyms");
+  });
+});
+
+describe("Synonyms page layout", () => {
+  it("renders processing summary log below review queue", () => {
+    const markup = renderToStaticMarkup(React.createElement(SynonymsPage));
+    const queuePosition = markup.indexOf("Loading synonym review queue...");
+    const summaryPosition = markup.indexOf("Processing Summary Log");
+
+    expect(queuePosition).toBeGreaterThanOrEqual(0);
+    expect(summaryPosition).toBeGreaterThan(queuePosition);
+    expect(markup).not.toContain("Processing History");
   });
 });
