@@ -9977,7 +9977,7 @@ def create_run_bundle(
                         job.get("seniority"),
                         job.get("role_family"),
                         job.get("domain"),
-                        json.dumps(job.get("skills") or []),
+                        json.dumps(job.get("skills") or job.get("required_skills") or job.get("required_skills_canonical") or job.get("required_skills_display") or job.get("must_have_skills") or []),
                     ),
                 )
             conn.commit()
@@ -11176,6 +11176,23 @@ def _filtered_run_job_rows(
             continue
         skills = json.loads(str(job_row["skills_json"] or "[]"))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
+        if not skills and isinstance(source_snapshot, dict):
+            snapshot_skills = (
+                source_snapshot.get("skills")
+                or source_snapshot.get("required_skills")
+                or source_snapshot.get("required_skills_display")
+                or source_snapshot.get("required_skills_canonical")
+                or source_snapshot.get("must_have_skills")
+                or []
+            )
+            if isinstance(snapshot_skills, str):
+                skills = [s.strip() for s in snapshot_skills.split(",") if s.strip()]
+            elif isinstance(snapshot_skills, list):
+                skills = [
+                    str(s.get("name") or s.get("skill") or s.get("title") if isinstance(s, dict) else s).strip()
+                    for s in snapshot_skills
+                    if str(s).strip()
+                ]
         outcome_code = selected_result["outcome_code"] if selected_result is not None else None
         reason_code = selected_result["reason_code"] if selected_result is not None else None
         searchable = " ".join(
