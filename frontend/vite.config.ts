@@ -20,6 +20,7 @@ export default defineConfig({
       "/llm-configuration": "http://127.0.0.1:8000",
       "/prompt-configurations": "http://127.0.0.1:8000",
       "/system-settings": "http://127.0.0.1:8000",
+      "/settings": "http://127.0.0.1:8000",
       "/local": "http://127.0.0.1:8000",
       "/runs": "http://127.0.0.1:8000",
       "/scans": "http://127.0.0.1:8000",

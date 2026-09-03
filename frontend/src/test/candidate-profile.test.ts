@@ -986,6 +986,7 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
     const viteConfig = await import("../../vite.config");
     const proxy = (viteConfig.default as any)?.server?.proxy || {};
     expect(proxy["/candidate-profile-field-schema"]).toBe("http://127.0.0.1:8000");
+    expect(proxy["/settings"]).toBe("http://127.0.0.1:8000");
   });
 
 
