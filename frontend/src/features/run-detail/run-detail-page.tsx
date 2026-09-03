@@ -27,6 +27,9 @@ import {
   RunStageResource,
   RunStageId,
 } from "../runs/types";
+import { setJobBookmark, clearJobBookmark, setJobInterest, clearJobInterest } from "../job-evaluation/api";
+import { fetchCvPreview, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
+import { notificationStore } from "../../lib/notifications";
 import { StageCards } from "./components/StageCards";
 import { InputSummaryCard } from "./components/InputSummaryCard";
 import { EventConsole } from "./components/EventConsole";
@@ -64,6 +67,19 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
 
   // Confirmation dialog
   const [confirmAction, setConfirmAction] = useState<"cancel" | "archive" | "unarchive" | null>(null);
+  // CV Preview dialog state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewContent, setPreviewContent] = useState("");
+  const [previewTitle, setPreviewTitle] = useState("");
+
+  // CV Regenerate dialog state
+  const [regenerateJob, setRegenerateJob] = useState<RunJobItem | null>(null);
+  const [regeneratePrompt, setRegeneratePrompt] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
+
 
   // Jobs state & filters
   const [jobs, setJobs] = useState<RunJobItem[]>([]);
@@ -263,8 +279,201 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
     e.preventDefault();
     setActiveJobSearch(jobSearch.trim());
     setJobsPage(1);
-    loadJobs(1);
   };
+  // Bookmark toggle
+  const handleToggleBookmark = async (job: RunJobItem) => {
+    const isBookmarked = Boolean(job.bookmarked);
+    setJobs((prev) =>
+      prev.map((j) => (j.run_job_id === job.run_job_id ? { ...j, bookmarked: !isBookmarked } : j))
+    );
+    try {
+      if (isBookmarked) {
+        await clearJobBookmark(runId, job.run_job_id);
+      } else {
+        await setJobBookmark(runId, job.run_job_id);
+      }
+    } catch (err: any) {
+      setJobs((prev) =>
+        prev.map((j) => (j.run_job_id === job.run_job_id ? { ...j, bookmarked: isBookmarked } : j))
+      );
+      notificationStore.notify({
+        dedupe: `bm:err:${job.run_job_id}`,
+        type: "error",
+        title: "Bookmark failed",
+        message: err.message || "Could not update bookmark.",
+      });
+    }
+  };
+
+  // Interest rating
+  const handleRateJob = async (job: RunJobItem, rating: number) => {
+    const currentRating = typeof job.rating === "number" ? job.rating : job.interest_rating;
+    const newRating = currentRating === rating ? null : rating;
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.run_job_id === job.run_job_id ? { ...j, rating: newRating, interest_rating: newRating } : j
+      )
+    );
+    try {
+      if (newRating === null) {
+        await clearJobInterest(runId, job.run_job_id);
+      } else {
+        await setJobInterest(runId, job.run_job_id, newRating);
+      }
+    } catch (err: any) {
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.run_job_id === job.run_job_id ? { ...j, rating: currentRating, interest_rating: currentRating } : j
+        )
+      );
+      notificationStore.notify({
+        dedupe: `rate:err:${job.run_job_id}`,
+        type: "error",
+        title: "Rating failed",
+        message: err.message || "Could not save rating.",
+      });
+    }
+  };
+
+  // View CV Preview
+  const handleViewCv = async (job: RunJobItem) => {
+    const versionId = String(job.current_cv_version_id || "");
+    if (!versionId) return;
+    setPreviewTitle(`${job.title || "Job"} · CV Preview`);
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const res = await fetchCvPreview(versionId);
+      setPreviewContent(res.content);
+    } catch (err: any) {
+      setPreviewError(err.message || "Failed to load CV preview.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // Download CV
+  const handleDownloadCv = async (job: RunJobItem) => {
+    const versionId = String(job.current_cv_version_id || "");
+    if (!versionId) return;
+    try {
+      await downloadCvVersion(versionId, `cv-${job.run_job_id.slice(0, 8)}.md`);
+    } catch (err: any) {
+      notificationStore.notify({
+        dedupe: `cv:dl:err:${versionId}`,
+        type: "error",
+        title: "Download failed",
+        message: err.message || "Could not download CV.",
+      });
+    }
+  };
+
+  // Open Regenerate Dialog
+  const handleOpenRegenerate = (job: RunJobItem) => {
+    setRegenerateJob(job);
+    setRegeneratePrompt("");
+  };
+
+  // Confirm Regenerate
+  const handleConfirmRegenerate = async () => {
+    if (!regenerateJob) return;
+    setRegenerating(true);
+    try {
+      await regenerateCvVersion(
+        runId,
+        regenerateJob.run_job_id,
+        typeof regenerateJob.current_cv_version_id === "string" ? regenerateJob.current_cv_version_id : null
+      );
+      notificationStore.notify({
+        dedupe: `cv:regen:${regenerateJob.run_job_id}`,
+        type: "success",
+        title: "Regeneration Queued",
+        message: `CV regeneration started for ${regenerateJob.title}.`,
+      });
+      setRegenerateJob(null);
+      loadJobs(jobsPage);
+    } catch (err: any) {
+      notificationStore.notify({
+        dedupe: `cv:regen:err:${regenerateJob.run_job_id}`,
+        type: "error",
+        title: "Regeneration Failed",
+        message: err.message || "Could not queue regeneration.",
+      });
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  // Helper to extract application URL safely
+  const getJobApplicationUrl = (item: RunJobItem): string => {
+    const rawUrl =
+      item.source_url ||
+      item.job_url ||
+      (item.source_snapshot as any)?.job_url ||
+      (item.source_snapshot as any)?.jobUrl ||
+      (item.source_snapshot as any)?.applyUrl ||
+      (item.source_snapshot as any)?.url ||
+      "";
+    if (!rawUrl || typeof rawUrl !== "string") {
+      return "#";
+    }
+    const clean = rawUrl.trim();
+    return clean.startsWith("http://") || clean.startsWith("https://") ? clean : "#";
+  };
+
+  // Format skills list with prototype 5 + overflow chip
+  const renderSkillChips = (item: RunJobItem) => {
+    const rawSkills = item.skills || (item.source_snapshot as any)?.skills || (item.attributes as any)?.skills || [];
+    const skillsList: string[] = Array.isArray(rawSkills) ? rawSkills.map(String) : [];
+    if (skillsList.length === 0) {
+      return <span style={{ color: "var(--muted)", fontSize: 12 }}>—</span>;
+    }
+    const visible = skillsList.slice(0, 5);
+    const extra = skillsList.length - visible.length;
+    return (
+      <div className="skill-list">
+        {visible.map((s, idx) => (
+          <span key={idx} className="skill-chip">
+            {s}
+          </span>
+        ))}
+        {extra > 0 && <span className="skill-chip">+{extra} more</span>}
+      </div>
+    );
+  };
+
+  // Format job attributes
+  const renderJobAttributes = (item: RunJobItem) => {
+    const snapshot = (item.source_snapshot || item.attributes || {}) as Record<string, any>;
+    const loc = item.location || snapshot.location || snapshot.city || "—";
+    const mode = snapshot.work_mode || snapshot.workMode || item.work_mode || "—";
+    const lang = snapshot.language || item.language || "—";
+    const sen = snapshot.seniority || item.seniority || "—";
+    const fam = snapshot.role_family || snapshot.job_family || snapshot.roleFamily || item.role_family || "—";
+    const dom = snapshot.domain || snapshot.industry || item.domain || "—";
+
+    const attrs = [
+      ["Location", loc],
+      ["Work Mode", mode],
+      ["Language", lang],
+      ["Seniority", sen],
+      ["Job Family", fam],
+      ["Domain", dom],
+    ];
+
+    return (
+      <div className="job-attributes">
+        {attrs.map(([label, val]) => (
+          <div key={label} className="job-attribute">
+            <span>{label}</span>
+            <strong>{String(val)}</strong>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
 
   // Stages display
   const stages: RunStageResource[] = useMemo(() => {
@@ -279,81 +488,151 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
     }));
   }, [run]);
 
-  // Job columns
+  // Job columns matching prototype specification
   const jobColumns: TableColumn<RunJobItem>[] = useMemo(() => {
     return [
       {
-        key: "title",
-        header: "Job Title & Company",
-        render: (item) => (
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontWeight: 600, fontSize: 14 }}>{item.title || "Untitled Job"}</span>
-            <span style={{ fontSize: 12, color: "var(--muted)" }}>
-              {item.company} {item.location ? `· ${item.location}` : ""} · <span style={{ fontFamily: "var(--font-mono)" }}>{item.job_id || item.run_job_id}</span>
-            </span>
-          </div>
-        ),
-      },
-      {
-        key: "current_stage_id",
-        header: "Current Stage",
-        width: "140px",
-        render: (item) => (
-          <span style={{ fontSize: 13, textTransform: "capitalize" }}>
-            {item.current_stage_id || "—"}
-          </span>
-        ),
-      },
-      {
-        key: "result_bucket",
-        header: "Result",
-        width: "110px",
+        key: "title_actions",
+        header: "Job & Actions",
         render: (item) => {
-          if (item.result_bucket === "passed") {
-            return <StatusBadge status="success" label="Passed" />;
-          }
-          if (item.result_bucket === "rejected") {
-            return <StatusBadge status="danger" label="Rejected" />;
-          }
-          return <span style={{ color: "var(--muted)", fontSize: 13 }}>—</span>;
+          const appUrl = getJobApplicationUrl(item);
+          const hasCv = Boolean(item.current_cv_version_id || (item.cv_versions_count && item.cv_versions_count > 0));
+          const currentRating = typeof item.rating === "number" ? item.rating : item.interest_rating || 0;
+          const isBookmarked = Boolean(item.bookmarked);
+          const cvCanRegenerate = Boolean(item.capabilities?.regenerate_cv ?? hasCv);
+
+          return (
+            <div className="job-primary">
+              <div className="job-title-row">
+                <a
+                  className="job-title-link"
+                  href={appUrl !== "#" ? appUrl : undefined}
+                  target={appUrl !== "#" ? "_blank" : undefined}
+                  rel={appUrl !== "#" ? "noopener noreferrer" : undefined}
+                  title={item.title || "Untitled Job"}
+                >
+                  {item.title || "Untitled Job"}
+                </a>
+              </div>
+
+              {/* Interest Rating & Bookmark */}
+              <div className="interest-rating" aria-label={`Application Interest for ${item.title || "Job"}`}>
+                {[1, 2, 3, 4, 5].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className="star-btn"
+                    aria-label={`Rate ${val} of 5`}
+                    aria-pressed={val <= currentRating}
+                    onClick={() => handleRateJob(item, val)}
+                  >
+                    ★
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="small-action clear-rating"
+                  disabled={!currentRating}
+                  onClick={() => handleRateJob(item, 0)}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className="small-action icon-only bookmark-btn"
+                  aria-pressed={isBookmarked}
+                  aria-label={`${isBookmarked ? "Remove" : "Add"} bookmark for ${item.title || "Job"}`}
+                  title={`${isBookmarked ? "Remove" : "Add"} bookmark`}
+                  onClick={() => handleToggleBookmark(item)}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-3.75L6 21V4.5Z" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* CV Actions in same table */}
+              {(hasCv || cvCanRegenerate) && (
+                <div className="job-action-row">
+                  {hasCv && (
+                    <>
+                      <button
+                        type="button"
+                        className="small-action"
+                        onClick={() => handleViewCv(item)}
+                        aria-label={`View generated CV for ${item.title || "Job"}`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13">
+                          <path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5Z" />
+                          <circle cx="12" cy="12" r="2.5" />
+                        </svg>
+                        <span>View CV</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="small-action"
+                        onClick={() => handleDownloadCv(item)}
+                        aria-label={`Download generated CV for ${item.title || "Job"}`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13">
+                          <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14" />
+                        </svg>
+                        <span>Download CV</span>
+                      </button>
+                    </>
+                  )}
+                  {cvCanRegenerate && (
+                    <button
+                      type="button"
+                      className="small-action"
+                      onClick={() => handleOpenRegenerate(item)}
+                      aria-label={`Regenerate CV for ${item.title || "Job"}`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13">
+                        <path d="M20 6v5h-5M4 18v-5h5M6.1 8A7 7 0 0 1 18 6l2 2M17.9 16A7 7 0 0 1 6 18l-2-2" />
+                      </svg>
+                      <span>Regenerate CV</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
         },
       },
       {
-        key: "status",
-        header: "Stage Outcome",
-        width: "130px",
-        render: (item) => {
-          const variant: StatusVariant =
-            item.status === "passed" || item.status === "generated"
-              ? "success"
-              : item.status === "rejected" || item.status === "failed" || item.status === "blocked"
-              ? "danger"
-              : item.status === "review_required"
-              ? "warn"
-              : "neutral";
-          return <StatusBadge status={variant} label={item.status || "pending"} />;
-        },
+        key: "job_attributes",
+        header: "Job Attributes",
+        render: (item) => renderJobAttributes(item),
       },
       {
-        key: "cv_status",
-        header: "CV Generation",
-        width: "140px",
+        key: "required_skills",
+        header: "Required Skills",
+        render: (item) => renderSkillChips(item),
+      },
+      {
+        key: "pipeline_outcome",
+        header: "Pipeline Outcome",
+        width: "200px",
         render: (item) => {
-          if (item.cv_versions_count && item.cv_versions_count > 0) {
-            return (
-              <span style={{ fontSize: 13, color: "var(--info)", fontWeight: 500 }}>
-                {item.cv_versions_count} version(s)
-              </span>
-            );
-          }
-          if (item.latest_cv_generation_status) {
-            return <span style={{ fontSize: 12 }}>{item.latest_cv_generation_status}</span>;
-          }
-          return <span style={{ color: "var(--muted)", fontSize: 12 }}>None</span>;
+          const isPassed = item.result_bucket === "passed" || item.status === "passed" || item.status === "generated";
+          const isRejected = item.result_bucket === "rejected" || item.status === "rejected" || item.status === "failed";
+          const badgeStatus: StatusVariant = isPassed ? "success" : isRejected ? "danger" : "neutral";
+          const label = String(item.outcome_code || (isPassed ? "Passed" : isRejected ? "Rejected" : item.status || "Pending"));
+          const reason = String(item.reason_code || (item as any).stage_outcome_reason || (item as any).reject_reason || "");
+          const isStretch = item.latest_cv_review_state === "stretch" || (item as any).cv_review_state === "stretch";
+
+          return (
+            <div className="pipeline-outcome">
+              <StatusBadge status={badgeStatus} label={label} />
+              {reason && <span className="outcome-reason">{reason}</span>}
+              {isStretch && <span className="cv-review-tag">Stretch review</span>}
+            </div>
+          );
         },
       },
     ];
-  }, []);
+  }, [runId]);
 
   if (loading) {
     return <LoadingState message="Loading run details..." />;
@@ -593,9 +872,14 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
           <LoadingState message="Loading jobs..." />
         ) : (
           <DataTable
+            className="jobs-table"
             columns={jobColumns}
             data={jobs}
             keyField="run_job_id"
+            selectedKeys={new Set(selectedJobIds)}
+            onToggleSelect={(id) => setSelectedJobIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])}
+            onSelectAll={() => setSelectedJobIds((prev) => prev.length === jobs.length ? [] : jobs.map((j) => j.run_job_id))}
+            isAllSelected={jobs.length > 0 && selectedJobIds.length === jobs.length}
             page={jobsPage}
             pageSize={jobsPageSize}
             total={jobsTotal}
@@ -614,6 +898,66 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack }) =
         isLive={!isTerminal}
         onRefresh={pollEvents}
       />
+
+            {/* CV Preview Dialog */}
+      <Dialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title={previewTitle || "CV Preview"}
+        description="Review generated content without downloading a file."
+        footer={
+          <Button variant="primary" onClick={() => setPreviewOpen(false)}>
+            Close
+          </Button>
+        }
+      >
+        {previewLoading && <LoadingState message="Loading CV preview..." />}
+        {previewError && <div className="notice error">{previewError}</div>}
+        {!previewLoading && !previewError && (
+          <pre
+            style={{
+              padding: 16,
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-md)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 13,
+              whiteSpace: "pre-wrap",
+              maxHeight: "60vh",
+              overflowY: "auto",
+            }}
+          >
+            {previewContent}
+          </pre>
+        )}
+      </Dialog>
+
+      {/* CV Regenerate Prompt Dialog */}
+      <Dialog
+        open={regenerateJob !== null}
+        onClose={() => setRegenerateJob(null)}
+        title={regenerateJob ? `Regenerate CV for ${regenerateJob.title}` : "Regenerate CV"}
+        description="This creates a new CV artifact for this job using verified Candidate Profile evidence."
+        footer={
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", width: "100%" }}>
+            <Button variant="secondary" onClick={() => setRegenerateJob(null)} disabled={regenerating}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleConfirmRegenerate} loading={regenerating}>
+              Regenerate CV
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <Field
+            label="Regeneration Guidance (Optional)"
+            placeholder="Focus on data engineering and Python architecture experience..."
+            value={regeneratePrompt}
+            onChange={(e) => setRegeneratePrompt(e.target.value)}
+          />
+        </div>
+      </Dialog>
 
       {/* Confirmation Dialog */}
       <Dialog

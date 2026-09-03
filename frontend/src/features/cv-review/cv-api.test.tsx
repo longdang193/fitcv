@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { route } from "./route";
 import {
   fetchCvVersions,
   fetchCvPreview,
@@ -11,14 +10,6 @@ import {
 describe("CV Review route and contracts", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it("exposes valid route metadata for discovery", () => {
-    expect(route.id).toBe("cv-review");
-    expect(route.path).toBe("#/cv-review");
-    expect(route.title).toBe("CV Review");
-    expect(route.group).toBe("workspace");
-    expect(typeof route.component).toBe("function");
   });
 
   it("fetches ordered CV versions for a run job", async () => {

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { candidateProfileEditHash, parseCandidateRoute } from "../features/candidate-profile/route";
+import {
+  candidateProfileBaselineApprovalHash,
+  candidateProfileEditHash,
+  parseCandidateRoute,
+} from "../features/candidate-profile/route";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import {
   generateIdempotencyKey,
@@ -81,6 +85,23 @@ describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
     expect(candidateProfileEditHash("attempt with spaces")).toBe(
       "#/candidate-profile/create/attempt%20with%20spaces/baseline"
     );
+  });
+
+  it("opens Stage 3 when baseline approval returns derived review", () => {
+    expect(
+      candidateProfileBaselineApprovalHash({
+        attempt_id: "att_unchanged",
+        creation_status: "derived_review",
+        next_action: "review_derived",
+      } as any)
+    ).toBe("#/candidate-profile/create/att_unchanged/derived");
+    expect(
+      candidateProfileBaselineApprovalHash({
+        attempt_id: "att_changed",
+        creation_status: "deriving",
+        next_action: "wait",
+      } as any)
+    ).toBe("#/candidate-profile/create/att_changed");
   });
 
   it("discovers candidate-profile route via discoverFeatureRoutes()", () => {

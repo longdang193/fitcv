@@ -16,15 +16,13 @@ export const EventConsole: React.FC<EventConsoleProps> = ({
   const [clearedEventIds, setClearedEventIds] = useState<Set<string>>(new Set());
   const [eventLevelFilter, setEventLevelFilter] = useState<string>("all");
   const [eventSearch, setEventSearch] = useState<string>("");
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [autoScroll, setAutoScroll] = useState(false);
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(new Set());
   const consoleBottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (autoScroll && consoleBottomRef.current) {
-      consoleBottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [events, autoScroll]);
+    // Auto-scroll disabled to prevent disruptive window scrolling on new events
+  }, [events]);
 
   const handleClearConsole = () => {
     setClearedEventIds(new Set(events.map((e) => e.event_id)));

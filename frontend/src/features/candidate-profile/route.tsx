@@ -55,6 +55,14 @@ export function candidateProfileEditHash(attemptId: string): string {
   return `#/candidate-profile/create/${encodeURIComponent(attemptId)}/baseline`;
 }
 
+export function candidateProfileBaselineApprovalHash(attempt: CreationAttempt): string {
+  const stage =
+    attempt.next_action === "review_derived" || attempt.creation_status === "derived_review"
+      ? "/derived"
+      : "";
+  return `#/candidate-profile/create/${encodeURIComponent(attempt.attempt_id)}${stage}`;
+}
+
 export const CandidateProfileRoute: React.FC = () => {
   const [currentHash, setCurrentHash] = useState<string>(() => {
     if (typeof window !== "undefined" && window.location.hash) {
@@ -150,8 +158,8 @@ export const CandidateProfileRoute: React.FC = () => {
     }
   };
 
-  const handleBaselineApproved = (attemptId: string) => {
-    navigate(`#/candidate-profile/create/${encodeURIComponent(attemptId)}`);
+  const handleBaselineApproved = (attempt: CreationAttempt) => {
+    navigate(candidateProfileBaselineApprovalHash(attempt));
   };
 
   const handleDerivedApproved = (attemptId: string) => {
@@ -208,7 +216,7 @@ export const CandidateProfileRoute: React.FC = () => {
       {routeState.view === "create_baseline" && routeState.attemptId && (
         <BaselineReviewStep
           attemptId={routeState.attemptId}
-          onApproveSuccess={() => handleBaselineApproved(routeState.attemptId!)}
+          onApproveSuccess={handleBaselineApproved}
           onSaveAndExit={handleBackToCatalog}
         />
       )}

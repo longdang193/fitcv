@@ -23,8 +23,6 @@ describe("Frontend App Shell & Whole-Slice Integration", () => {
     expect(routeIds).toContain("candidate-profile");
     expect(routeIds).toContain("scans");
     expect(routeIds).toContain("runs");
-    expect(routeIds).toContain("job-evaluation");
-    expect(routeIds).toContain("cv-review");
     expect(routeIds).toContain("bookmarks");
     expect(routeIds).toContain("personalization");
 

@@ -5181,7 +5181,7 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
     assert baseline_review["capabilities"]["patch"] is True
     assert baseline_review["capabilities"]["approve"] is True
 
-    # Approve baseline -> derives -> confirms successor
+    # Unchanged baseline promotes copied derived claims without starting LLM work.
     approved_base = sqlite_store.approve_candidate_profile_review(
         edit_attempt["attempt_id"],
         "baseline",
@@ -5190,4 +5190,42 @@ def test_create_candidate_profile_edit_attempt_routes_to_baseline_review(tmp_pat
         idempotency_key="approve-base-edit",
         database_path=database_path,
     )
-    assert approved_base["creation_status"] == "deriving"
+    assert approved_base["creation_status"] == "derived_review"
+    assert approved_base["next_action"] == "review_derived"
+    assert approved_base["processing"]["stage"] is None
+    derived_review = sqlite_store.get_candidate_profile_review(
+        edit_attempt["attempt_id"], "derived", database_path=database_path
+    )
+    assert derived_review is not None
+    assert derived_review["document"] == {
+        key: profile["profile"]["canonical"][key]
+        for key in ("skills", "role_families", "domain_tags", "responsibility_themes")
+    }
+    assert derived_review["document"]["skills"][0]["evidence_refs"]
+
+    # Changed baseline keeps normal derivation behavior.
+    changed_edit = sqlite_store.create_candidate_profile_edit_attempt(
+        profile_id,
+        idempotency_key="edit-key-2",
+        database_path=database_path,
+    )
+    changed_baseline = sqlite_store.patch_candidate_profile_review(
+        changed_edit["attempt_id"],
+        "baseline",
+        expected_revision=changed_edit["revision"],
+        operations=[{"operation": "replace", "path": "/headline", "value": "Changed headline"}],
+        idempotency_key="patch-edit-baseline",
+        database_path=database_path,
+    )
+    changed_approval = sqlite_store.approve_candidate_profile_review(
+        changed_edit["attempt_id"],
+        "baseline",
+        expected_revision=changed_baseline["revision"],
+        expected_fingerprint=changed_baseline["fingerprint"],
+        idempotency_key="approve-changed-edit",
+        database_path=database_path,
+    )
+    assert changed_approval["creation_status"] == "deriving"
+    assert changed_approval["next_action"] == "wait"
+    assert changed_approval["processing"]["stage"] == "derived_claims"
+    assert changed_approval["processing"]["claim_id"]
