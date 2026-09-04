@@ -82,5 +82,14 @@ describe("accessibility and design token compliance", () => {
     expect(mainCss).toContain("color: var(--danger);");
     expect(mainCss).toContain(".console-level[data-level=\"warning\"]");
     expect(mainCss).toContain("color: var(--warn);");
+
+    // Compact action and rating button 44px touch targets and semantic token reuse
+    expect(mainCss).toContain(".btn-compact::after");
+    expect(mainCss).toContain(".small-action::after");
+    expect(mainCss).toContain(".star-btn {");
+    expect(mainCss).toContain("min-width: 44px;");
+    expect(mainCss).toContain("min-height: 44px;");
+    expect(mainCss).toContain(".star-btn[aria-pressed=\"true\"]");
+    expect(mainCss).toContain("color: var(--warn);");
   });
 });

@@ -147,13 +147,12 @@ export const AppShell: React.FC = () => {
   const activeRoute = matchRoute(currentHash, routes);
   const ActiveComponent = activeRoute.component;
 
-  // Route-change heading focus and polite screen reader announcement
+  // Route-change polite screen reader announcement without stealing keyboard focus
   useEffect(() => {
     if (isFirstRouteMount.current) {
       isFirstRouteMount.current = false;
       return;
     }
-    headingRef.current?.focus();
     setRouteAnnouncement(`Navigated to ${activeRoute.title}`);
   }, [activeRoute.id, activeRoute.title]);
 

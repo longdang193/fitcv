@@ -962,9 +962,21 @@ summary:focus-visible {
 }
 
 .btn-compact {
-  min-height: 30px;
+  min-height: 32px;
   padding: 0 10px;
   font-size: 12px;
+  position: relative;
+}
+.btn-compact::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
 }
 
 /* Fields */
@@ -1094,6 +1106,10 @@ dialog.native-dialog::backdrop {
 }
 
 .tab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   padding: 8px 14px;
   border: 1px solid transparent;
   border-bottom: 2px solid transparent;
@@ -1441,26 +1457,37 @@ dialog.native-dialog::backdrop {
   white-space: nowrap;
 }
 .star-btn {
-  padding: 0 2px;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--border);
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
 }
+.star-btn:hover {
+  background: var(--surface-2);
+}
 .star-btn[aria-pressed="true"] {
-  color: #d99720;
+  color: var(--warn);
 }
 .clear-rating {
   margin-left: 6px;
+  min-height: 44px;
 }
 .small-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 26px;
+  min-height: 28px;
   padding: 0 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1472,6 +1499,18 @@ dialog.native-dialog::backdrop {
   line-height: 1;
   white-space: nowrap;
   text-decoration: none;
+  position: relative;
+}
+.small-action::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
 }
 .small-action:hover:not(:disabled) {
   border-color: var(--accent);
