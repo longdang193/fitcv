@@ -54,8 +54,10 @@ not monitor or supervise executor-local subagents from CoS.
 Before any Herdr control, require `HERDR_ENV=1`; if it is absent, return
 `BLOCKED`. Starting or attaching `herdr --session ...` from the current process
 does not add controller attestation; do not present it as a fix. Start CoS from
-a Herdr-managed controller pane. Never set or spoof this variable to bypass
-Herdr safety.
+a Herdr-managed controller pane. Before local dispatch, run
+`py -B scripts/validate_agent_runtime_drift.py --all-platforms`; a failed check
+returns `BLOCKED`. `--skip-deploy-check` is CI-only and never satisfies local
+CoS dispatch. Never set or spoof this variable to bypass Herdr safety.
 
 ## Conditional References
 

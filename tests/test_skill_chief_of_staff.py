@@ -39,6 +39,8 @@ def test_chief_of_staff_has_deterministic_binding_runtime_and_status_contract() 
         "agents/*.toml` owns its profile identity",
         "selected profile, resolved model, and Herdr launch binding",
         "scripts/herdr_main_launcher.py",
+        "Before local dispatch, run\n`py -B scripts/validate_agent_runtime_drift.py --all-platforms`",
+        "`--skip-deploy-check` is CI-only",
         "CoS verifies the full lane contract",
         "Pass `--profile`,\n`--executor`, `--session`, `--pane`, `--cwd`, and `--expected-base`; pass",
         "--task` for `deepagents`",
