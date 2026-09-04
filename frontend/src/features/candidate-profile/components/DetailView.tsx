@@ -185,8 +185,8 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
             gap: 16,
           }}
         >
-          <div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 4 }}>
+          <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)" }}>
                 Candidate Profile
               </span>
@@ -194,9 +194,9 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
                 status={isArchived ? "neutral" : "success"}
                 label={isArchived ? "Archived" : "Active"}
               />
-              <code style={{ fontSize: 12, color: "var(--muted)" }}>{profile.profile_id}</code>
+              <code style={{ fontSize: 12, color: "var(--muted)", overflowWrap: "anywhere" }}>{profile.profile_id}</code>
             </div>
-            <h2 style={{ margin: "4px 0", fontSize: 24, fontFamily: "var(--display-font)" }}>
+            <h2 style={{ margin: "4px 0", fontSize: 24, fontFamily: "var(--display-font)", overflowWrap: "anywhere" }}>
               {profile.display_name || profile.profile_name}
             </h2>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>

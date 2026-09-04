@@ -35,4 +35,30 @@ test.describe("Candidate Profile Feature Journey", () => {
     await page.click("button:has-text('Back to Candidate Profiles')");
     await expect(page.locator("h2")).toContainText("Candidate Profiles");
   });
+
+  test("keeps candidate profile detail within 390px viewport", async ({ page }) => {
+    await page.route("**/candidate-profiles/profile_mobile", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            profile_id: "profile_mobile",
+            profile_name: "Mobile Profile",
+            display_name: "A very long candidate profile name that must wrap on mobile",
+            lifecycle: "active",
+            creation_status: "succeeded",
+            revision: 1,
+            created_at: "2026-09-04T00:00:00Z",
+            capabilities: { archive: false, edit: false },
+            canonical: {},
+          },
+        }),
+      });
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/app/#/candidate-profile/profile_mobile");
+    await expect(page.locator("h2")).toContainText("very long candidate profile name");
+    await expect(page.locator("main")).toHaveJSProperty("scrollWidth", 390);
+  });
 });
