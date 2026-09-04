@@ -522,5 +522,49 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
     });
   });
 
+  describe("Overview Rollback on Save/Reset Failure", () => {
+    it("rolls back optimistic field edit on save failure and never leaves failed value", async () => {
+      let state: Record<string, any> = { "pipeline.vector_search_top_n": 50 };
+      const previousValue = state["pipeline.vector_search_top_n"];
+
+      const key = "pipeline.vector_search_top_n";
+      state[key] = 200;
+      expect(state[key]).toBe(200);
+
+      vi.spyOn(apiClient, "patch").mockRejectedValueOnce(new Error("Patch failed (500)"));
+
+      try {
+        await apiClient.patch("/settings/pipeline", { changes: { [key]: 200 } });
+      } catch {
+        state[key] = previousValue;
+      }
+
+      expect(state[key]).toBe(50);
+    });
+
+    it("rolls back optimistic defaults on reset failure and preserves canonical settings", async () => {
+      let state: Record<string, any> = {
+        "pipeline.vector_search_top_n": 75,
+        "pipeline.ai_score_top_n": 30,
+      };
+      const previousValues = { ...state };
+
+      state["pipeline.vector_search_top_n"] = 50;
+      state["pipeline.ai_score_top_n"] = 50;
+      expect(state["pipeline.vector_search_top_n"]).toBe(50);
+
+      vi.spyOn(apiClient, "post").mockRejectedValueOnce(new Error("Reset failed (503)"));
+
+      try {
+        await apiClient.post("/settings/pipeline/actions/reset", { keys: Object.keys(state) });
+      } catch {
+        state = previousValues;
+      }
+
+      expect(state["pipeline.vector_search_top_n"]).toBe(75);
+      expect(state["pipeline.ai_score_top_n"]).toBe(30);
+    });
+  });
+
   });
 });

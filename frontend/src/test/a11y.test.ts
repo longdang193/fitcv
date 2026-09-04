@@ -61,5 +61,26 @@ describe("accessibility and design token compliance", () => {
 
     // Zero-results state
     expect(mainCss).toContain(".zero-results-state");
+
+    // Skip link
+    expect(mainCss).toContain(".skip-link {");
+    expect(mainCss).toContain(".skip-link:focus");
+
+    // Dialog close and dismiss button 44px targets
+    expect(mainCss).toContain(".dialog-close {");
+    expect(mainCss).toContain(".notification-dismiss-btn");
+    expect(mainCss).toContain(".toast-dismiss-btn");
+
+    // Pipeline settings dialog responsive reflow at <= 640px (including 390px mobile)
+    expect(mainCss).toContain("@media (max-width: 640px)");
+    expect(mainCss).toContain("grid-template-columns: 1fr;");
+    expect(mainCss).toContain("flex-direction: row;");
+
+    // Semantic token reuse for status and console log levels
+    expect(mainCss).toContain("background: var(--success-soft);");
+    expect(mainCss).toContain(".console-level[data-level=\"error\"]");
+    expect(mainCss).toContain("color: var(--danger);");
+    expect(mainCss).toContain(".console-level[data-level=\"warning\"]");
+    expect(mainCss).toContain("color: var(--warn);");
   });
 });
