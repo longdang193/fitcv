@@ -440,7 +440,7 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
                       variant="secondary"
                       size="compact"
                       onClick={handleRestoreSectionDefaults}
-                      aria-label={"Restore defaults for " + activeSection.title}
+                      aria-label={"Restore Section Defaults for " + activeSection.title}
                     >
                       Restore Section Defaults
                     </Button>
@@ -589,7 +589,7 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
             variant="secondary"
             onClick={handleRestoreAllDefaults}
             disabled={loading || saving || Boolean(loadError)}
-            aria-label="Restore all pipeline defaults"
+            aria-label="Restore Defaults for all pipeline settings"
           >
             Restore Defaults
           </Button>

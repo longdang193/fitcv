@@ -134,8 +134,9 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
       // Per-section Restore Default button
       expect(markup).toContain("Restore Section Defaults");
 
-      // Global Restore Defaults button in footer
+      // Global Restore Defaults button in footer with WCAG 2.5.3 label-in-name alignment
       expect(markup).toContain("Restore Defaults");
+      expect(markup).toContain('aria-label="Restore Defaults for all pipeline settings"');
 
       // One dialog Save button
       expect(markup).toContain("Save");
@@ -163,7 +164,7 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
       expect(markup).toContain('aria-controls="pipeline-panel-screening"');
       expect(markup).toContain('id="pipeline-panel-screening"');
       expect(markup).toContain('aria-labelledby="pipeline-tab-screening"');
-      expect(markup).toContain('aria-label="Restore defaults for Screening"');
+      expect(markup).toContain('aria-label="Restore Section Defaults for Screening"');
     });
 
     it("renders specific section content when initialSection is set to screening", () => {
