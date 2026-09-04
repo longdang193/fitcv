@@ -12,6 +12,7 @@ import { BookmarkItem } from "./types";
 import { RunJobItem } from "../runs/types";
 import { Button, Dialog } from "../../components";
 import { notificationStore } from "../../lib/notifications";
+import { FilterTabs } from "../run-detail/components/FilterTabs";
 
 const PIPELINE_STAGES: { id: string; label: string }[] = [
   { id: "all", label: "All Jobs" },
@@ -226,26 +227,18 @@ export const BookmarksPage: React.FC = () => {
 
       <div className="run-panel">
         {/* Pipeline Stage Tabs */}
-        <div className="pipeline-stage-tabs" role="tablist" aria-label="Bookmark pipeline stages">
-          {PIPELINE_STAGES.map((stage) => (
-            <button
-              key={stage.id}
-              className="btn"
-              type="button"
-              role="tab"
-              data-bookmark-stage={stage.id}
-              aria-selected={stageFilter === stage.id}
-              tabIndex={stageFilter === stage.id ? 0 : -1}
-              onClick={() => {
-                setStageFilter(stage.id);
-                setPage(1);
-                setSelectedJobIds([]);
-              }}
-            >
-              {stage.label}
-            </button>
-          ))}
-        </div>
+        <FilterTabs
+          className="pipeline-stage-tabs"
+          items={PIPELINE_STAGES.map((stage) => ({ ...stage, dataAttribute: "data-bookmark-stage" }))}
+          activeId={stageFilter}
+          ariaLabel="Bookmark pipeline stages"
+          panelId="bookmarkTablePanel"
+          onChange={(stageId) => {
+            setStageFilter(stageId);
+            setPage(1);
+            setSelectedJobIds([]);
+          }}
+        />
 
         {/* Results Toolbar */}
         <div className="results-toolbar">
@@ -301,7 +294,7 @@ export const BookmarksPage: React.FC = () => {
         )}
 
         {/* Bookmarks Table Panel */}
-        <div id="bookmarkTablePanel">
+        <div id="bookmarkTablePanel" role="tabpanel" aria-label="Bookmarked jobs">
           {loadError && (
             <div className="notice error" role="alert" style={{ marginBottom: 16 }}>
               Failed to load bookmarks: {loadError}{" "}

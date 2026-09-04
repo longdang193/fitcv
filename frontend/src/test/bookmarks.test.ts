@@ -14,10 +14,33 @@ import { BookmarksTable } from "../features/bookmarks/components/BookmarksTable"
 import { BookmarkItem } from "../features/bookmarks/types";
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
+import { FilterTabs, getNextFilterTabIndex } from "../features/run-detail/components/FilterTabs";
 
 describe("bookmarks slice and api", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("uses accessible filter tabs with selected state and controlled panel", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(FilterTabs, {
+        items: [{ id: "all", label: "All Jobs" }, { id: "ranking", label: "Ranking" }],
+        activeId: "ranking",
+        onChange: () => undefined,
+        ariaLabel: "Bookmark pipeline stages",
+        panelId: "bookmarkTablePanel",
+        className: "pipeline-stage-tabs",
+      })
+    );
+    expect(markup).toContain('role="tablist"');
+    expect(markup).toContain('aria-controls="bookmarkTablePanel"');
+    expect(markup).toContain('aria-selected="true"');
+    expect(markup).toContain('aria-selected="false"');
+    expect(markup).toContain('id="bookmarkTablePanel-tab-ranking"');
+    expect(getNextFilterTabIndex("ArrowRight", 1, 2)).toBe(0);
+    expect(getNextFilterTabIndex("ArrowLeft", 0, 2)).toBe(1);
+    expect(getNextFilterTabIndex("Home", 1, 2)).toBe(0);
+    expect(getNextFilterTabIndex("End", 0, 2)).toBe(1);
   });
 
   it("registers and matches bookmarks feature route", () => {
