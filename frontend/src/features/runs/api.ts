@@ -124,6 +124,24 @@ export function extractJobSkills(item: unknown): string[] {
   return [];
 }
 
+export function extractRequiredJobSkills(item: unknown): string[] {
+  if (!isRecord(item)) return [];
+  const snapshot = isRecord(item.source_snapshot) ? item.source_snapshot : {};
+  const attributes = isRecord(item.attributes) ? item.attributes : {};
+  const job = isRecord(item.job) ? item.job : {};
+  for (const value of [
+    item.required_skills, item.required_skills_display,
+    item.required_skills_canonical, item.must_have_skills,
+    snapshot.required_skills, snapshot.required_skills_display,
+    snapshot.required_skills_canonical, snapshot.must_have_skills,
+    attributes.required_skills, job.required_skills,
+  ]) {
+    const skills = normalizeSkillValues(value);
+    if (skills.length > 0) return skills;
+  }
+  return [];
+}
+
 export async function fetchRunJobs(
   runId: string,
   params?: {
@@ -171,7 +189,7 @@ export async function fetchRunJobs(
       return {
         ...job,
         skills,
-        required_skills: skills,
+        required_skills: extractRequiredJobSkills(job),
         interest_rating: job.interest_rating ?? (typeof job.rating === 'number' ? job.rating : null),
       };
     }),

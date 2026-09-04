@@ -34,7 +34,7 @@ export const InterestRating: React.FC<InterestRatingProps> = ({
         gap: 2,
         whiteSpace: "nowrap",
       }}
-      role="group"
+      role="radiogroup"
       aria-label={`${ariaLabelPrefix}: ${rating ? `${rating} of 5 stars` : "Unrated"}`}
     >
       {[1, 2, 3, 4, 5].map((star) => {
@@ -46,7 +46,8 @@ export const InterestRating: React.FC<InterestRatingProps> = ({
             type="button"
             className="star-btn"
             disabled={disabled}
-            aria-pressed={isCurrent}
+            role="radio"
+            aria-checked={isCurrent}
             aria-label={`Rate ${star} star${star > 1 ? "s" : ""} - ${RATING_LABELS[star]}`}
             onClick={() => {
               if (rating === star) {
