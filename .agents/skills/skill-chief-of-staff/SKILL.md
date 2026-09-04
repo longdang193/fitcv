@@ -15,6 +15,7 @@ and dispatch, lane briefing, evidence reconciliation, blocker routing, retiremen
 and escalation. `skill-executing-plans` owns
 approved-plan execution.
 CoS coordinates work; it does not own work execution or canonical work truth.
+Top-level main agents are CoS execution lanes; executor-local subagents are not.
 
 ## Activation
 
@@ -51,13 +52,13 @@ never invokes subagents directly. Use the repository Herdr command
 `py -B scripts/herdr_main_launcher.py ...` for dispatch. Monitor only the
 top-level lane and wrapper through provider-resolved wait/read operations; do
 not monitor or supervise executor-local subagents from CoS.
-Before any Herdr control, require `HERDR_ENV=1`; if it is absent, return
-`BLOCKED`. Starting or attaching `herdr --session ...` from the current process
-does not add controller attestation; do not present it as a fix. Start CoS from
-a Herdr-managed controller pane. Before local dispatch, run
+CoS may be invoked from a native Codex session. Before Herdr control, use the
+repository launcher; it proves controller authority through Herdr session, pane,
+process, cwd, and Git checks. `HERDR_ENV` is optional runtime metadata, never
+attestation, and must never be set or spoofed. Before local dispatch, run
 `py -B scripts/validate_agent_runtime_drift.py --all-platforms`; a failed check
 returns `BLOCKED`. `--skip-deploy-check` is CI-only and never satisfies local
-CoS dispatch. Never set or spoof this variable to bypass Herdr safety.
+CoS dispatch.
 
 ## Conditional References
 

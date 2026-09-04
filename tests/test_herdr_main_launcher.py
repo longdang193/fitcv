@@ -293,14 +293,12 @@ def test_main_starts_with_selected_codex_home(monkeypatch: pytest.MonkeyPatch, t
     assert captured["env"]["CODEX_HOME"] == str(codex_home.resolve())
 
 
-def test_launcher_requires_herdr_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_launcher_allows_external_codex_controller(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("HERDR_ENV", raising=False)
 
-    with pytest.raises(
-        LAUNCHER.LaunchBlocked,
-        match="HERDR_ENV=1 required.*cannot attest an existing process",
-    ):
-        LAUNCHER._herdr_environment()
+    environment = LAUNCHER._herdr_environment()
+
+    assert "HERDR_ENV" not in environment
 
 
 def test_profiles_share_launch_shape(tmp_path: Path) -> None:

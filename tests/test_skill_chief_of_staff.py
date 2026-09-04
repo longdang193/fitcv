@@ -39,6 +39,9 @@ def test_chief_of_staff_has_deterministic_binding_runtime_and_status_contract() 
         "agents/*.toml` owns its profile identity",
         "selected profile, resolved model, and Herdr launch binding",
         "scripts/herdr_main_launcher.py",
+        "CoS may be invoked from a native Codex session",
+        "proves controller authority through Herdr session, pane,\nprocess, cwd, and Git checks",
+        "Top-level main agents are CoS execution lanes; executor-local subagents are not.",
         "Before local dispatch, run\n`py -B scripts/validate_agent_runtime_drift.py --all-platforms`",
         "`--skip-deploy-check` is CI-only",
         "CoS verifies the full lane contract",
@@ -196,7 +199,7 @@ def test_planning_dispatch_selects_cos_for_sustained_implementation_coordination
     assert "sustained handoffs,\nindependent top-level implementation lanes" in dispatch
     assert "does not add\nan executor, profile, plan field, or durable state artifact" in dispatch
     assert "Herdr is\nruntime observation and top-level lane supervision" in dispatch
-    assert "only independent Herdr top-level lanes" in dispatch
+    assert "only independent Herdr top-level main-agent\nlanes" in dispatch
     assert "never calls\n`multi_agent_v1`, native Codex subagents" in dispatch
     assert "`tura` retains\nits existing peer executor path" in dispatch
 

@@ -49,7 +49,8 @@ It applies when the task ledger `Executor` is `codex` or `deepagents` for
 implementation lanes and runtime parity, plan binding, lane identity, and
 profile-binding gates pass under a native Codex lead controller. Herdr is
 runtime observation and top-level lane supervision, not executor selection or
-task acceptance. CoS dispatches only independent Herdr top-level lanes;
+task acceptance. CoS dispatches only independent Herdr top-level main-agent
+lanes;
 Codex uses a main-agent session and DeepAgents uses a bounded `dcode-project`
 pane process. It never calls
 `multi_agent_v1`, native Codex subagents, DeepAgents internal `task` workers,
