@@ -7,6 +7,15 @@ import {
   SelectionExportPayload,
 } from "./types";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseInteger(value: unknown, fallback: number, minimum: number): number {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) && parsed >= minimum ? Math.floor(parsed) : fallback;
+}
+
 export function generateIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -31,8 +40,29 @@ export async function fetchBookmarks(params?: {
 
   const qs = query.toString();
   const path = `/bookmarks${qs ? `?${qs}` : ""}`;
-  const res = await apiClient.get<BookmarksPaginationEnvelope>(path);
-  return res.data;
+  const res = await apiClient.get<any>(path);
+  const payload = isRecord(res.data) ? res.data : {};
+  const rawPage = isRecord(payload.page) ? payload.page : {};
+  const data = Array.isArray(payload.data) ? payload.data : [];
+  const pageSize = parseInteger(payload.page_size ?? rawPage.size ?? params?.page_size, 20, 1);
+  const totalItems = parseInteger(payload.total_items ?? rawPage.total_items, data.length, 0);
+  const pageNumber = parseInteger(
+    rawPage.number ?? payload.page_number ?? (typeof payload.page === "number" ? payload.page : params?.page),
+    1,
+    1
+  );
+  return {
+    data,
+    page: pageNumber,
+    page_size: pageSize,
+    total_items: totalItems,
+    total_pages: parseInteger(
+      payload.total_pages ?? rawPage.total_pages,
+      Math.max(1, Math.ceil(totalItems / pageSize)),
+      1
+    ),
+    meta: isRecord(payload.meta) ? payload.meta : undefined,
+  };
 }
 
 export async function updateBookmarkInterest(

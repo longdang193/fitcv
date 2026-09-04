@@ -135,6 +135,23 @@ describe("runs feature route and api slice", () => {
     expect(result.data[0].counts.total).toBe(10);
   });
 
+  it("normalizes canonical nested pagination for runs", async () => {
+    vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: {
+        data: [{ run_id: "run-1" }],
+        page: { number: 2, size: 20, total_items: 21, total_pages: 2 },
+        meta: { active_count: 21, archived_count: 0, view: "active", search: "", server_time: "2026-09-04T00:00:00Z" },
+      },
+      status: 200,
+    } as any);
+
+    const result = await fetchRuns({ view: "active", page: 2, page_size: 20 });
+    expect(result.page).toBe(2);
+    expect(result.page_size).toBe(20);
+    expect(result.total_items).toBe(21);
+    expect(result.total_pages).toBe(2);
+  });
+
   it("fetches single run detail", async () => {
     const mockDetail = {
       data: {

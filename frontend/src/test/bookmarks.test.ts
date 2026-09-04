@@ -221,6 +221,23 @@ describe("bookmarks slice and api", () => {
     expect(markup).toContain("+1 more");
   });
 
+  it("normalizes canonical nested pagination for bookmarks", async () => {
+    vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: {
+        data: [{ run_job_id: "rj-1" }],
+        page: { number: 2, size: 20, total_items: 21, total_pages: 2 },
+        meta: {},
+      },
+      status: 200,
+    } as any);
+
+    const result = await fetchBookmarks({ page: 2, page_size: 20 });
+    expect(result.page).toBe(2);
+    expect(result.page_size).toBe(20);
+    expect(result.total_items).toBe(21);
+    expect(result.total_pages).toBe(2);
+  });
+
   it("renders BookmarksPage structure with prototype headings and pipeline stage tabs", () => {
     vi.spyOn(apiClient, "get").mockResolvedValue({
       data: { data: [], page: 1, page_size: 20, total_items: 0 },
