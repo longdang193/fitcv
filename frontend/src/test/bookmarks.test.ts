@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   fetchBookmarks,
   previewBookmarkExport,
+  exportBookmarkSelection,
   removeBookmarkSelection,
   updateBookmarkInterest,
   generateIdempotencyKey,
@@ -117,6 +118,11 @@ describe("bookmarks slice and api", () => {
       status: 200,
     };
 
+    const mockExport = {
+      data: "run_id,run_job_id\nrun-01,rj-01\n",
+      status: 200,
+    };
+
     const mockRemove = {
       data: {
         data: {
@@ -129,6 +135,7 @@ describe("bookmarks slice and api", () => {
     const postSpy = vi
       .spyOn(apiClient, "post")
       .mockResolvedValueOnce(mockPreview as any)
+      .mockResolvedValueOnce(mockExport as any)
       .mockResolvedValueOnce(mockRemove as any);
 
     const preview = await previewBookmarkExport({
@@ -139,6 +146,16 @@ describe("bookmarks slice and api", () => {
       selected_run_job_ids: ["rj-01"],
     });
     expect(preview.matched_count).toBe(1);
+
+    await exportBookmarkSelection(
+      { selected_run_job_ids: ["rj-01"], preview_revision: "bm-prev-rev-1" },
+      "fixed-export-idem"
+    );
+    expect(postSpy).toHaveBeenCalledWith(
+      "/bookmarks/actions/export",
+      { selected_run_job_ids: ["rj-01"], preview_revision: "bm-prev-rev-1" },
+      { idempotencyKey: "fixed-export-idem", headers: { Accept: "text/csv" } }
+    );
 
     const removeRes = await removeBookmarkSelection(
       { selected_run_job_ids: ["rj-01"] },

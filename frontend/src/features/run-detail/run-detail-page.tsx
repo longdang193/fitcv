@@ -26,6 +26,7 @@ import {
   RunStageId,
 } from "../runs/types";
 import { setJobBookmark, clearJobBookmark, setJobInterest, clearJobInterest } from "../job-evaluation/api";
+import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawer";
 import { fetchCvPreview, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
 import { notificationStore } from "../../lib/notifications";
 import { EventConsole } from "./components/EventConsole";
@@ -79,6 +80,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const [regeneratePrompt, setRegeneratePrompt] = useState("");
   const [regenerating, setRegenerating] = useState(false);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
+  const [inspectingJob, setInspectingJob] = useState<RunJobItem | null>(null);
 
   // Jobs state & filters (stage defaults to shortlisting per prototype)
   const [jobs, setJobs] = useState<RunJobItem[]>([]);
@@ -557,7 +559,8 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     } catch {}
   }
   const profileName = parsedProfile?.name || parsedProfile?.profile_name || input?.candidate_profile_source || "Candidate Profile";
-  const profileId = parsedProfile?.id || parsedProfile?.profile_id || "—";
+  const profileIdValue = parsedProfile?.id || parsedProfile?.profile_id;
+  const profileId = profileIdValue || "—";
   const profileState = parsedProfile?.archived ? "Archived · historical reference" : "Active";
   const uploadFileName = input?.upload_file_name || input?.filename || "";
   const scanSources = parsedSources.filter((s: any) => s.type === "scan");
@@ -751,7 +754,15 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
             )}
             <div className="detail-item">
               <dt>Candidate Profile</dt>
-              <dd>{profileName}</dd>
+              <dd>
+                {profileIdValue ? (
+                  <a href={`#/candidate-profile/${encodeURIComponent(String(profileIdValue))}`}>
+                    {profileName}
+                  </a>
+                ) : (
+                  profileName
+                )}
+              </dd>
             </div>
             <div className="detail-item">
               <dt>Profile ID</dt>
@@ -1005,6 +1016,14 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                       </svg>
                                       <span>{isBookmarked ? "Bookmarked" : "Bookmark"}</span>
                                     </button>
+                                    <Button
+                                      size="compact"
+                                      variant="secondary"
+                                      onClick={() => setInspectingJob(item)}
+                                      aria-label={`Inspect fit evidence for ${item.title || "Job"}`}
+                                    >
+                                      Evidence
+                                    </Button>
                                   </div>
 
                                   {/* CV Actions */}
@@ -1140,6 +1159,13 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           </div>
         </div>
       </details>
+
+      <FitEvidenceDrawer
+        job={inspectingJob}
+        open={inspectingJob !== null}
+        onClose={() => setInspectingJob(null)}
+      />
+
       {/* Section 4: Console Log */}
       <details className="section-card collapsible-section drawer-section">
         <summary>

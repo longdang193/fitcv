@@ -62,22 +62,12 @@ export async function exportBookmarkSelection(
   body: SelectionExportPayload,
   idempotencyKey = generateIdempotencyKey()
 ): Promise<void> {
-  const res = await fetch("/bookmarks/actions/export", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/csv",
-      "Idempotency-Key": idempotencyKey,
-    },
-    credentials: "same-origin",
-    body: JSON.stringify(body),
+  const res = await apiClient.post<string>("/bookmarks/actions/export", body, {
+    idempotencyKey,
+    headers: { Accept: "text/csv" },
   });
 
-  if (!res.ok) {
-    throw new Error(`Export bookmarks failed with status ${res.status}`);
-  }
-
-  const blob = await res.blob();
+  const blob = new Blob([res.data], { type: "text/csv" });
   if (typeof window !== "undefined" && typeof document !== "undefined") {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");

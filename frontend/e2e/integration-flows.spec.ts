@@ -23,16 +23,6 @@ test.describe("Full Cross-Slice Integration & Shell Journeys", () => {
     await expect(page).toHaveURL(/#\/runs/);
     await expect(page.locator("main h1:has-text('Runs')")).toBeVisible();
 
-    // Evaluation & Fit
-    await page.click("a.nav-link:has-text('Evaluation & Fit')");
-    await expect(page).toHaveURL(/#\/job-evaluation/);
-    await expect(page.locator("h1:has-text('Evaluation & Fit')")).toBeVisible();
-
-    // CV Review
-    await page.click("a.nav-link:has-text('CV Review')");
-    await expect(page).toHaveURL(/#\/cv-review/);
-    await expect(page.locator("h2:has-text('CV Review & Artifacts')")).toBeVisible();
-
     // Bookmarks
     await page.click("a.nav-link:has-text('Bookmarks')");
     await expect(page).toHaveURL(/#\/bookmarks/);

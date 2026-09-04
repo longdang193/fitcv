@@ -42,6 +42,7 @@ const mockRun: PipelineRunResource = {
   },
   input: {
     candidate_profile_source: "Candidate Analytics",
+    candidate_profile_json: JSON.stringify({ id: "profile-123", name: "Candidate Analytics" }),
     jobs_input_source: "Upload",
     upload_file_name: "data-operations-manager.jsonl",
   },
@@ -152,6 +153,7 @@ describe("UI Lane Parity & Regression Suite", () => {
       expect(markup).toContain("Total Evaluated");
       expect(markup).toContain("Passed");
       expect(markup).toContain("Rejected");
+      expect(markup).toContain('href="#/candidate-profile/profile-123"');
     });
 
     it("reorganizes Export button into Pipeline Results toolbar and removes redundant top placement", () => {
