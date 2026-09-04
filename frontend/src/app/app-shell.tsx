@@ -26,11 +26,19 @@ export const AppShell: React.FC = () => {
     }
     return "light";
   });
-  const [notifications, setNotifications] = useState<TransientNotification[]>([]);
+  const [notifications, setNotifications] = useState<TransientNotification[]>(() =>
+    notificationStore.getNotifications()
+  );
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [routeAnnouncement, setRouteAnnouncement] = useState("");
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const notificationPanelRef = useRef<HTMLDivElement>(null);
   const notificationWasOpen = useRef(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuWasOpenRef = useRef(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const isFirstRouteMount = useRef(true);
 
   // Sync hash routing
   useEffect(() => {
@@ -49,6 +57,20 @@ export const AppShell: React.FC = () => {
       window.removeEventListener("hashchange", handleHashChange);
     };
   }, []);
+
+  // Handle mobile drawer focus management
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      mobileMenuWasOpenRef.current = true;
+      const firstFocusable = sidebarRef.current?.querySelector<HTMLElement>(
+        "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])"
+      );
+      firstFocusable?.focus();
+    } else if (mobileMenuWasOpenRef.current) {
+      mobileMenuWasOpenRef.current = false;
+      mobileMenuButtonRef.current?.focus();
+    }
+  }, [isMobileMenuOpen]);
 
   // Sync theme
   useEffect(() => {
@@ -125,6 +147,16 @@ export const AppShell: React.FC = () => {
   const activeRoute = matchRoute(currentHash, routes);
   const ActiveComponent = activeRoute.component;
 
+  // Route-change heading focus and polite screen reader announcement
+  useEffect(() => {
+    if (isFirstRouteMount.current) {
+      isFirstRouteMount.current = false;
+      return;
+    }
+    headingRef.current?.focus();
+    setRouteAnnouncement(`Navigated to ${activeRoute.title}`);
+  }, [activeRoute.id, activeRoute.title]);
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
@@ -186,6 +218,7 @@ export const AppShell: React.FC = () => {
 
       {/* Sidebar */}
       <aside
+        ref={sidebarRef}
         className={`sidebar ${isMobileMenuOpen ? "is-open" : ""}`}
         aria-label="Application Sidebar"
       >
@@ -211,15 +244,21 @@ export const AppShell: React.FC = () => {
         <header className="app-header">
           <div className="header-title-area">
             <button
+              ref={mobileMenuButtonRef}
               type="button"
               className="mobile-menu-btn mobile-toggle-btn"
-              aria-label="Open navigation menu"
+              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={isMobileMenuOpen}
               onClick={() => setIsMobileMenuOpen((prev) => !prev)}
             >
-              ☰
+              {isMobileMenuOpen ? "✕" : "☰"}
             </button>
-            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+            <h1
+              ref={headingRef}
+              tabIndex={-1}
+              id="main-page-heading"
+              style={{ margin: 0, fontSize: 18, fontWeight: 700 }}
+            >
               {activeRoute.title}
             </h1>
           </div>
@@ -231,7 +270,11 @@ export const AppShell: React.FC = () => {
                 variant="icon"
                 className="notification-bell-btn"
                 ref={notificationButtonRef}
-                aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
+                aria-label={
+                  unreadCount > 0
+                    ? `Notifications, ${unreadCount} unread ${unreadCount === 1 ? "notification" : "notifications"}`
+                    : "Notifications, no unread notifications"
+                }
                 aria-expanded={isNotifOpen}
                 onClick={() => setIsNotifOpen((prev) => !prev)}
               >
@@ -281,12 +324,24 @@ export const AppShell: React.FC = () => {
                       borderBottom: "1px solid var(--border-soft)",
                     }}
                   >
-                    <strong style={{ fontSize: 13 }}>Notifications</strong>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong style={{ fontSize: 13 }}>Notifications</strong>
+                      {unreadCount > 0 && (
+                        <span
+                          className="badge"
+                          aria-label={`${unreadCount} unread ${unreadCount === 1 ? "notification" : "notifications"}`}
+                          style={{ fontSize: 11, minHeight: 18, padding: "0 6px" }}
+                        >
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       {unreadCount > 0 && (
                         <button
                           type="button"
                           className="btn-subtle"
+                          aria-label="Mark all notifications as read"
                           style={{ fontSize: 12, padding: "2px 6px", cursor: "pointer", border: 0, background: "transparent" }}
                           onClick={() => notificationStore.markAllAsRead()}
                         >
@@ -297,6 +352,7 @@ export const AppShell: React.FC = () => {
                         <button
                           type="button"
                           className="btn-subtle"
+                          aria-label="Clear all notifications"
                           style={{ fontSize: 12, padding: "2px 6px", cursor: "pointer", border: 0, background: "transparent" }}
                           onClick={() => notificationStore.clearAll()}
                         >
@@ -316,13 +372,14 @@ export const AppShell: React.FC = () => {
                         <div
                           key={n.id}
                           className={`notification-item ${!n.read ? "unread" : ""}`}
+                          aria-label={!n.read ? `Unread notification: ${n.title}` : undefined}
                           onClick={() => notificationStore.markAsRead(n.id)}
                         >
                           <div className="notification-item-header">
                             <strong style={{ fontSize: 13 }}>{n.title}</strong>
                             <button
                               type="button"
-                              aria-label="Dismiss notification"
+                              aria-label={`Dismiss notification: ${n.title}`}
                               style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--muted)", fontSize: 14 }}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -372,6 +429,16 @@ export const AppShell: React.FC = () => {
             </Button>
           </div>
         </header>
+
+        {/* Live region for route announcements */}
+        <div
+          className="sr-only route-announcement"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {routeAnnouncement}
+        </div>
 
         {/* Scrollable page body */}
         <main className="app-scroll" tabIndex={-1}>

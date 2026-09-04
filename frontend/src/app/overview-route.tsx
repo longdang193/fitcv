@@ -181,6 +181,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ allowOfflineFallback
 
   // Restore defaults
   const handleRestoreDefaults = async () => {
+    if (typeof window !== "undefined" && typeof window.confirm === "function") {
+      if (!window.confirm("Restore defaults for Overview settings?")) return;
+    }
     const defaultKeys = OVERVIEW_SECTIONS.flatMap((s) => s.rows.map((r) => r.key));
     const defaultVals: Record<string, any> = {};
     OVERVIEW_SECTIONS.forEach((sec) => {

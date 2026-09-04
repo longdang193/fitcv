@@ -45,6 +45,33 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
   const triggerRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
   const isBackdropMouseDownRef = useRef(false);
+  const navRef = useRef<HTMLElement>(null);
+
+  const handleNavKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const isNext = e.key === "ArrowDown" || e.key === "ArrowRight";
+    const isPrev = e.key === "ArrowUp" || e.key === "ArrowLeft";
+    let nextIndex = -1;
+
+    if (isNext) {
+      e.preventDefault();
+      nextIndex = (index + 1) % PIPELINE_SECTIONS.length;
+    } else if (isPrev) {
+      e.preventDefault();
+      nextIndex = (index - 1 + PIPELINE_SECTIONS.length) % PIPELINE_SECTIONS.length;
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      nextIndex = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      nextIndex = PIPELINE_SECTIONS.length - 1;
+    }
+
+    if (nextIndex !== -1 && navRef.current) {
+      const tabs = navRef.current.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+      tabs[nextIndex]?.focus();
+      setActiveSectionId(PIPELINE_SECTIONS[nextIndex].id);
+    }
+  };
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -224,6 +251,9 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
   };
 
   const handleRestoreSectionDefaults = () => {
+    if (typeof window !== "undefined" && typeof window.confirm === "function") {
+      if (!window.confirm(`Restore defaults for ${activeSection.title}?`)) return;
+    }
     setDraftValues((prev) => {
       const next = { ...prev };
       for (const key of activeSection.ownedKeys) {
@@ -244,6 +274,9 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
   };
 
   const handleRestoreAllDefaults = () => {
+    if (typeof window !== "undefined" && typeof window.confirm === "function") {
+      if (!window.confirm("Restore defaults for all Pipeline settings?")) return;
+    }
     setDraftValues((prev) => {
       const next = { ...prev };
       for (const section of PIPELINE_SECTIONS) {
@@ -345,21 +378,26 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
       <div className="pipeline-settings-body">
         {/* Left sections navigation */}
         <nav
+          ref={navRef}
           className="pipeline-settings-nav"
           aria-label="Pipeline settings sections"
           role="tablist"
+          aria-orientation="vertical"
         >
-          {PIPELINE_SECTIONS.map((sec) => {
+          {PIPELINE_SECTIONS.map((sec, idx) => {
             const isSelected = sec.id === activeSectionId;
             return (
               <button
                 key={sec.id}
+                id={`pipeline-tab-${sec.id}`}
                 type="button"
                 role="tab"
                 className={"pipeline-nav-item" + (isSelected ? " active" : "")}
                 aria-selected={isSelected}
+                aria-controls={`pipeline-panel-${sec.id}`}
                 tabIndex={isSelected ? 0 : -1}
                 onClick={() => setActiveSectionId(sec.id)}
+                onKeyDown={(e) => handleNavKeyDown(e, idx)}
               >
                 {sec.title}
               </button>
@@ -369,8 +407,10 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
 
         {/* Right content panel */}
         <div
+          id={`pipeline-panel-${activeSectionId}`}
           className="pipeline-settings-content"
           role="tabpanel"
+          aria-labelledby={`pipeline-tab-${activeSectionId}`}
           aria-label={activeSection.title}
         >
           {loading ? (
@@ -394,16 +434,18 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
                   <h3>{activeSection.title}</h3>
                   <p>{activeSection.description}</p>
                 </div>
-                <div>
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    onClick={handleRestoreSectionDefaults}
-                    aria-label={"Restore defaults for " + activeSection.title}
-                  >
-                    Restore Section Defaults
-                  </Button>
-                </div>
+                {activeSection.ownedKeys.length > 0 && (
+                  <div>
+                    <Button
+                      variant="secondary"
+                      size="compact"
+                      onClick={handleRestoreSectionDefaults}
+                      aria-label={"Restore defaults for " + activeSection.title}
+                    >
+                      Restore Section Defaults
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {conflictNotice && (

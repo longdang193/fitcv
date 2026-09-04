@@ -1,6 +1,9 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { discoverFeatureRoutes, matchRoute } from "./route-registry";
 import { notificationStore } from "../lib/notifications";
+import { AppShell } from "./app-shell";
 
 describe("Frontend App Shell & Whole-Slice Integration", () => {
   beforeEach(() => {
@@ -68,4 +71,35 @@ describe("Frontend App Shell & Whole-Slice Integration", () => {
     notificationStore.markAsRead(n1.id);
     expect(notificationStore.getUnreadCount()).toBe(0);
   });
+  it("renders accessible route heading, announcement region, and mobile toggle in AppShell", () => {
+    const markup = renderToStaticMarkup(React.createElement(AppShell));
+
+    // Route heading focusable with tabIndex -1
+    expect(markup).toContain('id="main-page-heading"');
+    expect(markup).toContain('tabindex="-1"');
+
+    // Route announcement live region
+    expect(markup).toContain('class="sr-only route-announcement"');
+    expect(markup).toContain('role="status"');
+    expect(markup).toContain('aria-live="polite"');
+
+    // Mobile nav toggle button with accessible label
+    expect(markup).toContain('class="mobile-menu-btn mobile-toggle-btn"');
+    expect(markup).toContain('aria-label="Open navigation menu"');
+
+    // Notification bell default accessible name
+    expect(markup).toContain('aria-label="Notifications, no unread notifications"');
+  });
+
+  it("updates notification button accessible name to explicit unread count and noun", () => {
+    notificationStore.notify({
+      dedupe: "unread-1",
+      type: "info",
+      title: "New Job Found",
+    });
+
+    const markup = renderToStaticMarkup(React.createElement(AppShell));
+    expect(markup).toContain('aria-label="Notifications, 1 unread notification"');
+  });
+
 });

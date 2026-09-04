@@ -12,6 +12,7 @@ export interface TabsProps {
   activeId: string;
   onChange: (id: string) => void;
   ariaLabel?: string;
+  orientation?: "horizontal" | "vertical";
   children?: React.ReactNode;
 }
 
@@ -20,6 +21,7 @@ export const Tabs: React.FC<TabsProps> = ({
   activeId,
   onChange,
   ariaLabel = "Tabs",
+  orientation = "horizontal",
   children,
 }) => {
   const tabListRef = useRef<HTMLDivElement>(null);
@@ -33,10 +35,13 @@ export const Tabs: React.FC<TabsProps> = ({
     const currentPos = enabledIndices.indexOf(index);
     let nextIndex = -1;
 
-    if (e.key === "ArrowRight") {
+    const isNext = e.key === "ArrowRight" || e.key === "ArrowDown";
+    const isPrev = e.key === "ArrowLeft" || e.key === "ArrowUp";
+
+    if (isNext) {
       e.preventDefault();
       nextIndex = enabledIndices[(currentPos + 1) % enabledIndices.length];
-    } else if (e.key === "ArrowLeft") {
+    } else if (isPrev) {
       e.preventDefault();
       nextIndex = enabledIndices[(currentPos - 1 + enabledIndices.length) % enabledIndices.length];
     } else if (e.key === "Home") {
@@ -61,6 +66,7 @@ export const Tabs: React.FC<TabsProps> = ({
         className="tab-list"
         role="tablist"
         aria-label={ariaLabel}
+        aria-orientation={orientation}
       >
         {items.map((item, index) => {
           const isSelected = item.id === activeId;

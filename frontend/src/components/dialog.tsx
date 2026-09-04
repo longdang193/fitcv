@@ -9,6 +9,7 @@ export interface DialogProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const Dialog: React.FC<DialogProps> = ({
@@ -19,6 +20,7 @@ export const Dialog: React.FC<DialogProps> = ({
   children,
   footer,
   className = "",
+  triggerRef: explicitTriggerRef,
 }) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -31,7 +33,9 @@ export const Dialog: React.FC<DialogProps> = ({
     const dialog = dialogRef.current;
     if (open) {
       if (!wasOpenRef.current) {
-        triggerRef.current = (document.activeElement as HTMLElement) || null;
+        triggerRef.current =
+          explicitTriggerRef?.current ||
+          ((document.activeElement as HTMLElement) || null);
         wasOpenRef.current = true;
       }
       if (dialog && !dialog.open) {
@@ -39,6 +43,10 @@ export const Dialog: React.FC<DialogProps> = ({
           dialog.showModal();
         } else {
           dialog.setAttribute("open", "");
+          const firstFocusable = dialog.querySelector<HTMLElement>(
+            "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"
+          );
+          firstFocusable?.focus();
         }
       }
     } else if (wasOpenRef.current) {
@@ -55,7 +63,7 @@ export const Dialog: React.FC<DialogProps> = ({
       }
       triggerRef.current = null;
     }
-  }, [open]);
+  }, [open, explicitTriggerRef]);
 
   useEffect(() => {
     return () => {

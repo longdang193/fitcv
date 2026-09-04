@@ -139,3 +139,50 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
     )}
   </div>
 );
+
+export interface ZeroResultsStateProps {
+  query?: string;
+  filterDescription?: string;
+  onClear?: () => void;
+  clearLabel?: string;
+  className?: string;
+}
+
+export const ZeroResultsState: React.FC<ZeroResultsStateProps> = ({
+  query,
+  filterDescription,
+  onClear,
+  clearLabel = "Clear filters",
+  className = "",
+}) => (
+  <div
+    className={`state-container zero-results-state empty-state ${className}`.trim()}
+    role="status"
+    aria-live="polite"
+    style={{
+      display: "grid",
+      placeItems: "center",
+      textAlign: "center",
+      padding: "48px 24px",
+      gap: 8,
+    }}
+  >
+    <div style={{ fontSize: 28, color: "var(--muted)" }} aria-hidden="true">
+      🔍
+    </div>
+    <h3 style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 600 }}>
+      {query ? `No results for "${query}"` : "No matching results"}
+    </h3>
+    <p style={{ maxWidth: 440, margin: 0, color: "var(--muted)", fontSize: 13 }}>
+      {filterDescription ||
+        "No items match your active search or filter criteria. Try adjusting keywords or clearing active filters."}
+    </p>
+    {onClear && (
+      <div style={{ marginTop: 12 }}>
+        <Button variant="secondary" size="compact" onClick={onClear}>
+          {clearLabel}
+        </Button>
+      </div>
+    )}
+  </div>
+);

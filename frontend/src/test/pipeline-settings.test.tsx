@@ -140,6 +140,30 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
       // One dialog Save button
       expect(markup).toContain("Save");
       expect(markup).toContain("Cancel");
+
+      // Accessible tab attributes
+      expect(markup).toContain('role="tablist"');
+      expect(markup).toContain('aria-orientation="vertical"');
+      expect(markup).toContain('id="pipeline-tab-overview"');
+      expect(markup).toContain('aria-controls="pipeline-panel-overview"');
+      expect(markup).toContain('id="pipeline-panel-overview"');
+      expect(markup).toContain('aria-labelledby="pipeline-tab-overview"');
+    });
+
+    it("scopes Restore Section Defaults to active section and verifies vertical tablist a11y", () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(PipelineSettingsDialog, {
+          open: true,
+          onClose: () => {},
+          initialSection: "screening",
+        })
+      );
+      expect(markup).toContain('id="pipeline-tab-screening"');
+      expect(markup).toContain('aria-selected="true"');
+      expect(markup).toContain('aria-controls="pipeline-panel-screening"');
+      expect(markup).toContain('id="pipeline-panel-screening"');
+      expect(markup).toContain('aria-labelledby="pipeline-tab-screening"');
+      expect(markup).toContain('aria-label="Restore defaults for Screening"');
     });
 
     it("renders specific section content when initialSection is set to screening", () => {

@@ -26,4 +26,40 @@ describe("accessibility and design token compliance", () => {
     expect(mainCss).toContain("prefers-reduced-motion: reduce");
     expect(mainCss).toContain("min-height: 44px");
   });
+
+  it("verifies 44x44px touch targets and accessible utility styles in main.css", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const mainCss = fs.readFileSync(path.resolve(__dirname, "../styles/main.css"), "utf-8");
+
+    // .sr-only utility class exists
+    expect(mainCss).toContain(".sr-only {");
+    expect(mainCss).toContain("clip: rect(0, 0, 0, 0);");
+
+    // Touch targets 44x44
+    expect(mainCss).toContain(".mobile-menu-btn {");
+    expect(mainCss).toContain("min-width: 44px;");
+    expect(mainCss).toContain("min-height: 44px;");
+    expect(mainCss).toContain(".btn-icon {");
+    expect(mainCss).toContain("min-width: 44px;");
+    expect(mainCss).toContain("min-height: 44px;");
+    expect(mainCss).toContain(".switch {");
+    expect(mainCss).toContain("min-width: 44px;");
+    expect(mainCss).toContain("min-height: 44px;");
+
+    // Coarse pointer touch target guarantees
+    expect(mainCss).toContain("@media (pointer: coarse)");
+    expect(mainCss).toContain(".switch");
+    expect(mainCss).toContain(".tab-button");
+
+    // Labelled table scroll cue and focus-visible
+    expect(mainCss).toContain(".table-scroll:focus-visible");
+    expect(mainCss).toContain("linear-gradient(to right, var(--surface)");
+
+    // Danger button focus visible
+    expect(mainCss).toContain(".btn-danger:focus-visible");
+
+    // Zero-results state
+    expect(mainCss).toContain(".zero-results-state");
+  });
 });
