@@ -17,6 +17,11 @@ LAUNCHER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(LAUNCHER)
 
 
+@pytest.fixture(autouse=True)
+def herdr_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HERDR_ENV", "1")
+
+
 def fake_profile(tmp_path: Path, name: str, rank: int | None) -> None:
     agents = tmp_path / "agents"
     agents.mkdir(exist_ok=True)
@@ -286,6 +291,13 @@ def test_main_starts_with_selected_codex_home(monkeypatch: pytest.MonkeyPatch, t
         ]
     ) == 0
     assert captured["env"]["CODEX_HOME"] == str(codex_home.resolve())
+
+
+def test_launcher_requires_herdr_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HERDR_ENV", raising=False)
+
+    with pytest.raises(LAUNCHER.LaunchBlocked, match="HERDR_ENV=1 required"):
+        LAUNCHER._herdr_environment()
 
 
 def test_profiles_share_launch_shape(tmp_path: Path) -> None:

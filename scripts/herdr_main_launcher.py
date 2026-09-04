@@ -28,6 +28,14 @@ _DEEPAGENTS_MAX_TURNS = "4"
 _DEEPAGENTS_TIMEOUT = "120"
 
 
+def _herdr_environment() -> dict[str, str]:
+    if os.environ.get("HERDR_ENV") != "1":
+        raise LaunchBlocked(
+            "HERDR_ENV=1 required; run the launcher from a Herdr-managed controller pane."
+        )
+    return os.environ.copy()
+
+
 def _run(
     command: list[str],
     *,
@@ -100,7 +108,7 @@ def _codex_runtime(cwd: Path, configured_home: Path | None = None) -> dict[str, 
 
 
 def _codex_environment(codex_home: Path) -> dict[str, str]:
-    environment = os.environ.copy()
+    environment = _herdr_environment()
     environment["CODEX_HOME"] = str(codex_home.resolve())
     return environment
 
@@ -265,7 +273,7 @@ def resolve_launch(
     environment = (
         _codex_environment(Path(runtime["codex_home"]))
         if runtime is not None
-        else os.environ.copy()
+        else _herdr_environment()
     )
     herdr = _executable("herdr")
     codex = _executable("codex") if executor == "codex" else None

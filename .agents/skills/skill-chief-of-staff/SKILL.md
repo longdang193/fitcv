@@ -51,6 +51,8 @@ never invokes subagents directly. Use the repository Herdr command
 `py -B scripts/herdr_main_launcher.py ...` for dispatch. Monitor only the
 top-level lane and wrapper through provider-resolved wait/read operations; do
 not monitor or supervise executor-local subagents from CoS.
+Before any Herdr control, require `HERDR_ENV=1`; if it is absent, return
+`BLOCKED`. Never set or spoof this variable to bypass Herdr safety.
 
 ## Conditional References
 
