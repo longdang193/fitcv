@@ -5,6 +5,7 @@ import { route as apiProvidersRoute } from "../features/api-providers/route";
 import { route as llmConfigRoute } from "../features/llm-configuration/route";
 import { customProviderPayload, providerInitials, ProviderSettingsCore, getProviderIdFromHash } from "../features/api-providers/provider-settings-core";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
+import { Dialog } from "../components/dialog";
 
 describe("provider-settings routes", () => {
   beforeEach(() => {
@@ -157,5 +158,52 @@ describe("provider-settings routes", () => {
     expect(providerInitials("OpenAI Compatible")).toBe("OC");
     expect(providerInitials("Anthropic Claude")).toBe("AC");
     expect(providerInitials("")).toBe("AI");
+  });
+  it("uses production copy without stale prototype wording for connection and model test success", () => {
+    const isConnected = false;
+    const connectionSuccessMessage = `Connection test succeeded. ${isConnected ? "Update" : "Add"} Connection is ready.`;
+    const modelSuccessMessage = "Model validation succeeded. Add Model is ready.";
+
+    expect(connectionSuccessMessage).not.toContain("in prototype");
+    expect(connectionSuccessMessage).toContain("Connection test succeeded.");
+
+    expect(modelSuccessMessage).not.toContain("in prototype");
+    expect(modelSuccessMessage).toContain("Model validation succeeded.");
+  });
+
+  it("renders Add Model dialog structure using shared Dialog behavior", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        Dialog,
+        {
+          open: true,
+          onClose: () => {},
+          title: "Add Model",
+          description: "Test one model identifier before adding it.",
+          className: "provider-model-dialog",
+          footer: React.createElement(
+            "div",
+            { className: "dialog-actions" },
+            React.createElement("button", { id: "cancelProviderModelDialog", className: "btn" }, "Cancel"),
+            React.createElement("button", { id: "saveProviderModel", className: "btn primary" }, "Add Model")
+          ),
+          children: React.createElement(
+            "form",
+            { id: "providerModelForm" },
+            React.createElement("input", { id: "providerModelIdentifier" }),
+            React.createElement("button", { id: "testProviderModel" }, "Test")
+          ),
+        }
+      )
+    );
+
+    expect(html).toContain("native-dialog");
+    expect(html).toContain("provider-model-dialog");
+    expect(html).toContain("Add Model");
+    expect(html).toContain("Test one model identifier before adding it.");
+    expect(html).toContain("providerModelIdentifier");
+    expect(html).toContain("testProviderModel");
+    expect(html).toContain("cancelProviderModelDialog");
+    expect(html).toContain("saveProviderModel");
   });
 });

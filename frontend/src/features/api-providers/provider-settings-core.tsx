@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Button, LoadingState } from "../../components";
+import { Button, LoadingState, Dialog } from "../../components";
 import { apiClient } from "../../lib/api-client";
 
 export type ProviderModel = {
@@ -271,7 +271,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       if (res.data.data.ok) {
         setConnectionTestPassed(true);
         const isConnected = provider.connection_status === "verified";
-        setConnectionStatusText(`Connection test succeeded in prototype. ${isConnected ? "Update" : "Add"} Connection is ready.`);
+        setConnectionStatusText(`Connection test succeeded. ${isConnected ? "Update" : "Add"} Connection is ready.`);
         setConnectionStatusKind("valid");
       } else {
         setConnectionTestPassed(false);
@@ -398,7 +398,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       if (res.data.data.ok) {
         setTestedNewModelId(trimmed);
         setModelTestPassed(true);
-        setModelStatusMessage("Model validation succeeded in prototype. Add Model is ready.");
+        setModelStatusMessage("Model validation succeeded. Add Model is ready.");
         setModelStatusKind("valid");
       } else {
         setModelTestPassed(false);
@@ -794,28 +794,35 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
           </div>
 
           {isModelDialogOpen && (
-            <dialog
-              className="run-dialog provider-model-dialog"
-              id="providerModelDialog"
-              aria-labelledby="providerModelDialogTitle"
-              aria-describedby="providerModelDialogDescription"
-              open
-            >
-              <div className="dialog-head">
-                <div>
-                  <h2 id="providerModelDialogTitle">Add Model</h2>
-                  <p id="providerModelDialogDescription">Test one model identifier before adding it.</p>
+            <Dialog
+              open={isModelDialogOpen}
+              onClose={closeModelDialog}
+              title="Add Model"
+              description="Test one model identifier before adding it."
+              className="provider-model-dialog"
+              footer={
+                <div className="dialog-actions">
+                  <button
+                    className="btn"
+                    id="cancelProviderModelDialog"
+                    type="button"
+                    onClick={closeModelDialog}
+                    disabled={busy}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn primary"
+                    id="saveProviderModel"
+                    type="button"
+                    disabled={!modelTestPassed || testedNewModelId !== newModelId.trim() || busy}
+                    onClick={addModel}
+                  >
+                    Add Model
+                  </button>
                 </div>
-                <button
-                  className="dialog-close"
-                  id="closeProviderModelDialog"
-                  type="button"
-                  aria-label="Close Add Model dialog"
-                  onClick={closeModelDialog}
-                >
-                  ×
-                </button>
-              </div>
+              }
+            >
               <form
                 className="run-form"
                 id="providerModelForm"
@@ -866,27 +873,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
               >
                 {modelStatusMessage || "Add Model saves only after a successful test."}
               </p>
-              <div className="dialog-actions">
-                <button
-                  className="btn"
-                  id="cancelProviderModelDialog"
-                  type="button"
-                  onClick={closeModelDialog}
-                  disabled={busy}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn primary"
-                  id="saveProviderModel"
-                  type="button"
-                  disabled={!modelTestPassed || testedNewModelId !== newModelId.trim() || busy}
-                  onClick={addModel}
-                >
-                  Add Model
-                </button>
-              </div>
-            </dialog>
+            </Dialog>
           )}
         </div>
       );

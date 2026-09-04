@@ -361,6 +361,25 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
       expect(closed).toBe(true);
     });
 
+    it("renders PipelineSettingsDialog with shared Dialog behavior without static open attribute", () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(PipelineSettingsDialog, {
+          open: true,
+          onClose: () => {},
+          initialSection: "overview",
+        })
+      );
+
+      expect(markup).toContain("pipeline-settings-dialog");
+      expect(markup).toContain("native-dialog");
+      // Must not use statically-open <dialog open
+      expect(markup).not.toMatch(/<dialog[^>]*\bopen\b/);
+      // Preserves approved layout
+      expect(markup).toContain("pipeline-dialog-header");
+      expect(markup).toContain("pipeline-settings-body");
+      expect(markup).toContain("pipeline-dialog-footer");
+    });
+
     it("restores trigger focus on close or unmount", () => {
       const mockTrigger = {
         focus: vi.fn(),
