@@ -62,10 +62,12 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
 }) => {
   const [attempt, setAttempt] = useState<CreationAttempt | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusFetchError, setStatusFetchError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Processing candidate document...");
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
+  const statusRetryCountRef = useRef(0);
 
   const isTerminalOrReady = useCallback(
     (data: CreationAttempt) => isCandidateProfileAttemptTerminal(data, targetStage),
@@ -81,6 +83,8 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
       try {
         const data = await fetchCreationAttempt(attemptId);
         if (!isMountedRef.current) return;
+        statusRetryCountRef.current = 0;
+        setStatusFetchError(null);
         setAttempt(data);
 
         if (data.creation_status === "failed") {
@@ -110,7 +114,9 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
         scheduleNextPoll(nextDelay);
       } catch (err: any) {
         if (!isMountedRef.current) return;
-        setError(err.message || "Failed to check processing status.");
+        statusRetryCountRef.current += 1;
+        setStatusFetchError(err.message || "Failed to check processing status.");
+        scheduleNextPoll(Math.min(5000, 1000 * statusRetryCountRef.current));
       }
     }, delayMs);
   }, [attemptId, onReady, isTerminalOrReady]);
@@ -118,12 +124,16 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
   useEffect(() => {
     isMountedRef.current = true;
     setError(null);
+    setStatusFetchError(null);
+    statusRetryCountRef.current = 0;
     setStatusMessage("Processing candidate document...");
 
     async function initialPoll() {
       try {
         const data = await fetchCreationAttempt(attemptId);
         if (!isMountedRef.current) return;
+        statusRetryCountRef.current = 0;
+        setStatusFetchError(null);
         setAttempt(data);
 
         if (data.creation_status === "failed") {
@@ -153,7 +163,9 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
         scheduleNextPoll(nextDelay);
       } catch (err: any) {
         if (!isMountedRef.current) return;
-        setError(err.message || "Failed to check processing status.");
+        statusRetryCountRef.current += 1;
+        setStatusFetchError(err.message || "Failed to check processing status.");
+        scheduleNextPoll(Math.min(5000, 1000 * statusRetryCountRef.current));
       }
     }
 
@@ -210,6 +222,11 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
     <div className="table-card" style={{ padding: 48, textAlign: "center" }}>
       {!error ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          {statusFetchError && (
+            <div className="notice error" role="status" style={{ width: "100%", maxWidth: 460 }}>
+              Status refresh failed: {statusFetchError}. Retrying automatically.
+            </div>
+          )}
           <LoadingState message={statusMessage} />
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 13, maxWidth: 460 }}>
             Deterministic document ingestion in progress. Source blocks are being registered and locators mapped.

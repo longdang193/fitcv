@@ -26,6 +26,7 @@ const PIPELINE_STAGES: { id: string; label: string }[] = [
 export const BookmarksPage: React.FC = () => {
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
@@ -48,6 +49,7 @@ export const BookmarksPage: React.FC = () => {
     async (targetPage = 1) => {
       setLoading(true);
       try {
+        setLoadError(null);
         const res = await fetchBookmarks({
           page: targetPage,
           page_size: pageSize,
@@ -58,6 +60,7 @@ export const BookmarksPage: React.FC = () => {
         setPage(res.page || targetPage);
         setTotal(res.total_items || 0);
       } catch (err: any) {
+        setLoadError(err.message || "Failed to load bookmarks.");
         notificationStore.notify({
           dedupe: `req:load_bookmarks:${Date.now()}`,
           type: "error",
@@ -299,6 +302,14 @@ export const BookmarksPage: React.FC = () => {
 
         {/* Bookmarks Table Panel */}
         <div id="bookmarkTablePanel">
+          {loadError && (
+            <div className="notice error" role="alert" style={{ marginBottom: 16 }}>
+              Failed to load bookmarks: {loadError}{" "}
+              <Button variant="secondary" size="compact" onClick={() => loadBookmarkList(page)}>
+                Retry
+              </Button>
+            </div>
+          )}
           <BookmarksTable
             bookmarks={bookmarks}
             loading={loading}

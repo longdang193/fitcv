@@ -22,10 +22,21 @@ import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { parseRunSourceIds } from "../features/runs/route";
 import { PROVIDER_SETTINGS_HREF, RunErrorAction } from "../features/runs/new-run-dialog";
+import { isRunTerminal } from "../features/runs/runs-list";
 
 describe("runs feature route and api slice", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("treats only completed run statuses as terminal", () => {
+    expect(isRunTerminal("succeeded")).toBe(true);
+    expect(isRunTerminal("failed")).toBe(true);
+    expect(isRunTerminal("cancelled")).toBe(true);
+    expect(isRunTerminal("queued")).toBe(false);
+    expect(isRunTerminal("running")).toBe(false);
+    expect(isRunTerminal("awaiting_continue")).toBe(false);
+    expect(isRunTerminal("cancelling")).toBe(false);
   });
 
   it("registers and matches runs feature route", () => {

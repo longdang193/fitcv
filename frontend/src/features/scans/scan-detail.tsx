@@ -53,6 +53,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   const [scan, setScan] = useState<ScanResource | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
 
@@ -84,6 +85,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
       ]);
       setScan(res);
       setError(null);
+      setRefreshError(null);
 
       if (eventsRes.events && eventsRes.events.length > 0) {
         setEvents((prev) => {
@@ -96,7 +98,9 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
         }
       }
     } catch (err: any) {
-      if (isInitial) setError(err.message || "Failed to load scan details");
+      const message = err.message || "Failed to load scan details";
+      if (isInitial) setError(message);
+      else setRefreshError(message);
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -355,6 +359,15 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
       {actionNotice && (
         <div className="notice info" role="status" style={{ marginBottom: 16 }}>
           {actionNotice}
+        </div>
+      )}
+
+      {refreshError && (
+        <div className="notice error" role="status" style={{ marginBottom: 16 }}>
+          Scan refresh failed: {refreshError}{" "}
+          <Button variant="secondary" size="compact" onClick={() => loadScanData(false)}>
+            Retry Refresh
+          </Button>
         </div>
       )}
 

@@ -45,6 +45,10 @@ const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
   cancelled: { variant: "neutral", label: "Cancelled" },
 };
 
+export function isRunTerminal(status: string): boolean {
+  return ["succeeded", "failed", "cancelled"].includes(status);
+}
+
 export const RunsListPage: React.FC<RunsListPageProps> = ({
   onSelectRun,
   view,
@@ -112,7 +116,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   }, [loadRuns]);
 
   useEffect(() => {
-    if (!runs.some((run) => run.backend_status === "cancelling")) return;
+    if (!runs.some((run) => !isRunTerminal(run.backend_status))) return;
     const intervalId = window.setInterval(() => void loadRuns(false), 1000);
     return () => window.clearInterval(intervalId);
   }, [runs, loadRuns]);
