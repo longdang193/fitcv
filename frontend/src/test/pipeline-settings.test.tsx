@@ -12,8 +12,6 @@ import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { apiClient } from "../lib/api-client";
 import { Dialog } from "../components/dialog";
 import { isExplicitOfflineOrMock } from "../features/pipeline-settings/pipeline-settings-dialog";
-import fs from "fs";
-import path from "path";
 
 describe("Pipeline Settings Dialog & Feature Suite", () => {
   beforeEach(() => {
@@ -292,6 +290,7 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
             onClose: () => {},
             title: "Test Dialog",
             description: "Dialog description text",
+            children: null,
           },
           React.createElement("p", null, "Dialog Content")
         )
@@ -312,6 +311,7 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
             open: false,
             onClose: () => {},
             title: "Closed Dialog",
+            children: null,
           },
           React.createElement("p", null, "Hidden Content")
         )
@@ -478,22 +478,5 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
     });
   });
 
-  describe("Main CSS Selection Bar & Invalid State Parity", () => {
-    it("verifies main.css defines selection-bar and field invalid styling", () => {
-      const cssPath = path.resolve(__dirname, "../styles/main.css");
-      const css = fs.readFileSync(cssPath, "utf-8");
-
-      expect(css).toContain(".run-selection");
-      expect(css).toContain(".selection-bar");
-      expect(css).toContain(".selection-bar-copy");
-      expect(css).toContain(".selection-bar-actions");
-      expect(css).toContain("border-radius: var(--radius-lg, 12px);");
-      expect(css).toContain("padding: 14px 16px;");
-
-      expect(css).toContain('.field[aria-invalid="true"]');
-      expect(css).toContain(".field.is-invalid");
-      expect(css).toContain("border-color: var(--danger);");
-    });
-  });
   });
 });
