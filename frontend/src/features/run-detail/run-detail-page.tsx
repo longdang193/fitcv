@@ -30,6 +30,7 @@ import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawe
 import { fetchCvPreview, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
 import { notificationStore } from "../../lib/notifications";
 import { EventConsole } from "./components/EventConsole";
+import { FilterTabs } from "./components/FilterTabs";
 
 export interface RunDetailPageProps {
   runId: string;
@@ -794,27 +795,19 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           {/* Stage Tabs Filter */}
           <div className="results-filters">
             <div className="stage-filter" style={{ width: "100%" }}>
-              <div className="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">
-                {PIPELINE_STAGES.map((stage) => (
-                  <button
-                    key={stage.stage_id}
-                    className="btn"
-                    type="button"
-                    role="tab"
-                    data-pipeline-stage={stage.stage_id}
-                    aria-selected={stageFilter === stage.stage_id}
-                    tabIndex={stageFilter === stage.stage_id ? 0 : -1}
-                    onClick={() => {
-                      setStageFilter(stage.stage_id);
-                      setResultBucketFilter("all");
-                      setJobsPage(1);
-                      setSelectedJobIds([]);
-                    }}
-                  >
-                    {stage.label}
-                  </button>
-                ))}
-              </div>
+              <FilterTabs
+                className="pipeline-stage-tabs"
+                items={PIPELINE_STAGES.map(({ stage_id, label }) => ({ id: stage_id, label, dataAttribute: "data-pipeline-stage" }))}
+                activeId={stageFilter}
+                ariaLabel="Pipeline stages"
+                panelId="run-results-panel"
+                onChange={(stageId) => {
+                  setStageFilter(stageId as RunStageId);
+                  setResultBucketFilter("all");
+                  setJobsPage(1);
+                  setSelectedJobIds([]);
+                }}
+              />
             </div>
           </div>
 
@@ -830,53 +823,24 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
               aria-label="Search pipeline results"
             />
             <div className="results-toolbar-actions">
-              <div className="pipeline-summary" role="tablist" aria-label="Pipeline result filter">
-                <button
-                  className="summary-card"
-                  type="button"
-                  role="tab"
-                  data-pipeline-result="all"
-                  aria-selected={resultBucketFilter === "all"}
-                  tabIndex={resultBucketFilter === "all" ? 0 : -1}
-                  onClick={() => {
-                    setResultBucketFilter("all");
+              <FilterTabs
+                  className="pipeline-summary"
+                  items={["all", "passed", "rejected"].map((id) => ({
+                    id,
+                    label: id === "all" ? "Total Evaluated" : id === "passed" ? "Passed" : "Rejected",
+                    count: id === "all" ? jobsMeta.total_evaluated : id === "passed" ? jobsMeta.passed : jobsMeta.rejected,
+                    countColor: id === "passed" ? "var(--success)" : id === "rejected" ? "var(--danger)" : undefined,
+                    className: "summary-card",
+                    dataAttribute: "data-pipeline-result",
+                  }))}
+                  activeId={resultBucketFilter}
+                  ariaLabel="Pipeline result filter"
+                  panelId="run-results-panel"
+                  onChange={(id) => {
+                    setResultBucketFilter(id as "all" | "passed" | "rejected");
                     setJobsPage(1);
                   }}
-                >
-                  <span>Total Evaluated</span>
-                  <strong>{jobsMeta.total_evaluated}</strong>
-                </button>
-                <button
-                  className="summary-card"
-                  type="button"
-                  role="tab"
-                  data-pipeline-result="passed"
-                  aria-selected={resultBucketFilter === "passed"}
-                  tabIndex={resultBucketFilter === "passed" ? 0 : -1}
-                  onClick={() => {
-                    setResultBucketFilter("passed");
-                    setJobsPage(1);
-                  }}
-                >
-                  <span>Passed</span>
-                  <strong style={{ color: "var(--success)" }}>{jobsMeta.passed}</strong>
-                </button>
-                <button
-                  className="summary-card"
-                  type="button"
-                  role="tab"
-                  data-pipeline-result="rejected"
-                  aria-selected={resultBucketFilter === "rejected"}
-                  tabIndex={resultBucketFilter === "rejected" ? 0 : -1}
-                  onClick={() => {
-                    setResultBucketFilter("rejected");
-                    setJobsPage(1);
-                  }}
-                >
-                  <span>Rejected</span>
-                  <strong style={{ color: "var(--danger)" }}>{jobsMeta.rejected}</strong>
-                </button>
-              </div>
+                />
 
               {run.capabilities.export && (
                 <Button
@@ -892,7 +856,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
             </div>
           </div>
           {/* Run Panel with Selection Banner, Table, and Pagination */}
-          <div className="run-panel">
+          <div className="run-panel" id="run-results-panel" role="tabpanel" aria-label="Pipeline results">
             {selectedJobIds.length > 0 && (
               <div className="run-selection">
                 <div className="run-selection-copy">
