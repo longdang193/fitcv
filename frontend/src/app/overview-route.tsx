@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../lib/api-client";
-import { Button, LoadingState } from "../components";
+import { Button, LoadingState, ErrorState } from "../components";
 import { notificationStore } from "../lib/notifications";
 import { PipelineSettingsDialog } from "../features/pipeline-settings/pipeline-settings-dialog";
 
@@ -19,6 +19,16 @@ interface SettingSectionDef {
   title: string;
   open: boolean;
   rows: SettingFieldDef[];
+}
+
+export function isExplicitOfflineOrMock(explicitFlag?: boolean): boolean {
+  if (explicitFlag) return true;
+  if (typeof window !== "undefined") {
+    if ((window as any).__FITCV_MOCK__ || (window as any).__FITCV_OFFLINE__) return true;
+    const search = window.location?.search || "";
+    if (search.includes("mock=true") || search.includes("offline=true")) return true;
+  }
+  return false;
 }
 
 const OVERVIEW_SECTIONS: SettingSectionDef[] = [
@@ -96,16 +106,22 @@ const OVERVIEW_SECTIONS: SettingSectionDef[] = [
   },
 ];
 
-export const OverviewPage: React.FC = () => {
+export interface OverviewPageProps {
+  allowOfflineFallback?: boolean;
+}
+
+export const OverviewPage: React.FC<OverviewPageProps> = ({ allowOfflineFallback }) => {
   const [settingsValues, setSettingsValues] = useState<Record<string, any>>({});
   const [revision, setRevision] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [, setSavingKey] = useState<string | null>(null);
   const [isPipelineDialogOpen, setIsPipelineDialogOpen] = useState(false);
 
   // Load pipeline settings
   const loadSettings = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await apiClient.get<any>("/settings/pipeline");
       const data = res.data?.data || res.data || {};
@@ -113,18 +129,22 @@ export const OverviewPage: React.FC = () => {
       setSettingsValues(vals);
       setRevision(data.revision || "");
     } catch (err: any) {
-      // If backend not running or mock mode, populate with defaults
-      const defaults: Record<string, any> = {};
-      OVERVIEW_SECTIONS.forEach((sec) => {
-        sec.rows.forEach((r) => {
-          defaults[r.key] = r.defaultValue;
+      if (isExplicitOfflineOrMock(allowOfflineFallback)) {
+        // If backend not running or explicit mock mode, populate with defaults
+        const defaults: Record<string, any> = {};
+        OVERVIEW_SECTIONS.forEach((sec) => {
+          sec.rows.forEach((r) => {
+            defaults[r.key] = r.defaultValue;
+          });
         });
-      });
-      setSettingsValues(defaults);
+        setSettingsValues(defaults);
+      } else {
+        setLoadError(err?.message || "Failed to load pipeline settings.");
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [allowOfflineFallback]);
 
   useEffect(() => {
     loadSettings();
@@ -240,6 +260,15 @@ export const OverviewPage: React.FC = () => {
       {/* Settings Sections */}
       {loading ? (
         <LoadingState message="Loading pipeline settings..." />
+      ) : loadError ? (
+        <div style={{ padding: "24px 0" }}>
+          <ErrorState
+            title="Failed to Load Pipeline Settings"
+            message={loadError}
+            actionLabel="Retry"
+            onRetry={loadSettings}
+          />
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {OVERVIEW_SECTIONS.map((section) => (
@@ -255,39 +284,79 @@ export const OverviewPage: React.FC = () => {
               </summary>
               <div className="section-content">
                 {section.rows.map((row) => {
-                  const currentValue =
-                    settingsValues[row.key] !== undefined
-                      ? settingsValues[row.key]
-                      : row.defaultValue;
+                  const rawValue = settingsValues[row.key];
+                  const currentValue = rawValue !== undefined ? rawValue : row.defaultValue;
+                  const numValue = Number(currentValue);
+                  const isInvalid =
+                    currentValue === "" ||
+                    isNaN(numValue) ||
+                    (row.min !== undefined && numValue < row.min) ||
+                    (row.max !== undefined && numValue > row.max);
+
+                  const controlId = `overview-setting-${row.key.replace(/\./g, "-")}`;
+                  const descId = `${controlId}-desc`;
+                  const errorId = `${controlId}-error`;
+
+                  let validationMessage = "";
+                  if (isInvalid) {
+                    if (currentValue === "" || isNaN(numValue)) {
+                      validationMessage = "Please enter a valid number.";
+                    } else if (row.min !== undefined && row.max !== undefined) {
+                      validationMessage = `Must be between ${row.min} and ${row.max}.`;
+                    } else if (row.min !== undefined) {
+                      validationMessage = `Must be at least ${row.min}.`;
+                    } else if (row.max !== undefined) {
+                      validationMessage = `Must be at most ${row.max}.`;
+                    }
+                  }
+
                   return (
                     <div key={row.key} className="setting-row">
                       <div>
-                        <strong>{row.label}</strong>
-                        <p>{row.description}</p>
+                        <label htmlFor={controlId}>
+                          <strong>{row.label}</strong>
+                        </label>
+                        <p id={descId}>{row.description}</p>
                       </div>
-                      <div>
+                      <div style={{ display: "grid", gap: 4, justifyItems: "end" }}>
                         {row.type === "number" && (
                           <input
+                            id={controlId}
                             type="number"
-                            className="field"
+                            className={`field${isInvalid ? " is-invalid" : ""}`}
                             min={row.min}
                             max={row.max}
                             step={row.step}
                             value={currentValue}
                             onChange={(e) => {
-                              const v = Number(e.target.value);
-                              if (!isNaN(v)) {
-                                setSettingsValues((prev) => ({ ...prev, [row.key]: v }));
-                              }
+                              const valStr = e.target.value;
+                              setSettingsValues((prev) => ({
+                                ...prev,
+                                [row.key]: valStr === "" ? "" : Number(valStr),
+                              }));
                             }}
                             onBlur={(e) => {
-                              const v = Number(e.target.value);
-                              if (!isNaN(v) && (!row.min || v >= row.min) && (!row.max || v <= row.max)) {
+                              const valStr = e.target.value;
+                              const v = Number(valStr);
+                              if (valStr !== "" && !isNaN(v) && (!row.min || v >= row.min) && (!row.max || v <= row.max)) {
                                 handleSaveSetting(row.key, v);
                               }
                             }}
                             aria-label={row.label}
+                            aria-invalid={isInvalid ? "true" : "false"}
+                            aria-describedby={isInvalid ? `${errorId} ${descId}` : descId}
+                            aria-errormessage={isInvalid ? errorId : undefined}
                           />
+                        )}
+                        {isInvalid && (
+                          <span
+                            id={errorId}
+                            className="field-error"
+                            role="alert"
+                            style={{ fontSize: 11, color: "var(--danger)" }}
+                          >
+                            {validationMessage}
+                          </span>
                         )}
                       </div>
                     </div>

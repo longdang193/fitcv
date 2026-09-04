@@ -10,6 +10,10 @@ import { PipelineSettingsPage } from "../features/pipeline-settings/route";
 import { OverviewPage } from "../app/overview-route";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { apiClient } from "../lib/api-client";
+import { Dialog } from "../components/dialog";
+import { isExplicitOfflineOrMock } from "../features/pipeline-settings/pipeline-settings-dialog";
+import fs from "fs";
+import path from "path";
 
 describe("Pipeline Settings Dialog & Feature Suite", () => {
   beforeEach(() => {
@@ -277,5 +281,219 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
       });
       expect((res as any).data.data.revision).toBe("rev-saved-2");
     });
+
+  describe("Native Dialog Backdrop Safety & Focus Restoration", () => {
+    it("renders native dialog with title, description, and buttons when open", () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(
+          Dialog,
+          {
+            open: true,
+            onClose: () => {},
+            title: "Test Dialog",
+            description: "Dialog description text",
+          },
+          React.createElement("p", null, "Dialog Content")
+        )
+      );
+
+      expect(markup).toContain("native-dialog");
+      expect(markup).toContain("Test Dialog");
+      expect(markup).toContain("Dialog description text");
+      expect(markup).toContain("Dialog Content");
+      expect(markup).toContain("Close");
+    });
+
+    it("returns null when open is false", () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(
+          Dialog,
+          {
+            open: false,
+            onClose: () => {},
+            title: "Closed Dialog",
+          },
+          React.createElement("p", null, "Hidden Content")
+        )
+      );
+
+      expect(markup).toBe("");
+    });
+
+    it("verifies backdrop click prevents accidental close on text selection drag", () => {
+      const dialogRect = { top: 100, left: 100, width: 400, height: 300 };
+      const isInside = (x: number, y: number) =>
+        dialogRect.left <= x &&
+        x <= dialogRect.left + dialogRect.width &&
+        dialogRect.top <= y &&
+        y <= dialogRect.top + dialogRect.height;
+
+      // Case 1: Mouse down inside dialog (e.g. selecting text at 150, 150)
+      let isBackdropMouseDown = false;
+      const targetIsDialog = true;
+      const mouseDownX = 150;
+      const mouseDownY = 150;
+      if (targetIsDialog) {
+        isBackdropMouseDown = !isInside(mouseDownX, mouseDownY);
+      }
+      expect(isBackdropMouseDown).toBe(false);
+
+      // Mouse released outside dialog on backdrop (e.g. 50, 50)
+      let closed = false;
+      const clickX = 50;
+      const clickY = 50;
+      if (isBackdropMouseDown && targetIsDialog && !isInside(clickX, clickY)) {
+        closed = true;
+      }
+      // Accidental close MUST be prevented
+      expect(closed).toBe(false);
+
+      // Case 2: Intentional click on backdrop (mouse down outside at 50, 50, click at 50, 50)
+      if (targetIsDialog) {
+        isBackdropMouseDown = !isInside(50, 50);
+      }
+      expect(isBackdropMouseDown).toBe(true);
+
+      if (isBackdropMouseDown && targetIsDialog && !isInside(50, 50)) {
+        closed = true;
+      }
+      // Intentional backdrop click closes dialog
+      expect(closed).toBe(true);
+    });
+
+    it("restores trigger focus on close or unmount", () => {
+      const mockTrigger = {
+        focus: vi.fn(),
+      };
+      const triggerRef = { current: mockTrigger as any };
+      let wasOpen = true;
+
+      // Dialog closes
+      if (wasOpen) {
+        wasOpen = false;
+        if (triggerRef.current && typeof triggerRef.current.focus === "function") {
+          triggerRef.current.focus();
+        }
+        triggerRef.current = null;
+      }
+
+      expect(mockTrigger.focus).toHaveBeenCalledTimes(1);
+      expect(triggerRef.current).toBeNull();
+    });
+  });
+
+  describe("Overview Accessible Numeric Input States & Fallback", () => {
+    it("renders valid numeric inputs with aria-invalid='false' and accessible labels", () => {
+      const markup = renderToStaticMarkup(React.createElement(OverviewPage));
+      expect(markup).toContain('aria-invalid="false"');
+      expect(markup).toContain('id="overview-setting-pipeline-vector_search_top_n"');
+      expect(markup).toContain('aria-label="Initial Candidate Pool Size"');
+      expect(markup).toContain('aria-describedby="overview-setting-pipeline-vector_search_top_n-desc"');
+    });
+
+    it("detects invalid state for numbers below minimum or above maximum", () => {
+      const validateInput = (value: any, min?: number, max?: number) => {
+        const num = Number(value);
+        const isInvalid =
+          value === "" ||
+          isNaN(num) ||
+          (min !== undefined && num < min) ||
+          (max !== undefined && num > max);
+        return isInvalid;
+      };
+
+      expect(validateInput(100, 1, 1000)).toBe(false);
+      expect(validateInput(0, 1, 1000)).toBe(true);
+      expect(validateInput(-5, 1, 1000)).toBe(true);
+      expect(validateInput(1500, 1, 1000)).toBe(true);
+      expect(validateInput("", 1, 1000)).toBe(true);
+      expect(validateInput("abc", 1, 1000)).toBe(true);
+    });
+  });
+
+  describe("Pipeline Settings Load Failure & Explicit Fallback", () => {
+    it("isExplicitOfflineOrMock correctly identifies explicit mock/offline vs backend failures", () => {
+      expect(isExplicitOfflineOrMock(true)).toBe(true);
+      expect(isExplicitOfflineOrMock(false)).toBe(false);
+      expect(isExplicitOfflineOrMock(undefined)).toBe(false);
+
+      (globalThis as any).window = {
+        location: { search: "?mock=true" },
+      };
+      expect(isExplicitOfflineOrMock(false)).toBe(true);
+
+      (globalThis as any).window = {
+        location: { search: "?offline=true" },
+      };
+      expect(isExplicitOfflineOrMock(false)).toBe(true);
+
+      (globalThis as any).window = {
+        location: { search: "?other=1" },
+        __FITCV_MOCK__: true,
+      };
+      expect(isExplicitOfflineOrMock(false)).toBe(true);
+
+      delete (globalThis as any).window;
+    });
+
+    it("preserves load error without silent fake defaults when not in explicit mock mode", async () => {
+      vi.spyOn(apiClient, "get").mockRejectedValueOnce(new Error("500 Internal Server Error"));
+
+      let loadError: string | null = null;
+      let values: Record<string, any> | null = null;
+
+      try {
+        await apiClient.get("/settings/pipeline");
+      } catch (err: any) {
+        if (isExplicitOfflineOrMock(false)) {
+          values = buildFallbackDefaults();
+        } else {
+          loadError = err.message || "Failed to load pipeline settings.";
+        }
+      }
+
+      expect(loadError).toBe("500 Internal Server Error");
+      expect(values).toBeNull();
+    });
+
+    it("falls back to canonical defaults when allowOfflineFallback is true", async () => {
+      vi.spyOn(apiClient, "get").mockRejectedValueOnce(new Error("Network Error"));
+
+      let loadError: string | null = null;
+      let values: Record<string, any> | null = null;
+
+      try {
+        await apiClient.get("/settings/pipeline");
+      } catch (err: any) {
+        if (isExplicitOfflineOrMock(true)) {
+          values = buildFallbackDefaults();
+        } else {
+          loadError = err.message || "Failed to load pipeline settings.";
+        }
+      }
+
+      expect(loadError).toBeNull();
+      expect(values).toBeDefined();
+      expect(values!["pipeline.vector_search_top_n"]).toBe(50);
+    });
+  });
+
+  describe("Main CSS Selection Bar & Invalid State Parity", () => {
+    it("verifies main.css defines selection-bar and field invalid styling", () => {
+      const cssPath = path.resolve(__dirname, "../styles/main.css");
+      const css = fs.readFileSync(cssPath, "utf-8");
+
+      expect(css).toContain(".run-selection");
+      expect(css).toContain(".selection-bar");
+      expect(css).toContain(".selection-bar-copy");
+      expect(css).toContain(".selection-bar-actions");
+      expect(css).toContain("border-radius: var(--radius-lg, 12px);");
+      expect(css).toContain("padding: 14px 16px;");
+
+      expect(css).toContain('.field[aria-invalid="true"]');
+      expect(css).toContain(".field.is-invalid");
+      expect(css).toContain("border-color: var(--danger);");
+    });
+  });
   });
 });

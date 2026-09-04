@@ -1,6 +1,6 @@
 export { PIPELINE_SECTIONS } from "./sections-def";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Button, LoadingState } from "../../components";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Button, LoadingState, ErrorState } from "../../components";
 import { apiClient } from "../../lib/api-client";
 import { notificationStore } from "../../lib/notifications";
 import { PipelineSectionId } from "./types";
@@ -11,6 +11,17 @@ export interface PipelineSettingsDialogProps {
   onClose: () => void;
   onSaved?: (values: Record<string, any>) => void;
   initialSection?: PipelineSectionId;
+  allowOfflineFallback?: boolean;
+}
+
+export function isExplicitOfflineOrMock(explicitFlag?: boolean): boolean {
+  if (explicitFlag) return true;
+  if (typeof window !== "undefined") {
+    if ((window as any).__FITCV_MOCK__ || (window as any).__FITCV_OFFLINE__) return true;
+    const search = window.location?.search || "";
+    if (search.includes("mock=true") || search.includes("offline=true")) return true;
+  }
+  return false;
 }
 
 export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
@@ -18,6 +29,7 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
   onClose,
   onSaved,
   initialSection = "overview",
+  allowOfflineFallback,
 }) => {
   const [activeSectionId, setActiveSectionId] = useState<PipelineSectionId>(initialSection);
   const [savedValues, setSavedValues] = useState<Record<string, any>>({});
@@ -25,9 +37,39 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
   const [canonicalDefaults, setCanonicalDefaults] = useState<Record<string, any>>(() => buildFallbackDefaults());
   const [revision, setRevision] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflictNotice, setConflictNotice] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      if (!wasOpenRef.current) {
+        triggerRef.current = (document.activeElement as HTMLElement) || null;
+        wasOpenRef.current = true;
+      }
+    } else if (wasOpenRef.current) {
+      wasOpenRef.current = false;
+      if (triggerRef.current && typeof triggerRef.current.focus === "function") {
+        triggerRef.current.focus();
+      }
+      triggerRef.current = null;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      if (wasOpenRef.current) {
+        wasOpenRef.current = false;
+        if (triggerRef.current && typeof triggerRef.current.focus === "function") {
+          triggerRef.current.focus();
+        }
+        triggerRef.current = null;
+      }
+    };
+  }, []);
 
   const activeSection = useMemo(() => {
     return PIPELINE_SECTIONS.find((s) => s.id === activeSectionId) || PIPELINE_SECTIONS[0];
@@ -35,6 +77,7 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     setError(null);
     setConflictNotice(null);
     try {
@@ -51,15 +94,19 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
       setDraftValues(initialValues);
       setCanonicalDefaults(mergedDefaults);
       setRevision(rev);
-    } catch {
-      const fallback = buildFallbackDefaults();
-      setSavedValues(fallback);
-      setDraftValues(fallback);
-      setCanonicalDefaults(fallback);
+    } catch (err: any) {
+      if (isExplicitOfflineOrMock(allowOfflineFallback)) {
+        const fallback = buildFallbackDefaults();
+        setSavedValues(fallback);
+        setDraftValues(fallback);
+        setCanonicalDefaults(fallback);
+      } else {
+        setLoadError(err?.message || "Failed to load pipeline settings.");
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [allowOfflineFallback]);
 
   useEffect(() => {
     if (open) {
@@ -208,6 +255,10 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
       className="native-dialog pipeline-settings-dialog"
       aria-labelledby="pipeline-dialog-title"
       aria-describedby="pipeline-dialog-desc"
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
     >
       <div className="dialog-header pipeline-dialog-header">
         <div>
@@ -260,6 +311,15 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
           {loading ? (
             <div style={{ padding: 40 }}>
               <LoadingState message="Loading settings..." />
+            </div>
+          ) : loadError ? (
+            <div style={{ padding: 40 }}>
+              <ErrorState
+                title="Failed to Load Settings"
+                message={loadError}
+                actionLabel="Retry"
+                onRetry={loadSettings}
+              />
             </div>
           ) : (
             <>
@@ -421,14 +481,14 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
           <Button
             variant="secondary"
             onClick={handleRestoreAllDefaults}
-            disabled={loading || saving}
+            disabled={loading || saving || Boolean(loadError)}
             aria-label="Restore all pipeline defaults"
           >
             Restore Defaults
           </Button>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {dirtyCount > 0 && (
+          {dirtyCount > 0 && !loadError && (
             <span style={{ fontSize: 13, color: "var(--muted)" }} aria-live="polite">
               {dirtyCount} {dirtyCount === 1 ? "setting" : "settings"} changed
             </span>
@@ -443,7 +503,7 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
           <Button
             variant="primary"
             onClick={handleSave}
-            disabled={loading || saving}
+            disabled={loading || saving || Boolean(loadError)}
           >
             {saving ? "Saving..." : "Save"}
           </Button>

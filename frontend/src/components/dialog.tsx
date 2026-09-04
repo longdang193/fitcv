@@ -22,27 +22,52 @@ export const Dialog: React.FC<DialogProps> = ({
 }) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
+  const isBackdropMouseDownRef = useRef(false);
   const titleId = useId();
   const descId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) return;
-
     if (open) {
-      triggerRef.current = document.activeElement as HTMLElement;
-      if (!dialog.open) {
-        dialog.showModal();
+      if (!wasOpenRef.current) {
+        triggerRef.current = (document.activeElement as HTMLElement) || null;
+        wasOpenRef.current = true;
       }
-    } else {
-      if (dialog.open) {
-        dialog.close();
+      if (dialog && !dialog.open) {
+        if (typeof dialog.showModal === "function") {
+          dialog.showModal();
+        } else {
+          dialog.setAttribute("open", "");
+        }
       }
-      if (triggerRef.current) {
+    } else if (wasOpenRef.current) {
+      wasOpenRef.current = false;
+      if (dialog && dialog.open) {
+        if (typeof dialog.close === "function") {
+          dialog.close();
+        } else {
+          dialog.removeAttribute("open");
+        }
+      }
+      if (triggerRef.current && typeof triggerRef.current.focus === "function") {
         triggerRef.current.focus();
       }
+      triggerRef.current = null;
     }
   }, [open]);
+
+  useEffect(() => {
+    return () => {
+      if (wasOpenRef.current) {
+        wasOpenRef.current = false;
+        if (triggerRef.current && typeof triggerRef.current.focus === "function") {
+          triggerRef.current.focus();
+        }
+        triggerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -53,7 +78,28 @@ export const Dialog: React.FC<DialogProps> = ({
       onClose();
     };
 
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.target === dialog) {
+        const rect = dialog.getBoundingClientRect();
+        const isInDialog =
+          rect.top <= e.clientY &&
+          e.clientY <= rect.top + rect.height &&
+          rect.left <= e.clientX &&
+          e.clientX <= rect.left + rect.width;
+        isBackdropMouseDownRef.current = !isInDialog;
+      } else {
+        isBackdropMouseDownRef.current = false;
+      }
+    };
+
     const handleClick = (e: MouseEvent) => {
+      const wasBackdropMouseDown = isBackdropMouseDownRef.current;
+      isBackdropMouseDownRef.current = false;
+
+      if (!wasBackdropMouseDown || e.target !== dialog) {
+        return;
+      }
+
       const rect = dialog.getBoundingClientRect();
       const isInDialog =
         rect.top <= e.clientY &&
@@ -66,12 +112,14 @@ export const Dialog: React.FC<DialogProps> = ({
     };
 
     dialog.addEventListener("cancel", handleCancel);
+    dialog.addEventListener("mousedown", handleMouseDown);
     dialog.addEventListener("click", handleClick);
     return () => {
       dialog.removeEventListener("cancel", handleCancel);
+      dialog.removeEventListener("mousedown", handleMouseDown);
       dialog.removeEventListener("click", handleClick);
     };
-  }, [onClose]);
+  }, [open, onClose]);
 
   if (!open) return null;
 
