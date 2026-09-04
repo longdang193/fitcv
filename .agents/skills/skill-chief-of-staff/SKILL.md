@@ -52,7 +52,10 @@ never invokes subagents directly. Use the repository Herdr command
 top-level lane and wrapper through provider-resolved wait/read operations; do
 not monitor or supervise executor-local subagents from CoS.
 Before any Herdr control, require `HERDR_ENV=1`; if it is absent, return
-`BLOCKED`. Never set or spoof this variable to bypass Herdr safety.
+`BLOCKED`. Starting or attaching `herdr --session ...` from the current process
+does not add controller attestation; do not present it as a fix. Start CoS from
+a Herdr-managed controller pane. Never set or spoof this variable to bypass
+Herdr safety.
 
 ## Conditional References
 

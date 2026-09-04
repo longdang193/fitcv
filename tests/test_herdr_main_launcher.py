@@ -296,7 +296,10 @@ def test_main_starts_with_selected_codex_home(monkeypatch: pytest.MonkeyPatch, t
 def test_launcher_requires_herdr_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("HERDR_ENV", raising=False)
 
-    with pytest.raises(LAUNCHER.LaunchBlocked, match="HERDR_ENV=1 required"):
+    with pytest.raises(
+        LAUNCHER.LaunchBlocked,
+        match="HERDR_ENV=1 required.*cannot attest an existing process",
+    ):
         LAUNCHER._herdr_environment()
 
 

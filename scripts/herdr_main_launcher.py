@@ -31,7 +31,9 @@ _DEEPAGENTS_TIMEOUT = "120"
 def _herdr_environment() -> dict[str, str]:
     if os.environ.get("HERDR_ENV") != "1":
         raise LaunchBlocked(
-            "HERDR_ENV=1 required; run the launcher from a Herdr-managed controller pane."
+            "HERDR_ENV=1 required; current process was not started by Herdr. "
+            "Attaching with `herdr --session ...` cannot attest an existing process; "
+            "start CoS from a Herdr-managed controller pane."
         )
     return os.environ.copy()
 
