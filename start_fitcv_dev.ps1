@@ -8,6 +8,7 @@ $root = (Resolve-Path $PSScriptRoot).Path
 $configPath = Join-Path $root "config\dev-server.json"
 $frontendRoot = Join-Path $root "frontend"
 $webScript = Join-Path $root "start_web.ps1"
+$bootstrapPath = Join-Path $env:APPDATA "FitCV\bootstrap.json"
 $backend = $null
 $frontend = $null
 
@@ -22,6 +23,16 @@ function Stop-ChildProcess($Process) {
 }
 
 $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+$bootstrap = if (Test-Path -LiteralPath $bootstrapPath) {
+    Get-Content -LiteralPath $bootstrapPath -Raw | ConvertFrom-Json
+} else {
+    $null
+}
+if ($null -eq $bootstrap -or [string]::IsNullOrWhiteSpace([string]$bootstrap.data_root)) {
+    throw "FitCV Local bootstrap missing or invalid: $bootstrapPath"
+}
+$env:FITCV_LOCAL_MODE = "1"
+$env:FITCV_CP_INLINE_EXECUTION = "1"
 $hostName = [string]$config.host
 $backendPort = [int]$config.backendPort
 $frontendPort = [int]$config.frontendPort
@@ -43,7 +54,7 @@ try {
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        $webScript,
+        "`"$webScript`"",
         "-Port",
         $backendPort
     ) -WorkingDirectory $root -WindowStyle Hidden -PassThru

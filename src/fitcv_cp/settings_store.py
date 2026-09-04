@@ -441,7 +441,10 @@ def _patch_configuration_resource(
             current_revision = int(row[1])
             if current_revision != expected_revision:
                 raise SettingsRevisionConflict(f"{resource_name} changed since last read")
-            value = update(json.loads(str(row[0])))
+            value = json.loads(str(row[0]))
+            if resource_name == "llm_configuration":
+                value = _hydrate_llm_configuration_tasks(value)
+            value = update(value)
             revision = current_revision + 1
             updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
             conn.execute(

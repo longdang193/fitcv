@@ -3,7 +3,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { route as apiProvidersRoute } from "../features/api-providers/route";
 import { route as llmConfigRoute } from "../features/llm-configuration/route";
-import { customProviderPayload, providerInitials, ProviderSettingsCore, getProviderIdFromHash } from "../features/api-providers/provider-settings-core";
+import { customProviderPayload, providerInitials, providerRevisionPayload, ProviderSettingsCore, getProviderIdFromHash } from "../features/api-providers/provider-settings-core";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { Dialog } from "../components/dialog";
 
@@ -158,6 +158,9 @@ describe("provider-settings routes", () => {
     expect(providerInitials("OpenAI Compatible")).toBe("OC");
     expect(providerInitials("Anthropic Claude")).toBe("AC");
     expect(providerInitials("")).toBe("AI");
+  });
+  it("uses provider revision for model actions", () => {
+    expect(providerRevisionPayload(9)).toEqual({ expected_revision: 9 });
   });
   it("uses production copy without stale prototype wording for connection and model test success", () => {
     const isConnected = false;

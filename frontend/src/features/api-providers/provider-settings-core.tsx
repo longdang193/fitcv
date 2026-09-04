@@ -54,6 +54,10 @@ export function providerInitials(name: string): string {
   );
 }
 
+export function providerRevisionPayload(revision: number) {
+  return { expected_revision: revision };
+}
+
 export const LLM_TASKS = [
   { id: "candidate_profile_base_mapping", label: "Candidate Profile Base Mapping" },
   { id: "candidate_profile_derived_claims", label: "Candidate Profile Derived Claims" },
@@ -430,7 +434,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     void run(async () => {
       await apiClient.post(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}/actions/test`,
-        { expected_revision: model.revision || provider.revision }
+        providerRevisionPayload(provider.revision)
       );
     }, { reload: true });
   };
@@ -440,7 +444,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     void run(async () => {
       await apiClient.delete(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}`,
-        { body: { expected_revision: model.revision || provider.revision } }
+        { body: providerRevisionPayload(provider.revision) }
       );
     });
   };
@@ -758,8 +762,8 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
                     <article className="model-card" key={model.model_record_id || model.model_id}>
                       <div>
                         <code>{model.model_id}</code>
-                        <div className={`model-state${model.validation_status === "verified" ? " verified" : ""}`}>
-                          {model.validation_status === "verified" ? "Validated" : "Needs retest"}
+                        <div className={`model-state${model.validation_status === "validated" ? " verified" : ""}`}>
+                          {model.validation_status === "validated" ? "Validated" : "Needs retest"}
                         </div>
                       </div>
                       <div className="model-card-actions">

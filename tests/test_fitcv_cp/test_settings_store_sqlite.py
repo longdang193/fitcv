@@ -207,6 +207,7 @@ def test_configuration_resources_hydrate_legacy_llm_tasks(tmp_path, monkeypatch)
         configuration["tasks"].pop("candidate_profile_base_mapping")
         configuration["tasks"].pop("candidate_profile_derived_claims")
         configuration["tasks"]["enrich_extraction"]["model_ref"] = "kept-model"
+        configuration["default_model_ref"] = "kept-model"
         conn.execute(
             "UPDATE configuration_resources SET resource_json = ?, revision = ? WHERE resource_name = ?",
             (json.dumps(configuration), revision, "llm_configuration"),
@@ -223,6 +224,17 @@ def test_configuration_resources_hydrate_legacy_llm_tasks(tmp_path, monkeypatch)
         "temperature": 0.2,
     }
     assert hydrated["revision"] == revision
+    monkeypatch.setattr(
+        "fitcv_cp.provider_registry.list_eligible_models",
+        lambda: [{"model_record_id": "kept-model"}],
+    )
+
+    updated = ss.patch_llm_configuration(
+        {"tasks": {"enrich_extraction": {"timeout_seconds": 90}}},
+        expected_revision=revision,
+    )
+    assert updated["tasks"]["enrich_extraction"]["timeout_seconds"] == 90
+    assert set(updated["tasks"]) == set(ss.LLM_TASK_IDS)
 
 
 def test_configuration_resources_have_independent_revisions(tmp_path, monkeypatch):
