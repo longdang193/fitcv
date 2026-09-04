@@ -38,8 +38,9 @@ dispatched task contract and applicable worker or validator skills.
 - If mid-task MCP data is missing, stale, or requires live refresh, return
   `NEEDS_CONTEXT` with the missing capability, required facts, and freshness
   requirement.
-- CoS performs the MCP call, validates the result, writes a fresh handoff, and
-  retries the same plan task.
+- The outer Codex controller performs the MCP call, validates the result, writes
+  a fresh handoff, and retries the same plan task. When CoS is active, CoS
+  coordinates that refresh and retry.
 - CoS does not advance the task ledger from `NEEDS_CONTEXT`.
 - Acceptance requires handoff identity, capability digest, freshness, and
   returned evidence.
@@ -86,9 +87,10 @@ multiple evidence-recorded implementation, debugging, retry, or validation
 attempts.
 
 One `dcode-project` invocation equals one active plan task. Runtime-internal
-decomposition never becomes plan-level coordination. Nested writers are allowed
-only when dispatch explicitly permits them; they remain inside active task
-workspace, authority, dependencies, and declared write ownership.
+decomposition never becomes plan-level coordination. Nested writers remain
+inside active task workspace, authority, dependencies, and declared write
+ownership. A MAIN AGENT may spawn DeepAgents sub-agents when needed within its
+assigned lane; child workers do not gain peer or coordination authority.
 
 Every dispatch states:
 
@@ -98,7 +100,7 @@ Every dispatch states:
 - satisfied dependencies;
 - acceptance criteria and required proof;
 - preserved existing changes;
-- nested-delegation permission or prohibition;
+- nested-delegation boundaries or prohibition;
 - required result format and repository-relative `path:line` evidence.
 
 The plan wins when a dispatch brief conflicts with plan state.
@@ -126,10 +128,9 @@ The plan wins when a dispatch brief conflicts with plan state.
   runtime concurrency capability.
 - Spawn a debugger only after evidence-backed failure.
 - Spawn an independent validator only when validation materially benefits.
-- Do not allow nested delegation unless the bounded dispatch explicitly permits
-  it.
-- A permitted nested writer does not create another plan task or coordination
-  ledger entry.
+- MAIN AGENTS may use nested delegation when needed within assigned lane scope.
+- Sub-agents must not spawn peer MAIN AGENTS, activate CoS, or create another
+  plan task or coordination ledger entry.
 - Read `skill-subagent-driven-development` only when its bounded delegation
   patterns fit the current task; do not inherit session-based coordination.
 

@@ -17,11 +17,6 @@ LAUNCHER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(LAUNCHER)
 
 
-@pytest.fixture(autouse=True)
-def herdr_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HERDR_ENV", "1")
-
-
 def fake_profile(tmp_path: Path, name: str, rank: int | None) -> None:
     agents = tmp_path / "agents"
     agents.mkdir(exist_ok=True)
@@ -95,12 +90,10 @@ def test_codex_assignment_command_prompts_started_agent() -> None:
         "agent",
         "prompt",
         "xhigh-main",
-        "assign lane",
-        "--wait",
-        "--until",
-        "working",
-        "--timeout",
-        "30000",
+            "assign lane",
+            "--wait",
+            "--timeout",
+            "30000",
     ]
 
 
@@ -314,10 +307,17 @@ def test_codex_home_rejects_duplicate_stop_hook_scopes(tmp_path: Path) -> None:
         LAUNCHER._codex_runtime(project, codex_home)
 
 
-def test_main_starts_with_selected_codex_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_main_starts_with_selected_codex_home(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
     evidence = {
+        "registry_launcher": {
+            "assignment_task_sha256": LAUNCHER._sha256_text("assign lane"),
+        },
         "codex": {"codex_home": str(codex_home)},
         "herdr": {"executable": "herdr.exe", "agent_name": "xhigh-main"},
     }
@@ -361,12 +361,63 @@ def test_main_starts_with_selected_codex_home(monkeypatch: pytest.MonkeyPatch, t
             "xhigh-main",
             "assign lane",
             "--wait",
-            "--until",
-            "working",
             "--timeout",
             "30000",
         ],
     ]
+    output = capsys.readouterr().out.splitlines()
+    assert json.loads(output[-1])["assignment"] == {
+        "agent_name": "xhigh-main",
+        "exit_code": 0,
+        "phase": "prompt",
+        "prompt_accepted": True,
+        "session": "codex-probe",
+        "status": "delivered",
+        "task_sha256": LAUNCHER._sha256_text("assign lane"),
+        "wait": "settled",
+    }
+
+
+def test_main_reports_failed_assignment_after_start(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    evidence = {
+        "registry_launcher": {
+            "assignment_task_sha256": LAUNCHER._sha256_text("assign lane"),
+        },
+        "codex": {"codex_home": str(codex_home)},
+        "herdr": {"executable": "herdr.exe", "agent_name": "xhigh-main"},
+    }
+    calls = 0
+
+    monkeypatch.setattr(LAUNCHER, "resolve_launch", lambda **kwargs: (["herdr"], evidence))
+
+    def fake_run(command, **kwargs):
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(command, 7 if calls == 1 else 0, "", "start failed")
+
+    monkeypatch.setattr(LAUNCHER, "_run", fake_run)
+
+    assert LAUNCHER.main(
+        [
+            "--profile", "xhigh", "--session", "codex-probe", "--pane", "w1:p5",
+            "--cwd", str(ROOT), "--expected-base", "HEAD", "--task", "assign lane",
+        ]
+    ) == 7
+    output = capsys.readouterr().out.splitlines()
+    assert json.loads(output[-1])["assignment"] == {
+        "agent_name": "xhigh-main",
+        "exit_code": 7,
+        "phase": "start",
+        "session": "codex-probe",
+        "status": "failed",
+        "task_sha256": LAUNCHER._sha256_text("assign lane"),
+    }
 
 
 def test_launcher_allows_external_codex_controller(monkeypatch: pytest.MonkeyPatch) -> None:

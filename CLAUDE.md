@@ -49,9 +49,11 @@ When spawning a subagent:
 - Do not select unnamed or other agent types.
 - Subagents must not spawn other agents unless explicitly requested.
 
-These generic subagent rules do not govern CoS top-level main-agent lanes.
-CoS lanes are dispatched through the repository-owned Herdr launcher; only
-executor-local subagents use the platform selector rules above.
+These generic subagent rules do not govern MAIN AGENT lane ownership. CoS
+assigns top-level MAIN AGENTS through the repository-owned Herdr launcher.
+MAIN AGENTS own assigned lanes and may spawn Native Codex, DeepAgents, or Tura
+sub-agents when needed. Sub-agents remain subordinate to their parent lane and
+must not spawn peer MAIN AGENTS or activate CoS.
 
 Select profile from required reasoning depth, ambiguity, scope, risk, and cost.
 Use lowest profile that can reliably complete current task contract. If scope or

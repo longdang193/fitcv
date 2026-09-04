@@ -1,6 +1,6 @@
 ---
 name: skill-chief-of-staff
-description: "Codex lead only: use when canonical work needs sustained top-level coordination across independent implementation lanes."
+description: "Codex lead only: use when canonical work needs advisory audit or sustained top-level coordination across independent lanes."
 required_reads: []
 distribution_tier: starter_kit
 ---
@@ -10,12 +10,13 @@ distribution_tier: starter_kit
 ## Role
 
 Coordinate canonical work without becoming its owner. CoS owns work binding,
-situational synthesis, attention selection, top-level implementation lane selection
+situational synthesis, attention selection, top-level lane selection
 and dispatch, lane briefing, evidence reconciliation, blocker routing, retirement,
 and escalation. `skill-executing-plans` owns
 approved-plan execution.
 CoS coordinates work; it does not own work execution or canonical work truth.
-Top-level main agents are CoS execution lanes; executor-local subagents are not.
+Top-level MAIN AGENTS are CoS execution lanes; sub-agents are subordinate lane
+workers.
 
 ## Activation
 
@@ -26,26 +27,30 @@ parallel aggregation. CoS activates only under a native Codex lead controller.
 Use coordination mode `advisory` or `plan-bound-execution`.
 
 Advisory CoS may inspect, synthesize, challenge, and recommend. Advisory CoS has
-no mutation authority. V2 advisory scope supports only an exact-commit repository
+no mutation authority. Advisory scope supports only an exact-commit repository
 audit; PR, release, incident, specification, research, and cross-repository
 work remain out of scope. Plan-bound execution requires an approved plan that
 lists `skill-chief-of-staff` in `Required skills` and needs sustained handoffs,
 independent write-capable lanes, or cross-task coordination.
 CoS must not activate for PR, release, incident, specification, research, or
-cross-repository work in V2.
+cross-repository work.
 
-CoS activates only under a native Codex lead controller. A delegated Herdr top-level implementation lane receives a bounded task; it must not
-activate CoS, create peer agents, or reactivate coordination. CoS applies to
-`Executor: codex | deepagents` for implementation lanes; `codex` uses Herdr
-agent start and `deepagents` uses `dcode-project` through Herdr pane run.
-Review and integration remain Codex-only. `tura` uses `project-delegate` on
-its existing peer executor path. Other generated adapters may carry this
-skill, but their non-Codex lead must return `BLOCKED` rather than activate it.
+CoS activates only under a native Codex lead controller. CoS assigns top-level
+MAIN AGENTS through Herdr. Each MAIN AGENT receives a bounded task and owns
+execution, evidence, Git state, and lifecycle for its assigned lane. A MAIN
+AGENT may spawn Native Codex, DeepAgents, or Tura sub-agents when needed inside
+that lane. Sub-agents must not spawn peer MAIN AGENTS, activate CoS, or
+reactivate coordination. CoS applies to `Executor: codex | deepagents` for
+implementation lanes; `codex` uses Herdr agent start and `deepagents` uses
+`dcode-project` through Herdr pane run. Review and integration remain Codex-only.
+`tura` uses `project-delegate` on its existing peer executor path. Other
+generated adapters may carry this skill, but their non-Codex lead must return
+`BLOCKED` rather than activate it.
 
 Apply the CoS Executor Eligibility contract from
 `docs/operating_system/planning/planning-dispatch.md`.
 
-CoS may dispatch only top-level implementation lanes through Herdr. Codex lanes
+CoS may dispatch only top-level MAIN AGENT lanes through Herdr. Codex lanes
 use top-level Codex main agents; DeepAgents lanes use the bounded
 `dcode-project` pane process. Every CoS lane dispatch goes through Herdr; CoS
 never invokes subagents directly. Use the repository Herdr command
@@ -53,10 +58,10 @@ never invokes subagents directly. Use the repository Herdr command
 top-level lane and wrapper through provider-resolved wait/read operations; do
 not monitor or supervise executor-local subagents from CoS.
 CoS may be invoked from a native Codex session. Before Herdr control, use the
-repository launcher; it proves controller authority through Herdr session, pane,
-process, cwd, and Git checks. `HERDR_ENV` is optional runtime metadata, never
-attestation, and must never be set or spoofed. Before local dispatch, run
-`py -B scripts/validate_agent_runtime_drift.py --all-platforms`; a failed check
+repository launcher; it verifies target lane readiness, Git/cwd identity,
+runtime/profile binding, and task delivery. It does not attest CoS controller
+identity or own lane authority. Before local dispatch, run
+`py -B scripts/validate_agent_runtime_drift.py`; a failed check
 returns `BLOCKED`. `--skip-deploy-check` is CI-only and never satisfies local
 CoS dispatch.
 
@@ -86,11 +91,12 @@ reports recommendations; the resolved external owner accepts them.
 
 ### Repository Snapshot Advisory Binding
 
-For V2 advisory work, bind repository identity, exact commit SHA, scoped target,
+For advisory work, bind repository identity, exact commit SHA, scoped target,
 and evidence authority before inspection. Commit-bound Git evidence remains
 valid while its anchor is unchanged. Runtime evidence uses
-`fresh-this-turn` or `reused-this-session`; external mutable evidence follows
-its own freshness boundary. Do not create freshness state.
+`fresh-this-turn`; external mutable evidence follows its own freshness boundary.
+Do not reuse runtime evidence across explicit turns unless its anchor is
+independently revalidated.
 
 Remote or immutable inspection needs no worktree. If local tools can mutate the
 repository, use clean isolation or equivalent pre/post Git-state
@@ -134,8 +140,8 @@ coordination state. Advisory CoS also does not mutate canonical work.
 `attention_target` identifies what CoS should inspect; CoS remains the
 next-action selector.
 
-V1 has no autonomous wake mechanism, timer, scheduler, helper-agent dispatch,
-new profile, hook integration, or persistent heartbeat state. No polling or
+This contract has no autonomous wake mechanism, timer, scheduler, helper-agent
+dispatch, new profile, hook integration, or persistent heartbeat state. No polling or
 subscription mechanism is implied by this skill.
 
 ## Plan Binding
@@ -188,8 +194,8 @@ executor-specific runtime binding and instruction surface used by the lane. A
 missing or mismatched link returns `BLOCKED`; CoS must not fall back to native
 subagents or a different profile.
 
-Reuse parity evidence only inside the current lead-controller session until
-one of those inputs changes. Every top-level lane launch, and every Codex session reuse, performs a cheap
+Do not reuse parity evidence across explicit turns. Every top-level lane launch,
+and every Codex session reuse, performs a cheap
 identity and binding check:
 
 - repository root and Git common directory
@@ -211,36 +217,21 @@ state.
 
 For each dependency-ready CoS task, the next action is one of:
 
-- `DISPATCH` - run `scripts/herdr_main_launcher.py`, then record returned
-  launcher and Herdr evidence;
+- `DISPATCH` - use the repository launcher, then record its returned evidence;
 - `CONTINUE` - reuse a live lane only after fresh identity and binding checks;
 - `BLOCKED` - record the canonical blocker and stop.
 
 Selecting a profile, writing a brief, naming a lane, or stating intent is not
-assignment. A lane is assigned only after launcher evidence proves executor,
-session, pane, agent kind, command shape, repository identity, process cwd, and
-task delivery. For Codex, `agent start` is readiness only; the launcher must
-then submit the bounded task with `herdr agent prompt <agent> <task> --wait`.
-If no such evidence exists, do not report the lane as assigned or wait for it;
-dispatch it or return `BLOCKED`.
+assignment. A lane is assigned only after successful final delivery evidence
+from the repository launcher. Missing or failed delivery evidence is a blocker;
+do not report the lane as assigned or wait for it.
 
-For each Herdr top-level implementation-lane launch, use the repository-owned
+For each Herdr top-level CoS lane launch, use the repository-owned
 `scripts/herdr_main_launcher.py`. CoS verifies the full lane contract, including
-branch, `HEAD`, expected base, ownership, and allowed paths. Pass `--profile`,
-`--executor`, `--session`, `--pane`, `--cwd`, `--expected-base`, and `--task`.
-For Codex, the launcher starts the agent and immediately delivers `--task`
-through Herdr `agent prompt`; for `deepagents`, it passes `--task` to the
-bounded pane process. The launcher verifies runtime projection plus exact
-pane/cwd identity and reports Git facts; it does not enforce the full CoS lane
-contract. Do not construct provider, model, or developer-instruction overrides
-in CoS. For `codex`, the launcher projects the bound profile directly; for
-`deepagents`, it passes the bound profile to `dcode-project`, which resolves and
-projects the runtime.
-Launcher evidence separates registry/runtime projection, Git identity, Herdr
-observation, and launch-request evidence. Redact developer instructions and
-record their digest instead. Record discovered versions and smoke-check required
-operations; compare against a pinned version only when an applicable plan or
-configuration explicitly pins one.
+branch, `HEAD`, expected base, ownership, and allowed paths. The launcher owns
+runtime projection, exact pane/cwd checks, Git-fact reporting, and delivery
+mechanics. Do not construct provider, model, or developer-instruction overrides
+in CoS; consume launcher evidence and apply CoS acceptance policy.
 
 CoS uses only provider-resolved Herdr operations: discover/list, start, prompt,
 wait, read, and retire/stop. Operation names and outputs come from the active
@@ -266,9 +257,10 @@ worktree, parallel-write, review, verification, and finishing owners.
 CoS has no direct Git or PR authority. An approved plan may grant an assigned
 implementation lane bounded authority to create or reuse its lane, commit
 lane-owned changes, push only its lane branch, create or update its PR, and clean
-its verified-clean retired lane. Only an assigned Codex implementation lane may
-submit an assigned review or merge the exact approved PR into its declared base
-after gates pass.
+its verified-clean retired lane. Implementation lanes may implement, commit,
+push, and manage their assigned PR when granted. Independent Codex review lanes
+own assigned review actions. A designated Codex integration action owns an exact
+approved PR merge after review and verification gates pass.
 
 Never grant force push, direct or exceptional base mutation outside the exact
 PR merge path, PR retargeting, branch-protection bypass, semantic conflict
@@ -282,11 +274,12 @@ agent must not update the ledger as part of its implementation commit.
 ## Review And Integration (plan-bound execution)
 
 Request review through `skill-requesting-code-review`. CoS dispatches only an
-independent Herdr top-level Codex main-agent session. CoS never calls
+independent Herdr top-level Codex MAIN AGENT session. CoS never calls
 `multi_agent_v1`, native Codex subagents, DeepAgents internal `task` workers,
-Tura internal workers, or executor-local reviewers or helpers. The reviewer
-receives the bounded contract, not the producer session history. Native
-subagent review remains available only on non-CoS execution paths.
+Tura internal workers, or executor-local reviewers or helpers directly. MAIN
+AGENTS may use those sub-agent paths when needed for assigned lane work. The
+reviewer receives the bounded contract, not the producer session history.
+Independent review and integration remain Codex-only.
 
 `skill-reviewing-pull-requests` owns independent PR inspection. Project OS
 review is separate from GitHub review state. A review result binds to
@@ -341,8 +334,10 @@ files, failed required proof, and unresolved plan or lane identity mismatch.
 
 ## Output
 
-Return selected task, plan binding, lane identity, `attention_result`, optional
-`attention_target`, runtime evidence freshness (`fresh-this-turn` or
-`reused-this-session`, with invalidation reason when reused), agent status, proof
-decision, blockers, retirement result, and next action. Do not claim completion
-from Herdr status, a lane commit, an open PR, or a merged PR.
+Return work binding, coordination mode, `attention_result`, optional
+`attention_target`, evidence, recommendation or blocker, and next action.
+For `plan-bound-execution`, also return selected task, plan binding, lane
+identity, agent status, proof decision, and retirement result. Runtime evidence
+must be fresh for the current turn or backed by an independently revalidated
+anchor. Do not claim completion from Herdr status, a lane commit, an open PR,
+or a merged PR.

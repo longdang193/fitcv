@@ -1,4 +1,4 @@
-"""Launch one registry-bound top-level implementation lane through Herdr."""
+"""Launch one registry-bound top-level lane through Herdr."""
 
 from __future__ import annotations
 
@@ -272,8 +272,6 @@ def _codex_assignment_command(
         agent_name,
         task,
         "--wait",
-        "--until",
-        "working",
         "--timeout",
         _CODEX_PROMPT_TIMEOUT_MS,
     ]
@@ -375,7 +373,8 @@ def resolve_launch(
             "executable": codex or dcode,
             "argv_shape": _redacted_arguments(runtime_arguments),
         },
-        "assignment": {
+        "assignment_request": {
+            "status": "pending",
             "required": True,
             "delivery": "herdr_agent_prompt" if executor == "codex" else "inline_pane_run",
             "redacted_prompt_argv": _redacted_arguments(
@@ -439,6 +438,16 @@ def main(argv: list[str] | None = None) -> int:
         if result.stderr:
             print(result.stderr, file=sys.stderr, end="")
         if result.returncode:
+            print(json.dumps({
+                "assignment": {
+                    "agent_name": evidence["herdr"]["agent_name"],
+                    "exit_code": result.returncode,
+                    "phase": "start",
+                    "session": args.session,
+                    "status": "failed",
+                    "task_sha256": evidence["registry_launcher"]["assignment_task_sha256"],
+                }
+            }, sort_keys=True))
             return result.returncode
         if args.executor == "codex":
             herdr = str(evidence["herdr"]["executable"])
@@ -454,7 +463,30 @@ def main(argv: list[str] | None = None) -> int:
                 print(assignment_result.stdout, end="")
             if assignment_result.stderr:
                 print(assignment_result.stderr, file=sys.stderr, end="")
+            print(json.dumps({
+                "assignment": {
+                    "agent_name": agent_name,
+                    "exit_code": assignment_result.returncode,
+                    "phase": "prompt",
+                    "prompt_accepted": assignment_result.returncode == 0,
+                    "session": args.session,
+                    "status": "delivered" if assignment_result.returncode == 0 else "failed",
+                    "task_sha256": evidence["registry_launcher"]["assignment_task_sha256"],
+                    "wait": "settled" if assignment_result.returncode == 0 else None,
+                }
+            }, sort_keys=True))
             return assignment_result.returncode
+        print(json.dumps({
+            "assignment": {
+                "agent_name": evidence["herdr"]["agent_name"],
+                "exit_code": 0,
+                "phase": "pane_run",
+                "session": args.session,
+                "status": "delivered",
+                "task_accepted": True,
+                "task_sha256": evidence["registry_launcher"]["assignment_task_sha256"],
+            }
+        }, sort_keys=True))
         return 0
     except LaunchBlocked as exc:
         print(f"BLOCKED: {exc}", file=sys.stderr)

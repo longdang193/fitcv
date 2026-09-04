@@ -275,9 +275,11 @@ When task contract preauthorizes verified checkpoint commits, completed task
 changes and lead-controller ledger update share one checkpoint commit after
 task-local proof. Git owns checkpoint identity; do not copy the resulting SHA
 into the plan. An exact active-plan lane grant may authorize implementation-lane
-push, PR create/update, and cleanup. Only a Codex implementation lane may receive
-assigned review or exact approved PR merge authority; exceptional or destructive
-actions still require explicit user authorization.
+push, PR create/update, and cleanup. Implementation lanes may implement, commit,
+push, and manage their assigned PR when granted. Independent Codex review lanes
+own assigned review actions. A designated Codex integration action owns an exact
+approved PR merge after review and verification gates pass; exceptional or
+destructive actions still require explicit user authorization.
 
 ## Check And Review
 

@@ -37,33 +37,40 @@ Do not use an arbitrary overlap threshold.
 
 ## Coordination Method Selection
 
-Select `skill-chief-of-staff` as an optional coordination specialization of
-`skill-executing-plans` only when an approved Git-tracked plan lists
-`skill-chief-of-staff` in `Required skills` and needs sustained handoffs,
-independent top-level implementation lanes, or cross-task coordination. Keep
-ordinary single-lane work on the existing execution path.
+Select `skill-chief-of-staff` in `advisory` mode when a native Codex lead binds
+an exact repository commit and a bounded read-only audit materially benefits
+from independent inspection or synthesis. Advisory mode needs no plan or
+`Required skills` opt-in and has no mutation authority.
 
-The `Required skills` entry is the canonical CoS opt-in signal. CoS does not add
-an executor, profile, plan field, or durable state artifact.
-It applies when the task ledger `Executor` is `codex` or `deepagents` for
-implementation lanes and runtime parity, plan binding, lane identity, and
-profile-binding gates pass under a native Codex lead controller. Herdr is
+Select `skill-chief-of-staff` in `plan-bound-execution` as an optional
+coordination specialization of `skill-executing-plans` only when an approved
+Git-tracked plan lists `skill-chief-of-staff` in `Required skills` and needs
+sustained handoffs, independent top-level lanes, or cross-task coordination.
+Keep ordinary single-lane work on the existing execution path.
+
+For `plan-bound-execution`, the `Required skills` entry is the canonical CoS
+opt-in signal. CoS does not add an executor, profile, plan field, or durable
+state artifact.
+For `plan-bound-execution`, it applies when the task ledger `Executor` is
+`codex` or `deepagents` for implementation lanes and runtime parity, plan
+binding, lane identity, and profile-binding gates pass under a native Codex lead
+controller. Herdr is
 runtime observation and top-level lane supervision, not executor selection or
-task acceptance. CoS dispatches only independent Herdr top-level main-agent
+task acceptance. CoS dispatches only independent Herdr top-level MAIN AGENT
 lanes;
 Codex uses a main-agent session and DeepAgents uses a bounded `dcode-project`
 pane process. It never calls
 `multi_agent_v1`, native Codex subagents, DeepAgents internal `task` workers,
 Tura internal workers, or executor-local reviewers or helpers. `tura` retains
-its existing peer executor path. Review and integration remain Codex-only.
-For every Herdr top-level implementation-lane launch, CoS verifies branch,
-`HEAD`, expected base, lane ownership, and allowed paths. It uses `scripts/herdr_main_launcher.py` for
-runtime projection, exact session/pane/cwd checks, and Git-fact reporting; the
-launcher resolves provider, model, and developer instructions from
-`agents/*.toml`. Every launch passes bounded `--task` text. For Codex,
-`agent start` is readiness only; the launcher must then deliver that task with
-`herdr agent prompt ... --wait`. Assignment is unproven until prompt delivery
-evidence exists.
+its existing peer executor path. Each MAIN AGENT owns its assigned lane and may
+spawn Native Codex, DeepAgents, or Tura sub-agents when needed inside that lane.
+Sub-agents remain subordinate and must not spawn peer MAIN AGENTS or activate
+CoS. Review and integration remain Codex-only.
+For every Herdr top-level CoS lane launch, CoS verifies branch, `HEAD`, expected
+base, lane ownership, and allowed paths. Use `scripts/herdr_main_launcher.py`
+for runtime projection and task delivery. The launcher and its tests own runtime
+mechanics; CoS accepts only successful final delivery evidence and treats
+missing or failed evidence as `BLOCKED`.
 
 ## Level-2 Readiness Evidence
 
@@ -159,7 +166,7 @@ selected executors CoS may dispatch through Herdr.
   cross-task judgment, or external mutation.
 - `deepagents`: bounded repo-local implementation lane needing substantial
   context, exploration, debugging, or internal decomposition.
-- `tura`: not a CoS Herdr lane in V1; use its existing peer executor path.
+- `tura`: not a CoS Herdr lane; use its existing peer executor path.
 
 For mixed plans, CoS coordinates only eligible `codex` and `deepagents` lanes.
 When a dependency-ready task selects `tura`, CoS does not translate or reroute

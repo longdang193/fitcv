@@ -1,1 +1,3 @@
-skill_synonyms: {}
+skill_synonyms:
+  browser-proof: browser-canonical
+  py: python

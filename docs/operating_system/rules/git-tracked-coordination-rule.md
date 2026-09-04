@@ -29,9 +29,11 @@ For Git-tracked coordinated work:
   and a dependency-ready wave.
 - A write-capable coordinated implementation lane uses one exact branch and
   isolated worktree. The active plan may grant that lane bounded authority for
-  lane commits, lane push, PR create/update, and post-retirement cleanup. Only a
-  Codex implementation lane may receive assigned review or exact approved PR
-  merge authority.
+  lane commits, lane push, PR create/update, and post-retirement cleanup.
+  Implementation lanes may implement, commit, push, and manage their assigned
+  PR when granted. Independent Codex review lanes own assigned review actions.
+  A designated Codex integration action owns an exact approved PR merge after
+  review and verification gates pass.
 - Lane commits are implementation artifacts, not coordination checkpoints. The
   lead remains the sole ledger writer and creates a checkpoint in the lead
   workspace only after accepting proof and updating the ledger. A lane commit

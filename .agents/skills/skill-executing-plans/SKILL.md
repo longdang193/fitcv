@@ -112,14 +112,18 @@ Choose the smallest unblocked action from approved scope:
 Before dispatch, read the active task ledger `Executor` and `Template Profile`
 values. For `codex`, execute inline lead-controller work directly when the
 profile is `none`; when a fixed profile is selected for delegated work, use the
-active native Codex subagent capability only when CoS is not selected. When the
-approved plan lists `skill-chief-of-staff` in `Required skills`, keep
+active native Codex subagent capability for ordinary execution. A Herdr-
+supervised MAIN AGENT may also use native child delegation for assigned lane
+work. When the approved plan lists `skill-chief-of-staff` in `Required skills`, keep
 this skill as the execution owner and allow CoS to select only a Herdr-
 supervised top-level Codex main agent or bounded DeepAgents pane process after
 plan, runtime parity, lane identity, and profile-binding gates pass; CoS must
 not fall back to native subagents.
 CoS must not call `multi_agent_v1`, native Codex subagents, DeepAgents internal
-`task` workers, Tura internal workers, or executor-local reviewers or helpers.
+`task` workers, Tura internal workers, or executor-local reviewers or helpers
+directly. Assigned MAIN AGENTS may spawn Native Codex, DeepAgents, or Tura
+sub-agents when needed within their lanes; those sub-agents must not spawn peer
+MAIN AGENTS or activate CoS.
 `Executor Selection` owns executor choice, while `Template Profile` and
 `agents/*.toml` own profile/model capability; Herdr launch must prove the same
 resolved binding. Use `dcode-project` for `deepagents` and `project-delegate` for `tura`;
@@ -217,8 +221,10 @@ Create a local checkpoint commit only when active plan `Commit policy` explicitl
 preauthorizes verified per-task checkpoints. The lead creates it after accepting
 task proof and updating the task ledger, so implementation and accepted workflow
 state share one checkpoint. An exact active-plan lane grant may authorize implementation-lane push, PR
-create/update, and post-retirement cleanup. Only a Codex implementation lane may
-receive assigned review or exact approved PR merge authority. Branch or PR
+create/update, and post-retirement cleanup. Implementation lanes may implement,
+commit, push, and manage their assigned PR when granted. Independent Codex review
+lanes own assigned review actions. A designated Codex integration action owns an
+exact approved PR merge after review and verification gates pass. Branch or PR
 publication may follow accepted lane proof; final merge and cleanup require
 whole-plan verification. Exceptional or
 destructive actions still require explicit user authorization.

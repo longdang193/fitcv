@@ -85,9 +85,10 @@ update share one checkpoint commit after task-local proof. Git owns checkpoint
 identity: derive it from the commit containing the latest ledger transition;
 never copy that commit SHA into the plan. An active plan may preauthorize an
 assigned implementation lane to commit and push its exact lane, create or update
-its PR, and clean the retired lane. Only a Codex implementation lane may perform
-an assigned review action or merge the exact approved PR into its declared base
-after gates. Direct or exceptional
+its PR, and clean the retired lane. Implementation lanes may implement, commit,
+push, and manage their assigned PR when granted. Independent Codex review lanes
+own assigned review actions. A designated Codex integration action owns an exact
+approved PR merge after review and verification gates pass. Direct or exceptional
 base mutation, force push, retargeting, protection bypass, semantic conflict
 resolution, destructive recovery, discard, and unrelated cleanup still need
 explicit user authorization.
