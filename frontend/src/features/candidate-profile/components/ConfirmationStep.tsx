@@ -9,7 +9,7 @@ import {
 import { ConfirmationResource, CreationAttempt } from "../types";
 import { SourceDialog } from "./SourceDialog";
 import { EvidenceReferenceButton } from "./EvidenceReferenceButton";
-import { ReviewLogConsole } from "./ReviewLogConsole";
+import { formatIdentifier } from "../../../lib/format";
 
 export interface ConfirmationStepProps {
   attemptId: string;
@@ -364,7 +364,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                                 onClick={() => openEvidenceDetails(`Evidence details: ${ev.id}`, ev.text || "", ev.source_refs || [])}
                                 style={{ fontSize: 12, padding: 0, textAlign: "left", color: "var(--accent)", wordBreak: "break-word" }}
                               >
-                                <code style={{ fontSize: 11 }}>{ev.id}: </code>{ev.text}
+                                <code title={ev.id} style={{ fontSize: 11 }}>{formatIdentifier(ev.id)}: </code>{ev.text}
                               </button>
                             </div>
                           ))}
@@ -437,33 +437,31 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                   <strong style={{ display: "block", fontSize: 12, textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>
                     {label} ({items.length})
                   </strong>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
                     {items.map((item: any) => (
                       <div
                         key={item.id}
                         style={{
-                          padding: "8px 12px",
+                          padding: "10px 12px",
                           background: "var(--surface)",
                           border: "1px solid var(--border)",
                           borderRadius: "var(--radius-sm)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
                         }}
                       >
-                        <div style={{ minWidth: 0, flex: 1, marginRight: 8 }}>
-                          <strong title={item.name} style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {item.name}
-                          </strong>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, minWidth: 0 }}>
+                          <strong title={item.name} style={{ flex: 1, minWidth: 0, fontSize: 13, overflowWrap: "anywhere" }}>{item.name}</strong>
+                          <StatusBadge
+                            status={item.support_status === "supported" ? "success" : "neutral"}
+                            label={`${Math.round((Number(item.confidence) || 1) * 100)}%`}
+                          />
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
+                          <span>Origin: {item.origin === "llm_inferred" ? "Inferred" : item.origin || "Inferred"}</span>
                           <EvidenceReferenceButton
                             referenceIds={item.evidence_refs || []}
                             onOpen={() => openClaimEvidence(item)}
                           />
                         </div>
-                        <StatusBadge
-                          status={item.support_status === "supported" ? "success" : "neutral"}
-                          label={`${Math.round((Number(item.confidence) || 1) * 100)}%`}
-                        />
                       </div>
                     ))}
                   </div>
@@ -473,16 +471,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           </div>
         )}
       </div>
-
-      <ReviewLogConsole
-        stage="confirmation"
-        attemptId={attemptId}
-        statusMessage="Confirmation data loaded."
-        revision={confirmation.revision}
-        fingerprint={confirmation.fingerprint}
-        baselineFingerprint={confirmation.approval_fingerprints?.baseline}
-        derivedFingerprint={confirmation.approval_fingerprints?.derived}
-      />
 
       {/* Bottom Confirm Bar */}
       <div

@@ -20,6 +20,7 @@ import { SourceDialog } from "./SourceDialog";
 import { getCandidateProfileFailurePresentation } from "./ProcessingStep";
 import { EvidenceReferenceButton } from "./EvidenceReferenceButton";
 import { ReviewLogConsole } from "./ReviewLogConsole";
+import { formatIdentifier } from "../../../lib/format";
 
 export interface BaselineReviewStepProps {
   attemptId: string;
@@ -664,7 +665,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                           <strong>
                             {section.item_label || section.label} #{idx + 1}
                           </strong>
-                          <code style={{ fontSize: 11, color: "var(--muted)" }}>{itemId}</code>
+                          <code title={itemId} style={{ fontSize: 11, color: "var(--muted)" }}>{formatIdentifier(itemId)}</code>
                         </div>
                         <Button
                           size="compact"

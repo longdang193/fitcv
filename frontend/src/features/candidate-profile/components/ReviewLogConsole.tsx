@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { formatIdentifier } from "../../../lib/format";
 
 export interface ReviewLogConsoleProps {
   stage: "baseline" | "derived" | "confirmation";
@@ -51,7 +52,7 @@ export const ReviewLogConsole: React.FC<ReviewLogConsoleProps> = ({
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           <strong style={{ fontSize: 12 }}>Review log</strong>
           <span style={{ marginLeft: 8, fontSize: 11, color: "var(--muted)" }}>
-            {label} · {statusMessage} · {attemptId}{fingerprint ? ` · ${fingerprint}` : ""}
+            {label} · {statusMessage} · {formatIdentifier(attemptId)}{fingerprint ? ` · ${formatIdentifier(fingerprint)}` : ""}
           </span>
         </span>
         <span style={{ flexShrink: 0, fontSize: 11, color: "var(--muted)" }}>{open ? "Hide" : "Show"}</span>
@@ -72,7 +73,7 @@ export const ReviewLogConsole: React.FC<ReviewLogConsoleProps> = ({
           }}
         >
           <div><span style={{ color: "var(--muted)" }}>STATUS </span>{statusMessage}</div>
-          <div><span style={{ color: "var(--muted)" }}>ATTEMPT </span><code>{attemptId}</code></div>
+          <div><span style={{ color: "var(--muted)" }}>ATTEMPT </span><code title={attemptId}>{formatIdentifier(attemptId)}</code></div>
           {revision !== undefined && <div><span style={{ color: "var(--muted)" }}>REVISION </span><code>{revision}</code></div>}
           {fingerprint && <div><span style={{ color: "var(--muted)" }}>FINGERPRINT </span><code>{fingerprint}</code></div>}
           {baselineFingerprint && <div><span style={{ color: "var(--muted)" }}>BASELINE </span><code>{baselineFingerprint}</code></div>}

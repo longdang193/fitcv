@@ -81,6 +81,12 @@ export function matchRoute(hash: string, routes: FeatureRoute[]): FeatureRoute {
     "#/candidate-profile": "candidate-profile",
     "#/settings/pipeline": "pipeline-settings",
     "#/pipeline-settings": "pipeline-settings",
+    "#/preference-optimization": "preference-optimization",
+    "#preference-optimization": "preference-optimization",
+    "#/settings/preference-optimization": "preference-optimization",
+    "#/settings/personalization": "preference-optimization",
+    "#personalization": "preference-optimization",
+    "#/personalization": "preference-optimization",
   };
   const alias = Object.entries(aliases).find(
     ([prefix]) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`)

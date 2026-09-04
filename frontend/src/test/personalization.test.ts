@@ -1,3 +1,5 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   fetchPersonalization,
@@ -5,24 +7,40 @@ import {
   fetchPersonalizationOptimization,
   createPersonalizationCandidate,
   activatePersonalizationCandidate,
-} from "../features/personalization/api";
+} from "../features/preference-optimization/api";
 import { apiClient, ApiClientError } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
+import { OptimizationRunsTable } from "../features/preference-optimization/components/OptimizationRunsTable";
+import { OptimizationEvidenceTable } from "../features/preference-optimization/components/OptimizationEvidenceTable";
+import { OptimizationDetailsView } from "../features/preference-optimization/components/OptimizationDetailsView";
+import { StrengthDialog } from "../features/preference-optimization/components/StrengthDialog";
 
-describe("personalization slice and api", () => {
+describe("preference optimization slice and api", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("registers and matches personalization feature route", () => {
+  it("registers and matches preference-optimization feature route, plus legacy personalization aliases", () => {
     const routes = discoverFeatureRoutes();
-    const persRoute = routes.find((r) => r.id === "personalization");
-    expect(persRoute).toBeDefined();
-    expect(persRoute?.path).toBe("#/settings/personalization");
-    expect(persRoute?.group).toBe("settings");
+    const optRoute = routes.find((r) => r.id === "preference-optimization");
+    expect(optRoute).toBeDefined();
+    expect(optRoute?.path).toBe("#/preference-optimization");
+    expect(optRoute?.group).toBe("settings");
+    expect(optRoute?.title).toBe("Preference Optimization");
 
-    const matched = matchRoute("#/settings/personalization", routes);
-    expect(matched.id).toBe("personalization");
+    // Exact matches
+    expect(matchRoute("#/preference-optimization", routes).id).toBe("preference-optimization");
+    expect(matchRoute("#preference-optimization", routes).id).toBe("preference-optimization");
+
+    // Subpaths
+    expect(matchRoute("#/preference-optimization/por_20260904_01", routes).id).toBe("preference-optimization");
+    expect(matchRoute("#preference-optimization/por_20260904_01", routes).id).toBe("preference-optimization");
+
+    // Legacy aliases
+    expect(matchRoute("#/settings/preference-optimization", routes).id).toBe("preference-optimization");
+    expect(matchRoute("#/settings/personalization", routes).id).toBe("preference-optimization");
+    expect(matchRoute("#personalization", routes).id).toBe("preference-optimization");
+    expect(matchRoute("#/personalization", routes).id).toBe("preference-optimization");
   });
 
   it("fetches personalization resource with ETag and fallback status", async () => {
@@ -35,7 +53,7 @@ describe("personalization slice and api", () => {
           baseline_fallback: true,
           active_policy_id: null,
           revision: "rev-snapshot-123",
-          bounds: { minimum: 0.0, maximum: 1.0, step: 0.01 },
+          bounds: { minimum: 0.01, maximum: 0.1, step: 0.01 },
         },
       },
       etag: '"rev-snapshot-123"',
@@ -62,7 +80,7 @@ describe("personalization slice and api", () => {
           baseline_fallback: false,
           active_policy_id: null,
           revision: "rev-snapshot-456",
-          bounds: { minimum: 0.0, maximum: 1.0, step: 0.01 },
+          bounds: { minimum: 0.01, maximum: 0.1, step: 0.01 },
         },
       },
       etag: '"rev-snapshot-456"',
@@ -176,5 +194,158 @@ describe("personalization slice and api", () => {
         expected_parent_ref: "zero_residual:baseline",
       }
     );
+  });
+
+  it("renders truthful empty states for Rating Evidence and Optimization Runs tables", () => {
+    const evidenceMarkup = renderToStaticMarkup(
+      React.createElement(OptimizationEvidenceTable, { rows: [] })
+    );
+    expect(evidenceMarkup).toContain("No saved ratings");
+    expect(evidenceMarkup).toContain("Ratings from completed runs will appear here.");
+
+    const runsMarkup = renderToStaticMarkup(
+      React.createElement(OptimizationRunsTable, {
+        runs: [],
+        rankingMode: "personalized",
+        activePolicyVersionId: null,
+        onSelectRun: () => {},
+        onActivatePolicy: () => {},
+      })
+    );
+    expect(runsMarkup).toContain("No optimization runs");
+    expect(runsMarkup).toContain("Use Optimize Current Ratings to create one.");
+  });
+
+  it("renders optimization runs with active status and details view", () => {
+    const sampleRun = {
+      id: "por_20260904_01",
+      policyVersionId: "RP-20260904-01",
+      createdAt: 1788549600000,
+      strength: 0.05,
+      status: "Succeeded",
+      runtimeCompatible: true,
+      logs: [
+        {
+          recordedAt: 1788549600000,
+          level: "info",
+          operation: "optimization",
+          message: "Started preference optimization.",
+        },
+      ],
+    };
+
+    const runsMarkup = renderToStaticMarkup(
+      React.createElement(OptimizationRunsTable, {
+        runs: [sampleRun],
+        rankingMode: "personalized",
+        activePolicyVersionId: "RP-20260904-01",
+        onSelectRun: () => {},
+        onActivatePolicy: () => {},
+      })
+    );
+    expect(runsMarkup).toContain("por_20260904_01");
+    expect(runsMarkup).toContain("Succeeded");
+    expect(runsMarkup).toContain("Active");
+    expect(runsMarkup).toContain("Inactivate Policy");
+
+    const detailsMarkup = renderToStaticMarkup(
+      React.createElement(OptimizationDetailsView, {
+        item: sampleRun,
+        rankingMode: "personalized",
+        activePolicyVersionId: "RP-20260904-01",
+        onBack: () => {},
+        onActivatePolicy: () => {},
+      })
+    );
+    expect(detailsMarkup).toContain("Optimization por_20260904_01");
+    expect(detailsMarkup).toContain("Overview");
+    expect(detailsMarkup).toContain("Console Log");
+    expect(detailsMarkup).toContain("Started preference optimization.");
+  });
+
+
+  it("renders canonical row-level rating evidence when present in OptimizationEvidenceTable", () => {
+    const sampleRows = [
+      {
+        ratedAt: "2026-07-16T12:00:00Z",
+        runId: "run-42",
+        job: "Senior Platform Engineer",
+        savedRank: 1,
+        baselineFit: 0.952,
+        rating: 5,
+      },
+    ];
+    const markup = renderToStaticMarkup(
+      React.createElement(OptimizationEvidenceTable, {
+        rows: sampleRows,
+        savedRatingsCount: 1,
+      })
+    );
+    expect(markup).toContain("run-42");
+    expect(markup).toContain("Senior Platform Engineer");
+    expect(markup).toContain("0.952");
+    expect(markup).toContain("5 / 5");
+    expect(markup).not.toContain("Rating details unavailable");
+    expect(markup).not.toContain("No saved ratings");
+  });
+
+  it("retains truthful unavailable empty state when rating evidence is absent but count > 0", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(OptimizationEvidenceTable, {
+        rows: undefined,
+        savedRatingsCount: 5,
+      })
+    );
+    expect(markup).toContain("Rating details unavailable");
+    expect(markup).toContain("5 saved ratings exist, but row-level details are not available from the current API.");
+  });
+
+  it("renders OptimizationDetailsView using canonical evidence rows when provided", () => {
+    const sampleRun = {
+      id: "por_20260904_02",
+      policyVersionId: "RP-20260904-02",
+      createdAt: 1788549600000,
+      strength: 0.08,
+      status: "Succeeded",
+      runtimeCompatible: true,
+      evidence: [
+        {
+          ratedAt: "2026-07-16T12:00:00Z",
+          runId: "run-42",
+          job: "Senior Platform Engineer",
+          savedRank: 1,
+          baselineFit: 0.95,
+          rating: 4,
+        },
+      ],
+    };
+
+    const detailsMarkup = renderToStaticMarkup(
+      React.createElement(OptimizationDetailsView, {
+        item: sampleRun,
+        rankingMode: "personalized",
+        activePolicyVersionId: "RP-20260904-02",
+        onBack: () => {},
+        onActivatePolicy: () => {},
+      })
+    );
+    expect(detailsMarkup).toContain("Ratings Included");
+    expect(detailsMarkup).toContain("Senior Platform Engineer");
+    expect(detailsMarkup).toContain("4 / 5");
+  });
+  it("renders StrengthDialog with bounded step and validation constraints", () => {
+    const dialogMarkup = renderToStaticMarkup(
+      React.createElement(StrengthDialog, {
+        open: true,
+        onClose: () => {},
+        currentStrength: 0.05,
+        bounds: { minimum: 0.01, maximum: 0.1, step: 0.01 },
+        onSave: () => {},
+      })
+    );
+    expect(dialogMarkup).toContain("Personalization Strength");
+    expect(dialogMarkup).toContain("Choose a value from 0.01 to 0.10.");
+    expect(dialogMarkup).toContain("min=\"0.01\"");
+    expect(dialogMarkup).toContain("max=\"0.1\"");
   });
 });

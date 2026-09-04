@@ -1,7 +1,10 @@
 import React from "react";
-import { DataTable, TableColumn, StatusBadge, Button } from "../../../components";
+import { DataTable, TableColumn, Button } from "../../../components";
 import { BookmarkItem } from "../types";
 import { InterestRating } from "../../job-evaluation/components/InterestRating";
+import { PipelineOutcome } from "../../job-evaluation/components/PipelineOutcome";
+import { formatIdentifier } from "../../../lib/format";
+import { extractRequiredJobSkills } from "../../runs/api";
 
 export interface BookmarksTableProps {
   bookmarks: BookmarkItem[];
@@ -17,6 +20,7 @@ export interface BookmarksTableProps {
   onInspectEvidence: (bookmark: BookmarkItem) => void;
   onChangeInterest?: (bookmark: BookmarkItem, rating: number | null) => void;
   onSelectRun?: (runId: string) => void;
+  hasFilters?: boolean;
 }
 
 export const BookmarksTable: React.FC<BookmarksTableProps> = ({
@@ -33,6 +37,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
   onInspectEvidence,
   onChangeInterest,
   onSelectRun,
+  hasFilters = false,
 }) => {
   const selectedSet = new Set(selectedJobIds);
   const allSelected =
@@ -57,14 +62,13 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
                 padding: 0,
                 color: "var(--accent)",
                 cursor: "pointer",
-                textDecoration: "underline",
-                textUnderlineOffset: "3px",
+                textDecoration: "none",
                 fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
                 fontWeight: 700,
                 fontSize: 12,
               }}
             >
-              {item.run_id}
+              <span title={item.run_id}>{formatIdentifier(item.run_id)}</span>
             </button>
           );
         }
@@ -76,7 +80,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
               fontSize: 12,
             }}
           >
-            {item.run_id}
+            <span title={item.run_id}>{formatIdentifier(item.run_id)}</span>
           </span>
         );
       },
@@ -149,44 +153,20 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
       key: "skills",
       header: "Required Skills",
       render: (item) => {
-        const rawSkills = item.skills || (item.evidence as any)?.skills || [];
-        const skillsList: string[] = Array.isArray(rawSkills) ? rawSkills.map(String) : [];
+        const skillsList = extractRequiredJobSkills(item);
         if (skillsList.length === 0) {
           return <span style={{ color: "var(--muted)", fontSize: 12 }}>—</span>;
         }
         const visible = skillsList.slice(0, 5);
         const extra = skillsList.length - visible.length;
         return (
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 260 }}>
+          <div className="skill-list">
             {visible.map((s, idx) => (
-              <span
-                key={idx}
-                style={{
-                  padding: "2px 7px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-pill)",
-                  background: "var(--surface-2)",
-                  fontSize: 12,
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <span key={idx} className="skill-chip">
                 {s}
               </span>
             ))}
-            {extra > 0 && (
-              <span
-                style={{
-                  padding: "2px 7px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-pill)",
-                  background: "var(--surface-2)",
-                  fontSize: 12,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                +{extra} more
-              </span>
-            )}
+            {extra > 0 && <span className="skill-chip">+{extra} more</span>}
           </div>
         );
       },
@@ -195,23 +175,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
       key: "result_bucket",
       header: "Pipeline Outcome",
       width: "180px",
-      render: (item) => {
-        const isPassed = item.result_bucket === "passed" || item.status === "passed";
-        const isRejected = item.result_bucket === "rejected" || item.status === "rejected";
-        const badgeStatus = isPassed ? "success" : isRejected ? "danger" : "neutral";
-        const label = item.outcome_code || (isPassed ? "Passed" : isRejected ? "Rejected" : item.status || "Pending");
-        const reason = item.reason_code || (item as any).stage_outcome_reason || (item as any).reject_reason || "";
-        return (
-          <div style={{ display: "grid", gap: 4 }}>
-            <StatusBadge status={badgeStatus} label={label} />
-            {reason && (
-              <span style={{ color: "var(--muted)", fontSize: 11, lineHeight: 1.3 }}>
-                {reason}
-              </span>
-            )}
-          </div>
-        );
-      },
+      render: (item) => <PipelineOutcome item={item} />,
     },
     {
       key: "actions",
@@ -241,6 +205,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
 
   return (
     <DataTable
+      className="bookmarks-table"
       columns={columns}
       data={bookmarks}
       keyField="run_job_id"
@@ -255,6 +220,8 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
       emptyMessage={
         loading
           ? "Loading bookmarks..."
+          : hasFilters
+          ? "No bookmarks match this view. Change the pipeline stage or search to see other bookmarked jobs."
           : "No bookmarked jobs yet. Add bookmarks from Run Details to collect jobs here."
       }
     />

@@ -242,7 +242,9 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
     it("OverviewPage renders header Pipeline Settings button", () => {
       const markup = renderToStaticMarkup(React.createElement(OverviewPage));
       expect(markup).toContain("Pipeline Settings");
-      expect(markup).toContain("Restore Defaults");
+      expect(markup).toContain("Before your first run");
+      expect(markup).not.toContain("Candidate Scope");
+      expect(markup).not.toContain("Pre-enrichment Filter");
     });
   });
 
@@ -426,13 +428,12 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
     });
   });
 
-  describe("Overview Accessible Numeric Input States & Fallback", () => {
-    it("renders valid numeric inputs with aria-invalid='false' and accessible labels", () => {
+  describe("Overview Settings Ownership", () => {
+    it("does not render technical numeric settings outside Pipeline Settings", () => {
       const markup = renderToStaticMarkup(React.createElement(OverviewPage));
-      expect(markup).toContain('aria-invalid="false"');
-      expect(markup).toContain('id="overview-setting-pipeline-vector_search_top_n"');
-      expect(markup).toContain('aria-label="Initial Candidate Pool Size"');
-      expect(markup).toContain('aria-describedby="overview-setting-pipeline-vector_search_top_n-desc"');
+      expect(markup).not.toContain('aria-invalid="false"');
+      expect(markup).not.toContain('id="overview-setting-pipeline-vector_search_top_n"');
+      expect(markup).not.toContain('aria-label="Initial Candidate Pool Size"');
     });
 
     it("detects invalid state for numbers below minimum or above maximum", () => {

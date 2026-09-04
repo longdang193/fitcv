@@ -10,6 +10,8 @@ import {
   createEditAttempt,
 } from "../api";
 import { CandidateProfileDetail } from "../types";
+import { formatIdentifier, formatTimestamp } from "../../../lib/format";
+import { EvidenceReferenceButton } from "./EvidenceReferenceButton";
 
 export interface DetailViewProps {
   profileId: string;
@@ -165,40 +167,30 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
   return (
     <div className="candidate-profile-detail-container">
       {/* Back button & page header */}
-      <div style={{ marginBottom: 20 }}>
-        <button
-          type="button"
-          className="btn-subtle"
-          style={{ fontSize: 13, padding: "4px 8px", cursor: "pointer", border: 0, background: "transparent", color: "var(--muted)" }}
-          onClick={onBack}
-        >
-          ← Back to Candidate Profiles
-        </button>
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginTop: 8,
-            flexWrap: "wrap",
-            gap: 16,
+      <div className="details-page-head">
+        <a
+          className="details-page-back"
+          href="#/candidate-profile"
+          onClick={(e) => {
+            e.preventDefault();
+            onBack();
           }}
         >
-          <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+          ← Back to Candidate Profiles
+        </a>
+        <div className="page-head">
+          <div>
+            <p className="eyebrow">Workspace</p>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)" }}>
-                Candidate Profile
-              </span>
+              <h2 style={{ margin: 0, overflowWrap: "anywhere" }}>
+                {profile.display_name || profile.profile_name}
+              </h2>
               <StatusBadge
                 status={isArchived ? "neutral" : "success"}
                 label={isArchived ? "Archived" : "Active"}
               />
-              <code style={{ fontSize: 12, color: "var(--muted)", overflowWrap: "anywhere" }}>{profile.profile_id}</code>
+              <code title={profile.profile_id} style={{ fontSize: 12, color: "var(--muted)", overflowWrap: "anywhere" }}>{formatIdentifier(profile.profile_id)}</code>
             </div>
-            <h2 style={{ margin: "4px 0", fontSize: 24, fontFamily: "var(--display-font)", overflowWrap: "anywhere" }}>
-              {profile.display_name || profile.profile_name}
-            </h2>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
               {isArchived
                 ? "Archived profile — retained for historical Run reproducibility."
@@ -207,7 +199,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {!isArchived && profile.capabilities?.archive && (
               <Button onClick={handleArchive} disabled={actionLoading}>
                 Archive Profile
@@ -257,18 +249,13 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
         <section className="table-card" style={{ padding: 20 }}>
           <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>Profile Overview</h3>
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: 16,
-              fontSize: 13,
-            }}
+            className="profile-overview-grid"
           >
             <div>
               <span style={{ color: "var(--muted)", display: "block", fontSize: 11, textTransform: "uppercase", fontWeight: 700 }}>
                 Profile ID
               </span>
-              <code>{profile.profile_id}</code>
+              <code title={profile.profile_id}>{formatIdentifier(profile.profile_id)}</code>
             </div>
             <div>
               <span style={{ color: "var(--muted)", display: "block", fontSize: 11, textTransform: "uppercase", fontWeight: 700 }}>
@@ -280,7 +267,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
               <span style={{ color: "var(--muted)", display: "block", fontSize: 11, textTransform: "uppercase", fontWeight: 700 }}>
                 Created Time
               </span>
-              <span>{profile.created_at_display || profile.created_at}</span>
+              <span>{formatTimestamp(profile.created_at, "Unknown date")}</span>
             </div>
             <div>
               <span style={{ color: "var(--muted)", display: "block", fontSize: 11, textTransform: "uppercase", fontWeight: 700 }}>
@@ -320,12 +307,6 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
                 Source Format
               </span>
               <span>{profile.creation?.source_format || "Markdown"}</span>
-            </div>
-            <div>
-              <span style={{ color: "var(--muted)", display: "block", fontSize: 11, textTransform: "uppercase", fontWeight: 700 }}>
-                Creation Attempt ID
-              </span>
-              <code>{profile.creation?.attempt_id || "—"}</code>
             </div>
           </div>
         </section>
@@ -370,7 +351,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
                         <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: "2px solid var(--accent-soft)", display: "flex", flexDirection: "column", gap: 4 }}>
                           {exp.evidence.map((ev: any) => (
                             <div key={ev.id} style={{ fontSize: 12 }}>
-                              <code style={{ fontSize: 11, color: "var(--accent)" }}>{ev.id}: </code>
+                              <code title={ev.id} style={{ fontSize: 11, color: "var(--accent)" }}>{formatIdentifier(ev.id)}: </code>
                               <span>{ev.text}</span>
                             </div>
                           ))}
@@ -449,8 +430,8 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
                           borderRadius: "var(--radius-sm)",
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
-                          <strong title={item.name} style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</strong>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, minWidth: 0 }}>
+                          <strong title={item.name} style={{ flex: 1, minWidth: 0, fontSize: 13, overflowWrap: "anywhere" }}>{item.name}</strong>
                           <StatusBadge
                             status={item.support_status === "supported" ? "success" : "neutral"}
                             label={`${Math.round((Number(item.confidence) || 1) * 100)}%`}
@@ -458,25 +439,10 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
                           <span>Origin: {item.origin === "llm_inferred" ? "Inferred" : item.origin || "Inferred"}</span>
-                          <button
-    type="button"
-    className="btn-subtle"
-    style={{
-      padding: "2px 6px",
-      fontSize: 11,
-      cursor: (item.evidence_refs?.length || 0) > 0 ? "pointer" : "default",
-      color: "var(--accent)",
-      border: "1px solid var(--border-soft)",
-      borderRadius: "var(--radius-sm)",
-      background: "var(--surface-2)",
-      fontWeight: 600,
-    }}
-    onClick={() => openEvidenceDialogForClaim(item)}
-    aria-label={`View ${item.evidence_refs?.length || 0} evidence references for ${item.name}`}
-    disabled={!item.evidence_refs || item.evidence_refs.length === 0}
-  >
-    {item.evidence_refs?.length || 0} evidence refs
-  </button>
+                          <EvidenceReferenceButton
+                            referenceIds={item.evidence_refs || []}
+                            onOpen={() => openEvidenceDialogForClaim(item)}
+                          />
                         </div>
                       </div>
                     ))}
@@ -517,7 +483,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
         }
       >
         <p style={{ margin: 0, fontSize: 13, color: "var(--text)" }}>
-          Are you sure you want to delete profile <code>{profile.profile_id}</code> (
+          Are you sure you want to delete profile <code title={profile.profile_id}>{formatIdentifier(profile.profile_id)}</code> (
           <strong>{profile.display_name}</strong>)? This action cannot be undone.
         </p>
       </Dialog>

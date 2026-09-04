@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 
 export interface FilterTabItem {
   id: string;
@@ -36,6 +36,15 @@ export const FilterTabs: React.FC<FilterTabsProps> = ({
   className,
 }) => {
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (listRef.current && listRef.current.contains(document.activeElement)) {
+      const activeButton = listRef.current.querySelector<HTMLButtonElement>(`#${panelId}-tab-${activeId}`);
+      if (activeButton && document.activeElement !== activeButton) {
+        activeButton.focus();
+      }
+    }
+  }, [activeId, panelId]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
     const nextIndex = getNextFilterTabIndex(event.key, index, items.length);

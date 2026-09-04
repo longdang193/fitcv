@@ -57,7 +57,6 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
 
   // Run settings
   const [runName, setRunName] = useState("");
-  const [configPath, setConfigPath] = useState(".env.yaml");
 
   // Form submission state
   const [submitting, setSubmitting] = useState(false);
@@ -76,7 +75,6 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
       setFile(null);
       setSelectedScanIds([...initialScanIds]);
       setRunName("");
-      setConfigPath(".env.yaml");
       setSourceMode(initialScanIds.length > 0 ? "scans" : "upload");
 
       // Load active profiles
@@ -187,9 +185,6 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
       if (runName.trim()) {
         formData.append("run_name", runName.trim());
       }
-      if (configPath.trim()) {
-        formData.append("config_path", configPath.trim());
-      }
       formData.append("triggered_by", "admin");
 
       const idempotencyKey = generateIdempotencyKey();
@@ -290,8 +285,8 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
 
           <div className="field-group">
             <label className="field-label">Job Input Source</label>
-            <div style={{ display: "flex", gap: 16, marginBottom: 8 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+            <div className="run-source-options">
+              <label className="run-source-option">
                 <input
                   type="radio"
                   name="sourceMode"
@@ -302,7 +297,7 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
                 />
                 <span>File Upload</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <label className="run-source-option">
                 <input
                   type="radio"
                   name="sourceMode"
@@ -313,7 +308,7 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
                 />
                 <span>Scan Outputs</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <label className="run-source-option">
                 <input
                   type="radio"
                   name="sourceMode"
@@ -434,14 +429,6 @@ export const NewRunDialog: React.FC<NewRunDialogProps> = ({
             hint="Optional. 120 characters maximum."
           />
 
-          <Field
-            label="Config Path"
-            value={configPath}
-            onChange={(e) => setConfigPath(e.target.value)}
-            disabled={submitting}
-            error={fieldErrors.config_path}
-            hint="Default .env.yaml."
-          />
         </form>
       </Dialog>
 

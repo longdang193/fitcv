@@ -17,12 +17,13 @@ import {
   exportRunJobsCsv,
   generateIdempotencyKey,
   extractJobSkills,
+  extractRequiredJobSkills,
 } from "../features/runs/api";
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { parseRunSourceIds } from "../features/runs/route";
 import { PROVIDER_SETTINGS_HREF, RunErrorAction } from "../features/runs/new-run-dialog";
-import { isRunTerminal } from "../features/runs/runs-list";
+import { isDistinctStatusDetail, isRunTerminal } from "../features/runs/runs-list";
 
 describe("runs feature route and api slice", () => {
   beforeEach(() => {
@@ -37,6 +38,13 @@ describe("runs feature route and api slice", () => {
     expect(isRunTerminal("running")).toBe(false);
     expect(isRunTerminal("awaiting_continue")).toBe(false);
     expect(isRunTerminal("cancelling")).toBe(false);
+  });
+
+  it("hides status details that duplicate badge labels", () => {
+    expect(isDistinctStatusDetail("succeeded", "Succeeded")).toBe(false);
+    expect(isDistinctStatusDetail(" Succeeded ", "Succeeded")).toBe(false);
+    expect(isDistinctStatusDetail("Processing screening", "Running")).toBe(true);
+    expect(isDistinctStatusDetail(null, "Succeeded")).toBe(false);
   });
 
   it("registers and matches runs feature route", () => {
@@ -460,5 +468,25 @@ it("guards against invalid or object page parameter serialization in fetchRunJob
     // Test with valid number
     await fetchRunJobs("run-page-test", { page: 3 });
     expect(getSpy).toHaveBeenCalledWith("/runs/run-page-test/jobs?page=3");
+  });
+
+  it("extracts required skills consistently across canonical fields and evidence fallbacks", () => {
+    // 1. From canonical required_skills array
+    expect(extractRequiredJobSkills({ required_skills: ["TypeScript", "React"] })).toEqual(["TypeScript", "React"]);
+
+    // 2. From top-level skills fallback
+    expect(extractRequiredJobSkills({ skills: ["Python", "FastAPI"] })).toEqual(["Python", "FastAPI"]);
+
+    // 3. From evidence.skills (common in bookmarks payload)
+    expect(extractRequiredJobSkills({ evidence: { skills: ["Docker", "Kubernetes"] } })).toEqual(["Docker", "Kubernetes"]);
+
+    // 4. From source_snapshot skills
+    expect(extractRequiredJobSkills({ source_snapshot: { skills: ["SQL", "Postgres"] } })).toEqual(["SQL", "Postgres"]);
+
+    // 5. From semicolon/newline delimited string
+    expect(extractRequiredJobSkills({ required_skills: "AWS; GCP\nTerraform" })).toEqual(["AWS", "GCP", "Terraform"]);
+
+    // 6. Empty when no skills fields exist
+    expect(extractRequiredJobSkills({})).toEqual([]);
   });
 });

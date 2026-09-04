@@ -224,14 +224,18 @@ describe("UI Lane Parity & Regression Suite", () => {
       expect(markup).toContain("Refresh Logs");
     });
 
-    it("uses details-page-layout with full available width and no restrictive side gutters", () => {
+    it("uses shared content width and page gutter parity", () => {
       const fs = require("fs");
       const path = require("path");
       const mainCss = fs.readFileSync(path.resolve(__dirname, "../styles/main.css"), "utf-8");
+      const runDetailSource = fs.readFileSync(
+        path.resolve(__dirname, "../features/run-detail/run-detail-page.tsx"),
+        "utf-8"
+      );
 
-      // (2) Layout width CSS classes exist
-      expect(mainCss).toContain(".details-page-layout");
-      expect(mainCss).toContain("width: 100%");
+      expect(runDetailSource).toContain("content-container run-detail-page details-page-layout");
+      expect(mainCss).toContain(".content-container");
+      expect(mainCss).toContain("width: min(960px, 100%)");
       expect(mainCss).toContain(".pipeline-stage-tabs");
       expect(mainCss).toContain(".pipeline-summary");
       expect(mainCss).toContain(".console-log");
@@ -245,17 +249,24 @@ describe("UI Lane Parity & Regression Suite", () => {
   });
 
   describe("Scope 5: Overview Prototype Parity", () => {
-    it("renders onboarding card and restore defaults action", () => {
-      expect(typeof OverviewPage).toBe("function");
+    it("keeps technical pipeline controls in Pipeline Settings", () => {
+      const markup = renderToStaticMarkup(React.createElement(OverviewPage));
+
+      expect(markup).toContain("Pipeline Settings");
+      expect(markup).toContain("Before your first run");
+      expect(markup).not.toContain("Candidate Scope");
+      expect(markup).not.toContain("Pre-enrichment Filter");
+      expect(markup).not.toContain("Restore Defaults");
     });
 
-    it("resets overview values on restore defaults", async () => {
-      const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
-        data: { data: { revision: "rev-reset-1" } },
-        status: 200,
-      } as any);
+    it("renders shared page spacing and search primitives", () => {
+      const fs = require("fs");
+      const path = require("path");
+      const mainCss = fs.readFileSync(path.resolve(__dirname, "../styles/main.css"), "utf-8");
 
-      expect(postSpy).toBeDefined();
+      expect(mainCss).toContain(".page-stack");
+      expect(mainCss).toContain(".page-search-input");
+      expect(mainCss).toContain(".profile-overview-grid");
     });
   });
 });

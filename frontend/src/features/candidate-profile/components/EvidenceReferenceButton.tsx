@@ -25,6 +25,10 @@ export const EvidenceReferenceButton: React.FC<EvidenceReferenceButtonProps> = (
         padding: "2px 6px",
         cursor: count > 0 ? "pointer" : "default",
         color: count > 0 ? "var(--accent)" : "var(--muted)",
+        border: "1px solid var(--border-soft)",
+        borderRadius: "var(--radius-sm)",
+        background: "var(--surface-2)",
+        fontWeight: 600,
       }}
     >
       {count} evidence refs

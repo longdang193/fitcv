@@ -27,7 +27,7 @@ describe("Frontend App Shell & Whole-Slice Integration", () => {
     expect(routeIds).toContain("scans");
     expect(routeIds).toContain("runs");
     expect(routeIds).toContain("bookmarks");
-    expect(routeIds).toContain("personalization");
+    expect(routeIds).toContain("preference-optimization");
 
     // Supporting slice
     expect(routeIds).toContain("synonyms");

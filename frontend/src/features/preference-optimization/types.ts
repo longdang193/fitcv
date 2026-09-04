@@ -33,6 +33,18 @@ export interface PersonalizationCandidateSummary {
   event_watermark?: number;
 }
 
+export interface RatingEvidenceApiRow {
+  run_id: string;
+  alternative_id: string;
+  source_job_url?: string;
+  displayed_rank: number;
+  baseline_fit: number;
+  baseline_fit_label?: string;
+  rating: number;
+  rated_at: string;
+  job_label?: string;
+}
+
 export interface PersonalizationOptimizationResource {
   domain_id: string;
   ranking_mode: RankingMode;
@@ -45,6 +57,7 @@ export interface PersonalizationOptimizationResource {
   evidence_ready: boolean;
   episode_count: number;
   rating_event_count: number;
+  rating_evidence?: RatingEvidenceApiRow[];
   current_parent_ref: string;
   latest_candidate: PersonalizationCandidateSummary | null;
   candidate_activation_eligible: boolean;
@@ -63,4 +76,37 @@ export interface PersonalizationCandidatePayload {
 export interface PersonalizationCandidateActivationPayload
   extends PersonalizationCandidatePayload {
   actor: string;
+}
+
+export interface RatingEvidenceRow {
+  ratedAt: number | string;
+  runId: string;
+  job: string;
+  savedRank: number;
+  baselineFit: number;
+  rating: number;
+}
+
+export interface OptimizationRunItem {
+  id: string;
+  policyVersionId?: string | null;
+  createdAt: number | string;
+  startedAt?: number | string;
+  completedAt?: number | string;
+  strength: number;
+  status: string;
+  comparisons?: number;
+  usage?: string;
+  runtimeCompatible?: boolean;
+  hiddenAt?: number | null;
+  coverage?: number | null;
+  stability?: number | null;
+  rejectionReason?: string;
+  evidence?: RatingEvidenceRow[];
+  logs?: Array<{
+    recordedAt: number;
+    level: string;
+    operation: string;
+    message: string;
+  }>;
 }

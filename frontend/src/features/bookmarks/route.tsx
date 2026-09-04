@@ -243,7 +243,7 @@ export const BookmarksPage: React.FC = () => {
         {/* Results Toolbar */}
         <div className="results-toolbar">
           <input
-            className="field results-search"
+            className="field page-search-input results-search"
             id="bookmarkSearch"
             type="search"
             value={search}
@@ -325,6 +325,7 @@ export const BookmarksPage: React.FC = () => {
             onInspectEvidence={handleInspect}
             onChangeInterest={handleChangeInterest}
             onSelectRun={handleSelectRun}
+            hasFilters={stageFilter !== "all" || Boolean(activeSearch)}
           />
         </div>
       </div>

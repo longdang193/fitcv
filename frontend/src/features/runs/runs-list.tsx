@@ -8,8 +8,8 @@ import {
   StatusVariant,
   LoadingState,
   Dialog,
-  Field,
 } from "../../components";
+import { formatIdentifier, formatTimestamp } from "../../lib/format";
 import {
   fetchRuns,
   cancelRun,
@@ -47,6 +47,11 @@ const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
 
 export function isRunTerminal(status: string): boolean {
   return ["succeeded", "failed", "cancelled"].includes(status);
+}
+
+export function isDistinctStatusDetail(detail: string | null | undefined, label: string): boolean {
+  const normalizedDetail = detail?.trim().toLocaleLowerCase();
+  return Boolean(normalizedDetail && normalizedDetail !== label.trim().toLocaleLowerCase());
 }
 
 export const RunsListPage: React.FC<RunsListPageProps> = ({
@@ -251,10 +256,10 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
                 fontSize: 14,
               }}
             >
-              {item.run_name || item.run_id}
+              {item.run_name || <span title={item.run_id}>{formatIdentifier(item.run_id)}</span>}
             </button>
             <span style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
-              {item.run_id}
+              <span title={item.run_id}>{formatIdentifier(item.run_id)}</span>
             </span>
           </div>
         ),
@@ -269,12 +274,12 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
             label: item.display_status || item.backend_status,
           };
           const label = item.backend_status === "cancelled" ? cfg.label : item.display_status || cfg.label;
+          const detail = item.status_detail?.trim();
+          const showDetail = isDistinctStatusDetail(detail, label);
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <StatusBadge status={cfg.variant} label={label} />
-              {item.status_detail && (
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>{item.status_detail}</span>
-              )}
+              {showDetail && <span style={{ fontSize: 11, color: "var(--muted)" }}>{detail}</span>}
             </div>
           );
         },
@@ -316,11 +321,11 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
           try {
             return (
               <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                {new Date(item.created_at).toLocaleString()}
+                {formatTimestamp(item.created_at)}
               </span>
             );
           } catch {
-            return <span style={{ fontSize: 12, color: "var(--muted)" }}>{item.created_at}</span>;
+            return <span style={{ fontSize: 12, color: "var(--muted)" }}>{formatTimestamp(item.created_at)}</span>;
           }
         },
       },
@@ -377,16 +382,17 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="content-container page-stack runs-list-page">
       {/* Header controls */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+      <div className="page-head">
         <div>
-          <h1 style={{ margin: "0 0 4px 0", fontSize: 24, fontWeight: 700 }}>Runs</h1>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
-            Monitor pipeline executions, stage progression, fit results, and grounded CV generations.
+          <p className="eyebrow">Workspace</p>
+          <h2>Runs</h2>
+          <p>
+            Trigger, monitor, cancel, and archive local runs.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {view === "archived" && selectedRunIds.size > 0 && (
             <Button
               variant="danger"
@@ -423,16 +429,17 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
             onViewChange(id as RunLifecycle);
           }}
         />
-        <form onSubmit={handleSearchSubmit} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <div style={{ width: 260 }}>
-            <Field
-              label=""
+        <form className="page-search-form" onSubmit={handleSearchSubmit}>
+          <label className="page-search">
+            <span className="sr-only">Search runs</span>
+            <input
+              className="field page-search-input"
               type="search"
               placeholder="Search runs by ID, name, input..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
+          </label>
           <Button type="submit" variant="secondary">
             Search
           </Button>
@@ -468,7 +475,13 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
           pageSize={pageSize}
           total={totalItems}
           onPageChange={onPageChange}
-          emptyMessage="No runs found."
+          emptyMessage={
+            activeSearch
+              ? "No runs match this search."
+              : view === "archived"
+              ? "No archived runs. Archived runs will appear here after they are moved from Active."
+              : "No active runs yet. Trigger a run to process a job file with one of your Candidate Profiles."
+          }
         />
       )}
 

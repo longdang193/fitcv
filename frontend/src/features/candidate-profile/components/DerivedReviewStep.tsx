@@ -725,12 +725,11 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                                           display: "block",
                                           color: "var(--muted)",
                                           fontSize: 11,
-                                          whiteSpace: "nowrap",
-                                          overflow: "hidden",
-                                          textOverflow: "ellipsis",
+                                          whiteSpace: "normal",
+                                          overflowWrap: "anywhere",
                                         }}
                                       >
-                                        {ev.parentTitle}: {ev.title || ev.text}
+                                        {ev.parentTitle}: {ev.title ? `${ev.title}${ev.text ? " — " : ""}` : ""}{ev.text || ""}
                                       </span>
                                     </div>
                                   </label>

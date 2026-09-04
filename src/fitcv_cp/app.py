@@ -39,6 +39,7 @@ from zoneinfo import ZoneInfo
 
 import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile, File, Form
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -6140,6 +6141,7 @@ class PersonalizationOptimizationResource(BaseModel):
     evidence_ready: bool
     episode_count: int
     rating_event_count: int
+    rating_evidence: list[dict[str, Any]]
     current_parent_ref: str
     latest_candidate: dict[str, Any] | None
     candidate_activation_eligible: bool
@@ -7041,7 +7043,7 @@ def _personalization_optimization_resource(
     status = action_result.get("status")
     error_code = action_result.get("error_code")
     notice = _optimization_notice_projection(str(error_code or status or ""))
-    return {
+    payload = {
         "domain_id": context["domain_id"],
         "ranking_mode": context["ranking_mode"],
         "effective_ranking_mode": (
@@ -7059,6 +7061,7 @@ def _personalization_optimization_resource(
         "evidence_ready": context["evidence_ready"],
         "episode_count": context["episode_count"],
         "rating_event_count": context["rating_event_count"],
+        "rating_evidence": context["rating_evidence"],
         "current_parent_ref": context["current_parent_ref"],
         "latest_candidate": candidate_summary,
         "candidate_activation_eligible": context["candidate_activation_eligible"],
@@ -7071,6 +7074,7 @@ def _personalization_optimization_resource(
             "preference_optimization_run_id"
         ),
     }
+    return jsonable_encoder(PersonalizationOptimizationResource.model_validate(payload))
 
 
 def _raise_personalization_optimization_error(

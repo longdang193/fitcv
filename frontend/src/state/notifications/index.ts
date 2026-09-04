@@ -96,13 +96,60 @@ function isNotification(value: unknown): value is TransientNotification {
   );
 }
 
+export const DEFAULT_NOTIFICATION_AUTO_DISMISS_MS = 5000;
+
 export class TransientNotificationStore {
   private notifications: TransientNotification[] = [];
   private listeners: Set<NotificationListener> = new Set();
+  private timers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private pausedIds = new Set<string>();
   private nextId = 1;
+  private autoDismissDurationMs = DEFAULT_NOTIFICATION_AUTO_DISMISS_MS;
 
-  constructor() {
+  constructor(options?: { autoDismissDurationMs?: number }) {
+    if (options?.autoDismissDurationMs !== undefined) {
+      this.autoDismissDurationMs = options.autoDismissDurationMs;
+    }
     this.loadFromSessionStorage();
+  }
+
+  public setAutoDismissDuration(ms: number): void {
+    this.autoDismissDurationMs = ms;
+  }
+
+  public getAutoDismissDuration(): number {
+    return this.autoDismissDurationMs;
+  }
+
+  private scheduleAutoDismiss(id: string): void {
+    const existing = this.timers.get(id);
+    if (existing) {
+      clearTimeout(existing);
+      this.timers.delete(id);
+    }
+    if (this.autoDismissDurationMs > 0 && !this.pausedIds.has(id)) {
+      const timer = setTimeout(() => {
+        this.timers.delete(id);
+        this.dismiss(id);
+      }, this.autoDismissDurationMs);
+      this.timers.set(id, timer);
+    }
+  }
+
+  public pauseAutoDismiss(id: string): void {
+    this.pausedIds.add(id);
+    const timer = this.timers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(id);
+    }
+  }
+
+  public resumeAutoDismiss(id: string): void {
+    this.pausedIds.delete(id);
+    if (this.notifications.some((notification) => notification.id === id)) {
+      this.scheduleAutoDismiss(id);
+    }
   }
 
   private loadFromSessionStorage(): void {
@@ -118,6 +165,7 @@ export class TransientNotificationStore {
             return isNaN(num) ? acc : Math.max(acc, num);
           }, 0);
           this.nextId = maxId + 1;
+          this.notifications.forEach(({ id }) => this.scheduleAutoDismiss(id));
         }
       }
     } catch {
@@ -173,6 +221,7 @@ export class TransientNotificationStore {
         href: safeHref,
       };
       this.notifications[existingIndex] = updated;
+      this.scheduleAutoDismiss(existing.id);
       this.saveToSessionStorage();
       this.emit();
       return updated;
@@ -199,6 +248,7 @@ export class TransientNotificationStore {
       this.notifications = this.notifications.slice(0, 50);
     }
 
+    this.scheduleAutoDismiss(notification.id);
     this.saveToSessionStorage();
     this.emit();
     return notification;
@@ -235,6 +285,12 @@ export class TransientNotificationStore {
   }
 
   public dismiss(id: string): void {
+    this.pausedIds.delete(id);
+    const timer = this.timers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(id);
+    }
     const before = this.notifications.length;
     this.notifications = this.notifications.filter((n) => n.id !== id);
     if (this.notifications.length !== before) {
@@ -244,6 +300,10 @@ export class TransientNotificationStore {
   }
 
   public clearAll(): void {
+    for (const timer of this.timers.values()) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
     if (this.notifications.length > 0) {
       this.notifications = [];
       this.saveToSessionStorage();

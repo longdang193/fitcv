@@ -7,6 +7,8 @@ export type ProviderModel = {
   provider_id: string;
   model_id: string;
   validation_status: string;
+  last_test_error_code?: string | null;
+  provider_revision?: number;
   revision?: number;
 };
 
@@ -113,6 +115,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
   const [connectionStatusText, setConnectionStatusText] = useState("");
   const [connectionStatusKind, setConnectionStatusKind] = useState<"" | "valid" | "error">("");
   const [providerSearch, setProviderSearch] = useState("");
+  const [modelTestFeedback, setModelTestFeedback] = useState<Record<string, { kind: "testing" | "valid" | "error"; text: string }>>({});
 
   // LLM task editing state
   const [editingTask, setEditingTask] = useState<string | null>(null);
@@ -183,10 +186,11 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       setConnectionTestPassed(false);
       setConnectionStatusText("");
       setConnectionStatusKind("");
+      setModelTestFeedback({});
     }
-  }, [provider?.provider_id, provider?.revision]);
+  }, [provider?.provider_id]);
 
-  const run = async (operation: () => Promise<void>, options?: { reload?: boolean }) => {
+  const run = async (operation: () => Promise<void>, options?: { reload?: boolean; onError?: (err: any) => void }) => {
     setBusy(true);
     setMessage("");
     try {
@@ -195,6 +199,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
         await load();
       }
     } catch (err: any) {
+      options?.onError?.(err);
       setMessage(`${err.message || "Request failed."}${err.action ? ` ${err.action}` : ""}`);
     } finally {
       setBusy(false);
@@ -432,12 +437,43 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
 
   const retestModel = (model: ProviderModel) => {
     if (!provider || provider.connection_status !== "verified") return;
+    const modelKey = model.model_record_id || model.model_id;
+    setModelTestFeedback((prev) => ({
+      ...prev,
+      [modelKey]: { kind: "testing", text: "Testing..." },
+    }));
     void run(async () => {
-      await apiClient.post(
+      const res = await apiClient.post<{ data: ProviderModel }>(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}/actions/test`,
         providerRevisionPayload(provider.revision)
       );
-    }, { reload: true });
+      if (res.data.data.validation_status !== "validated") {
+        throw new Error(res.data.data.last_test_error_code || "Model test failed.");
+      }
+      setProviders((prev) => prev.map((currentProvider) =>
+        currentProvider.provider_id === provider.provider_id
+          ? {
+              ...currentProvider,
+              revision: res.data.data.provider_revision ?? currentProvider.revision,
+              models: currentProvider.models.map((currentModel) =>
+                currentModel.model_record_id === model.model_record_id
+                  ? { ...currentModel, ...res.data.data }
+                  : currentModel
+              ),
+            }
+          : currentProvider
+      ));
+      setModelTestFeedback((prev) => ({
+        ...prev,
+        [modelKey]: { kind: "valid", text: "Succeeded" },
+      }));
+    }, {
+      reload: false,
+      onError: (err) => setModelTestFeedback((prev) => ({
+        ...prev,
+        [modelKey]: { kind: "error", text: err.message || "Failed" },
+      })),
+    });
   };
 
   const removeModel = (model: ProviderModel) => {
@@ -766,6 +802,15 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
                         <div className={`model-state${model.validation_status === "validated" ? " verified" : ""}`}>
                           {model.validation_status === "validated" ? "Validated" : "Needs retest"}
                         </div>
+                        {modelTestFeedback[model.model_record_id || model.model_id] && (
+                          <span
+                            className={`model-test-feedback ${modelTestFeedback[model.model_record_id || model.model_id].kind}`}
+                            role="status"
+                            aria-live="polite"
+                          >
+                            {modelTestFeedback[model.model_record_id || model.model_id].text}
+                          </span>
+                        )}
                       </div>
                       <div className="model-card-actions">
                         <button
@@ -899,7 +944,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
             <label className="provider-field provider-search">
               <span className="sr-only">Search providers</span>
               <input
-                className="field"
+                className="field page-search-input"
                 id="providerSearch"
                 type="search"
                 placeholder="Search providers"

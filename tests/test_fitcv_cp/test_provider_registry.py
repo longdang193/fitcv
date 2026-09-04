@@ -64,11 +64,13 @@ def test_connection_and_model_lifecycle_use_one_registry(
         "validate_connection_draft",
         lambda **_kwargs: {"ok": True, "failure_code": None, "http_status": 200},
     )
-    monkeypatch.setattr(
-        provider_registry,
-        "validate_model",
-        lambda **_kwargs: {"ok": True, "failure_code": None, "http_status": 200},
-    )
+    model_validation_calls: list[dict[str, object]] = []
+
+    def validate_model(**kwargs: object) -> dict[str, object]:
+        model_validation_calls.append(kwargs)
+        return {"ok": True, "failure_code": None, "http_status": 200}
+
+    monkeypatch.setattr(provider_registry, "validate_model", validate_model)
     provider = provider_registry.create_custom_provider(
         display_name="OpenAI Gateway",
         compatibility="openai",
@@ -91,6 +93,8 @@ def test_connection_and_model_lifecycle_use_one_registry(
     assert connected["credential_configured"] is True
     assert credentials[provider["provider_id"]] == "credential-secret-canary"
     assert model["validation_status"] == "validated"
+    assert model_validation_calls[0]["base_url"] == "https://gateway.example/v1"
+    assert model_validation_calls[0]["api_type"] == "responses"
 
     provider_registry.save_connection(
         provider["provider_id"],

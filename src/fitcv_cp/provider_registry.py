@@ -496,7 +496,7 @@ def test_model(
         raise ProviderRegistryError("provider_connection_required", "Verified connection is required")
     return (validator or validate_model)(
         compatibility=provider["compatibility"],
-        base_url=provider["base_url"],
+        base_url=connection["base_url"] or provider["base_url"],
         api_type=connection["api_type"],
         api_key=credential,
         model_id=normalized_model_id,

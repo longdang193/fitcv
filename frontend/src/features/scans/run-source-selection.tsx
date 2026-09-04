@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Dialog, Button, Field, LoadingState, EmptyState } from "../../components";
 import { fetchScans } from "./api";
 import { ScanResource } from "./types";
+import { formatIdentifier } from "../../lib/format";
 
 export interface RunSourceSelectionProps {
   open: boolean;
@@ -185,7 +186,7 @@ export const RunSourceSelectionDialog: React.FC<RunSourceSelectionProps> = ({
                   />
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <strong style={{ fontSize: 13 }}>{scan.scan_id}</strong>
+                      <strong title={scan.scan_id} style={{ fontSize: 13 }}>{formatIdentifier(scan.scan_id)}</strong>
                       <span style={{ fontSize: 13, color: "var(--text)" }}>{scan.scan_name}</span>
                     </div>
                     <div style={{ fontSize: 12, color: "var(--muted)" }}>

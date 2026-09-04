@@ -22,35 +22,14 @@ export const SynonymsPage: React.FC = () => {
   ];
 
   return (
-    <div className='content-container synonym-management-page' style={{ paddingBottom: 48 }}>
+    <div className='content-container synonym-management-page'>
       {/* Header */}
-      <div className='page-head' style={{ marginBottom: 24 }}>
-        <p
-          className='eyebrow'
-          style={{
-            color: 'var(--accent)',
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            margin: '0 0 6px',
-          }}
-        >
-          Knowledge Base
-        </p>
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: 'var(--display-font)',
-            fontSize: 26,
-            letterSpacing: '-0.03em',
-          }}
-        >
-          Taxonomy & Synonyms
-        </h2>
-        <p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 13 }}>
-          Manage global skill, domain, and role-family normalization policies, triage proposals, and manage backups.
-        </p>
+      <div className='page-head'>
+        <div>
+          <p className='eyebrow'>Knowledge Base</p>
+          <h2>Taxonomy & Synonyms</h2>
+          <p>Manage global skill, domain, and role-family normalization policies, triage proposals, and manage backups.</p>
+        </div>
       </div>
 
       {/* Tabs */}

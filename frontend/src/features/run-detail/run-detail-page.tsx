@@ -8,6 +8,7 @@ import {
   Dialog,
   Field,
 } from "../../components";
+import { formatIdentifier, formatTimestamp } from "../../lib/format";
 import {
   fetchRun,
   fetchRunJobs,
@@ -26,6 +27,8 @@ import {
   RunStageId,
 } from "../runs/types";
 import { setJobBookmark, clearJobBookmark, setJobInterest, clearJobInterest } from "../job-evaluation/api";
+import { InterestRating } from "../job-evaluation/components/InterestRating";
+import { PipelineOutcome } from "../job-evaluation/components/PipelineOutcome";
 import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawer";
 import { fetchCvPreview, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
 import { notificationStore } from "../../lib/notifications";
@@ -83,6 +86,23 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [inspectingJob, setInspectingJob] = useState<RunJobItem | null>(null);
 
+  const handleInspect = (job: RunJobItem) => {
+    const rawAttrs = (job.attributes || {}) as Record<string, any>;
+    const projectedJob: RunJobItem = {
+      ...job,
+      attributes: {
+        ...rawAttrs,
+        reasons: rawAttrs.reasons || (job.reason_code ? [job.reason_code] : []),
+        fit_factor_results:
+          rawAttrs.fit_factor_results ||
+          (job as any).evidence?.fit_factor_results ||
+          (job as any).evidence ||
+          {},
+      },
+    };
+    setInspectingJob(projectedJob);
+  };
+
   // Jobs state & filters (stage defaults to shortlisting per prototype)
   const [jobs, setJobs] = useState<RunJobItem[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
@@ -139,8 +159,8 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     }
   }, [runId]);
   // Load jobs
-  const loadJobs = useCallback(async (page = 1, overridePageSize?: number) => {
-    setJobsLoading(true);
+  const loadJobs = useCallback(async (page = 1, overridePageSize?: number, quiet = false) => {
+    if (!quiet) setJobsLoading(true);
     try {
       const res = await fetchRunJobs(runId, {
         page,
@@ -163,7 +183,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     } catch {
       // Background tolerance
     } finally {
-      setJobsLoading(false);
+      if (!quiet) setJobsLoading(false);
     }
   }, [runId, jobsPageSize, stageFilter, resultBucketFilter, activeJobSearch]);
 
@@ -208,6 +228,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       pollTimerRef.current = window.setInterval(() => {
         loadRunDetail(false);
         pollEvents();
+        loadJobs(jobsPage, undefined, true);
       }, 2500);
     }
 
@@ -216,7 +237,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         clearInterval(pollTimerRef.current);
       }
     };
-  }, [isTerminal, loadRunDetail, pollEvents]);
+  }, [isTerminal, loadRunDetail, loadJobs, jobsPage, pollEvents]);
 
   // Handlers for actions
   const handleCancel = async () => {
@@ -320,19 +341,20 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   };
 
   // Interest rating
-  const handleRateJob = async (job: RunJobItem, rating: number) => {
-    const currentRating = typeof job.rating === "number" ? job.rating : job.interest_rating || 0;
-    const newRating = currentRating === rating ? null : rating;
+  const handleRateJob = async (job: RunJobItem, newRating: number | null) => {
+    const currentRating = typeof job.rating === "number" ? job.rating : job.interest_rating || null;
+    const resolvedRating = newRating === null || newRating <= 0 ? null : newRating;
+    if (resolvedRating === currentRating) return;
     setJobs((prev) =>
       prev.map((j) =>
-        j.run_job_id === job.run_job_id ? { ...j, rating: newRating, interest_rating: newRating } : j
+        j.run_job_id === job.run_job_id ? { ...j, rating: resolvedRating, interest_rating: resolvedRating } : j
       )
     );
     try {
-      if (newRating === null) {
+      if (resolvedRating === null) {
         await clearJobInterest(runId, job.run_job_id);
       } else {
-        await setJobInterest(runId, job.run_job_id, newRating);
+        await setJobInterest(runId, job.run_job_id, resolvedRating);
       }
     } catch (err: any) {
       setJobs((prev) =>
@@ -569,7 +591,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const scanSources = parsedSources.filter((s: any) => s.type === "scan");
 
   return (
-    <div className="run-detail-page details-page-layout" style={{ display: "flex", flexDirection: "column", gap: 18, width: "100%" }}>
+    <div className="content-container run-detail-page details-page-layout">
       {/* Top Header Navigation */}
       <div className="details-page-head">
         <a
@@ -701,23 +723,23 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           <dl className="details-grid">
             <div className="detail-item">
               <dt>Run ID</dt>
-              <dd>{run.run_id}</dd>
+              <dd title={run.run_id}>{formatIdentifier(run.run_id)}</dd>
             </div>
             <div className="detail-item">
               <dt>Run Name</dt>
-              <dd>{run.run_name || run.run_id}</dd>
+              <dd>{run.run_name || <span title={run.run_id}>{formatIdentifier(run.run_id)}</span>}</dd>
             </div>
             <div className="detail-item">
               <dt>Created</dt>
-              <dd>{new Date(run.created_at).toLocaleString()}</dd>
+              <dd>{formatTimestamp(run.created_at)}</dd>
             </div>
             <div className="detail-item">
               <dt>Started</dt>
-              <dd>{run.started_at ? new Date(run.started_at).toLocaleString() : new Date(run.created_at).toLocaleString()}</dd>
+              <dd>{formatTimestamp(run.started_at || run.created_at)}</dd>
             </div>
             <div className="detail-item">
               <dt>Finished</dt>
-              <dd>{run.finished_at ? new Date(run.finished_at).toLocaleString() : "—"}</dd>
+              <dd>{formatTimestamp(run.finished_at)}</dd>
             </div>
           </dl>
         </div>
@@ -814,7 +836,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           {/* Results Toolbar with Search, Summary Cards, and Export Button */}
           <div className="results-toolbar">
             <input
-              className="field results-search"
+              className="field page-search-input results-search"
               id="jobResultsSearch"
               type="search"
               value={jobSearch}
@@ -908,12 +930,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                           const cvCanRegenerate = Boolean(item.capabilities?.regenerate_cv ?? hasCv);
                           const isSelected = selectedJobIds.includes(item.run_job_id);
 
-                          const isPassed = item.result_bucket === "passed" || item.status === "passed" || item.status === "generated";
-                          const isRejected = item.result_bucket === "rejected" || item.status === "rejected" || item.status === "failed";
-                          const badgeStatus: StatusVariant = isPassed ? "success" : isRejected ? "danger" : "neutral";
-                          const label = String(item.outcome_code || (isPassed ? "Passed" : isRejected ? "Rejected" : item.status || "Pending"));
-                          const reason = String(item.reason_code || (item as any).stage_outcome_reason || (item as any).reject_reason || "");
-                          const isStretch = item.latest_cv_review_state === "stretch" || (item as any).cv_review_state === "stretch";
+
 
                           return (
                             <tr key={item.run_job_id} className={isSelected ? "is-selected" : undefined}>
@@ -945,38 +962,18 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                   </div>
 
                                   {/* Interest Rating & Bookmark */}
-                                  <div className="interest-rating" role="radiogroup" aria-label={"Application Interest for " + (item.title || "Job")}>
-                                    {[1, 2, 3, 4, 5].map((val) => (
-                                      <button
-                                        key={val}
-                                        type="button"
-                                        className="star-btn"
-                                        aria-label={"Rate " + val + " of 5"}
-                                        role="radio"
-                                        aria-checked={val === currentRating}
-                                        onClick={() => handleRateJob(item, val)}
-                                      >
-                                        ★
-                                      </button>
-                                    ))}
-                                    {currentRating > 0 && (
-                                      <button
-                                        type="button"
-                                        className="small-action clear-rating"
-                                        onClick={() => handleRateJob(item, 0)}
-                                        aria-label="Clear interest rating"
-                                      >
-                                        Clear
-                                      </button>
-                                    )}
-
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                    <InterestRating
+                                      rating={currentRating}
+                                      onChange={(newRating) => handleRateJob(item, newRating)}
+                                      ariaLabelPrefix={`Application Interest for ${item.title || "Job"}`}
+                                    />
                                     <button
                                       type="button"
                                       className="small-action bookmark-btn"
                                       aria-label={isBookmarked ? "Remove Bookmark" : "Bookmark Job"}
                                       aria-pressed={isBookmarked}
                                       onClick={() => handleToggleBookmark(item)}
-                                      style={{ marginLeft: 6 }}
                                     >
                                       <svg viewBox="0 0 24 24" aria-hidden="true">
                                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -986,7 +983,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                     <Button
                                       size="compact"
                                       variant="secondary"
-                                      onClick={() => setInspectingJob(item)}
+                                      onClick={() => handleInspect(item)}
                                       aria-label={`Inspect fit evidence for ${item.title || "Job"}`}
                                     >
                                       Evidence
@@ -1027,11 +1024,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                               <td>{renderJobAttributes(item)}</td>
                               <td>{renderSkillChips(item)}</td>
                               <td>
-                                <div className="pipeline-outcome">
-                                  <StatusBadge status={badgeStatus} label={label} />
-                                  {reason && <span className="outcome-reason">{reason}</span>}
-                                  {isStretch && <span className="cv-review-tag">Stretch review</span>}
-                                </div>
+                                <PipelineOutcome item={item} showReviewTag />
                               </td>
                             </tr>
                           );
@@ -1126,12 +1119,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           </div>
         </div>
       </details>
-
-      <FitEvidenceDrawer
-        job={inspectingJob}
-        open={inspectingJob !== null}
-        onClose={() => setInspectingJob(null)}
-      />
 
       {/* Section 4: Console Log */}
       <details className="section-card collapsible-section drawer-section">
@@ -1258,11 +1245,17 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         }
       >
         <div style={{ fontSize: 14 }}>
-          <strong>Run ID:</strong> {run.run_id}
+          <strong>Run ID:</strong> <span title={run.run_id}>{formatIdentifier(run.run_id)}</span>
           <br />
           <strong>Run Name:</strong> {run.run_name || "N/A"}
         </div>
       </Dialog>
+
+      <FitEvidenceDrawer
+        job={inspectingJob}
+        open={inspectingJob !== null}
+        onClose={() => setInspectingJob(null)}
+      />
     </div>
   );
 };

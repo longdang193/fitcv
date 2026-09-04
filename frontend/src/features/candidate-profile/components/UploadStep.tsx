@@ -73,22 +73,25 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onSuccess, onCancel }) =
 
   return (
     <div className="upload-step-container">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div>
-          <button
-            type="button"
-            className="btn-subtle"
-            style={{ fontSize: 13, padding: "4px 8px", cursor: "pointer", border: 0, background: "transparent", color: "var(--muted)" }}
-            onClick={onCancel}
-          >
-            ← Back to Candidate Profiles
-          </button>
-          <h2 style={{ margin: "8px 0 4px", fontSize: 22, fontFamily: "var(--display-font)" }}>
-            Upload candidate document
-          </h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            Define Profile Name once; every supported format follows the same extraction, review, and derivation pipeline.
-          </p>
+      <div className="details-page-head">
+        <a
+          className="details-page-back"
+          href="#/candidate-profile"
+          onClick={(e) => {
+            e.preventDefault();
+            onCancel();
+          }}
+        >
+          ← Back to Candidate Profiles
+        </a>
+        <div className="page-head">
+          <div>
+            <p className="eyebrow">Step 1 · Upload</p>
+            <h2>Upload candidate document</h2>
+            <p>
+              Define Profile Name once, then every supported format follows same extraction, review, derivation, and confirmation pipeline.
+            </p>
+          </div>
         </div>
       </div>
 

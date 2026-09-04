@@ -9,6 +9,7 @@ import {
   DataTable,
   TableColumn,
 } from "../../components";
+import { formatIdentifier, formatTimestamp } from "../../lib/format";
 import {
   fetchScan,
   cancelScan,
@@ -282,26 +283,35 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   const badgeInfo = statusMap[scan.execution_status] || { variant: "neutral", label: scan.execution_status };
 
   return (
-    <div className="content-container" data-page="scan-detail">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-        <div>
-          <Button variant="secondary" size="compact" onClick={onBack} style={{ marginBottom: 8 }}>
-            ← Back to Scans
-          </Button>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 22, fontFamily: "var(--display-font)" }}>
-              {scan.scan_name || scan.scan_id}
-            </h2>
-            <StatusBadge status={badgeInfo.variant} label={badgeInfo.label} />
-            {scan.lifecycle === "archived" && <StatusBadge status="neutral" label="Archived" />}
+    <div className="content-container details-page-layout" data-page="scan-detail">
+      <div className="details-page-head">
+        <a
+          className="details-page-back"
+          href="#/scans"
+          onClick={(e) => {
+            e.preventDefault();
+            onBack();
+          }}
+        >
+          ← Back to Scans
+        </a>
+        <div className="page-head">
+          <div>
+            <p className="eyebrow">Workspace</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <h2 style={{ margin: 0 }}>
+                {scan.scan_name || <span title={scan.scan_id}>{formatIdentifier(scan.scan_id)}</span>}
+              </h2>
+              <StatusBadge status={badgeInfo.variant} label={badgeInfo.label} />
+              {scan.lifecycle === "archived" && <StatusBadge status="neutral" label="Archived" />}
+            </div>
+            <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+              Scan ID: <code title={scan.scan_id}>{formatIdentifier(scan.scan_id)}</code> · Created: {formatTimestamp(scan.created_at)}
+            </p>
           </div>
-          <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
-            Scan ID: <code>{scan.scan_id}</code> · Created: {new Date(scan.created_at).toLocaleString()}
-          </p>
-        </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {/* Action Buttons */}
+          <div className="actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {scan.capabilities.run_again && (
             <Button
               variant="secondary"
@@ -353,6 +363,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
               Unarchive
             </Button>
           )}
+          </div>
         </div>
       </div>
 
@@ -417,18 +428,18 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
           <dl className="details-grid" style={{ margin: 0, fontSize: 13 }}>
             <div style={{ marginBottom: 8 }}>
               <dt style={{ color: "var(--muted)", fontWeight: 600 }}>Created</dt>
-              <dd style={{ margin: 0 }}>{new Date(scan.created_at).toLocaleString()}</dd>
+            <dd style={{ margin: 0 }}>{formatTimestamp(scan.created_at)}</dd>
             </div>
             <div style={{ marginBottom: 8 }}>
               <dt style={{ color: "var(--muted)", fontWeight: 600 }}>Started</dt>
               <dd style={{ margin: 0 }}>
-                {scan.started_at ? new Date(scan.started_at).toLocaleString() : "Not started"}
+                {formatTimestamp(scan.started_at, "Not started")}
               </dd>
             </div>
             <div style={{ marginBottom: 8 }}>
               <dt style={{ color: "var(--muted)", fontWeight: 600 }}>Finished</dt>
               <dd style={{ margin: 0 }}>
-                {scan.finished_at ? new Date(scan.finished_at).toLocaleString() : "—"}
+                {formatTimestamp(scan.finished_at)}
               </dd>
             </div>
             <div>

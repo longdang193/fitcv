@@ -1,6 +1,7 @@
 import React from "react";
 import { CvVersionResource } from "../types";
 import { StatusBadge, StatusVariant } from "../../../components";
+import { formatIdentifier, formatTimestamp } from "../../../lib/format";
 
 export interface CvVersionHistoryProps {
   versions: CvVersionResource[];
@@ -54,9 +55,7 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
       <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
         {versions.map((ver) => {
           const isSelected = ver.version_id === selectedVersionId;
-          const createdDate = ver.created_at
-            ? new Date(ver.created_at).toLocaleString()
-            : "Unknown date";
+          const createdDate = formatTimestamp(ver.created_at, "Unknown date");
           return (
             <li key={ver.version_id}>
               <button
@@ -78,7 +77,7 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <strong style={{ fontSize: 13 }}>
-                    v{ver.ordinal || 1} · {ver.version_id.slice(0, 8)}
+                    v{ver.ordinal || 1} · <span title={ver.version_id}>{formatIdentifier(ver.version_id)}</span>
                   </strong>
                   <StatusBadge
                     status={getStatusVariant(ver.generation_status)}

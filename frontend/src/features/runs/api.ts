@@ -129,12 +129,15 @@ export function extractRequiredJobSkills(item: unknown): string[] {
   const snapshot = isRecord(item.source_snapshot) ? item.source_snapshot : {};
   const attributes = isRecord(item.attributes) ? item.attributes : {};
   const job = isRecord(item.job) ? item.job : {};
+  const evidence = isRecord(item.evidence) ? item.evidence : {};
   for (const value of [
     item.required_skills, item.required_skills_display,
     item.required_skills_canonical, item.must_have_skills,
+    item.skills, evidence.skills,
     snapshot.required_skills, snapshot.required_skills_display,
     snapshot.required_skills_canonical, snapshot.must_have_skills,
-    attributes.required_skills, job.required_skills,
+    snapshot.skills, attributes.required_skills,
+    attributes.skills, job.required_skills, job.skills,
   ]) {
     const skills = normalizeSkillValues(value);
     if (skills.length > 0) return skills;

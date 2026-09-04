@@ -44,7 +44,7 @@ export const InterestRating: React.FC<InterestRatingProps> = ({
           <button
             key={star}
             type="button"
-            className="star-btn"
+            className={`star-btn ${isFilled ? "is-filled" : ""}`}
             disabled={disabled}
             role="radio"
             aria-checked={isCurrent}
@@ -58,17 +58,6 @@ export const InterestRating: React.FC<InterestRatingProps> = ({
             }}
             onMouseEnter={() => !disabled && setHovered(star)}
             onMouseLeave={() => !disabled && setHovered(null)}
-            style={{
-              padding: "2px 4px",
-              border: 0,
-              background: "transparent",
-              cursor: disabled ? "not-allowed" : "pointer",
-              fontSize: 18,
-              lineHeight: 1,
-              color: isFilled ? "#d99720" : "var(--border)",
-              opacity: disabled ? 0.6 : 1,
-              transition: "color 0.15s ease",
-            }}
           >
             ★
           </button>
@@ -79,20 +68,11 @@ export const InterestRating: React.FC<InterestRatingProps> = ({
         <button
           type="button"
           disabled={disabled}
-          className="btn-subtle"
+          className="btn-subtle small-action clear-rating"
           aria-label="Clear interest rating"
           onClick={() => onChange(null)}
-          style={{
-            marginLeft: 4,
-            fontSize: 12,
-            padding: "2px 4px",
-            border: 0,
-            background: "transparent",
-            cursor: disabled ? "not-allowed" : "pointer",
-            color: "var(--muted)",
-          }}
         >
-          ✕
+          Clear
         </button>
       ) : null}
     </div>

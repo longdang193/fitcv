@@ -885,6 +885,7 @@ def test_personalization_optimization_api_projects_evidence_and_parent_state(
     assert resource["evidence_ready"] is True
     assert resource["episode_count"] == 1
     assert resource["rating_event_count"] == 1
+    assert resource["rating_evidence"][0]["alternative_id"] == "job-1"
     assert resource["current_parent_ref"].startswith("zero_residual:")
     assert resource["latest_candidate"] is None
     assert resource["status"] is None

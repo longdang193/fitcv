@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   notificationStore,
   buildDedupeKey,
@@ -134,5 +134,33 @@ describe("transient notifications store", () => {
     expect(persisted.find((item: { dedupeKey: string }) => item.dedupeKey === "callback-only").actionLabel).toBeUndefined();
 
     delete (globalThis as { window?: unknown }).window;
+  });
+  it("auto-hides notifications after configured duration", () => {
+    vi.useFakeTimers();
+    try {
+      const store = new TransientNotificationStore({ autoDismissDurationMs: 3000 });
+      store.notify({
+        dedupe: "auto-hide",
+        type: "info",
+        title: "Temporary Notice",
+      });
+
+      expect(store.getNotifications()).toHaveLength(1);
+
+      // Advance clock partially - still present
+      vi.advanceTimersByTime(2000);
+      expect(store.getNotifications()).toHaveLength(1);
+
+      store.pauseAutoDismiss(store.getNotifications()[0].id);
+      vi.advanceTimersByTime(5000);
+      expect(store.getNotifications()).toHaveLength(1);
+
+      store.resumeAutoDismiss(store.getNotifications()[0].id);
+      vi.advanceTimersByTime(3000);
+      expect(store.getNotifications()).toHaveLength(0);
+
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -1,5 +1,6 @@
 import React from "react";
 import { PipelineRunResource } from "../../runs/types";
+import { formatIdentifier, formatTimestamp } from "../../../lib/format";
 
 export interface InputSummaryCardProps {
   run: PipelineRunResource;
@@ -63,20 +64,20 @@ export const InputSummaryCard: React.FC<InputSummaryCardProps> = ({ run }) => {
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <strong style={{ fontSize: 14, color: "var(--text)" }}>Execution Timing</strong>
         <div style={{ fontSize: 13, color: "var(--muted)" }}>
-          <strong>Created:</strong> {new Date(run.created_at).toLocaleString()}
+          <strong>Created:</strong> {formatTimestamp(run.created_at)}
         </div>
         {run.started_at && (
           <div style={{ fontSize: 13, color: "var(--muted)" }}>
-            <strong>Started:</strong> {new Date(run.started_at).toLocaleString()}
+            <strong>Started:</strong> {formatTimestamp(run.started_at)}
           </div>
         )}
         {run.finished_at && (
           <div style={{ fontSize: 13, color: "var(--muted)" }}>
-            <strong>Finished:</strong> {new Date(run.finished_at).toLocaleString()}
+            <strong>Finished:</strong> {formatTimestamp(run.finished_at)}
           </div>
         )}
         <div style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
-          ID: {run.run_id}
+          ID: <span title={run.run_id}>{formatIdentifier(run.run_id)}</span>
         </div>
       </div>
 

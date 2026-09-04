@@ -31,7 +31,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ? "btn-subtle"
         : variant === "icon"
         ? "btn-icon"
-        : "";
+        : "btn-secondary";
 
     const sizeClass = size === "compact" || size === "sm" ? "btn-compact" : "";
     const classes = ["btn", variantClass, sizeClass, className].filter(Boolean).join(" ");

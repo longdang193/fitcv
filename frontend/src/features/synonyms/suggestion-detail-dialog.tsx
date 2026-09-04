@@ -9,6 +9,7 @@ import {
   fetchSynonymPolicy,
 } from './api';
 import type { SynonymSuggestionResource, SynonymSuggestionSource } from './types';
+import { formatIdentifier, formatTimestamp } from '../../lib/format';
 
 export interface SuggestionDetailDialogProps {
   suggestionId: string | null;
@@ -202,7 +203,7 @@ export const SuggestionDetailDialog: React.FC<SuggestionDetailDialogProps> = ({
               {detail.updated_at && (
                 <div>
                   <span style={{ color: 'var(--muted)', display: 'block', fontSize: 11 }}>Updated</span>
-                  <span>{new Date(detail.updated_at).toLocaleString()}</span>
+                  <span>{formatTimestamp(detail.updated_at)}</span>
                 </div>
               )}
             </div>
@@ -256,7 +257,7 @@ export const SuggestionDetailDialog: React.FC<SuggestionDetailDialogProps> = ({
                           </td>
                           <td style={{ padding: '6px 8px' }}>{src.occurrence_count}</td>
                           <td style={{ padding: '6px 8px' }}>
-                            {src.last_seen_at ? new Date(src.last_seen_at).toLocaleDateString() : 'N/A'}
+                            {formatTimestamp(src.last_seen_at, 'N/A')}
                           </td>
                           <td style={{ padding: '6px 8px' }}>
                             <Button
@@ -288,7 +289,7 @@ export const SuggestionDetailDialog: React.FC<SuggestionDetailDialogProps> = ({
                 }}
               >
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                  Evidence for Run: {selectedSource.run_id}
+                  Evidence for Run: {formatIdentifier(selectedSource.run_id)}
                 </div>
                 <pre style={{ margin: 0, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
                   {selectedSource.evidence_json ||

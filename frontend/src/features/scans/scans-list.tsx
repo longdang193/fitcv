@@ -9,6 +9,7 @@ import {
   LoadingState,
   Dialog,
 } from "../../components";
+import { formatIdentifier, formatTimestamp } from "../../lib/format";
 import {
   fetchScans,
   archiveScans,
@@ -227,7 +228,7 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
             textAlign: "left",
           }}
         >
-          {scan.scan_id}
+          <span title={scan.scan_id}>{formatIdentifier(scan.scan_id)}</span>
         </button>
       ),
     },
@@ -252,7 +253,7 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
       header: "Created Time",
       render: (scan) => (
         <span style={{ fontSize: 12, color: "var(--muted)" }}>
-          {new Date(scan.created_at).toLocaleString()}
+          {formatTimestamp(scan.created_at)}
         </span>
       ),
     },
@@ -271,42 +272,11 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
 
   return (
     <div className="content-container">
-      <div
-        className="page-head"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 20,
-        }}
-      >
+      <div className="page-head">
         <div>
-          <p
-            className="eyebrow"
-            style={{
-              color: "var(--accent)",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              margin: "0 0 4px",
-            }}
-          >
-            Workspace
-          </p>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: "var(--display-font)",
-              fontSize: 26,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            Scans
-          </h2>
-          <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
-            Create and manage reusable FitCV job input from tracked companies.
-          </p>
+          <p className="eyebrow">Workspace</p>
+          <h2>Scans</h2>
+          <p>Create reusable job input from tracked companies.</p>
         </div>
 
         <Button variant="primary" onClick={() => setIsNewScanOpen(true)}>

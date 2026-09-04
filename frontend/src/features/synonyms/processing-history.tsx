@@ -3,6 +3,7 @@ import { Button, LoadingState, EmptyState, ErrorState, StatusBadge } from '../..
 import { ApiClientError } from '../../lib/api-client';
 import { fetchSynonymProcessingRuns } from './api';
 import type { SynonymProcessingResource } from './types';
+import { formatTimestamp } from '../../lib/format';
 
 export const ProcessingHistory: React.FC = () => {
   const [runs, setRuns] = useState<SynonymProcessingResource[]>([]);
@@ -34,21 +35,11 @@ export const ProcessingHistory: React.FC = () => {
   const totalPages = Math.ceil(total / pageSize) || 1;
 
   return (
-    <div className='synonym-processing-summary-log' style={{ display: 'grid', gap: 16 }}>
-      <div
-        className='table-card'
-        style={{
-          padding: 16,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
+    <div className='synonym-processing-summary-log'>
+      <div className='table-card processing-summary-header'>
         <div>
-          <h3 style={{ margin: '0 0 2px', fontSize: 15 }}>Processing Summary Log</h3>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
-            Review totals and successfully added mappings for each processing action.
-          </p>
+          <h3>Processing Summary Log</h3>
+          <p>Review totals and successfully added mappings for each processing action.</p>
         </div>
         <Button variant='secondary' size='compact' onClick={loadRuns} disabled={loading}>
           Refresh Summary Log
@@ -60,10 +51,12 @@ export const ProcessingHistory: React.FC = () => {
       ) : error ? (
         <ErrorState message={error} onRetry={loadRuns} />
       ) : runs.length === 0 ? (
-        <EmptyState
-          title='No Processing Summary'
-          description='No synonym processing activity has been recorded yet.'
-        />
+        <div className='table-card processing-summary-empty'>
+          <EmptyState
+            title='No Processing Summary'
+            description='No synonym processing activity has been recorded yet.'
+          />
+        </div>
       ) : (
         <div className='table-card'>
           <div className='table-scroll' tabIndex={0} role='region' aria-label='Processing runs table'>
@@ -87,7 +80,7 @@ export const ProcessingHistory: React.FC = () => {
                       {run.processing_run_id}
                     </td>
                     <td style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {run.processed_at ? new Date(run.processed_at).toLocaleString() : 'N/A'}
+                      {formatTimestamp(run.processed_at, 'N/A')}
                     </td>
                     <td>
                       <span style={{ fontSize: 12, fontWeight: 500 }}>

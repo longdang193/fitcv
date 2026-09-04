@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Dialog, Button, LoadingState, ErrorState } from "../../../components";
 import { fetchSourceBlock } from "../api";
 import { SourceBlock } from "../types";
+import { formatIdentifier } from "../../../lib/format";
 
 export interface SourceDialogProps {
   open: boolean;
@@ -237,7 +238,7 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <code style={{ fontSize: 12, color: "var(--accent)" }}>{ev.id}</code>
+                    <code title={ev.id} style={{ fontSize: 12, color: "var(--accent)" }}>{formatIdentifier(ev.id)}</code>
                     {ev.title && <span style={{ fontSize: 12, fontWeight: 600 }}>{ev.title}</span>}
                   </div>
                   {ev.text && <p style={{ margin: 0, fontSize: 12, color: "var(--text)", whiteSpace: "pre-wrap" }}>{ev.text}</p>}

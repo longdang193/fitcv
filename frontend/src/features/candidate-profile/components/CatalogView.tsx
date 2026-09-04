@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Button, DataTable, LoadingState, Tabs, StatusBadge, LiveStatus, Dialog } from "../../../components";
+import { Button, DataTable, LoadingState, SelectionBar, Tabs, StatusBadge, LiveStatus, Dialog } from "../../../components";
 import {
   fetchCreationAttempts,
   fetchProfiles,
@@ -9,6 +9,8 @@ import {
   retryAttempt,
 } from "../api";
 import { CandidateProfile, CreationAttempt } from "../types";
+import { notificationStore } from "../../../lib/notifications";
+import { formatIdentifier, formatTimestamp } from "../../../lib/format";
 
 export interface CatalogViewProps {
   onOpenCreate: () => void;
@@ -163,9 +165,21 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       await discardCreationAttempt(draftDeleteTarget.attempt_id, draftDeleteTarget.revision);
       setDraftDeleteTarget(null);
       setStatusMessage("Draft deleted.");
+      notificationStore.notify({
+        dedupe: `candidate-profile:draft-deleted:${draftDeleteTarget.attempt_id}`,
+        type: "success",
+        title: "Draft deleted",
+        message: `${draftDeleteTarget.profile_name || "Candidate profile draft"} was removed.`,
+      });
       await loadData();
     } catch (err: any) {
       setError(err.message || "Failed to delete draft.");
+      notificationStore.notify({
+        dedupe: `candidate-profile:draft-delete-failed:${draftDeleteTarget.attempt_id}`,
+        type: "error",
+        title: "Draft deletion failed",
+        message: err.message || "Could not delete candidate profile draft.",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -178,21 +192,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   return (
     <div className="candidate-profiles-catalog">
       {/* Page Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
+      <div className="page-head">
         <div>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)" }}>
-            Workspace
-          </span>
-          <h2 style={{ margin: "4px 0", fontSize: 24, fontFamily: "var(--display-font)" }}>
-            Candidate Profiles
-          </h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            Create and review canonical profiles used by matching runs. Drafts stay outside pipeline selection until confirmed.
-          </p>
+          <p className="eyebrow">Workspace</p>
+          <h2>Candidate Profiles</h2>
+          <p>Create and review profiles used by matching runs.</p>
         </div>
 
         <Button variant="primary" onClick={onOpenCreate}>
-          + Create Profile
+          Create Profile
         </Button>
       </div>
 
@@ -216,27 +224,27 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       {statusMessage && <LiveStatus message={statusMessage} />}
 
       {/* Creation Drafts Section */}
-      <section className="table-card" style={{ padding: 20, marginBottom: 24 }} aria-labelledby="creation-drafts-heading">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <section className="section-card creation-drafts" aria-labelledby="creation-drafts-heading">
+        <div className="creation-drafts-head">
           <div>
-            <h3 id="creation-drafts-heading" style={{ margin: 0, fontSize: 15 }}>
+            <h3 id="creation-drafts-heading">
               Creation Drafts
             </h3>
-            <span style={{ fontSize: 12, color: "var(--muted)" }}>
+            <span>
               Paused and failed creation attempts remain outside pipeline runs.
             </span>
           </div>
-          <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>
+          <span>
             {attempts.length} {attempts.length === 1 ? "draft" : "drafts"}
           </span>
         </div>
 
         {attempts.length === 0 ? (
-          <div style={{ padding: "16px 0", color: "var(--muted)", fontSize: 13, fontStyle: "italic" }}>
+          <div className="creation-draft creation-draft-empty">
             No creation drafts. Upload Markdown, DOCX, or YAML to start a new profile review.
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="creation-draft-list">
             {attempts.map((att) => {
               const statusLabel =
                 att.creation_status === "succeeded" || att.next_action === "view_profile"
@@ -261,39 +269,24 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                   : undefined;
 
               return (
-                <div
-                  key={att.attempt_id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "10px 14px",
-                    background: "var(--surface-2)",
-                    borderRadius: "var(--radius-md)",
-                    flexWrap: "wrap",
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <StatusBadge
-                      status={
-                        att.creation_status === "failed"
-                          ? "danger"
-                          : att.creation_status === "succeeded"
-                          ? "success"
-                          : "info"
-                      }
-                      label={statusLabel}
-                    />
-                    <div>
-                      <strong style={{ display: "block", fontSize: 13 }}>{att.profile_name}</strong>
-                      <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                        {att.source_document?.original_filename || "candidate.md"} - Updated {att.updated_at || "recently"}
-                      </span>
-                    </div>
+                <div key={att.attempt_id} className="creation-draft">
+                  <StatusBadge
+                    status={
+                      att.creation_status === "failed"
+                        ? "danger"
+                        : att.creation_status === "succeeded"
+                        ? "success"
+                        : "info"
+                    }
+                    label={statusLabel}
+                  />
+                  <div className="creation-draft-copy">
+                    <strong>{att.profile_name}</strong>
+                    <span>
+                      {att.source_document?.original_filename || "candidate.md"} · Updated {formatTimestamp(att.updated_at, "recently")}
+                    </span>
                   </div>
-
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="creation-draft-actions">
                     {att.creation_status === "failed" ? (
                       att.capabilities?.retry ? (
                         <Button size="compact" onClick={() => handleRetryDraft(att)} disabled={actionLoading}>
@@ -323,6 +316,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                         variant="danger"
                         onClick={() => setDraftDeleteTarget(att)}
                         disabled={actionLoading}
+                        aria-label={`Delete draft ${att.profile_name || att.attempt_id}`}
                       >
                         Delete draft
                       </Button>
@@ -349,30 +343,17 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       >
         {/* Selection Bar */}
         {selectedKeys.size > 0 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "12px 16px",
-              background: "var(--surface-2)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border)",
-              marginBottom: 12,
-            }}
-          >
-            <div>
-              <strong style={{ fontSize: 13 }}>
-                {selectedKeys.size} {activeTab === "archived" ? "archived " : ""}profile(s) selected
-              </strong>
-              <span style={{ display: "block", fontSize: 11, color: "var(--muted)" }}>
-                {activeTab === "active"
-                  ? "Archived profiles remain available to historical runs."
-                  : "Delete permanently only profiles with no related Runs."}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", gap: 8 }}>
+          <SelectionBar
+            className="run-selection"
+            count={selectedKeys.size}
+            label={activeTab === "archived" ? "archived profile" : "profile"}
+            description={
+              activeTab === "active"
+                ? "Archived profiles remain available to historical runs."
+                : "Delete permanently only profiles with no related Runs."
+            }
+            actions={
+              <>
               {activeTab === "active" ? (
                 <Button
                   size="compact"
@@ -393,14 +374,16 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                   Delete Profile(s)
                 </Button>
               )}
-            </div>
-          </div>
+              </>
+            }
+          />
         )}
 
         {loading ? (
           <LoadingState message="Loading profiles..." />
         ) : (
           <DataTable<CandidateProfile>
+            className="profile-table-card"
             data={profiles}
             keyField="profile_id"
             selectedKeys={selectedKeys}
@@ -423,20 +406,10 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 render: (item) => (
                   <button
                     type="button"
-                    className="btn-subtle"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 12,
-                      color: "var(--accent)",
-                      fontWeight: 600,
-                      padding: 0,
-                      cursor: "pointer",
-                      border: 0,
-                      background: "transparent",
-                    }}
+                    className="btn-subtle profile-id-link"
                     onClick={() => onOpenDetail(item.profile_id)}
                   >
-                    {item.profile_id}
+                    <span title={item.profile_id}>{formatIdentifier(item.profile_id)}</span>
                   </button>
                 ),
               },
@@ -459,8 +432,8 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 key: "created_at",
                 header: "Created Time",
                 render: (item) => (
-                  <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                    {item.created_at_display || item.created_at}
+                  <span className="profile-created-time">
+                    {formatTimestamp(item.created_at, "Unknown date")}
                   </span>
                 ),
               },

@@ -15,6 +15,7 @@ import type {
   SynonymSuggestionResource,
   SynonymSuggestionQuery,
 } from './types';
+import { formatTimestamp } from '../../lib/format';
 
 export interface SuggestionQueueProps {
   onQueueChanged?: () => void;
@@ -308,8 +309,10 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
           </div>
 
           {/* Search Input */}
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <label className='page-search synonym-search'>
+            <span className='sr-only'>Search synonyms</span>
             <input
+              className='field page-search-input'
               type='search'
               placeholder='Search alias or canonical...'
               value={search}
@@ -317,15 +320,8 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              style={{
-                fontSize: 13,
-                padding: '5px 10px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border)',
-                minWidth: 200,
-              }}
             />
-          </div>
+          </label>
         </div>
 
         {/* Page size & Refresh */}
@@ -336,7 +332,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
               setPageSize(Number(e.target.value) as any);
               setPage(1);
             }}
-            style={{ fontSize: 12, padding: '4px 6px', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+            className='field-select compact-select'
             aria-label='Page size'
           >
             <option value={10}>10 / page</option>
@@ -491,7 +487,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
                       </td>
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                          {item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'N/A'}
+                          {formatTimestamp(item.updated_at, 'N/A')}
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>

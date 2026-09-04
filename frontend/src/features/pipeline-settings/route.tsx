@@ -10,7 +10,7 @@ export const PipelineSettingsPage: React.FC = () => {
     <div className="content-container" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div className="page-head">
         <div>
-          <p className="eyebrow">Settings &amp; System</p>
+          <p className="eyebrow">Pipeline</p>
           <h2>Pipeline Settings</h2>
           <p>Configure pipeline stages, limits, criteria, and automation rules.</p>
         </div>

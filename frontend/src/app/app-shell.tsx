@@ -453,7 +453,18 @@ export const AppShell: React.FC = () => {
       {/* Floating toast notifications */}
       <div className="toast-container" aria-live="polite" aria-atomic="true">
         {notifications.slice(0, 3).map((n) => (
-          <div key={n.id} className="toast-item">
+          <div
+            key={n.id}
+            className="toast-item"
+            onMouseEnter={() => notificationStore.pauseAutoDismiss(n.id)}
+            onMouseLeave={() => notificationStore.resumeAutoDismiss(n.id)}
+            onFocusCapture={() => notificationStore.pauseAutoDismiss(n.id)}
+            onBlurCapture={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                notificationStore.resumeAutoDismiss(n.id);
+              }
+            }}
+          >
             <div style={{ flex: 1 }}>
               <strong style={{ display: "block", fontSize: 13 }}>{n.title}</strong>
               {n.message && <span style={{ fontSize: 12, color: "var(--muted)" }}>{n.message}</span>}
