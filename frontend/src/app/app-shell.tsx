@@ -207,6 +207,11 @@ export const AppShell: React.FC = () => {
 
   return (
     <div className="app-shell">
+      {/* Skip to main content for keyboard accessibility */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {/* Mobile Scrim */}
       {isMobileMenuOpen && (
         <div
@@ -379,8 +384,8 @@ export const AppShell: React.FC = () => {
                             <strong style={{ fontSize: 13 }}>{n.title}</strong>
                             <button
                               type="button"
+                              className="notification-dismiss-btn"
                               aria-label={`Dismiss notification: ${n.title}`}
-                              style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--muted)", fontSize: 14 }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 notificationStore.dismiss(n.id);
@@ -441,7 +446,7 @@ export const AppShell: React.FC = () => {
         </div>
 
         {/* Scrollable page body */}
-        <main className="app-scroll" tabIndex={-1}>
+        <main id="main-content" className="app-scroll" tabIndex={-1}>
           <ActiveComponent />
         </main>
       </div>
@@ -456,8 +461,8 @@ export const AppShell: React.FC = () => {
             </div>
             <button
               type="button"
+              className="toast-dismiss-btn"
               aria-label="Close toast"
-              style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--muted)" }}
               onClick={() => notificationStore.dismiss(n.id)}
             >
               ✕

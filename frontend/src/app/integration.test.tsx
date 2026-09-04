@@ -74,6 +74,10 @@ describe("Frontend App Shell & Whole-Slice Integration", () => {
   it("renders accessible route heading, announcement region, and mobile toggle in AppShell", () => {
     const markup = renderToStaticMarkup(React.createElement(AppShell));
 
+    // Keyboard accessible skip link to main content
+    expect(markup).toContain('<a href="#main-content" class="skip-link">Skip to main content</a>');
+    expect(markup).toContain('id="main-content"');
+
     // Route heading focusable with tabIndex -1
     expect(markup).toContain('id="main-page-heading"');
     expect(markup).toContain('tabindex="-1"');

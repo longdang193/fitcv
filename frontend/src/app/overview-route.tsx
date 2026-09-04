@@ -152,6 +152,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ allowOfflineFallback
 
   // Direct field update
   const handleSaveSetting = async (key: string, value: any) => {
+    const previousValue = settingsValues[key];
     setSavingKey(key);
     setSettingsValues((prev) => ({ ...prev, [key]: value }));
     try {
@@ -168,6 +169,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ allowOfflineFallback
         message: "Setting updated for future pipeline runs.",
       });
     } catch (err: any) {
+      setSettingsValues((prev) => ({ ...prev, [key]: previousValue }));
+      loadSettings();
       notificationStore.notify({
         dedupe: `overview:err:${key}`,
         type: "error",
@@ -184,6 +187,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ allowOfflineFallback
     if (typeof window !== "undefined" && typeof window.confirm === "function") {
       if (!window.confirm("Restore defaults for Overview settings?")) return;
     }
+    const previousValues = { ...settingsValues };
     const defaultKeys = OVERVIEW_SECTIONS.flatMap((s) => s.rows.map((r) => r.key));
     const defaultVals: Record<string, any> = {};
     OVERVIEW_SECTIONS.forEach((sec) => {
@@ -207,11 +211,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ allowOfflineFallback
         message: "Pipeline Overview defaults restored.",
       });
     } catch (err: any) {
+      setSettingsValues(previousValues);
+      loadSettings();
       notificationStore.notify({
-        dedupe: "overview:reset:info",
-        type: "info",
-        title: "Defaults Restored Locally",
-        message: "Defaults restored.",
+        dedupe: "overview:reset:err",
+        type: "error",
+        title: "Failed to Restore Defaults",
+        message: err.message || "Could not restore pipeline defaults.",
       });
     }
   };
