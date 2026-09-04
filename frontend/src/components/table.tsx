@@ -8,6 +8,43 @@ export interface TableColumn<T> {
   width?: string;
 }
 
+export interface SelectionBarProps {
+  count: number;
+  label?: string;
+  description?: string;
+  actions?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+}
+
+export const SelectionBar: React.FC<SelectionBarProps> = ({
+  count,
+  label = "item",
+  description,
+  actions,
+  children,
+  className = "",
+}) => {
+  if (count <= 0) return null;
+  const plural = count === 1 ? label : `${label}s`;
+
+  return (
+    <div
+      className={`selection-bar ${className}`.trim()}
+      role="region"
+      aria-label={`Bulk actions for ${count} selected ${plural}`}
+    >
+      <div className="selection-bar-copy">
+        <strong aria-live="polite">
+          {count} {plural} selected
+        </strong>
+        {description && <span>{description}</span>}
+      </div>
+      <div className="selection-bar-actions">{actions || children}</div>
+    </div>
+  );
+};
+
 export interface DataTableProps<T> {
   columns: TableColumn<T>[];
   data: T[];
@@ -21,6 +58,11 @@ export interface DataTableProps<T> {
   total?: number;
   onPageChange?: (newPage: number) => void;
   emptyMessage?: string;
+  emptyState?: React.ReactNode;
+  ariaLabel?: string;
+  caption?: string;
+  bulkActions?: React.ReactNode | ((selectedCount: number) => React.ReactNode);
+  selectedLabel?: string;
   className?: string;
 }
 
@@ -37,6 +79,11 @@ export function DataTable<T extends Record<string, any>>({
   total,
   onPageChange,
   emptyMessage = "No items found",
+  emptyState,
+  ariaLabel,
+  caption,
+  bulkActions,
+  selectedLabel,
   className = "",
 }: DataTableProps<T>) {
   const getKey = (item: T): string => {
@@ -49,10 +96,25 @@ export function DataTable<T extends Record<string, any>>({
   const hasSelection = Boolean(selectedKeys && onToggleSelect);
   const totalPages = pageSize && total ? Math.ceil(total / pageSize) : undefined;
 
+  const selectedCount = selectedKeys?.size || 0;
+
   return (
     <div className={`table-card ${className}`.trim()}>
-      <div className="table-scroll" tabIndex={0} role="region" aria-label="Data table">
+      {hasSelection && selectedCount > 0 && bulkActions && (
+        <SelectionBar
+          count={selectedCount}
+          label={selectedLabel}
+          actions={typeof bulkActions === "function" ? bulkActions(selectedCount) : bulkActions}
+        />
+      )}
+      <div
+        className="table-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label={ariaLabel || (caption ? `${caption}, scrollable table` : "Scrollable data table")}
+      >
         <table className="data-table">
+          {caption && <caption className="sr-only">{caption}</caption>}
           <thead>
             <tr>
               {hasSelection && (
@@ -79,7 +141,7 @@ export function DataTable<T extends Record<string, any>>({
                   colSpan={columns.length + (hasSelection ? 1 : 0)}
                   style={{ textAlign: "center", padding: "32px 16px", color: "var(--muted)" }}
                 >
-                  {emptyMessage}
+                  {emptyState || emptyMessage}
                 </td>
               </tr>
             ) : (
