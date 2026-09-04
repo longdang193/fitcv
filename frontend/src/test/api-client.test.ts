@@ -82,4 +82,25 @@ describe("api-client", () => {
     expect(response.status).toBe(204);
     expect(response.data).toBeNull();
   });
+
+  it("preserves canonical retryable errors", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      statusText: "Conflict",
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        error: {
+          code: "cv_preview_pending",
+          message: "CV preview is not ready.",
+          retryable: true,
+        },
+      }),
+    });
+
+    await expect(apiClient.get("/cv-versions/pending/preview")).rejects.toMatchObject({
+      code: "cv_preview_pending",
+      retryable: true,
+    });
+  });
 });

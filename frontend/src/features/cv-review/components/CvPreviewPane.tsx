@@ -32,7 +32,7 @@ export const CvPreviewPane: React.FC<CvPreviewPaneProps> = ({
       setError({
         message: err.message || "Failed to load CV preview.",
         action: err.action,
-        retryable: err.retryable || err.details?.retryable,
+        retryable: typeof err.retryable === "boolean" ? err.retryable : err.details?.retryable === true,
       });
     } finally {
       setLoading(false);

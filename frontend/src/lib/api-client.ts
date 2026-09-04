@@ -17,6 +17,7 @@ export interface ApiErrorPayload {
     details?: unknown;
     field_errors?: FieldError[];
     action?: string;
+    retryable?: boolean;
   };
 }
 
@@ -26,6 +27,7 @@ export class ApiClientError extends Error {
   public readonly action?: string;
   public readonly fieldErrors?: FieldError[];
   public readonly details?: unknown;
+  public readonly retryable?: boolean;
 
   constructor(
     status: number,
@@ -33,7 +35,8 @@ export class ApiClientError extends Error {
     message: string,
     action?: string,
     fieldErrors?: FieldError[],
-    details?: unknown
+    details?: unknown,
+    retryable?: boolean
   ) {
     super(message);
     this.name = "ApiClientError";
@@ -42,6 +45,11 @@ export class ApiClientError extends Error {
     this.action = action;
     this.fieldErrors = fieldErrors;
     this.details = details;
+    this.retryable = retryable ?? (
+      details && typeof details === "object" && "retryable" in details && typeof (details as { retryable?: unknown }).retryable === "boolean"
+        ? (details as { retryable: boolean }).retryable
+        : undefined
+    );
   }
 }
 
@@ -76,6 +84,7 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     let action: string | undefined;
     let fieldErrors: FieldError[] | undefined;
     let details: unknown;
+    let retryable: boolean | undefined;
 
     try {
       const contentType = response.headers.get("content-type") || "";
@@ -87,6 +96,7 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
           action = payload.error.action;
           fieldErrors = payload.error.field_errors;
           details = payload.error.details;
+          retryable = payload.error.retryable;
         } else if ("detail" in payload) {
           errorMessage = typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail);
         }
@@ -100,7 +110,7 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
       // Body parse failure; retain statusText
     }
 
-    throw new ApiClientError(response.status, errorCode, errorMessage, action, fieldErrors, details);
+    throw new ApiClientError(response.status, errorCode, errorMessage, action, fieldErrors, details, retryable);
   }
 
   // 204 No Content

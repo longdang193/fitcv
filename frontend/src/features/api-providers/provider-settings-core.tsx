@@ -293,11 +293,17 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
 
     void run(async () => {
       const isCustom = provider.kind === "custom" || provider.base_url_editable || provider.provider_id.startsWith("custom-");
+      let expectedRevision = provider.revision;
       if (isCustom && draft.name !== provider.display_name) {
-        await apiClient.patch(
+        const response = await apiClient.patch<{ data: Provider }>(
           `/api-providers/${encodeURIComponent(provider.provider_id)}`,
           { display_name: draft.name, expected_revision: provider.revision }
         );
+        const revision = response.data.data?.revision;
+        if (typeof revision !== "number") {
+          throw new Error("Provider update response missing revision.");
+        }
+        expectedRevision = revision;
       }
 
       await apiClient.put(
@@ -306,7 +312,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
           base_url: draft.baseUrl || null,
           api_type: draft.apiType,
           api_key: draft.apiKey || null,
-          expected_revision: provider.revision,
+          expected_revision: expectedRevision,
         }
       );
 
