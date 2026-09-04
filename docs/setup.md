@@ -119,6 +119,16 @@ docker compose up -d --build redis web worker
 Source local mode:
 
 ```powershell
+.\start_fitcv_dev.ps1
+```
+
+The single-command developer launcher starts FastAPI, waits for `/healthz`,
+then starts Vite. It stops both processes on exit and prevents an unavailable
+backend from becoming opaque frontend `Internal Server Error` responses.
+
+For separate engineering processes:
+
+```powershell
 .\start_web.ps1
 .\start_worker.ps1
 ```
@@ -130,6 +140,7 @@ Direct Windows web start without `REDIS_URL` uses inline execution. Configure
 
 - `.env.yaml`: bootstrap trigger input
 - `.env`: untracked developer/server credential and environment values
+- `config/dev-server.json`: source-mode host and port SSOT
 - `config/runtime/control_plane.yaml`: canonical provider/model defaults
 - `config/runtime/pipeline.yaml`: canonical pipeline execution settings
 - `data/candidate_profile.yaml`: source-run candidate profile

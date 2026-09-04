@@ -1,5 +1,28 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import devServerConfig from "../config/dev-server.json";
+
+const apiOrigin = `http://${devServerConfig.host}:${devServerConfig.backendPort}`;
+const apiPaths = [
+  "/api-providers",
+  "/llm-configuration",
+  "/prompt-configurations",
+  "/system-settings",
+  "/settings",
+  "/local",
+  "/runs",
+  "/scans",
+  "/tracked-companies",
+  "/candidate-profiles",
+  "/candidate-profile-creation-attempts",
+  "/candidate-profile-field-schema",
+  "/bookmarks",
+  "/synonym-policies",
+  "/synonym-suggestions",
+  "/synonym-processing-runs",
+  "/personalization",
+  "/healthz",
+];
 
 export default defineConfig({
   plugins: [react()],
@@ -14,26 +37,8 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
-    proxy: {
-      "/api-providers": "http://127.0.0.1:8000",
-      "/llm-configuration": "http://127.0.0.1:8000",
-      "/prompt-configurations": "http://127.0.0.1:8000",
-      "/system-settings": "http://127.0.0.1:8000",
-      "/settings": "http://127.0.0.1:8000",
-      "/local": "http://127.0.0.1:8000",
-      "/runs": "http://127.0.0.1:8000",
-      "/scans": "http://127.0.0.1:8000",
-      "/tracked-companies": "http://127.0.0.1:8000",
-      "/candidate-profiles": "http://127.0.0.1:8000",
-      "/candidate-profile-creation-attempts": "http://127.0.0.1:8000",
-      "/candidate-profile-field-schema": "http://127.0.0.1:8000",
-      "/bookmarks": "http://127.0.0.1:8000",
-      "/synonym-policies": "http://127.0.0.1:8000",
-      "/synonym-suggestions": "http://127.0.0.1:8000",
-      "/synonym-processing-runs": "http://127.0.0.1:8000",
-      "/personalization": "http://127.0.0.1:8000",
-      "/healthz": "http://127.0.0.1:8000",
-    },
+    host: devServerConfig.host,
+    port: devServerConfig.frontendPort,
+    proxy: Object.fromEntries(apiPaths.map((path) => [path, apiOrigin])),
   },
 });

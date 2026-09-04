@@ -1,10 +1,15 @@
 param(
     [string]$RedisUrl = "",
-    [int]$Port = 8000,
+    [int]$Port = 0,
     [switch]$AllowDockerWorker
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($Port -eq 0) {
+    $devServerConfigPath = Join-Path $PSScriptRoot "config\dev-server.json"
+    $Port = [int](Get-Content -LiteralPath $devServerConfigPath -Raw | ConvertFrom-Json).backendPort
+}
 
 if (-not $RedisUrl) { $RedisUrl = $env:REDIS_URL }
 if (-not $RedisUrl) { $RedisUrl = "redis://:myredissecret@localhost:6379/0" }
