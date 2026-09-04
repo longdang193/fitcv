@@ -105,5 +105,23 @@ describe("Frontend App Shell & Whole-Slice Integration", () => {
     const markup = renderToStaticMarkup(React.createElement(AppShell));
     expect(markup).toContain('aria-label="Notifications, 1 unread notification"');
   });
+  it("preserves skip link as first keyboard bypass target before nav and main content", () => {
+    const markup = renderToStaticMarkup(React.createElement(AppShell));
+
+    const skipPos = markup.indexOf('class="skip-link"');
+    const navPos = markup.indexOf('class="nav-container"');
+    const headerPos = markup.indexOf('class="app-header"');
+    const mainPos = markup.indexOf('id="main-content"');
+
+    expect(skipPos).toBeGreaterThan(-1);
+    expect(skipPos).toBeLessThan(navPos);
+    expect(navPos).toBeLessThan(headerPos);
+    expect(headerPos).toBeLessThan(mainPos);
+
+    // Live region exists for screen-reader route announcements without autofocus
+    expect(markup).toContain('class="sr-only route-announcement"');
+    expect(markup).toContain('role="status"');
+    expect(markup).toContain('aria-live="polite"');
+  });
 
 });
