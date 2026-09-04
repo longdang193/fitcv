@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import baselineReviewSource from "../features/candidate-profile/components/BaselineReviewStep.tsx?raw";
+import derivedReviewSource from "../features/candidate-profile/components/DerivedReviewStep.tsx?raw";
 import {
   candidateProfileBaselineApprovalHash,
   candidateProfileEditHash,
@@ -38,12 +40,14 @@ import {
 describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
   it("parses catalog view", () => {
     expect(parseCandidateRoute("#/candidate-profile")).toEqual({ view: "catalog" });
+    expect(parseCandidateRoute("#/candidate-profiles")).toEqual({ view: "catalog" });
     expect(parseCandidateRoute("candidate-profile")).toEqual({ view: "catalog" });
     expect(parseCandidateRoute("")).toEqual({ view: "catalog" });
   });
 
   it("parses upload creation view", () => {
     expect(parseCandidateRoute("#/candidate-profile/create")).toEqual({ view: "create_upload" });
+    expect(parseCandidateRoute("#/candidate-profiles/create")).toEqual({ view: "create_upload" });
   });
 
   it("parses creation processing view", () => {
@@ -71,6 +75,25 @@ describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
     expect(parseCandidateRoute("#/candidate-profile/create/att_123/confirm")).toEqual({
       view: "create_confirm",
       attemptId: "att_123",
+    });
+  });
+
+  it("parses plural candidate-profiles deep-links without changing singular routes", () => {
+    expect(parseCandidateRoute("#/candidate-profiles/create/att_123/baseline")).toEqual({
+      view: "create_baseline",
+      attemptId: "att_123",
+    });
+    expect(parseCandidateRoute("#/candidate-profiles/create/att_123/derived")).toEqual({
+      view: "create_derived",
+      attemptId: "att_123",
+    });
+    expect(parseCandidateRoute("#/candidate-profiles/create/att_123/confirm")).toEqual({
+      view: "create_confirm",
+      attemptId: "att_123",
+    });
+    expect(parseCandidateRoute("#/candidate-profiles/prof_abc123")).toEqual({
+      view: "detail",
+      profileId: "prof_abc123",
     });
   });
 
@@ -125,6 +148,27 @@ describe("Candidate Profile Route Hash Parsing & Route Discovery", () => {
 
     const matchedCreate = matchRoute("#/candidate-profile/create/att_789/baseline", routes);
     expect(matchedCreate.id).toBe("candidate-profile");
+  });
+});
+
+describe("Candidate Profile review control associations", () => {
+  it("associates baseline review fields and evidence controls with unique IDs", () => {
+    expect(baselineReviewSource).toContain("<label htmlFor={fieldId}");
+    expect(baselineReviewSource).toContain("id={fieldId}");
+    expect(baselineReviewSource).toContain("<label htmlFor={titleId}");
+    expect(baselineReviewSource).toContain("id={titleId}");
+    expect(baselineReviewSource).toContain("<label htmlFor={textId}");
+    expect(baselineReviewSource).toContain("id={textId}");
+    expect(baselineReviewSource).toContain("aria-label={`Regenerate ${fieldMeta.label}`}");
+  });
+
+  it("associates derived claim and evidence controls with unique IDs", () => {
+    expect(derivedReviewSource).toContain("<label htmlFor={claimNameId}");
+    expect(derivedReviewSource).toContain("id={claimNameId}");
+    expect(derivedReviewSource).toContain("<label htmlFor={confidenceId}");
+    expect(derivedReviewSource).toContain("id={confidenceId}");
+    expect(derivedReviewSource).toContain("htmlFor={evidenceCheckboxId}");
+    expect(derivedReviewSource).toContain("id={evidenceCheckboxId}");
   });
 });
 

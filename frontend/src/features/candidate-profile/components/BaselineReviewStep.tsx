@@ -31,6 +31,10 @@ function generateRandomId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+function controlId(...parts: string[]): string {
+  return parts.map((part) => encodeURIComponent(part)).join("-");
+}
+
 export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
   attemptId,
   onApproveSuccess,
@@ -554,6 +558,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
               >
                 {Object.entries(section.fields).map(([fieldName, fieldMeta]) => {
                   const path = `/${fieldName === "name" || fieldName === "headline" || fieldName === "summary" ? fieldName : `${section.id}/${fieldName}`}`;
+                  const fieldId = controlId("baseline", section.id, fieldName);
                   const annotation = review.annotations[path] || {};
                   const value = fieldName === "name" || fieldName === "headline" || fieldName === "summary"
                     ? document[fieldName] || ""
@@ -562,7 +567,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                   return (
                     <div key={fieldName} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                        <label htmlFor={fieldId} style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
                           {fieldMeta.label}
                           {fieldMeta.required && <span style={{ color: "var(--accent)" }}> *</span>}
                         </label>
@@ -589,6 +594,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                               className="btn-subtle"
                               style={{ fontSize: 11, padding: "2px 6px", cursor: "pointer" }}
                               onClick={() => handleRegenerate(path)}
+                              aria-label={`Regenerate ${fieldMeta.label}`}
                               title={`Regenerate ${fieldMeta.label}`}
                             >
                               ✨
@@ -599,6 +605,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
 
                       {fieldMeta.shape === "textarea" ? (
                         <textarea
+                          id={fieldId}
                           className="field-textarea"
                           value={value}
                           rows={3}
@@ -606,6 +613,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                         />
                       ) : (
                         <input
+                          id={fieldId}
                           className="field-input"
                           type="text"
                           value={value}
@@ -679,13 +687,14 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                         {Object.entries(section.item || {}).map(([fName, fMeta]) => {
                           if (fName === "id" || fName === "evidence" || fName === "source_refs") return null;
                           const fieldPath = `${itemPath}/${fName}`;
+                          const fieldId = controlId("baseline", section.id, itemId, fName);
                           const fVal = item[fName] || "";
                           const fAnnotation = review.annotations[fieldPath] || {};
 
                           return (
                             <div key={fName} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <label style={{ fontSize: 12, fontWeight: 600 }}>
+                                <label htmlFor={fieldId} style={{ fontSize: 12, fontWeight: 600 }}>
                                   {fMeta.label}
                                   {fMeta.required && <span style={{ color: "var(--accent)" }}> *</span>}
                                 </label>
@@ -707,6 +716,7 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                                 )}
                               </div>
                               <input
+                                id={fieldId}
                                 className="field-input"
                                 type="text"
                                 value={fVal}
@@ -753,6 +763,8 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                             )}
                             {(item.evidence || []).map((ev: any, evIdx: number) => {
                               const evPath = `${itemPath}/evidence/${ev.id}`;
+                              const titleId = controlId("baseline", section.id, itemId, ev.id, "title");
+                              const textId = controlId("baseline", section.id, itemId, ev.id, "text");
                               const evAnnotation = review.annotations[`${evPath}/text`] || {};
 
                               return (
@@ -803,7 +815,11 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                                   </div>
 
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <label htmlFor={titleId} style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>
+                                      Evidence title
+                                    </label>
                                     <input
+                                      id={titleId}
                                       className="field-input"
                                       type="text"
                                       placeholder="Optional Title / Label"
@@ -811,7 +827,11 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
                                       onChange={(e) => handleFieldChange(`${evPath}/title`, e.target.value)}
                                       style={{ minHeight: 30, fontSize: 12 }}
                                     />
+                                    <label htmlFor={textId} style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>
+                                      Evidence statement
+                                    </label>
                                     <textarea
+                                      id={textId}
                                       className="field-textarea"
                                       placeholder="Traceable evidence statement verbatim or normalized from source"
                                       title={ev.text || ""}

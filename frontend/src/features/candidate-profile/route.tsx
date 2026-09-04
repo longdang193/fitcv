@@ -19,7 +19,7 @@ export function parseCandidateRoute(hash: string): ParsedCandidateRoute {
   const clean = (hash || "").replace(/^#\/?/, "").split("?")[0];
   const parts = clean.split("/").filter(Boolean);
 
-  if (parts.length === 0 || parts[0] !== "candidate-profile") {
+  if (parts.length === 0 || !["candidate-profile", "candidate-profiles"].includes(parts[0])) {
     return { view: "catalog" };
   }
 

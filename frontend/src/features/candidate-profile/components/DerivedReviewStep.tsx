@@ -22,6 +22,10 @@ import { getCandidateProfileFailurePresentation } from "./ProcessingStep";
 import { EvidenceReferenceButton } from "./EvidenceReferenceButton";
 import { ReviewLogConsole } from "./ReviewLogConsole";
 
+function controlId(...parts: string[]): string {
+  return parts.map((part) => encodeURIComponent(part)).join("-");
+}
+
 export interface DerivedReviewStepProps {
   attemptId: string;
   onBackToBaseline?: () => void;
@@ -553,6 +557,8 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                     const originLabel = claim.origin === "llm_inferred" ? "Inferred" : claim.origin || "Inferred";
                     const confidencePct = Math.round((Number(claim.confidence) || 0) * 100);
                     const isSupported = claim.support_status === "supported" || (claim.evidence_refs?.length > 0);
+                    const claimNameId = controlId("derived", section.id, claimId, "name");
+                    const confidenceId = controlId("derived", section.id, claimId, "confidence");
 
                     return (
                       <article
@@ -614,10 +620,11 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                           }}
                         >
                           <div>
-                            <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                            <label htmlFor={claimNameId} style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                               Claim Name *
                             </label>
                             <input
+                              id={claimNameId}
                               className="field-input"
                               type="text"
                               title={claim.name || ""}
@@ -629,10 +636,11 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                           </div>
 
                           <div>
-                            <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                            <label htmlFor={confidenceId} style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                               Confidence (0.0 – 1.0)
                             </label>
                             <input
+                              id={confidenceId}
                               className="field-input"
                               type="number"
                               min="0"
@@ -681,10 +689,12 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                             >
                               {allBaselineEvidence.map((ev) => {
                                 const isChecked = (claim.evidence_refs || []).includes(ev.id);
+                                const evidenceCheckboxId = controlId("derived", section.id, claimId, "evidence", ev.id);
 
                                 return (
                                   <label
                                     key={ev.id}
+                                    htmlFor={evidenceCheckboxId}
                                     title={ev.text ? `${ev.parentTitle}: ${ev.title ? ev.title + " — " : ""}${ev.text}` : `${ev.parentTitle}: ${ev.title || ""}`}
                                     style={{
                                       display: "flex",
@@ -699,6 +709,7 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
                                     }}
                                   >
                                     <input
+                                      id={evidenceCheckboxId}
                                       type="checkbox"
                                       checked={isChecked}
                                       onChange={() => handleToggleEvidenceRef(section.id, claimId, ev.id)}
