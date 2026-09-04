@@ -11,7 +11,7 @@ import {
 import {
   fetchRun,
   fetchRunJobs,
-  extractJobSkills,
+  extractRequiredJobSkills,
   fetchRunEvents,
   cancelRun,
   archiveRun,
@@ -437,7 +437,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
   // Format skills list with prototype 5 + overflow chip
   const renderSkillChips = (item: RunJobItem) => {
-    const skillsList = extractJobSkills(item);
+    const skillsList = extractRequiredJobSkills(item);
     if (skillsList.length === 0) {
       return <span style={{ color: "var(--muted)", fontSize: 12 }}>—</span>;
     }
@@ -458,12 +458,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   // Format job attributes
   const renderJobAttributes = (item: RunJobItem) => {
     const snapshot = (item.source_snapshot || item.attributes || {}) as Record<string, any>;
-    const loc = item.location || snapshot.location || snapshot.city || "—";
-    const mode = snapshot.work_mode || snapshot.workMode || item.work_mode || "—";
-    const lang = snapshot.language || item.language || "—";
-    const sen = snapshot.seniority || item.seniority || "—";
-    const fam = snapshot.role_family || snapshot.job_family || snapshot.roleFamily || item.role_family || "—";
-    const dom = snapshot.domain || snapshot.industry || item.domain || "—";
+    const loc = item.location || snapshot.location || snapshot.city;
+    const mode = snapshot.work_mode || snapshot.workMode || item.work_mode;
+    const lang = snapshot.language || item.language;
+    const sen = snapshot.seniority || item.seniority;
+    const fam = snapshot.role_family || snapshot.job_family || snapshot.roleFamily || item.role_family;
+    const dom = snapshot.domain || snapshot.industry || item.domain;
 
     const attrs = [
       ["Location", loc],
@@ -473,10 +473,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       ["Job Family", fam],
       ["Domain", dom],
     ];
+    const present = attrs.filter(([, value]) => value !== undefined && value !== null && String(value).trim());
+    if (present.length === 0) return <span style={{ color: "var(--muted)", fontSize: 12 }}>No job attributes provided.</span>;
 
     return (
       <div className="job-attributes">
-        {attrs.map(([label, val]) => (
+        {present.map(([label, val]) => (
           <div key={label} className="job-attribute">
             <span>{label}</span>
             <strong>{String(val)}</strong>
@@ -979,14 +981,15 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                   </div>
 
                                   {/* Interest Rating & Bookmark */}
-                                  <div className="interest-rating" aria-label={"Application Interest for " + (item.title || "Job")}>
+                                  <div className="interest-rating" role="radiogroup" aria-label={"Application Interest for " + (item.title || "Job")}>
                                     {[1, 2, 3, 4, 5].map((val) => (
                                       <button
                                         key={val}
                                         type="button"
                                         className="star-btn"
                                         aria-label={"Rate " + val + " of 5"}
-                                        aria-pressed={val <= currentRating}
+                                        role="radio"
+                                        aria-checked={val === currentRating}
                                         onClick={() => handleRateJob(item, val)}
                                       >
                                         ★

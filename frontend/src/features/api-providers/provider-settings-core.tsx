@@ -342,6 +342,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
 
   const deleteCustomProvider = () => {
     if (!provider) return;
+    if (!window.confirm(`Delete provider "${provider.display_name}"? Backend will reject deletion while dependent models or routes remain.`)) return;
     void run(async () => {
       await apiClient.delete(`/api-providers/${encodeURIComponent(provider.provider_id)}`, {
         body: { expected_revision: provider.revision },

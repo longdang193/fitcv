@@ -87,7 +87,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
       render: (item) => (
         <div style={{ display: "grid", gap: 6 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <a
+            {(item as any).source_url || (item as any).url ? <a
               href={(item as any).source_url || (item as any).url || "#"}
               target="_blank"
               rel="noopener noreferrer"
@@ -99,7 +99,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
               }}
             >
               {item.title || "Untitled Job"}
-            </a>
+            </a> : <strong style={{ fontSize: 14 }}>{item.title || "Untitled Job"}</strong>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <InterestRating
