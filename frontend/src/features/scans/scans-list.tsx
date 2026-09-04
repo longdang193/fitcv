@@ -74,7 +74,7 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
         page_size: pageSize,
       });
       setScans(res.data || []);
-      setTotalItems(res.total_items || res.total || 0);
+      setTotalItems(res.page?.total_items ?? res.total_items ?? res.total ?? 0);
       if (res.meta) {
         if (typeof res.meta.active_count === "number") setActiveCount(res.meta.active_count);
         if (typeof res.meta.archived_count === "number") setArchivedCount(res.meta.archived_count);

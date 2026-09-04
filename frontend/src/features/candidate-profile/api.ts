@@ -10,11 +10,19 @@ import {
   SourceBlock,
 } from "./types";
 
+export interface PaginationPage {
+  number: number;
+  size: number;
+  total_items: number;
+  total_pages: number;
+}
+
 export interface PaginationEnvelope<T> {
   data: T[];
-  page: number;
-  page_size: number;
-  total_items: number;
+  page?: PaginationPage;
+  page_size?: number;
+  total_items?: number;
+  total?: number;
   meta?: {
     active_count?: number;
     archived_count?: number;

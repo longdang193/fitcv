@@ -113,8 +113,8 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
     try {
       const res = await fetchScanJobs(scanId, page, 20);
       setJobs(res.data || []);
-      setJobsPage(res.page || page);
-      setJobsTotal(res.total_items || res.total || 0);
+      setJobsPage(res.page?.number ?? page);
+      setJobsTotal(res.page?.total_items ?? res.total_items ?? res.total ?? 0);
     } catch (err: any) {
       setJobsLoadError(err.message || "Unable to load scan output.");
     } finally {

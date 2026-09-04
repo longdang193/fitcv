@@ -59,11 +59,12 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
 
       const profileItems = (profsRes as any)?.data?.items || (profsRes as any)?.items || profsRes.data || [];
       setProfiles(profileItems);
-      setTotalItems(profsRes.total_items || profileItems.length);
+      setTotalItems(profsRes.page?.total_items ?? profsRes.total_items ?? profsRes.total ?? profileItems.length);
 
       const meta = profsRes.meta || {};
-      setActiveCount(meta.active_count ?? (activeTab === "active" ? profsRes.total_items : 0));
-      setArchivedCount(meta.archived_count ?? (activeTab === "archived" ? profsRes.total_items : 0));
+      const total = profsRes.page?.total_items ?? profsRes.total_items ?? profsRes.total ?? profileItems.length;
+      setActiveCount(meta.active_count ?? (activeTab === "active" ? total : 0));
+      setArchivedCount(meta.archived_count ?? (activeTab === "archived" ? total : 0));
 
       setLoading(false);
     } catch (err: any) {

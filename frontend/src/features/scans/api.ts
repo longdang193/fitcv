@@ -12,8 +12,8 @@ import {
 
 export interface ScanListResponse {
   data: ScanResource[];
-  page: number;
-  page_size: number;
+  page?: { number: number; size: number; total_items: number; total_pages: number };
+  page_size?: number;
   total_items?: number;
   total?: number;
   meta?: {
@@ -25,16 +25,16 @@ export interface ScanListResponse {
 
 export interface TrackedCompanyListResponse {
   data: TrackedCompanyResource[];
-  page: number;
-  page_size: number;
+  page?: { number: number; size: number; total_items: number; total_pages: number };
+  page_size?: number;
   total_items?: number;
   total?: number;
 }
 
 export interface ScanJobsResponse {
   data: ScanJobItem[];
-  page: number;
-  page_size: number;
+  page?: { number: number; size: number; total_items: number; total_pages: number };
+  page_size?: number;
   total_items?: number;
   total?: number;
 }
