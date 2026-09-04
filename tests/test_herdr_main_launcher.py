@@ -69,6 +69,41 @@ def test_redaction_hides_deepagents_task() -> None:
     ]
 
 
+def test_redaction_hides_codex_assignment_task() -> None:
+    redacted = LAUNCHER._redacted_arguments(
+        ["agent", "prompt", "xhigh-main", "private task", "--wait"],
+    )
+
+    assert redacted == [
+        "agent",
+        "prompt",
+        "xhigh-main",
+        f"task=<sha256:{LAUNCHER._sha256_text('private task')}>",
+        "--wait",
+    ]
+
+
+def test_codex_assignment_command_prompts_started_agent() -> None:
+    command = LAUNCHER._codex_assignment_command(
+        "herdr.exe", "session", "xhigh-main", "assign lane",
+    )
+
+    assert command == [
+        "herdr.exe",
+        "--session",
+        "session",
+        "agent",
+        "prompt",
+        "xhigh-main",
+        "assign lane",
+        "--wait",
+        "--until",
+        "working",
+        "--timeout",
+        "30000",
+    ]
+
+
 def test_powershell_literal_escapes_apostrophes() -> None:
     assert LAUNCHER._powershell_literal("worker's task") == "'worker''s task'"
 
@@ -210,7 +245,7 @@ def test_deepagents_task_is_required_and_bounded(
     monkeypatch: pytest.MonkeyPatch,
     kwargs: dict[str, str | None],
 ) -> None:
-    with pytest.raises(LAUNCHER.LaunchBlocked, match="task text"):
+    with pytest.raises(LAUNCHER.LaunchBlocked, match="text"):
         LAUNCHER.resolve_launch(
             profile_name="normal",
             session="session",
@@ -219,6 +254,23 @@ def test_deepagents_task_is_required_and_bounded(
             expected_base="HEAD",
             executor="deepagents",
             **kwargs,
+        )
+
+
+@pytest.mark.parametrize("task", [None, " ", "x" * (LAUNCHER._MAX_TASK_LENGTH + 1), "line1\nline2"])
+def test_codex_task_is_required_and_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+    task: str | None,
+) -> None:
+    with pytest.raises(LAUNCHER.LaunchBlocked, match="(?i)text"):
+        LAUNCHER.resolve_launch(
+            profile_name="normal",
+            session="session",
+            pane="pane",
+            cwd=ROOT,
+            expected_base="HEAD",
+            executor="codex",
+            task=task,
         )
 
 
@@ -265,12 +317,17 @@ def test_codex_home_rejects_duplicate_stop_hook_scopes(tmp_path: Path) -> None:
 def test_main_starts_with_selected_codex_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
-    evidence = {"codex": {"codex_home": str(codex_home)}}
+    evidence = {
+        "codex": {"codex_home": str(codex_home)},
+        "herdr": {"executable": "herdr.exe", "agent_name": "xhigh-main"},
+    }
     captured: dict[str, object] = {}
+    commands: list[list[str]] = []
 
     monkeypatch.setattr(LAUNCHER, "resolve_launch", lambda **kwargs: (["herdr"], evidence))
 
     def fake_run(command, **kwargs):
+        commands.append(command)
         captured.update(kwargs)
         return subprocess.CompletedProcess(command, 0, "", "")
 
@@ -288,9 +345,28 @@ def test_main_starts_with_selected_codex_home(monkeypatch: pytest.MonkeyPatch, t
             str(ROOT),
             "--expected-base",
             "HEAD",
+            "--task",
+            "assign lane",
         ]
     ) == 0
     assert captured["env"]["CODEX_HOME"] == str(codex_home.resolve())
+    assert commands == [
+        ["herdr"],
+        [
+            "herdr.exe",
+            "--session",
+            "codex-probe",
+            "agent",
+            "prompt",
+            "xhigh-main",
+            "assign lane",
+            "--wait",
+            "--until",
+            "working",
+            "--timeout",
+            "30000",
+        ],
+    ]
 
 
 def test_launcher_allows_external_codex_controller(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -355,6 +431,8 @@ def test_main_dry_run_emits_json_and_does_not_start(monkeypatch: pytest.MonkeyPa
             str(ROOT),
             "--expected-base",
             "HEAD",
+            "--task",
+            "dry run",
             "--dry-run",
         ]
     ) == 0

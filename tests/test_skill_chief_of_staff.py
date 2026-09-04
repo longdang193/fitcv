@@ -45,14 +45,29 @@ def test_chief_of_staff_has_deterministic_binding_runtime_and_status_contract() 
         "Before local dispatch, run\n`py -B scripts/validate_agent_runtime_drift.py --all-platforms`",
         "`--skip-deploy-check` is CI-only",
         "CoS verifies the full lane contract",
-        "Pass `--profile`,\n`--executor`, `--session`, `--pane`, `--cwd`, and `--expected-base`; pass",
-        "--task` for `deepagents`",
+        "Pass `--profile`,\n`--executor`, `--session`, `--pane`, `--cwd`, `--expected-base`, and `--task`.",
         "launcher verifies runtime projection plus exact\npane/cwd identity",
         "Do not construct provider, model, or developer-instruction overrides\nin CoS",
         "Redact developer instructions and\nrecord their digest instead",
         "discover/list, start, prompt,\nwait, read, and retire/stop",
         "DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT |",
         "PASS | FAIL | BLOCKED",
+    ):
+        assert text in skill
+
+
+def test_chief_of_staff_requires_cold_start_dispatch_evidence() -> None:
+    skill = read(".agents/skills/skill-chief-of-staff/SKILL.md")
+    for text in (
+        "Treat every explicit CoS turn as a cold start",
+        "never use prior\nassistant prose, runtime-thread state, or memory as proof",
+        "`DISPATCH` - run `scripts/herdr_main_launcher.py`",
+        "`CONTINUE` - reuse a live lane only after fresh identity and binding checks",
+        "Selecting a profile, writing a brief, naming a lane, or stating intent is not\nassignment",
+        "executor,\nsession, pane, agent kind, command shape, repository identity, process cwd, and\ntask delivery",
+        "`agent start` is readiness only",
+        "herdr agent prompt <agent> <task> --wait",
+        "dispatch it or return `BLOCKED`",
     ):
         assert text in skill
 

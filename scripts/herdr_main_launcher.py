@@ -26,6 +26,7 @@ _EXECUTORS = {"codex", "deepagents"}
 _MAX_TASK_LENGTH = 4096
 _DEEPAGENTS_MAX_TURNS = "4"
 _DEEPAGENTS_TIMEOUT = "120"
+_CODEX_PROMPT_TIMEOUT_MS = "30000"
 
 
 def _herdr_environment() -> dict[str, str]:
@@ -225,6 +226,14 @@ def _redacted_arguments(arguments: list[str]) -> list[str]:
             redacted.extend([value, setting])
             index += 2
             continue
+        if value == "prompt" and index + 2 < len(arguments):
+            redacted.extend([
+                value,
+                arguments[index + 1],
+                f"task=<sha256:{_sha256_text(arguments[index + 2])}>",
+            ])
+            index += 3
+            continue
         if value in {"-n", "--task"} and index + 1 < len(arguments):
             redacted.extend([value, f"task=<sha256:{_sha256_text(arguments[index + 1])}>"])
             index += 2
@@ -236,6 +245,38 @@ def _redacted_arguments(arguments: list[str]) -> list[str]:
 
 def _powershell_literal(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
+
+
+def _validate_task(task: str | None) -> str:
+    if task is None or not task.strip():
+        raise LaunchBlocked("Launch requires non-empty bounded task text.")
+    if len(task) > _MAX_TASK_LENGTH:
+        raise LaunchBlocked(f"Task text exceeds {_MAX_TASK_LENGTH} characters.")
+    if "\r" in task or "\n" in task:
+        raise LaunchBlocked("Task text cannot contain newlines.")
+    return task.strip()
+
+
+def _codex_assignment_command(
+    herdr: str,
+    session: str,
+    agent_name: str,
+    task: str,
+) -> list[str]:
+    return [
+        herdr,
+        "--session",
+        session,
+        "agent",
+        "prompt",
+        agent_name,
+        task,
+        "--wait",
+        "--until",
+        "working",
+        "--timeout",
+        _CODEX_PROMPT_TIMEOUT_MS,
+    ]
 
 
 def resolve_launch(
@@ -252,15 +293,7 @@ def resolve_launch(
 ) -> tuple[list[str], dict[str, Any]]:
     if executor not in _EXECUTORS:
         raise LaunchBlocked(f"Unsupported executor: {executor}")
-    if executor == "deepagents":
-        if task is None or not task.strip():
-            raise LaunchBlocked("DeepAgents launch requires non-empty bounded task text.")
-        if len(task) > _MAX_TASK_LENGTH:
-            raise LaunchBlocked(
-                f"DeepAgents task text exceeds {_MAX_TASK_LENGTH} characters."
-            )
-        if "\r" in task or "\n" in task:
-            raise LaunchBlocked("DeepAgents task text cannot contain newlines.")
+    task_text = _validate_task(task)
     lane_root = cwd.resolve()
     selected = _profile(lane_root / "agents", profile_name)
     if executor == "deepagents" and not selected.deepagents_compatible:
@@ -326,6 +359,7 @@ def resolve_launch(
                 "developer_instructions",
             ],
             "redacted_runtime_argv": _redacted_arguments(runtime_arguments),
+            "assignment_task_sha256": _sha256_text(task_text),
         },
         "git": git,
         "herdr": {
@@ -340,7 +374,14 @@ def resolve_launch(
         "runtime": {
             "executable": codex or dcode,
             "argv_shape": _redacted_arguments(runtime_arguments),
-        }
+        },
+        "assignment": {
+            "required": True,
+            "delivery": "herdr_agent_prompt" if executor == "codex" else "inline_pane_run",
+            "redacted_prompt_argv": _redacted_arguments(
+                _codex_assignment_command(herdr, session, agent_name, task_text)
+            ) if executor == "codex" else None,
+        },
     }
     if runtime is not None:
         evidence["codex"] = {
@@ -361,7 +402,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cwd", required=True, type=Path)
     parser.add_argument("--expected-base", required=True)
     parser.add_argument("--executor", choices=sorted(_EXECUTORS), default="codex")
-    parser.add_argument("--task")
+    parser.add_argument("--task", required=True)
     parser.add_argument("--name")
     parser.add_argument("--codex-home", type=Path)
     parser.add_argument("--dry-run", action="store_true")
@@ -397,7 +438,24 @@ def main(argv: list[str] | None = None) -> int:
             print(result.stdout, end="")
         if result.stderr:
             print(result.stderr, file=sys.stderr, end="")
-        return result.returncode
+        if result.returncode:
+            return result.returncode
+        if args.executor == "codex":
+            herdr = str(evidence["herdr"]["executable"])
+            agent_name = str(evidence["herdr"]["agent_name"])
+            assignment = _codex_assignment_command(
+                herdr,
+                args.session,
+                agent_name,
+                args.task,
+            )
+            assignment_result = _run(assignment, env=environment)
+            if assignment_result.stdout:
+                print(assignment_result.stdout, end="")
+            if assignment_result.stderr:
+                print(assignment_result.stderr, file=sys.stderr, end="")
+            return assignment_result.returncode
+        return 0
     except LaunchBlocked as exc:
         print(f"BLOCKED: {exc}", file=sys.stderr)
         return 2

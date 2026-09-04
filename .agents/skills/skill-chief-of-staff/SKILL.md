@@ -201,11 +201,36 @@ identity and binding check:
 
 Any mismatch returns `BLOCKED` before write-capable launch.
 
+## Context Continuity And Dispatch Gate
+
+Treat every explicit CoS turn as a cold start. Re-read canonical plan state,
+task ledger, Git/worktree identity, and current Herdr evidence; never use prior
+assistant prose, runtime-thread state, or memory as proof that a lane was
+assigned. Conversation context can inform inspection, but it is not recovery
+state.
+
+For each dependency-ready CoS task, the next action is one of:
+
+- `DISPATCH` - run `scripts/herdr_main_launcher.py`, then record returned
+  launcher and Herdr evidence;
+- `CONTINUE` - reuse a live lane only after fresh identity and binding checks;
+- `BLOCKED` - record the canonical blocker and stop.
+
+Selecting a profile, writing a brief, naming a lane, or stating intent is not
+assignment. A lane is assigned only after launcher evidence proves executor,
+session, pane, agent kind, command shape, repository identity, process cwd, and
+task delivery. For Codex, `agent start` is readiness only; the launcher must
+then submit the bounded task with `herdr agent prompt <agent> <task> --wait`.
+If no such evidence exists, do not report the lane as assigned or wait for it;
+dispatch it or return `BLOCKED`.
+
 For each Herdr top-level implementation-lane launch, use the repository-owned
 `scripts/herdr_main_launcher.py`. CoS verifies the full lane contract, including
 branch, `HEAD`, expected base, ownership, and allowed paths. Pass `--profile`,
-`--executor`, `--session`, `--pane`, `--cwd`, and `--expected-base`; pass
-`--task` for `deepagents`. The launcher verifies runtime projection plus exact
+`--executor`, `--session`, `--pane`, `--cwd`, `--expected-base`, and `--task`.
+For Codex, the launcher starts the agent and immediately delivers `--task`
+through Herdr `agent prompt`; for `deepagents`, it passes `--task` to the
+bounded pane process. The launcher verifies runtime projection plus exact
 pane/cwd identity and reports Git facts; it does not enforce the full CoS lane
 contract. Do not construct provider, model, or developer-instruction overrides
 in CoS. For `codex`, the launcher projects the bound profile directly; for
