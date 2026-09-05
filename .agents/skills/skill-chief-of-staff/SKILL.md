@@ -213,7 +213,7 @@ Codex implementation lane:
 DeepAgents implementation lane:
 - discovered `dcode-project` executable and exact launch path
 - selected profile compatibility and wrapper runtime binding
-- no-MCP boundary
+- opt-in/default-deny MCP boundary: explicit launcher `--mcp-select` projects approved Codex `[mcp_servers]`; no selection keeps `--no-mcp`; direct config is temporary launcher-owned state under isolated child `DEEPAGENTS_HOME`
 - bounded worker wait, timeout, exit, and descendant-cleanup evidence
 
 `Executor Selection` owns executor choice. `Template Profile` selects the

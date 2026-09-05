@@ -60,9 +60,14 @@ controller authority is required or delegated benefit is unclear; use Tura or
 DeepAgents only when task-specific evidence supports that choice.
 
 When a plan names `deepagents` as executor, record only executor choice and
-task role. Do not treat it as a tool-permission grant. Current `dcode-project`
-forces `--no-mcp`; plan required MCP research or verification under Codex, then
-pass only validated `codex.mcp.handoff.v1` facts to DeepAgents.
+task role. Do not treat it as a tool-permission grant. DeepAgents MCP is opt-in
+only through explicit launcher `--mcp-select` against approved Codex
+`[mcp_servers]`; no selection keeps `--no-mcp`. A selected server exposes all
+tools exposed by that server. `codex.mcp.handoff.v1` remains facts and
+provenance, not tool access. Plans must keep MCP selectors, temporary launcher
+config, isolated child `DEEPAGENTS_HOME`, `${VAR}`-only `env`/`headers`, and
+secret exclusion out of task text and tracked files; project MCP config remains
+untouched and untrusted, with no `--trust-project-mcp`.
 
 ## Artifact Boundaries
 

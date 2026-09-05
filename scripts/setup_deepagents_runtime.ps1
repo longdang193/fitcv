@@ -7,7 +7,7 @@ param(
     [string]$UvPath = (Join-Path $HOME ".local\bin\uv.exe"),
     [string]$TuraExecutable,
     [string]$TuraProviderConfig,
-    [string]$DeepAgentsCodeVersion = "0.1.65",
+    [string]$DeepAgentsCodeVersion = "0.1.66",
     [switch]$SkipInstall,
     [switch]$ResetConfig
 )
@@ -19,6 +19,7 @@ $binRoot = Join-Path $HOME ".local\bin"
 $deepAgentsToolRoot = Join-Path $runtimeRoot "deepagents-tool"
 $deepAgentsBinRoot = Join-Path $runtimeRoot "bin"
 $launcherSource = Join-Path $repoRoot "scripts\dcode_project.py"
+$runtimePatch = Join-Path $repoRoot "scripts\patch_deepagents_runtime.py"
 $deepAgentsHome = if ($env:DEEPAGENTS_HOME) {
     $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
         [Environment]::ExpandEnvironmentVariables($env:DEEPAGENTS_HOME)
@@ -31,6 +32,9 @@ $pythonCommand = Get-Command py -ErrorAction SilentlyContinue
 
 if (-not (Test-Path $launcherSource -PathType Leaf)) {
     throw "Missing launcher source: $launcherSource"
+}
+if (-not (Test-Path $runtimePatch -PathType Leaf)) {
+    throw "Missing DeepAgents runtime patch: $runtimePatch"
 }
 if (-not (Test-Path $CodexConfigPath -PathType Leaf)) {
     throw "Missing Codex config: $CodexConfigPath"
@@ -71,7 +75,7 @@ if (-not $SkipInstall) {
     & $UvPath tool install --reinstall `
         "deepagents-code==$DeepAgentsCodeVersion" `
         --with "langgraph-api==0.13.0" `
-        --with "langgraph-runtime-inmem==0.33.2" `
+        --with "langgraph-runtime-inmem==0.33.3" `
         --with "uvicorn==0.51.0"
     if ($LASTEXITCODE -ne 0) {
         throw "DeepAgents Code installation failed."
@@ -87,6 +91,11 @@ if (-not (Test-Path $dcodePath -PathType Leaf)) {
 }
 if (-not (Test-Path $dcodePath -PathType Leaf)) {
     throw "DeepAgents Code executable not found after setup."
+}
+$mcpToolsPath = Join-Path $deepAgentsToolRoot "deepagents-code\Lib\site-packages\deepagents_code\mcp_tools.py"
+& $pythonCommand.Source -3 $runtimePatch $mcpToolsPath
+if ($LASTEXITCODE -ne 0) {
+    throw "DeepAgents MCP runtime patch failed: $mcpToolsPath"
 }
 $versionOutput = (& $dcodePath --version 2>&1 | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch "deepagents-code\s+$([regex]::Escape($DeepAgentsCodeVersion))") {
@@ -266,4 +275,4 @@ if ($TuraExecutable) {
 }
 Write-Output "Installed dcode-doctor at $(Join-Path $binRoot 'dcode-doctor.cmd')"
 Write-Output "DeepAgents Code $DeepAgentsCodeVersion verified with Python $pythonVersion"
-Write-Output "dcode-project uses the active Codex provider binding but runs DeepAgents without MCP projection."
+Write-Output "dcode-project uses the active Codex provider binding; MCP projection requires explicit --mcp-select."

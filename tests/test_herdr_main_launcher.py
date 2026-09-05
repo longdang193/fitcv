@@ -164,6 +164,87 @@ def test_resolve_launch_builds_deepagents_pane_command(
     )
 
 
+def test_resolve_launch_enables_direct_mcp_only_for_explicit_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = LAUNCHER.AgentProfile(
+        Path("normal.toml"),
+        "normal",
+        "9router",
+        "combo-normal",
+        20,
+        True,
+        "test",
+        "do not modify files",
+    )
+    monkeypatch.setattr(LAUNCHER, "_profile", lambda *args: profile)
+    monkeypatch.setattr(LAUNCHER, "_executable", lambda name: f"{name}.exe")
+    monkeypatch.setattr(LAUNCHER, "_git_identity", lambda *args: {"head": "head"})
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_herdr_pane",
+        lambda cwd, session, pane, herdr, **kwargs: {
+            "pane": {"cwd": str(cwd)},
+            "process_info": {},
+        },
+    )
+
+    command, evidence = LAUNCHER.resolve_launch(
+        profile_name="normal",
+        session="deepagents-probe",
+        pane="w1:p1",
+        cwd=ROOT,
+        expected_base="HEAD",
+        executor="deepagents",
+        mcp_select=["context7.query_docs"],
+        task="Return exactly DIRECT_MCP_OK",
+    )
+
+    assert "--no-mcp" not in command
+    assert command[command.index("--mcp-select") + 1] == "'context7.query_docs'"
+    assert evidence["deepagents"]["mcp_mode"] == "direct"
+    assert evidence["deepagents"]["mcp_selection"] == ["context7.query_docs"]
+
+
+def test_resolve_launch_quotes_mcp_selectors_for_powershell(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = LAUNCHER.AgentProfile(
+        Path("normal.toml"),
+        "normal",
+        "9router",
+        "combo-normal",
+        20,
+        True,
+        "test",
+        "do not modify files",
+    )
+    monkeypatch.setattr(LAUNCHER, "_profile", lambda *args: profile)
+    monkeypatch.setattr(LAUNCHER, "_executable", lambda name: f"{name}.exe")
+    monkeypatch.setattr(LAUNCHER, "_git_identity", lambda *args: {"head": "head"})
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_herdr_pane",
+        lambda cwd, session, pane, herdr, **kwargs: {
+            "pane": {"cwd": str(cwd)},
+            "process_info": {},
+        },
+    )
+
+    command, _ = LAUNCHER.resolve_launch(
+        profile_name="normal",
+        session="deepagents-probe",
+        pane="w1:p1",
+        cwd=ROOT,
+        expected_base="HEAD",
+        executor="deepagents",
+        mcp_select=["context7'; Write-Output hacked"],
+        task="task",
+    )
+
+    assert "'context7''; Write-Output hacked'" in command
+
+
 def test_deepagents_profile_binding_uses_lane_worktree(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

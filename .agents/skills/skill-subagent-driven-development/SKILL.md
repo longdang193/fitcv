@@ -38,9 +38,12 @@ ledger and tool results carry the record.
   task with a discovered profile name in its brief. Only
   inside that bounded DeepAgents assignment may its runtime use built-in
   `task` workers. Do not use `dcode --agent`, `dcode -r`, direct model flags, or
-  executor-local approvals as project coordination. Current `dcode-project`
-  forces `--no-mcp`; required MCP calls stay with Codex; pass only validated
-  `codex.mcp.handoff.v1` facts to DeepAgents.
+  executor-local approvals as project coordination. DeepAgents MCP requires
+  explicit launcher `--mcp-select` against approved Codex `[mcp_servers]`; no
+  selection keeps `--no-mcp`. A selected server exposes all tools exposed by
+  that server. `codex.mcp.handoff.v1` carries facts and provenance only, not
+  tool access; direct config is temporary launcher-owned state under isolated
+  child `DEEPAGENTS_HOME`.
 - Approved plan and settled behavior are required. Return unresolved design to `skill-spec-drafting` or `skill-writing-plans`.
 - Task `Required Skills` determine implementer methods. Do not inject every backend, frontend, contract, or tooling skill into every brief.
 

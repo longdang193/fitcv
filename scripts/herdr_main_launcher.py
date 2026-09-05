@@ -285,6 +285,7 @@ def resolve_launch(
     cwd: Path,
     expected_base: str,
     executor: str = "codex",
+    mcp_select: list[str] | None = None,
     task: str | None = None,
     name: str | None = None,
     codex_home: Path | None = None,
@@ -327,6 +328,7 @@ def resolve_launch(
             *runtime_arguments,
         ]
     else:
+        direct_mcp = bool(mcp_select and any(value.strip() for value in mcp_select))
         runtime_arguments = [
             "&",
             _powershell_literal(str(dcode)),
@@ -334,7 +336,11 @@ def resolve_launch(
             selected.name,
             "--json",
             "--quiet",
-            "--no-mcp",
+            *sum(
+                (["--mcp-select", _powershell_literal(value)] for value in (mcp_select or [])),
+                [],
+            ),
+            *([] if direct_mcp else ["--no-mcp"]),
             "--max-turns",
             _DEEPAGENTS_MAX_TURNS,
             "--timeout",
@@ -389,7 +395,11 @@ def resolve_launch(
             **runtime,
         }
     else:
-        evidence["deepagents"] = {"executable": dcode}
+        evidence["deepagents"] = {
+            "executable": dcode,
+            "mcp_mode": "direct" if direct_mcp else "disabled",
+            "mcp_selection": list(mcp_select or []),
+        }
     return command, evidence
 
 
@@ -401,6 +411,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cwd", required=True, type=Path)
     parser.add_argument("--expected-base", required=True)
     parser.add_argument("--executor", choices=sorted(_EXECUTORS), default="codex")
+    parser.add_argument("--mcp-select", action="append", default=[])
     parser.add_argument("--task", required=True)
     parser.add_argument("--name")
     parser.add_argument("--codex-home", type=Path)
@@ -418,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
             cwd=args.cwd,
             expected_base=args.expected_base,
             executor=args.executor,
+            mcp_select=args.mcp_select,
             task=args.task,
             name=args.name,
             codex_home=args.codex_home,

@@ -76,11 +76,12 @@ from `agents/*.toml` and local provider endpoint and credentials. Do not track
 `.deepagents/`, invent provider fallback, runtime state, or cleanup commands.
 DeepAgents auto-loads this root `AGENTS.md` and discovers `.agents/skills` as
 project skills. It does not auto-load `.agents/rules`; those are generated
-platform-adapter views. Codex remains MCP, approval, Git, verification, and
-acceptance controller; delegated runtimes receive only validated handoffs and
-bounded task contracts. Do not bypass configured provider routes or invent
-direct-provider fallback. For launcher details, file-root conventions, and
-runtime-specific restrictions, read
+platform-adapter views. Codex remains approval, Git, verification, and
+acceptance controller. DeepAgents MCP is opt-in only through launcher
+`--mcp-select` against approved Codex `[mcp_servers]`; no selection keeps
+`--no-mcp`. `codex.mcp.handoff.v1` remains validated facts and provenance, not
+tool access. For launcher details, file-root conventions, and runtime-specific
+restrictions, read
 `docs/operating_system/procedures/personal-local-worktree-procedure.md`.
 Do not duplicate rules in `.deepagents/AGENTS.md`.
 Name a discovered profile in bounded DeepAgents `task`

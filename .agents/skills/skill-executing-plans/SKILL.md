@@ -46,11 +46,13 @@ Read only what the current task needs:
 - governance or publication rules only when those boundaries are in scope
 - configured MCP memory only when active executor exposes it and task touches a known reusable workflow or repeats a recorded failure mode; follow `docs/operating_system/rules/agent-memory-rule.md`
 
-When plan selects `deepagents`, its executor choice does not project Codex MCP
-tools, approval, sandbox, or shell policy. Current `dcode-project` forces
-`--no-mcp`. Keep task scope and Git acceptance executor-neutral; call required
-MCP through Codex and pass only validated `codex.mcp.handoff.v1` facts to
-DeepAgents.
+When plan selects `deepagents`, its executor choice does not transfer Codex
+approval, sandbox, shell, or Git policy. DeepAgents MCP is available only when
+launcher explicitly receives `--mcp-select` for approved Codex `[mcp_servers]`;
+no selection keeps `--no-mcp`. Keep task scope and Git acceptance
+executor-neutral. `codex.mcp.handoff.v1` carries facts and provenance only, not
+tool access. Direct config is temporary launcher-owned state under isolated
+child `DEEPAGENTS_HOME`; project MCP config stays untouched and untrusted.
 
 When an active task selects `tura`, use the explicit `project-delegate` adapter.
 When it selects `deepagents`, use `dcode-project`. Executor selection does not

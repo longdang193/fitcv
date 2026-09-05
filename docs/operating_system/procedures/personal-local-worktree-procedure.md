@@ -77,12 +77,18 @@ threads, or generated `.deepagents/` files to repository coordination.
 
 ## DeepAgents Tool Boundary
 
-Current `dcode-project` consumes required `--role <profile>`,
-resolves that selected profile's provider alias and model, then validates a
-controller-owned sanitized handoff. It starts `dcode` with selected profile model
-and `--no-mcp`; Codex MCP servers, their tool allowlists, approval policy,
-sandbox mode, and shell policy do not transfer. The top-level Codex model remains
-controller default; it does not select a DeepAgents profile model.
+Current `dcode-project` consumes required `--role <profile>`, resolves that
+selected profile's provider alias and model, then starts `dcode` with selected
+profile model. DeepAgents MCP is opt-in: explicit `--mcp-select
+<server[.tool][,server[.tool]...]>` projects approved Codex `[mcp_servers]`, while
+no selection keeps `--no-mcp`. Codex MCP servers are projected only by that
+explicit selection. A selected server exposes all tools exposed by
+that server; a selected tool narrows access. Codex approval, sandbox, shell,
+and Git policy do not transfer. The top-level Codex model remains controller
+default; it does not select a DeepAgents profile model.
+Headless `-n` auto-runs only MCP tools with coherent read-only annotations.
+Unannotated or mutating MCP calls fail closed; the local Playwright exception
+allows only `playwright_browser_tabs` with `action=list`.
 DeepAgents capabilities depend on launch mode and task context. Current
 `dcode-project` supplies a fixed launcher-owned bounded tool surface; callers
 cannot widen it through task text or runtime-authority flags. Never assume a
@@ -150,19 +156,17 @@ timing or failure analysis. It is not repository coordination state, durable
 acceptance evidence, or required recovery input. Plan plus Git remain SSOT.
 
 `dcode-project` consumes its own required `--role` selector and rejects direct
-model/profile, agent/thread, MCP/hook trust,
-approval/Yolo, sandbox, shell/filesystem/interpreter, startup, install, and ACP
-flags. It allows only bounded task flags such as `--max-turns`, `--timeout`,
-`--rubric`, `--goal`, and output controls. Codex controller performs MCP calls,
-then writes handoff under `%USERPROFILE%\.local\share\dcode-project\handoffs`.
-Launch with `--handoff-file <absolute-path>` and optional repeatable
-`--mcp-select <server[.tool][,server[.tool]...]>`; selection narrows provenance
-only and never grants DeepAgents tools. Handoff schema is
-`codex.mcp.handoff.v1`; `dcode-project` validates file, injects only validated
-sanitized sources, facts, and constraints into task text, and never requires
-DeepAgents to open host path. Controller deletes handoff after use. Never pass
-credentials, tool configs, raw headers, cookies, or approval authority through
-task text.
+model/profile, agent/thread, MCP/hook trust, approval/Yolo, sandbox,
+shell/filesystem/interpreter, startup, install, and ACP flags. It allows only
+bounded task flags such as `--max-turns`, `--timeout`, `--rubric`, `--goal`, and
+output controls. Direct MCP config is temporary, launcher-owned, and isolated
+through child `DEEPAGENTS_HOME`; no per-task `.mcp.json` is required, project
+MCP configs remain untouched and untrusted, and `--trust-project-mcp` is not
+used. MCP `headers` values must be `${VAR}` references. MCP `env` values may be
+`${VAR}` references or non-sensitive literals. Never pass
+credentials, config secrets, raw headers, cookies, or approval authority through
+task text. `codex.mcp.handoff.v1` stays validated facts and provenance, not tool
+access; controller deletes handoff after use.
 
 Launch a task without controller facts with:
 

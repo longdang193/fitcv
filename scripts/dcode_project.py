@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from contextlib import contextmanager
 import hashlib
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import tomllib
 import uuid
 try:
@@ -39,6 +41,23 @@ _SENSITIVE_VALUE = re.compile(
     r"(?:bearer\s+\S+|sk-[A-Za-z0-9_-]{8,}|api[_-]?key\s*[:=]\s*\S+)",
     re.IGNORECASE,
 )
+_NATIVE_MCP_FIELDS = {
+    "allowedTools",
+    "args",
+    "command",
+    "disabledTools",
+    "env",
+    "headers",
+    "startup_timeout_sec",
+    "url",
+}
+_IGNORED_CODEX_MCP_FIELDS = {"default_tools_approval_mode"}
+_NATIVE_ENV_REFERENCE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*\}")
+_DIRECT_MCP_RUNTIME_PARENT = "dcode-project-mcp"
+_DIRECT_MCP_RUNTIME_PREFIX = "runtime-"
+_DIRECT_MCP_OWNER_MARKER = ".owner"
+_DIRECT_MCP_OWNER_VALUE = "dcode-project-mcp-runtime.v1\n"
+_DIRECT_MCP_STALE_AGE = timedelta(hours=24)
 _ALLOWED_RUNTIME_FLAGS = {
     "--print-config",
     "--json",
@@ -356,8 +375,7 @@ def _mcp_capabilities(codex_config: dict[str, object]) -> dict[str, object]:
         if not isinstance(server_name, str) or not server_name.strip():
             raise RuntimeError("Codex MCP server names must be non-empty strings.")
         if not isinstance(server_config, dict):
-            normalized[server_name] = []
-            continue
+            raise RuntimeError(f"Invalid Codex MCP server configuration: {server_name}")
         tools = server_config.get("tools", {})
         if not isinstance(tools, dict):
             tools = {}
@@ -422,16 +440,205 @@ def _parse_mcp_selection(values: list[str], capabilities: dict[str, object]) -> 
         for selector in value.split(","):
             selector = selector.strip()
             if not selector:
-                continue
+                raise RuntimeError("MCP selection contains an empty selector.")
             server, separator, tool = selector.partition(".")
-            if server not in server_tools:
+            if not server or server not in server_tools:
                 raise RuntimeError(f"Unknown MCP server selection `{server}`.")
             if separator:
+                if not tool or "." in tool:
+                    raise RuntimeError(f"Malformed MCP tool selection `{selector}`.")
                 tools = server_tools[server]
                 if not isinstance(tools, list) or tool not in tools:
                     raise RuntimeError(f"Unknown MCP tool selection `{selector}`.")
             selected.add(selector)
     return sorted(selected)
+
+
+def _native_mcp_config(
+    codex_config: dict[str, object],
+    selected: list[str],
+) -> dict[str, object]:
+    servers = codex_config.get("mcp_servers")
+    if not isinstance(servers, dict):
+        raise RuntimeError("Invalid Codex `[mcp_servers]` configuration.")
+    projected: dict[str, object] = {}
+    selected_servers = {value for value in selected if "." not in value}
+    selected_tools: dict[str, set[str]] = {}
+    for value in selected:
+        server, separator, tool = value.partition(".")
+        if separator:
+            selected_tools.setdefault(server, set()).add(tool)
+    for server in sorted(selected_servers | set(selected_tools)):
+        server_config = servers.get(server)
+        if not isinstance(server_config, dict):
+            raise RuntimeError(f"Invalid Codex MCP server configuration: {server}")
+        definition: dict[str, object] = {}
+        for key, value in server_config.items():
+            if key == "tools":
+                continue
+            if key in _IGNORED_CODEX_MCP_FIELDS:
+                continue
+            if key not in _NATIVE_MCP_FIELDS:
+                raise RuntimeError(f"Unsupported Codex MCP server field: {key}")
+            if key == "startup_timeout_sec":
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or value < 0
+                    or (isinstance(value, float) and not value.is_integer())
+                ):
+                    raise RuntimeError(
+                        "Native MCP `startup_timeout_sec` must be a nonnegative integer."
+                    )
+                definition[key] = int(value)
+                continue
+            if key in {"env", "headers"}:
+                if not isinstance(value, dict):
+                    raise RuntimeError(f"Invalid native MCP `{key}` configuration.")
+                safe_values: dict[str, str] = {}
+                for name, raw_value in value.items():
+                    if not isinstance(name, str) or not name.strip():
+                        raise RuntimeError(f"Invalid native MCP `{key}` name.")
+                    if not isinstance(raw_value, str):
+                        raise RuntimeError(f"Invalid native MCP `{key}` value.")
+                    _reject_sensitive_value(raw_value)
+                    if key == "env" and not _NATIVE_ENV_REFERENCE.fullmatch(raw_value):
+                        _reject_sensitive_value({name: raw_value})
+                    if key == "headers" and not _NATIVE_ENV_REFERENCE.fullmatch(raw_value):
+                        raise RuntimeError(
+                            "Native MCP `headers` values must be environment references."
+                        )
+                    safe_values[name] = raw_value
+                definition[key] = safe_values
+                continue
+            if key in {"allowedTools", "args", "disabledTools"}:
+                if not isinstance(value, list) or any(
+                    not isinstance(item, str) for item in value
+                ):
+                    raise RuntimeError(f"Invalid native MCP `{key}` configuration.")
+                for item in value:
+                    _reject_sensitive_value(item)
+                definition[key] = list(value)
+                continue
+            if not isinstance(value, str):
+                raise RuntimeError(f"Invalid native MCP `{key}` configuration.")
+            _reject_sensitive_value(value)
+            definition[key] = value
+        if server not in selected_servers and selected_tools.get(server):
+            definition.pop("disabledTools", None)
+            definition["allowedTools"] = sorted(
+                {
+                    tool_name
+                    for tool_name in selected_tools[server]
+                    for tool_name in (tool_name, tool_name.replace("_", "-"))
+                }
+            )
+        projected[server] = definition
+    return {"mcpServers": projected}
+
+
+def _direct_mcp_runtime_parent() -> Path:
+    return Path(tempfile.gettempdir()) / _DIRECT_MCP_RUNTIME_PARENT
+
+
+def _ensure_direct_mcp_runtime_parent() -> Path:
+    parent = _direct_mcp_runtime_parent()
+    if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
+        raise RuntimeError("Direct MCP runtime parent is not a safe directory.")
+    if not parent.exists():
+        try:
+            parent.mkdir()
+            (parent / _DIRECT_MCP_OWNER_MARKER).write_text(
+                _DIRECT_MCP_OWNER_VALUE,
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            raise RuntimeError("Cannot initialize direct MCP runtime directory.") from exc
+        return parent
+    marker = parent / _DIRECT_MCP_OWNER_MARKER
+    try:
+        owned = marker.is_file() and not marker.is_symlink() and marker.read_text(
+            encoding="utf-8"
+        ) == _DIRECT_MCP_OWNER_VALUE
+    except OSError as exc:
+        raise RuntimeError("Cannot verify direct MCP runtime ownership.") from exc
+    if not owned:
+        raise RuntimeError("Direct MCP runtime parent ownership is invalid.")
+    return parent
+
+
+def _cleanup_stale_direct_mcp_runtimes(parent: Path) -> None:
+    cutoff = datetime.now(timezone.utc).timestamp() - _DIRECT_MCP_STALE_AGE.total_seconds()
+    try:
+        entries = tuple(parent.iterdir())
+    except OSError:
+        return
+    for entry in entries:
+        if (
+            not entry.name.startswith(_DIRECT_MCP_RUNTIME_PREFIX)
+            or entry.is_symlink()
+            or not entry.is_dir()
+        ):
+            continue
+        marker = entry / _DIRECT_MCP_OWNER_MARKER
+        try:
+            if (
+                not marker.is_file()
+                or marker.is_symlink()
+                or marker.read_text(encoding="utf-8") != _DIRECT_MCP_OWNER_VALUE
+                or entry.stat().st_mtime > cutoff
+            ):
+                continue
+            shutil.rmtree(entry)
+        except OSError:
+            continue
+
+
+@contextmanager
+def _direct_mcp_runtime(
+    repo_root: Path,
+    codex_config: dict[str, object],
+    selected: list[str],
+    environment: dict[str, str],
+):
+    previous_home = environment.get("DEEPAGENTS_HOME")
+    previous_project_allowlist = environment.get(
+        "DEEPAGENTS_CODE_DANGEROUSLY_ENABLE_PROJECT_MCP_SERVERS"
+    )
+    runtime_root: Path | None = None
+    try:
+        runtime_parent = _ensure_direct_mcp_runtime_parent()
+        _cleanup_stale_direct_mcp_runtimes(runtime_parent)
+        runtime_root = Path(
+            tempfile.mkdtemp(prefix=_DIRECT_MCP_RUNTIME_PREFIX, dir=runtime_parent)
+        )
+        (runtime_root / _DIRECT_MCP_OWNER_MARKER).write_text(
+            _DIRECT_MCP_OWNER_VALUE,
+            encoding="utf-8",
+        )
+        config_path = runtime_root / "mcp.json"
+        isolated_home = runtime_root / "home"
+        config_path.write_text(
+            json.dumps(_native_mcp_config(codex_config, selected), sort_keys=True),
+            encoding="utf-8",
+        )
+        isolated_home.mkdir()
+        environment["DEEPAGENTS_HOME"] = str(isolated_home)
+        environment.pop("DEEPAGENTS_CODE_DANGEROUSLY_ENABLE_PROJECT_MCP_SERVERS", None)
+        yield config_path
+    finally:
+        if previous_home is None:
+            environment.pop("DEEPAGENTS_HOME", None)
+        else:
+            environment["DEEPAGENTS_HOME"] = previous_home
+        if previous_project_allowlist is None:
+            environment.pop("DEEPAGENTS_CODE_DANGEROUSLY_ENABLE_PROJECT_MCP_SERVERS", None)
+        else:
+            environment[
+                "DEEPAGENTS_CODE_DANGEROUSLY_ENABLE_PROJECT_MCP_SERVERS"
+            ] = previous_project_allowlist
+        if runtime_root is not None:
+            shutil.rmtree(runtime_root, ignore_errors=True)
 
 def _controller_options(
     argv: list[str],
@@ -1142,10 +1349,23 @@ def main(argv: list[str]) -> int:
             f"openai:{selected_role['model']}",
             *_FIXED_LOCAL_CAPABILITY_OPTIONS,
             *(arg for arg in child_argv if arg != "--no-mcp"),
-            "--no-mcp",
         ]
+        if selection_values:
+            with _direct_mcp_runtime(
+                repo_root,
+                codex_config,
+                selected,
+                environment,
+            ) as mcp_config_path:
+                return _run_deepagents_worker(
+                    [*dcode_argv, "--mcp-config", str(mcp_config_path)],
+                    environment,
+                    repo_root,
+                    handoff_stdin,
+                    _tura_timeout(child_argv),
+                )
         return _run_deepagents_worker(
-            dcode_argv,
+            [*dcode_argv, "--no-mcp"],
             environment,
             repo_root,
             handoff_stdin,

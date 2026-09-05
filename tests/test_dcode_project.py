@@ -930,6 +930,336 @@ def test_mcp_selection_narrows_and_rejects_unknown() -> None:
     ]
     with pytest.raises(RuntimeError, match="Unknown MCP tool"):
         LAUNCHER._parse_mcp_selection(["context7.missing"], capabilities)
+    with pytest.raises(RuntimeError, match="empty selector"):
+        LAUNCHER._parse_mcp_selection(["context7.query_docs,"], capabilities)
+    with pytest.raises(RuntimeError, match="Malformed MCP tool"):
+        LAUNCHER._parse_mcp_selection(["context7.query_docs.extra"], capabilities)
+
+
+def test_native_mcp_config_projects_only_selected_servers_and_tools() -> None:
+    config = {
+        "mcp_servers": {
+            "context7": {
+                "url": "https://mcp.context7.com/mcp",
+                "default_tools_approval_mode": "writes",
+                "headers": {"Authorization": "${MCP_AUTH}"},
+                "env": {
+                    "TOKEN": "${MCP_TOKEN}",
+                    "MEMORY_FILE_PATH": "${MEMORY_FILE_PATH}",
+                    "SystemRoot": r"C:\Windows",
+                },
+                "startup_timeout_sec": 30,
+                "tools": {"query_docs": {}, "resolve_library_id": {}},
+            },
+            "serena": {"url": "https://serena.example/mcp", "tools": {"find_symbol": {}}},
+        }
+    }
+
+    projected = LAUNCHER._native_mcp_config(config, ["context7.query_docs"])
+
+    assert projected == {
+        "mcpServers": {
+            "context7": {
+                "url": "https://mcp.context7.com/mcp",
+                "headers": {"Authorization": "${MCP_AUTH}"},
+                "env": {
+                    "TOKEN": "${MCP_TOKEN}",
+                    "MEMORY_FILE_PATH": "${MEMORY_FILE_PATH}",
+                    "SystemRoot": r"C:\Windows",
+                },
+                "startup_timeout_sec": 30,
+                    "allowedTools": ["query-docs", "query_docs"],
+            }
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("headers", {"Authorization": "Bearer secret"}),
+        ("env", {"TOKEN": "secret"}),
+    ],
+)
+def test_native_mcp_config_rejects_raw_sensitive_values(
+    field: str,
+    value: dict[str, str],
+) -> None:
+    config = {
+        "mcp_servers": {
+            "context7": {
+                "url": "https://mcp.context7.com/mcp",
+                field: value,
+                "tools": {"query_docs": {}},
+            }
+        }
+    }
+
+    with pytest.raises(RuntimeError, match="environment references|sensitive"):
+        LAUNCHER._native_mcp_config(config, ["context7.query_docs"])
+
+
+def test_native_mcp_config_accepts_safe_environment_references() -> None:
+    config = {
+        "mcp_servers": {
+            "context7": {
+                "url": "https://mcp.context7.com/mcp/${MCP_PATH}",
+                "headers": {"Authorization": "${MCP_AUTH}"},
+                "env": {
+                    "TOKEN": "${MCP_TOKEN}",
+                    "MEMORY_FILE_PATH": "${MEMORY_FILE_PATH}",
+                },
+                "args": ["--profile", "${MCP_PROFILE}"],
+                "startup_timeout_sec": 30,
+                "tools": {"query_docs": {}},
+            }
+        }
+    }
+
+    projected = LAUNCHER._native_mcp_config(config, ["context7.query_docs"])
+
+    assert projected["mcpServers"]["context7"]["headers"] == {
+        "Authorization": "${MCP_AUTH}"
+    }
+    assert projected["mcpServers"]["context7"]["env"] == {
+        "TOKEN": "${MCP_TOKEN}",
+        "MEMORY_FILE_PATH": "${MEMORY_FILE_PATH}",
+    }
+    assert projected["mcpServers"]["context7"]["startup_timeout_sec"] == 30
+    assert "secret" not in json.dumps(projected)
+
+
+def test_native_mcp_config_rejects_sensitive_environment_values() -> None:
+    config = {
+        "mcp_servers": {
+            "context7": {
+                "env": {"MCP_TOKEN": "secret"},
+                "tools": {"query_docs": {}},
+            }
+        }
+    }
+
+    with pytest.raises(RuntimeError, match="sensitive"):
+        LAUNCHER._native_mcp_config(config, ["context7.query_docs"])
+
+
+@pytest.mark.parametrize("value", [-1, True, 1.5, "30"])
+def test_native_mcp_config_rejects_invalid_startup_timeout(value: object) -> None:
+    config = {
+        "mcp_servers": {
+            "context7": {
+                "startup_timeout_sec": value,
+                "tools": {"query_docs": {}},
+            }
+        }
+    }
+
+    with pytest.raises(RuntimeError, match="nonnegative integer"):
+        LAUNCHER._native_mcp_config(config, ["context7.query_docs"])
+
+
+def test_native_mcp_config_normalizes_integral_float_startup_timeout() -> None:
+    config = {
+        "mcp_servers": {
+            "serena": {
+                "startup_timeout_sec": 120.0,
+            }
+        }
+    }
+
+    projected = LAUNCHER._native_mcp_config(config, ["serena"])
+
+    assert projected["mcpServers"]["serena"]["startup_timeout_sec"] == 120
+
+
+def _prepare_deepagents_main(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> dict[str, object]:
+    write_role(tmp_path, "normal")
+    config_path = tmp_path / "dcode-project.toml"
+    config_path.write_text(
+        '[delegation]\ndefault_executor = "deepagents"\n',
+        encoding="utf-8",
+    )
+    codex_config = {
+        "mcp_servers": {
+            "context7": {
+                "url": "https://mcp.context7.com/mcp",
+                "headers": {"Authorization": "${MCP_AUTH}"},
+                "env": {"TOKEN": "${MCP_TOKEN}"},
+                "tools": {"query_docs": {}, "resolve_library_id": {}},
+            },
+            "serena": {
+                "url": "https://serena.example/mcp",
+                "tools": {"find_symbol": {}},
+            },
+        }
+    }
+    monkeypatch.setattr(LAUNCHER, "_config_path", lambda: config_path)
+    monkeypatch.setattr(LAUNCHER, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_runtime_binding",
+        lambda config: ("combo-high", "https://provider.example/v1", "secret", "9router"),
+    )
+    monkeypatch.setattr(LAUNCHER, "_codex_config", lambda config: codex_config)
+    monkeypatch.setattr(LAUNCHER, "_reject_conflicting_user_openai_base_url", lambda: None)
+    monkeypatch.setattr(LAUNCHER, "_find_dcode", lambda: "dcode")
+    return codex_config
+
+
+def test_direct_mcp_isolates_user_discovery_and_cleans_config(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _prepare_deepagents_main(monkeypatch, tmp_path)
+    user_home = tmp_path / "user-home"
+    user_home.mkdir()
+    (user_home / ".mcp.json").write_text('{"mcpServers":{"user":{}}}', encoding="utf-8")
+    monkeypatch.setenv("DEEPAGENTS_HOME", str(user_home))
+    monkeypatch.setenv("DEEPAGENTS_CODE_DANGEROUSLY_ENABLE_PROJECT_MCP_SERVERS", "unrelated")
+    captured: dict[str, object] = {}
+
+    def run_worker(argv, environment, repo_root, handoff_stdin, timeout):
+        captured.update(argv=list(argv), environment=dict(environment), input=handoff_stdin)
+        config_path = Path(argv[argv.index("--mcp-config") + 1])
+        captured["config_exists_during_run"] = config_path.is_file()
+        captured["config"] = json.loads(config_path.read_text(encoding="utf-8"))
+        return 0
+
+    monkeypatch.setattr(LAUNCHER, "_run_deepagents_worker", run_worker)
+
+    assert LAUNCHER.main(["--role", "normal", "--mcp-select", "context7.query_docs", "-n", "task"]) == 0
+
+    argv = captured["argv"]
+    assert isinstance(argv, list)
+    assert "--no-mcp" not in argv
+    assert "secret" not in " ".join(argv)
+    assert captured["input"] is None
+    assert captured["config_exists_during_run"] is True
+    assert captured["config"] == {
+        "mcpServers": {
+            "context7": {
+                "url": "https://mcp.context7.com/mcp",
+                "headers": {"Authorization": "${MCP_AUTH}"},
+                "env": {"TOKEN": "${MCP_TOKEN}"},
+                "allowedTools": ["query-docs", "query_docs"],
+            }
+        }
+    }
+    output = capsys.readouterr()
+    assert "secret" not in output.out
+    assert "secret" not in output.err
+    assert not Path(str(argv[argv.index("--mcp-config") + 1])).exists()
+    assert captured["environment"]["DEEPAGENTS_HOME"] != str(user_home)
+    assert "DEEPAGENTS_CODE_DANGEROUSLY_ENABLE_PROJECT_MCP_SERVERS" not in captured["environment"]
+
+
+def test_direct_mcp_proceeds_without_mutating_project_configs(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _prepare_deepagents_main(monkeypatch, tmp_path)
+    root_config = tmp_path / ".mcp.json"
+    nested_config = tmp_path / ".deepagents" / ".mcp.json"
+    root_content = '{"mcpServers":{"unrelated":{}}}'
+    nested_content = '{"mcpServers":{"nested":{}}}'
+    root_config.write_text(root_content, encoding="utf-8")
+    nested_config.parent.mkdir()
+    nested_config.write_text(nested_content, encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def run_worker(argv, environment, repo_root, handoff_stdin, timeout):
+        captured["argv"] = list(argv)
+        captured["environment"] = dict(environment)
+        return 0
+
+    monkeypatch.setattr(LAUNCHER, "_run_deepagents_worker", run_worker)
+
+    assert LAUNCHER.main(["--role", "normal", "--mcp-select", "context7", "-n", "task"]) == 0
+
+    assert root_config.read_text(encoding="utf-8") == root_content
+    assert nested_config.read_text(encoding="utf-8") == nested_content
+    assert "--mcp-config" in captured["argv"]
+    assert "DEEPAGENTS_CODE_DANGEROUSLY_ENABLE_PROJECT_MCP_SERVERS" not in captured["environment"]
+    assert not (tmp_path / ".deepagents" / "agents").exists()
+
+
+def test_direct_mcp_janitor_removes_only_owned_stale_runtime(tmp_path: Path) -> None:
+    parent = tmp_path / "dcode-project-mcp"
+    parent.mkdir()
+    marker = parent / LAUNCHER._DIRECT_MCP_OWNER_MARKER
+    marker.write_text(LAUNCHER._DIRECT_MCP_OWNER_VALUE, encoding="utf-8")
+
+    stale = parent / "runtime-stale"
+    stale.mkdir()
+    (stale / LAUNCHER._DIRECT_MCP_OWNER_MARKER).write_text(
+        LAUNCHER._DIRECT_MCP_OWNER_VALUE,
+        encoding="utf-8",
+    )
+    os.utime(stale, (0, 0))
+
+    foreign = parent / "runtime-foreign"
+    foreign.mkdir()
+    (foreign / LAUNCHER._DIRECT_MCP_OWNER_MARKER).write_text("other\n", encoding="utf-8")
+
+    fresh = parent / "runtime-fresh"
+    fresh.mkdir()
+    (fresh / LAUNCHER._DIRECT_MCP_OWNER_MARKER).write_text(
+        LAUNCHER._DIRECT_MCP_OWNER_VALUE,
+        encoding="utf-8",
+    )
+
+    LAUNCHER._cleanup_stale_direct_mcp_runtimes(parent)
+
+    assert not stale.exists()
+    assert foreign.exists()
+    assert fresh.exists()
+
+
+def test_direct_mcp_cleans_config_after_worker_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _prepare_deepagents_main(monkeypatch, tmp_path)
+    captured: dict[str, object] = {}
+
+    def fail_worker(argv, environment, repo_root, handoff_stdin, timeout):
+        captured["config_path"] = argv[argv.index("--mcp-config") + 1]
+        assert "secret" not in " ".join(argv)
+        config_text = Path(str(captured["config_path"])).read_text(encoding="utf-8")
+        assert "secret" not in config_text
+        assert "${MCP_AUTH}" in config_text
+        raise OSError("worker failed")
+
+    monkeypatch.setattr(LAUNCHER, "_run_deepagents_worker", fail_worker)
+
+    with pytest.raises(OSError, match="worker failed"):
+        LAUNCHER.main(["--role", "normal", "--mcp-select", "context7", "-n", "task"])
+
+    assert not Path(str(captured["config_path"])).exists()
+
+
+def test_default_deepagents_path_keeps_mcp_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _prepare_deepagents_main(monkeypatch, tmp_path)
+    captured: dict[str, object] = {}
+
+    def run_worker(argv, environment, repo_root, handoff_stdin, timeout):
+        captured["argv"] = argv
+        return 0
+
+    monkeypatch.setattr(LAUNCHER, "_run_deepagents_worker", run_worker)
+
+    assert LAUNCHER.main(["--role", "normal", "-n", "task"]) == 0
+
+    argv = captured["argv"]
+    assert argv[-1] == "--no-mcp"
+    assert "--mcp-config" not in argv
 
 def test_handoff_validation_accepts_current_selected_facts(
     monkeypatch: pytest.MonkeyPatch,
@@ -1075,10 +1405,10 @@ def test_setup_launcher_uses_current_repository_source() -> None:
     assert "DEEPAGENTS_HOME" in setup
     assert "GetUnresolvedProviderPathFromPSPath" in setup
     assert "Direct DeepAgents MCP config detected" in setup
-    assert '$DeepAgentsCodeVersion = "0.1.65"' in setup
+    assert '$DeepAgentsCodeVersion = "0.1.66"' in setup
     assert 'deepagents-code==$DeepAgentsCodeVersion' in setup
     assert 'langgraph-api==0.13.0' in setup
-    assert 'langgraph-runtime-inmem==0.33.2' in setup
+    assert 'langgraph-runtime-inmem==0.33.3' in setup
     assert 'uvicorn==0.51.0' in setup
     assert '$env:UV_TOOL_DIR = $deepAgentsToolRoot' in setup
     assert '$env:UV_TOOL_BIN_DIR = $deepAgentsBinRoot' in setup
@@ -1086,6 +1416,8 @@ def test_setup_launcher_uses_current_repository_source() -> None:
     assert 'DEEPAGENTS_CODE_UI_CHARSET_MODE = "ascii"' in setup
     assert "Python 3.12 or newer" in setup
     assert "version mismatch" in setup
+    assert "patch_deepagents_runtime.py" in setup
+    assert "mcp_tools.py" in setup
 
 
 def test_generated_project_delegate_guard_returns_contract_exit_code(tmp_path: Path) -> None:

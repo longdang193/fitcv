@@ -34,13 +34,17 @@ dispatched task contract and applicable worker or validator skills.
 ## MCP Escalation Contract
 
 - Classify each required MCP capability as pre-dispatch or mid-task.
-- DeepAgents must not call MCP directly.
-- If mid-task MCP data is missing, stale, or requires live refresh, return
-  `NEEDS_CONTEXT` with the missing capability, required facts, and freshness
-  requirement.
-- The outer Codex controller performs the MCP call, validates the result, writes
-  a fresh handoff, and retries the same plan task. When CoS is active, CoS
-  coordinates that refresh and retry.
+- DeepAgents may use MCP only when launcher receives explicit `--mcp-select`
+  selectors for approved Codex `[mcp_servers]`; no selection keeps `--no-mcp`.
+  Selecting a server exposes all tools exposed by that server; selecting a tool
+  narrows access.
+- If direct MCP is not selected and mid-task MCP data is missing, stale, or
+  requires live refresh, return `NEEDS_CONTEXT` with missing capability,
+  required facts, and freshness requirement.
+- The outer Codex controller validates any handoff, writes a fresh
+  `codex.mcp.handoff.v1`, and retries same plan task. Handoff carries facts and
+  provenance only, not tool access. When CoS is active, CoS coordinates refresh
+  and retry.
 - CoS does not advance the task ledger from `NEEDS_CONTEXT`.
 - Acceptance requires handoff identity, capability digest, freshness, and
   returned evidence.
@@ -78,7 +82,9 @@ dcode-project --role <profile> -n "<bounded-task>"
 When Codex-supplied MCP facts are required, use a validated user-local
 `codex.mcp.handoff.v1` file with `--handoff-file`. Follow root `AGENTS.md` and
 the personal-local procedure for complete launcher, flag, tool, path, and MCP
-policy. Do not duplicate or override that policy here.
+policy. For direct MCP, use only explicit approved `--mcp-select` IDs; launcher
+owns temporary config and isolated child `DEEPAGENTS_HOME`. Do not duplicate or
+override that policy here.
 
 ## Dispatch Contract
 

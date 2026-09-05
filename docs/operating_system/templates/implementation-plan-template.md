@@ -40,7 +40,7 @@ Describe another concrete implementation result this plan must deliver, such as 
 
 - Mode: `inline sequential | subagent-ready | parallel-capable`
 - Coordination: `git-tracked | none`
-- Default task executor: `codex | deepagents | tura` (optional; Codex default; each Git-tracked task ledger `Executor` value is authoritative for that task; current DeepAgents launcher uses no MCP, so required MCP work stays with Codex and passes validated handoff facts)
+- Default task executor: `codex | deepagents | tura` (optional; Codex default; each Git-tracked task ledger `Executor` value is authoritative for that task; DeepAgents MCP is opt-in through explicit `--mcp-select` against approved Codex `[mcp_servers]`; no selection keeps `--no-mcp`; direct config is temporary launcher-owned state under isolated child `DEEPAGENTS_HOME`; project MCP config remains untouched and untrusted; `codex.mcp.handoff.v1` carries facts and provenance, not tool access)
 - Required skills: `<exact skill names or none>`
 - Isolation: `<current workspace | optional worktree>`
 - Commit policy: `<verified per-task checkpoint commits preauthorized | no commits during execution>`

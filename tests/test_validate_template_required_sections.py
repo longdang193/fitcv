@@ -673,7 +673,6 @@ def test_implementation_plan_template_documents_executor_and_coordination() -> N
     assert "Task ledger `Executor` values are `codex`, `deepagents`, or `tura`" in template
     assert "Coordination: `git-tracked | none`" in template
     assert "Required when `Execution Approach > Coordination` is `git-tracked`" in template
-    assert "current DeepAgents launcher uses no MCP" in template
     assert "## Coordination State" in template
     assert "Allowed states: `pending`, `active`, `blocked`, `completed`." in template
     assert "`high` executor therefore uses `xhigh` validator" not in template

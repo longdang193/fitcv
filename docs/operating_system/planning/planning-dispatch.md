@@ -179,6 +179,24 @@ or task function permanently to an executor. Do not add automatic executor
 fallback or runtime-internal plan coordination. Use task-specific evidence when
 using `prefer`; otherwise keep Codex as the safe default.
 
+### Interactive Use
+
+Interactive workflow and interactive mode are separate decisions. A workflow
+may include human checkpoints while its worker runs headlessly. Interactive mode
+means an executor session with a usable approval or user-input surface.
+
+| Executor | Best interactive use | Best headless use | Boundary |
+| --- | --- | --- | --- |
+| `codex` | Controller MCP, connected tools, approvals, cross-task judgment, external writes, Git review, and final acceptance | Small local checks or bounded controller tasks with no pending user decision | Default authority for MCP, approval, Git, verification, and acceptance |
+| `deepagents` | Long-horizon work needing human steering, live MCP approval, or interactive TUI inspection | Bounded context-heavy implementation, exploration, debugging, or read-only approved MCP work through `dcode-project` | Never assume headless MCP writes; mutating MCP calls need interactive approval |
+| `tura` | Not an interactive-MCP executor; use Codex when live user input or approval is required | Compact bounded worker tasks, runtime-managed batching, and dependency execution through `project-delegate` | Receives fixed inputs and no controller MCP or approval authority |
+
+Choose `codex` when interaction itself is part of the task. Choose `deepagents`
+when context, horizon, or isolated internal decomposition is the benefit and
+human checkpoints can be bounded. Choose `tura` when compact headless execution
+is the benefit. The controller may own an interactive workflow regardless of
+which worker executes an individual step.
+
 ### CoS Executor Eligibility
 
 Generic executor selection chooses task executor. CoS eligibility limits which
