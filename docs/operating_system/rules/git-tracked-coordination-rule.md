@@ -14,6 +14,10 @@ For Git-tracked coordinated work:
   worktrees, and actual repository changes.
 - The active implementation plan owns task order, dependencies, active task or
   wave, required proof, blockers, and next action.
+- For coordinated work, the active task or wave plus declared ownership,
+  dependencies, authority, and Git workspace is the durable coordination
+  claim. Subordinate delegation may narrow that claim but never expand its
+  ownership, authority, or allowed paths.
 - Plan `Coordination State` and task ledger are the static coordination SSOT.
 - One lead controller is the sole writer of coordination state.
 - When coordinated execution begins, the lead changes plan status from

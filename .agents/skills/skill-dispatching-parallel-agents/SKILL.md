@@ -56,6 +56,11 @@ inputs, a focused question, and a required evidence format.
 Concurrent implementation lanes require an approved plan, dependency-ready
 tasks, isolated Git worktrees, disjoint write ownership, and declared lane
 proof. Same-workspace writers remain sequential.
+
+When `skill-chief-of-staff` is active, top-level parallel fan-out uses Herdr
+MAIN AGENT lanes. Platform-native parallel dispatch applies only to ordinary
+non-CoS execution or subordinate work inside an assigned MAIN AGENT lane. CoS
+never directly dispatches sub-agents.
 ## When to Use
 
 ```dot

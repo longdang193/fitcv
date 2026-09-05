@@ -37,7 +37,7 @@ cross-repository work.
 
 CoS activates only under a native Codex lead controller. CoS assigns top-level
 MAIN AGENTS through Herdr. Each MAIN AGENT receives a bounded task and owns
-execution, evidence, Git state, and lifecycle for its assigned lane. A MAIN
+execution, evidence, lane-local Git state, and lifecycle for its assigned lane. A MAIN
 AGENT may spawn Native Codex, DeepAgents, or Tura sub-agents when needed inside
 that lane. Sub-agents must not spawn peer MAIN AGENTS, activate CoS, or
 reactivate coordination. CoS applies to `Executor: codex | deepagents` for
@@ -49,6 +49,30 @@ generated adapters may carry this skill, but their non-Codex lead must return
 
 Apply the CoS Executor Eligibility contract from
 `docs/operating_system/planning/planning-dispatch.md`.
+
+## Bounded Lane Autonomy (plan-bound execution)
+
+After successful assignment, a MAIN AGENT executes autonomously inside its
+assigned task contract. It may choose implementation details, inspect direct
+consumers, use applicable skills and tools, debug and retry, run task-local
+verification, modify lane-owned files, and spawn Native Codex, DeepAgents, or
+Tura sub-agents when needed. Delegation inside lane scope does not need a
+separate CoS approval.
+
+A subordinate worker inherits a subset of its parent task's scope, authority,
+allowed paths, dependencies, and proof obligations. Delegation may narrow but
+never expand them. The MAIN AGENT remains accountable for subordinate writes
+and evidence. Sub-agents must not spawn peer MAIN AGENTS, activate CoS, or
+reactivate coordination.
+
+MAIN AGENT returns control at declared task completion or when it reaches a
+coordination boundary: ownership overlap or out-of-scope files; changed
+dependencies, behavior, contract, or acceptance criteria; missing authority
+for destructive or external action; branch, base, or `HEAD` identity drift;
+unavailable required proof; need for another MAIN AGENT; or a substantial
+independent blocker. Task-local uncertainty stays within the lane when it can
+be resolved without changing contract, ownership, authority, or proof. CoS
+acceptance remains required for task completion.
 
 CoS may dispatch only top-level MAIN AGENT lanes through Herdr. Codex lanes
 use top-level Codex main agents; DeepAgents lanes use the bounded
@@ -143,6 +167,12 @@ next-action selector.
 This contract has no autonomous wake mechanism, timer, scheduler, helper-agent
 dispatch, new profile, hook integration, or persistent heartbeat state. No polling or
 subscription mechanism is implied by this skill.
+
+Explicit-turn attention governs wake-up, not progress within an active run.
+After plan-bound execution is authorized, CoS may continue through
+dependency-ready tasks and waves without asking the user between tasks. It
+still stops at declared escalation boundaries and accepts each task's proof
+before advancing.
 
 ## Plan Binding
 

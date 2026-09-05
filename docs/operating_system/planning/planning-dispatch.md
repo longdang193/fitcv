@@ -72,6 +72,28 @@ for runtime projection and task delivery. The launcher and its tests own runtime
 mechanics; CoS accepts only successful final delivery evidence and treats
 missing or failed evidence as `BLOCKED`.
 
+## Agent And Orchestration Vocabulary
+
+Pattern names are descriptive reasoning vocabulary. They do not create plan
+metadata, grant authority, select executors, replace required skills, or change
+proof obligations.
+
+Choose based on who controls the execution path:
+
+| Vocabulary | Use when | Existing control |
+| --- | --- | --- |
+| Ordered execution | Tasks have known order or shared state | `inline sequential` + `skill-executing-plans` |
+| Parallel fan-out/fan-in | Independent tasks can run concurrently and later combine | `parallel-capable` + `skill-dispatching-parallel-agents`; requires declared ownership and proof |
+| Top-level supervision | Independent top-level lanes need sustained synthesis or blocker routing | `skill-chief-of-staff`; native Codex lead, approved plan, and CoS eligibility rules apply |
+| Independent review | Completed work needs challenge separate from producer judgment | `skill-requesting-code-review`; reviewer does not own implementation or merge |
+| Executor-local delegation | One bounded task benefits from subordinate workers or internal decomposition | Subordinate executor delegation; scope, authority, paths, dependencies, and proof may narrow but never expand |
+
+Canonical coordination state remains `Mode`, `Coordination`, task ledger,
+dependencies, `Required skills`, executor selection, and Git state.
+
+A delegated executor may plan inside its assigned task, but may not create a
+competing canonical plan or coordination authority.
+
 ## Level-2 Readiness Evidence
 
 Do not claim Level-2 readiness from contract text or passing unit tests alone.

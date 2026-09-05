@@ -176,6 +176,39 @@ def test_chief_of_staff_blocks_delegated_reactivation_and_separates_returns() ->
     assert "never converts execution\nstatus into a review verdict" in skill
 
 
+def test_chief_of_staff_defines_bounded_lane_autonomy() -> None:
+    skill = read(".agents/skills/skill-chief-of-staff/SKILL.md")
+    normalized = " ".join(skill.split())
+    for text in (
+        "## Bounded Lane Autonomy (plan-bound execution)",
+        "executes autonomously inside its assigned task contract",
+        "Delegation inside lane scope does not need a separate CoS approval",
+        "inherits a subset of its parent task's scope, authority",
+        "never expand them",
+        "remains accountable for subordinate writes and evidence",
+        "returns control at declared task completion or when it reaches a coordination boundary",
+        "CoS acceptance remains required for task completion",
+        "Explicit-turn attention governs wake-up, not progress within an active run",
+        "without asking the user between tasks",
+    ):
+        assert text in normalized
+
+
+def test_parallel_dispatch_defers_cos_top_level_fanout_to_herdr() -> None:
+    dispatch = read(".agents/skills/skill-dispatching-parallel-agents/SKILL.md")
+    normalized = " ".join(dispatch.split())
+    assert "top-level parallel fan-out uses Herdr MAIN AGENT lanes" in normalized
+    assert "Platform-native parallel dispatch applies only to ordinary non-CoS execution or subordinate work" in normalized
+    assert "CoS never directly dispatches sub-agents" in normalized
+
+
+def test_git_tracked_coordination_claim_cannot_expand_through_delegation() -> None:
+    rule = read("docs/operating_system/rules/git-tracked-coordination-rule.md")
+    normalized = " ".join(rule.split())
+    assert "active task or wave plus declared ownership, dependencies, authority, and Git workspace is the durable coordination claim" in normalized
+    assert "Subordinate delegation may narrow that claim but never expand its ownership, authority, or allowed paths" in normalized
+
+
 def test_chief_of_staff_uses_herdr_for_top_level_lane_dispatch() -> None:
     skill = read(".agents/skills/skill-chief-of-staff/SKILL.md")
     assert "CoS may dispatch only top-level MAIN AGENT lanes through Herdr." in skill
