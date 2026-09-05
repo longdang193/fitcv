@@ -5,7 +5,11 @@ import { fetchSynonymProcessingRuns } from './api';
 import type { SynonymProcessingResource } from './types';
 import { formatTimestamp } from '../../lib/format';
 
-export const ProcessingHistory: React.FC = () => {
+export interface ProcessingHistoryProps {
+  refreshTrigger?: number;
+}
+
+export const ProcessingHistory: React.FC<ProcessingHistoryProps> = ({ refreshTrigger = 0 }) => {
   const [runs, setRuns] = useState<SynonymProcessingResource[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
@@ -26,7 +30,7 @@ export const ProcessingHistory: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, refreshTrigger]);
 
   useEffect(() => {
     loadRuns();

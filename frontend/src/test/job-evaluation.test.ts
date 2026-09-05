@@ -8,6 +8,10 @@ import {
   exportRunJobSelection,
 } from "../features/job-evaluation/api";
 import { apiClient } from "../lib/api-client";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { FitEvidenceDrawer } from "../features/job-evaluation/components/FitEvidenceDrawer";
+import { RunJobItem } from "../features/runs/types";
 
 
 describe("job evaluation slice and api", () => {
@@ -119,5 +123,47 @@ describe("job evaluation slice and api", () => {
     });
 
     expect(globalThis.fetch).toHaveBeenCalled();
+  });
+  it("renders FitEvidenceDrawer with user-facing factor labels and status wording", () => {
+    const mockJob: RunJobItem = {
+      run_job_id: "job-1",
+      title: "Senior Backend Engineer",
+      company: "Acme Corp",
+      status: "rejected",
+      result_bucket: "rejected",
+      reason_code: "reranker_fit_below_threshold",
+      attributes: {
+        fit_factor_results: {
+          evidence_ref: { artifact: "results.json" },
+          pipeline_status: "ranked_no_cv",
+          skip_is_terminal_rejection: false,
+          reranker_fit: { passed: false, reason: "reranker_fit_below_threshold" },
+        },
+      },
+    };
+
+    const markup = renderToStaticMarkup(
+      React.createElement(FitEvidenceDrawer, {
+        job: mockJob,
+        open: true,
+        onClose: () => {},
+      })
+    );
+
+    // Verify user-facing wording is present
+    expect(markup).toContain("Evidence Reference");
+    expect(markup).toContain("results.json");
+    expect(markup).toContain("Pipeline Status");
+    expect(markup).toContain("Ranked without CV");
+    expect(markup).toContain("Skip Terminal Rejection");
+    expect(markup).toContain("No");
+    expect(markup).toContain("Reranker Fit");
+    expect(markup).toContain("Reranker fit below threshold");
+
+    // Verify technical underscore identifiers are NOT rendered directly as factor labels
+    expect(markup).not.toContain("<span>evidence_ref</span>");
+    expect(markup).not.toContain("<span>pipeline_status</span>");
+    expect(markup).not.toContain("<span>skip_is_terminal_rejection</span>");
+    expect(markup).not.toContain("<span>reranker_fit</span>");
   });
 });

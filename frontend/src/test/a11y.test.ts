@@ -91,5 +91,11 @@ describe("accessibility and design token compliance", () => {
     expect(mainCss).toContain("min-height: 44px;");
     expect(mainCss).toContain(".star-btn[aria-pressed=\"true\"]");
     expect(mainCss).toContain("color: var(--warn);");
+
+    // Sidebar brand block divider removed: preserves spacing without border-bottom
+    const brandBlockMatch = mainCss.match(/\.brand\s*\{([^}]+)\}/);
+    expect(brandBlockMatch).not.toBeNull();
+    expect(brandBlockMatch![1]).not.toContain("border-bottom");
+    expect(mainCss).toContain("border-right: 1px solid var(--border-soft);");
   });
 });

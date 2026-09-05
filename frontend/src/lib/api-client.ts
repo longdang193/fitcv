@@ -53,6 +53,14 @@ export class ApiClientError extends Error {
   }
 }
 
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiClientError) {
+    return [error.message, error.action].filter(Boolean).join(" ") || fallback;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
 export interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   idempotencyKey?: string;

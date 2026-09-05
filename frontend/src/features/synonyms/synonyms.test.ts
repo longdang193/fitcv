@@ -17,6 +17,7 @@ import { apiClient } from "../../lib/api-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SynonymsPage } from "./synonyms-page";
 import React from "react";
+import { SuggestionQueue, hasActiveSynonymFilters } from "./suggestion-queue";
 
 describe("Synonyms Feature API", () => {
   const originalFetch = globalThis.fetch;
@@ -329,5 +330,15 @@ describe("Synonyms page layout", () => {
     expect(queuePosition).toBeGreaterThanOrEqual(0);
     expect(summaryPosition).toBeGreaterThan(queuePosition);
     expect(markup).not.toContain("Processing History");
+  });
+
+  it("treats search and non-default status filters as zero-result context", () => {
+    expect(hasActiveSynonymFilters("   ", "all", "pending")).toBe(false);
+    expect(hasActiveSynonymFilters("typescript", "all", "pending")).toBe(true);
+    expect(hasActiveSynonymFilters("", "skills", "pending")).toBe(true);
+    expect(hasActiveSynonymFilters("", "all", "approved")).toBe(true);
+    expect(renderToStaticMarkup(React.createElement(SuggestionQueue))).toContain(
+      "Loading synonym review queue..."
+    );
   });
 });

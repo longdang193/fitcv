@@ -1,6 +1,7 @@
 import React from "react";
 import { Dialog, Button, StatusBadge } from "../../../components";
 import { RunJobItem } from "../../runs/types";
+import { formatFactorLabel, formatFactorValue, formatOutcomeReason } from "../../../lib/format";
 
 export interface FitEvidenceDrawerProps {
   job: RunJobItem | null;
@@ -25,7 +26,7 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
 
   const fitFactors = (rawAttributes.fit_factor_results || {}) as Record<
     string,
-    { status?: string; passed?: boolean; reason?: string; evidence?: string }
+    any
   >;
 
   return (
@@ -59,7 +60,7 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
             <span style={{ fontSize: 12, color: "var(--muted)", display: "block" }}>
               Pipeline Decision
             </span>
-            <strong>Stage: {job.current_stage_id || "Screening"}</strong>
+            <strong>Stage: {formatFactorLabel(job.current_stage_id) || "Screening"}</strong>
           </div>
           <StatusBadge
             status={isPassed ? "success" : "danger"}
@@ -75,7 +76,7 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
           {reasons.length > 0 ? (
             <ul style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 4 }}>
               {reasons.map((r, i) => (
-                <li key={i}>{r}</li>
+                <li key={i}>{formatOutcomeReason(r) || r}</li>
               ))}
             </ul>
           ) : (
@@ -94,29 +95,38 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
               Factor Breakdown
             </h4>
             <div style={{ display: "grid", gap: 8 }}>
-              {Object.entries(fitFactors).map(([factorKey, factorVal]) => (
-                <div
-                  key={factorKey}
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    background: "var(--surface)",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
-                    <span>{factorKey}</span>
-                    <span style={{ fontSize: 12, color: factorVal.passed ? "var(--success)" : "var(--danger)" }}>
-                      {factorVal.passed ? "✓ Met" : "✕ Missing / Below threshold"}
-                    </span>
-                  </div>
-                  {factorVal.reason && (
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      {factorVal.reason}
+              {Object.entries(fitFactors).map(([factorKey, factorVal]) => {
+                const formatted = formatFactorValue(factorVal);
+                const badgeColor =
+                  formatted.variant === "success"
+                    ? "var(--success)"
+                    : formatted.variant === "danger"
+                    ? "var(--danger)"
+                    : "var(--muted)";
+                return (
+                  <div
+                    key={factorKey}
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      background: "var(--surface)",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                      <span>{formatFactorLabel(factorKey)}</span>
+                      <span style={{ fontSize: 12, color: badgeColor }}>
+                        {formatted.label}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {formatted.reason && (
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                        {formatted.reason}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -147,13 +157,13 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
             {rawAttributes.work_mode && (
               <div>
                 <dt style={{ color: "var(--muted)", fontWeight: 600 }}>Work Mode</dt>
-                <dd style={{ margin: 0 }}>{String(rawAttributes.work_mode)}</dd>
+                <dd style={{ margin: 0 }}>{formatOutcomeReason(String(rawAttributes.work_mode)) || String(rawAttributes.work_mode)}</dd>
               </div>
             )}
             {rawAttributes.seniority && (
               <div>
                 <dt style={{ color: "var(--muted)", fontWeight: 600 }}>Seniority</dt>
-                <dd style={{ margin: 0 }}>{String(rawAttributes.seniority)}</dd>
+                <dd style={{ margin: 0 }}>{formatOutcomeReason(String(rawAttributes.seniority)) || String(rawAttributes.seniority)}</dd>
               </div>
             )}
           </dl>

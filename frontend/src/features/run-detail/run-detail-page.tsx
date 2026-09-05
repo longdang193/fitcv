@@ -618,7 +618,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <Button
-              size="compact"
               variant="secondary"
               onClick={() => {
                 loadRunDetail(false);
@@ -632,7 +631,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
             {run.debug_bundle?.status === "available" && (
               <Button
-                size="compact"
                 variant="secondary"
                 onClick={handleDownloadDebugBundle}
                 disabled={actionInProgress}
@@ -643,7 +641,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
             {run.capabilities.cancel && (
               <Button
-                size="compact"
                 variant="danger"
                 onClick={() => setConfirmAction("cancel")}
                 disabled={actionInProgress}
@@ -654,7 +651,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
             {run.capabilities.archive && (
               <Button
-                size="compact"
                 variant="secondary"
                 onClick={() => setConfirmAction("archive")}
                 disabled={actionInProgress}
@@ -665,7 +661,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
             {run.capabilities.unarchive && (
               <Button
-                size="compact"
                 variant="secondary"
                 onClick={() => setConfirmAction("unarchive")}
                 disabled={actionInProgress}

@@ -9,10 +9,10 @@ export type SynonymTab = 'queue' | 'editor' | 'backup';
 
 export const SynonymsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('queue');
-  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState<number>(0);
 
   const handleGlobalRefresh = () => {
-    setRefreshTrigger((prev) => prev + 1);
+    setHistoryRefreshTrigger((prev) => prev + 1);
   };
 
   const tabs = [
@@ -42,15 +42,15 @@ export const SynonymsPage: React.FC = () => {
         <div style={{ marginTop: 20 }}>
           {activeTab === 'queue' && (
             <div style={{ display: 'grid', gap: 24 }}>
-              <SuggestionQueue key={'queue-' + refreshTrigger} onQueueChanged={handleGlobalRefresh} />
-              <ProcessingHistory key={'history-' + refreshTrigger} />
+              <SuggestionQueue onQueueChanged={handleGlobalRefresh} />
+              <ProcessingHistory refreshTrigger={historyRefreshTrigger} />
             </div>
           )}
           {activeTab === 'editor' && (
-            <PolicyEditor key={'editor-' + refreshTrigger} onPolicyUpdated={handleGlobalRefresh} />
+            <PolicyEditor />
           )}
           {activeTab === 'backup' && (
-            <BackupManager key={'backup-' + refreshTrigger} onBackupImported={handleGlobalRefresh} />
+            <BackupManager />
           )}
         </div>
       </Tabs>

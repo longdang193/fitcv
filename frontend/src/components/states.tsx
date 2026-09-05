@@ -1,6 +1,26 @@
 import React from "react";
 import { Button } from "./button";
 
+export type NoticeVariant = "info" | "success" | "warn" | "error";
+
+export interface NoticeProps {
+  children: React.ReactNode;
+  variant?: NoticeVariant;
+  role?: "status" | "alert";
+  className?: string;
+}
+
+export const Notice: React.FC<NoticeProps> = ({
+  children,
+  variant = "info",
+  role = variant === "error" ? "alert" : "status",
+  className = "",
+}) => (
+  <div className={`notice ${variant} ${className}`.trim()} role={role}>
+    {children}
+  </div>
+);
+
 export interface LoadingStateProps {
   message?: string;
   className?: string;

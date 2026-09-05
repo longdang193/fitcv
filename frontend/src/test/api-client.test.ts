@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { apiClient, ApiClientError } from "../lib/api-client";
+import { apiClient, ApiClientError, getApiErrorMessage } from "../lib/api-client";
 
 describe("api-client", () => {
   const originalFetch = globalThis.fetch;
@@ -102,5 +102,16 @@ describe("api-client", () => {
       code: "cv_preview_pending",
       retryable: true,
     });
+  });
+
+  it("normalizes canonical error message and action for notices", () => {
+    expect(
+      getApiErrorMessage(
+        new ApiClientError(409, "revision_conflict", "Settings changed.", "Reload and retry."),
+        "Fallback"
+      )
+    ).toBe("Settings changed. Reload and retry.");
+    expect(getApiErrorMessage(new Error("Network failed"), "Fallback")).toBe("Network failed");
+    expect(getApiErrorMessage({}, "Fallback")).toBe("Fallback");
   });
 });

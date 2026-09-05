@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Button, LoadingState, Dialog } from "../../components";
-import { apiClient } from "../../lib/api-client";
+import { Button, LoadingState, Dialog, Notice } from "../../components";
+import { apiClient, getApiErrorMessage } from "../../lib/api-client";
 
 export type ProviderModel = {
   model_record_id: string;
@@ -124,6 +124,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
   const [taskTemperature, setTaskTemperature] = useState<number>(0.2);
 
   const [message, setMessage] = useState("");
+  const [messageKind, setMessageKind] = useState<"info" | "success" | "error">("info");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -136,27 +137,16 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
         setProviders(next);
         const hashId = typeof window !== "undefined" ? getProviderIdFromHash(window.location.hash) : null;
         const currentId = selectedIdRef.current;
-        const targetId = hashId || currentId;
-        setSelectedId(hashId);
-        selectedIdRef.current = hashId;
-        if (targetId) {
-          const match = next.find((p) => p.provider_id === targetId);
-          if (match) {
-            setDisplayName(match.display_name);
-            setBaseUrl(match.base_url || "");
-            setApiType(match.compatibility === "anthropic" ? "messages" : match.api_type === "chat_completions" ? "chat-completions" : "responses");
-            setApiKey("");
-            setConnectionTestPassed(false);
-            setConnectionStatusText("");
-            setConnectionStatusKind("");
-          }
-        }
+        const nextSelectedId = hashId || currentId;
+        setSelectedId(nextSelectedId);
+        selectedIdRef.current = nextSelectedId;
       } else {
         const res = await apiClient.get<{ data: LlmConfig }>("/llm-configuration");
         setLlm(res.data.data);
       }
     } catch (err: any) {
-      setMessage(err.message || "Failed to load settings.");
+      setMessage(getApiErrorMessage(err, "Failed to load settings."));
+      setMessageKind("error");
     } finally {
       setLoading(false);
     }
@@ -193,6 +183,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
   const run = async (operation: () => Promise<void>, options?: { reload?: boolean; onError?: (err: any) => void }) => {
     setBusy(true);
     setMessage("");
+    setMessageKind("info");
     try {
       await operation();
       if (options?.reload !== false) {
@@ -200,7 +191,8 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       }
     } catch (err: any) {
       options?.onError?.(err);
-      setMessage(`${err.message || "Request failed."}${err.action ? ` ${err.action}` : ""}`);
+      setMessage(getApiErrorMessage(err, "Request failed."));
+      setMessageKind("error");
     } finally {
       setBusy(false);
     }
@@ -540,6 +532,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
         expected_revision: llm.revision,
       });
       setMessage("Default route saved.");
+      setMessageKind("success");
     });
   };
 
@@ -568,6 +561,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       setEditingTask(null);
       const def = LLM_TASKS.find((t) => t.id === editingTask);
       setMessage(`${def ? def.label : "Task"} configuration saved.`);
+      setMessageKind("success");
     });
   };
 
@@ -938,7 +932,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
             <p>Manage predefined and custom AI provider connections. Each provider supports one connection.</p>
           </div>
         </div>
-        {message && <div className="notice" role="status">{message}</div>}
+        {message && <Notice variant={messageKind}>{message}</Notice>}
         <div className="provider-section">
           <div className="provider-page-actions">
             <label className="provider-field provider-search">
@@ -1039,7 +1033,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
           Manage API Providers
         </a>
       </div>
-      {message && <div className="notice" role="status">{message}</div>}
+      {message && <Notice variant={messageKind}>{message}</Notice>}
 
       <div style={{ display: "grid", gap: 16 }}>
         <section className="section-card" style={{ padding: 20, display: "grid", gap: 14 }}>

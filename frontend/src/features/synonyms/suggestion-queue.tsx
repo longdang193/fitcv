@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
-import { Button, StatusBadge, LoadingState, EmptyState, ErrorState } from '../../components';
-import { ApiClientError } from '../../lib/api-client';
+import { Button, StatusBadge, LoadingState, EmptyState, ErrorState, Notice, ZeroResultsState } from '../../components';
+import { getApiErrorMessage } from '../../lib/api-client';
 import {
   fetchSynonymSuggestions,
   approveSynonymSuggestions,
@@ -19,6 +19,14 @@ import { formatTimestamp } from '../../lib/format';
 
 export interface SuggestionQueueProps {
   onQueueChanged?: () => void;
+}
+
+export function hasActiveSynonymFilters(
+  search: string,
+  selectedType: SynonymType | 'all',
+  selectedStatus: ReviewStatus | 'all',
+): boolean {
+  return Boolean(search.trim()) || selectedType !== 'all' || selectedStatus !== 'pending';
 }
 
 export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged }) => {
@@ -57,8 +65,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       setCounts(result.counts || {});
       setSelectedIds(new Set());
     } catch (err: any) {
-      const msg = err instanceof ApiClientError ? err.message : 'Failed to load synonym suggestions.';
-      setError(msg);
+      setError(getApiErrorMessage(err, 'Failed to load synonym suggestions.'));
     } finally {
       setLoading(false);
     }
@@ -117,8 +124,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       if (onQueueChanged) onQueueChanged();
       await loadSuggestions();
     } catch (err: any) {
-      const msg = err instanceof ApiClientError ? err.message : 'Failed to approve selected suggestions.';
-      setError(msg);
+      setError(getApiErrorMessage(err, 'Failed to approve selected suggestions.'));
     } finally {
       setActing(false);
     }
@@ -138,8 +144,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       if (onQueueChanged) onQueueChanged();
       await loadSuggestions();
     } catch (err: any) {
-      const msg = err instanceof ApiClientError ? err.message : 'Failed to decline selected suggestions.';
-      setError(msg);
+      setError(getApiErrorMessage(err, 'Failed to decline selected suggestions.'));
     } finally {
       setActing(false);
     }
@@ -159,8 +164,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       if (onQueueChanged) onQueueChanged();
       await loadSuggestions();
     } catch (err: any) {
-      const msg = err instanceof ApiClientError ? err.message : 'Failed to reset selected suggestions.';
-      setError(msg);
+      setError(getApiErrorMessage(err, 'Failed to reset selected suggestions.'));
     } finally {
       setActing(false);
     }
@@ -181,8 +185,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       if (onQueueChanged) onQueueChanged();
       await loadSuggestions();
     } catch (err: any) {
-      const msg = err instanceof ApiClientError ? err.message : 'Failed to approve suggestion.';
-      setError(msg);
+      setError(getApiErrorMessage(err, 'Failed to approve suggestion.'));
     } finally {
       setActing(false);
     }
@@ -198,8 +201,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       if (onQueueChanged) onQueueChanged();
       await loadSuggestions();
     } catch (err: any) {
-      const msg = err instanceof ApiClientError ? err.message : 'Failed to decline suggestion.';
-      setError(msg);
+      setError(getApiErrorMessage(err, 'Failed to decline suggestion.'));
     } finally {
       setActing(false);
     }
@@ -208,6 +210,13 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
   const openDetail = (suggestionId: string) => {
     setDetailSuggestionId(suggestionId);
     setIsDetailOpen(true);
+  };
+
+  const resetFilters = () => {
+    setSelectedType('all');
+    setSelectedStatus('pending');
+    setSearch('');
+    setPage(1);
   };
 
   const totalPages = Math.ceil(total / pageSize) || 1;
@@ -219,37 +228,10 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
   return (
     <div className='synonym-suggestion-queue' style={{ display: 'grid', gap: 16 }}>
       {/* Feedback message */}
-      {feedback && (
-        <div
-          role='status'
-          style={{
-            padding: '10px 14px',
-            borderRadius: 'var(--radius)',
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-            color: 'var(--success, #16a34a)',
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          {feedback}
-        </div>
-      )}
+      {feedback && <Notice variant='success'>{feedback}</Notice>}
 
       {/* Error message */}
-      {error && (
-        <div
-          role='alert'
-          style={{
-            padding: '10px 14px',
-            borderRadius: 'var(--radius)',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            color: 'var(--danger, #dc2626)',
-            fontSize: 13,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <Notice variant='error'>{error}</Notice>}
 
       {/* Filters Bar */}
       <div
@@ -408,21 +390,23 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       ) : error && items.length === 0 ? (
         <ErrorState message={error} onRetry={loadSuggestions} />
       ) : items.length === 0 ? (
-        <EmptyState
-          title='No Synonym Suggestions'
-          description={
-            search
-              ? 'No suggestions matched your query   + search +  .'
-              : 'No suggestions found for current filter.'
-          }
-          actionLabel='Reset Filters'
-          onAction={() => {
-            setSelectedType('all');
-            setSelectedStatus('all');
-            setSearch('');
-            setPage(1);
-          }}
-        />
+        <div className='table-card'>
+          {hasActiveSynonymFilters(search, selectedType, selectedStatus) ? (
+            <ZeroResultsState
+              query={search.trim() || undefined}
+              filterDescription='No suggestions match active search or filters.'
+              clearLabel='Reset filters'
+              onClear={resetFilters}
+            />
+          ) : (
+            <EmptyState
+              title='No Synonym Suggestions'
+              description='No pending suggestions found.'
+              actionLabel='Reset Filters'
+              onAction={resetFilters}
+            />
+          )}
+        </div>
       ) : (
         <div className='table-card'>
           <div className='table-scroll' tabIndex={0} role='region' aria-label='Synonym suggestions table'>
@@ -539,7 +523,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
               fontSize: 13,
             }}
           >
-            <div style={{ color: 'var(--muted)' }}>
+            <div style={{ color: 'var(--muted)' }} role='status' aria-live='polite' aria-atomic='true'>
               Showing {items.length} of {total} total suggestions (Page {page} of {totalPages})
             </div>
             <div style={{ display: 'flex', gap: 8 }}>

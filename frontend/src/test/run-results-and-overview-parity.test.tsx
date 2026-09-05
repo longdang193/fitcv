@@ -169,6 +169,7 @@ describe("UI Lane Parity & Regression Suite", () => {
       const overviewIdx = markup.indexOf("Run Overview");
       const topHeadSection = markup.substring(headIdx, overviewIdx);
       expect(topHeadSection).not.toContain("Export CSV");
+      expect(topHeadSection).not.toContain("btn-compact");
 
       // Export button is placed with results toolbar controls
       expect(markup).toContain("exportRunResults");
