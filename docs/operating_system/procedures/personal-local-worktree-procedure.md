@@ -203,8 +203,10 @@ Install or refresh local DeepAgents runtime:
 ./scripts/setup_deepagents_runtime.ps1 -SecretFile <local-env-file>
 ```
 
-Installer writes only `%USERPROFILE%\.local\share\dcode-project\` runtime state
-and `%USERPROFILE%\.local\bin\dcode-project.{cmd,ps1}`. The pinned DeepAgents
+Installer writes `%USERPROFILE%\.local\share\dcode-project\` runtime state
+and `%USERPROFILE%\.local\bin\dcode-project.{cmd,ps1}` plus
+`dcode-doctor.{cmd,ps1}`. When Tura is configured, it also writes
+`project-delegate.{cmd,ps1}`. The pinned DeepAgents
 tool stays isolated under the runtime root, so concurrent repositories do not
 replace one shared `dcode.exe`. Wrapper resolves current Git workspace and runs
 tracked `scripts/dcode_project.py`. Run `dcode-project`
@@ -212,13 +214,14 @@ from selected repository workspace with `--role <profile>`; do not
 pass `--model`. Setup uses the version pinned by
 `scripts/setup_deepagents_runtime.ps1`, requires Python 3.12 or newer, verifies
 the installed `dcode` version, and disables child auto-update.
-Setup fails when
-`%USERPROFILE%\.deepagents\.mcp.json` exists; remove that direct DeepAgents MCP
+Setup fails when the configured `DEEPAGENTS_HOME` path contains `.mcp.json`;
+the default is `%USERPROFILE%\.deepagents`. Remove that direct DeepAgents MCP
 config before setup so Codex config remains sole MCP authority.
 
 DeepAgents may load project `.env` values. `dcode-project` overwrites provider
 environment values from its local Codex binding before launch and keeps MCP
-disabled; do not store credentials or runtime authority in project files.
+disabled unless explicit `--mcp-select` is passed; do not store credentials or
+runtime authority in project files.
 Inspect effective DeepAgents settings with `dcode config` or `dcode config path`.
 
 ## DeepAgents Probe Selection

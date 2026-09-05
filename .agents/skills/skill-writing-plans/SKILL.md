@@ -65,7 +65,8 @@ only through explicit launcher `--mcp-select` against approved Codex
 `[mcp_servers]`; no selection keeps `--no-mcp`. A selected server exposes all
 tools exposed by that server. `codex.mcp.handoff.v1` remains facts and
 provenance, not tool access. Plans must keep MCP selectors, temporary launcher
-config, isolated child `DEEPAGENTS_HOME`, `${VAR}`-only `env`/`headers`, and
+config, isolated child `DEEPAGENTS_HOME`, `${VAR}`-only `headers`, and `env`
+values limited to non-sensitive literals or `${VAR}` references, and
 secret exclusion out of task text and tracked files; project MCP config remains
 untouched and untrusted, with no `--trust-project-mcp`.
 

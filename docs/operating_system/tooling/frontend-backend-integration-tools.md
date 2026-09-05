@@ -60,9 +60,10 @@ projects approved Codex `[mcp_servers]`; selecting a server exposes all tools
 exposed by that server, while selecting a tool narrows access. Direct mode uses
 temporary launcher-owned config under isolated child `DEEPAGENTS_HOME`; no
 per-task `.mcp.json`, `--trust-project-mcp`, or project-config mutation.
-Project MCP configs remain untouched and untrusted. MCP `env` and `headers`
-values must be `${VAR}` references. Raw credentials and config secrets never
-enter task text, logs, or tracked files. `codex.mcp.handoff.v1` remains facts
+Project MCP configs remain untouched and untrusted. MCP `headers` values must be
+`${VAR}` references. MCP `env` values may be `${VAR}` references or non-sensitive
+literals. Raw credentials and config secrets never enter task text, logs, or
+tracked files. `codex.mcp.handoff.v1` remains facts
 and provenance, not tool access.
 
 ### Contract Evidence Capabilities
