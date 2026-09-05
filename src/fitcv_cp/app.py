@@ -11039,40 +11039,6 @@ def create_app(
             )
         store = _resolve_run_store()
         result = store.query_runs(view=view, search=search, page=page, page_size=page_size)
-        if int(result.get("total") or 0) == 0 and store.query_runs_fn is None:
-            legacy_runs = list_runs(client=client, include_archived=True, limit=500)
-            normalized_search = search.strip().casefold()
-            if normalized_search:
-                legacy_runs = [
-                    run
-                    for run in legacy_runs
-                    if normalized_search
-                    in " ".join(
-                        [
-                            run.run_id,
-                            str(getattr(run, "run_name", "") or ""),
-                            str(run.jobs_path or ""),
-                            str(run.candidate_profile_source or ""),
-                        ]
-                    ).casefold()
-                ]
-            active_count = sum(run.archived_at is None for run in legacy_runs)
-            archived_count = sum(run.archived_at is not None for run in legacy_runs)
-            legacy_runs = [
-                run
-                for run in legacy_runs
-                if (view == "all")
-                or (view == "active" and run.archived_at is None)
-                or (view == "archived" and run.archived_at is not None)
-            ]
-            legacy_runs.sort(key=lambda run: (run.created_at, run.run_id), reverse=True)
-            offset = (page - 1) * page_size
-            result = {
-                "items": legacy_runs[offset:offset + page_size],
-                "total": len(legacy_runs),
-                "active_count": active_count,
-                "archived_count": archived_count,
-            }
         resources: list[dict[str, Any]] = []
         for run in result.get("items", []):
             if isinstance(run, PipelineRun):
@@ -11104,19 +11070,19 @@ def create_app(
     def get_run_detail(run_id: str) -> dict:
         store = _resolve_run_store()
         detail = store.get_run_detail(run_id)
-        legacy_run = get_run(run_id, client=client)
-        if legacy_run is None:
-            if detail is not None:
-                return _data_response(detail)
+        if detail is None:
             raise ApiError(
                 404,
                 "run_not_found",
                 "Run not found.",
                 action="Return to Runs and select an existing Run.",
             )
-        reconciled_run = _reconcile_orphaned_run(legacy_run)
-        if detail is None or reconciled_run.status != legacy_run.status:
-            detail = _run_to_dict(reconciled_run)
+        canonical_run = store.get_run(run_id)
+        if canonical_run is not None:
+            pre_reconciliation_status = canonical_run.status
+            reconciled_run = _reconcile_orphaned_run(canonical_run)
+            if reconciled_run.status != pre_reconciliation_status:
+                detail = store.get_run_detail(run_id) or detail
         return _data_response(detail)
 
     @app.get("/runs/{run_id}/stages")
@@ -11710,11 +11676,8 @@ def create_app(
         limit: int = 100,
     ) -> dict[str, Any]:
         store = _resolve_run_store()
-        legacy_run = None
         if store.get_run_detail(run_id) is None:
-            legacy_run = get_run(run_id, client=client)
-            if legacy_run is None:
-                raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
         if limit < 1 or limit > 500:
             raise ApiError(
                 422,
@@ -11735,54 +11698,31 @@ def create_app(
                 field_errors=[{"field": "cursor", "code": "invalid_value", "message": "Refresh Console."}],
                 action="Clear the cursor and reload Console.",
             ) from exc
-        if legacy_run is not None and not result.get("events"):
-            legacy_events = get_events(run_id, client=client)
-            events = [
-                {
-                    "event_id": str(event.event_id),
-                    "time": event.created_at.isoformat(),
-                    "stage_id": str(event.stage),
-                    "level": str(event.level),
-                    "operation": str(event.stage),
-                    "state": "recorded",
-                    "message": str(event.message),
-                    "payload": _load_json_object(str(event.payload_json or "")),
-                    "diagnostic_refs": {},
-                }
-                for event in legacy_events
-            ]
-            result = {
-                "integrity_conflicts": [],
-                "total_count": len(legacy_events),
-                "next_cursor": None,
+        events = [
+            {
+                "event_id": str(event.event_id),
+                "time": event.recorded_at.isoformat(),
+                "stage_id": str(event.operation),
+                "level": str(event.level),
+                "operation": str(event.operation),
+                "state": str(event.state),
+                "message": str(event.message),
+                "payload": _load_json_object(str(event.payload_json or "")),
+                "diagnostic_refs": _load_json_object(str(event.diagnostic_refs_json or "")),
             }
-        else:
-            events = [
-                {
-                    "event_id": str(event.event_id),
-                    "time": event.recorded_at.isoformat(),
-                    "stage_id": str(event.operation),
-                    "level": str(event.level),
-                    "operation": str(event.operation),
-                    "state": str(event.state),
-                    "message": str(event.message),
-                    "payload": _load_json_object(str(event.payload_json or "")),
-                    "diagnostic_refs": _load_json_object(str(event.diagnostic_refs_json or "")),
-                }
-                for event in result.get("events", [])
-            ]
-        return _collection_response(
-            events,
-            page=1,
-            page_size=limit,
-            total_items=int(result.get("total_count") or 0),
-            meta={
+            for event in result.get("events", [])
+        ]
+        return {
+            "data": events,
+            "meta": {
                 "run_id": run_id,
+                "limit": limit,
                 "cursor": cursor,
                 "next_cursor": result.get("next_cursor"),
+                "total_count": int(result.get("total_count") or 0),
                 "integrity_conflicts": len(result.get("integrity_conflicts") or []),
             },
-        )
+        }
 
     @app.get("/runs/{run_id}/debug-bundle")
     def download_canonical_debug_bundle(run_id: str) -> Response:

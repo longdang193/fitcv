@@ -26,6 +26,7 @@ import os
 import shutil
 import sqlite3
 import time
+import unicodedata
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -8655,6 +8656,14 @@ def get_process_events(
         try:
             padding = "=" * (-len(cursor) % 4)
             decoded = json.loads(base64.urlsafe_b64decode(cursor + padding).decode("utf-8"))
+            if (
+                not isinstance(decoded, dict)
+                or decoded.get("v") != 1
+                or decoded.get("process_type") != process_type
+                or decoded.get("process_id") != process_id
+                or not str(decoded.get("event_id") or "").strip()
+            ):
+                raise ValueError("invalid_cursor")
             cursor_key = (
                 datetime.datetime.fromisoformat(str(decoded["recorded_at"])),
                 str(decoded["event_id"]),
@@ -8670,7 +8679,13 @@ def get_process_events(
     if len(remaining) > normalized_limit and page_events:
         last = page_events[-1]
         payload = json.dumps(
-            {"recorded_at": last.recorded_at.isoformat(), "event_id": last.event_id},
+            {
+                "v": 1,
+                "process_type": process_type,
+                "process_id": process_id,
+                "recorded_at": last.recorded_at.isoformat(),
+                "event_id": last.event_id,
+            },
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -10057,34 +10072,59 @@ def query_runs(
 ) -> dict[str, Any]:
     if page_size not in {10, 20, 50}:
         raise ValueError("page_size must be 10, 20, or 50")
-    clauses: list[str] = []
-    params: list[Any] = []
-    if view == "active":
-        clauses.append("archived_at IS NULL")
-    elif view == "archived":
-        clauses.append("archived_at IS NOT NULL")
-    elif view != "all":
+    if view not in {"active", "archived", "all"}:
         raise ValueError("view must be active, archived, or all")
-    if search.strip():
-        clauses.append("(run_name LIKE ? COLLATE NOCASE OR run_id LIKE ? COLLATE NOCASE)")
-        params.extend([f"%{search.strip()}%", f"%{search.strip()}%"])
-    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    normalized_search = unicodedata.normalize("NFKC", str(search)).strip().casefold()
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
-        total = conn.execute(f"SELECT COUNT(*) FROM pipeline_runs {where}", params).fetchone()[0]
-        counts = conn.execute(
-            "SELECT SUM(archived_at IS NULL), SUM(archived_at IS NOT NULL) FROM pipeline_runs"
-        ).fetchone()
         rows = conn.execute(
-            f"SELECT * FROM pipeline_runs {where} ORDER BY created_at DESC, run_id DESC LIMIT ? OFFSET ?",
-            (*params, page_size, (max(1, page) - 1) * page_size),
+            """
+            SELECT p.*,
+                   i.original_filename AS input_original_filename,
+                   i.candidate_profile_id AS input_candidate_profile_id,
+                   i.candidate_profile_name AS input_candidate_profile_name
+            FROM pipeline_runs p
+            LEFT JOIN run_inputs i ON i.run_id = p.run_id
+            ORDER BY p.created_at DESC, p.run_id DESC
+            """
         ).fetchall()
+
+    matched_rows = []
+    for row in rows:
+        if normalized_search:
+            compatibility = _decode_json_or_none(row["compatibility_json"])
+            compatibility = compatibility if isinstance(compatibility, dict) else {}
+            searchable = " ".join(
+                str(value or "")
+                for value in (
+                    row["run_id"],
+                    row["run_name"],
+                    row["input_original_filename"],
+                    row["input_candidate_profile_id"],
+                    row["input_candidate_profile_name"],
+                    compatibility.get("candidate_profile_source"),
+                )
+            )
+            if normalized_search not in unicodedata.normalize("NFKC", searchable).casefold():
+                continue
+        matched_rows.append(row)
+
+    active_rows = [row for row in matched_rows if row["archived_at"] is None]
+    archived_rows = [row for row in matched_rows if row["archived_at"] is not None]
+    if view == "active":
+        visible_rows = active_rows
+    elif view == "archived":
+        visible_rows = archived_rows
+    else:
+        visible_rows = matched_rows
+    page_number = max(1, int(page))
+    offset = (page_number - 1) * page_size
     return {
-        "items": [_normalized_run_from_row(row) for row in rows],
-        "total": int(total),
-        "active_count": int(counts[0] or 0),
-        "archived_count": int(counts[1] or 0),
-        "page": max(1, page),
+        "items": [_normalized_run_from_row(row) for row in visible_rows[offset:offset + page_size]],
+        "total": len(visible_rows),
+        "active_count": len(active_rows),
+        "archived_count": len(archived_rows),
+        "page": page_number,
         "page_size": page_size,
     }
 

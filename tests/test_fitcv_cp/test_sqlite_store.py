@@ -3920,6 +3920,73 @@ def test_create_run_bundle_is_atomic_and_creates_six_stages_and_stable_jobs() ->
         "Alpha", "zeta"
     ]
 
+
+def test_query_runs_searches_normalized_public_fields() -> None:
+    run = _make_run("run-search-id")
+    run.run_name = "Straße Run"
+    run.candidate_profile_source = "Profile Identity"
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "original_filename": "Ｆｉｌｅ.JSON",
+            "media_type": "application/json",
+            "jobs_snapshot_json": json.dumps([{"title": "Job", "job_url": "https://example.test/job"}]),
+            "jobs_manifest_json": "{}",
+            "candidate_profile_name": "Profile Name",
+            "candidate_profile_json": json.dumps({"name": "Profile Name"}),
+            "settings_revision": "settings-1",
+            "settings_snapshot_json": "{}",
+        },
+        jobs=[{"title": "Job", "job_url": "https://example.test/job"}],
+    )
+
+    assert sqlite_store.query_runs(search="  ｓｔｒａｓｓｅ  ") ["total"] == 1
+    assert sqlite_store.query_runs(search=" file.json ")["total"] == 1
+    assert sqlite_store.query_runs(search="profile identity")["total"] == 1
+
+
+def test_query_runs_counts_search_matches_across_views_and_pages() -> None:
+    def add_run(run_id: str, *, archived: bool, matches: bool) -> None:
+        run = _make_run(run_id)
+        run.run_name = "Matching Run" if matches else "Other Run"
+        if archived:
+            run.status = RunStatus.SUCCEEDED
+            run.archived_at = datetime.datetime(2026, 9, 1, tzinfo=datetime.timezone.utc)
+        sqlite_store.create_run_bundle(
+            run,
+            input_resource={
+                "original_filename": f"{run_id}.json",
+                "media_type": "application/json",
+                "jobs_snapshot_json": json.dumps([{"title": "Job", "job_url": f"https://example.test/{run_id}"}]),
+                "jobs_manifest_json": "{}",
+                "candidate_profile_name": "Profile",
+                "candidate_profile_json": json.dumps({"name": "Profile"}),
+                "settings_revision": "settings-1",
+                "settings_snapshot_json": "{}",
+            },
+            jobs=[{"title": "Job", "job_url": f"https://example.test/{run_id}"}],
+        )
+
+    add_run("run-match-active-1", archived=False, matches=True)
+    add_run("run-match-active-2", archived=False, matches=True)
+    add_run("run-match-archived", archived=True, matches=True)
+    add_run("run-other-active", archived=False, matches=False)
+
+    active = sqlite_store.query_runs(view="active", search="matching", page=2)
+    archived = sqlite_store.query_runs(view="archived", search="matching")
+    all_runs = sqlite_store.query_runs(view="all", search="matching")
+
+    assert active["items"] == []
+    assert active["total"] == 2
+    assert active["active_count"] == 2
+    assert active["archived_count"] == 1
+    assert archived["total"] == 1
+    assert archived["active_count"] == 2
+    assert archived["archived_count"] == 1
+    assert all_runs["total"] == 3
+    assert all_runs["active_count"] == 2
+    assert all_runs["archived_count"] == 1
+
 def test_idempotent_action_replays_same_fingerprint_and_rejects_conflict() -> None:
     first = sqlite_store.reserve_idempotent_action("runs:create", "key-1", "fingerprint-1")
     sqlite_store.complete_idempotent_action(first["action_id"], {"run_id": "run-1"})
@@ -5012,6 +5079,45 @@ def test_process_event_cursor_pages_forward_without_deletion() -> None:
     assert [event.event_id for event in second["events"]] == ["event-2"]
     assert second["next_cursor"] is None
     assert len(reloaded["events"]) == 3
+
+
+def test_process_event_cursor_is_bound_to_process_resource() -> None:
+    from fitcv_cp.models import build_process_event
+
+    for run_id in ("run-cursor-a", "run-cursor-b"):
+        sqlite_store.append_process_event(
+            build_process_event(
+                process_type="pipeline",
+                process_id=run_id,
+                operation="start",
+                state="progress",
+                level="info",
+                message=run_id,
+                event_id=f"{run_id}-event",
+                recorded_at=datetime.datetime(2026, 7, 20, 11, 0, tzinfo=datetime.timezone.utc),
+            )
+        )
+
+    cursor = sqlite_store.get_process_events("pipeline", "run-cursor-a", limit=1)["next_cursor"]
+    assert cursor is None
+
+    sqlite_store.append_process_event(
+        build_process_event(
+            process_type="pipeline",
+            process_id="run-cursor-a",
+            operation="finish",
+                state="succeeded",
+            level="info",
+            message="done",
+            event_id="run-cursor-a-finish",
+            recorded_at=datetime.datetime(2026, 7, 20, 11, 1, tzinfo=datetime.timezone.utc),
+        )
+    )
+    cursor = sqlite_store.get_process_events("pipeline", "run-cursor-a", limit=1)["next_cursor"]
+    assert cursor is not None
+
+    with pytest.raises(ValueError, match="invalid_cursor"):
+        sqlite_store.get_process_events("pipeline", "run-cursor-b", limit=1, cursor=cursor)
 
 
 def test_debug_bundle_availability_uses_persisted_run_evidence() -> None:

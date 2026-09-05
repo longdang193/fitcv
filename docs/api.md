@@ -415,9 +415,28 @@ persisted state; generation success never implies evaluation acceptance.
 
 ### `GET /runs/{run_id}/events`
 
-Query parameters are optional `cursor` and `limit`. Response metadata includes
-`next_cursor` and integrity-conflict count. Events are immutable process-event
-projections. UI Clear View is local-only and never calls a delete route.
+Query parameters are optional `cursor` and `limit`. Response uses cursor-only
+metadata; it does not include page-number fields:
+
+```json
+{
+  "data": [],
+  "meta": {
+    "run_id": "run_123",
+    "limit": 100,
+    "cursor": null,
+    "next_cursor": null,
+    "total_count": 0,
+    "integrity_conflicts": 0
+  }
+}
+```
+
+Events read only immutable canonical `process_events`, ordered by
+`(recorded_at, event_id)`. Cursors are opaque, exclusive, versioned, and bound
+to both `process_type=pipeline` and the requested `run_id`; malformed or
+cross-Run cursors return `422 validation_failed`. UI Clear View is local-only
+and never calls a delete route.
 
 ### `GET /runs/{run_id}/debug-bundle`
 

@@ -2646,11 +2646,18 @@ def test_get_run_detail_reconciles_orphaned_running_run_when_queue_job_missing()
         run_mode="run_all",
     )
 
-    with patch("fitcv_cp.app.get_run", side_effect=[running, failed]), \
-         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+    app = _app()
+    canonical_runs = iter([running, failed])
+    app.state.run_store.get_run_fn = lambda _run_id: next(canonical_runs)
+    canonical_details = iter([
+        {"run_id": running.run_id, "status": "running", "backend_status": "running", "queue_job_id": running.queue_job_id},
+        {"run_id": failed.run_id, "status": "failed", "backend_status": "failed"},
+    ])
+    app.state.run_store.get_run_detail_fn = lambda _run_id: next(canonical_details)
+    with patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.append_event"), \
          patch("fitcv_cp.app.get_queue_job_status", return_value="missing"):
-        resp = TestClient(_app()).get("/runs/run-orphaned-1")
+        resp = TestClient(app).get("/runs/run-orphaned-1")
 
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "failed"
@@ -2686,15 +2693,15 @@ def test_get_run_detail_reconciles_orphaned_running_direct_store_detail() -> Non
         run_mode="run_all",
     )
     app = _app()
-    app.state.run_store.get_run_detail_fn = lambda _run_id: {
-        "run_id": running.run_id,
-        "status": "running",
-        "backend_status": "running",
-        "queue_job_id": running.queue_job_id,
-    }
+    canonical_runs = iter([running, failed])
+    app.state.run_store.get_run_fn = lambda _run_id: next(canonical_runs)
+    canonical_details = iter([
+        {"run_id": running.run_id, "status": "running", "backend_status": "running", "queue_job_id": running.queue_job_id},
+        {"run_id": failed.run_id, "status": "failed", "backend_status": "failed"},
+    ])
+    app.state.run_store.get_run_detail_fn = lambda _run_id: next(canonical_details)
 
-    with patch("fitcv_cp.app.get_run", side_effect=[running, failed]), \
-         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+    with patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.append_event"), \
          patch("fitcv_cp.app.get_queue_job_status", return_value="missing"):
         response = TestClient(app).get(f"/runs/{running.run_id}")
@@ -2728,11 +2735,18 @@ def test_get_run_detail_keeps_running_for_inline_started_job_status() -> None:
         run_mode="run_all",
     )
 
-    with patch("fitcv_cp.app.get_run", return_value=running), \
-         patch("fitcv_cp.app.get_queue_job_status", return_value="started"), \
+    app = _app()
+    app.state.run_store.get_run_fn = lambda _run_id: running
+    app.state.run_store.get_run_detail_fn = lambda _run_id: {
+        "run_id": running.run_id,
+        "status": "running",
+        "backend_status": "running",
+        "queue_job_id": running.queue_job_id,
+    }
+    with patch("fitcv_cp.app.get_queue_job_status", return_value="started"), \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.append_event") as mock_append_event:
-        resp = TestClient(_app()).get("/runs/run-inline-1")
+        resp = TestClient(app).get("/runs/run-inline-1")
 
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "running"
@@ -2756,11 +2770,18 @@ def test_get_run_detail_keeps_running_for_inline_missing_job_status() -> None:
         run_mode="run_all",
     )
 
-    with patch("fitcv_cp.app.get_run", return_value=running), \
-         patch("fitcv_cp.app.get_queue_job_status", return_value="missing"), \
+    app = _app()
+    app.state.run_store.get_run_fn = lambda _run_id: running
+    app.state.run_store.get_run_detail_fn = lambda _run_id: {
+        "run_id": running.run_id,
+        "status": "running",
+        "backend_status": "running",
+        "queue_job_id": running.queue_job_id,
+    }
+    with patch("fitcv_cp.app.get_queue_job_status", return_value="missing"), \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.append_event") as mock_append_event:
-        resp = TestClient(_app()).get("/runs/run-inline-missing-1")
+        resp = TestClient(app).get("/runs/run-inline-missing-1")
 
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "running"
@@ -2797,11 +2818,18 @@ def test_get_run_detail_reconciles_orphaned_queued_run_when_queue_job_ended() ->
         run_mode="run_all",
     )
 
-    with patch("fitcv_cp.app.get_run", side_effect=[queued, failed]), \
-         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+    app = _app()
+    canonical_runs = iter([queued, failed])
+    app.state.run_store.get_run_fn = lambda _run_id: next(canonical_runs)
+    canonical_details = iter([
+        {"run_id": queued.run_id, "status": "queued", "backend_status": "queued", "queue_job_id": queued.queue_job_id},
+        {"run_id": failed.run_id, "status": "failed", "backend_status": "failed"},
+    ])
+    app.state.run_store.get_run_detail_fn = lambda _run_id: next(canonical_details)
+    with patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.append_event"), \
          patch("fitcv_cp.app.get_queue_job_status", return_value="finished"):
-        resp = TestClient(_app()).get("/runs/run-orphaned-queued-1")
+        resp = TestClient(app).get("/runs/run-orphaned-queued-1")
 
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "failed"
@@ -3490,8 +3518,14 @@ def test_get_runs_returns_frontend_run_metadata() -> None:
         candidate_profile_source="default_config",
         archived_at=archived_at,
     )
-    with patch("fitcv_cp.app.list_runs", return_value=[run]):
-        resp = TestClient(_app()).get("/runs?view=archived")
+    app = _app()
+    app.state.run_store.query_runs_fn = lambda **_kwargs: {
+        "items": [run],
+        "total": 1,
+        "active_count": 0,
+        "archived_count": 1,
+    }
+    resp = TestClient(app).get("/runs?view=archived")
 
     assert resp.status_code == 200
     payload = resp.json()["data"][0]
@@ -3500,7 +3534,7 @@ def test_get_runs_returns_frontend_run_metadata() -> None:
     assert payload["archived_at"] == archived_at.isoformat()
 
 
-def test_get_runs_legacy_fallback_preserves_tab_counts_and_server_time() -> None:
+def test_get_runs_canonical_query_preserves_tab_counts_and_server_time() -> None:
     from fitcv_cp.models import PipelineRun
 
     created_at = datetime.datetime.now(datetime.timezone.utc)
@@ -3524,8 +3558,14 @@ def test_get_runs_legacy_fallback_preserves_tab_counts_and_server_time() -> None
         archived_at=created_at,
     )
 
-    with patch("fitcv_cp.app.list_runs", return_value=[active, archived]):
-        resp = TestClient(_app()).get("/runs?view=archived")
+    app = _app()
+    app.state.run_store.query_runs_fn = lambda **_kwargs: {
+        "items": [archived],
+        "total": 1,
+        "active_count": 1,
+        "archived_count": 1,
+    }
+    resp = TestClient(app).get("/runs?view=archived")
 
     assert resp.status_code == 200
     assert [item["run_id"] for item in resp.json()["data"]] == ["run-archived-count-1"]
@@ -5101,18 +5141,26 @@ def test_debug_bundle_redacts_secrets_and_raw_snapshots() -> None:
 
 
 def test_get_run_events():
-    event = RunEvent(
-        run_id="some-id",
-        event_id="evt-1",
-        stage="pipeline_start",
-        level="info",
-        message="Run started",
-        created_at=datetime.datetime.now(datetime.timezone.utc),
-        payload_json='{"telemetry_export":{"status":"degraded"}}',
-    )
-    with patch("fitcv_cp.app.get_run", return_value=MagicMock()), \
-         patch("fitcv_cp.app.get_events", return_value=[event]):
-        resp = TestClient(_app()).get("/runs/some-id/events")
+    from fitcv_cp.models import build_process_event
+
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+    app.state.run_store.get_process_events_fn = lambda *_args, **_kwargs: {
+        "events": [build_process_event(
+            process_type="pipeline",
+            process_id="some-id",
+            operation="pipeline_start",
+            state="recorded",
+            level="info",
+            message="Run started",
+            event_id="evt-1",
+            payload={"telemetry_export": {"status": "degraded"}},
+        )],
+        "integrity_conflicts": [],
+        "total_count": 1,
+        "next_cursor": None,
+    }
+    resp = TestClient(app).get("/runs/some-id/events")
     assert resp.status_code == 200
     body = resp.json()["data"]
     assert len(body) == 1
@@ -5132,24 +5180,82 @@ def test_get_run_events_preserves_langfuse_rich_payload_json() -> None:
             "langfuse_rich_io_native": {"status": "sent:abc123", "degradation_reason": None},
         }
     )
-    event = RunEvent(
-        run_id="some-id",
-        event_id="evt-2",
-        stage="layer4_cv_analysis",
-        level="info",
-        message="Rich payload event",
-        created_at=datetime.datetime.now(datetime.timezone.utc),
-        payload_json=payload_json,
-    )
-    with patch("fitcv_cp.app.get_run", return_value=MagicMock()), \
-         patch("fitcv_cp.app.get_events", return_value=[event]):
-        resp = TestClient(_app()).get("/runs/some-id/events")
+    from fitcv_cp.models import build_process_event
+
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+    app.state.run_store.get_process_events_fn = lambda *_args, **_kwargs: {
+        "events": [build_process_event(
+            process_type="pipeline",
+            process_id="some-id",
+            operation="layer4_cv_analysis",
+            state="progress",
+            level="info",
+            message="Rich payload event",
+            event_id="evt-2",
+            payload=json.loads(payload_json),
+        )],
+        "integrity_conflicts": [],
+        "total_count": 1,
+        "next_cursor": None,
+    }
+    resp = TestClient(app).get("/runs/some-id/events")
     assert resp.status_code == 200
     body = resp.json()["data"]
     assert len(body) == 1
     parsed = body[0]["payload"]
     assert parsed["langfuse_rich_io"]["status"] == "ready"
     assert parsed["langfuse_rich_io_native"]["status"] == "sent:abc123"
+
+
+def test_get_run_events_returns_cursor_envelope_without_page_metadata() -> None:
+    from fitcv_cp.models import build_process_event
+
+    event = build_process_event(
+        process_type="pipeline",
+        process_id="run-canonical",
+        operation="screening",
+        state="succeeded",
+        level="info",
+        message="Screening completed.",
+        event_id="evt-canonical",
+        recorded_at=datetime.datetime(2026, 9, 5, 10, 0, tzinfo=datetime.timezone.utc),
+    )
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: {"run_id": run_id}
+    app.state.run_store.get_process_events_fn = lambda *args, **kwargs: {
+        "events": [event],
+        "next_cursor": "opaque-next",
+        "total_count": 3,
+        "integrity_conflicts": [],
+    }
+
+    response = TestClient(app).get("/runs/run-canonical/events?limit=1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {"data", "meta"}
+    assert payload["meta"] == {
+        "run_id": "run-canonical",
+        "limit": 1,
+        "cursor": None,
+        "next_cursor": "opaque-next",
+        "total_count": 3,
+        "integrity_conflicts": 0,
+    }
+    assert payload["data"][0]["event_id"] == "evt-canonical"
+
+
+def test_get_run_events_does_not_fallback_to_legacy_run_store() -> None:
+    app = _app()
+    app.state.run_store.get_run_detail_fn = lambda run_id: None
+
+    with patch("fitcv_cp.app.get_run") as legacy_get_run:
+        response = TestClient(app).get("/runs/missing/events")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "run_not_found"
+    legacy_get_run.assert_not_called()
 
 
 def test_healthz():
