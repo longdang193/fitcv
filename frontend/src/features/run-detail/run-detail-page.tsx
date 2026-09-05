@@ -206,6 +206,11 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     }
   }, [runId]);
 
+  useEffect(() => {
+    eventCursorRef.current = null;
+    setEvents([]);
+  }, [runId]);
+
   // Initial load
   useEffect(() => {
     loadRunDetail(true);

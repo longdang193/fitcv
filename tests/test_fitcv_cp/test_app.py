@@ -3493,7 +3493,7 @@ def test_get_runs_returns_list():
     assert resp.status_code == 200
     payload = resp.json()
     assert payload["data"] == []
-    assert payload["page"] == {"number": 1, "size": 20, "total_items": 0, "total_pages": 0}
+    assert payload["page"] == {"number": 1, "size": 20, "total_items": 0, "total_pages": 1}
     assert payload["meta"]["active_count"] == 0
     assert payload["meta"]["archived_count"] == 0
     assert payload["meta"]["view"] == "active"
@@ -5256,6 +5256,50 @@ def test_get_run_events_does_not_fallback_to_legacy_run_store() -> None:
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "run_not_found"
     legacy_get_run.assert_not_called()
+
+
+def test_run_history_http_routes_use_canonical_sqlite_rows() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="direct-canonical-run",
+        status=RunStatus.QUEUED,
+        triggered_by="test",
+        trigger_source="test",
+        jobs_path="jobs.json",
+        config_path="config",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        jobs_input_json=json.dumps([_valid_fitcv_job()]),
+        jobs_input_manifest_json="{}",
+    )
+    sqlite_store.insert_run(run)
+    sqlite_store.append_event(
+        RunEvent(
+            run_id=run.run_id,
+            event_id="direct-canonical-event",
+            stage="screening",
+            level="info",
+            message="screening started",
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+            payload_json="{}",
+        )
+    )
+
+    client = TestClient(app)
+    assert client.get("/runs").status_code == 200
+    assert client.get(f"/runs/{run.run_id}").status_code == 200
+    assert len(client.get(f"/runs/{run.run_id}/stages").json()["data"]) == 6
+    assert client.get(f"/runs/{run.run_id}/jobs").status_code == 200
+    events = client.get(f"/runs/{run.run_id}/events").json()
+    assert events["data"][0]["event_id"] == "direct-canonical-event"
+    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
+        legacy_tables = {
+            str(row[0])
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (?, ?)",
+                ("local_pipeline_runs", "local_pipeline_run_events"),
+            )
+        }
+    assert legacy_tables == set()
 
 
 def test_healthz():

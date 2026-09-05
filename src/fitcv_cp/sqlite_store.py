@@ -28,7 +28,7 @@ import sqlite3
 import time
 import unicodedata
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from collections.abc import Iterator
 from typing import Any, Callable, Optional
@@ -94,7 +94,10 @@ _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
 _DEGRADATION_REASON_NONE = "none"
 _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
-CONTROL_PLANE_SCHEMA_VERSION = 5
+CONTROL_PLANE_SCHEMA_VERSION = 6
+RUN_HISTORY_MIGRATION_ID = "fitcv_run_history_v1"
+_RUN_HISTORY_RUNS_TABLE = "local_pipeline_runs"
+_RUN_HISTORY_EVENTS_TABLE = "local_pipeline_run_events"
 _CANDIDATE_PROFILE_MAX_BYTES = 1024 * 1024
 _CANDIDATE_PROFILE_LEASE_SECONDS = 15 * 60
 
@@ -324,6 +327,40 @@ def _ensure_run_inputs_snapshot_columns(conn: sqlite3.Connection) -> None:
         if column not in columns:
             conn.execute(f"ALTER TABLE run_inputs ADD COLUMN {column} TEXT")
 
+
+def _ensure_run_history_migration_tables(conn: sqlite3.Connection) -> None:
+    schema = """
+        CREATE TABLE IF NOT EXISTS run_history_migration_ledger (
+            migration_id TEXT NOT NULL,
+            source_table TEXT NOT NULL,
+            source_identity TEXT NOT NULL,
+            source_fingerprint TEXT NOT NULL,
+            disposition TEXT NOT NULL CHECK (disposition IN ('inserted', 'equal', 'conflict', 'degraded', 'quarantined')),
+            canonical_id TEXT,
+            error_code TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (migration_id, source_table, source_identity, source_fingerprint)
+        );
+        CREATE INDEX IF NOT EXISTS ix_run_history_migration_identity
+            ON run_history_migration_ledger(migration_id, source_table, source_identity);
+        CREATE TABLE IF NOT EXISTS run_history_migration_quarantine (
+            migration_id TEXT NOT NULL,
+            source_table TEXT NOT NULL,
+            source_identity TEXT NOT NULL,
+            source_fingerprint TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            raw_payload BLOB,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (migration_id, source_table, source_identity, source_fingerprint, reason)
+        );
+        CREATE INDEX IF NOT EXISTS ix_run_history_quarantine_identity
+            ON run_history_migration_quarantine(migration_id, source_table, source_identity);
+        """
+    for statement in schema.split(";"):
+        if statement.strip():
+            conn.execute(statement)
+
 def _ensure_scan_execution_columns(conn: sqlite3.Connection) -> None:
     columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(scans)")}
     definitions = {
@@ -408,7 +445,7 @@ def _ensure_control_plane_schema(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
         )
     }
-    if version not in {0, 3, 4, CONTROL_PLANE_SCHEMA_VERSION} or (version == 0 and existing_tables):
+    if version not in {0, 3, 4, 5, CONTROL_PLANE_SCHEMA_VERSION} or (version == 0 and existing_tables):
         raise DatabaseSchemaIncompatibleError(version)
     schema = """
     CREATE TABLE IF NOT EXISTS candidate_profiles (
@@ -1077,6 +1114,7 @@ def _ensure_control_plane_schema(
             )
         _ensure_run_inputs_snapshot_columns(conn)
         _ensure_scan_execution_columns(conn)
+        _ensure_run_history_migration_tables(conn)
         if version == 4:
             _migrate_candidate_profiles_v4_to_v5(conn)
         if candidate_profiles is not None:
@@ -7689,40 +7727,6 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
             "ALTER TABLE cv_versions ADD COLUMN cv_generation_reuse_status TEXT"
         )
 
-def _ensure_local_pipeline_runs_table(conn: sqlite3.Connection) -> None:
-    for attempt in range(_SQLITE_OPEN_RETRY_ATTEMPTS):
-        try:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS local_pipeline_runs (
-                    run_id TEXT PRIMARY KEY,
-                    run_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                )
-                """
-            )
-            return
-        except sqlite3.OperationalError as exc:
-            if _is_transient_sqlite_open_error(exc) and attempt < (_SQLITE_OPEN_RETRY_ATTEMPTS - 1):
-                time.sleep(_SQLITE_OPEN_RETRY_DELAY_SECONDS)
-                continue
-            raise
-
-def _ensure_local_pipeline_run_events_table(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS local_pipeline_run_events (
-            run_id TEXT NOT NULL,
-            event_id TEXT NOT NULL,
-            stage TEXT NOT NULL,
-            level TEXT NOT NULL,
-            message TEXT NOT NULL,
-            payload_json TEXT,
-            created_at TEXT NOT NULL
-        )
-        """
-    )
-
 def _ensure_local_rule_filter_results_table(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
@@ -7934,7 +7938,7 @@ def _update_single_pipeline_run_json_field(
     local_mutator: Callable[[PipelineRun], PipelineRun],
 ) -> None:
     _validate_pipeline_runs_json_field_name(field_name)
-    _update_local_run(run_id, local_mutator)
+    _mutate_normalized_run(run_id, local_mutator)
     return
 
 def _update_pipeline_run_json_field_with_result(
@@ -7947,7 +7951,7 @@ def _update_pipeline_run_json_field_with_result(
     missing_column_result: PersistenceResult | None = None,
 ) -> PersistenceResult:
     _validate_pipeline_runs_json_field_name(field_name)
-    updated = _update_local_run(run_id, local_mutator)
+    updated = _mutate_normalized_run(run_id, local_mutator)
     if not updated:
         return _persistence_result("degraded", "run_not_found")
     return _persistence_result("persisted")
@@ -8015,80 +8019,11 @@ def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
         raw_status=raw_status_value,
     )
 
-def _upsert_local_pipeline_run(run: PipelineRun) -> None:
-    db_path = Path(_local_sqlite_path())
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    last_error: Exception | None = None
-    for attempt in range(_PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS):
-        try:
-            with _sqlite_connection(db_path) as conn:
-                _ensure_local_pipeline_runs_table(conn)
-                conn.execute(
-                    """
-                    INSERT INTO local_pipeline_runs(run_id, run_json, created_at)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(run_id) DO UPDATE SET
-                      run_json = excluded.run_json,
-                      created_at = excluded.created_at
-                    """,
-                    (run.run_id, _pipeline_run_to_json(run), run.created_at.isoformat()),
-                )
-                conn.commit()
-            return
-        except sqlite3.OperationalError as exc:
-            last_error = exc
-            if "disk I/O error" not in str(exc):
-                raise
-            if attempt >= _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS - 1:
-                raise
-            time.sleep(_PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS * (attempt + 1))
-    if last_error is not None:
-        raise last_error
-
-def _load_local_pipeline_run(run_id: str) -> Optional[PipelineRun]:
-    db_path = Path(_local_sqlite_path())
-    if not db_path.exists():
-        return None
-    with _sqlite_connection(db_path) as conn:
-        _ensure_local_pipeline_runs_table(conn)
-        row = conn.execute(
-            "SELECT run_json FROM local_pipeline_runs WHERE run_id = ? LIMIT 1",
-            (run_id,),
-        ).fetchone()
-    if not row:
-        return None
-    return _pipeline_run_from_json(str(row[0] or ""))
-
-def _list_local_pipeline_runs() -> list[PipelineRun]:
-    db_path = Path(_local_sqlite_path())
-    if not db_path.exists():
-        return []
-    with _sqlite_connection(db_path) as conn:
-        _ensure_local_pipeline_runs_table(conn)
-        rows = conn.execute(
-            "SELECT run_json FROM local_pipeline_runs ORDER BY created_at DESC"
-        ).fetchall()
-    runs: list[PipelineRun] = []
-    for row in rows:
-        run = _pipeline_run_from_json(str(row[0] or ""))
-        if run is not None and run.run_id:
-            runs.append(run)
-    return runs
-
-def _local_get_run(run_id: str) -> Optional[PipelineRun]:
-    # Always consult sqlite source-of-truth first.
-    #
-    # When `web` and `worker` run in separate processes/containers (common in
-    # docker-compose), relying on in-process cache can cause stale reads for
-    # status/timestamps written by the other process.
-    run = _load_local_pipeline_run(run_id)
-    return dataclasses.replace(run) if run is not None else None
-
-def _local_save_run(run: PipelineRun) -> None:
-    _upsert_local_pipeline_run(run)
-
-
-def _ensure_process_event_tables(conn: sqlite3.Connection) -> None:
+def _ensure_process_event_tables(
+    conn: sqlite3.Connection,
+    *,
+    migrate_legacy: bool = True,
+) -> None:
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS process_events (
@@ -8145,7 +8080,8 @@ def _ensure_process_event_tables(conn: sqlite3.Connection) -> None:
         END;
         """
     )
-    _migrate_legacy_process_events(conn)
+    if migrate_legacy:
+        _migrate_legacy_process_events(conn)
 
 
 def _process_event_record(event: ProcessEvent) -> dict[str, Any]:
@@ -8714,69 +8650,6 @@ def _local_event_history_file(run_id: str) -> Path:
     safe_run_id = "".join(ch for ch in str(run_id) if ch.isalnum() or ch in {"-", "_"})
     return _local_event_history_dir() / f"{safe_run_id}.jsonl"
 
-def _append_local_pipeline_run_event(event: RunEvent) -> None:
-    db_path = Path(_local_sqlite_path())
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with _sqlite_connection(db_path) as conn:
-        _ensure_local_pipeline_run_events_table(conn)
-        conn.execute(
-            """
-            INSERT INTO local_pipeline_run_events(
-                run_id, event_id, stage, level, message, payload_json, created_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                event.run_id,
-                event.event_id,
-                event.stage,
-                event.level,
-                event.message,
-                event.payload_json,
-                event.created_at.isoformat(),
-            ),
-        )
-        conn.commit()
-
-def _list_local_pipeline_run_events(run_id: str) -> list[RunEvent]:
-    db_path = Path(_local_sqlite_path())
-    if not db_path.exists():
-        return []
-    with _sqlite_connection(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        _ensure_local_pipeline_run_events_table(conn)
-        rows = conn.execute(
-            """
-            SELECT run_id, event_id, stage, level, message, payload_json, created_at
-            FROM local_pipeline_run_events
-            WHERE run_id = ?
-            ORDER BY created_at ASC, rowid ASC
-            """,
-            (run_id,),
-        ).fetchall()
-    events: list[RunEvent] = []
-    for row in rows:
-        created_raw = str(row["created_at"] or "").strip()
-        created_at = (
-            datetime.datetime.fromisoformat(created_raw)
-            if created_raw
-            else datetime.datetime.now(datetime.timezone.utc)
-        )
-        events.append(
-            RunEvent(
-                run_id=str(row["run_id"] or run_id),
-                event_id=str(row["event_id"] or ""),
-                stage=str(row["stage"] or ""),
-                level=str(row["level"] or ""),
-                message=str(row["message"] or ""),
-                created_at=created_at,
-                payload_json=row["payload_json"],
-            )
-        )
-    return events
-
-
-
 def insert_run(run: PipelineRun, *_compat_args: Any, **_compat_kwargs: Any) -> None:
     _local_save_run(dataclasses.replace(run))
     return
@@ -9038,11 +8911,7 @@ def update_run_settings_used(
     **_compat_kwargs: Any,
 ) -> PersistenceResult:
     """Persist the immutable run-scoped settings-used snapshot."""
-    normalized_updated = _mutate_normalized_run(
-        run_id,
-        lambda existing: dataclasses.replace(existing, settings_used_json=settings_used_json),
-    )
-    local_result = _update_pipeline_run_json_field_with_result(
+    return _update_pipeline_run_json_field_with_result(
         run_id=run_id,
         field_name="settings_used_json",
         field_value=settings_used_json,
@@ -9050,7 +8919,6 @@ def update_run_settings_used(
             existing, settings_used_json=settings_used_json
         ),
     )
-    return _persistence_result("persisted") if normalized_updated else local_result
 
 
 def update_run_mapping_suggestions(
@@ -9163,20 +9031,6 @@ def unarchive_run(
     _local_save_run(updated)
     return
 
-
-
-def _delete_local_pipeline_run(run_id: str) -> None:
-    db_path = Path(_local_sqlite_path())
-    if db_path.exists():
-        with _sqlite_connection(db_path) as conn:
-            _ensure_local_pipeline_runs_table(conn)
-            _ensure_local_pipeline_run_events_table(conn)
-            conn.execute("DELETE FROM local_pipeline_runs WHERE run_id = ?", (run_id,))
-            conn.execute("DELETE FROM local_pipeline_run_events WHERE run_id = ?", (run_id,))
-            conn.commit()
-    event_file = _local_event_history_file(run_id)
-    if event_file.exists():
-        event_file.unlink()
 
 
 def _delete_run_artifact_mirror(run_id: str) -> None:
@@ -9835,13 +9689,22 @@ def create_run_bundle(
     *,
     input_resource: dict[str, Any],
     jobs: list[dict[str, Any]],
+    _conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     from fitcv_cp.run_lifecycle import PROTOTYPE_STAGES
 
-    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
-        _ensure_control_plane_schema(conn)
+    connection_context = (
+        nullcontext(_conn)
+        if _conn is not None
+        else _sqlite_connection(Path(_local_sqlite_path()))
+    )
+    owns_transaction = _conn is None
+    with connection_context as conn:
+        if owns_transaction:
+            _ensure_control_plane_schema(conn)
         try:
-            conn.execute("BEGIN IMMEDIATE")
+            if owns_transaction:
+                conn.execute("BEGIN IMMEDIATE")
             strict_profile = bool(input_resource.get("strict_candidate_profile"))
             profile_id = str(input_resource.get("candidate_profile_id") or "").strip()
             if strict_profile:
@@ -10016,11 +9879,840 @@ def create_run_bundle(
                         json.dumps(job.get("skills") or job.get("required_skills") or job.get("required_skills_canonical") or job.get("required_skills_display") or job.get("must_have_skills") or []),
                     ),
                 )
-            conn.commit()
+            if owns_transaction:
+                conn.commit()
         except Exception:
-            conn.rollback()
+            if owns_transaction:
+                conn.rollback()
             raise
     return {"run_id": run.run_id, "run_job_ids": run_job_ids}
+
+
+def _run_history_canonical_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _run_history_fingerprint(value: Any) -> str:
+    return hashlib.sha256(_run_history_canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def _run_history_raw_bytes(value: Any) -> bytes:
+    if isinstance(value, bytes):
+        return value
+    if isinstance(value, memoryview):
+        return value.tobytes()
+    return str(value or "").encode("utf-8")
+
+
+def _run_history_raw_text(value: Any) -> str | None:
+    raw = _run_history_raw_bytes(value)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def _run_history_json_value(value: Any) -> tuple[Any, bool]:
+    if isinstance(value, (dict, list, str, int, float, bool)) or value is None:
+        if not isinstance(value, (str, bytes, memoryview)):
+            return value, False
+    text = _run_history_raw_text(value)
+    if text is None:
+        return {"legacy_payload_json_base64": base64.b64encode(_run_history_raw_bytes(value)).decode("ascii")}, True
+    try:
+        return json.loads(text), False
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {"legacy_payload_json": text}, True
+
+
+def _run_history_json_text(value: Any, fallback: str) -> str:
+    text = _run_history_raw_text(value)
+    if text is not None:
+        try:
+            json.loads(text)
+            return text
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+    return fallback
+
+
+def _run_history_timestamp(value: Any, fallback: Any = None) -> datetime.datetime:
+    parsed = value if isinstance(value, datetime.datetime) else _parse_dt(value)
+    if parsed is None:
+        parsed = fallback if isinstance(fallback, datetime.datetime) else _parse_dt(fallback)
+    if parsed is None:
+        parsed = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed.astimezone(datetime.timezone.utc)
+
+
+def _run_history_optional_timestamp(value: Any) -> datetime.datetime | None:
+    if value is None or not str(value).strip():
+        return None
+    return _run_history_timestamp(value)
+
+
+def _run_history_nonnegative_int(value: Any, default: int = 0) -> int:
+    try:
+        return max(0, int(value)) if value is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _run_history_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        (table_name,),
+    ).fetchone() is not None
+
+
+def _run_history_ledger_has_exact(
+    conn: sqlite3.Connection,
+    migration_id: str,
+    source_table: str,
+    source_identity: str,
+    source_fingerprint: str,
+) -> bool:
+    if not _run_history_table_exists(conn, "run_history_migration_ledger"):
+        return False
+    return conn.execute(
+        """
+        SELECT 1
+        FROM run_history_migration_ledger
+        WHERE migration_id=? AND source_table=? AND source_identity=? AND source_fingerprint=?
+        LIMIT 1
+        """,
+        (migration_id, source_table, source_identity, source_fingerprint),
+    ).fetchone() is not None
+
+
+def _run_history_ledger_has_other_fingerprint(
+    conn: sqlite3.Connection,
+    migration_id: str,
+    source_table: str,
+    source_identity: str,
+    source_fingerprint: str,
+) -> bool:
+    if not _run_history_table_exists(conn, "run_history_migration_ledger"):
+        return False
+    return conn.execute(
+        """
+        SELECT 1
+        FROM run_history_migration_ledger
+        WHERE migration_id=? AND source_table=? AND source_identity=? AND source_fingerprint<>?
+        LIMIT 1
+        """,
+        (migration_id, source_table, source_identity, source_fingerprint),
+    ).fetchone() is not None
+
+
+def _run_history_record_ledger(
+    conn: sqlite3.Connection,
+    *,
+    migration_id: str,
+    source_table: str,
+    source_identity: str,
+    source_fingerprint: str,
+    disposition: str,
+    canonical_id: str | None = None,
+    error_code: str | None = None,
+) -> None:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO run_history_migration_ledger(
+            migration_id, source_table, source_identity, source_fingerprint,
+            disposition, canonical_id, error_code, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            migration_id,
+            source_table,
+            source_identity,
+            source_fingerprint,
+            disposition,
+            canonical_id,
+            error_code,
+            now,
+            now,
+        ),
+    )
+
+
+def _run_history_quarantine(
+    conn: sqlite3.Connection,
+    *,
+    migration_id: str,
+    source_table: str,
+    source_identity: str,
+    source_fingerprint: str,
+    reason: str,
+    raw_payload: bytes | None,
+) -> None:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO run_history_migration_quarantine(
+            migration_id, source_table, source_identity, source_fingerprint,
+            reason, raw_payload, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            migration_id,
+            source_table,
+            source_identity,
+            source_fingerprint,
+            reason,
+            raw_payload,
+            now,
+        ),
+    )
+
+
+def _run_history_source_run_fingerprint(
+    run_id: str,
+    created_at: str,
+    raw_run_json: bytes,
+) -> str:
+    return _run_history_fingerprint(
+        {
+            "source_table": _RUN_HISTORY_RUNS_TABLE,
+            "run_id": run_id,
+            "created_at": created_at,
+            "run_json_b64": base64.b64encode(raw_run_json).decode("ascii"),
+        }
+    )
+
+
+def _run_history_source_event_fingerprint(row: sqlite3.Row, has_event_fingerprint: bool) -> str:
+    if has_event_fingerprint:
+        existing = str(row["event_fingerprint"] or "").strip()
+        if existing:
+            return existing
+    payload_json = _run_history_raw_text(row["payload_json"])
+    if payload_json is None:
+        payload_json = {"base64": base64.b64encode(_run_history_raw_bytes(row["payload_json"])).decode("ascii")}
+    return _run_history_fingerprint(
+        {
+            "source_table": _RUN_HISTORY_EVENTS_TABLE,
+            "run_id": str(row["run_id"] or ""),
+            "event_id": str(row["event_id"] or ""),
+            "stage": str(row["stage"] or ""),
+            "level": str(row["level"] or ""),
+            "message": str(row["message"] or ""),
+            "payload_json": payload_json,
+            "created_at": str(row["created_at"] or ""),
+        }
+    )
+
+
+def _run_history_pipeline_run(
+    run_id: str,
+    payload: dict[str, Any],
+    source_created_at: str,
+) -> tuple[PipelineRun, str | None]:
+    status_text = str(payload.get("status") or "").strip().lower()
+    try:
+        status = RunStatus(status_text)
+        status_error = None
+    except ValueError:
+        status = RunStatus.FAILED
+        status_error = "unknown_run_status" if status_text else None
+    created_at = _run_history_timestamp(payload.get("created_at"), source_created_at)
+    total_jobs = payload.get("total_jobs")
+    passed_filter = payload.get("passed_filter")
+    rejected_jobs = payload.get("rejected_jobs")
+    if rejected_jobs is None:
+        rejected_jobs = max(0, _run_history_nonnegative_int(total_jobs) - _run_history_nonnegative_int(passed_filter))
+    run = PipelineRun(
+        run_id=run_id,
+        status=status,
+        triggered_by=str(payload.get("triggered_by") or "legacy"),
+        trigger_source=str(payload.get("trigger_source") or "legacy"),
+        jobs_path=str(payload.get("jobs_path") or "legacy_unknown"),
+        config_path=str(payload.get("config_path") or "legacy_unknown"),
+        created_at=created_at,
+        run_name=str(payload.get("run_name") or Path(str(payload.get("jobs_path") or "")).stem or run_id),
+        started_at=_run_history_optional_timestamp(payload.get("started_at")),
+        finished_at=_run_history_optional_timestamp(payload.get("finished_at")),
+        total_jobs=_run_history_nonnegative_int(total_jobs),
+        passed_filter=_run_history_nonnegative_int(passed_filter),
+        rejected_jobs=_run_history_nonnegative_int(rejected_jobs),
+        ranked=_run_history_nonnegative_int(payload.get("ranked")),
+        cvs_generated=_run_history_nonnegative_int(payload.get("cvs_generated")),
+        error_message=payload.get("error_message"),
+        error_stage=payload.get("error_stage"),
+        effective_settings_json=payload.get("effective_settings_json"),
+        results_export_json=payload.get("results_export_json"),
+        cv_generation_debug_json=payload.get("cv_generation_debug_json"),
+        stage_transition_artifacts_json=(payload.get("stage_transition_artifacts_json") or payload.get("stage_artifacts_json")),
+        settings_used_json=payload.get("settings_used_json"),
+        mapping_suggestions_json=payload.get("mapping_suggestions_json"),
+        synonym_proposals_json=payload.get("synonym_proposals_json"),
+        run_mode=str(payload.get("run_mode") or "run_all"),
+        checkpoint_status=payload.get("checkpoint_status"),
+        next_stage=payload.get("next_stage"),
+        last_completed_stage=payload.get("last_completed_stage"),
+        completed_stages=list(payload.get("completed_stages") or []) if isinstance(payload.get("completed_stages"), list) else None,
+        checkpoint_payload_json=payload.get("checkpoint_payload_json"),
+        jobs_input_source=payload.get("jobs_input_source"),
+        jobs_input_json=payload.get("jobs_input_json") if isinstance(payload.get("jobs_input_json"), str) else (
+            _run_history_canonical_json(payload["jobs_input_json"]) if payload.get("jobs_input_json") is not None else None
+        ),
+        jobs_input_manifest_json=payload.get("jobs_input_manifest_json") if isinstance(payload.get("jobs_input_manifest_json"), str) else (
+            _run_history_canonical_json(payload["jobs_input_manifest_json"]) if payload.get("jobs_input_manifest_json") is not None else None
+        ),
+        candidate_profile_source=payload.get("candidate_profile_source"),
+        candidate_profile_json=payload.get("candidate_profile_json") if isinstance(payload.get("candidate_profile_json"), str) else (
+            _run_history_canonical_json(payload["candidate_profile_json"]) if payload.get("candidate_profile_json") is not None else None
+        ),
+        queue_job_id=payload.get("queue_job_id"),
+        orchestration_backend=payload.get("orchestration_backend"),
+        orchestration_run_id=payload.get("orchestration_run_id"),
+        cancel_requested_at=_run_history_optional_timestamp(payload.get("cancel_requested_at")),
+        cancel_requested_by=payload.get("cancel_requested_by"),
+        archived_at=_run_history_optional_timestamp(payload.get("archived_at")),
+        archived_by=payload.get("archived_by"),
+        raw_status=str(payload.get("raw_status") or "") or None,
+        status_detail=payload.get("status_detail"),
+        warning_json=payload.get("warning_json"),
+        partial_completion=bool(payload.get("partial_completion")),
+        progress_completed=_run_history_nonnegative_int(payload.get("progress_completed")),
+        progress_total=_run_history_nonnegative_int(payload.get("progress_total")),
+    )
+    if run.run_name:
+        run.run_name = run.run_name[:120]
+    if run.status not in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}:
+        run.finished_at = None
+        run.archived_at = None
+    return run, status_error
+
+
+def _run_history_canonical_run_matches(row: sqlite3.Row, run: PipelineRun) -> bool:
+    comparisons = (
+        (str(row["run_name"]), _run_name(run)),
+        (str(row["backend_status"]), run.status.value),
+        (row["status_detail"], run.status_detail),
+        (str(row["triggered_by"]), run.triggered_by),
+        (str(row["trigger_source"]), run.trigger_source),
+        (str(row["trigger_mode"]), run.run_mode),
+        (_run_history_timestamp(row["created_at"]).isoformat(), run.created_at.isoformat()),
+        (_run_history_timestamp(row["started_at"]).isoformat() if row["started_at"] else None, run.started_at.isoformat() if run.started_at else None),
+        (_run_history_timestamp(row["finished_at"]).isoformat() if row["finished_at"] else None, run.finished_at.isoformat() if run.finished_at else None),
+        (_run_history_timestamp(row["archived_at"]).isoformat() if row["archived_at"] else None, run.archived_at.isoformat() if run.archived_at else None),
+        (row["archived_by"], run.archived_by),
+        (int(row["total_jobs"]), _run_history_nonnegative_int(run.total_jobs)),
+        (int(row["passed_jobs"]), _run_history_nonnegative_int(run.passed_filter)),
+        (int(row["rejected_jobs"]), _run_history_nonnegative_int(run.rejected_jobs)),
+        (int(row["cvs_generated"]), _run_history_nonnegative_int(run.cvs_generated)),
+        (row["settings_used_json"], run.settings_used_json),
+        (row["error_code"], run.error_stage),
+        (row["error_message"], run.error_message),
+    )
+    return all(left == right for left, right in comparisons)
+
+
+def _run_history_stage_updates(run: PipelineRun) -> list[tuple[str, str, str]]:
+    completed = {
+        canonical_stage_id(str(stage))
+        for stage in (run.completed_stages or [])
+        if canonical_stage_id(str(stage))
+    }
+    last_completed = canonical_stage_id(str(run.last_completed_stage or ""))
+    if last_completed:
+        completed.add(last_completed)
+    current = canonical_stage_id(str(run.next_stage or ""))
+    error_stage = canonical_stage_id(str(run.error_stage or ""))
+    active = run.status in {
+        RunStatus.QUEUED,
+        RunStatus.RUNNING,
+        RunStatus.AWAITING_CONTINUE,
+        RunStatus.CANCELLING,
+    }
+    terminal = run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}
+    updates: list[tuple[str, str, str]] = []
+    for stage in PROTOTYPE_STAGES:
+        if stage.stage_id in completed:
+            status = "succeeded"
+            derived = "false"
+        elif active and stage.stage_id == current:
+            status = "running"
+            derived = "false"
+        elif terminal and run.status is RunStatus.FAILED and stage.stage_id == error_stage:
+            status = "failed"
+            derived = "false"
+        elif terminal:
+            status = "skipped"
+            derived = "true"
+        else:
+            status = "pending"
+            derived = "true"
+        evidence = _run_history_canonical_json({"legacy": {"is_derived": derived == "true", "source": _RUN_HISTORY_RUNS_TABLE}})
+        updates.append((stage.stage_id, status, evidence))
+    return updates
+
+
+def _run_history_jobs(run: PipelineRun) -> tuple[list[dict[str, Any]], bool, str, str]:
+    raw_jobs = run.jobs_input_json
+    jobs_value, jobs_malformed = _run_history_json_value(raw_jobs)
+    jobs = [dict(job) for job in jobs_value if isinstance(job, dict)] if isinstance(jobs_value, list) else []
+    jobs_json = _run_history_json_text(raw_jobs, "[]") if isinstance(jobs_value, list) else "[]"
+    manifest_value, manifest_malformed = _run_history_json_value(run.jobs_input_manifest_json)
+    manifest = manifest_value if isinstance(manifest_value, dict) else {}
+    manifest_json = _run_history_json_text(run.jobs_input_manifest_json, "{}") if isinstance(manifest_value, dict) else "{}"
+    return jobs, jobs_malformed or manifest_malformed or not isinstance(jobs_value, list), jobs_json, manifest_json
+
+
+def _run_history_backfill_run_bundle(
+    conn: sqlite3.Connection,
+    run: PipelineRun,
+    *,
+    compatibility_payload: dict[str, Any],
+) -> None:
+    source_run = dataclasses.replace(run)
+    jobs, _, jobs_json, manifest_json = _run_history_jobs(source_run)
+    manifest_value = json.loads(manifest_json)
+    if isinstance(manifest_value, dict) and isinstance(manifest_value.get("sources"), list):
+        manifest_value = {
+            **manifest_value,
+            "sources": [
+                source for source in manifest_value["sources"]
+                if not isinstance(source, dict) or source.get("type") != "scan"
+            ],
+        }
+        manifest_json = _run_history_canonical_json(manifest_value)
+    source_filenames = manifest_value.get("source_filenames") if isinstance(manifest_value, dict) else None
+    original_filename = str((source_filenames or [""])[0] if isinstance(source_filenames, list) and source_filenames else "")
+    original_filename = original_filename or Path(source_run.jobs_path).name or "historical-unknown"
+    profile_json = _run_history_json_text(source_run.candidate_profile_json, "{}")
+    settings_json = _run_history_json_text(source_run.effective_settings_json or source_run.settings_used_json, "{}")
+    byte_length = manifest_value.get("byte_length") if isinstance(manifest_value, dict) else None
+    if byte_length is None:
+        byte_length = len(_run_history_raw_bytes(source_run.jobs_input_json))
+    sha256 = str(manifest_value.get("sha256") or "") if isinstance(manifest_value, dict) else ""
+    if not sha256:
+        sha256 = hashlib.sha256(_run_history_raw_bytes(source_run.jobs_input_json)).hexdigest()
+    input_resource = {
+        "original_filename": original_filename,
+        "media_type": str(manifest_value.get("media_type") or "application/json") if isinstance(manifest_value, dict) else "application/json",
+        "byte_length": _run_history_nonnegative_int(byte_length),
+        "sha256": sha256,
+        "jobs_snapshot_json": jobs_json,
+        "jobs_manifest_json": manifest_json,
+        "candidate_profile_name": "Historical unknown",
+        "candidate_profile_json": profile_json,
+        "settings_revision": _settings_revision(source_run),
+        "settings_snapshot_json": settings_json,
+    }
+    create_run_bundle(source_run, input_resource=input_resource, jobs=jobs, _conn=conn)
+    normalized = json.loads(_pipeline_run_to_json(source_run))
+    normalized.update(compatibility_payload)
+    conn.execute(
+        """
+        UPDATE pipeline_runs
+        SET total_jobs=?, passed_jobs=?, rejected_jobs=?, progress_completed=?, progress_total=?,
+            compatibility_json=?
+        WHERE run_id=?
+        """,
+        (
+            _run_history_nonnegative_int(run.total_jobs, len(jobs)),
+            _run_history_nonnegative_int(run.passed_filter),
+            _run_history_nonnegative_int(run.rejected_jobs),
+            _run_history_nonnegative_int(run.progress_completed),
+            _run_history_nonnegative_int(run.progress_total, _run_history_nonnegative_int(run.total_jobs, len(jobs))),
+            _run_history_canonical_json(normalized),
+            run.run_id,
+        ),
+    )
+    for stage_id, status, evidence in _run_history_stage_updates(run):
+        conn.execute(
+            """
+            UPDATE run_stage_executions
+            SET status=?, progress_completed=?, progress_total=?, error_code=?, error_message=?, evidence_reference=?
+            WHERE run_id=? AND stage_id=?
+            """,
+            (
+                status,
+                _run_history_nonnegative_int(run.progress_completed) if status == "running" else 0,
+                _run_history_nonnegative_int(run.progress_total) if status == "running" else 0,
+                run.error_stage if status == "failed" else None,
+                run.error_message if status == "failed" else None,
+                evidence,
+                run.run_id,
+                stage_id,
+            ),
+        )
+
+
+def _run_history_process_run(
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    *,
+    migration_id: str,
+    dry_run: bool,
+) -> tuple[str, str | None]:
+    run_id = str(row["run_id"] or "").strip()
+    raw_bytes = _run_history_raw_bytes(row["run_json"])
+    source_created_at = str(row["created_at"] or "")
+    source_fingerprint = _run_history_source_run_fingerprint(run_id, source_created_at, raw_bytes)
+    source_identity = f"run_id:{run_id}" if run_id else f"rowid:{row['source_rowid']}"
+    if not run_id:
+        if not dry_run:
+            _run_history_record_ledger(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_RUNS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                disposition="quarantined",
+                error_code="run_id_missing",
+            )
+            _run_history_quarantine(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_RUNS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                reason="run_id_missing",
+                raw_payload=raw_bytes,
+            )
+        return "quarantined", "run_id_missing"
+    if _run_history_ledger_has_other_fingerprint(conn, migration_id, _RUN_HISTORY_RUNS_TABLE, source_identity, source_fingerprint):
+        if not dry_run:
+            _run_history_record_ledger(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_RUNS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                disposition="conflict",
+                canonical_id=run_id,
+                error_code="source_fingerprint_conflict",
+            )
+            _run_history_quarantine(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_RUNS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                reason="source_fingerprint_conflict",
+                raw_payload=raw_bytes,
+            )
+        return "conflict", "source_fingerprint_conflict"
+    raw_text = _run_history_raw_text(row["run_json"])
+    payload_value, malformed = _run_history_json_value(row["run_json"])
+    payload = payload_value if isinstance(payload_value, dict) and not malformed else {}
+    payload_run_id = str(payload.get("run_id") or "").strip()
+    run, status_error = _run_history_pipeline_run(run_id, payload, source_created_at)
+    error_code = "malformed_run_json" if malformed else status_error
+    _, input_degraded, _, _ = _run_history_jobs(run)
+    if not error_code and input_degraded:
+        error_code = "malformed_run_input"
+    if payload_run_id and payload_run_id != run_id:
+        error_code = "run_id_mismatch"
+    compatibility = json.loads(_pipeline_run_to_json(run))
+    compatibility["legacy_run"] = payload if not malformed else (
+        {"raw_run_json": raw_text} if raw_text is not None else {"raw_run_json_base64": base64.b64encode(raw_bytes).decode("ascii")}
+    )
+    compatibility["legacy"] = {
+        "is_backfilled": True,
+        "unknown_fields": sorted(key for key in payload if key not in {field.name for field in dataclasses.fields(PipelineRun)}),
+        "degraded": bool(error_code),
+    }
+    canonical_row = conn.execute("SELECT * FROM pipeline_runs WHERE run_id=?", (run_id,)).fetchone()
+    if canonical_row is not None:
+        disposition = "equal" if not malformed and _run_history_canonical_run_matches(canonical_row, run) else "conflict"
+        if not dry_run:
+            _run_history_record_ledger(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_RUNS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                disposition=disposition,
+                canonical_id=run_id,
+                error_code=None if disposition == "equal" else "canonical_run_conflict",
+            )
+            if disposition == "conflict":
+                _run_history_quarantine(
+                    conn,
+                    migration_id=migration_id,
+                    source_table=_RUN_HISTORY_RUNS_TABLE,
+                    source_identity=source_identity,
+                    source_fingerprint=source_fingerprint,
+                    reason="canonical_run_conflict",
+                    raw_payload=raw_bytes,
+                )
+        return disposition, None if disposition == "equal" else "canonical_run_conflict"
+    if not dry_run:
+        _run_history_backfill_run_bundle(conn, run, compatibility_payload=compatibility)
+        _run_history_record_ledger(
+            conn,
+            migration_id=migration_id,
+            source_table=_RUN_HISTORY_RUNS_TABLE,
+            source_identity=source_identity,
+            source_fingerprint=source_fingerprint,
+            disposition="degraded" if error_code else "inserted",
+            canonical_id=run_id,
+            error_code=error_code,
+        )
+        if error_code:
+            _run_history_quarantine(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_RUNS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                reason=error_code,
+                raw_payload=raw_bytes,
+            )
+    return ("degraded" if error_code else "inserted"), error_code
+
+
+def _run_history_process_event(
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    *,
+    migration_id: str,
+    dry_run: bool,
+    has_event_fingerprint: bool,
+) -> tuple[str, str | None]:
+    run_id = str(row["run_id"] or "").strip()
+    event_id = str(row["event_id"] or "").strip()
+    source_identity = f"rowid:{row['source_rowid']}"
+    source_fingerprint = _run_history_source_event_fingerprint(row, has_event_fingerprint)
+    raw_payload = _run_history_raw_bytes(row["payload_json"])
+    if _run_history_ledger_has_other_fingerprint(conn, migration_id, _RUN_HISTORY_EVENTS_TABLE, source_identity, source_fingerprint):
+        if not dry_run:
+            _run_history_record_ledger(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_EVENTS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                disposition="conflict",
+                canonical_id=event_id or None,
+                error_code="source_fingerprint_conflict",
+            )
+            _run_history_quarantine(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_EVENTS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                reason="source_fingerprint_conflict",
+                raw_payload=raw_payload,
+            )
+        return "conflict", "source_fingerprint_conflict"
+    if not run_id or not event_id or not _run_history_table_exists(conn, _RUN_HISTORY_RUNS_TABLE) or conn.execute(
+        "SELECT 1 FROM local_pipeline_runs WHERE run_id=? LIMIT 1", (run_id,)
+    ).fetchone() is None:
+        error_code = "orphan_event" if run_id else "run_id_missing"
+        if not dry_run:
+            _run_history_record_ledger(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_EVENTS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                disposition="quarantined",
+                canonical_id=event_id or None,
+                error_code=error_code,
+            )
+            _run_history_quarantine(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_EVENTS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                reason=error_code,
+                raw_payload=raw_payload,
+            )
+        return "quarantined", error_code
+    payload, payload_malformed = _run_history_json_value(row["payload_json"])
+    recorded_at = _run_history_timestamp(row["created_at"])
+    event = build_process_event(
+        process_type="pipeline",
+        process_id=run_id,
+        operation=str(row["stage"] or "legacy"),
+        state="recorded",
+        level=str(row["level"] or "info"),
+        message=str(row["message"] or ""),
+        payload=payload,
+        event_id=event_id,
+        recorded_at=recorded_at,
+    )
+    canonical = conn.execute(
+        "SELECT event_fingerprint FROM process_events WHERE event_id=?",
+        (event_id,),
+    ).fetchone() if _run_history_table_exists(conn, "process_events") else None
+    if dry_run:
+        disposition = "equal" if canonical is not None and str(canonical[0]) == event.event_fingerprint else "conflict" if canonical is not None else "inserted"
+    else:
+        disposition = _insert_process_event(conn, event)
+    error_code = "malformed_payload_json" if payload_malformed else None
+    if not dry_run:
+        _run_history_record_ledger(
+            conn,
+            migration_id=migration_id,
+            source_table=_RUN_HISTORY_EVENTS_TABLE,
+            source_identity=source_identity,
+            source_fingerprint=source_fingerprint,
+            disposition=disposition,
+            canonical_id=event_id,
+            error_code=error_code if disposition == "inserted" else "event_fingerprint_conflict" if disposition == "conflict" else None,
+        )
+        if payload_malformed:
+            _run_history_quarantine(
+                conn,
+                migration_id=migration_id,
+                source_table=_RUN_HISTORY_EVENTS_TABLE,
+                source_identity=source_identity,
+                source_fingerprint=source_fingerprint,
+                reason="malformed_payload_json",
+                raw_payload=raw_payload,
+            )
+    return disposition, error_code if disposition == "inserted" else "event_fingerprint_conflict" if disposition == "conflict" else None
+
+
+def _run_history_source_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    return {str(row[1]) for row in conn.execute(f"PRAGMA table_info({table_name})")}
+
+
+def _run_history_process_sources(
+    conn: sqlite3.Connection,
+    *,
+    source_table: str,
+    batch_size: int,
+    migration_id: str,
+    dry_run: bool,
+) -> dict[str, int]:
+    summary = {"scanned": 0, "processed": 0, "inserted": 0, "equal": 0, "conflict": 0, "degraded": 0, "quarantined": 0}
+    if not _run_history_table_exists(conn, source_table):
+        return summary
+    has_event_fingerprint = source_table == _RUN_HISTORY_EVENTS_TABLE and "event_fingerprint" in _run_history_source_columns(conn, source_table)
+    last_rowid = 0
+    while summary["processed"] < batch_size:
+        if source_table == _RUN_HISTORY_RUNS_TABLE:
+            rows = conn.execute(
+                "SELECT rowid AS source_rowid, run_id, run_json, created_at FROM local_pipeline_runs WHERE rowid>? ORDER BY rowid LIMIT ?",
+                (last_rowid, batch_size),
+            ).fetchall()
+        else:
+            event_columns = "rowid AS source_rowid, run_id, event_id, stage, level, message, payload_json, created_at"
+            if has_event_fingerprint:
+                event_columns += ", event_fingerprint"
+            rows = conn.execute(
+                f"SELECT {event_columns} FROM local_pipeline_run_events WHERE rowid>? ORDER BY rowid LIMIT ?",
+                (last_rowid, batch_size),
+            ).fetchall()
+        if not rows:
+            break
+        last_rowid = int(rows[-1]["source_rowid"])
+        for row in rows:
+            summary["scanned"] += 1
+            if source_table == _RUN_HISTORY_RUNS_TABLE:
+                raw_bytes = _run_history_raw_bytes(row["run_json"])
+                source_identity = f"run_id:{str(row['run_id'] or '').strip()}" if str(row["run_id"] or "").strip() else f"rowid:{row['source_rowid']}"
+                fingerprint = _run_history_source_run_fingerprint(str(row["run_id"] or "").strip(), str(row["created_at"] or ""), raw_bytes)
+            else:
+                source_identity = f"rowid:{row['source_rowid']}"
+                fingerprint = _run_history_source_event_fingerprint(row, has_event_fingerprint)
+            if _run_history_ledger_has_exact(conn, migration_id, source_table, source_identity, fingerprint):
+                continue
+            if summary["processed"] >= batch_size:
+                break
+            summary["processed"] += 1
+            if not dry_run:
+                conn.execute("BEGIN IMMEDIATE")
+            try:
+                disposition, _ = (
+                    _run_history_process_run(conn, row, migration_id=migration_id, dry_run=dry_run)
+                    if source_table == _RUN_HISTORY_RUNS_TABLE
+                    else _run_history_process_event(conn, row, migration_id=migration_id, dry_run=dry_run, has_event_fingerprint=has_event_fingerprint)
+                )
+                summary[disposition] += 1
+                if not dry_run:
+                    conn.commit()
+            except Exception:
+                if not dry_run and conn.in_transaction:
+                    conn.rollback()
+                raise
+    return summary
+
+
+def backfill_legacy_run_history(
+    database_path: Path | str,
+    *,
+    batch_size: int = 100,
+    dry_run: bool = False,
+    migration_id: str = RUN_HISTORY_MIGRATION_ID,
+) -> dict[str, Any]:
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+    path = Path(database_path)
+    if not path.exists():
+        raise FileNotFoundError(path)
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        if dry_run:
+            if not _run_history_table_exists(conn, "pipeline_runs"):
+                raise DatabaseSchemaIncompatibleError(int(conn.execute("PRAGMA user_version").fetchone()[0]))
+        else:
+            _ensure_control_plane_schema(conn)
+            _ensure_process_event_tables(conn, migrate_legacy=False)
+        runs = _run_history_process_sources(
+            conn,
+            source_table=_RUN_HISTORY_RUNS_TABLE,
+            batch_size=batch_size,
+            migration_id=migration_id,
+            dry_run=dry_run,
+        )
+        events = _run_history_process_sources(
+            conn,
+            source_table=_RUN_HISTORY_EVENTS_TABLE,
+            batch_size=batch_size,
+            migration_id=migration_id,
+            dry_run=dry_run,
+        )
+    return {
+        "migration_id": migration_id,
+        "database": str(path),
+        "dry_run": dry_run,
+        "runs": runs,
+        "events": events,
+    }
+
+
+def get_run_history_migration_status(
+    database_path: Path | str,
+    *,
+    migration_id: str = RUN_HISTORY_MIGRATION_ID,
+) -> dict[str, Any]:
+    path = Path(database_path)
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        source_counts = {}
+        for table_name in (_RUN_HISTORY_RUNS_TABLE, _RUN_HISTORY_EVENTS_TABLE):
+            source_counts[table_name] = int(conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]) if _run_history_table_exists(conn, table_name) else 0
+        ledger_rows = []
+        if _run_history_table_exists(conn, "run_history_migration_ledger"):
+            ledger_rows = [dict(row) for row in conn.execute(
+                "SELECT migration_id, source_table, source_identity, source_fingerprint, disposition, canonical_id, error_code, created_at, updated_at FROM run_history_migration_ledger WHERE migration_id=? ORDER BY source_table, source_identity, source_fingerprint",
+                (migration_id,),
+            ).fetchall()]
+    dispositions: dict[str, int] = {}
+    for row in ledger_rows:
+        key = f"{row['source_table']}:{row['disposition']}"
+        dispositions[key] = dispositions.get(key, 0) + 1
+    return {
+        "migration_id": migration_id,
+        "source_counts": source_counts,
+        "ledger_count": len(ledger_rows),
+        "dispositions": dispositions,
+        "ledger": ledger_rows,
+    }
 
 
 def list_run_stages(run_id: str) -> list[dict[str, Any]]:

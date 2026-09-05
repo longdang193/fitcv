@@ -6514,7 +6514,7 @@ def _collection_response(
             "number": page,
             "size": page_size,
             "total_items": total_items,
-            "total_pages": (total_items + page_size - 1) // page_size if total_items else 0,
+            "total_pages": max(1, (total_items + page_size - 1) // page_size),
         },
         "meta": dict(meta or {}),
     }
@@ -11432,11 +11432,8 @@ def create_app(
         result_bucket: str = "all",
     ) -> Response:
         store = _resolve_run_store()
-        legacy_run = None
         if store.get_run_detail(run_id) is None:
-            legacy_run = get_run(run_id, client=client)
-            if legacy_run is None:
-                raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
         try:
             rows = store.iter_run_jobs_for_export(
                 run_id,

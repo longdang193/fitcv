@@ -121,7 +121,7 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             "scan_outputs",
             "run_scan_inputs",
         } <= tables
-        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 5
+        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 6
         assert conn.execute("PRAGMA user_version").fetchone()[0] == sqlite_store.CONTROL_PLANE_SCHEMA_VERSION
         assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(run_inputs)"))
         assert any(row[2] == "candidate_profiles" and row[6] == "RESTRICT" for row in conn.execute("PRAGMA foreign_key_list(candidate_profile_revisions)"))
@@ -434,7 +434,7 @@ def test_control_plane_schema_upgrades_version_3_without_losing_settings() -> No
         sqlite_store._ensure_control_plane_schema(conn)
         sqlite_store._ensure_control_plane_schema(conn)
 
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 6
 
 
 def _create_candidate_profile_v4_fixture(database_path: Path) -> None:
@@ -538,7 +538,7 @@ def test_control_plane_schema_migrates_v4_candidate_profiles_without_identity_lo
         sqlite_store._configure_sqlite_connection(conn)
         sqlite_store._ensure_control_plane_schema(conn)
 
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 6
         assert conn.execute(
             "SELECT candidate_profile_id, profile_name, lifecycle, is_default, sort_order, revision "
             "FROM candidate_profiles ORDER BY candidate_profile_id"
@@ -2967,6 +2967,15 @@ def test_run_json_updates_and_schema_status_use_sqlite_only_terms() -> None:
     assert stored is not None
     assert json.loads(str(stored.results_export_json))["jobs"][0]["job_url"] == "https://example.com/1"
     assert schema_status["warning"] == "sqlite_mode_no_remote_schema_check"
+    with sqlite3.connect(sqlite_store._local_sqlite_path()) as conn:
+        legacy_tables = {
+            str(row[0])
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (?, ?)",
+                ("local_pipeline_runs", "local_pipeline_run_events"),
+            )
+        }
+    assert legacy_tables == set()
 
 
 def test_list_filter_results_for_run_decodes_marks_and_reasons() -> None:

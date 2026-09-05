@@ -4,6 +4,7 @@ import {
   RunStageResource,
   RunJobItem,
   RunEventsPage,
+  RunEventRecord,
   DeleteArchivedRunsPreview,
   RunLifecycle,
   RunsPaginationMeta,
@@ -26,6 +27,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parseInteger(value: unknown, fallback: number, minimum: number): number {
   const parsed = typeof value === "number" ? value : Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) && parsed >= minimum ? Math.floor(parsed) : fallback;
+}
+
+function readPage(payload: Record<string, unknown>): {
+  number: number;
+  size: number;
+  total_items: number;
+  total_pages: number;
+} {
+  const page = payload.page;
+  if (!isRecord(page)) throw new Error("Invalid pagination envelope.");
+  const number = page.number;
+  const size = page.size;
+  const total_items = page.total_items;
+  const total_pages = page.total_pages;
+  if (
+    typeof number !== "number" || !Number.isInteger(number) || number < 1 ||
+    typeof size !== "number" || !Number.isInteger(size) || size < 1 ||
+    typeof total_items !== "number" || !Number.isInteger(total_items) || total_items < 0 ||
+    typeof total_pages !== "number" || !Number.isInteger(total_pages) || total_pages < 1
+  ) {
+    throw new Error("Invalid pagination envelope.");
+  }
+  return {
+    number,
+    size,
+    total_items,
+    total_pages,
+  };
 }
 
 function normalizeSkillValues(value: unknown): string[] {
@@ -66,26 +95,15 @@ export async function fetchRuns(params?: {
   const qs = query.toString();
   const path = `/runs${qs ? `?${qs}` : ""}`;
   const res = await apiClient.get<any>(path);
-  const payload = isRecord(res.data) ? res.data : {};
-  const rawPage = isRecord(payload.page) ? payload.page : {};
-  const data = Array.isArray(payload.data) ? payload.data : [];
-  const pageSize = parseInteger(payload.page_size ?? rawPage.size ?? params?.page_size, 20, 1);
-  const totalItems = parseInteger(payload.total_items ?? rawPage.total_items, data.length, 0);
-  const pageNumber = parseInteger(
-    rawPage.number ?? payload.page_number ?? (typeof payload.page === "number" ? payload.page : params?.page),
-    1,
-    1
-  );
+  const payload = isRecord(res.data) ? res.data : null;
+  if (!payload || !Array.isArray(payload.data)) throw new Error("Invalid runs response.");
+  const page = readPage(payload);
   return {
-    data,
-    page: pageNumber,
-    page_size: pageSize,
-    total_items: totalItems,
-    total_pages: parseInteger(
-      payload.total_pages ?? rawPage.total_pages,
-      Math.max(1, Math.ceil(totalItems / pageSize)),
-      1
-    ),
+    data: payload.data as PipelineRunResource[],
+    page: page.number,
+    page_size: page.size,
+    total_items: page.total_items,
+    total_pages: page.total_pages,
     meta: isRecord(payload.meta) ? payload.meta as unknown as RunsPaginationMeta : undefined,
   };
 }
@@ -169,25 +187,11 @@ export async function fetchRunJobs(
   const qs = query.toString();
   const path = `/runs/${encodeURIComponent(runId)}/jobs${qs ? `?${qs}` : ""}`;
   const res = await apiClient.get<any>(path);
-  const payload = res.data;
-  const payloadRecord = isRecord(payload) ? payload : {};
-  const rawData: unknown[] = Array.isArray(payloadRecord.data)
-    ? payloadRecord.data
-    : Array.isArray(payloadRecord.items)
-      ? payloadRecord.items
-      : Array.isArray(payload)
-        ? payload
-        : [];
-  const rawPage = isRecord(payloadRecord.page) ? payloadRecord.page : {};
-  const rawTotal = payloadRecord.total_items ?? payloadRecord.total ?? payloadRecord.total_count ?? rawPage.total_items ?? rawPage.total;
-  const totalItems = parseInteger(rawTotal, rawData.length, 0);
-  const rawPageNum = rawPage.number ?? payloadRecord.page_number ?? params?.page ?? 1;
-  const pageNum = parseInteger(rawPageNum, 1, 1);
-  const rawPageSize = payloadRecord.page_size ?? rawPage.size ?? params?.page_size ?? 10;
-  const pageSize = parseInteger(rawPageSize, 10, 1);
-  const totalPages = parseInteger(rawPage.total_pages, Math.max(1, Math.ceil(totalItems / pageSize)), 1);
+  const payload = isRecord(res.data) ? res.data : null;
+  if (!payload || !Array.isArray(payload.data)) throw new Error("Invalid jobs response.");
+  const page = readPage(payload);
   return {
-    data: rawData.map((job: any) => {
+    data: (payload.data as RunJobItem[]).map((job: any) => {
       const skills = extractJobSkills(job);
       return {
         ...job,
@@ -196,12 +200,12 @@ export async function fetchRunJobs(
         interest_rating: job.interest_rating ?? (typeof job.rating === 'number' ? job.rating : null),
       };
     }),
-    page: pageNum,
-    page_size: pageSize,
-    total_items: totalItems,
-    total_pages: totalPages,
-    meta: isRecord(payloadRecord.meta)
-      ? payloadRecord.meta as unknown as RunJobsPaginationMeta
+    page: page.number,
+    page_size: page.size,
+    total_items: page.total_items,
+    total_pages: page.total_pages,
+    meta: isRecord(payload.meta)
+      ? payload.meta as unknown as RunJobsPaginationMeta
       : undefined,
   };
 }
@@ -217,17 +221,25 @@ export async function fetchRunEvents(
 
   const qs = query.toString();
   const path = `/runs/${encodeURIComponent(runId)}/events${qs ? `?${qs}` : ""}`;
-  const res = await apiClient.get<PaginationEnvelope<any, any>>(path);
-
-  const data = res.data;
-  const items = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-  const meta = data?.meta || {};
+  const res = await apiClient.get<unknown>(path);
+  const data = isRecord(res.data) ? res.data : null;
+  const meta = data && isRecord(data.meta) ? data.meta : null;
+  if (!data || !Array.isArray(data.data) || !meta) throw new Error("Invalid events response.");
+  if (
+    (meta.next_cursor !== null && typeof meta.next_cursor !== "string") ||
+    typeof meta.total_count !== "number" ||
+    !Number.isInteger(meta.total_count) ||
+    typeof meta.integrity_conflicts !== "number" ||
+    !Number.isInteger(meta.integrity_conflicts)
+  ) {
+    throw new Error("Invalid events response.");
+  }
 
   return {
-    events: items,
-    next_cursor: meta.next_cursor || null,
-    integrity_conflicts: Number(meta.integrity_conflicts || 0),
-    total_count: Number(data?.total_items || items.length),
+    events: data.data as RunEventRecord[],
+    next_cursor: meta.next_cursor as string | null,
+    integrity_conflicts: meta.integrity_conflicts,
+    total_count: meta.total_count,
   };
 }
 

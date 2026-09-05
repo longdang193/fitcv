@@ -122,9 +122,7 @@ describe("UI Lane Parity & Regression Suite", () => {
           return Promise.resolve({
             data: {
               data: mockJobs,
-              page: 1,
-              page_size: 10,
-              total_items: 1,
+              page: { number: 1, size: 10, total_items: 1, total_pages: 1 },
               meta: { total_evaluated: 12, passed: 8, rejected: 4, skipped: 0 },
             },
             status: 200,
@@ -132,7 +130,10 @@ describe("UI Lane Parity & Regression Suite", () => {
         }
         if (url.startsWith("/runs/RUN-54C0E83D/events")) {
           return Promise.resolve({
-            data: { data: mockEvents, total_items: 2, meta: {} },
+            data: {
+              data: mockEvents,
+              meta: { next_cursor: null, total_count: 2, integrity_conflicts: 0 },
+            },
             status: 200,
           } as any);
         }

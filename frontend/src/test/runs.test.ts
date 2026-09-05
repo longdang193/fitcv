@@ -16,7 +16,6 @@ import {
   downloadDebugBundle,
   exportRunJobsCsv,
   generateIdempotencyKey,
-  extractJobSkills,
   extractRequiredJobSkills,
 } from "../features/runs/api";
 import { apiClient } from "../lib/api-client";
@@ -120,9 +119,7 @@ describe("runs feature route and api slice", () => {
             },
           },
         ],
-        page: 1,
-        page_size: 20,
-        total_items: 1,
+        page: { number: 1, size: 20, total_items: 1, total_pages: 1 },
         meta: { active_count: 1, archived_count: 0, view: "active", search: "", server_time: "2026-08-30T12:00:00Z" },
       },
       status: 200,
@@ -232,9 +229,7 @@ describe("runs feature route and api slice", () => {
             cv_versions_count: 1,
           },
         ],
-        page: 1,
-        page_size: 50,
-        total_items: 1,
+        page: { number: 1, size: 50, total_items: 1, total_pages: 1 },
         meta: {
           run_id: "run-004",
           stage: "screening",
@@ -285,7 +280,7 @@ describe("runs feature route and api slice", () => {
     expect(getSpy).toHaveBeenCalledWith("/runs/run-normalized/jobs?page=2&page_size=20");
   });
 
-  it("falls back to finite pagination values when API metadata is invalid", async () => {
+  it("rejects invalid pagination metadata", async () => {
     vi.spyOn(apiClient, "get").mockResolvedValueOnce({
       data: {
         data: [{ required_skills: "Python; SQL\nAirflow" }],
@@ -294,14 +289,7 @@ describe("runs feature route and api slice", () => {
       status: 200,
     } as any);
 
-    const result = await fetchRunJobs("run-finite");
-
-    expect(extractJobSkills(result.data[0])).toEqual(["Python", "SQL", "Airflow"]);
-    expect(result.page).toBe(1);
-    expect(result.page_size).toBe(10);
-    expect(result.total_items).toBe(1);
-    expect(result.total_pages).toBe(1);
-    expect([result.page, result.page_size, result.total_items, result.total_pages].every(Number.isFinite)).toBe(true);
+    await expect(fetchRunJobs("run-finite")).rejects.toThrow("Invalid pagination envelope.");
   });
 
   it("fetches run events with cursor pagination", async () => {
@@ -318,13 +306,11 @@ describe("runs feature route and api slice", () => {
             message: "Screening completed for 10 jobs",
           },
         ],
-        page: 1,
-        page_size: 100,
-        total_items: 1,
         meta: {
           run_id: "run-005",
           cursor: "c-0",
           next_cursor: "c-1",
+          total_count: 1,
           integrity_conflicts: 0,
         },
       },
@@ -450,9 +436,7 @@ it("guards against invalid or object page parameter serialization in fetchRunJob
     const mockResponse = {
       data: {
         data: [],
-        page: 1,
-        page_size: 10,
-        total_items: 0,
+        page: { number: 1, size: 10, total_items: 0, total_pages: 1 },
       },
       status: 200,
     };

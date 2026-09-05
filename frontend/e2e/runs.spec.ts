@@ -5,7 +5,7 @@ test.describe("Runs Feature Journey", () => {
     await page.goto("/app/#/runs");
 
     // Header and title checks
-    await expect(page.locator("main h1:has-text('Runs')")).toBeVisible();
+    await expect(page.locator("main h2:has-text('Runs')")).toBeVisible();
     await expect(page.locator("button:has-text('New Run')")).toBeVisible();
 
     // Check tabs
@@ -47,7 +47,7 @@ test.describe("Runs Feature Journey", () => {
 
     // Check back to runs button
     await page.click("button:has-text('Back to Runs')");
-    await expect(page.locator("main h1:has-text('Runs')")).toBeVisible();
+    await expect(page.locator("main h2:has-text('Runs')")).toBeVisible();
   });
 
   test("polls a cancelling run until it is cancelled", async ({ page }) => {
@@ -76,7 +76,11 @@ test.describe("Runs Feature Journey", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ data: [current], total_items: 1 }),
+        body: JSON.stringify({
+          data: [current],
+          page: { number: 1, size: 20, total_items: 1, total_pages: 1 },
+          meta: { active_count: 1, archived_count: 0, view: "active", search: "", server_time: "2026-09-05T00:00:00Z" },
+        }),
       });
     });
     await page.route("**/runs/run-cancel-poll/actions/cancel", async (route) => {
@@ -117,7 +121,11 @@ test.describe("Runs Feature Journey", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ data: [queuedRun], total_items: 1 }),
+        body: JSON.stringify({
+          data: [queuedRun],
+          page: { number: 1, size: 20, total_items: 1, total_pages: 1 },
+          meta: { active_count: 1, archived_count: 0, view: "active", search: "", server_time: "2026-09-05T00:00:00Z" },
+        }),
       });
     });
     await page.route("**/runs/run-cancel-refresh-failure/actions/cancel", async (route) => {
