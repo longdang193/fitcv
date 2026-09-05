@@ -6831,20 +6831,32 @@ def _optimization_console_for_run(
 
 def _optimization_rating_evidence(
     request: InverseOptimizationRequest,
+    store: ControlPlaneStore,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    jobs_by_run: dict[str, dict[str, dict[str, Any]]] = {}
     for item in request.episodes:
         states = reduce_rating_event_states(item.events)
         events_by_id = {event.event_id: event for event in item.events}
+        run_id = str(item.episode.run_id)
+        if run_id not in jobs_by_run:
+            jobs = store.query_run_jobs(run_id, page=1, page_size=50).get("items", [])
+            jobs_by_run[run_id] = {
+                str(job.get("source_url") or "").strip(): job
+                for job in jobs
+                if str(job.get("source_url") or "").strip()
+            }
         for alternative in item.alternatives:
             state = states.get((item.episode.episode_id, alternative.alternative_id))
             if state is None or state.rating == "unrated" or state.source_event_id is None:
                 continue
             source_event = events_by_id[state.source_event_id]
+            job = jobs_by_run[run_id].get(str(alternative.source_job_url).strip(), {})
             rows.append(
                 {
                     "run_id": item.episode.run_id,
                     "alternative_id": alternative.alternative_id,
+                    "job_label": str(job.get("title") or alternative.source_job_url),
                     "source_job_url": alternative.source_job_url,
                     "displayed_rank": alternative.displayed_rank,
                     "baseline_fit": alternative.baseline_fit,
@@ -6920,7 +6932,7 @@ def _optimization_page_context(
         if compatible_active is not None
         else None
     )
-    rating_evidence = _optimization_rating_evidence(optimization_request)
+    rating_evidence = _optimization_rating_evidence(optimization_request, store)
     optimization_runs = [
         {
             **row,
@@ -6971,7 +6983,7 @@ def _optimization_page_context(
         )
     )
     episode_count = len(evidence["episodes"])
-    rating_event_count = sum(len(row.get("events") or []) for row in evidence["episodes"])
+    rating_event_count = len(rating_evidence)
     return {
         "domain_id": domain_id,
         "notice": _optimization_notice_projection(notice_code),

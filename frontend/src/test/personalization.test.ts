@@ -9,6 +9,7 @@ import {
   activatePersonalizationCandidate,
 } from "../features/preference-optimization/api";
 import { apiClient, ApiClientError } from "../lib/api-client";
+import { formatTimestamp } from "../lib/format";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { OptimizationRunsTable } from "../features/preference-optimization/components/OptimizationRunsTable";
 import { OptimizationEvidenceTable } from "../features/preference-optimization/components/OptimizationEvidenceTable";
@@ -208,7 +209,6 @@ describe("preference optimization slice and api", () => {
         runs: [],
         rankingMode: "personalized",
         activePolicyVersionId: null,
-        onSelectRun: () => {},
         onActivatePolicy: () => {},
       })
     );
@@ -239,7 +239,6 @@ describe("preference optimization slice and api", () => {
         runs: [sampleRun],
         rankingMode: "personalized",
         activePolicyVersionId: "RP-20260904-01",
-        onSelectRun: () => {},
         onActivatePolicy: () => {},
       })
     );
@@ -247,6 +246,10 @@ describe("preference optimization slice and api", () => {
     expect(runsMarkup).toContain("Succeeded");
     expect(runsMarkup).toContain("Active");
     expect(runsMarkup).toContain("Inactivate Policy");
+    expect(runsMarkup).toContain('href="#/preference-optimization/por_20260904_01"');
+    expect(runsMarkup).toContain(formatTimestamp(sampleRun.createdAt));
+    expect(runsMarkup).toContain('role="region"');
+    expect(runsMarkup).toContain('aria-label="Optimization runs table"');
 
     const detailsMarkup = renderToStaticMarkup(
       React.createElement(OptimizationDetailsView, {
@@ -261,6 +264,9 @@ describe("preference optimization slice and api", () => {
     expect(detailsMarkup).toContain("Overview");
     expect(detailsMarkup).toContain("Console Log");
     expect(detailsMarkup).toContain("Started preference optimization.");
+    expect(detailsMarkup).toContain(formatTimestamp(sampleRun.createdAt));
+    expect(detailsMarkup).toContain(formatTimestamp(sampleRun.logs[0].recordedAt));
+    expect(detailsMarkup).toContain('aria-label="Optimization rating evidence table"');
   });
 
 
@@ -270,6 +276,7 @@ describe("preference optimization slice and api", () => {
         ratedAt: "2026-07-16T12:00:00Z",
         runId: "run-42",
         job: "Senior Platform Engineer",
+        jobUrl: "https://jobs.example.test/42",
         savedRank: 1,
         baselineFit: 0.952,
         rating: 5,
@@ -282,7 +289,9 @@ describe("preference optimization slice and api", () => {
       })
     );
     expect(markup).toContain("run-42");
+    expect(markup).toContain('href="#/runs?run_id=run-42"');
     expect(markup).toContain("Senior Platform Engineer");
+    expect(markup).toContain('href="https://jobs.example.test/42"');
     expect(markup).toContain("0.952");
     expect(markup).toContain("5 / 5");
     expect(markup).not.toContain("Rating details unavailable");

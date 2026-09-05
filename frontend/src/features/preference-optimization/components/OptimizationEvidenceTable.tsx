@@ -1,5 +1,6 @@
 import React from "react";
 import { RatingEvidenceRow } from "../types";
+import { formatTimestamp } from "../../../lib/format";
 
 export interface OptimizationEvidenceTableProps {
   rows?: RatingEvidenceRow[];
@@ -11,7 +12,7 @@ export const OptimizationEvidenceTable: React.FC<OptimizationEvidenceTableProps>
   savedRatingsCount = 0,
 }) => {
   return (
-    <div className="table-scroll">
+    <div className="table-scroll" tabIndex={0} role="region" aria-label="Optimization rating evidence table">
       <table className="run-table">
         <thead>
           <tr>
@@ -27,9 +28,21 @@ export const OptimizationEvidenceTable: React.FC<OptimizationEvidenceTableProps>
           {rows && rows.length > 0 ? (
             rows.map((row, idx) => (
               <tr key={idx}>
-                <td>{typeof row.ratedAt === "number" ? new Date(row.ratedAt).toLocaleString() : row.ratedAt}</td>
-                <td><span className="run-id">{row.runId}</span></td>
-                <td><span className="run-job">{row.job}</span></td>
+                <td>{formatTimestamp(row.ratedAt)}</td>
+                <td>
+                  <a className="run-id" href={`#/runs?run_id=${encodeURIComponent(row.runId)}`}>
+                    {row.runId}
+                  </a>
+                </td>
+                <td>
+                  {row.jobUrl ? (
+                    <a className="run-job" href={row.jobUrl} target="_blank" rel="noopener noreferrer">
+                      {row.job}
+                    </a>
+                  ) : (
+                    <span className="run-job">{row.job}</span>
+                  )}
+                </td>
                 <td>{row.savedRank}</td>
                 <td>{typeof row.baselineFit === "number" ? row.baselineFit.toFixed(3) : row.baselineFit}</td>
                 <td>{row.rating} / 5</td>

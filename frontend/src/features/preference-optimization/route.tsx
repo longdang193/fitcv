@@ -369,6 +369,7 @@ export const PreferenceOptimizationPage: React.FC = () => {
     ratedAt: row.rated_at,
     runId: row.run_id,
     job: row.job_label || row.alternative_id,
+    jobUrl: row.source_job_url,
     savedRank: row.displayed_rank,
     baselineFit: row.baseline_fit,
     rating: row.rating,
@@ -531,10 +532,6 @@ export const PreferenceOptimizationPage: React.FC = () => {
               runs={runsHistory}
               rankingMode={personalization.ranking_mode}
               activePolicyVersionId={activePolicyId}
-              onSelectRun={(id) => {
-                setSelectedRunId(id);
-                window.location.hash = `#/preference-optimization/${encodeURIComponent(id)}`;
-              }}
               onActivatePolicy={handleActivatePolicy}
               onInactivatePolicy={handleInactivatePolicy}
               actionsDisabled={optimizationActionsDisabled}

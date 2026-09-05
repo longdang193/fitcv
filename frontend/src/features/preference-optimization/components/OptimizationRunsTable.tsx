@@ -1,11 +1,11 @@
 import React from "react";
 import { OptimizationRunItem, RankingMode } from "../types";
+import { formatTimestamp } from "../../../lib/format";
 
 export interface OptimizationRunsTableProps {
   runs: OptimizationRunItem[];
   rankingMode: RankingMode;
   activePolicyVersionId: string | null;
-  onSelectRun: (runId: string) => void;
   onActivatePolicy: (run: OptimizationRunItem) => void;
   onInactivatePolicy?: (run: OptimizationRunItem) => void;
   onRemoveRun?: (runId: string) => void;
@@ -16,7 +16,6 @@ export const OptimizationRunsTable: React.FC<OptimizationRunsTableProps> = ({
   runs,
   rankingMode: _rankingMode,
   activePolicyVersionId,
-  onSelectRun,
   onActivatePolicy,
   onInactivatePolicy,
   onRemoveRun,
@@ -25,7 +24,7 @@ export const OptimizationRunsTable: React.FC<OptimizationRunsTableProps> = ({
   const visibleRuns = runs.filter((r) => !r.hiddenAt);
 
   return (
-    <div className="table-scroll">
+    <div className="table-scroll" tabIndex={0} role="region" aria-label="Optimization runs table">
       <table className="run-table optimization-runs">
         <thead>
           <tr>
@@ -60,20 +59,16 @@ export const OptimizationRunsTable: React.FC<OptimizationRunsTableProps> = ({
               return (
                 <tr key={item.id}>
                   <td>
-                    <button
-                      type="button"
+                    <a
                       className="optimization-id-link run-id"
-                      onClick={() => onSelectRun(item.id)}
-                      style={{ cursor: "pointer", background: "none", border: "none", padding: 0 }}
+                      href={`#/preference-optimization/${encodeURIComponent(item.id)}`}
                       aria-label={`View details for ${item.id}`}
                     >
                       {item.id}
-                    </button>
+                    </a>
                   </td>
                   <td className="run-created">
-                    {typeof item.createdAt === "number"
-                      ? new Date(item.createdAt).toLocaleString()
-                      : item.createdAt}
+                    {formatTimestamp(item.createdAt)}
                   </td>
                   <td>{item.strength.toFixed(2)}</td>
                   <td>

@@ -123,6 +123,7 @@ def _client(monkeypatch: Any, **overrides: Any) -> TestClient:
     defaults = {
         "get_decision_evidence_head": lambda domain_id: {**EVIDENCE_HEAD, "domain_id": domain_id},
         "load_inverse_optimization_request": lambda domain_id: _empty_request(),
+        "query_run_jobs": lambda run_id, **kwargs: {"items": []},
         "inspect_ranking_policy_lifecycle": lambda domain_id, limit=None: {
             "training_runs": [],
             "snapshots": [],
@@ -855,12 +856,16 @@ def test_optimization_page_shows_canonical_saved_rating_evidence(monkeypatch: An
         monkeypatch,
         get_decision_evidence_head=lambda domain_id: {**evidence, "domain_id": domain_id},
         load_inverse_optimization_request=lambda domain_id: request,
+        query_run_jobs=lambda run_id, **kwargs: {
+            "items": [{"source_url": "https://example.test/job-1", "title": "Senior Platform Engineer"}]
+        },
     ).get("/admin/optimization")
 
     assert response.status_code == 200
     assert "Rating Evidence" in response.text
     assert 'href="/admin/runs/run-1"' in response.text
     assert 'href="https://example.test/job-1"' in response.text
+    assert "Senior Platform Engineer" in response.text
     assert "5 / 5" in response.text
     assert ">7<" in response.text
 
@@ -877,6 +882,9 @@ def test_personalization_optimization_api_projects_evidence_and_parent_state(
         monkeypatch,
         get_decision_evidence_head=lambda domain_id: {**evidence, "domain_id": domain_id},
         load_inverse_optimization_request=lambda domain_id: _rated_request(),
+        query_run_jobs=lambda run_id, **kwargs: {
+            "items": [{"source_url": "https://example.test/job-1", "title": "Senior Platform Engineer"}]
+        },
     ).get("/personalization/optimization")
 
     assert response.status_code == 200
@@ -886,10 +894,30 @@ def test_personalization_optimization_api_projects_evidence_and_parent_state(
     assert resource["episode_count"] == 1
     assert resource["rating_event_count"] == 1
     assert resource["rating_evidence"][0]["alternative_id"] == "job-1"
+    assert resource["rating_evidence"][0]["job_label"] == "Senior Platform Engineer"
     assert resource["current_parent_ref"].startswith("zero_residual:")
     assert resource["latest_candidate"] is None
     assert resource["status"] is None
     assert resource["error_code"] is None
+
+
+def test_personalization_optimization_api_counts_effective_rating_rows(
+    monkeypatch: Any,
+) -> None:
+    evidence = {
+        **EVIDENCE_HEAD,
+        "event_watermark": 1,
+        "episodes": [{"episode_id": "episode-1", "events": [{"event_id": "event-1"}]}],
+    }
+    response = _client(
+        monkeypatch,
+        get_decision_evidence_head=lambda domain_id: {**evidence, "domain_id": domain_id},
+    ).get("/personalization/optimization")
+
+    assert response.status_code == 200
+    resource = response.json()["data"]
+    assert resource["rating_event_count"] == 0
+    assert resource["rating_evidence"] == []
 
 
 def test_personalization_optimization_candidate_api_uses_compare_tokens(

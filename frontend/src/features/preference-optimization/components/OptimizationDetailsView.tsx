@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { OptimizationRunItem, RankingMode } from "../types";
 import { OptimizationEvidenceTable } from "./OptimizationEvidenceTable";
 import { Button } from "../../../components";
+import { formatTimestamp } from "../../../lib/format";
 
 export interface OptimizationDetailsViewProps {
   item: OptimizationRunItem;
@@ -120,7 +121,7 @@ export const OptimizationDetailsView: React.FC<OptimizationDetailsViewProps> = (
               <div className="detail-item">
                 <dt style={{ color: "var(--muted)", fontSize: 12 }}>Created</dt>
                 <dd style={{ margin: "4px 0 0" }}>
-                  {typeof item.createdAt === "number" ? new Date(item.createdAt).toLocaleString() : item.createdAt}
+                  {formatTimestamp(item.createdAt)}
                 </dd>
               </div>
               <div className="detail-item">
@@ -182,7 +183,7 @@ export const OptimizationDetailsView: React.FC<OptimizationDetailsViewProps> = (
                 logs.map((event, idx) => (
                   <div key={idx} className="console-line" data-level={event.level} style={{ display: "flex", gap: 12, padding: "2px 0" }}>
                     <span className="console-time" style={{ color: "var(--muted)" }}>
-                      {new Date(event.recordedAt).toISOString()}
+                      {formatTimestamp(event.recordedAt)}
                     </span>
                     <span className="console-level" data-level={event.level} style={{ fontWeight: 600 }}>
                       {event.level.toUpperCase()}

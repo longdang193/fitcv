@@ -82,6 +82,7 @@ export interface RatingEvidenceRow {
   ratedAt: number | string;
   runId: string;
   job: string;
+  jobUrl?: string;
   savedRank: number;
   baselineFit: number;
   rating: number;
