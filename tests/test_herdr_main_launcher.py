@@ -160,10 +160,6 @@ def test_resolve_launch_builds_deepagents_pane_command(
         "--json",
         "--quiet",
         "--no-mcp",
-        "--max-turns",
-        "4",
-        "--timeout",
-        "120",
         "-n",
         "'Return exactly DEEPAGENTS_ADAPTER_OK'",
     ]
@@ -182,6 +178,7 @@ def test_resolve_launch_builds_deepagents_pane_command(
         "state": "unknown",
         "task_sha256": LAUNCHER._sha256_text("Return exactly DEEPAGENTS_ADAPTER_OK"),
     }
+    assert LAUNCHER._DEEPAGENTS_RUN_TIMEOUT == 1800.0
 
 
 def test_resolve_launch_enables_direct_mcp_only_for_explicit_selection(

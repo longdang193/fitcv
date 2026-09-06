@@ -179,6 +179,12 @@ credentials, config secrets, raw headers, cookies, or approval authority through
 task text. `codex.mcp.handoff.v1` stays validated facts and provenance, not tool
 access; controller deletes handoff after use.
 
+Herdr does not inject `--max-turns` or `--timeout` into normal DeepAgents runs;
+DeepAgents keeps control of its native execution budget. Herdr retains one
+30-minute outer watchdog to prevent an abandoned pane process from blocking the
+controller. Upgrade smoke probes may pass explicit shorter bounds because they
+are bounded compatibility checks, not normal task execution.
+
 Launch a task without controller facts with:
 
 ```powershell

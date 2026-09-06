@@ -24,11 +24,9 @@ class LaunchBlocked(RuntimeError):
 
 _EXECUTORS = {"codex", "deepagents"}
 _MAX_TASK_LENGTH = 4096
-_DEEPAGENTS_MAX_TURNS = "4"
-_DEEPAGENTS_TIMEOUT = "120"
 _CODEX_PROMPT_TIMEOUT_MS = "30000"
 _HERDR_COMMAND_TIMEOUT = 30.0
-_DEEPAGENTS_RUN_TIMEOUT = float(_DEEPAGENTS_TIMEOUT) + _HERDR_COMMAND_TIMEOUT
+_DEEPAGENTS_RUN_TIMEOUT = 1800.0
 _CODEX_ASSIGNMENT_TIMEOUT = (float(_CODEX_PROMPT_TIMEOUT_MS) / 1000) + 5.0
 
 
@@ -358,10 +356,6 @@ def resolve_launch(
                 [],
             ),
             *([] if direct_mcp else ["--no-mcp"]),
-            "--max-turns",
-            _DEEPAGENTS_MAX_TURNS,
-            "--timeout",
-            _DEEPAGENTS_TIMEOUT,
             "-n",
             _powershell_literal(task.strip()),
         ]
