@@ -19,6 +19,13 @@ This file is repo-wide instruction layer. More specific directory instructions o
 - Never expose private governance, credentials, agent memory, or internal tooling through public publication.
 - For generated agent surfaces, edit canonical sources, then run required sync and verification commands.
 
+## Project OS Installation
+
+- Shared Project OS runtime docs and approved reusable scripts live at `~/.agents/project-os`.
+- Shared reusable skills live at `~/.agents/skills`.
+- Resolve `docs/operating_system/...` and approved `scripts/...` references from the shared Project OS installation when those paths are absent in the project.
+- Keep project-specific `docs/intent/`, `docs/superpowers/`, `repo_config/`, code, tests, and scripts in this repository.
+
 ## Subagent Routing
 
 Discover profiles from `agents/*.toml`. Positive `rank` values identify ranked
@@ -74,9 +81,9 @@ Git owns workspace identity, change evidence, and authorized branch disposition.
 For DeepAgents, use user-local `dcode-project`; it derives ignored profile views
 from `agents/*.toml` and local provider endpoint and credentials. Do not track
 `.deepagents/`, invent provider fallback, runtime state, or cleanup commands.
-DeepAgents auto-loads this root `AGENTS.md` and discovers `.agents/skills` as
-project skills. It does not auto-load `.agents/rules`; those are generated
-platform-adapter views. Codex remains approval, Git, verification, and
+This repository authors skills under `.agents/skills`; consumer projects use
+only shared skills from `~/.agents/skills` and do not copy local skills. It does
+not auto-load `.agents/rules`; those are generated platform-adapter views. Codex remains approval, Git, verification, and
 acceptance controller. DeepAgents MCP is opt-in only through Herdr selection.
 Herdr forwards explicit `--mcp-select` to `dcode-project`, which validates
 selection against approved Codex `[mcp_servers]`; no selection keeps `--no-mcp`.

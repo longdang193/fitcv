@@ -54,11 +54,7 @@ artifacts/stash_overlap/
 artifacts/tmp_*
 tmp/fitcv-local-*/
 
-.deepagents/
-
 # Canonical artifacts maintained in project-OS-starter
-/.agents/
-/docs/operating_system/
 /AGENTS.md
 /CLAUDE.md
 /GEMINI.md
