@@ -8,6 +8,7 @@ import {
   regenerateDerivedReview,
   undoDerivedRegeneration,
   approveDerivedReview,
+  normalizeCandidateProfileReviewOperations,
   fetchCreationAttempt,
   waitForAttemptTransition,
 } from "../api";
@@ -155,8 +156,18 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
 
   // Queue operation
   const queueOperation = (op: CandidateProfileReviewOperation) => {
-    const next = new Map(pendingOpsRef.current);
-    next.set(op.path, op);
+    const operations = normalizeCandidateProfileReviewOperations([
+      ...pendingOpsRef.current.values(),
+      op,
+    ]);
+    const next = new Map(
+      operations.map((operation) => [
+        operation.operation === "add" && operation.value && typeof operation.value === "object"
+          ? `${operation.path}/${String((operation.value as { id?: unknown }).id)}`
+          : `${operation.operation}:${operation.path}`,
+        operation,
+      ])
+    );
     pendingOpsRef.current = next;
     setPendingOps(next);
   };

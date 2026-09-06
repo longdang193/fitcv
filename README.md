@@ -2,9 +2,9 @@
 
 > Evidence-first job matching + CV generation, backed by operator control plane.
 
-FitCV turns noisy job posts into a reviewable shortlist, then generates CV outputs
-only when upstream evidence says “ready”. Everything stays inspectable through
-run artifacts, stage-owned truth, and admin UI surfaces.
+FitCV helps people turn noisy job postings into a reviewable shortlist and grounded
+CV outputs. It narrows work in stages, keeps decisions inspectable, and stops safely
+when evidence is missing or a result needs human review.
 
 ## FitCV Local
 
@@ -22,11 +22,17 @@ repository checkout, terminal, or manually edited `.env` file. Current Windows
 artifact is unsigned and explicitly labeled **Technical Preview**. Stable public
 release waits for code signing and clean-Windows-VM acceptance.
 
-## Who Uses It
+## Who FitCV Serves
 
-- **Operators** running application batches and reviewing outcomes in admin UI.
-- **Engineers** maintaining pipeline logic, settings, and run infrastructure.
-- **Workflow owners** needing repeatable, inspectable CV production with run-level evidence.
+FitCV serves job seekers and workflow owners who need repeatable job matching,
+inspectable decisions, and CV outputs grounded in candidate evidence.
+
+- **FitCV Local users**: non-technical Windows users who configure a candidate
+  profile and provider, run jobs, review matches and artifacts, and decide what to
+  use. They do not need Python, Git, Docker, Redis, or a terminal.
+- **Developers and operators**: people who run or maintain server deployments,
+  pipeline logic, settings, provider routing, and run infrastructure. They inspect
+  stages, events, diagnostics, and artifacts through the control plane.
 
 ## What It Does
 
@@ -52,23 +58,28 @@ Stage order:
 
 `normalize → enrich → rule_filter → shortlist → ranking → cv_analysis → cv_generation`
 
+## Workflow
+
+1. **normalize** canonicalizes and deduplicates raw job postings.
+2. **enrich** adds stable structured fields for matching and review.
+3. **rule_filter** removes jobs that fail deterministic eligibility rules.
+4. **shortlist** keeps plausible eligible jobs for deeper work.
+5. **ranking** orders matches and exposes reviewable fit decisions.
+6. **cv_analysis** checks evidence, gaps, and readiness; weak or unsupported jobs
+   stop or require review.
+7. **cv_generation** creates and validates grounded CV outputs only for ready jobs.
+8. **Review artifacts**: inspect run ledgers, stage artifacts, diagnostics, and
+   outputs. Filtered, blocked, failed, or review-required rows remain inspectable;
+   they do not silently become CVs.
+
+[Explore the workflow diagram](docs/fitcv-readme-workflow.html).
+
 ## Why It’s Different
 
 - **Evidence-first pipeline**: stage outputs are stage-owned truth; UI shows derived views.
 - **Operator control plane**: trigger runs, inspect stages/items, download artifacts, manage lifecycle.
 - **Cost control by design**: narrowing happens in layers; late-stage work gated by readiness.
 - **Portability**: sqlite and bigquery backends aim to preserve same operator-visible contracts.
-
-## Key Pipeline Stages
-
-1. **normalize** — canonicalize and deduplicate input jobs.
-2. **enrich** — derive structured fields (skills, role, level, domain signals).
-3. **rule_filter** — apply deterministic exclusion rules.
-4. **shortlist** — retrieve plausible candidates for deeper scoring.
-5. **ranking** — compute fit decisions and promote best jobs.
-6. **cv_analysis** — gather grounded evidence and readiness signals.
-7. **cv_generation** — generate CV output with validation/repair safeguards.
-
 See deep stage behavior in [docs/FitCV-pipeline.md](docs/FitCV-pipeline.md) and [docs/pipeline.md](docs/pipeline.md).
 
 ## Stage Methods (How Each Stage Works)
@@ -223,5 +234,4 @@ Read [docs/setup.md](docs/setup.md) and
 | Pipeline (contract-ish) | [docs/pipeline.md](docs/pipeline.md) |
 | Pipeline (story) | [docs/FitCV-pipeline.md](docs/FitCV-pipeline.md) |
 | Observability | [docs/observability.md](docs/observability.md) |
-
 

@@ -319,6 +319,59 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
     ]);
   });
 
+  it("cancels add, edits, and remove for a newly added item", () => {
+    expect(
+      normalizeCandidateProfileReviewOperations([
+        { operation: "add", path: "/skills", value: { id: "skill_new", name: "" } },
+        { operation: "replace", path: "/skills/skill_new/name", value: "TypeScript" },
+        { operation: "remove", path: "/skills/skill_new" },
+      ])
+    ).toEqual([]);
+  });
+
+  it("preserves unrelated operations when cancelling a new item", () => {
+      expect(
+        normalizeCandidateProfileReviewOperations([
+        { operation: "add", path: "/skills", value: { id: "skill_new", name: "" } },
+        { operation: "replace", path: "/skills/skill_new/name", value: "TypeScript" },
+        { operation: "remove", path: "/skills/skill_new" },
+        { operation: "replace", path: "/skills/skill_existing/name", value: "React" },
+      ])
+      ).toEqual([{ operation: "replace", path: "/skills/skill_existing/name", value: "React" }]);
+    });
+
+    it("keeps two pending adds distinct when removing one", () => {
+      expect(
+        normalizeCandidateProfileReviewOperations([
+          { operation: "add", path: "/skills", value: { id: "skill_one", name: "TypeScript" } },
+          { operation: "replace", path: "/skills/skill_one/name", value: "TypeScript" },
+          { operation: "add", path: "/skills", value: { id: "skill_two", name: "React" } },
+          { operation: "replace", path: "/skills/skill_two/name", value: "React" },
+          { operation: "remove", path: "/skills/skill_one" },
+        ])
+      ).toEqual([
+        { operation: "add", path: "/skills", value: { id: "skill_two", name: "React" } },
+        { operation: "replace", path: "/skills/skill_two/name", value: "React" },
+      ]);
+    });
+
+    it("preserves approve-derived request contract", async () => {
+    const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
+      data: { data: { attempt_id: "att_approve", creation_status: "ready_to_confirm" } },
+      status: 202,
+    } as any);
+    await approveDerivedReview("att_approve", 4, "fp_derived", "fp_baseline", "approve-key");
+    expect(postSpy).toHaveBeenCalledWith(
+      "/candidate-profile-creation-attempts/att_approve/derived/actions/approve",
+      {
+        expected_revision: 4,
+        expected_fingerprint: "fp_derived",
+        expected_baseline_fingerprint: "fp_baseline",
+      },
+      { idempotencyKey: "approve-key" }
+    );
+  });
+
   it("fetches field schema and caches it", async () => {
     const mockSchema = {
       schema_version: "candidate-profile-fields.v1",

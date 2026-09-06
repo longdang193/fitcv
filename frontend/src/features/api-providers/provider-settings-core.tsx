@@ -437,7 +437,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     void run(async () => {
       const res = await apiClient.post<{ data: ProviderModel }>(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}/actions/test`,
-        providerRevisionPayload(provider.revision)
+        providerRevisionPayload(model.provider_revision ?? provider.revision)
       );
       if (res.data.data.validation_status !== "validated") {
         throw new Error(res.data.data.last_test_error_code || "Model test failed.");
@@ -473,7 +473,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     void run(async () => {
       await apiClient.delete(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}`,
-        { body: providerRevisionPayload(provider.revision) }
+        { body: providerRevisionPayload(model.provider_revision ?? provider.revision) }
       );
     });
   };

@@ -40,15 +40,43 @@ export function generateIdempotencyKey(): string {
 export function normalizeCandidateProfileReviewOperations(
   operations: CandidateProfileReviewOperation[]
 ): CandidateProfileReviewOperation[] {
-  return operations.map((operation) => {
-    if (!operation.path.endsWith("/evidence_refs") || !Array.isArray(operation.value)) {
-      return operation;
+  const cancelledItems = new Set<string>();
+  const cancelledAdds = new Set<CandidateProfileReviewOperation>();
+  for (const operation of operations) {
+    if (operation.operation !== "remove") continue;
+    const itemId = operation.path.slice(operation.path.lastIndexOf("/") + 1);
+    const parentPath = operation.path.slice(0, operation.path.lastIndexOf("/"));
+    const add = operations.find(
+      (candidate) =>
+        candidate.operation === "add" &&
+        candidate.path === parentPath &&
+        candidate.value &&
+        typeof candidate.value === "object" &&
+        String((candidate.value as { id?: unknown }).id) === itemId
+    );
+    if (add) {
+      cancelledItems.add(operation.path);
+      cancelledAdds.add(add);
     }
-    return {
-      ...operation,
-      value: [...new Set(operation.value.map((value) => String(value).trim()).filter(Boolean))].sort(),
-    };
-  });
+  }
+
+  return operations
+    .filter(
+      (operation) =>
+        !cancelledAdds.has(operation) &&
+        ![...cancelledItems].some(
+          (path) => operation.path === path || operation.path.startsWith(`${path}/`)
+        )
+    )
+    .map((operation) => {
+      if (!operation.path.endsWith("/evidence_refs") || !Array.isArray(operation.value)) {
+        return operation;
+      }
+      return {
+        ...operation,
+        value: [...new Set(operation.value.map((value) => String(value).trim()).filter(Boolean))].sort(),
+      };
+    });
 }
 
 let cachedFieldSchema: { schema: FieldSchema; etag?: string | null } | null = null;

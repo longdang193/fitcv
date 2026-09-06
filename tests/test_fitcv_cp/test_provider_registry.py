@@ -6,6 +6,7 @@ from fitcv_cp import provider_registry
 from fitcv_cp.backend_runtime import set_backend_runtime
 from fitcv_cp.settings_store import load_llm_configuration, patch_llm_configuration
 from fitcv_cp.store import ControlPlaneStore
+from fitcv_cp import sqlite_store
 
 
 @pytest.fixture(autouse=True)
@@ -135,6 +136,41 @@ def test_failed_connection_validation_does_not_persist_or_store_credential(
     assert exc_info.value.code == "provider_auth_failed"
     assert credentials == {}
     assert provider_registry.get_provider("openai")["connection_status"] == "not_configured"
+
+
+def test_model_removal_uses_provider_revision_and_rejects_stale_revision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _credential_store(monkeypatch)
+    monkeypatch.setattr(
+        provider_registry,
+        "validate_connection_draft",
+        lambda **_kwargs: {"ok": True, "failure_code": None, "http_status": 200},
+    )
+    monkeypatch.setattr(
+        provider_registry,
+        "validate_model",
+        lambda **_kwargs: {"ok": True, "failure_code": None, "http_status": 200},
+    )
+    provider = provider_registry.get_provider("openai")
+    connected = provider_registry.save_connection(
+        "openai", base_url=None, api_type="responses", api_key="secret",
+        expected_revision=provider["revision"],
+    )
+    model = provider_registry.add_model(
+        "openai", model_id="gpt-remove", expected_revision=connected["revision"]
+    )
+
+    with pytest.raises(sqlite_store.ProviderPersistenceRevisionConflict):
+        provider_registry.remove_model(
+            "openai", model["model_record_id"], expected_revision=model["provider_revision"] - 1
+        )
+    assert provider_registry.get_provider("openai")["models"]
+
+    provider_registry.remove_model(
+        "openai", model["model_record_id"], expected_revision=model["provider_revision"]
+    )
+    assert provider_registry.get_provider("openai")["models"] == []
 
 
 def test_model_in_use_cannot_be_removed(monkeypatch: pytest.MonkeyPatch) -> None:

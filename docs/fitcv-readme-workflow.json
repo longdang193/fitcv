@@ -1,0 +1,393 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "FitCV: From Job Input to Evidence-Gated CV",
+    "subtitle": "Operator-controlled narrowing, reviewable ranking, and grounded output",
+    "output": "docs/fitcv-readme-workflow.html",
+    "animation": "none",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "Follow one run",
+        "focus": [
+          "input_jobs",
+          "run_setup",
+          "normalize_enrich",
+          "rule_filter",
+          "shortlist",
+          "ranking",
+          "cv_analysis",
+          "cv_generation",
+          "artifacts"
+        ],
+        "note": "Trace raw jobs through staged narrowing, evidence checks, and persisted outputs."
+      },
+      {
+        "id": "operator-review",
+        "label": "Inspect before output",
+        "focus": [
+          "run_setup",
+          "ranking",
+          "cv_analysis",
+          "artifacts"
+        ],
+        "note": "See where the operator reviews ranked jobs and the evidence behind late-stage decisions."
+      },
+      {
+        "id": "stop-conditions",
+        "label": "See safe stops",
+        "focus": [
+          "rule_filter",
+          "cv_analysis",
+          "cv_generation",
+          "artifacts"
+        ],
+        "note": "Follow rows that are filtered, blocked by fit or evidence, or retained for review instead of emitted as final CV output."
+      }
+    ],
+    "legend": {
+      "mode": "all",
+      "entries": {
+        "frontend": {
+          "label": "Operator surface"
+        },
+        "backend": {
+          "label": "Pipeline stage"
+        },
+        "database": {
+          "label": "Persisted artifact"
+        },
+        "security": {
+          "label": "Gate or stop"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "operator",
+      "label": "Operator"
+    },
+    {
+      "id": "pipeline",
+      "label": "FitCV Pipeline"
+    },
+    {
+      "id": "artifacts_lane",
+      "label": "Run Artifacts"
+    },
+    {
+      "id": "stops",
+      "label": "Stops + Review",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "prepare",
+      "label": "Prepare",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "narrow",
+      "label": "Narrow",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "ground",
+      "label": "Ground + emit",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "staged_narrowing",
+      "label": "Layered narrowing",
+      "lane": "pipeline",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "evidence_gate",
+      "label": "Evidence-gated late stage",
+      "lane": "pipeline",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "input_jobs",
+    "run_setup",
+    "normalize_enrich",
+    "rule_filter",
+    "shortlist",
+    "ranking",
+    "cv_analysis",
+    "cv_generation",
+    "artifacts"
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "input_jobs"
+    ],
+    "allowedTerminals": [
+      "artifacts",
+      "filtered",
+      "review_required"
+    ],
+    "requiredPaths": [
+      {
+        "from": "input_jobs",
+        "to": "run_setup"
+      },
+      {
+        "from": "run_setup",
+        "to": "normalize_enrich"
+      },
+      {
+        "from": "normalize_enrich",
+        "to": "rule_filter"
+      },
+      {
+        "from": "rule_filter",
+        "to": "shortlist"
+      },
+      {
+        "from": "shortlist",
+        "to": "ranking"
+      },
+      {
+        "from": "ranking",
+        "to": "cv_analysis"
+      },
+      {
+        "from": "cv_analysis",
+        "to": "cv_generation"
+      },
+      {
+        "from": "cv_generation",
+        "to": "artifacts"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "input_jobs",
+      "lane": "operator",
+      "col": 0,
+      "type": "frontend",
+      "label": "Input jobs",
+      "sublabel": "raw postings"
+    },
+    {
+      "id": "run_setup",
+      "lane": "operator",
+      "col": 1,
+      "type": "frontend",
+      "label": "Create run",
+      "sublabel": "settings + mode",
+      "tag": "Run All / staged"
+    },
+    {
+      "id": "normalize_enrich",
+      "lane": "pipeline",
+      "col": 2,
+      "type": "backend",
+      "label": "Normalize",
+      "sublabel": "enrich records"
+    },
+    {
+      "id": "rule_filter",
+      "lane": "pipeline",
+      "col": 3,
+      "type": "security",
+      "label": "Rule filter",
+      "sublabel": "remove weak paths",
+      "tag": "before embedding"
+    },
+    {
+      "id": "shortlist",
+      "lane": "pipeline",
+      "col": 4,
+      "type": "backend",
+      "label": "Shortlist",
+      "sublabel": "eligible jobs only"
+    },
+    {
+      "id": "ranking",
+      "lane": "operator",
+      "col": 4,
+      "type": "backend",
+      "label": "Rank + review",
+      "sublabel": "reviewable shortlist",
+      "tag": "AI score + final rank"
+    },
+    {
+      "id": "cv_analysis",
+      "lane": "pipeline",
+      "col": 5,
+      "type": "security",
+      "label": "Evidence gate",
+      "sublabel": "evidence + gap check",
+      "tag": "ready or blocked"
+    },
+    {
+      "id": "cv_generation",
+      "lane": "artifacts_lane",
+      "col": 5,
+      "type": "backend",
+      "label": "Generate CV",
+      "sublabel": "grounded + validated",
+      "tag": "late-stage"
+    },
+    {
+      "id": "artifacts",
+      "lane": "stops",
+      "col": 5,
+      "type": "database",
+      "label": "Outputs",
+      "sublabel": "ledger + artifacts",
+      "tag": "inspectable"
+    },
+    {
+      "id": "filtered",
+      "lane": "stops",
+      "col": 3,
+      "type": "security",
+      "label": "Filtered out",
+      "sublabel": "not eligible",
+      "tag": "stop"
+    },
+    {
+      "id": "review_required",
+      "lane": "stops",
+      "col": 4,
+      "type": "security",
+      "label": "Review",
+      "sublabel": "blocked / failed",
+      "tag": "inspect artifacts"
+    }
+  ],
+  "edges": [
+    {
+      "from": "input_jobs",
+      "to": "run_setup"
+    },
+    {
+      "from": "run_setup",
+      "to": "normalize_enrich"
+    },
+    {
+      "from": "normalize_enrich",
+      "to": "rule_filter"
+    },
+    {
+      "from": "rule_filter",
+      "to": "shortlist",
+      "label": "passes rules",
+      "variant": "emphasis"
+    },
+    {
+      "from": "rule_filter",
+      "to": "filtered",
+      "label": "fails rules",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "shortlist",
+      "to": "ranking"
+    },
+    {
+      "from": "ranking",
+      "to": "cv_analysis",
+      "label": "ranked jobs"
+    },
+    {
+      "from": "cv_analysis",
+      "to": "cv_generation",
+      "label": "evidence supports fit",
+      "variant": "security"
+    },
+    {
+      "from": "cv_generation",
+      "to": "artifacts",
+      "label": "validated output",
+      "variant": "emphasis"
+    },
+    {
+      "from": "cv_generation",
+      "to": "review_required",
+      "label": "validation or persistence issue",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "cv_analysis",
+      "to": "review_required",
+      "label": "blocked / skipped / failed / review required",
+      "variant": "security",
+      "role": "error",
+      "route": "auto",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          741.6,
+          330
+        ],
+        [
+          530,
+          330
+        ],
+        [
+          530,
+          450
+        ],
+        [
+          621.6,
+          450
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "One run, staged narrowing",
+      "items": [
+        "Raw postings become stable records before matching",
+        "Rule filtering happens before embedding",
+        "Ranking leaves a smaller shortlist for deeper work"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Evidence gates output",
+      "items": [
+        "CV analysis retrieves evidence and checks fit before generation",
+        "Blocked or failed late-stage rows remain reviewable",
+        "Generation is not the first step and is not unconditional"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Operator-visible truth",
+      "items": [
+        "Run mode can be Run All or Stage by Stage",
+        "Run ledgers and stage-owned artifacts preserve inspection context",
+        "Final outputs stay tied to the run that produced them"
+      ]
+    }
+  ]
+}
