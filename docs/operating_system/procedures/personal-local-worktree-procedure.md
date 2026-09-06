@@ -99,6 +99,17 @@ back to Codex browser or web MCPs.
 Keep DeepAgents work inside trusted one-user workspace, retain controller path
 checks, and verify Git scope before acceptance.
 
+### Herdr Observation
+
+Herdr remains transient observation authority. Use `api snapshot`, `pane list`,
+`pane process-info`, and `pane read` for DeepAgents pane processes; use
+`agent get` and `agent read` for Codex agents. Keep one semantic record across
+executors: executor, session, pane, agent identity, task hash, state, and
+evidence source. Missing or unchanged output is `unknown` or
+`stuck_suspected`, never proof of completion. Do not add a daemon, heartbeat
+store, event bus, or persistent runtime ledger. Raw terminal reads require an
+explicit disposable, bounded, redacted probe.
+
 ## Bounded Tura Worker
 
 `project-delegate` is the explicit Native Codex adapter for one bounded Tura

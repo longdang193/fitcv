@@ -54,10 +54,11 @@ target-project options with active consumers, not Starter defaults.
 
 ### DeepAgents
 
-DeepAgents MCP is opt-in through explicit `--mcp-select
-<server[.tool][,server[.tool]...]>`; no selection keeps `--no-mcp`. Launcher
-projects approved Codex `[mcp_servers]`; selecting a server exposes all tools
-exposed by that server, while selecting a tool narrows access. Direct mode uses
+DeepAgents MCP is opt-in through explicit Herdr selection. Herdr accepts
+`--mcp-select <server[.tool][,server[.tool]...]>` and forwards it to
+`dcode-project`; `dcode-project` validates selection against approved Codex
+`[mcp_servers]`. No selection keeps `--no-mcp`. Selecting a server exposes all
+tools exposed by that server, while selecting a tool narrows access. Direct mode uses
 temporary launcher-owned config under isolated child `DEEPAGENTS_HOME`; no
 per-task `.mcp.json`, `--trust-project-mcp`, or project-config mutation.
 Project MCP configs remain untouched and untrusted. MCP `headers` values must be

@@ -101,6 +101,16 @@ def test_powershell_literal_escapes_apostrophes() -> None:
     assert LAUNCHER._powershell_literal("worker's task") == "'worker''s task'"
 
 
+def test_run_converts_timeout_to_launch_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
+    def timeout_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(args[0], kwargs["timeout"])
+
+    monkeypatch.setattr(LAUNCHER.subprocess, "run", timeout_run)
+
+    with pytest.raises(LAUNCHER.LaunchBlocked, match="timed out after 2s"):
+        LAUNCHER._run(["herdr", "api", "snapshot"], timeout=2.0)
+
+
 def test_resolve_launch_builds_deepagents_pane_command(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -153,7 +163,7 @@ def test_resolve_launch_builds_deepagents_pane_command(
         "--max-turns",
         "4",
         "--timeout",
-        "600",
+        "120",
         "-n",
         "'Return exactly DEEPAGENTS_ADAPTER_OK'",
     ]
@@ -162,6 +172,16 @@ def test_resolve_launch_builds_deepagents_pane_command(
     assert evidence["registry_launcher"]["redacted_runtime_argv"][-1].startswith(
         "task=<sha256:"
     )
+    assert evidence["observation"] == {
+        "agent_name": "normal-main",
+        "executor": "deepagents",
+        "pane": "w1:p1",
+        "read_commands": ["pane process-info", "pane read"],
+        "session": "deepagents-probe",
+        "source": "herdr.pane_process",
+        "state": "unknown",
+        "task_sha256": LAUNCHER._sha256_text("Return exactly DEEPAGENTS_ADAPTER_OK"),
+    }
 
 
 def test_resolve_launch_enables_direct_mcp_only_for_explicit_selection(

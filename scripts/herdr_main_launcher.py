@@ -25,8 +25,11 @@ class LaunchBlocked(RuntimeError):
 _EXECUTORS = {"codex", "deepagents"}
 _MAX_TASK_LENGTH = 4096
 _DEEPAGENTS_MAX_TURNS = "4"
-_DEEPAGENTS_TIMEOUT = "600"
+_DEEPAGENTS_TIMEOUT = "120"
 _CODEX_PROMPT_TIMEOUT_MS = "30000"
+_HERDR_COMMAND_TIMEOUT = 30.0
+_DEEPAGENTS_RUN_TIMEOUT = float(_DEEPAGENTS_TIMEOUT) + _HERDR_COMMAND_TIMEOUT
+_CODEX_ASSIGNMENT_TIMEOUT = (float(_CODEX_PROMPT_TIMEOUT_MS) / 1000) + 5.0
 
 
 def _herdr_environment() -> dict[str, str]:
@@ -40,8 +43,22 @@ def _run(
     *,
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
+    timeout: float = _HERDR_COMMAND_TIMEOUT,
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True, check=False)
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise LaunchBlocked(
+            f"Command timed out after {timeout:g}s: {' '.join(command)}"
+        ) from exc
 
 
 def _run_checked(
@@ -375,6 +392,20 @@ def resolve_launch(
             "agent_kind": "codex" if executor == "codex" else "pane-process",
             "pane_cwd": str(Path(str(pane_state["pane"].get("cwd"))).resolve()),
         },
+        "observation": {
+            "executor": executor,
+            "session": session,
+            "pane": pane,
+            "agent_name": agent_name,
+            "task_sha256": _sha256_text(task_text),
+            "state": "unknown",
+            "source": "herdr.agent" if executor == "codex" else "herdr.pane_process",
+            "read_commands": (
+                ["agent get", "agent read"]
+                if executor == "codex"
+                else ["pane process-info", "pane read"]
+            ),
+        },
         "runtime": {
             "executable": codex or dcode,
             "argv_shape": _redacted_arguments(runtime_arguments),
@@ -444,7 +475,15 @@ def main(argv: list[str] | None = None) -> int:
             environment = _codex_environment(Path(str(codex_evidence["codex_home"])))
         else:
             environment = os.environ.copy()
-        result = _run(command, env=environment)
+        result = _run(
+            command,
+            env=environment,
+            timeout=(
+                _DEEPAGENTS_RUN_TIMEOUT
+                if args.executor == "deepagents"
+                else _HERDR_COMMAND_TIMEOUT
+            ),
+        )
         if result.stdout:
             print(result.stdout, end="")
         if result.stderr:
@@ -470,7 +509,11 @@ def main(argv: list[str] | None = None) -> int:
                 agent_name,
                 args.task,
             )
-            assignment_result = _run(assignment, env=environment)
+            assignment_result = _run(
+                assignment,
+                env=environment,
+                timeout=_CODEX_ASSIGNMENT_TIMEOUT,
+            )
             if assignment_result.stdout:
                 print(assignment_result.stdout, end="")
             if assignment_result.stderr:

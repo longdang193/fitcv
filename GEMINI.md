@@ -77,10 +77,11 @@ from `agents/*.toml` and local provider endpoint and credentials. Do not track
 DeepAgents auto-loads this root `AGENTS.md` and discovers `.agents/skills` as
 project skills. It does not auto-load `.agents/rules`; those are generated
 platform-adapter views. Codex remains approval, Git, verification, and
-acceptance controller. DeepAgents MCP is opt-in only through launcher
-`--mcp-select` against approved Codex `[mcp_servers]`; no selection keeps
-`--no-mcp`. `codex.mcp.handoff.v1` remains validated facts and provenance, not
-tool access. For launcher details, file-root conventions, and runtime-specific
+acceptance controller. DeepAgents MCP is opt-in only through Herdr selection.
+Herdr forwards explicit `--mcp-select` to `dcode-project`, which validates
+selection against approved Codex `[mcp_servers]`; no selection keeps `--no-mcp`.
+`codex.mcp.handoff.v1` remains validated facts and provenance, not tool access.
+For launcher details, file-root conventions, and runtime-specific
 restrictions, read
 `docs/operating_system/procedures/personal-local-worktree-procedure.md`.
 Do not duplicate rules in `.deepagents/AGENTS.md`.
