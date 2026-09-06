@@ -593,6 +593,18 @@ def test_launcher_allows_bounded_noninteractive_options() -> None:
     )
 
 
+def test_worker_timeout_defaults_are_executor_specific() -> None:
+    assert LAUNCHER._worker_timeout(
+        ["-n", "task"], default=None, worker_name="DeepAgents"
+    ) is None
+    assert LAUNCHER._worker_timeout(
+        ["-n", "task"], default=120.0, worker_name="Tura"
+    ) == 120.0
+    assert LAUNCHER._worker_timeout(
+        ["-n", "task", "--timeout=600"], default=None, worker_name="DeepAgents"
+    ) == 600.0
+
+
 @pytest.mark.parametrize("argument", ["--timeout", "--rubric"])
 def test_launcher_rejects_missing_bounded_option_value(argument: str) -> None:
     with pytest.raises(RuntimeError, match="requires a value"):
@@ -696,6 +708,7 @@ def test_main_uses_selected_role_model_and_fixed_local_capabilities(
         "--no-mcp",
     ]
     assert invoked_kwargs["cwd"] == tmp_path
+    assert invoked_kwargs["timeout"] is None
     assert not (tmp_path / ".deepagents").exists()
 
 

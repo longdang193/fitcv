@@ -1016,11 +1016,16 @@ def _tura_worker_environment(
     return environment
 
 
-def _tura_timeout(argv: list[str]) -> float:
+def _worker_timeout(
+    argv: list[str],
+    *,
+    default: float | None,
+    worker_name: str,
+) -> float | None:
     for index, argument in enumerate(argv):
         if argument == "--timeout":
             if index + 1 >= len(argv):
-                raise RuntimeError("Tura worker requires a value for `--timeout`.")
+                raise RuntimeError(f"{worker_name} worker requires a value for `--timeout`.")
             value = argv[index + 1]
         elif argument.startswith("--timeout="):
             value = argument.split("=", 1)[1]
@@ -1029,11 +1034,13 @@ def _tura_timeout(argv: list[str]) -> float:
         try:
             timeout = float(value)
         except ValueError as exc:
-            raise RuntimeError("Tura worker timeout must be a positive number.") from exc
+            raise RuntimeError(
+                f"{worker_name} worker timeout must be a positive number."
+            ) from exc
         if timeout <= 0:
-            raise RuntimeError("Tura worker timeout must be a positive number.")
+            raise RuntimeError(f"{worker_name} worker timeout must be a positive number.")
         return timeout
-    return 120.0
+    return default
 
 def _create_windows_job(process: subprocess.Popen[object]) -> object | None:
     if os.name != "nt":
@@ -1121,7 +1128,7 @@ def _run_bounded_worker(
     environment: dict[str, str],
     repo_root: Path,
     handoff_stdin: str | None,
-    timeout: float,
+    timeout: float | None,
     worker_name: str,
 ) -> int:
     creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0
@@ -1329,7 +1336,7 @@ def main(argv: list[str]) -> int:
             tura_argv,
             _tura_worker_environment(api_key, provider_config, repo_root),
             repo_root,
-            _tura_timeout(child_argv),
+            _worker_timeout(child_argv, default=120.0, worker_name="Tura"),
         )
     _append_bounded_task_context(child_argv, repo_root)
     handoff_stdin: str | None = None
@@ -1362,14 +1369,14 @@ def main(argv: list[str]) -> int:
                     environment,
                     repo_root,
                     handoff_stdin,
-                    _tura_timeout(child_argv),
+                    _worker_timeout(child_argv, default=None, worker_name="DeepAgents"),
                 )
         return _run_deepagents_worker(
             [*dcode_argv, "--no-mcp"],
             environment,
             repo_root,
             handoff_stdin,
-            _tura_timeout(child_argv),
+            _worker_timeout(child_argv, default=None, worker_name="DeepAgents"),
         )
     finally:
         _remove_role_views(repo_root, roles)

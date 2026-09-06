@@ -185,6 +185,11 @@ DeepAgents keeps control of its native execution budget. Herdr retains one
 controller. Upgrade smoke probes may pass explicit shorter bounds because they
 are bounded compatibility checks, not normal task execution.
 
+`dcode-project` also leaves its wrapper timeout unset for DeepAgents unless the
+caller passes `--timeout`; an explicit value is enforced by both the native
+DeepAgents process and its wrapper. Tura remains a bounded worker and keeps its
+120-second default when no explicit timeout is supplied.
+
 Launch a task without controller facts with:
 
 ```powershell
