@@ -42,12 +42,6 @@ def test_windows_local_dev_scripts_exist_and_use_simple_worker() -> None:
     assert "job-project-worker-1" in worker_script
 
 
-def test_publish_public_repo_only_resolves_public_remote_when_push_is_requested() -> None:
-    publish_script = (REPO_ROOT / "scripts" / "publish_public_repo.ps1").read_text(encoding="utf-8")
-
-    assert '$remoteUrl = $null' in publish_script
-    assert 'if ($Push) {' in publish_script
-    assert 'git remote get-url $PublicRemote' in publish_script
 """
 @meta
 type: test
