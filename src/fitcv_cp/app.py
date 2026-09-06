@@ -231,7 +231,11 @@ from fitcv_cp.settings_store import (
     save_settings_group,
     settings_revision,
 )
-from fitcv_cp.retry_settings import SYSTEM_SETTING_BOUNDS, SYSTEM_SETTINGS_DEFAULTS
+from fitcv_cp.retry_policy import (
+    RETRY_POLICY_BOUNDS as SYSTEM_SETTING_BOUNDS,
+    RETRY_POLICY_DEFAULTS as SYSTEM_SETTINGS_DEFAULTS,
+)
+from fitcv_cp.retry_settings import get_run_retry_settings
 from fitcv_cp.synonym_proposals import (
     apply_synonym_management_defaults,
     build_builtin_synonym_triage_recommendation,
@@ -13624,8 +13628,11 @@ def create_app(
             raise HTTPException(status_code=409, detail="Cancelled runs cannot be retried")
         if getattr(run, "cancel_requested_at", None) is not None:
             raise HTTPException(status_code=409, detail="Cancel requested: run cannot be retried")
-        if run.status not in {RunStatus.FAILED, RunStatus.QUEUED, RunStatus.RUNNING}:
-            raise HTTPException(status_code=409, detail=f"Cannot retry run with status '{run.status.value}'")
+        if run.status != RunStatus.FAILED:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Only failed runs can be retried; current status is '{run.status.value}'",
+            )
 
         store = _resolve_run_store(client=client)
         attempt_payloads = store.list_run_attempt_payloads(run_id)
@@ -13636,9 +13643,7 @@ def create_app(
         }
         attempt_ids.discard("")
         attempt_count = len(attempt_ids)
-        from fitcv_cp.retry_settings import load_retry_settings
-
-        max_attempts = load_retry_settings().maximum_attempts
+        max_attempts = get_run_retry_settings(run).maximum_attempts
         if attempt_count >= max_attempts:
             raise HTTPException(status_code=409, detail="Retry rejected: max_attempts exhausted")
 

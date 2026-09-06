@@ -153,7 +153,7 @@ def test_resolve_launch_builds_deepagents_pane_command(
         "--max-turns",
         "4",
         "--timeout",
-        "120",
+        "600",
         "-n",
         "'Return exactly DEEPAGENTS_ADAPTER_OK'",
     ]

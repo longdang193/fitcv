@@ -49,6 +49,55 @@ def test_load_retry_settings_coerces_and_bounds_values(field, value, expected, m
     assert getattr(settings, field) == expected
 
 
+def test_load_retry_settings_maps_legacy_control_plane_retry() -> None:
+    settings = load_retry_settings(
+        {
+            "fitcv_cp": {
+                "retry": {
+                    "enabled": True,
+                    "max_attempts": 5,
+                    "backoff_seconds": [7, 20],
+                    "lease_seconds": 900,
+                    "reconciler_interval_seconds": 0,
+                    "error_details_max_chars": 25000,
+                }
+            }
+        }
+    )
+
+    assert settings.maximum_attempts == 5
+    assert settings.initial_backoff_seconds == 7
+    assert settings.lease_seconds == 900
+    assert settings.reconciler_interval_seconds == 30
+    assert settings.error_detail_limit == 25000
+
+
+def test_load_retry_settings_canonical_fields_override_legacy_aliases() -> None:
+    settings = load_retry_settings(
+        {
+            "fitcv_cp": {
+                "retry": {
+                    "maximum_attempts": 4,
+                    "initial_backoff_seconds": 3,
+                    "lease_seconds": 900,
+                    "reconciler_interval_seconds": 15,
+                    "error_detail_limit": 2048,
+                    "enabled": False,
+                    "max_attempts": 9,
+                    "backoff_seconds": [99, 100],
+                    "error_details_max_chars": 9999,
+                }
+            }
+        }
+    )
+
+    assert settings.maximum_attempts == 4
+    assert settings.initial_backoff_seconds == 3
+    assert settings.lease_seconds == 900
+    assert settings.reconciler_interval_seconds == 15
+    assert settings.error_detail_limit == 2048
+
+
 def test_load_retry_settings_uses_explicit_non_local_defaults(monkeypatch) -> None:
     monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
 

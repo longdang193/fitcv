@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 
 import pytest
+import yaml
 import fitcv.config as config_module
 
 from fitcv.config import (
@@ -35,6 +36,7 @@ from fitcv.config import (
     parse_skill_synonym_overlay_yaml,
     resolve_model_routing_part,
     resolve_data_backend,
+    validate_local_controller_overlay,
 )
 from fitcv.persistence import get_local_sqlite_path
 from fitcv_cp.backend_runtime import set_backend_runtime
@@ -60,6 +62,46 @@ def test_system_retry_accessors_read_frozen_runtime_snapshot() -> None:
 def test_system_retry_accessors_use_canonical_defaults_without_snapshot() -> None:
     assert get_system_maximum_attempts({}) == 3
     assert get_system_initial_backoff_seconds({}) == 10
+
+
+def test_validate_local_controller_overlay_normalizes_legacy_retry_to_canonical_scalars() -> None:
+    normalized = validate_local_controller_overlay(
+        {
+            "version": 1,
+            "fitcv_cp": {
+                "retry": {
+                    "enabled": False,
+                    "max_attempts": 5,
+                    "backoff_seconds": [1, 20],
+                    "lease_seconds": 900,
+                    "reconciler_interval_seconds": 0,
+                    "error_details_max_chars": 2048,
+                }
+            },
+        }
+    )
+
+    assert normalized["fitcv_cp"]["retry"] == {
+        "maximum_attempts": 1,
+        "initial_backoff_seconds": 1,
+        "lease_seconds": 900,
+        "reconciler_interval_seconds": 30,
+        "error_detail_limit": 2048,
+    }
+
+
+def test_checked_in_retry_config_uses_canonical_scalar_values() -> None:
+    config = yaml.safe_load(
+        Path("config/runtime/control_plane.yaml").read_text(encoding="utf-8")
+    )
+
+    assert config["control_plane"]["fitcv_cp"]["retry"] == {
+        "maximum_attempts": 1,
+        "initial_backoff_seconds": 1,
+        "lease_seconds": 900,
+        "reconciler_interval_seconds": 30,
+        "error_detail_limit": 2048,
+    }
 
 
 def test_get_cv_acceptance_policy_defaults_when_missing() -> None:

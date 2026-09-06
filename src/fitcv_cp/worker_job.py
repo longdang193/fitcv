@@ -1602,9 +1602,9 @@ def execute_pipeline_run(
                 ),
             )
 
-            from fitcv_cp.retry_settings import load_retry_settings
+            from fitcv_cp.retry_settings import get_run_retry_settings
 
-            settings = load_retry_settings()
+            settings = get_run_retry_settings(current_run_record)
             lease_seconds = settings.lease_seconds
             lease_started_at = datetime.datetime.now(datetime.timezone.utc)
             lease_expires_at = lease_started_at + datetime.timedelta(seconds=max(1, lease_seconds))

@@ -54,9 +54,8 @@ control_plane:
 
   fitcv_cp:
     retry:
-      enabled: false
-      max_attempts: 1
-      backoff_seconds: [1, 2, 4, 8]
+      maximum_attempts: 1
+      initial_backoff_seconds: 1
       lease_seconds: 900
-      reconciler_interval_seconds: 0
-      error_details_max_chars: 2048
+      reconciler_interval_seconds: 30
+      error_detail_limit: 2048

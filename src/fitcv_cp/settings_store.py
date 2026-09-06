@@ -32,7 +32,10 @@ from fitcv_cp.settings_schema import (
     editable_settings_keys,
     merge_and_validate_settings,
 )
-from fitcv_cp.retry_settings import SYSTEM_SETTING_BOUNDS, SYSTEM_SETTINGS_DEFAULTS
+from fitcv_cp.retry_policy import (
+    RETRY_POLICY_BOUNDS as SYSTEM_SETTING_BOUNDS,
+    RETRY_POLICY_DEFAULTS as SYSTEM_SETTINGS_DEFAULTS,
+)
 
 logger = logging.getLogger(__name__)
 

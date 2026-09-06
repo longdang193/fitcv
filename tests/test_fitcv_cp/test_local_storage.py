@@ -430,10 +430,13 @@ def test_integration_migration_imports_legacy_state_once(
     system = load_system_settings()
     revisions = (llm["revision"], prompts["enrich_extraction"]["revision"], system["revision"])
 
+    system_before_second = load_system_settings()
     second = migrate_packaged_local_integration_state(paths)
+    system_after_second = load_system_settings()
 
     assert first["status"] == "applied"
     assert second["status"] == "already_applied"
+    assert system_after_second == system_before_second
     assert provider is not None and provider["verification_status"] == "not_configured"
     assert len(models) == 1 and models[0]["validation_status"] == "needs_retest"
     assert llm["default_model_ref"] == models[0]["model_record_id"]
@@ -460,34 +463,166 @@ def test_integration_migration_imports_legacy_state_once(
     )
 
 
-def test_integration_migration_cleanup_failure_preserves_legacy_truth(
+@pytest.mark.parametrize(
+    ("backoff_seconds", "expected_initial_backoff"),
+    [([7, 20], 7), ([1, 20], 1)],
+)
+def test_integration_migration_maps_legacy_backoff_to_initial_scalar(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    backoff_seconds: list[int],
+    expected_initial_backoff: int,
+) -> None:
+    paths = _integration_migration_paths(tmp_path, monkeypatch)
+    paths.controller_overlay_path.write_text(
+        yaml.safe_dump(
+            {
+                "version": 1,
+                "fitcv_cp": {
+                    "retry": {
+                        "enabled": True,
+                        "max_attempts": 5,
+                        "backoff_seconds": backoff_seconds,
+                        "lease_seconds": 900,
+                        "reconciler_interval_seconds": 0,
+                        "error_details_max_chars": 25000,
+                    }
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    migrate_packaged_local_integration_state(paths)
+
+    system = load_system_settings()
+    assert {
+        key: system[key]
+        for key in (
+            "maximum_attempts",
+            "initial_backoff_seconds",
+            "lease_seconds",
+            "reconciler_interval_seconds",
+            "error_detail_limit",
+        )
+    } == {
+        "maximum_attempts": 5,
+        "initial_backoff_seconds": expected_initial_backoff,
+        "lease_seconds": 900,
+        "reconciler_interval_seconds": 30,
+        "error_detail_limit": 25000,
+    }
+
+
+def test_integration_migration_rejects_empty_backoff_without_mutation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     paths = _integration_migration_paths(tmp_path, monkeypatch)
     paths.controller_overlay_path.write_text(
-        "version: 1\nproviders:\n  openai_compatible:\n    base_url: https://example.test/v1\n",
+        "version: 1\nfitcv_cp:\n  retry:\n    enabled: true\n    max_attempts: 5\n    backoff_seconds: []\n",
         encoding="utf-8",
     )
-    paths.onboarding_state_path.write_text(
-        '{"version": 1, "complete": false, "provider_id": "openai_compatible"}\n',
-        encoding="utf-8",
-    )
-    overlay_before = paths.controller_overlay_path.read_bytes()
-    onboarding_before = paths.onboarding_state_path.read_bytes()
-    monkeypatch.setattr(
-        "fitcv_cp.local_storage.write_controller_overlay",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("cleanup failed")),
-    )
-    monkeypatch.setattr("fitcv_cp.local_credentials.get_credential", lambda _provider_id: "")
+    source_before = paths.controller_overlay_path.read_bytes()
+    system_before = load_system_settings()
 
-    with pytest.raises(OSError, match="cleanup failed"):
+    with pytest.raises(ValueError):
         migrate_packaged_local_integration_state(paths)
 
+    assert paths.controller_overlay_path.read_bytes() == source_before
+    assert load_system_settings() == system_before
     assert not ControlPlaneStore().integration_migration_applied(
         "packaged_local_complete_integration_v1"
     )
-    assert paths.controller_overlay_path.read_bytes() == overlay_before
-    assert paths.onboarding_state_path.read_bytes() == onboarding_before
-    error = json.loads(paths.integration_migration_error_path.read_text(encoding="utf-8"))
-    assert error == {"error_type": "OSError", "message": "cleanup failed"}
+    assert not paths.integration_migration_error_path.exists()
+
+
+@pytest.mark.parametrize("failure_point", ["after_system_patch", "after_source_cleanup", "before_marker"])
+def test_integration_migration_rolls_back_revisioned_settings_and_sources(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_point: str,
+) -> None:
+    paths = _integration_migration_paths(tmp_path, monkeypatch)
+    paths.controller_overlay_path.write_text(
+        "version: 1\nfitcv_cp:\n  retry:\n"
+        "    enabled: true\n    max_attempts: 5\n"
+        "    backoff_seconds: [7, 20]\n    lease_seconds: 900\n"
+        "    reconciler_interval_seconds: 0\n    error_details_max_chars: 25000\n",
+        encoding="utf-8",
+    )
+    paths.onboarding_state_path.write_text(
+        '{"version": 1, "complete": false, "provider_id": "legacy"}\n',
+        encoding="utf-8",
+    )
+    source_overlay_before = paths.controller_overlay_path.read_bytes()
+    source_onboarding_before = paths.onboarding_state_path.read_bytes()
+    system_before = load_system_settings()
+    r0 = int(system_before["revision"])
+
+    if failure_point == "after_system_patch":
+        from fitcv_cp import local_storage
+
+        original = local_storage.patch_system_settings
+        calls = 0
+
+        def fail_after_patch(changes: dict[str, int], *, expected_revision: int) -> dict[str, object]:
+            nonlocal calls
+            calls += 1
+            result = original(changes, expected_revision=expected_revision)
+            if calls == 1:
+                raise RuntimeError(failure_point)
+            return result
+
+        monkeypatch.setattr(local_storage, "patch_system_settings", fail_after_patch)
+    elif failure_point == "after_source_cleanup":
+        from fitcv_cp import local_storage
+
+        original = local_storage.write_controller_overlay
+
+        def fail_after_cleanup(*args: object, **kwargs: object) -> dict[str, object]:
+            result = original(*args, **kwargs)
+            raise RuntimeError(failure_point)
+
+        monkeypatch.setattr(local_storage, "write_controller_overlay", fail_after_cleanup)
+    else:
+        def fail_before_marker(self: ControlPlaneStore, *args: object, **kwargs: object) -> None:
+            raise RuntimeError(failure_point)
+
+        monkeypatch.setattr(ControlPlaneStore, "record_integration_migration", fail_before_marker)
+
+    with pytest.raises(RuntimeError, match=failure_point):
+        migrate_packaged_local_integration_state(paths)
+
+    restored = load_system_settings()
+    r1 = r0 + 1
+    assert restored["revision"] == r1 + 1
+    assert {
+        key: restored[key]
+        for key in (
+            "maximum_attempts",
+            "initial_backoff_seconds",
+            "lease_seconds",
+            "reconciler_interval_seconds",
+            "error_detail_limit",
+        )
+    } == {
+        key: system_before[key]
+        for key in (
+            "maximum_attempts",
+            "initial_backoff_seconds",
+            "lease_seconds",
+            "reconciler_interval_seconds",
+            "error_detail_limit",
+        )
+    }
+    assert paths.controller_overlay_path.read_bytes() == source_overlay_before
+    assert paths.onboarding_state_path.read_bytes() == source_onboarding_before
+    assert not ControlPlaneStore().integration_migration_applied(
+        "packaged_local_complete_integration_v1"
+    )
+    assert json.loads(paths.integration_migration_error_path.read_text(encoding="utf-8")) == {
+        "error": failure_point,
+        "migration_key": "packaged_local_complete_integration_v1",
+    }

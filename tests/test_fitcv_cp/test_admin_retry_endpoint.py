@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+import pytest
 
 from fitcv_cp import sqlite_store
 from fitcv_cp.app import create_app
@@ -48,7 +49,21 @@ def _seed_failed_local_run(tmp_path: Path, monkeypatch) -> tuple[PipelineRun, da
         effective_settings_json=json.dumps({"snapshot": "settings-a"}),
         jobs_input_json=json.dumps({"snapshot": "jobs-a"}),
         candidate_profile_json=json.dumps({"snapshot": "profile-a"}),
-        settings_used_json=json.dumps({"snapshot": "settings-a"}),
+        settings_used_json=json.dumps(
+            {
+                "effective_settings": {
+                    "runtime_inputs": {
+                        "system_settings_snapshot": {
+                            "maximum_attempts": 3,
+                            "initial_backoff_seconds": 10,
+                            "lease_seconds": 900,
+                            "reconciler_interval_seconds": 30,
+                            "error_detail_limit": 2048,
+                        }
+                    }
+                }
+            }
+        ),
     )
     sqlite_store.create_run_bundle(
         run,
@@ -248,5 +263,95 @@ def test_local_retry_enqueue_failure_restores_failed_state(
     assert any(event.stage == "retry_enqueue_failed" for event in sqlite_store.get_events(run.run_id))
 
 
+def test_admin_retry_run_uses_immutable_run_snapshot_for_attempt_cap() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="snapshot-run",
+        status=RunStatus.FAILED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        settings_used_json=json.dumps(
+            {
+                "effective_settings": {
+                    "runtime_inputs": {
+                        "system_settings_snapshot": {
+                            "maximum_attempts": 1,
+                            "initial_backoff_seconds": 0,
+                            "lease_seconds": 900,
+                            "reconciler_interval_seconds": 5,
+                            "error_detail_limit": 2048,
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    store = MagicMock()
+    store.list_run_attempt_payloads.return_value = [{"attempt": {"attempt_id": "a1"}}]
+
+    with patch("fitcv_cp.app.get_run", return_value=run), patch(
+        "fitcv_cp.app._resolve_run_store", return_value=store
+    ), patch(
+        "fitcv_cp.retry_settings.load_retry_settings",
+        side_effect=AssertionError("admin retry read live settings"),
+    ):
+        response = TestClient(_app()).post("/admin/runs/snapshot-run/retry")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Retry rejected: max_attempts exhausted"
+
+
+def test_admin_retry_run_rejects_cancel_requested_failed_run() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="cancel-requested-run",
+        status=RunStatus.FAILED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        cancel_requested_at=now,
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(_app()).post("/admin/runs/cancel-requested-run/retry")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Cancel requested: run cannot be retried"
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        RunStatus.QUEUED,
+        RunStatus.RUNNING,
+        RunStatus.AWAITING_CONTINUE,
+        RunStatus.CANCELLING,
+        RunStatus.SUCCEEDED,
+    ],
+)
+def test_admin_retry_run_rejects_active_or_non_failed_statuses(status: RunStatus) -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="active-run",
+        status=status,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(_app()).post("/admin/runs/active-run/retry")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        f"Only failed runs can be retried; current status is '{status.value}'"
+    )
 
 

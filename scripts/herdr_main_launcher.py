@@ -25,7 +25,7 @@ class LaunchBlocked(RuntimeError):
 _EXECUTORS = {"codex", "deepagents"}
 _MAX_TASK_LENGTH = 4096
 _DEEPAGENTS_MAX_TURNS = "4"
-_DEEPAGENTS_TIMEOUT = "120"
+_DEEPAGENTS_TIMEOUT = "600"
 _CODEX_PROMPT_TIMEOUT_MS = "30000"
 
 

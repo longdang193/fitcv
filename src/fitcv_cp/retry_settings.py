@@ -2,37 +2,26 @@
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from typing import Any
 
-from fitcv.config import (
-    SYSTEM_SETTING_BOUNDS,
-    SYSTEM_SETTINGS_DEFAULTS,
-    load_control_plane_config,
+from fitcv.config import load_control_plane_config
+from fitcv_cp.retry_policy import (
+    RETRY_POLICY_BOUNDS,
+    RETRY_POLICY_DEFAULTS,
+    RetryPolicy,
+    normalize_retry_policy,
 )
+
+SYSTEM_SETTING_BOUNDS = RETRY_POLICY_BOUNDS
+SYSTEM_SETTINGS_DEFAULTS = RETRY_POLICY_DEFAULTS
 
 
 @dataclass(frozen=True)
-class RetrySettings:
-    maximum_attempts: int
-    initial_backoff_seconds: int
-    lease_seconds: int
-    reconciler_interval_seconds: int
-    error_detail_limit: int
+class RetrySettings(RetryPolicy):
     revision: int = 0
-
-
-def _bounded_int(value: Any, *, field: str) -> int:
-    default = SYSTEM_SETTINGS_DEFAULTS[field]
-    minimum, maximum = SYSTEM_SETTING_BOUNDS[field]
-    if isinstance(value, bool):
-        return default
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        return default
-    return max(minimum, min(maximum, parsed))
 
 
 def load_retry_settings(control_plane_cfg: dict[str, Any] | None = None) -> RetrySettings:
@@ -54,8 +43,45 @@ def load_retry_settings(control_plane_cfg: dict[str, Any] | None = None) -> Retr
         values = dict((dict(cfg.get("fitcv_cp") or {}).get("retry") or {}))
         revision = 0
 
-    normalized = {
-        field: _bounded_int(values.get(field), field=field)
-        for field in SYSTEM_SETTINGS_DEFAULTS
-    }
+    normalized = normalize_retry_policy(values)
     return RetrySettings(**normalized, revision=revision)
+
+
+def _run_retry_snapshot(run: Any) -> dict[str, Any] | None:
+    raw_settings = getattr(run, "settings_used_json", None)
+    if not isinstance(raw_settings, str) or not raw_settings.strip():
+        return None
+    try:
+        settings_used = json.loads(raw_settings)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(settings_used, dict):
+        return None
+    effective_settings = settings_used.get("effective_settings")
+    if not isinstance(effective_settings, dict):
+        effective_settings = settings_used
+    runtime_inputs = effective_settings.get("runtime_inputs")
+    if not isinstance(runtime_inputs, dict):
+        return None
+    snapshot = runtime_inputs.get("system_settings_snapshot")
+    if not isinstance(snapshot, dict):
+        return None
+    fields = tuple(RETRY_POLICY_DEFAULTS)
+    if any(type(snapshot.get(field)) is not int for field in fields):
+        return None
+    if any(
+        not (minimum <= snapshot[field] <= maximum)
+        for field, (minimum, maximum) in RETRY_POLICY_BOUNDS.items()
+    ):
+        return None
+    return snapshot
+
+
+def get_run_retry_settings(run: Any) -> RetrySettings:
+    """Return immutable Run retry settings, falling back for legacy Runs only."""
+    snapshot = _run_retry_snapshot(run)
+    if snapshot is None:
+        return load_retry_settings()
+    normalized = normalize_retry_policy(snapshot)
+    revision = snapshot.get("revision", 0)
+    return RetrySettings(**normalized, revision=revision if type(revision) is int else 0)

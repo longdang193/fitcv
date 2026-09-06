@@ -34,6 +34,11 @@ from fitcv.ranking_contract import build_ranking_contract_context, validate_rank
 from fitcv.cv_presets import SUPPORTED_PRESETS
 from fitcv.prompts import get_prompt_definition
 from fitcv.semantic_snapshot import compile_semantic_policy
+from fitcv_cp.retry_policy import (
+    RETRY_POLICY_BOUNDS,
+    RETRY_POLICY_DEFAULTS,
+    normalize_retry_policy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -132,34 +137,8 @@ PROVIDER_REGISTRY = {
 }
 MAX_PROMPT_ADDENDUM_CHARS = 4000
 LOCAL_CONTROLLER_OVERLAY_VERSION = 1
-SYSTEM_SETTINGS_DEFAULTS = {
-    "maximum_attempts": 3,
-    "initial_backoff_seconds": 10,
-    "lease_seconds": 300,
-    "reconciler_interval_seconds": 30,
-    "error_detail_limit": 10000,
-}
-SYSTEM_SETTING_BOUNDS = {
-    "maximum_attempts": (1, 10),
-    "initial_backoff_seconds": (0, 3600),
-    "lease_seconds": (30, 86400),
-    "reconciler_interval_seconds": (5, 3600),
-    "error_detail_limit": (1000, 100000),
-}
-_RETRY_BOUNDS = {
-    "max_attempts": (1, 20),
-    "lease_seconds": (30, 24 * 3600),
-    "reconciler_interval_seconds": (0, 3600),
-    "error_details_max_chars": (256, 65536),
-}
-_REQUIRED_RETRY_FIELDS = (
-    "enabled",
-    "max_attempts",
-    "backoff_seconds",
-    "lease_seconds",
-    "reconciler_interval_seconds",
-    "error_details_max_chars",
-)
+SYSTEM_SETTINGS_DEFAULTS = RETRY_POLICY_DEFAULTS
+SYSTEM_SETTING_BOUNDS = RETRY_POLICY_BOUNDS
 _SUPPORTED_PROVIDER_IDS = SUPPORTED_PROVIDER_IDS
 _RETIRED_PROVIDER_IDS = {"gemini", "vertex", "vertex_ai", "google", "google_genai", "google_vertex"}
 _DEFAULT_ACTIVE_MODEL = "cx/gpt-5.4-mini"
@@ -386,27 +365,7 @@ def validate_local_controller_overlay(payload: dict[str, Any]) -> dict[str, Any]
     if unsupported_cp:
         raise ValueError(f"local controller fitcv_cp contains unsupported keys: {unsupported_cp}")
     retry = _overlay_mapping(fitcv_cp.get("retry"), field="fitcv_cp.retry")
-    unsupported_retry = sorted(set(retry) - set(_REQUIRED_RETRY_FIELDS))
-    if unsupported_retry:
-        raise ValueError(f"unsupported retry fields: {unsupported_retry}")
-    clean_retry: dict[str, Any] = {}
-    if "enabled" in retry:
-        if not isinstance(retry["enabled"], bool):
-            raise ValueError("fitcv_cp.retry.enabled must be boolean")
-        clean_retry["enabled"] = retry["enabled"]
-    if "backoff_seconds" in retry:
-        raw_backoff = retry["backoff_seconds"]
-        if not isinstance(raw_backoff, list) or not raw_backoff or len(raw_backoff) > 20:
-            raise ValueError("fitcv_cp.retry.backoff_seconds must contain 1 to 20 integers")
-        clean_retry["backoff_seconds"] = [
-            _bounded_int(item, field="fitcv_cp.retry.backoff_seconds", minimum=0, maximum=24 * 3600)
-            for item in raw_backoff
-        ]
-    for field, (minimum, maximum) in _RETRY_BOUNDS.items():
-        if field in retry:
-            clean_retry[field] = _bounded_int(
-                retry[field], field=f"fitcv_cp.retry.{field}", minimum=minimum, maximum=maximum
-            )
+    clean_retry = normalize_retry_policy(retry, strict=True, include_defaults=False)
     if clean_retry:
         normalized["fitcv_cp"] = {"retry": clean_retry}
 
@@ -642,12 +601,19 @@ def _validate_control_plane_defaults(control_plane: dict[str, Any]) -> None:
             raise ValueError(f"control_plane.model_routing.parts.{part_name}.model is required")
     fitcv_cp = _overlay_mapping(control_plane.get("fitcv_cp"), field="control_plane.fitcv_cp")
     retry = _overlay_mapping(fitcv_cp.get("retry"), field="control_plane.fitcv_cp.retry")
-    for field in _REQUIRED_RETRY_FIELDS:
-        if field not in retry:
-            raise ValueError(f"control_plane.fitcv_cp.retry.{field} is required")
-    validate_local_controller_overlay(
-        {"version": LOCAL_CONTROLLER_OVERLAY_VERSION, "fitcv_cp": {"retry": retry}}
+    required_groups = (
+        ("maximum_attempts", "max_attempts", "enabled"),
+        ("initial_backoff_seconds", "backoff_seconds"),
+        ("lease_seconds",),
+        ("reconciler_interval_seconds",),
+        ("error_detail_limit", "error_details_max_chars"),
     )
+    for group in required_groups:
+        if not any(field in retry for field in group):
+            raise ValueError(
+                f"control_plane.fitcv_cp.retry.{group[0]} is required"
+            )
+    normalize_retry_policy(retry, strict=True)
 
 def _iter_nested_mapping_keys(payload: Any) -> list[str]:
     if isinstance(payload, dict):

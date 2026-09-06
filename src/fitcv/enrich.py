@@ -2014,7 +2014,8 @@ def _enrich_one(
             )
             if not retryable_rate_limit or attempt_number >= maximum_attempts:
                 raise
-            time.sleep(backoff_seconds)
+            if backoff_seconds > 0:
+                time.sleep(backoff_seconds)
             continue
 
         if job_event_callback and job_url:

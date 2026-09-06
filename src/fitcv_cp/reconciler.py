@@ -25,7 +25,7 @@ from typing import Any
 
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.queue import enqueue_run_with_job_id
-from fitcv_cp.retry_settings import load_retry_settings
+from fitcv_cp.retry_settings import get_run_retry_settings
 from fitcv_cp.run_artifact_contracts import decode_run_attempt_payload_or_none, run_attempt_payload_v1
 from fitcv_cp.run_lifecycle import can_reconcile_abandoned_attempts
 from fitcv_cp.store import RunStore
@@ -71,13 +71,14 @@ def reconcile_abandoned_attempts(
     abandoned_attempts = 0
     requeued_attempts = 0
     terminal_failed_runs = 0
-    settings = load_retry_settings()
+
 
     for run in store.list_runs(limit=200, include_archived=False, archived_only=False):
         scanned_runs += 1
         if not can_reconcile_abandoned_attempts(run):
             continue
 
+        settings = get_run_retry_settings(run)
         cancel_requested = getattr(run, "cancel_requested_at", None) is not None
 
         events = store.get_events(run.run_id)
@@ -183,7 +184,8 @@ def reconcile_abandoned_attempts(
                 terminal_failed_runs += 1
                 continue
 
-            time.sleep(settings.initial_backoff_seconds)
+            if settings.initial_backoff_seconds > 0:
+                time.sleep(settings.initial_backoff_seconds)
             enqueue_run_with_job_id(
                 jobs_path=str(getattr(run, "jobs_path", "")),
                 config_path=str(getattr(run, "config_path", "")),

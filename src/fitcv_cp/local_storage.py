@@ -39,6 +39,7 @@ from fitcv.config import (
     LOCAL_CONTROLLER_OVERLAY_VERSION,
     validate_local_controller_overlay,
 )
+from fitcv_cp.settings_store import patch_system_settings
 
 BOOTSTRAP_VERSION = 1
 MINIMUM_RELOCATION_HEADROOM_BYTES = 512 * 1024 * 1024
@@ -300,12 +301,12 @@ def migrate_packaged_local_integration_state(paths: LocalStoragePaths) -> dict[s
     from fitcv.prompts.loader import load_prompt_template
     from fitcv_cp import provider_registry
     from fitcv_cp.local_credentials import delete_credential, get_credential, set_credential
-    from fitcv_cp.retry_settings import SYSTEM_SETTING_BOUNDS, SYSTEM_SETTINGS_DEFAULTS
+    from fitcv_cp.retry_policy import normalize_retry_policy
+    from fitcv_cp.retry_settings import SYSTEM_SETTING_BOUNDS
     from fitcv_cp.settings_store import (
         load_system_settings,
         migrate_llm_configuration_references,
         migrate_prompt_configuration,
-        patch_system_settings,
     )
     from fitcv_cp.store import ControlPlaneStore
 
@@ -316,16 +317,13 @@ def migrate_packaged_local_integration_state(paths: LocalStoragePaths) -> dict[s
         "cv_generation_structured_write": "## Structured JSON Schema",
         "synonym_triage_recommendation": "Return strict JSON only",
     }
-    store = ControlPlaneStore()
-    if store.integration_migration_applied(migration_key):
-        paths.integration_migration_error_path.unlink(missing_ok=True)
-        return {"migration_key": migration_key, "status": "already_applied"}
-
     overlay = {}
     if paths.controller_overlay_path.exists():
         overlay = validate_local_controller_overlay(
             yaml.safe_load(paths.controller_overlay_path.read_text(encoding="utf-8")) or {}
         )
+    legacy_retry = dict((overlay.get("fitcv_cp") or {}).get("retry") or {})
+    normalized_legacy_retry = normalize_retry_policy(legacy_retry, strict=True) if legacy_retry else {}
     onboarding = {}
     if paths.onboarding_state_path.exists():
         onboarding = json.loads(paths.onboarding_state_path.read_text(encoding="utf-8"))
@@ -343,9 +341,20 @@ def migrate_packaged_local_integration_state(paths: LocalStoragePaths) -> dict[s
         if paths.onboarding_state_path.exists()
         else None
     )
+    migration_error_before = (
+        paths.integration_migration_error_path.read_bytes()
+        if paths.integration_migration_error_path.exists()
+        else None
+    )
+    store = ControlPlaneStore()
+    if store.integration_migration_applied(migration_key):
+        return {"migration_key": migration_key, "status": "already_applied"}
+
     provider_targets: dict[str, str] = {}
     model_refs: dict[tuple[str, str], str] = {}
-    resulting_system_revision = load_system_settings()["revision"]
+    system_before = load_system_settings()
+    r0 = int(system_before["revision"])
+    resulting_system_revision = r0
     try:
         providers = dict(overlay.get("providers") or {})
         routes = dict((overlay.get("model_routing") or {}).get("parts") or {})
@@ -480,38 +489,16 @@ def migrate_packaged_local_integration_state(paths: LocalStoragePaths) -> dict[s
                 migration_state=migration_state,
             )
 
-        legacy_retry = dict((overlay.get("fitcv_cp") or {}).get("retry") or {})
-        if legacy_retry:
-            backoff = list(legacy_retry.get("backoff_seconds") or [])
-            values = {
-                "maximum_attempts": (
-                    1
-                    if legacy_retry.get("enabled") is False
-                    else int(legacy_retry.get("max_attempts") or SYSTEM_SETTINGS_DEFAULTS["maximum_attempts"])
-                ),
-                "initial_backoff_seconds": int(
-                    backoff[0] if backoff else SYSTEM_SETTINGS_DEFAULTS["initial_backoff_seconds"]
-                ),
-                "lease_seconds": int(
-                    legacy_retry.get("lease_seconds") or SYSTEM_SETTINGS_DEFAULTS["lease_seconds"]
-                ),
-                "reconciler_interval_seconds": int(
-                    legacy_retry.get("reconciler_interval_seconds")
-                    if int(legacy_retry.get("reconciler_interval_seconds") or 0) > 0
-                    else SYSTEM_SETTINGS_DEFAULTS["reconciler_interval_seconds"]
-                ),
-                "error_detail_limit": int(
-                    legacy_retry.get("error_details_max_chars")
-                    or SYSTEM_SETTINGS_DEFAULTS["error_detail_limit"]
-                ),
+        if normalized_legacy_retry:
+            current_values = {
+                field: int(system_before[field])
+                for field in SYSTEM_SETTING_BOUNDS
             }
-            for field, (minimum, maximum) in SYSTEM_SETTING_BOUNDS.items():
-                values[field] = max(minimum, min(maximum, values[field]))
-            current_system = load_system_settings()
-            if any(current_system[field] != value for field, value in values.items()):
+            if any(normalized_legacy_retry[field] != current_values[field] for field in SYSTEM_SETTING_BOUNDS):
+                resulting_system_revision = r0 + 1
                 resulting_system_revision = patch_system_settings(
-                    values,
-                    expected_revision=int(current_system["revision"]),
+                    normalized_legacy_retry,
+                    expected_revision=r0,
                 )["revision"]
 
         clean_onboarding = {
@@ -546,7 +533,21 @@ def migrate_packaged_local_integration_state(paths: LocalStoragePaths) -> dict[s
             },
         )
         return {"migration_key": migration_key, "status": "applied"}
-    except Exception as exc:
+    except Exception as error:
+        if normalized_legacy_retry and resulting_system_revision > r0:
+            current_system = load_system_settings()
+            if int(current_system["revision"]) != resulting_system_revision:
+                paths.integration_migration_error_path.write_text(
+                    json.dumps({"error": "system settings revision drift", "revision": current_system["revision"]}) + "\n",
+                    encoding="utf-8",
+                )
+                raise RuntimeError("system settings revision drift")
+            restored = patch_system_settings(
+                {field: int(system_before[field]) for field in SYSTEM_SETTING_BOUNDS},
+                expected_revision=resulting_system_revision,
+            )
+            if int(restored["revision"]) != resulting_system_revision + 1:
+                raise RuntimeError("system settings rollback revision mismatch")
         for path, previous in (
             (paths.controller_overlay_path, overlay_before),
             (paths.onboarding_state_path, onboarding_before),
@@ -559,15 +560,13 @@ def migrate_packaged_local_integration_state(paths: LocalStoragePaths) -> dict[s
         for source_provider_id, target_provider_id in copied_credentials:
             copied_value = get_credential(target_provider_id)
             if copied_value:
+                delete_credential(target_provider_id)
                 set_credential(source_provider_id, copied_value)
-        paths.integration_migration_error_path.write_text(
-            json.dumps(
-                {"error_type": type(exc).__name__, "message": str(exc)[:500]},
-                indent=2,
+        if normalized_legacy_retry and resulting_system_revision > r0:
+            paths.integration_migration_error_path.write_text(
+                json.dumps({"error": str(error), "migration_key": migration_key}) + "\n",
+                encoding="utf-8",
             )
-            + "\n",
-            encoding="utf-8",
-        )
         raise
 
 def _sha256(path: Path) -> str:

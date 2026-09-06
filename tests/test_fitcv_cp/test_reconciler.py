@@ -96,7 +96,7 @@ def test_reconcile_abandoned_attempts_marks_failed_when_retry_disabled() -> None
     )
 
     with patch(
-        "fitcv_cp.reconciler.load_retry_settings",
+        "fitcv_cp.reconciler.get_run_retry_settings",
         return_value=RetrySettings(
             maximum_attempts=1,
             initial_backoff_seconds=10,
@@ -147,7 +147,7 @@ def test_reconcile_abandoned_attempts_requeues_when_retry_enabled() -> None:
     )
 
     with patch(
-        "fitcv_cp.reconciler.load_retry_settings",
+        "fitcv_cp.reconciler.get_run_retry_settings",
         return_value=RetrySettings(
             maximum_attempts=3,
             initial_backoff_seconds=10,
@@ -210,7 +210,7 @@ def test_reconcile_abandoned_attempts_honors_cancel_request_and_blocks_retry() -
     )
 
     with patch(
-        "fitcv_cp.reconciler.load_retry_settings",
+        "fitcv_cp.reconciler.get_run_retry_settings",
         return_value=RetrySettings(
             maximum_attempts=3,
             initial_backoff_seconds=10,

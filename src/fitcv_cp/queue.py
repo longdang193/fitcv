@@ -120,12 +120,16 @@ def _run_inline_job(
     attempt_id: str | None = None,
 ) -> None:
     from fitcv_cp import worker_job  # noqa: F401
-    from fitcv_cp.sqlite_store import append_event, update_run_status
+    from fitcv_cp.sqlite_store import append_event, get_run, update_run_status
     from fitcv_cp.models import RunEvent, RunStatus
 
-    from fitcv_cp.retry_settings import load_retry_settings
+    from fitcv_cp.retry_settings import get_run_retry_settings
 
-    settings = load_retry_settings()
+    try:
+        run = get_run(run_id)
+    except Exception:
+        run = None
+    settings = get_run_retry_settings(run)
     _INLINE_JOB_STATUS[job_id] = "started"
     for attempt_index in range(settings.maximum_attempts):
         current_attempt_id = attempt_id if attempt_index == 0 and attempt_id else str(uuid.uuid4())
@@ -141,7 +145,8 @@ def _run_inline_job(
             return
         except Exception as exc:
             if attempt_index + 1 < settings.maximum_attempts:
-                time.sleep(settings.initial_backoff_seconds)
+                if settings.initial_backoff_seconds > 0:
+                    time.sleep(settings.initial_backoff_seconds)
                 continue
             _INLINE_JOB_STATUS[job_id] = "failed"
             update_run_status(
@@ -277,9 +282,13 @@ def enqueue_run_with_job_id(
         return run_id, job_id
     retry: Retry | None = None
 
-    from fitcv_cp.retry_settings import load_retry_settings
+    from fitcv_cp.retry_settings import get_run_retry_settings
 
-    settings = load_retry_settings()
+    try:
+        run = get_run(run_id)
+    except Exception:
+        run = None
+    settings = get_run_retry_settings(run)
     if settings.maximum_attempts > 1:
         retry = Retry(
             max=settings.maximum_attempts - 1,

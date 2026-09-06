@@ -74,7 +74,7 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
 
             store = ControlPlaneStore()
             with patch(
-                "fitcv_cp.reconciler.load_retry_settings",
+                "fitcv_cp.reconciler.get_run_retry_settings",
                 return_value=RetrySettings(
                     maximum_attempts=3,
                     initial_backoff_seconds=10,
