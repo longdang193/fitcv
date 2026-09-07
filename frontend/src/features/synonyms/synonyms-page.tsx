@@ -22,7 +22,7 @@ export const SynonymsPage: React.FC = () => {
   ];
 
   return (
-    <div className='content-container synonym-management-page'>
+    <div className='content-container page-stack synonym-management-page'>
       {/* Header */}
       <div className='page-head'>
         <div>
@@ -39,20 +39,18 @@ export const SynonymsPage: React.FC = () => {
         onChange={(id) => setActiveTab(id)}
         ariaLabel='Synonym management sections'
       >
-        <div style={{ marginTop: 20 }}>
-          {activeTab === 'queue' && (
-            <div style={{ display: 'grid', gap: 24 }}>
-              <SuggestionQueue onQueueChanged={handleGlobalRefresh} />
-              <ProcessingHistory refreshTrigger={historyRefreshTrigger} />
-            </div>
-          )}
-          {activeTab === 'editor' && (
-            <PolicyEditor />
-          )}
-          {activeTab === 'backup' && (
-            <BackupManager />
-          )}
-        </div>
+        {activeTab === 'queue' && (
+          <div style={{ display: 'grid', gap: 18 }}>
+            <SuggestionQueue onQueueChanged={handleGlobalRefresh} />
+            <ProcessingHistory refreshTrigger={historyRefreshTrigger} />
+          </div>
+        )}
+        {activeTab === 'editor' && (
+          <PolicyEditor />
+        )}
+        {activeTab === 'backup' && (
+          <BackupManager />
+        )}
       </Tabs>
     </div>
   );

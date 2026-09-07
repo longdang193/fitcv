@@ -144,6 +144,10 @@ summary:focus-visible {
   min-width: 0;
 }
 
+.page-stack > .page-head {
+  margin-bottom: 0;
+}
+
 .overview-page {
   gap: 20px;
 }
@@ -1229,7 +1233,11 @@ dialog.native-dialog::backdrop {
 .tabs-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
+}
+
+.tab-panel {
+  min-width: 0;
 }
 
 .tab-list {
@@ -2313,7 +2321,7 @@ dialog.native-dialog::backdrop {
 }
 
 .candidate-profiles-catalog .tabs-container {
-  gap: 14px;
+  gap: 18px;
 }
 
 .candidate-profiles-catalog .tab-list {

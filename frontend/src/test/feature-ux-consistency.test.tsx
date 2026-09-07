@@ -91,6 +91,22 @@ describe("frontend owned features UX consistency", () => {
     expect(markup).toContain("Pipeline");
   });
 
+  it("normalizes tab-to-content spacing between Taxonomy and Runs without magic inline margins", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const synonymsSource = fs.readFileSync(
+      path.resolve(__dirname, "../features/synonyms/synonyms-page.tsx"),
+      "utf-8"
+    );
+    const mainCss = fs.readFileSync(path.resolve(__dirname, "../styles/main.css"), "utf-8");
+
+    expect(synonymsSource).toContain("content-container page-stack synonym-management-page");
+    expect(synonymsSource).not.toContain("marginTop: 20");
+    expect(mainCss).toMatch(/\.tabs-container\s*\{[^}]*gap:\s*18px/);
+    expect(mainCss).not.toMatch(/\.candidate-profiles-catalog\s+\.tabs-container\s*\{[^}]*gap:\s*14px/);
+    expect(mainCss).toMatch(/\.page-stack\s*>\s*\.page-head\s*\{[^}]*margin-bottom:\s*0/);
+  });
+
   it("preserves keyboard navigation in FilterTabs", () => {
     expect(getNextFilterTabIndex("ArrowRight", 0, 3)).toBe(1);
     expect(getNextFilterTabIndex("ArrowRight", 2, 3)).toBe(0);
