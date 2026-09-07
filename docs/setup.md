@@ -95,6 +95,7 @@ access, then relaunch.
 Engineering prerequisites:
 
 - Python 3.11+
+- Node.js 24.15.0 and npm 11.13.0 for the Vite frontend
 - Git
 - Docker Desktop for container mode
 - Redis for queued local/server mode
@@ -108,6 +109,9 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+Push-Location frontend
+npm ci
+Pop-Location
 ```
 
 Docker mode:
@@ -122,9 +126,12 @@ Source local mode:
 .\start_fitcv_dev.ps1
 ```
 
-The single-command developer launcher starts FastAPI, waits for `/healthz`,
-then starts Vite. It stops both processes on exit and prevents an unavailable
-backend from becoming opaque frontend `Internal Server Error` responses.
+The single-command developer launcher requires an existing
+`%APPDATA%\FitCV\bootstrap.json` created by FitCV Local, starts FastAPI, waits
+for `/healthz`, then starts Vite at `http://127.0.0.1:5173/app/#/overview`.
+It stops both processes on exit and prevents an unavailable backend from
+becoming opaque frontend `Internal Server Error` responses. Launch FitCV Local
+once first when the bootstrap file does not exist.
 
 For separate engineering processes:
 
@@ -133,8 +140,9 @@ For separate engineering processes:
 .\start_worker.ps1
 ```
 
-Direct Windows web start without `REDIS_URL` uses inline execution. Configure
-`REDIS_URL` only when queue mode is intentional.
+`start_web.ps1` is backend-only and defaults to Redis/RQ queue mode. Start Redis
+and `start_worker.ps1` with it, or use `start_fitcv_dev.ps1` for the full local
+UI and inline execution.
 
 ## 7) Developer Configuration
 
@@ -144,6 +152,8 @@ Direct Windows web start without `REDIS_URL` uses inline execution. Configure
 - `config/runtime/control_plane.yaml`: canonical provider/model defaults
 - `config/runtime/pipeline.yaml`: canonical pipeline execution settings
 - `data/candidate_profile.yaml`: source-run candidate profile
+- `frontend/package.json` and `frontend/package-lock.json`: frontend runtime and
+  dependency lockfile
 
 FitCV Local does not require these files from user. It bundles read-only defaults
 and stores narrow user-owned overlay under selected data root.
@@ -162,6 +172,9 @@ Developer health check:
 ```powershell
 Invoke-WebRequest http://localhost:8000/healthz -UseBasicParsing
 ```
+
+The backend listens on `127.0.0.1:8000`; the full source-mode UI listens on
+`127.0.0.1:5173`.
 
 ## Related Docs
 

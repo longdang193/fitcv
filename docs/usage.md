@@ -21,11 +21,12 @@ engineering usage.
 ## FitCV Local Flow
 
 1. Launch **FitCV Local** from Start menu. Second launch reuses existing instance.
-2. Complete onboarding if redirected to `/local/onboarding`. After setup, use
-   **LLM & API** in navigation to edit provider/model routing, whole-run retry,
-   and bounded prompt guidance on the same page.
+2. Complete onboarding if redirected to `/local/onboarding`; completion redirects
+   to `/app`. Use **LLM & API** in navigation to edit provider/model routing,
+   whole-run retry, and bounded prompt guidance on the same page.
 3. Use each reset action to remove user override and return to packaged default.
-4. Open `/admin/runs`, submit job input, and choose `Run All` or `Stage by Stage`.
+4. Open **Runs** (`/app/#/runs`), submit job input, and choose `Run All` or
+   `Stage by Stage`.
 5. Inspect progress, evidence, artifacts, settings used, and generated CV output.
 6. Use **Data & Backup** for backup, import, or cold data relocation.
 7. Use **System** for redacted diagnostics, version information, and shutdown.
@@ -41,7 +42,8 @@ and raw database rows.
 
 ## Operator Flow
 
-Entry point: `/admin/runs`
+Primary entry point: `/app/#/runs`. Legacy server-rendered entry point:
+`/admin/runs`.
 
 1. trigger a run (path/upload/paste)
 2. choose run mode (`Run All` or `Stage by Stage`)
@@ -129,10 +131,12 @@ Important:
 
 ## Engineering Workflow
 
-1. run app/worker in sqlite mode
-2. reproduce/verify via live run
-3. run focused tests
-4. run contract/validator checks before merge
+1. install Python dependencies and frontend dependencies
+2. run the full source launcher (`.\start_fitcv_dev.ps1`) for local UI work, or
+   run web/worker separately for backend work
+3. reproduce/verify via live run
+4. run focused tests
+5. run contract/validator checks before merge
 
 FitCV Local release smoke additionally covers health, onboarding, global CSRF,
 second-instance reuse, shutdown, process exit, and fixed size/startup/memory budgets.

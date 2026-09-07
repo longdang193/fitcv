@@ -19,7 +19,7 @@ FitCV uses layered configuration with clear ownership boundaries.
 
 ## Primary Runtime Inputs
 
-- FitCV Local packaged defaults plus user-owned local routing overlay
+- FitCV Local packaged defaults plus user-owned local controller overlay
 - trigger base config file (`config_path` in `/runs` request; default `.env.yaml`)
 - persisted control-plane settings (`/admin/settings` and `/settings` surfaces)
 - per-run trigger overrides (`config_overrides` in `/runs`)
@@ -101,6 +101,11 @@ FitCV Local keeps application defaults read-only and user configuration narrow:
 | `<data-root>\config\local_controller_overlay.yaml` | validated provider, task routing, whole-run retry, and prompt-addendum overrides | no |
 | Windows Credential Manager service `FitCV.Local` | provider API keys | yes |
 | packaged `config/runtime/control_plane.yaml` | immutable provider/model defaults | no |
+
+The packaged launcher binds FitCV Local to loopback and selects a dynamic local
+port. Source mode uses `config/dev-server.json` (backend port `8000`, browser
+URL `127.0.0.1:8000`, and Vite URL `127.0.0.1:5173`); Docker mode publishes
+backend port `8000` and uses Redis/RQ for queued work.
 
 Local overlay may set provider type, display name, API root, auth mode, wire API,
 timeout, default model, and supported task model routes. It cannot replace full
@@ -295,7 +300,8 @@ Examples:
   2. `control_plane.data_backend.sqlite.path`
   3. `data/fitcv_cp.sqlite3`
 - retired split-path env:
-  - `FITCV_CP_SETTINGS_SQLITE_PATH` is not supported
+  - `FITCV_CP_SETTINGS_SQLITE_PATH` is not a separate authority; use
+    `FITCV_CP_SQLITE_PATH` for the control-plane database path
 - model/provider routing defaults: canonical owner is `config/runtime/control_plane.yaml`
   - `control_plane.providers.*.base_url`
   - `control_plane.providers.*.wire_api`

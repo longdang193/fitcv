@@ -9,7 +9,7 @@ developer/server deployment modes.
 
 1. Run `FitCV-Local-<version>-Technical-Preview-Setup.exe`.
 2. Launch **FitCV Local** from Start menu.
-3. Browser opens local onboarding or `/admin/runs`.
+3. Browser opens local onboarding or `/app`.
 
 No terminal, repository checkout, Python, Git, Docker, Redis, worker, or manual
 `.env` setup is required. Current unsigned artifact is Technical Preview.
@@ -56,11 +56,24 @@ Use one source deployment mode at a time.
 
 ### Local Source Mode
 
-Without `REDIS_URL`, Windows web startup uses inline execution:
+`start_web.ps1` is backend-only and defaults to Redis/RQ queue mode:
 
 ```powershell
 .\start_web.ps1
 ```
+
+Start Redis and `start_worker.ps1` before submitting queued runs. For full
+source-mode UI and inline execution, install frontend dependencies
+(`Push-Location frontend; npm ci; Pop-Location`) and run:
+
+```powershell
+.\start_fitcv_dev.ps1
+```
+
+`start_fitcv_dev.ps1` reads the FitCV Local bootstrap at
+`%APPDATA%\FitCV\bootstrap.json`; launch FitCV Local once first if that file is
+missing. The browser URLs are `http://127.0.0.1:8000` for backend checks and
+`http://127.0.0.1:5173` for Vite.
 
 For intentional Redis/RQ mode:
 
@@ -70,7 +83,8 @@ docker compose up -d redis
 .\start_worker.ps1
 ```
 
-Open `http://localhost:8000/admin/runs`.
+Open `http://localhost:8000/app/#/runs` for current UI, or
+`http://localhost:8000/admin/runs` for legacy server-rendered UI.
 
 Stop source processes:
 
@@ -158,8 +172,12 @@ Developer/server mode may export telemetry in addition to persisted run artifact
 
 ```powershell
 $env:FITCV_OTEL_ENABLED="true"
-$env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost/v1/traces"
+$env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:3000/api/public/otel/v1/traces"
 $env:FITCV_OTEL_SERVICE_NAME="fitcv-control-plane"
 ```
+
+This matches the local `start_web.ps1` default for Langfuse. Set
+`FITCV_LANGFUSE_ENABLED="false"` and `FITCV_OTEL_ENABLED="false"` when no local
+collector is available.
 
 Exporter failure is non-destructive. Stage artifacts remain authoritative.
