@@ -8,19 +8,72 @@ when evidence is missing or a result needs human review.
 
 ## FitCV Local
 
-FitCV Local is the primary path for non-technical Windows users:
+FitCV Local is the primary path for non-technical Windows users. It keeps the
+candidate profile, settings, run history, artifacts, exports, logs, and backups
+under a user-owned local data folder.
 
-1. Download and run `FitCV-Local-<version>-Technical-Preview-Setup.exe`.
-2. Launch **FitCV Local** from the Start menu.
-3. Choose a local data folder, review the candidate profile, and configure an
-   OpenAI or OpenAI-compatible provider such as 9router.
-4. Review whole-run retry, optionally add bounded task prompt guidance, test the
-   provider, choose default or task-specific models, then finish setup.
+### Install and onboard
+
+1. Get `FitCV-Local-<version>-Technical-Preview-Setup.exe` from your FitCV
+   distribution and run it.
+2. Launch **FitCV Local** from the Start menu. The browser opens local onboarding.
+3. Choose a fixed local data folder. Do not use a network, UNC, removable, or
+   unwritable location.
+4. Open **Candidate Profile** and create or review a source-backed profile.
+5. Open **API Providers**, select OpenAI, an OpenAI-compatible provider, or
+   9router, then enter the API root, authentication details, API key when
+   required, and wire API (`Responses` or `Chat Completions`).
+6. Use **Discover models**, add or select at least one model, and use **Test
+   provider**. FitCV does not enable run submission until provider readiness passes.
+7. In **LLM Configuration**, select the **Default Route** model. Add task-specific
+   models only when needed.
+8. Review whole-run retry and optional bounded task prompt guidance, then select
+   **Finish Setup**.
 
 Normal FitCV Local use needs no Python, Git, Docker, Redis, separate worker,
 repository checkout, terminal, or manually edited `.env` file. Current Windows
 artifact is unsigned and explicitly labeled **Technical Preview**. Stable public
 release waits for code signing and clean-Windows-VM acceptance.
+
+### Run a workflow
+
+1. Open the **Runs** page (`/admin/runs`).
+2. Submit job input by path, upload, or paste, then choose **Run All** or
+   **Stage by Stage**.
+3. Wait for progress and open run details. FitCV processes jobs through
+   `normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, `cv_analysis`,
+   and `cv_generation`.
+4. Review ranked jobs, fit decisions, evidence, warnings, and next actions.
+5. Open stage artifacts and exports when you need to verify why a job was kept,
+   filtered, blocked, failed, or held for review. Download generated CV output
+   only after reviewing it.
+
+FitCV keeps filtered, blocked, failed, and review-required rows inspectable. They
+do not silently become CVs. A second packaged run waits until the active run ends.
+
+### Back up and recover
+
+Open **Data & Backup** when the workspace is idle:
+
+- **Download Backup** creates a validated `.fitcv.zip` backup.
+- **Import Backup** validates the archive and restarts FitCV to finish the import.
+- Cold data relocation moves the local workspace and also requires a restart.
+
+Common fixes:
+
+| Problem | Recovery |
+|---|---|
+| Provider test fails | Recheck API root, API key, selected wire API, and model; save changes and test again. |
+| Run cannot start | Finish candidate profile setup, add a validated model, configure required credentials, and pass provider test. |
+| Run says workspace is busy | Wait for the active run to finish; submit one packaged run at a time. |
+| Local data cannot open | Close FitCV, make the selected folder available and writable, then launch FitCV again. Existing data is retained. |
+| FitCV stopped | Close the stopped browser tab, then launch FitCV Local again from Start. |
+| Data looks wrong or is missing | Restore the latest validated backup from **Data & Backup**. |
+
+Use **System** to download redacted diagnostics when support needs startup,
+storage, readiness, or provider-routing details. Diagnostics exclude API keys,
+authorization headers, profile content, prompts, job descriptions, CV text, and
+raw database rows.
 
 ## Who FitCV Serves
 
@@ -73,6 +126,17 @@ Stage order:
    they do not silently become CVs.
 
 [Explore the workflow diagram](docs/fitcv-readme-workflow.html).
+
+## Archify Workflow Artifact
+
+The workflow diagram is the canonical Archify artifact for this README:
+
+- [Open the rendered Archify workflow](docs/fitcv-readme-workflow.html)
+- [Open the canonical Archify source](docs/fitcv-readme-workflow.json)
+
+Use **Follow one run** to trace jobs from input through persisted artifacts,
+**Inspect before output** to focus on ranking and evidence review, and **See safe
+stops** to follow filtered, blocked, failed, or review-required rows.
 
 ## Why It’s Different
 
