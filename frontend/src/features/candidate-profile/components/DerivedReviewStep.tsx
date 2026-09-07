@@ -372,7 +372,12 @@ export const DerivedReviewStep: React.FC<DerivedReviewStepProps> = ({
     setStatusMessage("Flushing changes and approving derived claims...");
 
     try {
-      const currentReview = (await flushOperations()) || reviewRef.current;
+      await flushOperations();
+      const currentReview = await fetchDerivedReview(attemptId);
+      reviewRef.current = currentReview;
+      setReview(currentReview);
+      documentRef.current = currentReview.document || {};
+      setDocument(documentRef.current);
       if (!currentReview) return;
 
       const baselineFingerprint = attempt.fingerprints?.approved_baseline || "";

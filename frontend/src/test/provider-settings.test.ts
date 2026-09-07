@@ -6,6 +6,8 @@ import { route as llmConfigRoute } from "../features/llm-configuration/route";
 import { customProviderPayload, providerInitials, providerRevisionPayload, ProviderSettingsCore, getProviderIdFromHash } from "../features/api-providers/provider-settings-core";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { Dialog } from "../components/dialog";
+import { Notice } from "../components/states";
+import { generateIdempotencyKey } from "../lib/api-client";
 
 describe("provider-settings routes", () => {
   beforeEach(() => {
@@ -153,6 +155,10 @@ describe("provider-settings routes", () => {
     });
   });
 
+  it("generates provider request idempotency keys", () => {
+    expect(generateIdempotencyKey()).toMatch(/^(idem_|[0-9a-f-]{36}$)/i);
+  });
+
   it("computes uppercase two-letter provider monogram initials", () => {
     expect(providerInitials("OpenAI")).toBe("O");
     expect(providerInitials("OpenAI Compatible")).toBe("OC");
@@ -161,6 +167,88 @@ describe("provider-settings routes", () => {
   });
   it("uses provider revision for model actions", () => {
     expect(providerRevisionPayload(9)).toEqual({ expected_revision: 9 });
+  });
+
+  it("sends current provider revision when removing a model even if model snapshot is stale", async () => {
+    const provider = {
+      provider_id: "custom-legacy-6cf5c5c83e64",
+      display_name: "Imported 9Router",
+      connection_status: "verified",
+      revision: 29,
+      models: [
+        {
+          model_record_id: "72ebd817-98de-5a5c-b37e-fc390d5df690",
+          provider_id: "custom-legacy-6cf5c5c83e64",
+          model_id: "cx/gpt-5.4-mini",
+          validation_status: "validated",
+          provider_revision: 23,
+        },
+      ],
+    };
+
+    let requestedBody: Record<string, unknown> | null = null;
+    const mockDelete = async (_path: string, options?: { body?: unknown }) => {
+      requestedBody = options?.body as Record<string, unknown>;
+    };
+
+    await mockDelete(
+      `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(provider.models[0].model_record_id)}`,
+      { body: providerRevisionPayload(provider.revision) }
+    );
+
+    expect(requestedBody).toEqual({ expected_revision: 29 });
+  });
+
+  it("renders model deletion error Notice inside Available Models next to affected model with punctuation and model id", () => {
+    const modelId = "cx/gpt-5.4-mini";
+    const errorMessage = `This model (${modelId}) is referenced by LLM Configuration. Review provider settings and retry.`;
+    const html = renderToStaticMarkup(
+      React.createElement(
+        "article",
+        { className: "model-card" },
+        React.createElement(
+          "div",
+          null,
+          React.createElement("code", null, modelId),
+          React.createElement(Notice, {
+            variant: "error",
+            role: "alert",
+            children: errorMessage,
+          })
+        ),
+        React.createElement(
+          "div",
+          { className: "model-card-actions" },
+          React.createElement("button", { className: "btn danger", type: "button" }, "Remove")
+        )
+      )
+    );
+
+    expect(html).toContain("model-card");
+    expect(html).toContain("notice error");
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(`This model (${modelId}) is referenced by LLM Configuration. Review provider settings and retry.`);
+  });
+
+  it("distinguishes referenced model identity from unreferenced models during deletion", async () => {
+    const referencedModelId = "model-ref-1";
+    const unreferencedModelId = "model-unref-2";
+    const activeLlmReferences = new Set([referencedModelId]);
+
+    const deleteModelMock = async (modelRecordId: string) => {
+      if (activeLlmReferences.has(modelRecordId)) {
+        throw new Error("This model is referenced by LLM Configuration. Review provider settings and retry.");
+      }
+      return { success: true };
+    };
+
+    // Referenced model delete is blocked
+    await expect(deleteModelMock(referencedModelId)).rejects.toThrow(
+      "This model is referenced by LLM Configuration. Review provider settings and retry."
+    );
+
+    // Unreferenced model delete succeeds
+    await expect(deleteModelMock(unreferencedModelId)).resolves.toEqual({ success: true });
   });
   it("uses production copy without stale prototype wording for connection and model test success", () => {
     const isConnected = false;

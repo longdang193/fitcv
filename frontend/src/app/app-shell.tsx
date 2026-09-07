@@ -5,6 +5,7 @@ import {
   FeatureRoute,
 } from "./route-registry";
 import { Navigation, NavGroup, Button } from "../components";
+import { getStoredTheme, applyTheme, Theme } from "./theme";
 import {
   notificationStore,
   TransientNotification,
@@ -19,13 +20,7 @@ export const AppShell: React.FC = () => {
     return "#/overview";
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof document !== "undefined") {
-      const existing = document.documentElement.getAttribute("data-theme");
-      if (existing === "dark" || existing === "light") return existing;
-    }
-    return "light";
-  });
+  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
   const [notifications, setNotifications] = useState<TransientNotification[]>(() =>
     notificationStore.getNotifications()
   );
@@ -74,7 +69,7 @@ export const AppShell: React.FC = () => {
 
   // Sync theme
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    applyTheme(theme);
   }, [theme]);
 
   // Subscribe to transient notifications

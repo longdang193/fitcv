@@ -201,15 +201,115 @@ def test_model_in_use_cannot_be_removed(monkeypatch: pytest.MonkeyPatch) -> None
         expected_revision=llm["revision"],
     )
 
+    model2 = provider_registry.add_model(
+        "openai", model_id="gpt-test-unreferenced", expected_revision=model["provider_revision"]
+    )
+
     with pytest.raises(provider_registry.ProviderRegistryError) as exc_info:
         provider_registry.remove_model(
             "openai",
             model["model_record_id"],
-            expected_revision=model["provider_revision"],
+            expected_revision=model2["provider_revision"],
         )
 
     assert connection["connection_revision"] == 1
     assert exc_info.value.code == "model_in_use"
+    assert exc_info.value.message == "This model is referenced by LLM Configuration."
+
+    # Unreferenced model can be removed even when provider has another referenced model
+    provider_registry.remove_model(
+        "openai",
+        model2["model_record_id"],
+        expected_revision=model2["provider_revision"],
+    )
+    models = provider_registry.get_provider("openai")["models"]
+    assert len(models) == 1
+    assert models[0]["model_record_id"] == model["model_record_id"]
+
+
+def test_both_models_referenced_cannot_be_removed(monkeypatch: pytest.MonkeyPatch) -> None:
+    _credential_store(monkeypatch)
+    monkeypatch.setattr(
+        provider_registry,
+        "validate_connection_draft",
+        lambda **_kwargs: {"ok": True, "failure_code": None, "http_status": 200},
+    )
+    monkeypatch.setattr(
+        provider_registry,
+        "validate_model",
+        lambda **_kwargs: {"ok": True, "failure_code": None, "http_status": 200},
+    )
+    connection = provider_registry.save_connection(
+        "openai",
+        base_url=None,
+        api_type="responses",
+        api_key="sk-test",
+        expected_revision=1,
+    )
+    model1 = provider_registry.add_model(
+        "openai", model_id="gpt-test-1", expected_revision=connection["revision"]
+    )
+    model2 = provider_registry.add_model(
+        "openai", model_id="gpt-test-2", expected_revision=model1["provider_revision"]
+    )
+
+    # Reference model1 in default_model_ref, and model2 in task cv_generation_structured_write
+    llm = load_llm_configuration()
+    patch_llm_configuration(
+        {
+            "default_model_ref": model1["model_record_id"],
+            "tasks": {
+                "cv_generation_structured_write": {
+                    "model_ref": model2["model_record_id"],
+                    "timeout_seconds": 120,
+                    "temperature": 0.2,
+                }
+            },
+        },
+        expected_revision=llm["revision"],
+    )
+
+    # Both models are genuinely referenced by distinct LLM configuration properties
+    with pytest.raises(provider_registry.ProviderRegistryError) as exc_info1:
+        provider_registry.remove_model(
+            "openai",
+            model1["model_record_id"],
+            expected_revision=model2["provider_revision"],
+        )
+    assert exc_info1.value.code == "model_in_use"
+    assert exc_info1.value.message == "This model is referenced by LLM Configuration."
+
+    with pytest.raises(provider_registry.ProviderRegistryError) as exc_info2:
+        provider_registry.remove_model(
+            "openai",
+            model2["model_record_id"],
+            expected_revision=model2["provider_registry_store_revision" if "provider_registry_store_revision" in model2 else "provider_revision"],
+        )
+    assert exc_info2.value.code == "model_in_use"
+    assert exc_info2.value.message == "This model is referenced by LLM Configuration."
+
+    # When model2 is unreferenced by clearing task override, model2 deletes while model1 remains protected
+    llm2 = load_llm_configuration()
+    patch_llm_configuration(
+        {
+            "tasks": {
+                "cv_generation_structured_write": {
+                    "model_ref": None,
+                    "timeout_seconds": 120,
+                    "temperature": 0.2,
+                }
+            },
+        },
+        expected_revision=llm2["revision"],
+    )
+    provider_registry.remove_model(
+        "openai",
+        model2["model_record_id"],
+        expected_revision=model2["provider_revision"],
+    )
+    models = provider_registry.get_provider("openai")["models"]
+    assert len(models) == 1
+    assert models[0]["model_record_id"] == model1["model_record_id"]
 
 
 def test_connection_write_failure_restores_previous_credential(

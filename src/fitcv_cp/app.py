@@ -7377,6 +7377,8 @@ def create_app(
                     "model_in_use",
                 }:
                     status_code = 409
+                    if exc.code == "model_in_use":
+                        action = "Review provider settings and retry."
                 elif exc.code in {"credential_store_failed", "provider_unavailable"}:
                     status_code = 503
                     retryable = True

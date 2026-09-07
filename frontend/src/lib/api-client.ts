@@ -55,7 +55,13 @@ export class ApiClientError extends Error {
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiClientError) {
-    return [error.message, error.action].filter(Boolean).join(" ") || fallback;
+    const message = error.message?.trim();
+    const action = error.action?.trim();
+    if (message && action) {
+      const punctuatedMessage = /[.!?]$/.test(message) ? message : `${message}.`;
+      return `${punctuatedMessage} ${action}`;
+    }
+    return message || action || fallback;
   }
   if (error instanceof Error && error.message) return error.message;
   return fallback;
@@ -67,6 +73,13 @@ export interface RequestOptions extends Omit<RequestInit, "body"> {
   ifMatch?: string;
   ifNoneMatch?: string;
   headers?: Record<string, string>;
+}
+
+export function generateIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `idem_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 }
 
 export interface ApiResponse<T> {

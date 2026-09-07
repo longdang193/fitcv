@@ -223,6 +223,70 @@ def test_packaged_provider_api_supports_verified_connection_and_models(
     assert added.json()["data"]["validation_status"] == "validated"
     assert b"credential-secret-canary" not in (tmp_path / "fitcv.sqlite3").read_bytes()
 
+    model1 = added.json()["data"]
+    model2 = client.post(
+        f"/api-providers/{provider['provider_id']}/models",
+        json={"model_id": "cx/gpt-5.6-luna", "expected_revision": model1["provider_revision"]},
+        headers=_unsafe_headers(app, idempotency_key="provider-model-2"),
+    ).json()["data"]
+    provider_after_models = client.get(f"/api-providers/{provider['provider_id']}").json()["data"]
+    assert provider_after_models["model_count"] == 2
+    assert provider_after_models["revision"] == model2["provider_revision"]
+
+    # Deleting with stale revision is rejected with 409 conflict
+    stale_del = client.request(
+        "DELETE",
+        f"/api-providers/{provider['provider_id']}/models/{model2['model_record_id']}",
+        json={"expected_revision": model1["provider_revision"]},
+        headers=_unsafe_headers(app),
+    )
+    assert stale_del.status_code == 409
+    assert stale_del.json()["error"]["code"] == "provider_revision_conflict"
+
+    # Reference model1 in LLM configuration while model2 remains unreferenced on same provider
+    llm_curr = client.get("/llm-configuration").json()["data"]
+    client.patch(
+        "/llm-configuration",
+        json={"default_model_ref": model1["model_record_id"], "expected_revision": llm_curr["revision"]},
+        headers=_unsafe_headers(app),
+    )
+    prov_before_del = client.get(f"/api-providers/{provider['provider_id']}").json()["data"]
+    assert prov_before_del["model_count"] == 2
+
+    # Deleting referenced model1 returns 409 model_in_use with clear punctuated copy
+    in_use_del = client.request(
+        "DELETE",
+        f"/api-providers/{provider['provider_id']}/models/{model1['model_record_id']}",
+        json={"expected_revision": prov_before_del["revision"]},
+        headers=_unsafe_headers(app),
+    )
+    assert in_use_del.status_code == 409
+    assert in_use_del.json()["error"]["code"] == "model_in_use"
+    assert in_use_del.json()["error"]["message"] == "This model is referenced by LLM Configuration."
+    assert in_use_del.json()["error"]["action"] == "Review provider settings and retry."
+
+    # Deleting unreferenced model2 on the same provider succeeds while model1 is still in use
+    del_ok = client.request(
+        "DELETE",
+        f"/api-providers/{provider['provider_id']}/models/{model2['model_record_id']}",
+        json={"expected_revision": prov_before_del["revision"]},
+        headers=_unsafe_headers(app),
+    )
+    assert del_ok.status_code == 200
+    assert del_ok.json()["data"]["model_count"] == 1
+    assert del_ok.json()["data"]["models"][0]["model_record_id"] == model1["model_record_id"]
+
+    # Referenced model1 remains protected and cannot be deleted
+    prov_after_del = del_ok.json()["data"]
+    in_use_del_again = client.request(
+        "DELETE",
+        f"/api-providers/{provider['provider_id']}/models/{model1['model_record_id']}",
+        json={"expected_revision": prov_after_del["revision"]},
+        headers=_unsafe_headers(app),
+    )
+    assert in_use_del_again.status_code == 409
+    assert in_use_del_again.json()["error"]["code"] == "model_in_use"
+
 
 def test_packaged_provider_api_rejects_stale_revision_and_unsafe_origin(
     tmp_path: Path,

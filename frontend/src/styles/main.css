@@ -518,14 +518,6 @@ summary:focus-visible {
   font-size: 13px;
 }
 
-.provider-form-status.error {
-  color: var(--accent);
-}
-
-.provider-form-status.valid {
-  color: var(--success);
-}
-
 .backup-actions {
   display: flex;
   align-items: center;
@@ -586,6 +578,11 @@ summary:focus-visible {
   justify-content: flex-end;
 }
 
+.model-card > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
 .model-state {
   color: var(--muted);
   font-size: 12px;
@@ -610,14 +607,6 @@ summary:focus-visible {
   margin-top: 6px;
   color: var(--muted);
   display: block;
-}
-
-.provider-model-status.valid {
-  color: var(--success);
-}
-
-.provider-model-status.error {
-  color: var(--accent);
 }
 
 /* Dialog styling for Add Model */

@@ -168,6 +168,13 @@ describe("Candidate Profile review control associations", () => {
     expect(baselineReviewSource).toContain("aria-label={`Regenerate ${fieldMeta.label}`}");
   });
 
+  it("explains provider readiness without blocking baseline review", () => {
+    expect(baselineReviewSource).toContain('<Notice variant="info">');
+    expect(baselineReviewSource).toContain(
+      "Baseline review can continue without a provider. Configure one before AI-assisted derived review."
+    );
+  });
+
   it("preserves structured confirmation error details and provides in-place retry action", () => {
     expect(confirmationStepSource).toContain("retryAttempt");
     expect(confirmationStepSource).toContain("Retry confirmation");
@@ -280,6 +287,15 @@ describe("Candidate Profile review control associations", () => {
 });
 
 describe("Candidate Profile processing failure actions", () => {
+  it("includes backend failure details in candidate profile type contract", () => {
+    expect(candidateProfileTypesSource).toMatch(
+      /interface CreationAttempt[\s\S]*?failure\?: \{[\s\S]*?details\?: string;[\s\S]*?\};/
+    );
+    expect(candidateProfileTypesSource).not.toMatch(
+      /interface CandidateProfile \{[\s\S]*?failure\?: \{[\s\S]*?details\?: string;/
+    );
+  });
+
   it("treats hydrated failed and completed attempts as terminal", () => {
     expect(
       isCandidateProfileAttemptTerminal({

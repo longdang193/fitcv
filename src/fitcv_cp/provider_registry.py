@@ -48,6 +48,7 @@ PREDEFINED_PROVIDERS = MappingProxyType({
 class ProviderRegistryError(RuntimeError):
     def __init__(self, code: str, message: str, *, http_status: int | None = None) -> None:
         self.code = code
+        self.message = message
         self.http_status = http_status
         super().__init__(message)
 
@@ -589,7 +590,7 @@ def remove_model(
     if model is None or model["provider_id"] != provider_id:
         raise ProviderRegistryError("model_not_found", "Model was not found")
     if model_record_id in _active_model_references():
-        raise ProviderRegistryError("model_in_use", "Model is referenced by LLM Configuration")
+        raise ProviderRegistryError("model_in_use", "This model is referenced by LLM Configuration.")
     registry_store.delete_api_provider_model(model_record_id, expected_revision=expected_revision)
 
 

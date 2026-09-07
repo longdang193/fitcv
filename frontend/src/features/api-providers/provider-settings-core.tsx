@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button, LoadingState, Dialog, Notice } from "../../components";
-import { apiClient, getApiErrorMessage } from "../../lib/api-client";
+import { apiClient, generateIdempotencyKey, getApiErrorMessage } from "../../lib/api-client";
 
 export type ProviderModel = {
   model_record_id: string;
@@ -125,6 +125,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
 
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<"info" | "success" | "error">("info");
+  const [modelDeleteErrors, setModelDeleteErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -177,10 +178,14 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       setConnectionStatusText("");
       setConnectionStatusKind("");
       setModelTestFeedback({});
+      setModelDeleteErrors({});
     }
   }, [provider?.provider_id]);
 
-  const run = async (operation: () => Promise<void>, options?: { reload?: boolean; onError?: (err: any) => void }) => {
+  const run = async (
+    operation: () => Promise<void>,
+    options?: { reload?: boolean; onError?: (err: any) => void; suppressGlobalMessage?: boolean }
+  ) => {
     setBusy(true);
     setMessage("");
     setMessageKind("info");
@@ -191,8 +196,10 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       }
     } catch (err: any) {
       options?.onError?.(err);
-      setMessage(getApiErrorMessage(err, "Request failed."));
-      setMessageKind("error");
+      if (!options?.suppressGlobalMessage) {
+        setMessage(getApiErrorMessage(err, "Request failed."));
+        setMessageKind("error");
+      }
     } finally {
       setBusy(false);
     }
@@ -203,7 +210,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       const res = await apiClient.post<{ data: Provider }>(
         "/api-providers",
         customProviderPayload(compatibility),
-        { idempotencyKey: crypto.randomUUID() }
+        { idempotencyKey: generateIdempotencyKey() }
       );
       const created = res.data.data;
       window.location.hash = `#/settings/api-providers/${encodeURIComponent(created.provider_id)}`;
@@ -421,7 +428,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
       await apiClient.post(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models`,
         { model_id: trimmed, expected_revision: provider.revision },
-        { idempotencyKey: crypto.randomUUID() }
+        { idempotencyKey: generateIdempotencyKey() }
       );
       closeModelDialog();
     });
@@ -437,7 +444,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
     void run(async () => {
       const res = await apiClient.post<{ data: ProviderModel }>(
         `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}/actions/test`,
-        providerRevisionPayload(model.provider_revision ?? provider.revision)
+        providerRevisionPayload(provider.revision)
       );
       if (res.data.data.validation_status !== "validated") {
         throw new Error(res.data.data.last_test_error_code || "Model test failed.");
@@ -470,12 +477,44 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
 
   const removeModel = (model: ProviderModel) => {
     if (!provider || provider.connection_status !== "verified") return;
-    void run(async () => {
-      await apiClient.delete(
-        `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}`,
-        { body: providerRevisionPayload(model.provider_revision ?? provider.revision) }
-      );
+    const modelKey = model.model_record_id || model.model_id;
+    setModelDeleteErrors((prev) => {
+      const next = { ...prev };
+      delete next[modelKey];
+      return next;
     });
+    void run(
+      async () => {
+        await apiClient.delete(
+          `/api-providers/${encodeURIComponent(provider.provider_id)}/models/${encodeURIComponent(model.model_record_id)}`,
+          { body: providerRevisionPayload(provider.revision) }
+        );
+        setModelDeleteErrors((prev) => {
+          const next = { ...prev };
+          delete next[modelKey];
+          return next;
+        });
+      },
+      {
+        suppressGlobalMessage: true,
+        onError: (err: any) => {
+          const code = err?.code || "";
+          const msg = getApiErrorMessage(err, "Failed to remove model.");
+          if (code === "model_in_use" || msg.includes("referenced by LLM Configuration")) {
+            setModelDeleteErrors((prev) => ({
+              ...prev,
+              [modelKey]: `This model (${model.model_id}) is referenced by LLM Configuration. Review provider settings and retry.`,
+            }));
+          } else {
+            const punctuated = /[.!?]$/.test(msg) ? msg : `${msg}.`;
+            setModelDeleteErrors((prev) => ({
+              ...prev,
+              [modelKey]: punctuated,
+            }));
+          }
+        },
+      }
+    );
   };
 
   const customProviders = providers.filter(
@@ -585,9 +624,9 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
                 </div>
               </div>
             </div>
-            <div className="provider-empty">
+            <Notice variant="error" role="alert">
               Provider \"{selectedId}\" was not found. <a href="#/settings/api-providers">Return to API Providers</a>
-            </div>
+            </Notice>
           </div>
         );
       }
@@ -626,6 +665,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
               )}
             </div>
           </div>
+          {message && <Notice variant={messageKind}>{message}</Notice>}
 
           <div className="provider-detail-stack">
             <section className="section-card provider-connection-card" aria-labelledby="connectionTitle">
@@ -723,11 +763,10 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
               <p className="provider-helper">
                 <strong>Credential safety:</strong> API keys are never saved in browser storage. Later backend integration stores credentials in Windows Credential Manager.
               </p>
-              <p
-                className={`provider-form-status${connectionStatusKind === "error" ? " error" : connectionStatusKind === "valid" ? " valid" : ""}`}
+              <Notice
+                variant={connectionStatusKind === "error" ? "error" : connectionStatusKind === "valid" ? "success" : "info"}
                 id="providerConnectionStatus"
-                role="status"
-                aria-live="polite"
+                className="provider-form-status"
               >
                 {connectionStatusText ||
                   (connected
@@ -735,7 +774,7 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
                     : hasCredential
                     ? "Test the saved connection before adding it."
                     : "Test connection details before adding.")}
-              </p>
+              </Notice>
               <div className="backup-actions">
                 <button className="btn" id="testProviderConnection" type="button" onClick={testConnection} disabled={busy}>
                   Test
@@ -804,6 +843,14 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
                           >
                             {modelTestFeedback[model.model_record_id || model.model_id].text}
                           </span>
+                        )}
+                        {modelDeleteErrors[model.model_record_id || model.model_id] && (
+                          <Notice
+                            variant="error"
+                            role="alert"
+                          >
+                            {modelDeleteErrors[model.model_record_id || model.model_id]}
+                          </Notice>
                         )}
                       </div>
                       <div className="model-card-actions">
@@ -909,14 +956,13 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
                   </small>
                 </div>
               </form>
-              <p
-                className={`run-dialog-status provider-model-status${modelStatusKind === "valid" ? " valid" : modelStatusKind === "error" ? " error" : ""}`}
+              <Notice
+                variant={modelStatusKind === "error" ? "error" : modelStatusKind === "valid" ? "success" : "info"}
                 id="providerModelStatus"
-                role="status"
-                aria-live="polite"
+                className="run-dialog-status"
               >
                 {modelStatusMessage || "Add Model saves only after a successful test."}
-              </p>
+              </Notice>
             </Dialog>
           )}
         </div>
@@ -1059,11 +1105,11 @@ export const ProviderSettingsCore: React.FC<ProviderSettingsCoreProps> = ({ mode
             </select>
           </label>
           {!defaultSelected && (
-            <p style={{ margin: 0, color: "var(--accent)", fontSize: 13 }} role="alert">
+            <Notice variant="warn">
               {eligibleModels.length > 0
                 ? "Select a default model before running AI tasks."
                 : "No validated models. Add a provider connection and validate a model first."}
-            </p>
+            </Notice>
           )}
         </section>
 

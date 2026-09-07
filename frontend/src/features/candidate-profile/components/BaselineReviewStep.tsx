@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Button, LoadingState, ErrorState, Dialog } from "../../../components";
+import { Button, LoadingState, ErrorState, Dialog, Notice } from "../../../components";
 import {
   fetchBaselineReview,
   fetchCreationAttempt,
@@ -432,6 +432,9 @@ export const BaselineReviewStep: React.FC<BaselineReviewStepProps> = ({
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
               Review extracted statements and citations. AI controls appear only where context supports inference.
             </p>
+            <Notice variant="info">
+              Baseline review can continue without a provider. Configure one before AI-assisted derived review.
+            </Notice>
           </div>
         </div>
 

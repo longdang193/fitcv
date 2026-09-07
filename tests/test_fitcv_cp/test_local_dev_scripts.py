@@ -31,10 +31,13 @@ def test_windows_local_dev_scripts_exist_and_use_simple_worker() -> None:
 
     worker_script = (REPO_ROOT / "start_worker.ps1").read_text(encoding="utf-8")
     web_script = (REPO_ROOT / "start_web.ps1").read_text(encoding="utf-8")
+    dev_script = (REPO_ROOT / "start_fitcv_dev.ps1").read_text(encoding="utf-8")
 
     assert ".venv\\Scripts\\python.exe" in web_script
     assert 'FITCV_LOCAL_MODE -eq "1"' in web_script
     assert 'FITCV_CP_INLINE_EXECUTION = "1"' in web_script
+    assert '$env:FITCV_LOCAL_MODE = "1"' in dev_script
+    assert '$env:FITCV_CP_INLINE_EXECUTION = "1"' in dev_script
     assert "job-project-worker-1" in web_script
     assert "SimpleWorker" in worker_script
     assert "fitcv_cp.queue" in worker_script

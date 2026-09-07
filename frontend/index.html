@@ -1,7 +1,18 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('fitcv-theme') || 'light';
+          document.documentElement.setAttribute('data-theme', t);
+          if (document.documentElement.dataset) {
+            document.documentElement.dataset.theme = t;
+          }
+        } catch (_) {}
+      })();
+    </script>
     <link rel="icon" href="data:," />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FitCV</title>

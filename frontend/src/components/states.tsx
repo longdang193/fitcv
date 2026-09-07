@@ -8,6 +8,7 @@ export interface NoticeProps {
   variant?: NoticeVariant;
   role?: "status" | "alert";
   className?: string;
+  id?: string;
 }
 
 export const Notice: React.FC<NoticeProps> = ({
@@ -15,8 +16,9 @@ export const Notice: React.FC<NoticeProps> = ({
   variant = "info",
   role = variant === "error" ? "alert" : "status",
   className = "",
+  id,
 }) => (
-  <div className={`notice ${variant} ${className}`.trim()} role={role}>
+  <div id={id} className={`notice ${variant} ${className}`.trim()} role={role}>
     {children}
   </div>
 );
@@ -82,7 +84,10 @@ export interface ErrorStateProps {
   message: string;
   actionLabel?: string;
   onRetry?: () => void;
+  retrying?: boolean;
   className?: string;
+  children?: React.ReactNode;
+  actions?: React.ReactNode;
 }
 
 export const ErrorState: React.FC<ErrorStateProps> = ({
