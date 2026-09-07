@@ -225,15 +225,15 @@ Bookmark flow:
 
 ## Screenshots
 
-![Run page](data/images/Run-page.gif)
+![Run history](docs/screenshots/runs.png)
 
-![Run detail page](data/images/Run-detail-page.gif)
+![Candidate profiles](docs/screenshots/candidate-profile.png)
 
-![Bookmark page](data/images/Bookmark-page.png)
+![Synonym review](docs/screenshots/synonyms.png)
 
-![Settings page 1](data/images/Setting-page-1.gif)
+![API providers](docs/screenshots/api-providers.png)
 
-![Settings page 2](data/images/Setting-page-2.gif)
+![Bookmarks](docs/screenshots/bookmarks.png)
 
 ## Architecture
 
