@@ -73,6 +73,9 @@ export interface CreationAttempt {
     code?: string;
     message?: string;
     retryable?: boolean;
+    action?: string;
+    stage?: string;
+    details?: string;
   };
   capabilities: {
     retry?: boolean;

@@ -5919,6 +5919,7 @@ class CandidateProfileUpdateRequest(BaseModel):
 class CandidateProfileFailure(BaseModel):
     code: str
     message: str
+    details: str | None = None
 
 
 class CandidateProfileCapabilities(BaseModel):

@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { ErrorState, Button } from "../components";
 import baselineReviewSource from "../features/candidate-profile/components/BaselineReviewStep.tsx?raw";
 import derivedReviewSource from "../features/candidate-profile/components/DerivedReviewStep.tsx?raw";
 import confirmationStepSource from "../features/candidate-profile/components/ConfirmationStep.tsx?raw";
+import catalogViewSource from "../features/candidate-profile/components/CatalogView.tsx?raw";
+import candidateProfileTypesSource from "../features/candidate-profile/types.ts?raw";
 import {
   candidateProfileBaselineApprovalHash,
   candidateProfileEditHash,
@@ -169,6 +174,99 @@ describe("Candidate Profile review control associations", () => {
     expect(confirmationStepSource).toContain("error.code");
     expect(confirmationStepSource).toContain("error.action");
     expect(confirmationStepSource).toContain("error.fieldErrors");
+    expect(confirmationStepSource).not.toContain("error.details");
+  });
+
+  it("keeps confirmation error state in place during retry without premature clearing", () => {
+    const handleRetryMethod = confirmationStepSource.slice(
+      confirmationStepSource.indexOf("const handleRetryConfirmation"),
+      confirmationStepSource.indexOf("const handleDownloadSource")
+    );
+    expect(handleRetryMethod).not.toMatch(/setRetrying\(true\);\s*setError\(null\);/);
+    expect(handleRetryMethod).toContain("setConfirmation(freshConfirmation);");
+    expect(handleRetryMethod).toContain("setError(null);");
+  });
+
+  it("prevents false catalog fallback on confirmation error and uses SSOT state components", () => {
+    expect(confirmationStepSource).toContain("<Notice");
+    expect(confirmationStepSource).toContain('variant="error"');
+    expect(confirmationStepSource).toContain('role="alert"');
+    expect(confirmationStepSource).toContain('className="confirmation-error-banner"');
+    expect(confirmationStepSource).toContain("<ErrorState");
+    expect(confirmationStepSource).toContain('title="Confirmation Failed"');
+    expect(confirmationStepSource).not.toMatch(/<ErrorState[^>]*onRetry=\{onCancel\}/);
+  });
+
+  it("encapsulates confirmation error code, action guidance, and controls inside ErrorState without bottom clipping", () => {
+    expect(confirmationStepSource).not.toContain("marginTop: -16");
+    expect(confirmationStepSource).not.toMatch(/marginTop:\s*-\d+/);
+
+    const errorStateBlock = confirmationStepSource.slice(
+      confirmationStepSource.indexOf("<ErrorState"),
+      confirmationStepSource.indexOf("</ErrorState>") + "</ErrorState>".length
+    );
+    expect(errorStateBlock).toContain('title="Confirmation Failed"');
+    expect(errorStateBlock).toContain("error?.code");
+    expect(errorStateBlock).toContain("error?.action");
+    expect(errorStateBlock).toContain("error?.fieldErrors");
+    expect(errorStateBlock).toContain('className="error-code"');
+    expect(errorStateBlock).toContain('className="error-action-guidance"');
+    expect(errorStateBlock).toContain("actions=");
+    expect(errorStateBlock).toContain("onBackToDerived");
+    expect(errorStateBlock).toContain("Exit to Candidate Profiles");
+  });
+
+  it("renders ErrorState with integrated code, action guidance, and cohesive controls", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(
+        ErrorState,
+        {
+          title: "Confirmation Failed",
+          message: "Profile confirmation is currently blocked until required compliance checks are completed.",
+          actionLabel: "Retry confirmation",
+          onRetry: () => {},
+          actions: React.createElement(
+            React.Fragment,
+            null,
+            React.createElement(Button, { variant: "secondary" }, "← Back to derived review"),
+            React.createElement(Button, { variant: "secondary" }, "Exit to Candidate Profiles")
+          ),
+        },
+        React.createElement(
+          "div",
+          { className: "error-code-wrapper" },
+          React.createElement("span", { className: "error-code" }, "Code: CANDIDATE_CONFIRMATION_BLOCKED")
+        ),
+        React.createElement(
+          "p",
+          { className: "error-action-guidance" },
+          "Resolve pending compliance items or retry after checks finish."
+        )
+      )
+    );
+
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain("Confirmation Failed");
+    expect(markup).toContain("Profile confirmation is currently blocked until required compliance checks are completed.");
+    expect(markup).toContain("Code: CANDIDATE_CONFIRMATION_BLOCKED");
+    expect(markup).toContain("Resolve pending compliance items or retry after checks finish.");
+    expect(markup).toContain("Retry confirmation");
+    expect(markup).toContain("← Back to derived review");
+    expect(markup).toContain("Exit to Candidate Profiles");
+    expect(markup).toContain('class="error-state-actions"');
+  });
+
+  it("preserves attempt context during confirmation failure and in-place retry", () => {
+    expect(confirmationStepSource).toContain("fetchCreationAttempt(attemptId)");
+    expect(confirmationStepSource).toContain("setAttempt(freshAttempt)");
+    expect(confirmationStepSource).toContain("setAttempt(latestAttempt)");
+    expect(confirmationStepSource).toContain("retryAttempt(attemptId, expectedRevision)");
+  });
+
+  it("resumes retried confirmation drafts directly to confirm stage in CatalogView", () => {
+    expect(catalogViewSource).toContain('retried.next_action === "confirm"');
+    expect(catalogViewSource).toContain('retried.creation_status === "ready_to_confirm"');
+    expect(catalogViewSource).toContain("onResumeAttempt(retried.attempt_id, targetStage)");
   });
 
   it("associates derived claim and evidence controls with unique IDs", () => {
@@ -742,6 +840,119 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
       "conf-success-key"
     );
     expect(confirmed.profile_id).toBe("prof_recovered_1");
+  });
+
+  it("diagnoses and recovers attempt_1512c054c2914bce8d54d891e3175ac6 confirmation failure in-place", async () => {
+    const attemptId = "attempt_1512c054c2914bce8d54d891e3175ac6";
+    const { ApiClientError } = await import("../lib/api-client");
+    const { retryAttempt } = await import("../features/candidate-profile/api");
+
+    const failedAttempt = {
+      attempt_id: attemptId,
+      creation_status: "failed",
+      revision: 7,
+      resume_stage: "confirmation",
+      next_action: "retry",
+      capabilities: { retry: true, discard: true, confirm: false },
+      failure: {
+        code: "candidate_profile_persistence_failed",
+        message: "Candidate Profile confirmation could not be persisted.",
+        retryable: true,
+        stage: "confirmation",
+      },
+      fingerprints: {
+        approved_baseline: "fp_base_1512",
+        approved_derived: "fp_der_1512",
+      },
+    };
+
+    let confirmationCalls = 0;
+    vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => {
+      if (path.includes(attemptId) && path.includes("/confirmation")) {
+        confirmationCalls++;
+        if (confirmationCalls === 1) {
+          throw new ApiClientError(
+            400,
+            "candidate_profile_invalid_transition",
+            "Candidate Profile action could not be completed.",
+            "Retry confirmation."
+          );
+        }
+        return {
+          data: {
+            data: {
+              attempt_id: attemptId,
+              revision: 8,
+              fingerprint: "fp_conf_1512_v2",
+              approval_fingerprints: { baseline: "fp_base_1512", derived: "fp_der_1512" },
+              readiness: { ready: true, errors: [] },
+              profile: { profile_id: "prof_1512c054_recovered", canonical: {} },
+            },
+          } as any,
+          status: 200,
+        };
+      }
+      if (path.includes(attemptId)) {
+        return {
+          data: { data: failedAttempt } as any,
+          status: 200,
+        };
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    const postSpy = vi.spyOn(apiClient, "post")
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            attempt_id: attemptId,
+            creation_status: "ready_to_confirm",
+            revision: 8,
+            next_action: "confirm",
+            capabilities: { retry: false, confirm: true },
+          },
+        } as any,
+        status: 200,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            profile_id: "prof_1512c054_recovered",
+          },
+        } as any,
+        status: 200,
+      });
+
+    const attemptData = await fetchCreationAttempt(attemptId);
+    expect(attemptData.attempt_id).toBe(attemptId);
+    expect(attemptData.creation_status).toBe("failed");
+    expect(attemptData.failure?.code).toBe("candidate_profile_persistence_failed");
+
+    await expect(fetchConfirmation(attemptId)).rejects.toMatchObject({
+      code: "candidate_profile_invalid_transition",
+    });
+
+    const retried = await retryAttempt(attemptId, attemptData.revision, "retry-1512-key");
+    expect(retried.creation_status).toBe("ready_to_confirm");
+    expect(postSpy).toHaveBeenCalledWith(
+      `/candidate-profile-creation-attempts/${attemptId}/actions/retry`,
+      { expected_revision: 7 },
+      { idempotencyKey: "retry-1512-key" }
+    );
+
+    const freshConf = await fetchConfirmation(attemptId);
+    expect(freshConf.revision).toBe(8);
+    expect(freshConf.fingerprint).toBe("fp_conf_1512_v2");
+
+    const confirmed = await confirmProfile(
+      attemptId,
+      freshConf.revision,
+      freshConf.approval_fingerprints.baseline || "",
+      freshConf.approval_fingerprints.derived || "",
+      freshConf.fingerprint,
+      "confirm-1512-key"
+    );
+    expect(confirmed.profile_id).toBe("prof_1512c054_recovered");
   });
 
   it("supports catalog fetching and detail fetching without static placeholders", async () => {

@@ -1305,6 +1305,118 @@ dialog.native-dialog::backdrop {
   color: var(--info);
 }
 
+/* Shared inline feedback */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.notice.info {
+  border-color: color-mix(in srgb, var(--info) 30%, var(--border));
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.notice.success {
+  border-color: color-mix(in srgb, var(--success) 30%, var(--border));
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.notice.warn {
+  border-color: color-mix(in srgb, var(--warn) 30%, var(--border));
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.notice.error {
+  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Shared error state, code, and guidance styling */
+.error-state {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: 8px;
+  border: 1px solid var(--danger-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.error-state-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.error-code-wrapper {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.error-code {
+  display: inline-block;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm, 4px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+[data-theme="dark"] .error-code {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.error-action-guidance {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 480px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.field-errors-list {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: var(--text);
+  max-width: 480px;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .error-state {
+    padding: 32px 16px;
+  }
+  .error-state-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .error-state-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* Table container & scroll */
 .table-card {
   max-width: 100%;

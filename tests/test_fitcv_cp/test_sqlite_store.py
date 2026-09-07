@@ -1982,10 +1982,90 @@ def test_candidate_profile_confirmation_failure_is_retryable(tmp_path: Path, mon
             "message": "Candidate Profile confirmation could not be persisted.",
             "retryable": True,
             "stage": "confirmation",
+            "details": "RuntimeError: injected confirmation failure",
         }
         assert conn.execute(
             "SELECT COUNT(*) FROM idempotent_actions WHERE action_scope LIKE '%:confirm'"
         ).fetchone()[0] == 0
+
+
+def test_candidate_profile_edit_confirmation_failure_is_retryable_with_sqlite_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    confirmation = sqlite_store.get_candidate_profile_confirmation(
+        ready["attempt_id"], database_path=database_path
+    )
+    assert confirmation is not None
+    profile = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-before-edit-failure",
+        database_path=database_path,
+    )
+    edit = sqlite_store.create_candidate_profile_edit_attempt(
+        profile["profile_id"], idempotency_key="edit-for-confirm-failure", database_path=database_path
+    )
+    approved_baseline = sqlite_store.approve_candidate_profile_review(
+        edit["attempt_id"],
+        "baseline",
+        expected_revision=edit["revision"],
+        expected_fingerprint=edit["fingerprints"]["baseline_draft"],
+        idempotency_key="approve-edit-baseline-for-confirm-failure",
+        database_path=database_path,
+    )
+    approved_derived = sqlite_store.approve_candidate_profile_review(
+        edit["attempt_id"],
+        "derived",
+        expected_revision=approved_baseline["revision"],
+        expected_fingerprint=approved_baseline["fingerprints"]["derived_draft"],
+        expected_baseline_fingerprint=approved_baseline["fingerprints"]["approved_baseline"],
+        idempotency_key="approve-edit-derived-for-confirm-failure",
+        database_path=database_path,
+    )
+    edit_confirmation = sqlite_store.get_candidate_profile_confirmation(
+        edit["attempt_id"], database_path=database_path
+    )
+    assert edit_confirmation is not None
+
+    def fail_with_sqlite_error(*args: object, **kwargs: object) -> str:
+        raise sqlite3.IntegrityError("UNIQUE constraint failed: candidate_profiles.candidate_profile_id")
+
+    monkeypatch.setattr(sqlite_store, "_insert_confirmed_candidate_profile", fail_with_sqlite_error)
+    with pytest.raises(ValueError, match="candidate_profile_persistence_failed"):
+        sqlite_store.confirm_candidate_profile_creation_attempt(
+            edit["attempt_id"],
+            expected_revision=approved_derived["revision"],
+            expected_baseline_fingerprint=edit_confirmation["approval_fingerprints"]["baseline"],
+            expected_derived_fingerprint=edit_confirmation["approval_fingerprints"]["derived"],
+            expected_confirmation_fingerprint=edit_confirmation["fingerprint"],
+            idempotency_key="confirm-edit-failure",
+            database_path=database_path,
+        )
+
+    failed = sqlite_store.get_candidate_profile_creation_attempt(edit["attempt_id"], database_path=database_path)
+    assert failed is not None
+    assert failed["creation_status"] == "failed"
+    assert failed["revision"] == approved_derived["revision"] + 1
+    assert failed["failure"] == {
+        "code": "candidate_profile_persistence_failed",
+        "message": "Candidate Profile confirmation could not be persisted.",
+        "retryable": True,
+        "stage": "confirmation",
+        "details": "IntegrityError: UNIQUE constraint failed: candidate_profiles.candidate_profile_id",
+    }
+
+    retried = sqlite_store.retry_candidate_profile_creation_attempt(
+        edit["attempt_id"],
+        expected_revision=failed["revision"],
+        idempotency_key="retry-edit-confirm-failure",
+        database_path=database_path,
+    )
+    assert retried["creation_status"] == "ready_to_confirm"
 
 
 def _synonym_policy_paths(tmp_path: Path) -> dict[str, Path]:

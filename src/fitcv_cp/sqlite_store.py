@@ -3753,6 +3753,7 @@ def _record_candidate_profile_confirmation_failure(
     attempt_id: str,
     *,
     now: str,
+    cause: BaseException | None = None,
 ) -> None:
     failure = {
         "code": "candidate_profile_persistence_failed",
@@ -3760,6 +3761,8 @@ def _record_candidate_profile_confirmation_failure(
         "retryable": True,
         "stage": "confirmation",
     }
+    if cause is not None:
+        failure["details"] = f"{type(cause).__name__}: {cause}"
     with _sqlite_connection(path) as conn:
         _ensure_control_plane_schema(conn)
         conn.execute("BEGIN IMMEDIATE")
@@ -3769,7 +3772,7 @@ def _record_candidate_profile_confirmation_failure(
                 UPDATE candidate_profile_creation_attempts
                 SET creation_status='failed', revision=revision+1, failure_json=?,
                     resume_stage='confirmation', next_action='retry', updated_at=?
-                WHERE attempt_id=? AND creation_status='ready_to_confirm' AND profile_id IS NULL
+                WHERE attempt_id=? AND creation_status='ready_to_confirm'
                 """,
                 (json.dumps(failure, sort_keys=True, separators=(",", ":")), now, attempt_id),
             )
@@ -3872,7 +3875,10 @@ def confirm_candidate_profile_creation_attempt(
         except Exception as exc:
             conn.rollback()
             if not isinstance(exc, ValueError):
-                _record_candidate_profile_confirmation_failure(path, attempt_id, now=now)
+                try:
+                    _record_candidate_profile_confirmation_failure(path, attempt_id, now=now, cause=exc)
+                except Exception:
+                    logger.exception("Could not retain Candidate Profile confirmation failure for %s", attempt_id)
                 raise ValueError("candidate_profile_persistence_failed") from exc
             raise
     return response

@@ -90,7 +90,10 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   message,
   actionLabel = "Retry",
   onRetry,
+  retrying = false,
   className = "",
+  children,
+  actions,
 }) => (
   <div
     className={`state-container error-state ${className}`.trim()}
@@ -106,14 +109,21 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
       background: "var(--surface)",
     }}
   >
-    <div style={{ fontSize: 32, color: "var(--danger)" }}>⚠️</div>
+    <div style={{ fontSize: 32, color: "var(--danger)" }} aria-hidden="true">⚠️</div>
     <h3 style={{ margin: "4px 0 0", fontSize: 17, color: "var(--danger)" }}>{title}</h3>
     <p style={{ maxWidth: 480, margin: 0, color: "var(--muted)", fontSize: 13 }}>{message}</p>
-    {onRetry && (
-      <div style={{ marginTop: 12 }}>
-        <Button variant="secondary" onClick={onRetry}>
-          {actionLabel}
-        </Button>
+    {children}
+    {(onRetry || actions) && (
+      <div
+        className="error-state-actions"
+        style={{ marginTop: 12, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}
+      >
+        {onRetry && (
+          <Button variant="secondary" onClick={onRetry} loading={retrying} disabled={retrying}>
+            {actionLabel}
+          </Button>
+        )}
+        {actions}
       </div>
     )}
   </div>

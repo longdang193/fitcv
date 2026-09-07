@@ -149,7 +149,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     try {
       const retried = await retryAttempt(attempt.attempt_id, attempt.revision);
       setActionLoading(false);
-      onResumeAttempt(retried.attempt_id);
+      const targetStage =
+        retried.next_action === "confirm" || retried.creation_status === "ready_to_confirm"
+          ? "confirm"
+          : retried.next_action === "review_derived" || retried.creation_status === "derived_review"
+          ? "derived"
+          : retried.next_action === "review_baseline" || retried.creation_status === "base_review"
+          ? "baseline"
+          : undefined;
+      onResumeAttempt(retried.attempt_id, targetStage);
     } catch (err: any) {
       setError(err.message || "Failed to retry draft.");
       setActionLoading(false);
