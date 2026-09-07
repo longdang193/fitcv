@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import baselineReviewSource from "../features/candidate-profile/components/BaselineReviewStep.tsx?raw";
 import derivedReviewSource from "../features/candidate-profile/components/DerivedReviewStep.tsx?raw";
+import confirmationStepSource from "../features/candidate-profile/components/ConfirmationStep.tsx?raw";
 import {
   candidateProfileBaselineApprovalHash,
   candidateProfileEditHash,
@@ -160,6 +161,14 @@ describe("Candidate Profile review control associations", () => {
     expect(baselineReviewSource).toContain("<label htmlFor={textId}");
     expect(baselineReviewSource).toContain("id={textId}");
     expect(baselineReviewSource).toContain("aria-label={`Regenerate ${fieldMeta.label}`}");
+  });
+
+  it("preserves structured confirmation error details and provides in-place retry action", () => {
+    expect(confirmationStepSource).toContain("retryAttempt");
+    expect(confirmationStepSource).toContain("Retry confirmation");
+    expect(confirmationStepSource).toContain("error.code");
+    expect(confirmationStepSource).toContain("error.action");
+    expect(confirmationStepSource).toContain("error.fieldErrors");
   });
 
   it("associates derived claim and evidence controls with unique IDs", () => {
@@ -646,6 +655,93 @@ describe("Candidate Profile API & Full Lifecycle Operations", () => {
       },
       { idempotencyKey: "confirm-key" }
     );
+  });
+
+  it("retries confirmation failure in-place using retry API and re-enables confirmation", async () => {
+    const { ApiClientError } = await import("../lib/api-client");
+    const { retryAttempt } = await import("../features/candidate-profile/api");
+
+    const postSpy = vi.spyOn(apiClient, "post")
+      // First confirm fails with retryable persistence error
+      .mockRejectedValueOnce(
+        new ApiClientError(
+          500,
+          "candidate_profile_persistence_failed",
+          "Candidate Profile action could not be completed.",
+          "Retry confirmation.",
+          [{ field: "database", code: "disk_io", message: "Failed to persist profile" }],
+          undefined,
+          true
+        )
+      )
+      // Retry attempt succeeds
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            attempt_id: "att_conf_1",
+            creation_status: "ready_to_confirm",
+            revision: 6,
+            next_action: "confirm",
+            capabilities: { retry: false, confirm: true },
+          },
+        } as any,
+        status: 200,
+      })
+      // Second confirm succeeds
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            profile_id: "prof_recovered_1",
+          },
+        } as any,
+        status: 200,
+      });
+
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        data: {
+          attempt_id: "att_conf_1",
+          revision: 6,
+          fingerprint: "fp_conf_v2",
+          approval_fingerprints: { baseline: "fp_base", derived: "fp_der" },
+          readiness: { ready: true, errors: [] },
+          profile: { profile_id: "prof_recovered_1", canonical: {} },
+        },
+      } as any,
+      status: 200,
+    });
+
+    // Attempting confirm fails first with structured retryable error
+    await expect(
+      confirmProfile("att_conf_1", 5, "fp_base", "fp_der", "fp_conf", "conf-fail-key")
+    ).rejects.toMatchObject({
+      code: "candidate_profile_persistence_failed",
+      retryable: true,
+      action: "Retry confirmation.",
+      fieldErrors: [{ field: "database", code: "disk_io", message: "Failed to persist profile" }],
+    });
+
+    // In-place retry confirmation uses existing retry API
+    const retried = await retryAttempt("att_conf_1", 5, "conf-retry-key");
+    expect(retried.creation_status).toBe("ready_to_confirm");
+    expect(postSpy).toHaveBeenCalledWith(
+      "/candidate-profile-creation-attempts/att_conf_1/actions/retry",
+      { expected_revision: 5 },
+      { idempotencyKey: "conf-retry-key" }
+    );
+
+    // Refreshes confirmation and attempt data, re-enabling confirmation
+    const freshConf = await fetchConfirmation("att_conf_1");
+    expect(freshConf.revision).toBe(6);
+    const confirmed = await confirmProfile(
+      "att_conf_1",
+      freshConf.revision,
+      freshConf.approval_fingerprints.baseline || "",
+      freshConf.approval_fingerprints.derived || "",
+      freshConf.fingerprint,
+      "conf-success-key"
+    );
+    expect(confirmed.profile_id).toBe("prof_recovered_1");
   });
 
   it("supports catalog fetching and detail fetching without static placeholders", async () => {

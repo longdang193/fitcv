@@ -5,7 +5,16 @@ import {
   fetchCreationAttempt,
   confirmProfile,
   downloadAttemptSource,
+  retryAttempt,
 } from "../api";
+
+export interface ConfirmationErrorState {
+  code?: string;
+  message: string;
+  action?: string;
+  retryable?: boolean;
+  fieldErrors?: Array<{ field: string; code?: string; message: string }>;
+}
 import { ConfirmationResource, CreationAttempt } from "../types";
 import { SourceDialog } from "./SourceDialog";
 import { EvidenceReferenceButton } from "./EvidenceReferenceButton";
@@ -28,7 +37,8 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const [attempt, setAttempt] = useState<CreationAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [error, setError] = useState<ConfirmationErrorState | null>(null);
   // Collapsible section toggles
   const [baselineOpen, setBaselineOpen] = useState(true);
   const [derivedOpen, setDerivedOpen] = useState(true);
@@ -56,7 +66,18 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       })
       .catch((err) => {
         if (isMounted) {
-          setError(err.message || "Failed to load confirmation details.");
+          const fieldErrors = Array.isArray(err?.fieldErrors)
+            ? err.fieldErrors
+            : Array.isArray(err?.field_errors)
+            ? err.field_errors
+            : undefined;
+          setError({
+            code: err?.code,
+            message: err?.message || "Failed to load confirmation details.",
+            action: err?.action,
+            retryable: typeof err?.retryable === "boolean" ? err.retryable : undefined,
+            fieldErrors,
+          });
           setLoading(false);
         }
       });
@@ -152,7 +173,63 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         } catch {}
       }
       setConfirming(false);
-      setError(err.message || "Failed to confirm profile.");
+      const fieldErrors = Array.isArray(err?.fieldErrors)
+        ? err.fieldErrors
+        : Array.isArray(err?.field_errors)
+        ? err.field_errors
+        : undefined;
+      const isRetryable =
+        typeof err?.retryable === "boolean"
+          ? err.retryable
+          : Boolean(err?.details && typeof err.details === "object" && (err.details as any).retryable);
+
+      setError({
+        code: err?.code,
+        message: err?.message || "Failed to confirm profile.",
+        action: err?.action,
+        retryable: isRetryable,
+        fieldErrors,
+      });
+    }
+  };
+
+  const handleRetryConfirmation = async () => {
+    if (!attempt) return;
+    setRetrying(true);
+    setError(null);
+    try {
+      let expectedRevision = attempt.revision;
+      try {
+        const latestAttempt = await fetchCreationAttempt(attemptId);
+        expectedRevision = latestAttempt.revision;
+        setAttempt(latestAttempt);
+      } catch {}
+
+      const retried = await retryAttempt(attemptId, expectedRevision);
+      setAttempt(retried);
+      const freshConfirmation = await fetchConfirmation(attemptId);
+      setConfirmation(freshConfirmation);
+      setError(null);
+    } catch (err: any) {
+      const fieldErrors = Array.isArray(err?.fieldErrors)
+        ? err.fieldErrors
+        : Array.isArray(err?.field_errors)
+        ? err.field_errors
+        : undefined;
+      const isRetryable =
+        typeof err?.retryable === "boolean"
+          ? err.retryable
+          : Boolean(err?.details && typeof err.details === "object" && (err.details as any).retryable);
+
+      setError({
+        code: err?.code,
+        message: err?.message || "Failed to retry confirmation.",
+        action: err?.action,
+        retryable: isRetryable,
+        fieldErrors,
+      });
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -165,7 +242,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   }
 
   if (!confirmation || !attempt) {
-    return <ErrorState message={error || "Failed to load confirmation."} onRetry={onCancel} />;
+    return <ErrorState message={error?.message || "Failed to load confirmation."} onRetry={onCancel} />;
   }
 
   const canConfirm = confirmation.readiness?.ready !== false;
@@ -209,7 +286,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             variant="primary"
             onClick={handleConfirm}
             loading={confirming}
-            disabled={confirming || !canConfirm}
+            disabled={confirming || retrying || !canConfirm}
           >
             Confirm and save profile
           </Button>
@@ -219,17 +296,70 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       {error && (
         <div
           role="alert"
+          className="confirmation-error-banner"
           style={{
-            padding: "12px 16px",
+            padding: "16px 20px",
             marginBottom: 20,
             background: "var(--danger-soft)",
             color: "var(--danger)",
             borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border)",
             fontSize: 13,
             fontWeight: 500,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
           }}
         >
-          {error}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <strong style={{ display: "block", fontSize: 14 }}>{error.message}</strong>
+              {error.code && (
+                <span
+                  className="error-code"
+                  style={{
+                    display: "inline-block",
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono, monospace)",
+                    background: "rgba(0, 0, 0, 0.06)",
+                    padding: "2px 6px",
+                    borderRadius: "var(--radius-xs, 4px)",
+                    marginTop: 4,
+                  }}
+                >
+                  Code: {error.code}
+                </span>
+              )}
+              {error.action && (
+                <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.9 }}>
+                  {error.action}
+                </p>
+              )}
+            </div>
+
+            {(error.retryable || attempt?.failure?.retryable || attempt?.capabilities?.retry) && (
+              <Button
+                variant="secondary"
+                size="compact"
+                onClick={handleRetryConfirmation}
+                loading={retrying}
+                disabled={retrying || confirming}
+              >
+                Retry confirmation
+              </Button>
+            )}
+          </div>
+
+          {error.fieldErrors && error.fieldErrors.length > 0 && (
+            <ul style={{ margin: "6px 0 0", paddingLeft: 20, fontSize: 12 }}>
+              {error.fieldErrors.map((fe, idx) => (
+                <li key={fe.field || idx}>
+                  <strong>{fe.field}:</strong> {fe.message}
+                  {fe.code && ` (${fe.code})`}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -504,7 +634,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             variant="primary"
             onClick={handleConfirm}
             loading={confirming}
-            disabled={confirming || !canConfirm}
+            disabled={confirming || retrying || !canConfirm}
           >
             Confirm and save profile ✓
           </Button>
