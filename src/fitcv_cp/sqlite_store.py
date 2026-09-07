@@ -3224,7 +3224,8 @@ def patch_candidate_profile_review(
                 ]
             )
             conn.execute(
-                f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})",
+                f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)}) "
+                "ON CONFLICT(attempt_id, fingerprint) DO NOTHING",
                 values,
             )
             conn.execute(
@@ -3747,6 +3748,37 @@ def _insert_confirmed_candidate_profile(
     return profile_id
 
 
+def _record_candidate_profile_confirmation_failure(
+    path: Path,
+    attempt_id: str,
+    *,
+    now: str,
+) -> None:
+    failure = {
+        "code": "candidate_profile_persistence_failed",
+        "message": "Candidate Profile confirmation could not be persisted.",
+        "retryable": True,
+        "stage": "confirmation",
+    }
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute(
+                """
+                UPDATE candidate_profile_creation_attempts
+                SET creation_status='failed', revision=revision+1, failure_json=?,
+                    resume_stage='confirmation', next_action='retry', updated_at=?
+                WHERE attempt_id=? AND creation_status='ready_to_confirm' AND profile_id IS NULL
+                """,
+                (json.dumps(failure, sort_keys=True, separators=(",", ":")), now, attempt_id),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+
 def confirm_candidate_profile_creation_attempt(
     attempt_id: str,
     *,
@@ -3837,8 +3869,11 @@ def confirm_candidate_profile_creation_attempt(
                 now=now,
             )
             conn.commit()
-        except Exception:
+        except Exception as exc:
             conn.rollback()
+            if not isinstance(exc, ValueError):
+                _record_candidate_profile_confirmation_failure(path, attempt_id, now=now)
+                raise ValueError("candidate_profile_persistence_failed") from exc
             raise
     return response
 
@@ -3886,26 +3921,37 @@ def retry_candidate_profile_creation_attempt(
             stage = str(attempt["resume_stage"] or "")
             if attempt["creation_status"] != "failed" or not failure.get("retryable"):
                 raise ValueError("candidate_profile_invalid_transition")
-            if stage not in {"base_mapping", "derived_claims"}:
+            if stage not in {"base_mapping", "derived_claims", "confirmation"}:
                 raise ValueError("candidate_profile_invalid_transition")
-            conn.execute(
-                """
-                UPDATE candidate_profile_creation_attempts
-                SET creation_status=?, revision=revision+1, processing_stage=?,
-                    processing_claim_id=?, processing_attempt=processing_attempt+1,
-                    lease_expires_at=?, failure_json=NULL, resume_stage=NULL,
-                    next_action='wait', updated_at=?
-                WHERE attempt_id=?
-                """,
-                (
-                    "extracting_base" if stage == "base_mapping" else "deriving",
-                    stage,
-                    f"claim_{uuid.uuid4().hex}",
-                    (current + datetime.timedelta(seconds=_CANDIDATE_PROFILE_LEASE_SECONDS)).isoformat(),
-                    now,
-                    attempt_id,
-                ),
-            )
+            if stage == "confirmation":
+                conn.execute(
+                    """
+                    UPDATE candidate_profile_creation_attempts
+                    SET creation_status='ready_to_confirm', revision=revision+1,
+                        failure_json=NULL, resume_stage=NULL, next_action='confirm', updated_at=?
+                    WHERE attempt_id=?
+                    """,
+                    (now, attempt_id),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE candidate_profile_creation_attempts
+                    SET creation_status=?, revision=revision+1, processing_stage=?,
+                        processing_claim_id=?, processing_attempt=processing_attempt+1,
+                        lease_expires_at=?, failure_json=NULL, resume_stage=NULL,
+                        next_action='wait', updated_at=?
+                    WHERE attempt_id=?
+                    """,
+                    (
+                        "extracting_base" if stage == "base_mapping" else "deriving",
+                        stage,
+                        f"claim_{uuid.uuid4().hex}",
+                        (current + datetime.timedelta(seconds=_CANDIDATE_PROFILE_LEASE_SECONDS)).isoformat(),
+                        now,
+                        attempt_id,
+                    ),
+                )
             response = _candidate_profile_attempt_resource(conn, attempt_id)
             assert response is not None
             _record_candidate_profile_idempotent_result(

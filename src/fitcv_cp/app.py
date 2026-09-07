@@ -10072,7 +10072,9 @@ def create_app(
         except ValueError as exc:
             code = str(getattr(exc, "code", str(exc)))
             status = (
-                404
+                500
+                if code == "candidate_profile_persistence_failed"
+                else 404
                 if code in {
                     "candidate_profile_attempt_not_found",
                     "candidate_profile_source_not_found",
@@ -10115,11 +10117,13 @@ def create_app(
                 "candidate_profile_field_not_regenerable": "Reload the latest review, then retry regeneration.",
                 "candidate_profile_field_not_found": "Reload the latest review, then retry regeneration.",
                 "candidate_profile_no_evidence": "Add at least one evidence statement, then approve the baseline again.",
+                "candidate_profile_persistence_failed": "Retry confirmation.",
             }.get(code)
             raise ApiError(
                 status,
                 code,
                 "Candidate Profile action could not be completed.",
+                retryable=code == "candidate_profile_persistence_failed",
                 action=action,
             ) from exc
 
@@ -10523,12 +10527,13 @@ def create_app(
                 idempotency_key=_required_idempotency_key(request),
             )
         )
-        _enqueue_candidate_profile_stage(
-            request,
-            attempt_id=attempt_id,
-            resource=resource,
-            targets=None,
-        )
+        if resource.get("creation_status") in {"extracting_base", "deriving"}:
+            _enqueue_candidate_profile_stage(
+                request,
+                attempt_id=attempt_id,
+                resource=resource,
+                targets=None,
+            )
         return _data_response(
             _resolve_run_store().get_candidate_profile_creation_attempt(attempt_id) or resource
         )

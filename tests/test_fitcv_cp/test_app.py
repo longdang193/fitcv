@@ -4186,6 +4186,55 @@ def test_candidate_profile_source_purged_maps_to_gone() -> None:
     assert response.json()["error"]["code"] == "candidate_profile_source_purged"
 
 
+def test_candidate_profile_confirmation_persistence_failure_is_retryable() -> None:
+    from test_fitcv_cp.test_sqlite_store import _candidate_profile_ready_to_confirm
+
+    app = _app()
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    ready, _ = _candidate_profile_ready_to_confirm(database_path, idempotency_prefix="http-")
+    with sqlite_store._sqlite_connection(database_path) as connection:
+        confirmation = sqlite_store._candidate_profile_confirmation_in_transaction(
+            connection, ready["attempt_id"]
+        )
+    payload = {
+        "expected_revision": confirmation["revision"],
+        "expected_baseline_fingerprint": confirmation["approval_fingerprints"]["baseline"],
+        "expected_derived_fingerprint": confirmation["approval_fingerprints"]["derived"],
+        "expected_confirmation_fingerprint": confirmation["fingerprint"],
+    }
+
+    with patch.object(
+        sqlite_store,
+        "_insert_confirmed_candidate_profile",
+        side_effect=RuntimeError("injected confirmation failure"),
+    ):
+        response = TestClient(app, raise_server_exceptions=False).post(
+            f"/candidate-profile-creation-attempts/{ready['attempt_id']}/actions/confirm",
+            headers={"Idempotency-Key": "http-confirm-failure"},
+            json=payload,
+        )
+
+    assert response.status_code == 500
+    assert response.json()["error"] == {
+        "code": "candidate_profile_persistence_failed",
+        "message": "Candidate Profile action could not be completed.",
+        "field_errors": [],
+        "retryable": True,
+        "action": "Retry confirmation.",
+    }
+    failed = TestClient(app).get(
+        f"/candidate-profile-creation-attempts/{ready['attempt_id']}"
+    ).json()["data"]
+    assert failed["creation_status"] == "failed"
+    retry = TestClient(app).post(
+        f"/candidate-profile-creation-attempts/{ready['attempt_id']}/actions/retry",
+        headers={"Idempotency-Key": "http-confirm-retry"},
+        json={"expected_revision": failed["revision"]},
+    )
+    assert retry.status_code == 202
+    assert retry.json()["data"]["creation_status"] == "ready_to_confirm"
+
+
 def _synonym_policy_resource() -> dict[str, object]:
     return {
         "synonym_type": "skills",

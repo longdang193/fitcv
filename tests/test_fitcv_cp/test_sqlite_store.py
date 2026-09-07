@@ -1422,7 +1422,9 @@ def _candidate_profile_v2_review_documents() -> tuple[dict[str, object], dict[st
     return baseline, derived
 
 
-def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, object], dict[str, object]]:
+def _candidate_profile_ready_to_confirm(
+    database_path: Path, *, idempotency_prefix: str = ""
+) -> tuple[dict[str, object], dict[str, object]]:
     from fitcv_cp.candidate_profile_service import approve_review
 
     baseline, derived = _candidate_profile_v2_review_documents()
@@ -1431,7 +1433,7 @@ def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, 
         original_filename="candidate.md",
         media_type="text/markdown",
         content=b"# Alex Example\n",
-        idempotency_key="create-confirm",
+        idempotency_key=f"{idempotency_prefix}create-confirm",
         database_path=database_path,
     )
     claimed = sqlite_store.claim_candidate_profile_processing(
@@ -1461,7 +1463,7 @@ def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, 
         "baseline",
         expected_revision=published["revision"],
         operations=[{"operation": "replace", "path": "/headline", "value": "Analytics Engineer"}],
-        idempotency_key="patch-headline",
+        idempotency_key=f"{idempotency_prefix}patch-headline",
         database_path=database_path,
     )
     approved_baseline = sqlite_store.approve_candidate_profile_review(
@@ -1469,7 +1471,7 @@ def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, 
         "baseline",
         expected_revision=patched["revision"],
         expected_fingerprint=patched["fingerprint"],
-        idempotency_key="approve-baseline",
+        idempotency_key=f"{idempotency_prefix}approve-baseline",
         database_path=database_path,
     )
     derived_approval = approve_review(
@@ -1498,7 +1500,7 @@ def _candidate_profile_ready_to_confirm(database_path: Path) -> tuple[dict[str, 
         expected_revision=published_derived["revision"],
         expected_fingerprint=published_derived["fingerprints"]["derived_draft"],
         expected_baseline_fingerprint=patched["fingerprint"],
-        idempotency_key="approve-derived",
+        idempotency_key=f"{idempotency_prefix}approve-derived",
         database_path=database_path,
     )
     return approved_derived, patched
@@ -1941,7 +1943,7 @@ def test_candidate_profile_review_and_confirmation_are_cas_and_idempotent(tmp_pa
         assert conn.execute("SELECT COUNT(*) FROM candidate_profile_review_batches").fetchone()[0] == 1
 
 
-def test_candidate_profile_confirmation_failure_rolls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_candidate_profile_confirmation_failure_is_retryable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
     ready, _ = _candidate_profile_ready_to_confirm(database_path)
     confirmation = sqlite_store.get_candidate_profile_confirmation(
@@ -1955,7 +1957,7 @@ def test_candidate_profile_confirmation_failure_rolls_back(tmp_path: Path, monke
         raise RuntimeError("injected confirmation failure")
 
     monkeypatch.setattr(sqlite_store, "_insert_confirmed_candidate_profile", fail_after_profile_insert)
-    with pytest.raises(RuntimeError, match="injected confirmation failure"):
+    with pytest.raises(ValueError, match="candidate_profile_persistence_failed"):
         sqlite_store.confirm_candidate_profile_creation_attempt(
             ready["attempt_id"],
             expected_revision=ready["revision"],
@@ -1970,8 +1972,17 @@ def test_candidate_profile_confirmation_failure_rolls_back(tmp_path: Path, monke
         assert conn.execute("SELECT COUNT(*) FROM candidate_profiles").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM candidate_profile_revisions").fetchone()[0] == 0
         assert conn.execute(
-            "SELECT creation_status, profile_id FROM candidate_profile_creation_attempts"
-        ).fetchone() == ("ready_to_confirm", None)
+            "SELECT creation_status, profile_id, resume_stage FROM candidate_profile_creation_attempts"
+        ).fetchone() == ("failed", None, "confirmation")
+        failure = conn.execute(
+            "SELECT failure_json FROM candidate_profile_creation_attempts"
+        ).fetchone()[0]
+        assert json.loads(failure) == {
+            "code": "candidate_profile_persistence_failed",
+            "message": "Candidate Profile confirmation could not be persisted.",
+            "retryable": True,
+            "stage": "confirmation",
+        }
         assert conn.execute(
             "SELECT COUNT(*) FROM idempotent_actions WHERE action_scope LIKE '%:confirm'"
         ).fetchone()[0] == 0
@@ -5589,3 +5600,84 @@ def test_default_candidate_profile_edit_discard_restores_default(tmp_path: Path)
             "SELECT is_default FROM candidate_profiles WHERE candidate_profile_id=?",
             (profile["profile_id"],),
         ).fetchone()[0] == 1
+
+
+def test_candidate_profile_derived_confidence_edit_can_be_approved(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, baseline = _candidate_profile_ready_to_confirm(database_path)
+    edited = sqlite_store.patch_candidate_profile_review(
+        ready["attempt_id"],
+        "derived",
+        expected_revision=ready["revision"],
+        operations=[
+            {"operation": "replace", "path": "/skills/skill_python/confidence", "value": 0.75}
+        ],
+        idempotency_key="patch-derived-confidence",
+        database_path=database_path,
+    )
+    approved = sqlite_store.approve_candidate_profile_review(
+        ready["attempt_id"],
+        "derived",
+        expected_revision=edited["revision"],
+        expected_fingerprint=edited["fingerprint"],
+        expected_baseline_fingerprint=baseline["fingerprint"],
+        idempotency_key="approve-derived-confidence",
+        database_path=database_path,
+    )
+    assert approved["creation_status"] == "ready_to_confirm"
+
+
+def test_candidate_profile_derived_add_remove_skill_can_be_approved(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, baseline = _candidate_profile_ready_to_confirm(database_path)
+    added = sqlite_store.patch_candidate_profile_review(
+        ready["attempt_id"],
+        "derived",
+        expected_revision=ready["revision"],
+        operations=[
+            {
+                "operation": "add",
+                "path": "/skills",
+                "value": {
+                    "id": "skill_added",
+                    "name": "Temporary skill",
+                    "confidence": 0.5,
+                    "evidence_refs": ["doc_cv_1"],
+                    "support_status": "supported",
+                    "origin": "manual",
+                },
+            }
+        ],
+        idempotency_key="patch-derived-add-skill",
+        database_path=database_path,
+    )
+    removed = sqlite_store.patch_candidate_profile_review(
+        ready["attempt_id"],
+        "derived",
+        expected_revision=added["revision"],
+        operations=[{"operation": "remove", "path": "/skills/skill_added"}],
+        idempotency_key="patch-derived-remove-skill",
+        database_path=database_path,
+    )
+    approved = sqlite_store.approve_candidate_profile_review(
+        ready["attempt_id"],
+        "derived",
+        expected_revision=removed["revision"],
+        expected_fingerprint=removed["fingerprint"],
+        expected_baseline_fingerprint=baseline["fingerprint"],
+        idempotency_key="approve-derived-add-remove-skill",
+        database_path=database_path,
+    )
+    assert approved["creation_status"] == "ready_to_confirm"
+
+
+def test_candidate_profile_independent_drafts_can_be_reviewed_and_approved(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+
+    first, _ = _candidate_profile_ready_to_confirm(database_path, idempotency_prefix="first-")
+    second, _ = _candidate_profile_ready_to_confirm(database_path, idempotency_prefix="second-")
+
+    assert first["attempt_id"] != second["attempt_id"]
+    assert first["creation_status"] == second["creation_status"] == "ready_to_confirm"
+    assert first["fingerprints"]["approved_baseline"] == second["fingerprints"]["approved_baseline"]
+    assert first["fingerprints"]["approved_derived"] == second["fingerprints"]["approved_derived"]
