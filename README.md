@@ -37,7 +37,7 @@ release waits for code signing and clean-Windows-VM acceptance.
 
 ### Run a workflow
 
-1. Open the **Runs** page (`/admin/runs`).
+1. Open the **Runs** page (`/app/#/runs`).
 2. Submit job input by path, upload, or paste, then choose **Run All** or
    **Stage by Stage**.
 3. Wait for progress and open run details. FitCV processes jobs through

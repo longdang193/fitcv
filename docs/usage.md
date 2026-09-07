@@ -84,19 +84,20 @@ Artifact truth note:
 
 ## Lifecycle Actions
 
-Operator lifecycle actions are exposed through run-scoped admin routes:
+Operator lifecycle actions are exposed through run-scoped control-plane routes:
 
 - stop active run: `POST /admin/runs/{run_id}/stop`
 - continue checkpointed run: `POST /admin/runs/{run_id}/continue`
 - archive/unarchive run: `POST /admin/runs/{run_id}/archive`, `POST /admin/runs/{run_id}/unarchive`
 - bulk archive/unarchive/cancel: `POST /admin/runs/bulk/archive`, `POST /admin/runs/bulk/unarchive`, `POST /admin/runs/bulk/cancel`
 - reconciliation/repair when needed: `POST /admin/runs/{run_id}/repair-cancellation`
-- bulk delete archived runs: `POST /admin/runs/bulk/delete-archived`
+- delete archived runs: `POST /runs/actions/delete-archived/preview`, then `POST /runs/actions/delete-archived`
 
 Archive and delete stay separate on purpose:
 
 - `Archive` hides run from active view but keeps run detail, events, and exports.
-- `Delete archived runs` is available only from `/admin/runs?view=archived`.
+- `Delete archived runs` is available from the **Runs** page (`/app/#/runs?view=archived`)
+  or the legacy server-rendered page (`/admin/runs?view=archived`).
 - delete uses `archived_at` age, defaults to `Older than 30 days`, submits threshold only, and relies on backend `deleted_count` for the final result.
 - delete does not clear shared caches, embeddings, bookmarks, or settings.
 
