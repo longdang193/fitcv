@@ -141,6 +141,22 @@ def test_load_config_raises_for_missing_file() -> None:
         load_config("/nonexistent/path/.env.yaml")
 
 
+def test_resolve_env_path_prefers_pyinstaller_bundle_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundle_root = tmp_path / "bundle"
+    bundle_root.mkdir()
+    (bundle_root / ".env.yaml").write_text("some_key: value\n")
+    work_root = tmp_path / "work"
+    work_root.mkdir()
+    monkeypatch.chdir(work_root)
+    monkeypatch.setattr(
+        config_module.config_loader.sys, "_MEIPASS", str(bundle_root), raising=False
+    )
+
+    assert config_module._resolve_env_path(None) == bundle_root / ".env.yaml"
+
+
 def test_load_config_allows_missing_legacy_cloud_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     isolated_root = tmp_path / "isolated" / "a" / "b" / "c" / "d"
     isolated_root.mkdir(parents=True)

@@ -16,6 +16,7 @@ lifecycle:
 """
 
 from pathlib import Path
+import sys
 from typing import Any
 
 import yaml
@@ -147,10 +148,18 @@ def find_config_dir(base_path: Path) -> Path:
 def resolve_env_path(path: str | Path | None, *, default_env_candidates: tuple[str, ...]) -> Path:
     if path is not None:
         return Path(path)
-    for candidate in default_env_candidates:
-        candidate_path = Path(candidate)
-        if candidate_path.exists():
-            return candidate_path
+    search_roots = []
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if frozen_root:
+        search_roots.append(Path(str(frozen_root)))
+    search_roots.append(Path.cwd())
+    for root in search_roots:
+        for candidate in default_env_candidates:
+            candidate_path = Path(candidate)
+            if not candidate_path.is_absolute():
+                candidate_path = root / candidate_path
+            if candidate_path.exists():
+                return candidate_path
     return Path(default_env_candidates[0])
 
 
