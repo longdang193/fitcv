@@ -87,7 +87,7 @@ def test_build_scanner_request_rejects_invalid_shared_fields(
 
 def test_provider_options_and_resolution_come_from_registry() -> None:
     options = job_sources.list_provider_options()
-    assert [option["id"] for option in options] == ["personio", "greenhouse", "workday"]
+    assert [option["id"] for option in options] == ["personio", "greenhouse", "ashby", "lever", "workday", "gem"]
 
     request = job_sources.build_scanner_request(
         company_name="ACME",
@@ -221,3 +221,161 @@ def test_verify_scanner_portal_reuses_provider_detection() -> None:
     assert verified["provider_id"] == "personio"
     assert verified["provider_label"] == "Personio"
     assert verified["careers_url"] == "https://acme.jobs.personio.de"
+
+
+def test_trusted_provider_config_is_exact_and_forwarded() -> None:
+    config = job_sources.build_trusted_provider_config(
+        provider_id="ashby", careers_url="https://jobs.ashbyhq.com/acme"
+    )
+    assert list(config) == ["schema_version", "provider_id", "host", "region", "board_slug"]
+    request = job_sources.build_scanner_request(
+        company_name="ACME",
+        careers_url="https://jobs.ashbyhq.com/acme",
+        trusted_provider_config=config,
+    )
+    assert request.provider == "ashby"
+    assert request.trusted_provider_config is config
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://jobs.ashbyhq.com/acme?x=1",
+        "https://jobs.ashbyhq.com/acme/../other",
+        "https://jobs.ashbyhq.com/acme%2Fother",
+        "https://jobs.ashbyhq.com.",
+        "https://127.0.0.1/acme",
+    ],
+)
+def test_trusted_provider_config_rejects_unsafe_urls(url: str) -> None:
+    with pytest.raises(job_sources.JobSourceError) as error:
+        job_sources.build_trusted_provider_config(provider_id="ashby", careers_url=url)
+    assert error.value.code in {"provider_config_invalid", "invalid_scanner_request"}
+
+
+def test_ashby_and_lever_parsers_emit_fitcv_contract() -> None:
+    ashby = job_sources._ats.parse_ashby_jobs(
+        {"jobs": [{
+            "id": "ashby-1",
+            "title": "Senior Data Engineer",
+            "location": "Berlin",
+            "descriptionPlain": "Build data products",
+            "employmentType": "FullTime",
+            "publishedAt": "2026-09-08T00:00:00Z",
+        }]},
+        company_name="ACME",
+        careers_url="https://jobs.ashbyhq.com/acme",
+        keywords=("data engineer",),
+    )
+    lever = job_sources._ats.parse_lever_jobs(
+        [{
+            "id": "lever-1",
+            "text": "Data Engineer",
+            "categories": {"location": "Berlin", "commitment": "Full-time"},
+            "descriptionPlain": "Build pipelines",
+            "hostedUrl": "https://jobs.lever.co/acme/lever-1",
+            "createdAt": 1788825600000,
+        }],
+        company_name="ACME",
+        careers_url="https://jobs.lever.co/acme",
+        keywords=("data engineer",),
+    )
+    assert validate_linkedin_schema(ashby[0]) == []
+    assert validate_linkedin_schema(lever[0]) == []
+    assert ashby[0]["source"] == "career-ops:ashby"
+    assert lever[0]["source"] == "career-ops:lever"
+
+
+def test_gem_parser_emits_fitcv_contract() -> None:
+    jobs = job_sources._ats.parse_gem_jobs(
+        {"data": {"oatsExternalJobPostings": {"jobPostings": [{
+            "title": "Software Engineer",
+            "extId": "4003629005",
+            "locations": [{"name": "San Francisco"}],
+            "job": {"locationType": "HYBRID", "employmentType": "FULL_TIME"},
+            "detail": {
+                "title": "Software Engineer",
+                "extId": "4003629005",
+                "descriptionHtml": "<div>Build internal tools.</div>",
+                "firstPublishedTsSec": 1648233999,
+                "locations": [{"name": "San Francisco"}],
+                "job": {"locationType": "HYBRID", "employmentType": "FULL_TIME"},
+            },
+        }]}}},
+        company_name="Retool",
+        careers_url="https://jobs.gem.com/retool",
+        keywords=("software engineer",),
+    )
+    assert validate_linkedin_schema(jobs[0]) == []
+    assert jobs[0]["source"] == "career-ops:gem"
+    assert jobs[0]["jobUrl"] == "https://jobs.gem.com/retool/4003629005"
+
+
+def test_gem_provider_config_is_allowlisted() -> None:
+    config = job_sources.build_trusted_provider_config(
+        provider_id="gem", careers_url="https://jobs.gem.com/retool"
+    )
+    assert config == {
+        "schema_version": 1,
+        "provider_id": "gem",
+        "host": "jobs.gem.com",
+        "region": "global",
+        "board_slug": "retool",
+    }
+    assert job_sources.verify_scanner_portal(
+        company_name="Retool", careers_url="https://jobs.gem.com/retool"
+    )["provider_id"] == "gem"
+
+
+def test_wellfound_is_not_an_acquisition_provider() -> None:
+    request = job_sources.build_scanner_request(
+        provider="wellfound", company_name="ACME", careers_url="https://wellfound.com/company/acme"
+    )
+    with pytest.raises(job_sources.JobSourceError) as error:
+        job_sources.resolve_provider(request)
+    assert error.value.code == "unsupported_provider_url"
+
+
+def test_ashby_acquisition_uses_fixed_endpoint_and_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(job_sources, "_check_public_dns", lambda *args: None)
+    monkeypatch.setattr(
+        job_sources._ats,
+        "_fetch_json",
+        lambda url, timeout: calls.append(url) or {"jobs": [
+            {"id": str(index), "title": "Data Engineer", "descriptionPlain": "Build pipelines", "jobUrl": f"https://jobs.ashbyhq.com/acme/{index}"}
+            for index in range(3)
+        ]},
+    )
+    request = job_sources.build_scanner_request(
+        provider="ashby", company_name="ACME", careers_url="https://jobs.ashbyhq.com/acme", max_jobs=2
+    )
+    result = job_sources.acquire_scanner_jobs(request)
+    assert calls == ["https://api.ashbyhq.com/posting-api/job-board/acme"]
+    assert len(result.artifact.jobs) == 2
+
+
+def test_provider_dns_and_redirect_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        job_sources.socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(job_sources.socket.AF_INET, 0, 0, "", ("127.0.0.1", 443))],
+    )
+    with pytest.raises(job_sources.JobSourceError) as dns_error:
+        job_sources._check_public_dns(
+            "https://api.ashbyhq.com/posting-api/job-board/acme", "ashby", "https://jobs.ashbyhq.com/acme"
+        )
+    assert dns_error.value.code == "provider_ssrf_blocked"
+
+    monkeypatch.setattr(job_sources, "_check_public_dns", lambda *args: None)
+    monkeypatch.setattr(
+        job_sources._ats,
+        "_fetch_json",
+        lambda url, timeout: (_ for _ in ()).throw(job_sources._ats.RedirectRejectedError()),
+    )
+    request = job_sources.build_scanner_request(
+        provider="ashby", company_name="ACME", careers_url="https://jobs.ashbyhq.com/acme"
+    )
+    with pytest.raises(job_sources.JobSourceError) as redirect_error:
+        job_sources.acquire_scanner_jobs(request)
+    assert redirect_error.value.code == "provider_redirect_rejected"

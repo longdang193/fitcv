@@ -43,7 +43,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ValidationError as PydanticValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, ValidationError as PydanticValidationError, field_validator
 
 from fitcv.config import (
     apply_cv_compatibility_projection,
@@ -129,6 +129,7 @@ from fitcv.tracker import create_cv_version_record
 import fitcv_cp.sqlite_store as sqlite_store_module
 from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp import provider_registry
+from fitcv_cp.company_catalog import BUNDLED_COMPANY_CATALOG
 from fitcv_cp.models import (
     CandidateProfileApproveRequest,
     CandidateProfileConfirmRequest,
@@ -5844,6 +5845,20 @@ def _dedupe_timeline_semantic_overlaps(
 
 
 
+class CompanyCatalogTrackRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_id: str
+
+    @field_validator("catalog_id")
+    @classmethod
+    def normalize_catalog_id(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("catalog_id is required")
+        return normalized
+
+
 class TriggerRequest(BaseModel):
     source_mode: Literal["path", "scanner"] = "path"
     jobs_path: str = "data/sample_jobs.json"
@@ -9075,6 +9090,7 @@ def create_app(
                 "delete_preview_stale",
                 "scan_not_usable",
                 "scan_output_integrity_failed",
+                "tracked_company_provider_config_invalid",
             } else 422
             raise ApiError(
                 status,
@@ -9106,6 +9122,91 @@ def create_app(
                 str(reservation["action_id"]),
                 response,
             )
+        )
+
+    def _catalog_track_store_call(callback: Callable[[], Any]) -> dict[str, Any]:
+        try:
+            return dict(callback())
+        except ApiError:
+            raise
+        except ValueError as exc:
+            code = str(exc)
+            details = {
+                "company_catalog_not_found": (404, "Company catalog entry was not found.", "Choose a catalog entry and retry."),
+                "company_catalog_discovery_only": (422, "This catalog entry is discovery-only.", "Choose a trackable catalog entry."),
+                "provider_config_invalid": (422, "Catalog provider configuration is invalid.", "Choose another catalog entry."),
+                "catalog_company_already_tracked": (409, "Company catalog entry is already tracked.", "Refresh tracked companies and retry."),
+                "idempotency_conflict": (409, "Idempotency-Key was already used for another request.", "Use a new Idempotency-Key."),
+                "idempotency_in_progress": (409, "An earlier Track request is still in progress.", "Retry after the earlier request completes."),
+            }.get(code)
+            if details is None:
+                raise ApiError(500, "tracked_company_persistence_failed", "Tracked company could not be saved.", retryable=True, action="Retry the Track request.") from exc
+            status, message, action = details
+            raise ApiError(status, code, message, action=action) from exc
+        except Exception as exc:
+            raise ApiError(500, "tracked_company_persistence_failed", "Tracked company could not be saved.", retryable=True, action="Retry the Track request.") from exc
+
+    @app.get("/company-catalog")
+    def get_company_catalog(
+        request: Request,
+        search: str = "",
+        provider_id: str = "",
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        page, page_size = _validated_page(page, page_size)
+        normalized_provider = provider_id.strip().casefold()
+        if normalized_provider and normalized_provider not in {
+            record.provider_id.casefold() for record in BUNDLED_COMPANY_CATALOG
+        }:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[
+                    {"field": "provider_id", "code": "invalid_value", "message": "Provider filter is unsupported."}
+                ],
+                action="Choose a supported provider filter.",
+            )
+        try:
+            result = request.app.state.run_store.query_company_catalog(
+                search=search.strip(), provider_id=normalized_provider, page=page, page_size=page_size
+            )
+        except ApiError:
+            raise
+        except Exception as exc:
+            raise ApiError(
+                500,
+                "company_catalog_read_failed",
+                "Company catalog could not be loaded.",
+                retryable=True,
+                action="Retry the catalog request.",
+            ) from exc
+        return _collection_response(
+            list(result.get("items") or result.get("data") or []),
+            page=page,
+            page_size=page_size,
+            total_items=int(result.get("total") or 0),
+            meta={},
+        )
+
+    @app.post("/company-catalog/actions/track", status_code=201)
+    def track_company_from_catalog(
+        request: Request,
+        body: CompanyCatalogTrackRequest,
+    ) -> JSONResponse:
+        key = _required_idempotency_key(request)
+        payload = body.model_dump(mode="json")
+        result = _catalog_track_store_call(
+            lambda: request.app.state.run_store.track_company_from_catalog(
+                catalog_id=body.catalog_id,
+                idempotency_key=key,
+                request_fingerprint=_request_fingerprint(payload),
+            )
+        )
+        return JSONResponse(
+            status_code=201 if result.get("created") else 200,
+            content={"data": result["resource"]},
         )
 
     @app.get("/tracked-companies")

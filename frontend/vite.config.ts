@@ -12,6 +12,7 @@ const apiPaths = [
   "/local",
   "/runs",
   "/scans",
+  "/company-catalog",
   "/tracked-companies",
   "/candidate-profiles",
   "/candidate-profile-creation-attempts",

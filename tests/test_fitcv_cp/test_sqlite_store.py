@@ -15,6 +15,7 @@ from fitcv.preference_policy import (
     build_training_run_identity,
 )
 from fitcv_cp import sqlite_store
+from fitcv_cp.company_catalog import BUNDLED_CATALOG_REVISION
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
 
@@ -121,7 +122,7 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
             "scan_outputs",
             "run_scan_inputs",
         } <= tables
-        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 6
+        assert sqlite_store.CONTROL_PLANE_SCHEMA_VERSION == 7
         assert conn.execute("PRAGMA user_version").fetchone()[0] == sqlite_store.CONTROL_PLANE_SCHEMA_VERSION
         assert any(row[2] == "pipeline_runs" and row[6] == "CASCADE" for row in conn.execute("PRAGMA foreign_key_list(run_inputs)"))
         assert any(row[2] == "candidate_profiles" and row[6] == "RESTRICT" for row in conn.execute("PRAGMA foreign_key_list(candidate_profile_revisions)"))
@@ -191,8 +192,33 @@ def test_tracked_company_and_scan_persist_with_immutable_output() -> None:
         database_path=database_path,
     )
 
-    assert sqlite_store.query_tracked_companies(database_path=database_path)["items"] == [company]
+    listed_company = sqlite_store.query_tracked_companies(database_path=database_path)["items"][0]
+    assert listed_company == {key: value for key, value in company.items() if key != "provider_config"}
     assert sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)["input"]["company_ids"] == [company["company_id"]]
+    snapshot = sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)["company_snapshots"][0]
+    assert list(snapshot) == [
+        "snapshot_schema_version",
+        "company_id",
+        "company_name",
+        "careers_url",
+        "provider_id",
+        "provider_label",
+        "provider_config",
+        "catalog_id",
+        "catalog_source",
+        "catalog_revision",
+        "tracked_company_row_revision",
+    ]
+    assert snapshot["provider_config"]["provider_id"] == "personio"
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE tracked_companies SET company_name='Changed', provider_config_json='{}', row_revision=row_revision+1 WHERE company_id=?",
+            (company["company_id"],),
+        )
+        connection.commit()
+    unchanged = sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path)["company_snapshots"][0]
+    assert unchanged == snapshot
 
     sqlite_store.commit_scan_output(
         scan["scan_id"],
@@ -216,6 +242,142 @@ def test_tracked_company_and_scan_persist_with_immutable_output() -> None:
     assert archived["lifecycle"] == "archived"
     assert deleted == {"deleted_count": 1, "deleted_scan_ids": [scan["scan_id"]]}
     assert sqlite_store.get_scan_detail(scan["scan_id"], database_path=database_path) is None
+
+
+def test_new_tracked_company_rejects_empty_provider_config() -> None:
+    with pytest.raises(ValueError, match="provider_config_invalid"):
+        sqlite_store.create_tracked_company(
+            company_name="Invalid Config",
+            careers_url="https://invalid.jobs.personio.de/",
+            provider_id="personio",
+            provider_config={},
+        )
+
+
+def _prepare_v6_provider_catalog_fixture(database_path: Path) -> None:
+    with sqlite3.connect(database_path) as connection:
+        sqlite_store._configure_sqlite_connection(connection)
+        sqlite_store._ensure_control_plane_schema(connection)
+        connection.execute(
+            "DELETE FROM integration_migrations WHERE migration_key=?",
+            (sqlite_store.SCAN_PROVIDER_CATALOG_MIGRATION,),
+        )
+        connection.execute("DROP INDEX IF EXISTS ux_tracked_companies_catalog_identity")
+        connection.executemany(
+            """
+            INSERT INTO tracked_companies (
+                company_id, company_name, careers_url, provider_id, provider_label,
+                provider_config_json, is_active, is_scannable, row_revision, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, 1, 1, '2026-09-08T00:00:00+00:00', '2026-09-08T00:00:00+00:00')
+            """,
+            [
+                ("company-a", "Valid", "https://valid.jobs.personio.de", "personio", "Personio", "{}"),
+                ("company-b", "Malformed", "https://malformed.jobs.personio.de", "personio", "Personio", "{}"),
+                ("company-z", "Unknown", "https://unknown.example", "unknown", "Unknown", "{}"),
+            ],
+        )
+        connection.execute("PRAGMA user_version = 6")
+        connection.commit()
+
+
+def test_schema_v6_to_v7_backfills_deterministically_and_quarantines_invalid_rows(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv-v6-provider-catalog.sqlite3"
+    _prepare_v6_provider_catalog_fixture(database_path)
+
+    with sqlite3.connect(database_path) as connection:
+        sqlite_store._configure_sqlite_connection(connection)
+        connection.execute("PRAGMA ignore_check_constraints = ON")
+        connection.execute(
+            "UPDATE tracked_companies SET provider_config_json='{' WHERE company_id='company-b'"
+        )
+        connection.execute("PRAGMA ignore_check_constraints = OFF")
+        connection.commit()
+        sqlite_store._ensure_control_plane_schema(connection)
+
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 7
+        configs = connection.execute(
+            "SELECT company_id, provider_config_json, is_scannable FROM tracked_companies ORDER BY company_id"
+        ).fetchall()
+        assert configs == [
+            ("company-a", '{"schema_version":1,"provider_id":"personio","host":"valid.jobs.personio.de","region":"de","company_slug":"valid"}', 1),
+            ("company-b", "{}", 0),
+            ("company-z", "{}", 0),
+        ]
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name=?",
+            ("ux_tracked_companies_catalog_identity",),
+        ).fetchone() == ("ux_tracked_companies_catalog_identity",)
+        marker = connection.execute(
+            "SELECT details_json FROM integration_migrations WHERE migration_key=?",
+            (sqlite_store.SCAN_PROVIDER_CATALOG_MIGRATION,),
+        ).fetchone()
+        assert json.loads(marker[0]) == {
+            "backfilled_count": 1,
+                "catalog_revision": BUNDLED_CATALOG_REVISION,
+            "quarantined_company_ids": ["company-b", "company-z"],
+            "source_version": 6,
+            "target_version": 7,
+        }
+
+    warnings = sqlite_store.list_startup_warnings(database_path=database_path)
+    assert len(warnings) == 1
+    assert warnings[0]["code"] == "tracked_company_provider_config_backfill_failed"
+    assert "company-b,company-z" in warnings[0]["message"]
+    assert "provider_config_invalid" in warnings[0]["message"]
+    listed = sqlite_store.query_tracked_companies(database_path=database_path)
+    assert {item["company_id"] for item in listed["items"]} == {"company-a", "company-b", "company-z"}
+    assert all(item.get("provider_config_error") == "provider_config_invalid" for item in listed["items"] if item["company_id"] != "company-a")
+
+
+def test_schema_v6_to_v7_rerun_is_write_free(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv-v6-provider-catalog-rerun.sqlite3"
+    _prepare_v6_provider_catalog_fixture(database_path)
+    with sqlite3.connect(database_path) as connection:
+        sqlite_store._configure_sqlite_connection(connection)
+        connection.execute("PRAGMA ignore_check_constraints = ON")
+        connection.execute(
+            "UPDATE tracked_companies SET provider_config_json='{' WHERE company_id='company-b'"
+        )
+        connection.execute("PRAGMA ignore_check_constraints = OFF")
+        connection.commit()
+        sqlite_store._ensure_control_plane_schema(connection)
+        rows_before = connection.execute("SELECT * FROM tracked_companies ORDER BY company_id").fetchall()
+        warnings_before = connection.execute("SELECT * FROM startup_warnings").fetchall()
+        marker_before = connection.execute("SELECT * FROM integration_migrations").fetchall()
+        changes_before = connection.total_changes
+        sqlite_store._ensure_control_plane_schema(connection)
+        assert connection.total_changes == changes_before
+        assert connection.execute("SELECT * FROM tracked_companies ORDER BY company_id").fetchall() == rows_before
+        assert connection.execute("SELECT * FROM startup_warnings").fetchall() == warnings_before
+        assert connection.execute("SELECT * FROM integration_migrations").fetchall() == marker_before
+
+
+def test_schema_v6_to_v7_failure_rolls_back_marker_rows_and_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    database_path = tmp_path / "fitcv-v6-provider-catalog-failure.sqlite3"
+    _prepare_v6_provider_catalog_fixture(database_path)
+
+    def fail_migration(connection: sqlite3.Connection) -> None:
+        connection.execute("CREATE TABLE provider_catalog_should_rollback (id TEXT)")
+        raise RuntimeError("injected provider catalog migration failure")
+
+    monkeypatch.setattr(sqlite_store, "_migrate_control_plane_schema_6_to_7", fail_migration)
+    with sqlite3.connect(database_path) as connection:
+        sqlite_store._configure_sqlite_connection(connection)
+        with pytest.raises(RuntimeError, match="injected provider catalog migration failure"):
+            sqlite_store._ensure_control_plane_schema(connection)
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert connection.execute("SELECT COUNT(*) FROM tracked_companies").fetchone()[0] == 3
+        assert connection.execute(
+            "SELECT 1 FROM integration_migrations WHERE migration_key=?",
+            (sqlite_store.SCAN_PROVIDER_CATALOG_MIGRATION,),
+        ).fetchone() is None
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='provider_catalog_should_rollback'"
+        ).fetchone() is None
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name=?",
+            ("ux_tracked_companies_catalog_identity",),
+        ).fetchone() is None
 
 def _make_succeeded_scan(database_path: Path, *, name: str) -> dict[str, object]:
     company = sqlite_store.create_tracked_company(
@@ -434,7 +596,7 @@ def test_control_plane_schema_upgrades_version_3_without_losing_settings() -> No
         sqlite_store._ensure_control_plane_schema(conn)
         sqlite_store._ensure_control_plane_schema(conn)
 
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
 
 
 def _create_candidate_profile_v4_fixture(database_path: Path) -> None:
@@ -538,7 +700,7 @@ def test_control_plane_schema_migrates_v4_candidate_profiles_without_identity_lo
         sqlite_store._configure_sqlite_connection(conn)
         sqlite_store._ensure_control_plane_schema(conn)
 
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
         assert conn.execute(
             "SELECT candidate_profile_id, profile_name, lifecycle, is_default, sort_order, revision "
             "FROM candidate_profiles ORDER BY candidate_profile_id"

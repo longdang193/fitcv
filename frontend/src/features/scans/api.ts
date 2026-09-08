@@ -1,4 +1,4 @@
-import { apiClient } from "../../lib/api-client";
+import { apiClient, generateIdempotencyKey } from "../../lib/api-client";
 import {
   ScanResource,
   TrackedCompanyResource,
@@ -8,6 +8,8 @@ import {
   ProcessEventsPage,
   ScanJobItem,
   DeletePreviewResult,
+  CompanyCatalogItem,
+  CompanyCatalogQuery,
 } from "./types";
 
 export interface ScanListResponse {
@@ -29,6 +31,15 @@ export interface TrackedCompanyListResponse {
   page_size?: number;
   total_items?: number;
   total?: number;
+}
+
+export interface CompanyCatalogResponse {
+  data: CompanyCatalogItem[];
+  page?: { number: number; size: number; total_items: number; total_pages: number } | number;
+  page_size?: number;
+  total_items?: number;
+  total?: number;
+  meta?: Record<string, unknown>;
 }
 
 export interface ScanJobsResponse {
@@ -101,6 +112,39 @@ export async function createTrackedCompany(
     "/tracked-companies",
     payload,
     { idempotencyKey: key }
+  );
+  return res.data.data;
+}
+
+export async function fetchCompanyCatalog(
+  params: CompanyCatalogQuery = {}
+): Promise<CompanyCatalogResponse> {
+  const query = new URLSearchParams();
+  if (params.search && params.search.trim()) query.set("search", params.search.trim());
+  if (params.provider_id && params.provider_id.trim()) query.set("provider_id", params.provider_id.trim());
+  if (params.page !== undefined) query.set("page", String(params.page));
+  if (params.page_size !== undefined) query.set("page_size", String(params.page_size));
+
+  const qs = query.toString();
+  const res = await apiClient.get<CompanyCatalogResponse>(
+    qs ? `/company-catalog?${qs}` : "/company-catalog"
+  );
+  return res.data;
+}
+
+export async function trackCompanyFromCatalog(
+  input: string | { catalog_id: string },
+  idempotencyKey?: string
+): Promise<TrackedCompanyResource> {
+  const catalogId = typeof input === "string" ? input.trim() : input.catalog_id.trim();
+  const key = idempotencyKey?.trim() || generateIdempotencyKey();
+  const res = await apiClient.post<{ data: TrackedCompanyResource }>(
+    "/company-catalog/actions/track",
+    { catalog_id: catalogId },
+    {
+      idempotencyKey: key,
+      headers: { "Idempotency-Key": key },
+    }
   );
   return res.data.data;
 }

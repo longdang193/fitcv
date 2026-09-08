@@ -36,9 +36,37 @@ export interface TrackedCompanySnapshot {
 }
 
 export interface TrackedCompanyResource extends TrackedCompanySnapshot {
+  catalog_id?: string | null;
+  catalog_source?: string | null;
+  catalog_revision?: string | null;
   row_revision: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface CompanyCatalogItem {
+  catalog_id: string;
+  company_name: string;
+  careers_url: string;
+  provider_id: string;
+  provider_label: string;
+  catalog_source: string;
+  catalog_revision: string;
+  trackable: boolean;
+  discovery_only: boolean;
+  is_tracked?: boolean;
+  tracked_company_id?: string | null;
+}
+
+export interface CompanyCatalogQuery {
+  search?: string;
+  provider_id?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface CompanyCatalogTrackPayload {
+  catalog_id: string;
 }
 
 export interface ScanInputData {

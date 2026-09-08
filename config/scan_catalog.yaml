@@ -1,0 +1,70 @@
+schema_version: 1
+catalog_source: bundled
+catalog_revision: "2026-09-08-v3"
+companies:
+  - catalog_id: company-anthropic
+    company_name: Anthropic
+    careers_url: https://job-boards.greenhouse.io/anthropic
+    provider_id: greenhouse
+    provider_label: Greenhouse
+    trackable: true
+    discovery_only: false
+    verification:
+      status: verified
+      checked_at: "2026-09-08"
+      evidence_ref: docs/superpowers/evidence/2026-09-08-scan-provider-catalog-live-probes.md
+  - catalog_id: company-openai
+    company_name: OpenAI
+    careers_url: https://jobs.ashbyhq.com/openai
+    provider_id: ashby
+    provider_label: Ashby
+    trackable: true
+    discovery_only: false
+    verification:
+      status: verified
+      checked_at: "2026-09-08"
+      evidence_ref: docs/superpowers/evidence/2026-09-08-scan-provider-catalog-live-probes.md
+  - catalog_id: company-elevenlabs
+    company_name: ElevenLabs
+    careers_url: https://jobs.ashbyhq.com/elevenlabs
+    provider_id: ashby
+    provider_label: Ashby
+    trackable: true
+    discovery_only: false
+    verification:
+      status: verified
+      checked_at: "2026-09-08"
+      evidence_ref: docs/superpowers/evidence/2026-09-08-scan-provider-catalog-live-probes.md
+  - catalog_id: company-n8n
+    company_name: n8n
+    careers_url: https://jobs.ashbyhq.com/n8n
+    provider_id: ashby
+    provider_label: Ashby
+    trackable: true
+    discovery_only: false
+    verification:
+      status: verified
+      checked_at: "2026-09-08"
+      evidence_ref: docs/superpowers/evidence/2026-09-08-scan-provider-catalog-live-probes.md
+  - catalog_id: company-wellfound
+    company_name: Wellfound discovery
+    careers_url: https://wellfound.com
+    provider_id: wellfound
+    provider_label: Wellfound
+    trackable: false
+    discovery_only: true
+    verification:
+      status: discovery_only
+      checked_at: "2026-09-08"
+      evidence_ref: docs/superpowers/evidence/2026-09-08-scan-provider-catalog-live-probes.md
+  - catalog_id: company-retool
+    company_name: Retool
+    careers_url: https://jobs.gem.com/retool
+    provider_id: gem
+    provider_label: Gem
+    trackable: true
+    discovery_only: false
+    verification:
+      status: verified
+      checked_at: "2026-09-08"
+      evidence_ref: docs/superpowers/evidence/2026-09-08-scan-provider-catalog-live-probes.md

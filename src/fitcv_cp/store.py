@@ -85,6 +85,8 @@ class RunStore(Protocol):
     def apply_synonym_suggestion_action(self, suggestion_ids: list[str], **kwargs: Any) -> dict[str, Any]: ...
     def query_synonym_processing_runs(self, **kwargs: Any) -> dict[str, Any]: ...
     def query_tracked_companies(self, **kwargs: Any) -> dict[str, Any]: ...
+    def query_company_catalog(self, **kwargs: Any) -> dict[str, Any]: ...
+    def track_company_from_catalog(self, **kwargs: Any) -> dict[str, Any]: ...
     def create_tracked_company(self, **kwargs: Any) -> dict[str, Any]: ...
     def create_scan(self, **kwargs: Any) -> dict[str, Any]: ...
     def query_scans(self, **kwargs: Any) -> dict[str, Any]: ...
@@ -260,6 +262,8 @@ class ControlPlaneStore:
     apply_synonym_suggestion_action_fn: Any | None = None
     query_synonym_processing_runs_fn: Any | None = None
     query_tracked_companies_fn: Any | None = None
+    query_company_catalog_fn: Any | None = None
+    track_company_from_catalog_fn: Any | None = None
     create_tracked_company_fn: Any | None = None
     create_scan_fn: Any | None = None
     query_scans_fn: Any | None = None
@@ -371,6 +375,16 @@ class ControlPlaneStore:
 
     def query_tracked_companies(self, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(self.query_tracked_companies_fn, sqlite_store.query_tracked_companies, **kwargs)
+
+    def query_company_catalog(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(self.query_company_catalog_fn, sqlite_store.query_company_catalog, **kwargs)
+
+    def track_company_from_catalog(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.track_company_from_catalog_fn,
+            sqlite_store.track_company_from_catalog,
+            **kwargs,
+        )
 
     def create_tracked_company(self, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(self.create_tracked_company_fn, sqlite_store.create_tracked_company, **kwargs)

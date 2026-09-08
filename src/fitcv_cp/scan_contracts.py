@@ -52,6 +52,10 @@ class TrackedCompanyResource(BaseModel):
     careers_url: str
     provider_id: str
     provider_label: str | None = None
+    provider_config: dict[str, Any] | None = None
+    catalog_id: str | None = None
+    catalog_source: str | None = None
+    catalog_revision: str | None = None
     row_revision: int = 1
     created_at: datetime.datetime
     updated_at: datetime.datetime

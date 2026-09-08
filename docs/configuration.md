@@ -17,6 +17,28 @@ explains:
 
 FitCV uses layered configuration with clear ownership boundaries.
 
+## Scan Provider Catalog
+
+`config/scan_catalog.yaml` is sole catalog SSOT. Python, API, React, and
+database code load typed records from it; none may add production company rows.
+The file stores stable IDs, canonical HTTPS ATS URLs, provider labels,
+trackability, discovery state, and verification evidence. Trusted provider
+configuration is derived by `fitcv.job_sources`; credentials and arbitrary
+endpoints are not catalog fields.
+
+Maintenance flow:
+
+1. Edit only `config/scan_catalog.yaml`; keep IDs stable and bump
+   `catalog_revision` for identity, URL, provider, or capability changes.
+2. Run `python -m pytest tests/test_fitcv_cp/test_scan_contracts.py -q`.
+3. Run bounded, read-only provider probes and append redacted evidence under
+   `docs/superpowers/evidence/`; never record payloads, headers, cookies, or
+   secrets.
+4. Keep failed profiles `quarantined`; they remain visible but cannot Track or
+   Scan. Keep Wellfound `discovery_only`; it never enters `PROVIDERS`.
+5. Re-run Scan, persistence, worker, API, and frontend checks after catalog
+   changes. Automated tests stay network-free.
+
 ## Primary Runtime Inputs
 
 - FitCV Local packaged defaults plus user-owned local controller overlay

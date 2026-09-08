@@ -7,6 +7,8 @@ import {
   createScan,
   verifyTrackedCompany,
   createTrackedCompany,
+  fetchCompanyCatalog,
+  trackCompanyFromCatalog,
   cancelScan,
   runScanAgain,
   archiveScans,
@@ -23,6 +25,7 @@ import { buildScanJobColumns, getScanEventMessage } from "../features/scans/scan
 import { ScanJobItem } from "../features/scans/types";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { shouldLoadScanOutput } from "../features/scans/scan-detail";
+import newScanDialogSource from "../features/scans/new-scan-dialog.tsx?raw";
 
 describe("scans feature route and api slice", () => {
   beforeEach(() => {
@@ -45,6 +48,23 @@ describe("scans feature route and api slice", () => {
     expect(shouldLoadScanOutput("succeeded", true, false)).toBe(false);
     expect(shouldLoadScanOutput("succeeded", false, true)).toBe(false);
     expect(shouldLoadScanOutput("running", false, false)).toBe(false);
+  });
+
+  it("explains catalog tracking when no tracked companies exist", () => {
+    expect(newScanDialogSource).toContain('title="No tracked companies"');
+    expect(newScanDialogSource).toContain(
+      "Track a bundled company from Company Catalog before creating a Scan"
+    );
+    expect(newScanDialogSource).toContain(
+      "Open Manage, then Company Catalog, and Track a bundled company before scanning"
+    );
+  });
+
+  it("distinguishes company profiles from ATS / source platforms and classifies Wellfound", () => {
+    expect(newScanDialogSource).toContain("ATS / Source:");
+    expect(newScanDialogSource).toContain("Marketplace / Discovery only");
+    expect(newScanDialogSource).toContain("Search catalog by company name or ATS / source platform");
+    expect(newScanDialogSource).toContain("Search by company name, ATS / source platform, or domain");
   });
 
   it("fetches scans collection with query parameters", async () => {
@@ -141,6 +161,112 @@ describe("scans feature route and api slice", () => {
       { idempotencyKey: "idemp-1" }
     );
     expect(created.company_id).toBe("comp-1");
+  });
+
+  it("fetches company catalog and tracks catalog company with idempotency key", async () => {
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: {
+        data: [
+          {
+            catalog_id: "company-acme",
+            company_name: "Acme",
+            careers_url: "https://job-boards.greenhouse.io/acme",
+            provider_id: "greenhouse",
+            provider_label: "Greenhouse",
+            provider_config: { schema_version: 1, provider_id: "greenhouse", host: "job-boards.greenhouse.io", region: "global", board_slug: "acme" },
+            catalog_source: "bundled",
+            catalog_revision: "2026-09-08-v1",
+            trackable: true,
+            discovery_only: false,
+            is_tracked: false,
+            tracked_company_id: null,
+          },
+          {
+            catalog_id: "company-wellfound",
+            company_name: "Wellfound Tech",
+            careers_url: "https://wellfound.com/jobs",
+            provider_id: "wellfound",
+            provider_label: "Wellfound",
+            provider_config: null,
+            catalog_source: "bundled",
+            catalog_revision: "2026-09-08-v1",
+            trackable: false,
+            discovery_only: true,
+            is_tracked: false,
+            tracked_company_id: null,
+          },
+        ],
+        page: { number: 1, size: 20, total_items: 2, total_pages: 1 },
+        meta: {},
+      },
+      status: 200,
+    } as any);
+
+    const catalogRes = await fetchCompanyCatalog({
+      search: "tech",
+      provider_id: "greenhouse",
+      page: 1,
+      page_size: 20,
+    });
+
+    expect(getSpy).toHaveBeenCalledWith("/company-catalog?search=tech&provider_id=greenhouse&page=1&page_size=20");
+    expect(catalogRes.data.length).toBe(2);
+    expect(catalogRes.data[0].catalog_id).toBe("company-acme");
+    expect(catalogRes.data[1].discovery_only).toBe(true);
+
+    const postSpy = vi.spyOn(apiClient, "post").mockResolvedValueOnce({
+      data: {
+        data: {
+          company_id: "comp-from-catalog-1",
+          company_name: "Acme",
+          careers_url: "https://job-boards.greenhouse.io/acme",
+          provider_id: "greenhouse",
+          provider_label: "Greenhouse",
+          catalog_id: "company-acme",
+          catalog_source: "bundled",
+          catalog_revision: "2026-09-08-v1",
+          row_revision: 1,
+          created_at: "2026-09-08T12:00:00Z",
+          updated_at: "2026-09-08T12:00:00Z",
+        },
+      },
+      status: 201,
+    } as any);
+
+    const tracked = await trackCompanyFromCatalog("company-acme", "idemp-cat-1");
+    expect(postSpy).toHaveBeenCalledWith(
+      "/company-catalog/actions/track",
+      { catalog_id: "company-acme" },
+      {
+        idempotencyKey: "idemp-cat-1",
+        headers: { "Idempotency-Key": "idemp-cat-1" },
+      }
+    );
+    expect(tracked.company_id).toBe("comp-from-catalog-1");
+    expect(tracked.catalog_id).toBe("company-acme");
+
+    // Auto-generates exact non-empty Idempotency-Key when omitted
+    postSpy.mockResolvedValueOnce({
+      data: {
+        data: {
+          company_id: "comp-from-catalog-2",
+          company_name: "Acme",
+          careers_url: "https://job-boards.greenhouse.io/acme",
+          provider_id: "greenhouse",
+          catalog_id: "company-acme",
+          created_at: "2026-09-08T12:00:00Z",
+          updated_at: "2026-09-08T12:00:00Z",
+          row_revision: 1,
+        },
+      },
+      status: 201,
+    } as any);
+    await trackCompanyFromCatalog({ catalog_id: "company-acme" });
+    const lastCall = postSpy.mock.calls[postSpy.mock.calls.length - 1];
+    expect(lastCall[0]).toBe("/company-catalog/actions/track");
+    expect(lastCall[1]).toEqual({ catalog_id: "company-acme" });
+    expect(lastCall?.[2]?.idempotencyKey).toBeTruthy();
+    expect(lastCall?.[2]?.headers?.["Idempotency-Key"]).toBe(lastCall?.[2]?.idempotencyKey);
   });
 
   it("supports scan lifecycle actions: create, cancel, run-again, archive, unarchive, delete preview & delete", async () => {

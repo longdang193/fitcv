@@ -52,6 +52,8 @@ from fitcv.preference_policy import (
 from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.candidate_profile_seeds import build_candidate_profile_seeds
+from fitcv_cp.company_catalog import BUNDLED_CATALOG_REVISION, BUNDLED_COMPANY_CATALOG, validate_catalog
+from fitcv.job_sources import JobSourceError, build_trusted_provider_config, validate_trusted_provider_config
 from fitcv.candidate import canonical_candidate_checksum, validate_candidate_profile_v2
 from fitcv_cp.models import (
     JobStageStatus,
@@ -94,7 +96,8 @@ _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
 _DEGRADATION_REASON_NONE = "none"
 _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
-CONTROL_PLANE_SCHEMA_VERSION = 6
+CONTROL_PLANE_SCHEMA_VERSION = 7
+SCAN_PROVIDER_CATALOG_MIGRATION = "fitcv_scan_provider_catalog_v1"
 RUN_HISTORY_MIGRATION_ID = "fitcv_run_history_v1"
 _RUN_HISTORY_RUNS_TABLE = "local_pipeline_runs"
 _RUN_HISTORY_EVENTS_TABLE = "local_pipeline_run_events"
@@ -432,6 +435,93 @@ def _persist_initial_profile_state(
         )
 
 
+def _migrate_control_plane_schema_6_to_7(conn: sqlite3.Connection) -> None:
+    migration_row = conn.execute(
+        "SELECT details_json FROM integration_migrations WHERE migration_key = ?",
+        (SCAN_PROVIDER_CATALOG_MIGRATION,),
+    ).fetchone()
+    if migration_row is not None:
+        details = json.loads(str(migration_row[0]))
+        if details.get("target_version") != 7 or details.get("catalog_revision") != BUNDLED_CATALOG_REVISION:
+            raise RuntimeError("scan provider catalog migration marker is invalid")
+        return
+
+    columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(tracked_companies)")}
+    additions = (
+        ("provider_config_json", "TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(provider_config_json) AND json_type(provider_config_json) = 'object')"),
+        ("catalog_id", "TEXT"),
+        ("catalog_source", "TEXT"),
+        ("catalog_revision", "TEXT"),
+    )
+    for column, definition in additions:
+        if column not in columns:
+            conn.execute(f"ALTER TABLE tracked_companies ADD COLUMN {column} {definition}")
+
+    quarantined: list[str] = []
+    backfilled = 0
+    rows = conn.execute(
+        "SELECT company_id, provider_id, careers_url, provider_config_json FROM tracked_companies ORDER BY company_id ASC"
+    ).fetchall()
+    for row in rows:
+        company_id = str(row[0])
+        raw_config = str(row[3] or "{}")
+        try:
+            existing = json.loads(raw_config)
+            if not isinstance(existing, dict):
+                raise ValueError("provider_config_not_object")
+            if existing:
+                validate_trusted_provider_config(existing)
+            config = build_trusted_provider_config(
+                provider_id=str(row[1]), careers_url=str(row[2])
+            )
+            if existing and dict(existing) != config:
+                raise ValueError("provider_config_mismatch")
+            config_json = json.dumps(config, ensure_ascii=False, separators=(",", ":"))
+            conn.execute(
+                "UPDATE tracked_companies SET provider_config_json = ?, is_scannable = 1 WHERE company_id = ?",
+                (config_json, company_id),
+            )
+            backfilled += 1
+        except (JobSourceError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            quarantined.append(company_id)
+            conn.execute(
+                "UPDATE tracked_companies SET provider_config_json = '{}', is_scannable = 0 WHERE company_id = ?",
+                (company_id,),
+            )
+            logger.warning("tracked company provider config quarantined: company_id=%s code=%s", company_id, getattr(exc, "code", "provider_config_invalid"))
+
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_tracked_companies_catalog_identity ON tracked_companies(catalog_source, catalog_id) WHERE catalog_source IS NOT NULL AND catalog_id IS NOT NULL"
+    )
+    warning_ids = ",".join(sorted(quarantined))
+    if quarantined:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        conn.execute(
+            "INSERT OR REPLACE INTO startup_warnings (code, message, action, created_at) VALUES (?, ?, ?, ?)",
+            (
+                "tracked_company_provider_config_backfill_failed",
+                f"Quarantined company IDs: {warning_ids}; error_code=provider_config_invalid",
+                "Review quarantined tracked companies before scanning.",
+                now,
+            ),
+        )
+    details = {
+        "source_version": 6,
+        "target_version": 7,
+        "backfilled_count": backfilled,
+        "quarantined_company_ids": sorted(quarantined),
+        "catalog_revision": BUNDLED_CATALOG_REVISION,
+    }
+    conn.execute(
+        "INSERT INTO integration_migrations (migration_key, details_json, completed_at) VALUES (?, ?, ?)",
+        (
+            SCAN_PROVIDER_CATALOG_MIGRATION,
+            json.dumps(details, sort_keys=True, separators=(",", ":")),
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        ),
+    )
+
+
 def _ensure_control_plane_schema(
     conn: sqlite3.Connection,
     *,
@@ -445,8 +535,19 @@ def _ensure_control_plane_schema(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
         )
     }
-    if version not in {0, 3, 4, 5, CONTROL_PLANE_SCHEMA_VERSION} or (version == 0 and existing_tables):
+    if version not in {0, 3, 4, 5, 6, CONTROL_PLANE_SCHEMA_VERSION} or (version == 0 and existing_tables):
         raise DatabaseSchemaIncompatibleError(version)
+    validate_catalog(tuple(record.as_dict() for record in BUNDLED_COMPANY_CATALOG))
+    if version == CONTROL_PLANE_SCHEMA_VERSION and "integration_migrations" in existing_tables:
+        marker = conn.execute(
+            "SELECT details_json FROM integration_migrations WHERE migration_key = ?",
+            (SCAN_PROVIDER_CATALOG_MIGRATION,),
+        ).fetchone()
+        if marker is not None:
+            details = json.loads(str(marker[0]))
+            if details.get("target_version") != 7 or details.get("catalog_revision") != BUNDLED_CATALOG_REVISION:
+                raise RuntimeError("scan provider catalog migration marker is invalid")
+            return
     schema = """
     CREATE TABLE IF NOT EXISTS candidate_profiles (
         candidate_profile_id TEXT PRIMARY KEY,
@@ -655,6 +756,10 @@ def _ensure_control_plane_schema(
         careers_url TEXT NOT NULL COLLATE NOCASE UNIQUE,
         provider_id TEXT NOT NULL,
         provider_label TEXT,
+        provider_config_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(provider_config_json) AND json_type(provider_config_json) = 'object'),
+        catalog_id TEXT,
+        catalog_source TEXT,
+        catalog_revision TEXT,
         is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
         is_scannable INTEGER NOT NULL DEFAULT 1 CHECK (is_scannable IN (0, 1)),
         row_revision INTEGER NOT NULL DEFAULT 1 CHECK (row_revision > 0),
@@ -1115,6 +1220,13 @@ def _ensure_control_plane_schema(
         _ensure_run_inputs_snapshot_columns(conn)
         _ensure_scan_execution_columns(conn)
         _ensure_run_history_migration_tables(conn)
+        if version == 6:
+            _migrate_control_plane_schema_6_to_7(conn)
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_tracked_companies_catalog_identity "
+            "ON tracked_companies(catalog_source, catalog_id) "
+            "WHERE catalog_source IS NOT NULL AND catalog_id IS NOT NULL"
+        )
         if version == 4:
             _migrate_candidate_profiles_v4_to_v5(conn)
         if candidate_profiles is not None:
@@ -4735,8 +4847,15 @@ def _scan_resource(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]
         cancellation_requested=row["cancel_requested_at"] is not None,
         referenced_by_run=referenced_count > 0,
     ).model_dump()
-    logical_input = json.loads(str(input_row["input_json"])) if input_row is not None else {}
-    companies = json.loads(str(input_row["company_snapshots_json"])) if input_row is not None else []
+    try:
+        logical_input = json.loads(str(input_row["input_json"])) if input_row is not None else {}
+        companies = json.loads(str(input_row["company_snapshots_json"])) if input_row is not None else []
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise ValueError("scan_snapshot_integrity_failed") from exc
+    if not isinstance(logical_input, dict) or not isinstance(companies, list) or any(
+        not isinstance(company, dict) for company in companies
+    ):
+        raise ValueError("scan_snapshot_integrity_failed")
     return {
         "scan_id": str(row["scan_id"]),
         "scan_name": str(row["scan_name"]),
@@ -4774,7 +4893,7 @@ def query_tracked_companies(
     if page_size not in {10, 20, 50, 100}:
         raise ValueError("page_size_invalid")
     needle = f"%{search.strip()}%"
-    where = "WHERE is_active = 1 AND is_scannable = 1"
+    where = "WHERE is_active = 1"
     params: list[Any] = []
     if search.strip():
         where += " AND (company_name LIKE ? COLLATE NOCASE OR provider_id LIKE ? COLLATE NOCASE OR careers_url LIKE ? COLLATE NOCASE)"
@@ -4785,7 +4904,173 @@ def query_tracked_companies(
             f"SELECT * FROM tracked_companies {where} ORDER BY company_name COLLATE NOCASE, company_id LIMIT ? OFFSET ?",
             (*params, page_size, (max(1, page) - 1) * page_size),
         ).fetchall()
-    return {"items": [dict(row) for row in rows], "total": total}
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            try:
+                config = json.loads(str(item.pop("provider_config_json") or "{}"))
+                validate_trusted_provider_config(config)
+            except (JobSourceError, IndexError, TypeError, ValueError, json.JSONDecodeError):
+                item["provider_config_error"] = "provider_config_invalid"
+                conn.execute(
+                    "UPDATE tracked_companies SET is_scannable = 0 WHERE company_id = ?",
+                    (item["company_id"],),
+                )
+            items.append(item)
+        conn.commit()
+        return {"items": items, "total": total}
+
+
+def query_company_catalog(
+    *, search: str = "", provider_id: str = "", page: int = 1, page_size: int = 20,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if page < 1 or page_size not in {10, 20, 50, 100}:
+        raise ValueError("catalog_pagination_invalid")
+    needle = search.strip().casefold()
+    provider_filter = provider_id.strip().casefold()
+    records = [record.as_dict() for record in BUNDLED_COMPANY_CATALOG]
+    for record in records:
+        record.pop("provider_config", None)
+    records = [
+        record for record in records
+        if (not provider_filter or record["provider_id"].casefold() == provider_filter)
+        and (not needle or needle in f"{record['company_name']} {record['provider_id']} {record['careers_url']}".casefold())
+    ]
+    with _scan_store_connection(database_path) as conn:
+        tracked = {
+            (str(row["catalog_source"]), str(row["catalog_id"])): str(row["company_id"])
+            for row in conn.execute(
+                "SELECT catalog_source, catalog_id, company_id FROM tracked_companies "
+                "WHERE catalog_source IS NOT NULL AND catalog_id IS NOT NULL"
+            )
+        }
+    for record in records:
+        key = (str(record["catalog_source"]), str(record["catalog_id"]))
+        record["is_tracked"] = key in tracked
+        record["tracked_company_id"] = tracked.get(key)
+    offset = (page - 1) * page_size
+    return {"items": records[offset:offset + page_size], "total": len(records), "page": page, "page_size": page_size}
+
+def _tracked_company_resource(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        key: row[key]
+        for key in (
+            "company_id", "company_name", "careers_url", "provider_id", "provider_label",
+            "catalog_id", "catalog_source", "catalog_revision",
+            "row_revision", "created_at", "updated_at",
+        )
+    }
+
+def track_company_from_catalog(
+    *, catalog_id: str, idempotency_key: str, request_fingerprint: str,
+) -> dict[str, Any]:
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        try:
+            _ensure_control_plane_schema(conn)
+        except ValueError as exc:
+            raise ValueError("provider_config_invalid") from exc
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            try:
+                records = validate_catalog(tuple(record.as_dict() for record in BUNDLED_COMPANY_CATALOG))
+            except (JobSourceError, TypeError, ValueError) as exc:
+                raise ValueError("provider_config_invalid") from exc
+            matches = [record for record in records if record.catalog_id == catalog_id]
+            if not matches:
+                raise ValueError("company_catalog_not_found")
+            catalog = matches[0]
+            if catalog.discovery_only:
+                raise ValueError("company_catalog_discovery_only")
+
+            action = conn.execute(
+                "SELECT * FROM idempotent_actions WHERE action_scope=? AND idempotency_key=?",
+                ("company-catalog:track", idempotency_key),
+            ).fetchone()
+            if action is not None:
+                if str(action["request_fingerprint"]) != request_fingerprint:
+                    raise ValueError("idempotency_conflict")
+                if str(action["status"]) != "succeeded":
+                    raise ValueError("idempotency_in_progress")
+                try:
+                    stored = json.loads(str(action["response_json"]))
+                    resource = stored["data"]
+                    company_id = str(resource["company_id"])
+                except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise RuntimeError("tracked_company_persistence_failed") from exc
+                if conn.execute(
+                    "SELECT 1 FROM tracked_companies WHERE company_id=?", (company_id,)
+                ).fetchone() is None:
+                    raise RuntimeError("tracked_company_persistence_failed")
+                conn.rollback()
+                return {"resource": resource, "created": False}
+
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            action_id = str(uuid.uuid4())
+            conn.execute(
+                """
+                INSERT INTO idempotent_actions (
+                    action_id, action_scope, idempotency_key, request_fingerprint,
+                    status, created_at, updated_at
+                ) VALUES (?, 'company-catalog:track', ?, ?, 'queued', ?, ?)
+                """,
+                (action_id, idempotency_key, request_fingerprint, now, now),
+            )
+
+            existing = conn.execute(
+                "SELECT * FROM tracked_companies WHERE catalog_source=? AND catalog_id=?",
+                (catalog.catalog_source, catalog.catalog_id),
+            ).fetchone()
+            if existing is not None:
+                if (
+                    str(existing["company_name"]) != catalog.company_name
+                    or str(existing["careers_url"]).rstrip("/") != catalog.careers_url
+                    or str(existing["provider_id"]) != catalog.provider_id
+                ):
+                    raise ValueError("catalog_company_already_tracked")
+                raw_config = json.loads(str(existing["provider_config_json"] or "{}"))
+                validate_trusted_provider_config(raw_config)
+                resource = _tracked_company_resource({**dict(existing), "provider_config": raw_config})
+                response = {"data": resource}
+                conn.execute(
+                    "UPDATE idempotent_actions SET status='succeeded', response_json=?, updated_at=? WHERE action_id=?",
+                    (json.dumps(response, sort_keys=True), now, action_id),
+                )
+                conn.commit()
+                return {"resource": resource, "created": False}
+
+            provider_config = dict(validate_trusted_provider_config(catalog.provider_config or {}))
+            company_id = f"company-{uuid.uuid4().hex[:12]}"
+            conn.execute(
+                """
+                INSERT INTO tracked_companies (
+                    company_id, company_name, careers_url, provider_id, provider_label,
+                    provider_config_json, catalog_id, catalog_source, catalog_revision,
+                    is_active, is_scannable, row_revision, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1, ?, ?)
+                """,
+                (
+                    company_id, catalog.company_name, catalog.careers_url, catalog.provider_id,
+                    catalog.provider_label, json.dumps(provider_config, ensure_ascii=False, separators=(",", ":")),
+                    catalog.catalog_id, catalog.catalog_source, catalog.catalog_revision, now, now,
+                ),
+            )
+            row = conn.execute("SELECT * FROM tracked_companies WHERE company_id=?", (company_id,)).fetchone()
+            if row is None:
+                raise RuntimeError("tracked_company_persistence_failed")
+            resource = _tracked_company_resource({**dict(row), "provider_config": dict(provider_config)})
+            response = {"data": resource}
+            conn.execute(
+                "UPDATE idempotent_actions SET status='succeeded', response_json=?, updated_at=? WHERE action_id=?",
+                (json.dumps(response, sort_keys=True), now, action_id),
+            )
+            conn.commit()
+            return {"resource": resource, "created": True}
+        except Exception:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
 
 def get_scan_queue_job_id(scan_id: str, *, database_path: Path | None = None) -> str | None:
     with _scan_store_connection(database_path) as conn:
@@ -4839,13 +5124,62 @@ def create_tracked_company(
     *, company_name: str, careers_url: str, provider_id: str, provider_label: str | None = None,
     database_path: Path | None = None, **_extra: Any,
 ) -> dict[str, Any]:
+    provider_config = _extra.get("provider_config")
+    catalog_id = _extra.get("catalog_id")
+    catalog_source = _extra.get("catalog_source")
+    catalog_revision = _extra.get("catalog_revision")
+    if catalog_id is None and (catalog_source is not None or catalog_revision is not None):
+        raise ValueError("catalog_provenance_invalid")
+    if catalog_id is not None:
+        catalog_matches = [record for record in BUNDLED_COMPANY_CATALOG if record.catalog_id == catalog_id]
+        if len(catalog_matches) != 1:
+            raise ValueError("catalog_company_not_found")
+        catalog = catalog_matches[0]
+        if catalog.discovery_only:
+            raise ValueError("catalog_company_discovery_only")
+        supplied_config = provider_config if provider_config is not None else build_trusted_provider_config(
+            provider_id=provider_id, careers_url=careers_url
+        )
+        if (
+            company_name.strip() != catalog.company_name
+            or careers_url.strip().rstrip("/") != catalog.careers_url
+            or provider_id.strip() != catalog.provider_id
+            or dict(supplied_config) != dict(catalog.provider_config or {})
+        ):
+            raise ValueError("catalog_company_identity_conflict")
+        catalog_source = catalog.catalog_source
+        catalog_revision = catalog.catalog_revision
+    if provider_config is None:
+        try:
+            provider_config = build_trusted_provider_config(
+                provider_id=provider_id, careers_url=careers_url
+            )
+        except (JobSourceError, TypeError, ValueError) as exc:
+            raise ValueError("provider_config_invalid") from exc
+    try:
+        provider_config = validate_trusted_provider_config(provider_config)
+        derived_config = build_trusted_provider_config(
+            provider_id=provider_id, careers_url=careers_url
+        )
+        if dict(provider_config) != derived_config:
+            raise ValueError("provider_config_mismatch")
+    except (JobSourceError, IndexError, TypeError, ValueError) as exc:
+        raise ValueError("provider_config_invalid") from exc
+    provider_config_json = json.dumps(provider_config, ensure_ascii=False, separators=(",", ":"))
     company_id = f"company-{uuid.uuid4().hex[:12]}"
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
         with _scan_store_connection(database_path) as conn:
             conn.execute(
-                "INSERT INTO tracked_companies VALUES (?, ?, ?, ?, ?, 1, 1, 1, ?, ?)",
-                (company_id, company_name.strip(), careers_url.strip(), provider_id.strip(), provider_label, now, now),
+                """
+                INSERT INTO tracked_companies (
+                    company_id, company_name, careers_url, provider_id, provider_label,
+                    provider_config_json, catalog_id, catalog_source, catalog_revision,
+                    is_active, is_scannable, row_revision, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1, ?, ?)
+                """,
+                (company_id, company_name.strip(), careers_url.strip(), provider_id.strip(), provider_label,
+                 provider_config_json, catalog_id, catalog_source, catalog_revision, now, now),
             )
             conn.commit()
             row = conn.execute("SELECT * FROM tracked_companies WHERE company_id = ?", (company_id,)).fetchone()
@@ -4853,7 +5187,37 @@ def create_tracked_company(
         if "careers_url" in str(exc).lower() or "unique" in str(exc).lower():
             raise ValueError("tracked_company_url_conflict") from exc
         raise
-    return dict(row)
+    result = dict(row)
+    result["provider_config"] = json.loads(result.pop("provider_config_json"))
+    return result
+
+
+def _build_company_snapshot(row: sqlite3.Row) -> dict[str, Any]:
+    raw_config = str(row["provider_config_json"] or "{}")
+    try:
+        config = json.loads(raw_config)
+        if not isinstance(config, dict):
+            raise ValueError("provider_config_not_object")
+        if not config:
+            config = build_trusted_provider_config(
+                provider_id=str(row["provider_id"]), careers_url=str(row["careers_url"])
+            )
+        validate_trusted_provider_config(config)
+    except (JobSourceError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise ValueError("tracked_company_provider_config_invalid") from exc
+    return {
+        "snapshot_schema_version": "scan-company.v2",
+        "company_id": str(row["company_id"]),
+        "company_name": str(row["company_name"]),
+        "careers_url": str(row["careers_url"]),
+        "provider_id": str(row["provider_id"]),
+        "provider_label": row["provider_label"],
+        "provider_config": json.loads(json.dumps(config, ensure_ascii=False, separators=(",", ":"))),
+        "catalog_id": row["catalog_id"],
+        "catalog_source": row["catalog_source"],
+        "catalog_revision": row["catalog_revision"],
+        "tracked_company_row_revision": int(row["row_revision"]),
+    }
 
 def create_scan(
     *, request: dict[str, Any], rerun_of_scan_id: str | None = None,
@@ -4884,7 +5248,7 @@ def create_scan(
             by_id = {str(row["company_id"]): row for row in rows}
             if len(by_id) != len(company_ids):
                 raise ValueError("tracked_company_unavailable")
-            companies = [dict(by_id[company_id]) for company_id in company_ids]
+            companies = [_build_company_snapshot(by_id[company_id]) for company_id in company_ids]
             now_dt = datetime.datetime.now(datetime.timezone.utc)
             now = now_dt.isoformat()
             scan_id = f"scan-{uuid.uuid4().hex[:12]}"

@@ -88,9 +88,19 @@
 <dialog class="workspace-dialog run-dialog managed-selection-dialog" id="company-picker-dialog" aria-labelledby="company-picker-title" aria-describedby="company-picker-description">
   <div class="dialog-head"><div><h2 id="company-picker-title">Manage Tracked Companies</h2><p id="company-picker-description">Search the registry and select companies for this Scan.</p></div><button class="dialog-close" id="close-company-selection" type="button" aria-label="Close company selection dialog">×</button></div>
   <div class="run-form">
-    <div class="managed-selection-toolbar"><label class="managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="company-picker-search" type="search" autocomplete="off" placeholder="Search company, provider, or domain" aria-label="Search tracked companies"></label><button class="btn" id="open-add-company" type="button">Add Company</button></div>
-    <div class="managed-selection-actions"><button class="btn" id="select-filtered-companies" type="button">Select all filtered</button><button class="btn" id="clear-company-selection" type="button">Clear selection</button><span class="managed-selection-summary" id="company-picker-count">0 selected</span></div>
-    <div class="managed-selection-list" id="company-picker-list" aria-live="polite"><p class="empty-state">Loading tracked companies…</p></div>
+    <div class="run-tabs" role="tablist" aria-label="Company views" style="margin-bottom:12px;">
+      <button class="btn" id="company-picker-tracked-tab" type="button" role="tab" data-picker-tab="tracked" aria-selected="true" tabindex="0">Tracked Companies</button>
+      <button class="btn" id="company-picker-catalog-tab" type="button" role="tab" data-picker-tab="catalog" aria-selected="false" tabindex="-1">Company Catalog</button>
+    </div>
+    <div id="company-picker-tracked-panel" role="tabpanel" aria-labelledby="company-picker-tracked-tab">
+      <div class="managed-selection-toolbar"><label class="managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="company-picker-search" type="search" autocomplete="off" placeholder="Search by company name, ATS / source platform, or domain" aria-label="Search tracked companies"></label><button class="btn" id="open-add-company" type="button">Add Company</button></div>
+      <div class="managed-selection-actions"><button class="btn" id="select-filtered-companies" type="button">Select all filtered</button><button class="btn" id="clear-company-selection" type="button">Clear selection</button><span class="managed-selection-summary" id="company-picker-count">0 selected</span></div>
+      <div class="managed-selection-list" id="company-picker-list" aria-live="polite"><p class="empty-state">Loading tracked companies…</p></div>
+    </div>
+    <div id="company-picker-catalog-panel" role="tabpanel" aria-labelledby="company-picker-catalog-tab" hidden>
+      <div class="managed-selection-toolbar"><label class="managed-selection-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="company-catalog-search" type="search" autocomplete="off" placeholder="Search catalog by company name or ATS / source platform" aria-label="Search catalog"></label></div>
+      <div class="managed-selection-list" id="company-catalog-list" aria-live="polite"><p class="empty-state">Loading catalog…</p></div>
+    </div>
   </div>
   <p class="run-dialog-status" id="company-picker-status" role="status" aria-live="polite"></p>
   <div class="dialog-actions"><button class="btn" id="cancel-company-selection" type="button">Cancel</button><button class="btn primary" id="apply-company-selection" type="button">Apply</button></div>
@@ -100,7 +110,7 @@
   <div class="dialog-head"><div><h2 id="add-company-title">Add Company</h2><p id="add-company-description">Verify one supported careers portal before adding it.</p></div><button class="dialog-close" id="close-add-company" type="button" aria-label="Close Add Company dialog">×</button></div>
   <form class="run-form" id="add-company-form">
     <div class="run-field"><label for="add-company-name">Company Name</label><input class="field" id="add-company-name" name="company_name" type="text" maxlength="120" required autocomplete="organization"></div>
-    <div class="run-field"><label for="add-company-url">Careers URL</label><div class="model-test-row"><input class="field" id="add-company-url" name="careers_url" type="url" maxlength="500" required pattern="https://.*" placeholder="https://company.example/careers" autocomplete="url"><button class="btn" id="test-add-company" type="submit">Test</button></div><small>Supported portals: Personio, Greenhouse, and Workday.</small></div>
+    <div class="run-field"><label for="add-company-url">Careers URL</label><div class="model-test-row"><input class="field" id="add-company-url" name="careers_url" type="url" maxlength="500" required pattern="https://.*" placeholder="https://company.example/careers" autocomplete="url"><button class="btn" id="test-add-company" type="submit">Test</button></div><small>Supported ATS / source platforms: Personio, Greenhouse, Ashby, Lever, and Workday.</small></div>
   </form>
   <p id="add-company-status" class="run-dialog-status" role="status" aria-live="polite">Test the careers URL before adding the company.</p>
   <div class="dialog-actions"><button class="btn" id="cancel-add-company" type="button">Cancel</button><button class="btn primary" id="save-add-company" type="button" disabled>Add Company</button></div>
@@ -114,6 +124,8 @@
   const newForm = document.getElementById('new-scan-form');
   const notice = document.getElementById('scan-notice');
   let companies = [];
+  let catalog = [];
+  let catalogLoaded = false;
   let selectedCompanyIds = [];
   let draftCompanyIds = [];
   let verifiedCompanyInput = null;
@@ -142,7 +154,7 @@
     const query = document.getElementById('company-picker-search').value.trim().toLowerCase();
     const filtered = companies.filter(company => !query || `${company.company_name} ${company.provider_id} ${company.careers_url}`.toLowerCase().includes(query));
     const list = document.getElementById('company-picker-list');
-    list.innerHTML = filtered.length ? filtered.map(company => `<label class="managed-selection-item"><input type="checkbox" value="${escapeHtml(company.company_id)}" ${draftCompanyIds.includes(company.company_id) ? 'checked' : ''}><span class="managed-selection-item-copy"><strong>${escapeHtml(company.company_name)}</strong><small>${escapeHtml(company.provider_label || company.provider_id)} · ${escapeHtml(company.careers_url)}</small></span></label>`).join('') : '<p class="empty-state">No tracked companies match this search.</p>';
+    list.innerHTML = filtered.length ? filtered.map(company => `<label class="managed-selection-item"><input type="checkbox" value="${escapeHtml(company.company_id)}" ${draftCompanyIds.includes(company.company_id) ? 'checked' : ''}><span class="managed-selection-item-copy"><strong style="word-break:break-word;"><span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;margin-right:6px;">Company</span>${escapeHtml(company.company_name)}</strong><small style="word-break:break-all;">ATS / Source: ${escapeHtml(company.provider_label || company.provider_id)} · ${escapeHtml(company.careers_url)}</small></span></label>`).join('') : '<p class="empty-state">No tracked company profiles match this search.</p>';
     list.querySelectorAll('input[type="checkbox"]').forEach(input => input.addEventListener('change', () => {
       draftCompanyIds = input.checked ? [...draftCompanyIds, input.value] : draftCompanyIds.filter(id => id !== input.value);
       document.getElementById('company-picker-count').textContent = `${draftCompanyIds.length} selected`;
@@ -162,6 +174,133 @@
     } finally { document.getElementById('apply-company-selection').disabled = false; }
   }
 
+  const pickerTrackedTab = document.getElementById("company-picker-tracked-tab");
+  const pickerCatalogTab = document.getElementById("company-picker-catalog-tab");
+  const pickerTrackedPanel = document.getElementById("company-picker-tracked-panel");
+  const pickerCatalogPanel = document.getElementById("company-picker-catalog-panel");
+
+  function setPickerTab(tab) {
+    const isTracked = tab === "tracked";
+    pickerTrackedTab?.setAttribute("aria-selected", isTracked ? "true" : "false");
+    if (pickerTrackedTab) pickerTrackedTab.tabIndex = isTracked ? 0 : -1;
+    pickerCatalogTab?.setAttribute("aria-selected", isTracked ? "false" : "true");
+    if (pickerCatalogTab) pickerCatalogTab.tabIndex = isTracked ? -1 : 0;
+    if (pickerTrackedPanel) pickerTrackedPanel.hidden = !isTracked;
+    if (pickerCatalogPanel) pickerCatalogPanel.hidden = isTracked;
+    if (!isTracked && !catalogLoaded) {
+      loadCatalog();
+    }
+  }
+
+  pickerTrackedTab?.addEventListener("click", () => setPickerTab("tracked"));
+  pickerCatalogTab?.addEventListener("click", () => setPickerTab("catalog"));
+  [pickerTrackedTab, pickerCatalogTab].forEach(tab => {
+    tab?.addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      event.preventDefault();
+      const next = tab === pickerTrackedTab ? pickerCatalogTab : pickerTrackedTab;
+      next?.focus();
+      next?.click();
+    });
+  });
+
+  function renderCatalog() {
+    const query = (document.getElementById("company-catalog-search")?.value || "").trim().toLowerCase();
+    const filtered = catalog.filter(item => !query || `${item.company_name} ${item.provider_label || item.provider_id} ${item.careers_url}`.toLowerCase().includes(query));
+    const list = document.getElementById("company-catalog-list");
+    if (!list) return;
+    if (!filtered.length) {
+      list.innerHTML = "<p class=\"empty-state\">No catalog company profiles found.</p>";
+      return;
+    }
+    list.innerHTML = filtered.map(item => {
+      const isAlreadyTracked = item.is_tracked || Boolean(item.tracked_company_id) || companies.some(c => (item.tracked_company_id && c.company_id === item.tracked_company_id) || (item.catalog_id && c.catalog_id === item.catalog_id) || c.company_name.toLowerCase() === item.company_name.toLowerCase());
+      let actionMarkup = "";
+      if (item.discovery_only) {
+        actionMarkup = "<span class=\"badge\" style=\"margin-right:6px;\">Marketplace / Discovery only</span><button class=\"btn\" type=\"button\" disabled aria-disabled=\"true\" title=\"Marketplace / Discovery only\">Track</button>";
+      } else if (isAlreadyTracked) {
+        actionMarkup = "<span class=\"badge\" style=\"margin-right:6px;\">Tracked</span><button class=\"btn\" type=\"button\" disabled aria-disabled=\"true\">Tracked</button>";
+      } else {
+        actionMarkup = `<button class="btn primary track-catalog-btn" type="button" data-catalog-id="${escapeHtml(item.catalog_id)}" aria-label="Track ${escapeHtml(item.company_name)}">Track</button>`;
+      }
+      return `<div class="managed-selection-item" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;">
+        <span class="managed-selection-item-copy" style="flex:1 1 180px;min-width:0;">
+          <strong style="word-break:break-word;"><span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;margin-right:6px;">Company</span>${escapeHtml(item.company_name)}</strong>
+          <small style="word-break:break-all;">ATS / Source: ${escapeHtml(item.provider_label || item.provider_id)} · ${escapeHtml(item.careers_url)}</small>
+        </span>
+        <div style="flex-shrink:0;display:flex;align-items:center;">${actionMarkup}</div>
+      </div>`;
+    }).join("");
+
+    list.querySelectorAll(".track-catalog-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const catalogId = btn.dataset.catalogId;
+        await fitcvRunLocked(btn, async () => {
+          btn.textContent = "Tracking…";
+          try {
+            const payload = await fitcvApiRequest("/company-catalog/actions/track", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+              body: JSON.stringify({ catalog_id: catalogId }),
+            });
+            const created = payload.data;
+            if (!companies.some(c => c.company_id === created.company_id)) {
+              companies.push(created);
+            }
+            if (!draftCompanyIds.includes(created.company_id)) {
+              draftCompanyIds.push(created.company_id);
+            }
+            const item = catalog.find(c => c.catalog_id === catalogId);
+            if (item) {
+              item.is_tracked = true;
+              item.tracked_company_id = created.company_id;
+            }
+            renderCatalog();
+            renderCompanies();
+            updateCompanySummary();
+          } catch (error) {
+            btn.textContent = "Track";
+            fitcvRenderAsyncState(document.getElementById("company-picker-status"), {
+              kind: "retryable",
+              message: error.message,
+              code: error.code,
+              action: "Retry",
+              retry: () => btn.click(),
+            });
+          }
+        });
+      });
+    });
+  }
+
+  async function loadCatalog(search = document.getElementById("company-catalog-search")?.value?.trim() || "") {
+    const list = document.getElementById("company-catalog-list");
+    if (!list) return;
+    list.innerHTML = "<p class=\"empty-state\">Loading catalog…</p>";
+    try {
+      const payload = await fitcvApiRequest(`/company-catalog?search=${encodeURIComponent(search)}&page=1&page_size=50`);
+      catalog = payload.data || [];
+      catalogLoaded = true;
+      renderCatalog();
+    } catch (error) {
+      fitcvRenderAsyncState(list, {
+        kind: "retryable",
+        message: error.message,
+        code: error.code,
+        action: "Retry",
+        retry: () => loadCatalog(search),
+      });
+    }
+  }
+
+  let catalogSearchTimer;
+  document.getElementById("company-catalog-search")?.addEventListener("input", () => {
+    window.clearTimeout(catalogSearchTimer);
+    catalogSearchTimer = window.setTimeout(() => {
+      loadCatalog(document.getElementById("company-catalog-search").value.trim());
+    }, 200);
+  });
+
   function showCompanyLoadError(error) {
     fitcvRenderAsyncState(document.getElementById('company-picker-list'), {kind:'retryable', message:error.message, code:error.code, action:'Retry', retry: async () => { try { await loadCompanies(); } catch (retryError) { showCompanyLoadError(retryError); } }});
   }
@@ -173,6 +312,7 @@
   newForm.addEventListener('change', syncNewScanState);
   document.getElementById('manage-scan-companies').addEventListener('click', async () => {
     draftCompanyIds = [...selectedCompanyIds];
+    setPickerTab('tracked');
     newDialog.close();
     picker.showModal();
     try { await loadCompanies(); } catch (error) { showCompanyLoadError(error); }
@@ -202,7 +342,7 @@
   document.getElementById('add-company-form').addEventListener('input', () => {
     verifiedCompanyInput = null;
     document.getElementById('save-add-company').disabled = true;
-    document.getElementById('add-company-status').textContent = 'Test the careers URL before adding the company.';
+    document.getElementById('add-company-status').textContent = 'Test the careers URL before adding the company profile.';
   });
   document.getElementById('add-company-form').addEventListener('submit', async event => {
     event.preventDefault();

@@ -81,6 +81,7 @@ def execute_scan(scan_id: str, job_id: str | None = None) -> None:
                 keywords=tuple(logical_input.get("job_titles") or []),
                 max_jobs=min(remaining_rows, 200),
                 timeout_seconds=60,
+                trusted_provider_config=company.get("provider_config"),
             )
             _emit_scan_event(
                 scan_id,

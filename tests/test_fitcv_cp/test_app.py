@@ -15173,3 +15173,146 @@ def test_post_runs_uses_schema_valid_canonical_profile_snapshot(
     assert "revision" not in deserialized_profile
     validation_errors = validate_candidate_profile_v2(deserialized_profile)
     assert validation_errors == [], f"Candidate profile snapshot has validation errors: {validation_errors}"
+
+
+def test_company_catalog_route_has_exact_envelope_and_openapi_paths() -> None:
+    client = TestClient(_app())
+
+    response = client.get("/company-catalog")
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {"data", "page", "meta"}
+    assert set(payload["data"][0]) == {
+        "catalog_id", "company_name", "careers_url", "provider_id", "provider_label",
+        "catalog_source", "catalog_revision", "trackable", "discovery_only",
+        "verification_status", "checked_at", "evidence_ref",
+        "is_tracked", "tracked_company_id",
+    }
+    assert payload["meta"] == {}
+    assert "/company-catalog" in client.get("/openapi.json").json()["paths"]
+    assert "/company-catalog/actions/track" in client.get("/openapi.json").json()["paths"]
+
+
+def test_company_catalog_track_replays_and_rejects_client_provider_fields() -> None:
+    client = TestClient(_app())
+    headers = {"Idempotency-Key": "catalog-track-1"}
+
+    created = client.post("/company-catalog/actions/track", headers=headers, json={"catalog_id": "company-anthropic"})
+    replayed = client.post("/company-catalog/actions/track", headers=headers, json={"catalog_id": "company-anthropic"})
+    rejected = client.post(
+        "/company-catalog/actions/track",
+        headers={"Idempotency-Key": "catalog-track-extra"},
+        json={"catalog_id": "company-anthropic", "provider_config": {}},
+    )
+
+    assert created.status_code == 201
+    assert replayed.status_code == 200
+    assert replayed.json() == created.json()
+    assert rejected.status_code == 422
+    assert rejected.json()["error"]["code"] == "validation_failed"
+    with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM tracked_companies").fetchone()[0] == 1
+
+
+def test_company_catalog_track_returns_exact_errors_for_wellfound_and_idempotency() -> None:
+    client = TestClient(_app())
+
+    wellfound = client.post(
+        "/company-catalog/actions/track",
+        headers={"Idempotency-Key": "catalog-wellfound"},
+        json={"catalog_id": "company-wellfound"},
+    )
+    missing = client.post(
+        "/company-catalog/actions/track",
+        headers={"Idempotency-Key": "catalog-missing"},
+        json={"catalog_id": "company-missing"},
+    )
+    pending_action = sqlite_store.reserve_idempotent_action(
+        "company-catalog:track", "catalog-pending", sqlite_store.hashlib.sha256(b'{"catalog_id":"company-anthropic"}').hexdigest()
+    )
+    pending = client.post(
+        "/company-catalog/actions/track",
+        headers={"Idempotency-Key": "catalog-pending"},
+        json={"catalog_id": "company-anthropic"},
+    )
+    conflict = client.post(
+        "/company-catalog/actions/track",
+        headers={"Idempotency-Key": "catalog-pending"},
+        json={"catalog_id": "company-openai"},
+    )
+
+    assert pending_action["status"] == "queued"
+    assert wellfound.status_code == 422
+    assert wellfound.json()["error"]["code"] == "company_catalog_discovery_only"
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "company_catalog_not_found"
+    assert pending.status_code == 409
+    assert pending.json()["error"]["code"] == "idempotency_in_progress"
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "idempotency_conflict"
+
+
+def test_company_catalog_track_duplicate_and_persistence_failure() -> None:
+    from contextlib import contextmanager
+
+    app = _app()
+    with TestClient(app) as client:
+        first = client.post(
+            "/company-catalog/actions/track",
+            headers={"Idempotency-Key": "catalog-first"},
+            json={"catalog_id": "company-anthropic"},
+        )
+        duplicate = client.post(
+            "/company-catalog/actions/track",
+            headers={"Idempotency-Key": "catalog-second"},
+            json={"catalog_id": "company-anthropic"},
+        )
+
+        original_connection = sqlite_store._sqlite_connection
+
+        @contextmanager
+        def fail_commit(database_path: Path):
+            with original_connection(database_path) as connection:
+                commit_calls = 0
+
+                class ConnectionProxy:
+                    def __init__(self) -> None:
+                        object.__setattr__(self, "connection", connection)
+
+                    def __getattr__(self, name: str) -> Any:
+                        return getattr(self.connection, name)
+
+                    def __setattr__(self, name: str, value: Any) -> None:
+                        setattr(self.connection, name, value)
+
+                    def commit(self) -> None:
+                        nonlocal commit_calls
+                        commit_calls += 1
+                        if commit_calls == 2:
+                            raise sqlite3.OperationalError("injected commit failure")
+                        self.connection.commit()
+
+                yield ConnectionProxy()
+
+        with patch.object(sqlite_store, "_sqlite_connection", fail_commit):
+            failed = client.post(
+                "/company-catalog/actions/track",
+                headers={"Idempotency-Key": "catalog-failure"},
+                json={"catalog_id": "company-openai"},
+            )
+
+        with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+            assert connection.execute(
+                "SELECT COUNT(*) FROM tracked_companies WHERE catalog_id = ?",
+                ("company-openai",),
+            ).fetchone()[0] == 0
+            assert connection.execute(
+                "SELECT COUNT(*) FROM idempotent_actions WHERE action_scope = ? AND idempotency_key = ? AND status = 'succeeded'",
+                ("company-catalog:track", "catalog-failure"),
+            ).fetchone()[0] == 0
+
+        assert first.status_code == 201
+        assert duplicate.status_code == 200
+        assert duplicate.json() == first.json()
+        assert failed.status_code == 500
+        assert failed.json()["error"]["code"] == "tracked_company_persistence_failed"
