@@ -81,7 +81,7 @@ def build_app() -> Any:
     )
     if local_mode and local_paths is not None:
         migrate_packaged_local_integration_state(local_paths)
-    redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+    redis_url = None if local_mode else os.environ.get("REDIS_URL", "redis://redis:6379/0")
     logger.info("control-plane backend mode: sqlite")
     application = create_app(redis_url=redis_url, backend_runtime=runtime)
     try:

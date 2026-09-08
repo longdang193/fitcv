@@ -379,6 +379,59 @@ def test_schema_v6_to_v7_failure_rolls_back_marker_rows_and_index(tmp_path: Path
             ("ux_tracked_companies_catalog_identity",),
         ).fetchone() is None
 
+
+def test_schema_v7_quarantines_only_legacy_catalog_examples(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv-v7-legacy-examples.sqlite3"
+    with sqlite3.connect(database_path) as connection:
+        sqlite_store._configure_sqlite_connection(connection)
+        sqlite_store._ensure_control_plane_schema(connection)
+        connection.executemany(
+            """
+            INSERT INTO tracked_companies (
+                company_id, company_name, careers_url, provider_id, provider_label,
+                provider_config_json, catalog_id, catalog_source, catalog_revision,
+                is_active, is_scannable, row_revision, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, '{}', ?, ?, ?, 1, 1, 1, '2026-09-08T00:00:00+00:00', '2026-09-08T00:00:00+00:00')
+            """,
+            [
+                ("legacy-acme", "ACME", "https://acme.example", "unknown", "Unknown", "company-acme", "bundled", "2026-09-08-v1"),
+                ("legacy-ashby", "Renamed sample", "https://ashby.example", "unknown", "Unknown", "company-ashby", "bundled", "2026-09-08-v1"),
+                ("legacy-lever", "Lever Example", "https://lever.example", "unknown", "Unknown", "company-lever", "bundled", "2026-09-08-v1"),
+                ("legacy-personio", "Personio Example", "https://personio.example", "unknown", "Unknown", "company-personio", "bundled", "2026-09-08-v1"),
+                ("legacy-workday", "Workday Example", "https://workday.example", "unknown", "Unknown", "company-workday", "bundled", "2026-09-08-v1"),
+                ("approved-acme", "ACME", "https://acme-approved.example", "unknown", "Unknown", "company-approved", "bundled", "2026-09-08-v1"),
+                ("custom-acme", "ACME", "https://custom.example", "unknown", "Unknown", None, None, None),
+            ],
+        )
+        connection.execute(
+            "UPDATE integration_migrations SET details_json=? WHERE migration_key=?",
+            (json.dumps({"source_version": 6, "target_version": 7, "catalog_revision": "2026-09-08-v1"}), sqlite_store.SCAN_PROVIDER_CATALOG_MIGRATION),
+        )
+        connection.execute(
+            "DELETE FROM integration_migrations WHERE migration_key=?",
+            (sqlite_store.LEGACY_EXAMPLE_COMPANIES_MIGRATION,),
+        )
+        connection.commit()
+
+        sqlite_store._ensure_control_plane_schema(connection)
+        rows = connection.execute(
+            "SELECT company_id, is_active, is_scannable FROM tracked_companies ORDER BY company_id"
+        ).fetchall()
+        assert rows == [
+            ("approved-acme", 1, 1),
+            ("custom-acme", 1, 1),
+            ("legacy-acme", 0, 0),
+            ("legacy-ashby", 0, 0),
+            ("legacy-lever", 0, 0),
+            ("legacy-personio", 0, 0),
+            ("legacy-workday", 0, 0),
+        ]
+
+        changes = connection.total_changes
+        sqlite_store._ensure_control_plane_schema(connection)
+        assert connection.total_changes == changes
+
+
 def _make_succeeded_scan(database_path: Path, *, name: str) -> dict[str, object]:
     company = sqlite_store.create_tracked_company(
         company_name=f"{name} Company",

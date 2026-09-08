@@ -98,6 +98,7 @@ _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
 CONTROL_PLANE_SCHEMA_VERSION = 7
 SCAN_PROVIDER_CATALOG_MIGRATION = "fitcv_scan_provider_catalog_v1"
+LEGACY_EXAMPLE_COMPANIES_MIGRATION = "fitcv_legacy_example_companies_v1"
 RUN_HISTORY_MIGRATION_ID = "fitcv_run_history_v1"
 _RUN_HISTORY_RUNS_TABLE = "local_pipeline_runs"
 _RUN_HISTORY_EVENTS_TABLE = "local_pipeline_run_events"
@@ -442,7 +443,7 @@ def _migrate_control_plane_schema_6_to_7(conn: sqlite3.Connection) -> None:
     ).fetchone()
     if migration_row is not None:
         details = json.loads(str(migration_row[0]))
-        if details.get("target_version") != 7 or details.get("catalog_revision") != BUNDLED_CATALOG_REVISION:
+        if details.get("target_version") != 7 or not str(details.get("catalog_revision") or "").strip():
             raise RuntimeError("scan provider catalog migration marker is invalid")
         return
 
@@ -522,6 +523,45 @@ def _migrate_control_plane_schema_6_to_7(conn: sqlite3.Connection) -> None:
     )
 
 
+
+def _quarantine_legacy_example_companies(conn: sqlite3.Connection) -> None:
+    if conn.execute(
+        "SELECT 1 FROM integration_migrations WHERE migration_key = ?",
+        (LEGACY_EXAMPLE_COMPANIES_MIGRATION,),
+    ).fetchone() is not None:
+        return
+
+    legacy_catalog_ids = (
+        "company-acme",
+        "company-ashby",
+        "company-lever",
+        "company-personio",
+        "company-workday",
+    )
+    placeholders = ",".join("?" for _ in legacy_catalog_ids)
+    rows = conn.execute(
+        f"""SELECT company_id FROM tracked_companies
+            WHERE is_active = 1 AND catalog_source = 'bundled'
+              AND catalog_id IN ({placeholders})""",
+        legacy_catalog_ids,
+    ).fetchall()
+    company_ids = sorted(str(row[0]) for row in rows)
+    if company_ids:
+        conn.executemany(
+            "UPDATE tracked_companies SET is_active = 0, is_scannable = 0 WHERE company_id = ?",
+            [(company_id,) for company_id in company_ids],
+        )
+    conn.execute(
+        """INSERT INTO integration_migrations (migration_key, details_json, completed_at)
+           VALUES (?, ?, ?)""",
+        (
+            LEGACY_EXAMPLE_COMPANIES_MIGRATION,
+            json.dumps({"quarantined_company_ids": company_ids}, sort_keys=True, separators=(",", ":")),
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        ),
+    )
+
+
 def _ensure_control_plane_schema(
     conn: sqlite3.Connection,
     *,
@@ -545,9 +585,8 @@ def _ensure_control_plane_schema(
         ).fetchone()
         if marker is not None:
             details = json.loads(str(marker[0]))
-            if details.get("target_version") != 7 or details.get("catalog_revision") != BUNDLED_CATALOG_REVISION:
+            if details.get("target_version") != 7 or not str(details.get("catalog_revision") or "").strip():
                 raise RuntimeError("scan provider catalog migration marker is invalid")
-            return
     schema = """
     CREATE TABLE IF NOT EXISTS candidate_profiles (
         candidate_profile_id TEXT PRIMARY KEY,
@@ -1222,6 +1261,7 @@ def _ensure_control_plane_schema(
         _ensure_run_history_migration_tables(conn)
         if version == 6:
             _migrate_control_plane_schema_6_to_7(conn)
+        _quarantine_legacy_example_companies(conn)
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS ux_tracked_companies_catalog_identity "
             "ON tracked_companies(catalog_source, catalog_id) "

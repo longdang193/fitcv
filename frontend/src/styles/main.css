@@ -1338,6 +1338,7 @@ dialog.native-dialog::backdrop {
   border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
   background: var(--danger-soft);
   color: var(--danger);
+  margin-block-end: 16px;
 }
 
 /* Shared error state, code, and guidance styling */

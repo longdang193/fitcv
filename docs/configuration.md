@@ -47,6 +47,13 @@ Maintenance flow:
 - per-run trigger overrides (`config_overrides` in `/runs`)
 - process environment variables for backend/provider credentials and runtime toggles
 
+## Runtime Queue Truth
+
+- Approved Option 1 local/packaged Scan execution uses the existing inline
+  `LocalJobExecutor`; it does not require `REDIS_URL` or reachable Redis.
+- Server/Docker Scan remains Redis/RQ-backed.
+- Non-Scan Run, Candidate Profile, and CV regeneration remain Redis/RQ-backed.
+
 ## Fresh Control-Plane Database
 
 FitCV Local supports one explicit fresh-database cutover command:

@@ -253,6 +253,13 @@ Primary architecture references:
 - [docs/fitcv-control-plane-setup.md](docs/fitcv-control-plane-setup.md)
 - [docs/pipeline.md](docs/pipeline.md)
 
+Runtime queue truth:
+
+- Approved Option 1 local/packaged Scan execution uses the existing inline
+  `LocalJobExecutor`; it does not require `REDIS_URL` or reachable Redis.
+- Server/Docker Scan remains Redis/RQ-backed.
+- Non-Scan Run, Candidate Profile, and CV regeneration remain Redis/RQ-backed.
+
 ## Tech Stack
 
 - Python 3.11, FastAPI, Jinja2 templates
