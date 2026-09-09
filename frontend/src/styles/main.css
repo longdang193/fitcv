@@ -97,7 +97,7 @@ summary:focus-visible {
   overflow-y: auto;
   border-right: 1px solid var(--border-soft);
   background: var(--sidebar);
-  transition: transform var(--motion-base);
+  transition: width var(--motion-base), transform var(--motion-base);
   display: flex;
   flex-direction: column;
 }
@@ -921,7 +921,7 @@ summary:focus-visible {
 }
 
 .mobile-menu-btn {
-  display: none;
+  display: inline-flex;
   width: 44px;
   height: 44px;
   min-width: 44px;
@@ -934,6 +934,14 @@ summary:focus-visible {
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
+}
+
+@media (min-width: 769px) {
+  .sidebar.is-collapsed {
+    width: 0;
+    border-right: 0;
+    overflow: hidden;
+  }
 }
 
 @media (max-width: 768px) {

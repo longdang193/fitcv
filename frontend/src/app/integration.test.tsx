@@ -89,7 +89,8 @@ describe("Frontend App Shell & Whole-Slice Integration", () => {
 
     // Mobile nav toggle button with accessible label
     expect(markup).toContain('class="mobile-menu-btn mobile-toggle-btn"');
-    expect(markup).toContain('aria-label="Open navigation menu"');
+    expect(markup).toContain('aria-label="Toggle navigation menu"');
+    expect(markup).toContain('aria-controls="app-sidebar"');
 
     // Notification bell default accessible name
     expect(markup).toContain('aria-label="Notifications, no unread notifications"');

@@ -20,6 +20,10 @@ export const AppShell: React.FC = () => {
     return "#/overview";
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches
+  );
   const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
   const [notifications, setNotifications] = useState<TransientNotification[]>(() =>
     notificationStore.getNotifications()
@@ -51,6 +55,15 @@ export const AppShell: React.FC = () => {
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
     };
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const handleViewportChange = () => setIsMobileViewport(mediaQuery.matches);
+
+    handleViewportChange();
+    mediaQuery.addEventListener("change", handleViewportChange);
+    return () => mediaQuery.removeEventListener("change", handleViewportChange);
   }, []);
 
   // Handle mobile drawer focus management
@@ -161,6 +174,15 @@ export const AppShell: React.FC = () => {
     setIsMobileMenuOpen(false);
   }, []);
 
+  const toggleNavigation = () => {
+    if (isMobileViewport) {
+      setIsMobileMenuOpen((prev) => !prev);
+      return;
+    }
+
+    setIsSidebarCollapsed((prev) => !prev);
+  };
+
   // Build navigation groups dynamically from discovered routes SSOT
   const navGroups: NavGroup[] = useMemo(() => {
     const workspaceItems = routes
@@ -218,7 +240,8 @@ export const AppShell: React.FC = () => {
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`sidebar ${isMobileMenuOpen ? "is-open" : ""}`}
+        id="app-sidebar"
+        className={`sidebar ${isMobileMenuOpen ? "is-open" : ""} ${isSidebarCollapsed ? "is-collapsed" : ""}`}
         aria-label="Application Sidebar"
       >
         <div className="brand">
@@ -246,11 +269,12 @@ export const AppShell: React.FC = () => {
               ref={mobileMenuButtonRef}
               type="button"
               className="mobile-menu-btn mobile-toggle-btn"
-              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-              aria-expanded={isMobileMenuOpen}
-              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              aria-label="Toggle navigation menu"
+              aria-controls="app-sidebar"
+              aria-expanded={isMobileViewport ? isMobileMenuOpen : !isSidebarCollapsed}
+              onClick={toggleNavigation}
             >
-              {isMobileMenuOpen ? "✕" : "☰"}
+              {isMobileViewport && isMobileMenuOpen ? "✕" : "☰"}
             </button>
             <h1
               ref={headingRef}

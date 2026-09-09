@@ -98,4 +98,14 @@ describe("accessibility and design token compliance", () => {
     expect(brandBlockMatch![1]).not.toContain("border-bottom");
     expect(mainCss).toContain("border-right: 1px solid var(--border-soft);");
   });
+
+  it("keeps navigation collapse available on desktop", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const mainCss = fs.readFileSync(path.resolve(__dirname, "../styles/main.css"), "utf-8");
+
+    expect(mainCss).toContain(".sidebar.is-collapsed {");
+    expect(mainCss).toContain("@media (min-width: 769px)");
+    expect(mainCss).toContain(".mobile-menu-btn {");
+  });
 });
