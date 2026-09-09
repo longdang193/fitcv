@@ -6,4 +6,10 @@ describe("Vite API proxy", () => {
     const proxy = (config as { server?: { proxy?: Record<string, unknown> } }).server?.proxy;
     expect(proxy).toHaveProperty("/company-catalog");
   });
+
+  it("proxies CV preview and download requests at /cv-versions", () => {
+    const proxy = (config as { server?: { proxy?: Record<string, any> } }).server?.proxy || {};
+    expect(proxy).toHaveProperty("/cv-versions");
+    expect(proxy["/cv-versions"]).toBe("http://127.0.0.1:8000");
+  });
 });

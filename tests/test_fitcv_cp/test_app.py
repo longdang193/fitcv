@@ -2753,6 +2753,40 @@ def test_get_run_detail_keeps_running_for_inline_started_job_status() -> None:
     assert not mock_update_status.called
     assert not mock_append_event.called
 
+def test_get_run_detail_keeps_running_when_queue_finishes_before_terminal_persistence() -> None:
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-premature-finished-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="rq-premature-finished-1",
+        run_mode="run_all",
+    )
+
+    app = _app()
+    app.state.run_store.get_run_fn = lambda _run_id: running
+    app.state.run_store.get_run_detail_fn = lambda _run_id: {
+        "run_id": running.run_id,
+        "status": "running",
+        "backend_status": "running",
+        "queue_job_id": running.queue_job_id,
+    }
+    with patch("fitcv_cp.app.get_queue_job_status", return_value="finished"), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        resp = TestClient(app).get(f"/runs/{running.run_id}")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["status"] == "running"
+    assert not mock_update_status.called
+    assert not mock_append_event.called
+
 def test_get_run_detail_keeps_running_for_inline_missing_job_status() -> None:
     from fitcv_cp.models import PipelineRun
     from datetime import datetime, timezone

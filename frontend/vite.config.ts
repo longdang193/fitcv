@@ -23,6 +23,7 @@ const apiPaths = [
   "/synonym-processing-runs",
   "/personalization",
   "/healthz",
+  "/cv-versions",
 ];
 
 export default defineConfig({
@@ -40,6 +41,8 @@ export default defineConfig({
   server: {
     host: devServerConfig.host,
     port: devServerConfig.frontendPort,
-    proxy: Object.fromEntries(apiPaths.map((path) => [path, apiOrigin])),
+    proxy: {
+      ...Object.fromEntries(apiPaths.map((path) => [path, apiOrigin])),
+    },
   },
 });

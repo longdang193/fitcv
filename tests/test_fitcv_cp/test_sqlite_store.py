@@ -2510,6 +2510,9 @@ def test_create_run_bundle_atomically_captures_profile_settings_and_apply_off_bu
     assert json.loads(row[1])["synonym_management.apply_approved_enabled"] is False
     assert row[2] == bundle["active_bundle_revision_id"]
     assert json.loads(row[3])["approved_mapping_projection"]["skills"] == {}
+    detail = sqlite_store.get_run_detail(run.run_id)
+    assert detail["input"]["candidate_profile"]["profile_id"] == profile["profile_id"]
+    assert detail["input"]["candidate_profile"]["revision"] == profile["revision"]
 
 
 def test_create_run_bundle_rejects_archived_profile_without_run_row(tmp_path: Path) -> None:

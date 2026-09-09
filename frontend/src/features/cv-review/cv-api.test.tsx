@@ -184,4 +184,29 @@ describe("CV Review route and contracts", () => {
 
     expect(lastIfMatch).toBe('"etag-updated-rev-2"');
   });
+
+  it("uses root API routes for preview and download", async () => {
+    let requestedUrl = "";
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      requestedUrl = url;
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          "content-type": "text/markdown; charset=utf-8",
+          "etag": '"sha-999"',
+          "content-length": "10",
+          "x-cv-version-id": "cv-ver-base",
+        }),
+        text: async () => "content",
+        blob: async () => new Blob(["content"]),
+      };
+    });
+
+    await fetchCvPreview("cv-ver-base");
+    expect(requestedUrl).toBe("/cv-versions/cv-ver-base/preview");
+
+    await downloadCvVersion("cv-ver-base");
+    expect(requestedUrl).toBe("/cv-versions/cv-ver-base/download");
+  });
 });

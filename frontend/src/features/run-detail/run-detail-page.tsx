@@ -39,6 +39,7 @@ export interface RunDetailPageProps {
   runId: string;
   onBack: () => void;
   initialRun?: PipelineRunResource;
+  initialJobs?: RunJobItem[];
 }
 
 const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
@@ -62,7 +63,7 @@ const PIPELINE_STAGES: { stage_id: RunStageId; label: string; ordinal: number }[
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
-export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, initialRun }) => {
+export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, initialRun, initialJobs }) => {
   const [run, setRun] = useState<PipelineRunResource | null>(initialRun || null);
   const [loading, setLoading] = useState(!initialRun);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +105,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   };
 
   // Jobs state & filters (stage defaults to shortlisting per prototype)
-  const [jobs, setJobs] = useState<RunJobItem[]>([]);
+  const [jobs, setJobs] = useState<RunJobItem[]>(initialJobs || []);
   const [jobsLoading, setJobsLoading] = useState(false);
   const [jobsPage, setJobsPage] = useState(1);
   const [jobsTotal, setJobsTotal] = useState(0);
@@ -505,11 +506,13 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     if (present.length === 0) return <span style={{ color: "var(--muted)", fontSize: 12 }}>No job attributes provided.</span>;
 
     return (
-      <div className="job-attributes">
+      <div className="job-attributes" style={{ minWidth: 0 }}>
         {present.map(([label, val]) => (
-          <div key={label} className="job-attribute">
+          <div key={label} className="job-attribute" style={{ minWidth: 0, overflowWrap: "anywhere", wordBreak: "break-word" }}>
             <span>{label}</span>
-            <strong>{String(val)}</strong>
+            <span style={{ fontSize: 12, fontWeight: 400, lineHeight: 1.4, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+              {String(val)}
+            </span>
           </div>
         ))}
       </div>
@@ -588,8 +591,26 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       }
     } catch {}
   }
-  const profileName = parsedProfile?.name || parsedProfile?.profile_name || input?.candidate_profile_source || "Candidate Profile";
-  const profileIdValue = parsedProfile?.id || parsedProfile?.profile_id;
+  const candidateProfileObj = (input as any)?.candidate_profile;
+  const profileName =
+    candidateProfileObj?.name ||
+    parsedProfile?.name ||
+    parsedProfile?.profile_name ||
+    input?.candidate_profile_name ||
+    input?.candidate_profile_source ||
+    "Candidate Profile";
+  const profileIdValue =
+    candidateProfileObj?.profile_id ||
+    (input?.candidate_profile_id as string | undefined) ||
+    (input?.profile_id as string | undefined) ||
+    parsedProfile?.candidate_profile_id ||
+    parsedProfile?.profile_id ||
+    parsedProfile?.id ||
+    (typeof input?.candidate_profile_source === "string" &&
+    input.candidate_profile_source !== "default_config" &&
+    input.candidate_profile_source !== "Upload"
+      ? input.candidate_profile_source
+      : undefined);
   const profileId = profileIdValue || "—";
   const profileState = parsedProfile?.archived ? "Archived · historical reference" : "Active";
   const uploadFileName = input?.upload_file_name || input?.filename || "";
@@ -723,23 +744,23 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           <dl className="details-grid">
             <div className="detail-item">
               <dt>Run ID</dt>
-              <dd title={run.run_id}>{formatIdentifier(run.run_id)}</dd>
+              <dd title={run.run_id} style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{formatIdentifier(run.run_id)}</dd>
             </div>
             <div className="detail-item">
               <dt>Run Name</dt>
-              <dd>{run.run_name || <span title={run.run_id}>{formatIdentifier(run.run_id)}</span>}</dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{run.run_name || <span title={run.run_id}>{formatIdentifier(run.run_id)}</span>}</dd>
             </div>
             <div className="detail-item">
               <dt>Created</dt>
-              <dd>{formatTimestamp(run.created_at)}</dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{formatTimestamp(run.created_at)}</dd>
             </div>
             <div className="detail-item">
               <dt>Started</dt>
-              <dd>{formatTimestamp(run.started_at || run.created_at)}</dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{formatTimestamp(run.started_at || run.created_at)}</dd>
             </div>
             <div className="detail-item">
               <dt>Finished</dt>
-              <dd>{formatTimestamp(run.finished_at)}</dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{formatTimestamp(run.finished_at)}</dd>
             </div>
           </dl>
         </div>
@@ -757,7 +778,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           <dl className="details-grid run-input-details">
             <div className="detail-item">
               <dt>Job Input</dt>
-              <dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                 {uploadFileName && scanSources.length > 0
                   ? "Upload + Scan outputs"
                   : scanSources.length > 0
@@ -768,20 +789,24 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
             {uploadFileName && (
               <div className="detail-item">
                 <dt>Uploaded File</dt>
-                <dd>{String(uploadFileName)}</dd>
+                <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{String(uploadFileName)}</dd>
               </div>
             )}
             {scanSources.length > 0 && (
               <div className="detail-item">
                 <dt>Source Scans</dt>
-                <dd>{scanSources.map((s: any) => s.scan_name || s.scan_id).join(", ")}</dd>
+                <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{scanSources.map((s: any) => s.scan_name || s.scan_id).join(", ")}</dd>
               </div>
             )}
             <div className="detail-item">
               <dt>Candidate Profile</dt>
-              <dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                 {profileIdValue ? (
-                  <a href={`#/candidate-profile/${encodeURIComponent(String(profileIdValue))}`}>
+                  <a
+                    href={`#/candidate-profile/${encodeURIComponent(String(profileIdValue))}`}
+                    className="run-id-link"
+                    aria-label={`Open candidate profile ${profileName}`}
+                  >
                     {profileName}
                   </a>
                 ) : (
@@ -791,15 +816,27 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
             </div>
             <div className="detail-item">
               <dt>Profile ID</dt>
-              <dd>{profileId}</dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                {profileIdValue ? (
+                  <a
+                    href={`#/candidate-profile/${encodeURIComponent(String(profileIdValue))}`}
+                    className="run-id-link"
+                    aria-label={`Open candidate profile with ID ${profileIdValue}`}
+                  >
+                    {profileIdValue}
+                  </a>
+                ) : (
+                  profileId
+                )}
+              </dd>
             </div>
             <div className="detail-item">
               <dt>Profile State</dt>
-              <dd>{profileState}</dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{profileState}</dd>
             </div>
             <div className="detail-item">
               <dt>Configuration Snapshot</dt>
-              <dd>Pipeline Settings and Synonyms captured when this run was triggered.</dd>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>Pipeline Settings and Synonyms captured when this run was triggered.</dd>
             </div>
           </dl>
         </div>
@@ -1244,10 +1281,10 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           </div>
         }
       >
-        <div style={{ fontSize: 14 }}>
-          <strong>Run ID:</strong> <span title={run.run_id}>{formatIdentifier(run.run_id)}</span>
+        <div style={{ fontSize: 14, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+          <span style={{ fontWeight: 600 }}>Run ID:</span> <span title={run.run_id}>{formatIdentifier(run.run_id)}</span>
           <br />
-          <strong>Run Name:</strong> {run.run_name || "N/A"}
+          <span style={{ fontWeight: 600 }}>Run Name:</span> <span>{run.run_name || "N/A"}</span>
         </div>
       </Dialog>
 

@@ -1,3 +1,6 @@
+import { InputSummaryCard } from "../features/run-detail/components/InputSummaryCard";
+import { RunDetailPage } from "../features/run-detail/run-detail-page";
+import { PipelineRunResource, RunJobItem } from "../features/runs/types";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -473,4 +476,171 @@ it("guards against invalid or object page parameter serialization in fetchRunJob
     // 6. Empty when no skills fields exist
     expect(extractRequiredJobSkills({})).toEqual([]);
   });
+
+  it("renders profile ID as an accessible hyperlink in InputSummaryCard when present in contract", () => {
+    const runWithProfileId: PipelineRunResource = {
+      run_id: "run-p1",
+      run_name: "Profile Test Run",
+      backend_status: "succeeded",
+      display_status: "Succeeded",
+      created_at: "2026-08-30T10:00:00Z",
+      counts: { total: 5, passed: 3, rejected: 2, skipped: 0, cvs_generated: 1 },
+      progress: { completed: 5, total: 5 },
+      capabilities: { inspect: true, cancel: false, archive: false, unarchive: false, delete: false, export: true },
+      input: {
+        candidate_profile_id: "prof-direct-123",
+        candidate_profile_name: "Data Specialist",
+        candidate_profile_source: "prof-direct-123",
+        jobs_input_source: "Upload",
+      },
+    };
+
+    const markup = renderToStaticMarkup(React.createElement(InputSummaryCard, { run: runWithProfileId }));
+    expect(markup).toContain('href="#/candidate-profile/prof-direct-123"');
+    expect(markup).toContain('aria-label="Open candidate profile with ID prof-direct-123"');
+    expect(markup).toContain("prof-direct-123");
+    // Stop bolding detail counts
+    expect(markup).not.toContain("<strong>5</strong> Total");
+    expect(markup).toContain("<span>5</span> Total");
+  });
+
+  it("extracts profile ID from structured candidate_profile input object and renders accessible link", () => {
+    const runWithObjProfile: PipelineRunResource = {
+      run_id: "run-p-obj",
+      run_name: "Structured Object Run",
+      backend_status: "succeeded",
+      display_status: "Succeeded",
+      created_at: "2026-08-30T10:00:00Z",
+      counts: { total: 1, passed: 1, rejected: 0, skipped: 0, cvs_generated: 0 },
+      progress: { completed: 1, total: 1 },
+      capabilities: { inspect: true, cancel: false, archive: false, unarchive: false, delete: false, export: true },
+      input: {
+        candidate_profile: { profile_id: "prof-structured-obj-123", name: "Data Engineer" } as any,
+        jobs_input_source: "Upload",
+      },
+    };
+
+    const markup = renderToStaticMarkup(React.createElement(InputSummaryCard, { run: runWithObjProfile }));
+    expect(markup).toContain('href="#/candidate-profile/prof-structured-obj-123"');
+    expect(markup).toContain('aria-label="Open candidate profile with ID prof-structured-obj-123"');
+  });
+
+  it("extracts profile ID from JSON payload and renders accessible link in InputSummaryCard", () => {
+    const runWithJsonProfile: PipelineRunResource = {
+      run_id: "run-p2",
+      run_name: "JSON Profile Run",
+      backend_status: "succeeded",
+      display_status: "Succeeded",
+      created_at: "2026-08-30T10:00:00Z",
+      counts: { total: 1, passed: 1, rejected: 0, skipped: 0, cvs_generated: 0 },
+      progress: { completed: 1, total: 1 },
+      capabilities: { inspect: true, cancel: false, archive: false, unarchive: false, delete: false, export: true },
+      input: {
+        candidate_profile_json: JSON.stringify({ profile_id: "prof-from-json", name: "Senior Dev" }),
+        jobs_input_source: "Upload",
+      },
+    };
+
+    const markup = renderToStaticMarkup(React.createElement(InputSummaryCard, { run: runWithJsonProfile }));
+    expect(markup).toContain('href="#/candidate-profile/prof-from-json"');
+    expect(markup).toContain('aria-label="Open candidate profile with ID prof-from-json"');
+  });
+
+  it("renders profile ID as an accessible hyperlink in RunDetailPage and wraps values without bolding", () => {
+    const runForDetail: PipelineRunResource = {
+      run_id: "run-detail-p3",
+      run_name: "Detail Test",
+      backend_status: "succeeded",
+      display_status: "Succeeded",
+      created_at: "2026-08-30T10:00:00Z",
+      counts: { total: 1, passed: 1, rejected: 0, skipped: 0, cvs_generated: 1 },
+      progress: { completed: 1, total: 1 },
+      capabilities: { inspect: true, cancel: false, archive: false, unarchive: false, delete: false, export: true },
+      input: {
+        candidate_profile_id: "prof-link-999",
+        candidate_profile_name: "Lead Architect",
+        jobs_input_source: "Upload",
+      },
+    };
+
+    const mockJob: RunJobItem = {
+      run_job_id: "job-wrap-1",
+      job_id: "J-001",
+      title: "Staff Platform Engineer",
+      company: "Cloud Corp",
+      location: "Very Long Location Name Across Multiple International Regions",
+      current_stage_id: "cv-generation",
+      status: "generated",
+      result_bucket: "passed",
+      attributes: {
+        salary: "EUR 120,000 - 150,000 + equity options",
+        domain: "Distributed Infrastructure and High Availability Systems",
+      },
+      capabilities: {},
+    };
+
+    vi.spyOn(apiClient, "get").mockImplementation((url: string) => {
+      if (url.includes("/jobs")) {
+        return Promise.resolve({
+          data: {
+            data: [mockJob],
+            page: { number: 1, size: 10, total_items: 1, total_pages: 1 },
+            meta: { total_evaluated: 1, passed: 1, rejected: 0, skipped: 0 },
+          },
+          status: 200,
+        } as any);
+      }
+      if (url.includes("/events")) {
+        return Promise.resolve({
+          data: { data: [], meta: { next_cursor: null, total_count: 0, integrity_conflicts: 0 } },
+          status: 200,
+        } as any);
+      }
+      return Promise.resolve({ data: { data: runForDetail }, status: 200 } as any);
+    });
+
+    const markup = renderToStaticMarkup(
+      React.createElement(RunDetailPage, { runId: "run-detail-p3", onBack: () => {}, initialRun: runForDetail, initialJobs: [mockJob] })
+    );
+
+    // Profile ID rendered as accessible hyperlink
+    expect(markup).toContain('href="#/candidate-profile/prof-link-999"');
+    expect(markup).toContain('aria-label="Open candidate profile with ID prof-link-999"');
+    expect(markup).toContain("prof-link-999");
+
+    // Detail values do not use bold <strong> tag in job attributes
+    expect(markup).not.toContain("<strong>Distributed Infrastructure");
+    expect(markup).toContain("Distributed Infrastructure and High Availability Systems");
+    expect(markup).toContain("Very Long Location Name Across Multiple International Regions");
+
+    // Long values wrap without overflow
+    expect(markup).toContain("overflow-wrap:anywhere");
+  });
+
+  it("renders fallback dash when profile ID is absent in RunDetailPage", () => {
+    const runWithoutProfile: PipelineRunResource = {
+      run_id: "run-detail-no-p",
+      run_name: "No Profile Run",
+      backend_status: "succeeded",
+      display_status: "Succeeded",
+      created_at: "2026-08-30T10:00:00Z",
+      counts: { total: 0, passed: 0, rejected: 0, skipped: 0, cvs_generated: 0 },
+      progress: { completed: 0, total: 0 },
+      capabilities: { inspect: true, cancel: false, archive: false, unarchive: false, delete: false, export: false },
+      input: {
+        jobs_input_source: "Upload",
+      },
+    };
+
+    vi.spyOn(apiClient, "get").mockResolvedValue({ data: { data: runWithoutProfile }, status: 200 } as any);
+
+    const markup = renderToStaticMarkup(
+      React.createElement(RunDetailPage, { runId: "run-detail-no-p", onBack: () => {}, initialRun: runWithoutProfile })
+    );
+
+    expect(markup).toContain("<dt>Profile ID</dt>");
+    expect(markup).toContain("—");
+    expect(markup).not.toContain('href="#/candidate-profile/undefined"');
+  });
+
 });

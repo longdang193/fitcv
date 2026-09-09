@@ -8117,15 +8117,16 @@ def create_app(
             rq_status = str(get_queue_job_status(queue_job_id, redis_url=redis_url) or "").strip().lower()
             if rq_status in {"queued", "started", "deferred"}:
                 return run
-            if rq_status in {"finished", "failed", "stopped", "canceled", "cancelled"}:
+            if rq_status == "finished":
+                return run
+            if rq_status in {"failed", "stopped", "canceled", "cancelled"}:
                 update_run_status(
                     run.run_id,
-                    RunStatus.FAILED if rq_status != "finished" else RunStatus.SUCCEEDED,
+                    RunStatus.FAILED,
                     client=client,
                     finished_at=datetime.datetime.now(datetime.timezone.utc),
                     error_message=(
-                        None if rq_status == "finished"
-                        else f"Queue job {queue_job_id} ended with status={rq_status} before lifecycle finalization"
+                        f"Queue job {queue_job_id} ended with status={rq_status} before lifecycle finalization"
                     ),
                 )
                 append_event(
@@ -8133,7 +8134,7 @@ def create_app(
                         run_id=run.run_id,
                         event_id=str(uuid.uuid4()),
                         stage="run_reconciled",
-                        level="warning" if rq_status != "finished" else "info",
+                        level="warning",
                         message=f"Run reconciled from orphaned running state (queue status={rq_status})",
                         created_at=datetime.datetime.now(datetime.timezone.utc),
                     ),

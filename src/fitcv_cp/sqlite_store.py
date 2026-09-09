@@ -12272,6 +12272,18 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
                 "recomputed": terminal_counts,
             }
         )
+    input_payload = dict(input_row) if input_row is not None else None
+    if input_payload is not None:
+        profile_identity = {
+            "profile_id": input_payload.get("candidate_profile_id"),
+            "revision_id": input_payload.get("candidate_profile_revision_id"),
+            "revision": input_payload.get("candidate_profile_revision"),
+            "schema_version": input_payload.get("candidate_profile_schema_version"),
+            "checksum": input_payload.get("candidate_profile_checksum"),
+            "name": input_payload.get("candidate_profile_name"),
+        }
+        if any(value is not None and value != "" for value in profile_identity.values()):
+            input_payload["candidate_profile"] = profile_identity
     return {
         "run_id": run.run_id,
         "run_name": str(run_row["run_name"]),
@@ -12299,7 +12311,7 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
             "message": run_row["error_message"],
         },
         "partial_completion": bool(run_row["partial_completion"]),
-        "input": dict(input_row) if input_row is not None else None,
+        "input": input_payload,
         "stages": projected_stages,
         "capabilities": _run_capabilities(run),
         "integrity_warnings": integrity_warnings,
