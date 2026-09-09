@@ -12,6 +12,7 @@ tags:
   - ci-safe
 """
 
+import json
 from pathlib import Path
 
 
@@ -43,6 +44,15 @@ def test_windows_local_dev_scripts_exist_and_use_simple_worker() -> None:
     assert "fitcv_cp.queue" in worker_script
     assert ".venv\\Scripts\\python.exe" in worker_script
     assert "job-project-worker-1" in worker_script
+
+
+def test_frontend_vite_scripts_use_package_entrypoint_without_npm_bin_shim() -> None:
+    package = json.loads((REPO_ROOT / "frontend" / "package.json").read_text(encoding="utf-8"))
+    vite_entrypoint = "node ./node_modules/vite/bin/vite.js"
+
+    assert package["scripts"]["dev"] == vite_entrypoint
+    assert package["scripts"]["build"] == f"{vite_entrypoint} build"
+    assert package["scripts"]["preview"] == f"{vite_entrypoint} preview"
 
 
 """
