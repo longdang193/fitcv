@@ -3,7 +3,7 @@ import { DataTable, TableColumn, Button } from "../../../components";
 import { BookmarkItem } from "../types";
 import { InterestRating } from "../../job-evaluation/components/InterestRating";
 import { PipelineOutcome } from "../../job-evaluation/components/PipelineOutcome";
-import { formatIdentifier } from "../../../lib/format";
+import { formatDisplayValue, formatIdentifier } from "../../../lib/format";
 import { extractRequiredJobSkills } from "../../runs/api";
 
 export interface BookmarksTableProps {
@@ -130,6 +130,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
         ];
         return (
           <div
+            className="job-attributes"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(90px, 1fr))",
@@ -138,11 +139,9 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
             }}
           >
             {attrs.map(([label, val]) => (
-              <div key={label} style={{ display: "grid" }}>
-                <span style={{ color: "var(--muted)", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>
-                  {label}
-                </span>
-                <strong>{val || "—"}</strong>
+              <div key={label} className="job-attribute" style={{ minWidth: 0 }}>
+                <span>{label}</span>
+                <span>{formatDisplayValue(val)}</span>
               </div>
             ))}
           </div>

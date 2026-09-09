@@ -1458,14 +1458,15 @@ dialog.native-dialog::backdrop {
   font-size: 13px;
 }
 
-.data-table th {
+.data-table th,
+.run-table th {
   padding: 12px 16px;
   background: var(--surface-2);
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: normal;
+  text-transform: none;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1651,12 +1652,14 @@ dialog.native-dialog::backdrop {
 .job-attribute span {
   color: var(--muted);
   font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.job-attribute strong {
-  font-size: 12px;
   font-weight: 600;
+}
+.job-attribute > span:last-child {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .skill-list {
   display: flex;
@@ -2418,8 +2421,6 @@ dialog.native-dialog::backdrop {
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   border-bottom-color: var(--border);
 }
 .run-table tbody tr:last-child td {

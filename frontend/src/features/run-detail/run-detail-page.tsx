@@ -8,7 +8,7 @@ import {
   Dialog,
   Field,
 } from "../../components";
-import { formatIdentifier, formatTimestamp } from "../../lib/format";
+import { formatDisplayValue, formatIdentifier, formatTimestamp } from "../../lib/format";
 import {
   fetchRun,
   fetchRunJobs,
@@ -511,7 +511,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           <div key={label} className="job-attribute" style={{ minWidth: 0, overflowWrap: "anywhere", wordBreak: "break-word" }}>
             <span>{label}</span>
             <span style={{ fontSize: 12, fontWeight: 400, lineHeight: 1.4, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-              {String(val)}
+              {formatDisplayValue(val)}
             </span>
           </div>
         ))}

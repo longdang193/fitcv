@@ -568,13 +568,13 @@ it("guards against invalid or object page parameter serialization in fetchRunJob
       job_id: "J-001",
       title: "Staff Platform Engineer",
       company: "Cloud Corp",
-      location: "Very Long Location Name Across Multiple International Regions",
+      location: "FRANKFURT, HESSE, GERMANY",
       current_stage_id: "cv-generation",
       status: "generated",
       result_bucket: "passed",
       attributes: {
         salary: "EUR 120,000 - 150,000 + equity options",
-        domain: "Distributed Infrastructure and High Availability Systems",
+        domain: "DISTRIBUTED INFRASTRUCTURE AND HIGH AVAILABILITY SYSTEMS",
       },
       capabilities: {},
     };
@@ -611,7 +611,8 @@ it("guards against invalid or object page parameter serialization in fetchRunJob
     // Detail values do not use bold <strong> tag in job attributes
     expect(markup).not.toContain("<strong>Distributed Infrastructure");
     expect(markup).toContain("Distributed Infrastructure and High Availability Systems");
-    expect(markup).toContain("Very Long Location Name Across Multiple International Regions");
+    expect(markup).toContain("Frankfurt, Hesse, Germany");
+    expect(markup).not.toContain(">LOCATION</span>");
 
     // Long values wrap without overflow
     expect(markup).toContain("overflow-wrap:anywhere");

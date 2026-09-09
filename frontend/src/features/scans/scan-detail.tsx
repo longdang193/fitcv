@@ -9,7 +9,7 @@ import {
   DataTable,
   TableColumn,
 } from "../../components";
-import { formatIdentifier, formatTimestamp } from "../../lib/format";
+import { formatDisplayValue, formatIdentifier, formatTimestamp } from "../../lib/format";
 import {
   fetchScan,
   cancelScan,
@@ -626,7 +626,7 @@ export function buildScanJobColumns(): TableColumn<ScanJobItem>[] {
             {fields.map(([label, value]) => (
               <div key={label} className="job-attribute">
                 <span>{label}</span>
-                <strong>{value}</strong>
+                <span>{formatDisplayValue(value)}</span>
               </div>
             ))}
           </div>

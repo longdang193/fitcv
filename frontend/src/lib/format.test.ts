@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatIdentifier,
+  formatDisplayValue,
   formatTimestamp,
   formatOutcomeCode,
   formatOutcomeReason,
@@ -17,6 +18,12 @@ describe("format helpers", () => {
     const formatted = formatTimestamp("2026-09-03T22:16:03.134823+00:00");
     expect(formatted).not.toContain("T");
     expect(formatted).not.toContain(".134823");
+  });
+
+  it("makes uppercase job attributes readable without damaging short acronyms", () => {
+    expect(formatDisplayValue("MUNICH, BAVARIA, GERMANY")).toBe("Munich, Bavaria, Germany");
+    expect(formatDisplayValue("BUSINESS_DEVELOPMENT")).toBe("Business Development");
+    expect(formatDisplayValue("AI")).toBe("AI");
   });
 
   it("labels advanced outcomes as progressing to next stage", () => {

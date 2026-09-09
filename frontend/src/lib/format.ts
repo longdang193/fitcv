@@ -21,6 +21,28 @@ export function formatIdentifier(value: string | null | undefined, hashLength = 
   return `${value.slice(0, hashLength)}…`;
 }
 
+export function formatDisplayValue(value: unknown, fallback = "—"): string {
+  if (value === null || value === undefined) return fallback;
+  const text = String(value).trim();
+  if (!text) return fallback;
+  const readable = text.replace(/[_-]+/g, " ");
+  if (text !== text.toUpperCase() || !/[A-Z]/.test(text)) return readable;
+  const lowerCaseWords = new Set(["a", "an", "and", "for", "in", "of", "on", "or", "the", "to"]);
+  let wordIndex = 0;
+  return readable
+    .toLowerCase()
+    .split(/(\s+|[,/()&]+)/)
+    .map((part) => {
+      if (!/^[a-z]+$/.test(part)) return part;
+      const isFirstWord = wordIndex++ === 0;
+      if (!isFirstWord && lowerCaseWords.has(part)) return part;
+      return part.length <= 3
+        ? part.toUpperCase()
+        : `${part[0].toUpperCase()}${part.slice(1)}`;
+    })
+    .join("");
+}
+
 export function formatOutcomeCode(value: string | null | undefined): string {
   if (value === "advanced") return "Advanced to next stage";
   return value || "";
