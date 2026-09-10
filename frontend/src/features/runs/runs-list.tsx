@@ -207,7 +207,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
         deletePreview.preview_revision,
         idempotencyKey
       );
-      setActionNotice(`Successfully deleted ${deletePreview.matched_run_ids.length} archived runs.`);
+      setActionNotice(`Successfully deleted ${deletePreview.eligible_run_ids.length} archived runs.`);
       setIsDeletePreviewOpen(false);
       setDeletePreview(null);
       setSelectedRunIds(new Set());
@@ -562,7 +562,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
                 actionInProgress ||
                 !deletePreview ||
                 deletePreview.blocked_run_ids.length > 0 ||
-                deletePreview.matched_run_ids.length === 0
+                deletePreview.eligible_run_ids.length === 0
               }
             >
               {actionInProgress ? "Deleting..." : "Permanently Delete"}
@@ -576,7 +576,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
               <strong>Requested:</strong> {deletePreview.requested_run_ids.length} run(s)
             </div>
             <div>
-              <strong>Eligible for deletion:</strong> {deletePreview.matched_run_ids.length} run(s)
+              <strong>Eligible for deletion:</strong> {deletePreview.eligible_run_ids.length} run(s)
             </div>
             {deletePreview.blocked_run_ids.length > 0 && (
               <div className="notice warn">

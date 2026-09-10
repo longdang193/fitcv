@@ -187,7 +187,7 @@ export interface RunEventsPage {
 
 export interface DeleteArchivedRunsPreview {
   requested_run_ids: string[];
-  matched_run_ids: string[];
+  eligible_run_ids: string[];
   blocked_run_ids: string[];
   missing_run_ids: string[];
   state_tokens: string[];

@@ -383,7 +383,7 @@ describe("runs feature route and api slice", () => {
     const mockPreview = {
       data: {
         requested_run_ids: ["run-arch-1"],
-        matched_run_ids: ["run-arch-1"],
+        eligible_run_ids: ["run-arch-1"],
         blocked_run_ids: [],
         missing_run_ids: [],
         state_tokens: ["token-1"],
@@ -409,7 +409,7 @@ describe("runs feature route and api slice", () => {
     expect(postSpy).toHaveBeenCalledWith("/runs/actions/delete-archived/preview", {
       run_ids: ["run-arch-1"],
     });
-    expect(preview.matched_run_ids).toEqual(["run-arch-1"]);
+    expect(preview.eligible_run_ids).toEqual(["run-arch-1"]);
 
     const deleteRes = await deleteArchivedRuns(["run-arch-1"], preview.preview_revision, "idem-del");
     expect(postSpy).toHaveBeenCalledWith(
