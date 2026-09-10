@@ -1316,11 +1316,15 @@ def _sync_central_synonym_suggestions(
             result.get("actionable_suggestion_ids") or result.get("suggestion_ids") or []
         )
         if actionable_ids:
-            apply_synonym_suggestion_action(
-                actionable_ids,
-                action="approve",
-                acted_by="automation",
-            )
+            try:
+                apply_synonym_suggestion_action(
+                    actionable_ids,
+                    action="approve",
+                    acted_by="automation",
+                )
+            except ValueError as exc:
+                if str(exc) != "invalid_synonym_transition":
+                    raise
 
 def _persist_shared_progress_snapshot(
     *,

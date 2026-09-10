@@ -126,6 +126,57 @@ def test_central_synonym_sync_batches_mixed_types_before_approval() -> None:
         ["domain"],
     ]
 
+
+def test_central_synonym_sync_ignores_stale_auto_accept_transition() -> None:
+    from fitcv_cp import worker_job
+
+    run = MagicMock(
+        effective_settings_json=json.dumps(
+            {"synonym_management": {"auto_accept_suggestions_enabled": True}}
+        )
+    )
+    payload = {
+        "proposals": [
+            {"field": "skill", "alias": "gcp", "canonical": "google cloud"},
+        ]
+    }
+    sqlite_store.insert_run(
+        PipelineRun(
+            run_id="run-stale-auto-accept",
+            status=RunStatus.RUNNING,
+            triggered_by="tester",
+            trigger_source="test",
+            jobs_path="jobs.json",
+            config_path=".env.yaml",
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+        )
+    )
+    real_ingest = sqlite_store.ingest_synonym_suggestions
+    real_apply = sqlite_store.apply_synonym_suggestion_action
+
+    def ingest_then_approve(suggestions: list[dict[str, object]]) -> dict[str, object]:
+        result = real_ingest(suggestions)
+        real_apply(
+            list(result["actionable_suggestion_ids"]),
+            action="approve",
+            acted_by="concurrent-worker",
+        )
+        return result
+
+    with patch(
+        "fitcv_cp.worker_job.ingest_synonym_suggestions",
+        side_effect=ingest_then_approve,
+    ), patch(
+        "fitcv_cp.worker_job.apply_synonym_suggestion_action",
+        side_effect=real_apply,
+    ):
+        worker_job._sync_central_synonym_suggestions(
+            run_id="run-stale-auto-accept", run_record=run, payload=payload
+        )
+
+    suggestions = sqlite_store.query_synonym_suggestions(synonym_type="skills")
+    assert suggestions["items"][0]["review_status"] == "approved"
+
 def test_worker_entrypoints_retry_pending_process_event_deliveries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
