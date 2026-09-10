@@ -5047,6 +5047,7 @@ def test_run_detail_projects_input_capabilities_and_integrity_warning() -> None:
         "run-detail",
         [{"title": "Analyst", "company": "Example", "job_url": "https://example.com/1"}],
     )
+    sqlite_store.update_run_status("run-detail", RunStatus.SUCCEEDED)
     with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
         conn.execute(
             "UPDATE pipeline_runs SET passed_jobs=1, rejected_jobs=0 WHERE run_id='run-detail'"
@@ -5073,6 +5074,26 @@ def test_run_detail_projects_input_capabilities_and_integrity_warning() -> None:
     screening = next(stage for stage in detail["stages"] if stage["stage_id"] == "screening")
     assert screening["results_available"] is True
     assert detail["integrity_warnings"][0]["code"] == "run_count_mismatch"
+
+
+def test_nonterminal_run_detail_omits_terminal_count_warning_and_projects_status() -> None:
+    run_id = "run-live-count-projection"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Analyst", "company": "Example", "job_url": "https://example.com/live"}],
+    )
+    sqlite_store.update_run_status(run_id, RunStatus.RUNNING)
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute("UPDATE pipeline_runs SET passed_jobs=1, rejected_jobs=0 WHERE run_id=?", (run_id,))
+        conn.commit()
+
+    detail = sqlite_store.get_run_detail(run_id)
+
+    assert detail is not None
+    assert detail["backend_status"] == RunStatus.RUNNING.value
+    assert detail["display_status"] == "Running"
+    assert detail["status_detail"] is None
+    assert detail["integrity_warnings"] == []
 
 
 def test_job_query_and_export_share_exhaustive_result_predicate() -> None:

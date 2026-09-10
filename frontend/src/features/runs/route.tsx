@@ -80,7 +80,7 @@ export const RunsFeature: React.FC = () => {
   };
 
   if (selectedRunId) {
-    return <RunDetailPage runId={selectedRunId} onBack={handleBackToList} />;
+    return <RunDetailPage key={selectedRunId} runId={selectedRunId} onBack={handleBackToList} />;
   }
 
   return (

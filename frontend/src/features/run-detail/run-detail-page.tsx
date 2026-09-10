@@ -210,6 +210,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   useEffect(() => {
     eventCursorRef.current = null;
     setEvents([]);
+    setJobs([]);
+    setJobsTotal(0);
+    setJobsPage(1);
+    setJobsMeta({ total_evaluated: 0, passed: 0, rejected: 0, skipped: 0 });
+    setError(null);
+    setActionNotice(null);
   }, [runId]);
 
   // Initial load
@@ -706,7 +712,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       )}
 
       {/* Terminal / Recovery / Failure Banner */}
-      {(run.backend_status === "failed" || run.partial_completion || run.errors?.code || (run.integrity_warnings && run.integrity_warnings.length > 0)) && (
+      {(run.backend_status === "failed" || run.backend_status === "cancelled" || (isTerminal && (run.partial_completion || run.errors?.code || (run.integrity_warnings && run.integrity_warnings.length > 0)))) && (
         <div className="notice danger" role="alert" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontWeight: 600, fontSize: 15 }}>
             {run.backend_status === "cancelled"
@@ -761,6 +767,10 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
             <div className="detail-item">
               <dt>Finished</dt>
               <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{formatTimestamp(run.finished_at)}</dd>
+            </div>
+            <div className="detail-item">
+              <dt>Status Detail</dt>
+              <dd style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{run.status_detail || "—"}</dd>
             </div>
           </dl>
         </div>

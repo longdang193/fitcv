@@ -24,6 +24,7 @@ import {
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { parseRunSourceIds } from "../features/runs/route";
+import { EventConsole } from "../features/run-detail/components/EventConsole";
 import { PROVIDER_SETTINGS_HREF, RunErrorAction } from "../features/runs/new-run-dialog";
 import { isDistinctStatusDetail, isRunTerminal } from "../features/runs/runs-list";
 
@@ -642,6 +643,53 @@ it("guards against invalid or object page parameter serialization in fetchRunJob
     expect(markup).toContain("<dt>Profile ID</dt>");
     expect(markup).toContain("—");
     expect(markup).not.toContain('href="#/candidate-profile/undefined"');
+  });
+
+  it("renders active run details and incomplete console events safely", () => {
+    const activeRun: PipelineRunResource = {
+      run_id: "run-active-1",
+      run_name: "Active Run",
+      backend_status: "running",
+      display_status: "Running",
+      status_detail: "Processing enrichment",
+      created_at: "2026-09-10T12:00:00Z",
+      counts: { total: 10, passed: 2, rejected: 1, skipped: 7, cvs_generated: 0 },
+      progress: { completed: 3, total: 10 },
+      capabilities: { inspect: true, cancel: true, archive: false, unarchive: false, delete: false, export: true },
+      integrity_warnings: [{ code: "run_count_mismatch" }],
+    };
+
+    const rawEvents: any[] = [{
+      event_id: "ev-1",
+      recorded_at: "2026-09-10T12:01:00Z",
+      stage_id: "enrichment",
+      operation: "enrichment",
+      state: "running",
+      message: "Enriching job batch",
+    }];
+
+    const markup = renderToStaticMarkup(
+      React.createElement(
+        "div",
+        null,
+        React.createElement(RunDetailPage, {
+          runId: "run-active-1",
+          onBack: () => {},
+          initialRun: activeRun,
+        }),
+        React.createElement(EventConsole, {
+          events: rawEvents,
+          isLive: true,
+          onRefresh: () => {},
+          runId: "run-active-1",
+        })
+      )
+    );
+
+    expect(markup).toContain("<dt>Status Detail</dt>");
+    expect(markup).toContain("Processing enrichment");
+    expect(markup).not.toContain("Run Completed with Warnings");
+    expect(markup).toContain("Enriching job batch");
   });
 
 });

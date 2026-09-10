@@ -12264,7 +12264,7 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
         "rejected": int(run_row["rejected_jobs"]),
         "skipped": int(run_row["total_jobs"]) - int(run_row["passed_jobs"]) - int(run_row["rejected_jobs"]),
     }
-    if stored_counts != terminal_counts:
+    if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED} and stored_counts != terminal_counts:
         integrity_warnings.append(
             {
                 "code": "run_count_mismatch",

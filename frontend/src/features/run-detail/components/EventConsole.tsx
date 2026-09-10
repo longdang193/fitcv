@@ -44,7 +44,7 @@ export const EventConsole: React.FC<EventConsoleProps> = ({
   const visibleEvents = useMemo(() => {
     return events.filter((e) => {
       if (clearedEventIds.has(e.event_id)) return false;
-      if (eventLevelFilter !== "all" && e.level.toLowerCase() !== eventLevelFilter.toLowerCase()) return false;
+      if (eventLevelFilter !== "all" && (e.level || "info").toLowerCase() !== eventLevelFilter.toLowerCase()) return false;
       if (eventSearch.trim()) {
         const q = eventSearch.trim().toLowerCase();
         const text = `${e.operation} ${e.message} ${e.stage_id || ""}`.toLowerCase();
@@ -151,10 +151,10 @@ export const EventConsole: React.FC<EventConsoleProps> = ({
             return (
               <div key={ev.event_id} className="console-line">
                 <span className="console-time">
-                  {new Date(ev.time).toLocaleTimeString()}
+                  {ev.time || (ev as any).recorded_at ? new Date(ev.time || (ev as any).recorded_at).toLocaleTimeString() : "—"}
                 </span>
-                <span className="console-level" data-level={ev.level}>
-                  {ev.level.toUpperCase()}
+                <span className="console-level" data-level={ev.level || "info"}>
+                  {(ev.level || "info").toUpperCase()}
                 </span>
                 <span className="console-operation">
                   {ev.stage_id || ev.operation}

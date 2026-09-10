@@ -226,7 +226,7 @@ export async function fetchRunEvents(
   const meta = data && isRecord(data.meta) ? data.meta : null;
   if (!data || !Array.isArray(data.data) || !meta) throw new Error("Invalid events response.");
   if (
-    (meta.next_cursor !== null && typeof meta.next_cursor !== "string") ||
+    (meta.next_cursor !== null && meta.next_cursor !== undefined && typeof meta.next_cursor !== "string") ||
     typeof meta.total_count !== "number" ||
     !Number.isInteger(meta.total_count) ||
     typeof meta.integrity_conflicts !== "number" ||
@@ -237,7 +237,7 @@ export async function fetchRunEvents(
 
   return {
     events: data.data as RunEventRecord[],
-    next_cursor: meta.next_cursor as string | null,
+    next_cursor: (meta.next_cursor as string | null) ?? null,
     integrity_conflicts: meta.integrity_conflicts,
     total_count: meta.total_count,
   };
