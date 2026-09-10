@@ -60,6 +60,27 @@ def test_pyinstaller_datas_sources_exist() -> None:
     assert not [source for source in sources if not (ROOT / source).exists()]
 
 
+def test_pyinstaller_bundles_scan_catalog_at_runtime_path() -> None:
+    spec = (ROOT / "packaging/windows/fitcv-local.spec").read_text(encoding="utf-8")
+
+    assert '(str(ROOT / "config/scan_catalog.yaml"), "config")' in spec
+
+
+def test_catalog_resolves_from_pyinstaller_resource_root(monkeypatch, tmp_path) -> None:
+    import shutil
+    import sys
+
+    from fitcv_cp import company_catalog
+
+    resource_root = tmp_path / "_internal"
+    config_dir = resource_root / "config"
+    config_dir.mkdir(parents=True)
+    shutil.copyfile(ROOT / "config/scan_catalog.yaml", config_dir / "scan_catalog.yaml")
+    monkeypatch.setattr(sys, "_MEIPASS", str(resource_root), raising=False)
+
+    assert company_catalog._default_catalog_path() == config_dir / "scan_catalog.yaml"
+
+
 def test_inno_installer_is_per_user_and_preserves_user_data() -> None:
     installer = (ROOT / "packaging/windows/FitCV.iss").read_text(encoding="utf-8")
 

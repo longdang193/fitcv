@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 from types import MappingProxyType
 from typing import Any, Mapping
 from urllib.parse import urlsplit, urlunsplit
@@ -14,7 +15,6 @@ from fitcv.job_sources import (
     validate_trusted_provider_config,
 )
 
-_CATALOG_PATH = Path(__file__).resolve().parents[2] / "config" / "scan_catalog.yaml"
 _TOP_LEVEL_KEYS = {"schema_version", "catalog_source", "catalog_revision", "companies"}
 _RECORD_KEYS = {
     "catalog_id", "company_name", "careers_url", "provider_id", "provider_label",
@@ -32,6 +32,13 @@ _PROVIDER_LABELS = {
 }
 _PROVIDER_IDS = set(_PROVIDER_LABELS)
 _VERIFICATION_STATES = {"verified", "quarantined", "discovery_only"}
+
+
+def _default_catalog_path() -> Path:
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if frozen_root:
+        return Path(str(frozen_root)).resolve() / "config" / "scan_catalog.yaml"
+    return Path(__file__).resolve().parents[2] / "config" / "scan_catalog.yaml"
 
 
 @dataclass(frozen=True)
@@ -148,7 +155,7 @@ def _from_yaml_record(record: Mapping[str, Any], *, source: str, revision: str) 
 
 
 def load_catalog(path: str | Path | None = None) -> tuple[CompanyCatalogRecord, ...]:
-    catalog_path = Path(path) if path is not None else _CATALOG_PATH
+    catalog_path = Path(path) if path is not None else _default_catalog_path()
     try:
         document = yaml.safe_load(catalog_path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -168,7 +175,7 @@ def load_catalog(path: str | Path | None = None) -> tuple[CompanyCatalogRecord, 
 
 
 def load_catalog_revision(path: str | Path | None = None) -> str:
-    catalog_path = Path(path) if path is not None else _CATALOG_PATH
+    catalog_path = Path(path) if path is not None else _default_catalog_path()
     document = yaml.safe_load(catalog_path.read_text(encoding="utf-8"))
     if not isinstance(document, Mapping) or set(document) != _TOP_LEVEL_KEYS:
         raise ValueError("catalog_top_level_invalid")

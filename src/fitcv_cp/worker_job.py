@@ -1281,7 +1281,7 @@ def _sync_central_synonym_suggestions(
     payload: dict[str, Any],
 ) -> None:
     field_types = {"skill": "skills", "domain": "domain", "role_family": "role_family"}
-    suggestions = []
+    suggestions_by_type: dict[str, list[dict[str, Any]]] = {}
     for proposal in list(payload.get("proposals") or []):
         if not isinstance(proposal, dict):
             continue
@@ -1290,7 +1290,7 @@ def _sync_central_synonym_suggestions(
         canonical = str(proposal.get("canonical") or "").strip()
         if not synonym_type or not alias or not canonical:
             continue
-        suggestions.append(
+        suggestions_by_type.setdefault(synonym_type, []).append(
             {
                 "synonym_type": synonym_type,
                 "alias": alias,
@@ -1305,21 +1305,22 @@ def _sync_central_synonym_suggestions(
                 },
             }
         )
-    if not suggestions:
+    if not suggestions_by_type:
         return
-    result = ingest_synonym_suggestions(suggestions)
     mode = _synonym_management_mode_from_run_record(run_record)
-    if not bool(mode.get("auto_accept_suggestions_enabled")):
-        return
-    actionable_ids = list(
-        result.get("actionable_suggestion_ids") or result.get("suggestion_ids") or []
-    )
-    if actionable_ids:
-        apply_synonym_suggestion_action(
-            actionable_ids,
-            action="approve",
-            acted_by="automation",
+    for suggestions in suggestions_by_type.values():
+        result = ingest_synonym_suggestions(suggestions)
+        if not bool(mode.get("auto_accept_suggestions_enabled")):
+            continue
+        actionable_ids = list(
+            result.get("actionable_suggestion_ids") or result.get("suggestion_ids") or []
         )
+        if actionable_ids:
+            apply_synonym_suggestion_action(
+                actionable_ids,
+                action="approve",
+                acted_by="automation",
+            )
 
 def _persist_shared_progress_snapshot(
     *,
@@ -2634,7 +2635,6 @@ def execute_pipeline_run(
                 persist_terminal_run_artifact_mirror(run_id=run_id)
             except Exception as mirror_exc:
                 logger.warning("[run_id=%s] Failed to persist terminal artifact mirror: %s", run_id, mirror_exc)
-
 
 
 

@@ -23,6 +23,7 @@ datas = [
     (str(ROOT / "config/runtime/pipeline.yaml"), "config/runtime"),
     (str(ROOT / "config/runtime/prompts.yaml"), "config/runtime"),
     (str(ROOT / "config/taxonomy"), "config/taxonomy"),
+    (str(ROOT / "config/scan_catalog.yaml"), "config"),
     (str(ROOT / "data/candidate_profile.template.yaml"), "data"),
     (str(ROOT / "templates"), "templates"),
 ]

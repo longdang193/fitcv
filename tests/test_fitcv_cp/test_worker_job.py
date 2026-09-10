@@ -88,6 +88,44 @@ def test_central_synonym_sync_ingests_evidence_and_uses_shared_approve_transacti
         ["suggestion-1"], action="approve", acted_by="automation"
     )
 
+
+def test_central_synonym_sync_batches_mixed_types_before_approval() -> None:
+    from fitcv_cp import worker_job
+
+    run = MagicMock(
+        effective_settings_json=json.dumps(
+            {"synonym_management": {"auto_accept_suggestions_enabled": True}}
+        )
+    )
+    payload = {
+        "proposals": [
+            {"field": "skill", "alias": "gcp", "canonical": "google cloud"},
+            {"field": "domain", "alias": "fintech", "canonical": "financial technology"},
+        ]
+    }
+
+    with patch(
+        "fitcv_cp.worker_job.ingest_synonym_suggestions",
+        side_effect=lambda suggestions: {
+            "suggestion_ids": [suggestions[0]["synonym_type"]]
+        },
+    ) as ingest_mock, patch(
+        "fitcv_cp.worker_job.apply_synonym_suggestion_action",
+        return_value={"approved": 1},
+    ) as approve_mock:
+        worker_job._sync_central_synonym_suggestions(
+            run_id="run-1", run_record=run, payload=payload
+        )
+
+    assert [call.args[0][0]["synonym_type"] for call in ingest_mock.call_args_list] == [
+        "skills",
+        "domain",
+    ]
+    assert [call.args[0] for call in approve_mock.call_args_list] == [
+        ["skills"],
+        ["domain"],
+    ]
+
 def test_worker_entrypoints_retry_pending_process_event_deliveries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
