@@ -104,13 +104,13 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     setInspectingJob(projectedJob);
   };
 
-  // Jobs state & filters (stage defaults to shortlisting per prototype)
+  // Jobs state & filters (ranking is default pipeline-results view)
   const [jobs, setJobs] = useState<RunJobItem[]>(initialJobs || []);
   const [jobsLoading, setJobsLoading] = useState(false);
   const [jobsPage, setJobsPage] = useState(1);
   const [jobsTotal, setJobsTotal] = useState(0);
   const [jobsPageSize, setJobsPageSize] = useState(10);
-  const [stageFilter, setStageFilter] = useState<string>("shortlisting");
+  const [stageFilter, setStageFilter] = useState<string>("ranking");
   const [resultBucketFilter, setResultBucketFilter] = useState<string>("all");
   const [jobSearch, setJobSearch] = useState("");
   const [activeJobSearch, setActiveJobSearch] = useState("");

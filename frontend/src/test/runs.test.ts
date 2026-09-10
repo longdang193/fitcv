@@ -617,6 +617,7 @@ it("guards against invalid or object page parameter serialization in fetchRunJob
 
     // Long values wrap without overflow
     expect(markup).toContain("overflow-wrap:anywhere");
+    expect(markup).toMatch(/aria-selected="true"[^>]*>Ranking/);
   });
 
   it("renders fallback dash when profile ID is absent in RunDetailPage", () => {
