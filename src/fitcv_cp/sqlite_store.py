@@ -82,6 +82,7 @@ from fitcv.ingest import canonicalize_jobs
 from fitcv_cp.synonym_policy_io import (
     compile_global_synonym_map,
     load_global_synonym_map,
+    parse_synonym_editor_text,
     repair_synonym_policy_mirrors,
 )
 
@@ -1438,11 +1439,44 @@ def _synonym_policy_resource(conn: sqlite3.Connection, synonym_type: str) -> dic
                 WHERE br.bundle_revision_id = ?""",
             (state["active_bundle_revision_id"],),
         ).fetchone()
+    issues = json.loads(draft["issues_json"]) if draft else []
+    if draft and active_type and issues:
+        active_mapping = json.loads(active_type["normalized_policy_json"])
+        conflicts: list[tuple[int, str, str, str]] = []
+        for line_number, raw_line in enumerate(str(draft["editor_text"]).splitlines(), start=1):
+            parsed = parse_synonym_editor_text(synonym_type, raw_line)
+            for alias, canonical in parsed["mappings"].items():
+                active_canonical = active_mapping.get(alias)
+                if active_canonical is not None and active_canonical != canonical:
+                    conflicts.append((line_number, alias, canonical, active_canonical))
+        if conflicts:
+            conflict_lines = sorted({item[0] for item in conflicts})
+            conflict_aliases = sorted({item[1] for item in conflicts})
+            conflict_canonicals = sorted({
+                canonical
+                for _line, _alias, canonical, active_canonical in conflicts
+                for canonical in (canonical, active_canonical)
+            })
+            issues = [
+                {
+                    **issue,
+                    "lines": conflict_lines,
+                    "aliases": conflict_aliases,
+                    "canonicals": conflict_canonicals,
+                }
+                if (
+                    isinstance(issue, dict)
+                    and issue.get("code") == "synonym_alias_conflict"
+                    and not any(issue.get(key) for key in ("lines", "aliases", "canonicals"))
+                )
+                else issue
+                for issue in issues
+            ]
     return {
         "synonym_type": synonym_type,
         "editor_text": str(draft["editor_text"]) if draft else (_policy_editor_text(json.loads(active_type["normalized_policy_json"])) if active_type else ""),
         "normalized_policy": json.loads(draft["normalized_policy_json"]) if draft and draft["normalized_policy_json"] else None,
-        "issues": json.loads(draft["issues_json"]) if draft else [],
+        "issues": issues,
         "validation_status": str(draft["validation_status"]) if draft else "valid",
         "draft_revision": int(draft["revision"]) if draft else 0,
         "active_type_revision_id": str(active_type["type_revision_id"]) if active_type else None,
@@ -2180,14 +2214,20 @@ def apply_synonym_suggestion_action(
                 before = dict(active_bundle.get(synonym_type) or {})
                 merged = dict(before)
                 requested: dict[str, str] = {}
+                requested_canonicals: dict[str, set[str]] = {}
+                conflicting_aliases: set[str] = set()
                 conflict = False
                 for row in rows:
                     alias = str(row["normalized_alias"])
                     canonical = str(row["normalized_canonical"])
+                    requested_canonicals.setdefault(alias, set()).add(canonical)
                     if alias in requested and requested[alias] != canonical:
                         conflict = True
+                        conflicting_aliases.add(alias)
                     if alias in before and before[alias] != canonical:
                         conflict = True
+                        conflicting_aliases.add(alias)
+                        requested_canonicals[alias].add(before[alias])
                     requested[alias] = canonical
                     merged[alias] = canonical
                 editor_text = _policy_editor_text(merged)
@@ -2214,7 +2254,20 @@ def apply_synonym_suggestion_action(
                     issue = {
                         "code": "synonym_cycle" if "cycle" in str(exc).lower() else "synonym_alias_conflict",
                         "message": "Approved mapping is blocked by synonym policy validation.",
-                        "severity": "error", "lines": [], "aliases": [], "canonicals": [],
+                        "severity": "error",
+                        "lines": [
+                            line_number
+                            for line_number, (alias, _canonical) in enumerate(
+                                sorted(merged.items()), start=1
+                            )
+                            if alias in (conflicting_aliases or requested)
+                        ],
+                        "aliases": sorted(conflicting_aliases or requested),
+                        "canonicals": sorted({
+                            canonical
+                            for alias in (conflicting_aliases or requested)
+                            for canonical in requested_canonicals.get(alias, set())
+                        }),
                     }
                     conn.execute(
                         """INSERT INTO synonym_policy_drafts (

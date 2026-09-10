@@ -2363,6 +2363,52 @@ def test_invalid_synonym_draft_preserves_active_bundle(tmp_path: Path) -> None:
     assert sqlite_store.resolve_active_synonym_bundle(database_path=database_path) == active_before
 
 
+def test_get_synonym_policy_enriches_stale_conflict_metadata_without_mutation(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    sqlite_store.activate_synonym_policy_bundle(
+        "skills",
+        editor_text="a: existing\n",
+        normalized_policy={"a": "existing"},
+        expected_draft_revision=0,
+        expected_active_bundle_revision_id=None,
+        database_path=database_path,
+    )
+    stale_issue = {
+        "code": "synonym_alias_conflict",
+        "message": "Approved mapping is blocked by synonym policy validation.",
+        "severity": "error",
+        "lines": [],
+        "aliases": [],
+        "canonicals": [],
+    }
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """UPDATE synonym_policy_drafts
+               SET editor_text = ?, normalized_policy_json = NULL, issues_json = ?,
+                   validation_status = 'invalid', revision = ?, updated_at = ?
+               WHERE synonym_type = ?""",
+            ("a: new\n", json.dumps([stale_issue]), 9, "legacy", "skills"),
+        )
+        connection.commit()
+
+    policy = sqlite_store.get_synonym_policy("skills", database_path=database_path)
+
+    assert policy["editor_text"] == "a: new\n"
+    assert policy["draft_revision"] == 9
+    assert policy["issues"] == [{
+        **stale_issue,
+        "lines": [1],
+        "aliases": ["a"],
+        "canonicals": ["existing", "new"],
+    }]
+    with sqlite3.connect(database_path) as connection:
+        stored = connection.execute(
+            "SELECT editor_text, issues_json, revision FROM synonym_policy_drafts WHERE synonym_type = ?",
+            ("skills",),
+        ).fetchone()
+    assert stored == ("a: new\n", json.dumps([stale_issue]), 9,)
+
+
 def test_synonym_policy_activation_uses_draft_and_bundle_compare_and_swap(tmp_path: Path) -> None:
     database_path = tmp_path / "fitcv.sqlite3"
     first = sqlite_store.activate_synonym_policy_bundle(
@@ -2839,6 +2885,42 @@ def test_valid_policy_save_reconciles_matching_approved_blocked_suggestion() -> 
 
     assert sqlite_store.get_synonym_suggestion(blocked["a"]["suggestion_id"])["policy_effect"] == "active"
     assert sqlite_store.get_synonym_suggestion(blocked["b"]["suggestion_id"])["policy_effect"] == "blocked"
+
+
+def test_bulk_synonym_approval_conflict_persists_actionable_issue_metadata() -> None:
+    sqlite_store.insert_run(_make_run("run-bulk-conflict-metadata"))
+    active = sqlite_store.activate_synonym_policy_bundle(
+        "skills",
+        editor_text="a: existing\n",
+        normalized_policy={"a": "existing"},
+        expected_draft_revision=0,
+        expected_active_bundle_revision_id=None,
+    )
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "skills", "alias": "a", "canonical": "new", "run_id": "run-bulk-conflict-metadata", "evidence": {}},
+        {"synonym_type": "skills", "alias": "other", "canonical": "value", "run_id": "run-bulk-conflict-metadata", "evidence": {}},
+    ])
+    suggestions = sqlite_store.query_synonym_suggestions(review_status="pending")["items"]
+
+    summary = sqlite_store.apply_synonym_suggestion_action(
+        [item["suggestion_id"] for item in suggestions],
+        action="approve",
+        acted_by="admin",
+        expected_draft_revision=1,
+        expected_active_bundle_revision_id=active["active_bundle_revision_id"],
+    )
+
+    assert summary["issue_count"] == 1
+    policy = sqlite_store.get_synonym_policy("skills")
+    assert policy["editor_text"] == "a: new\nother: value\n"
+    assert policy["issues"] == [{
+        "code": "synonym_alias_conflict",
+        "message": "Approved mapping is blocked by synonym policy validation.",
+        "severity": "error",
+        "lines": [1],
+        "aliases": ["a"],
+        "canonicals": ["existing", "new"],
+    }]
 
 
 def test_run_source_cleanup_deletes_zero_source_pending_and_declined() -> None:
