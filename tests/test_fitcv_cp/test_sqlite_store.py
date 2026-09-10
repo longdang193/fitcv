@@ -4949,6 +4949,56 @@ def test_worker_cancel_snapshot_reconciles_terminal_counts() -> None:
     assert detail["integrity_warnings"] == []
 
 
+def test_timeout_terminalization_reconciles_partial_counts() -> None:
+    run_id = "run-timeout-reconcile"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "Analyst", "job_url": "https://example.com/1"},
+            {"title": "Engineer", "job_url": "https://example.com/2"},
+        ],
+    )
+    sqlite_store.persist_pipeline_snapshot(
+        run_id,
+        {
+            "total_jobs": 2,
+            "completed_stages": ["normalize"],
+            "export_results": [
+                {
+                    "job_url": "https://example.com/1",
+                    "job_outcome": {
+                        "job_key": "input:0",
+                        "stage": "rule_filter",
+                        "outcome": "accepted",
+                    },
+                }
+            ],
+        },
+        run_status=RunStatus.RUNNING,
+        snapshot_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    sqlite_store.update_run_status(
+        run_id,
+        RunStatus.FAILED,
+        finished_at=datetime.datetime.now(datetime.timezone.utc),
+        error_message="Run exceeded the maximum runtime.",
+        error_stage="run_lifecycle_timeout",
+    )
+
+    detail = sqlite_store.get_run_detail(run_id)
+
+    assert detail is not None
+    assert detail["counts"] == {
+        "total": 2,
+        "passed": 1,
+        "rejected": 1,
+        "skipped": 0,
+        "cvs_generated": 0,
+    }
+    assert detail["integrity_warnings"] == []
+
+
 def test_query_run_jobs_stage_all_conserves_duplicate_pending_occurrences() -> None:
     _create_normalized_run_with_jobs(
         "run-job-occurrences",

@@ -3,7 +3,7 @@ import { Button, LoadingState, EmptyState, ErrorState, StatusBadge } from '../..
 import { ApiClientError } from '../../lib/api-client';
 import { fetchSynonymProcessingRuns } from './api';
 import type { SynonymProcessingResource } from './types';
-import { formatTimestamp } from '../../lib/format';
+import { formatDisplayValue, formatTimestamp } from '../../lib/format';
 
 export interface ProcessingHistoryProps {
   refreshTrigger?: number;
@@ -88,7 +88,7 @@ export const ProcessingHistory: React.FC<ProcessingHistoryProps> = ({ refreshTri
                     </td>
                     <td>
                       <span style={{ fontSize: 12, fontWeight: 500 }}>
-                        {run.source_operation || 'Manual / Batch'}
+                        {formatDisplayValue(run.source_operation, 'Manual / Batch')}
                       </span>
                     </td>
                     <td style={{ fontSize: 13, fontWeight: 600 }}>{run.total_processed}</td>
@@ -103,7 +103,7 @@ export const ProcessingHistory: React.FC<ProcessingHistoryProps> = ({ refreshTri
                     </td>
                     <td>
                       {run.issue_count > 0 ? (
-                        <StatusBadge status='danger' label={run.issue_count + ' issues'} />
+                        <StatusBadge status='danger' label={`${run.issue_count} ${run.issue_count === 1 ? 'issue' : 'issues'}`} />
                       ) : (
                         <StatusBadge status='neutral' label='0 issues' />
                       )}

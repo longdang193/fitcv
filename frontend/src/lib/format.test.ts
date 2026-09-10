@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatIdentifier,
   formatDisplayValue,
+  formatSynonymIssueLocation,
   formatTimestamp,
   formatOutcomeCode,
   formatOutcomeReason,
@@ -24,6 +25,12 @@ describe("format helpers", () => {
     expect(formatDisplayValue("MUNICH, BAVARIA, GERMANY")).toBe("Munich, Bavaria, Germany");
     expect(formatDisplayValue("BUSINESS_DEVELOPMENT")).toBe("Business Development");
     expect(formatDisplayValue("AI")).toBe("AI");
+  });
+
+  it("formats synonym issue locations without misleading N/A lines", () => {
+    expect(formatSynonymIssueLocation([])).toBe("Policy-level");
+    expect(formatSynonymIssueLocation([4])).toBe("Line 4");
+    expect(formatSynonymIssueLocation([4, 8])).toBe("Lines 4, 8");
   });
 
   it("labels advanced outcomes as progressing to next stage", () => {

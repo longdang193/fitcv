@@ -9,7 +9,7 @@ import {
   fetchSynonymPolicy,
 } from './api';
 import type { SynonymSuggestionResource, SynonymSuggestionSource } from './types';
-import { formatIdentifier, formatTimestamp } from '../../lib/format';
+import { formatDisplayValue, formatIdentifier, formatTimestamp } from '../../lib/format';
 
 export interface SuggestionDetailDialogProps {
   suggestionId: string | null;
@@ -129,7 +129,7 @@ export const SuggestionDetailDialog: React.FC<SuggestionDetailDialogProps> = ({
       open={open}
       onClose={onClose}
       title={detail ? 'Synonym: ' + detail.alias + ' -> ' + detail.canonical : 'Synonym Suggestion Details'}
-      description={detail ? 'Type: ' + detail.synonym_type + ' | Status: ' + detail.review_status : undefined}
+      description={detail ? 'Type: ' + formatDisplayValue(detail.synonym_type) + ' | Status: ' + formatDisplayValue(detail.review_status) : undefined}
     >
       <div style={{ display: 'grid', gap: 16 }}>
         {feedback && (

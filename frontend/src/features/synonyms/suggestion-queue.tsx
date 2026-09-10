@@ -15,7 +15,7 @@ import type {
   SynonymSuggestionResource,
   SynonymSuggestionQuery,
 } from './types';
-import { formatTimestamp } from '../../lib/format';
+import { formatDisplayValue, formatTimestamp } from '../../lib/format';
 
 export interface SuggestionQueueProps {
   onQueueChanged?: () => void;
@@ -444,8 +444,8 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
                         />
                       </td>
                       <td>
-                        <span style={{ fontSize: 11, textTransform: 'uppercase', fontWeight: 700, color: 'var(--muted)' }}>
-                          {item.synonym_type}
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>
+                          {formatDisplayValue(item.synonym_type)}
                         </span>
                       </td>
                       <td>
@@ -463,7 +463,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
                               ? 'danger'
                               : 'warn'
                           }
-                          label={item.review_status}
+                          label={formatDisplayValue(item.review_status)}
                         />
                       </td>
                       <td>

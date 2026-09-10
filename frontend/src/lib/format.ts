@@ -43,6 +43,14 @@ export function formatDisplayValue(value: unknown, fallback = "—"): string {
     .join("");
 }
 
+export function formatSynonymIssueLocation(lines?: number[] | null): string {
+  const validLines = Array.isArray(lines)
+    ? lines.filter((line) => Number.isFinite(line) && line > 0)
+    : [];
+  if (validLines.length === 0) return "Policy-level";
+  return `${validLines.length === 1 ? "Line" : "Lines"} ${validLines.join(", ")}`;
+}
+
 export function formatOutcomeCode(value: string | null | undefined): string {
   if (value === "advanced") return "Advanced to next stage";
   return value || "";

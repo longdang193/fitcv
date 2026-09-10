@@ -10111,9 +10111,58 @@ def update_run_status(
                 setattr(updated, key, int(summary[key]))
         return updated
 
-    if _mutate_normalized_run(run_id, mutate):
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT * FROM pipeline_runs WHERE run_id = ?", (run_id,)).fetchone()
+        if row is None:
+            conn.rollback()
+            return _persistence_result("degraded", "run_not_found")
+        run = _normalized_run_from_row(row)
+        if run is None:
+            conn.rollback()
+            return _persistence_result("degraded", "run_not_found")
+        updated = mutate(run)
+        if status in {RunStatus.FAILED, RunStatus.CANCELLED}:
+            terminal_job_status = (
+                JobStageStatus.SKIPPED if status is RunStatus.CANCELLED else JobStageStatus.FAILED
+            )
+            _materialize_terminal_job_results(
+                conn,
+                run_id,
+                finished_at or datetime.datetime.now(datetime.timezone.utc),
+                job_status=terminal_job_status,
+                outcome_code="run_cancelled" if status is RunStatus.CANCELLED else "run_failed",
+            )
+            terminal_counts = _recomputed_terminal_counts(
+                conn, run_id, _usable_cv_job_ids(conn, run_id)
+            )
+            total_jobs = int(
+                conn.execute("SELECT COUNT(*) FROM run_jobs WHERE run_id=?", (run_id,)).fetchone()[0]
+            )
+            if total_jobs:
+                updated = dataclasses.replace(
+                    updated,
+                    total_jobs=total_jobs,
+                    passed_filter=terminal_counts["passed"],
+                    rejected_jobs=terminal_counts["rejected"],
+                    partial_completion=bool(updated.partial_completion or terminal_counts["passed"] or terminal_counts["rejected"]),
+                    progress_total=max(int(updated.progress_total or 0), total_jobs),
+                )
+            conn.execute(
+                """UPDATE run_stage_executions
+                   SET status=?, finished_at=COALESCE(finished_at, ?), row_revision=row_revision+1
+                   WHERE run_id=? AND status IN ('pending','running')""",
+                (
+                    "cancelled" if status is RunStatus.CANCELLED else "failed",
+                    (finished_at or datetime.datetime.now(datetime.timezone.utc)).isoformat(),
+                    run_id,
+                ),
+            )
+        _write_normalized_run(conn, updated, insert=False)
+        conn.commit()
         return _persistence_result("persisted")
-    return _persistence_result("degraded", "run_not_found")
 
 
 def update_run_checkpoint(run_id: str, *_compat_args: Any, **kwargs: Any) -> PersistenceResult:
@@ -12135,10 +12184,13 @@ def _recomputed_terminal_counts(
     return counts
 
 
-def _materialize_cancelled_job_results(
+def _materialize_terminal_job_results(
     conn: sqlite3.Connection,
     run_id: str,
     finished_at: datetime.datetime,
+    *,
+    job_status: JobStageStatus,
+    outcome_code: str,
 ) -> None:
     stage_order = {stage.stage_id: stage.ordinal for stage in PROTOTYPE_STAGES}
     jobs = conn.execute(
@@ -12170,27 +12222,47 @@ def _materialize_cancelled_job_results(
             conn.execute(
                 """INSERT INTO run_job_stage_results
                    (run_job_id, stage_id, status, outcome_code, reason_code, evidence_json, finished_at)
-                   VALUES (?, ?, 'skipped', 'run_cancelled', 'run_cancelled', ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_job_id,
                     stage_id,
-                    json.dumps({"run_cancelled": True}, sort_keys=True),
+                    job_status.value,
+                    outcome_code,
+                    outcome_code,
+                    json.dumps({outcome_code: True}, sort_keys=True),
                     finished_at.isoformat(),
                 ),
             )
         elif current_status in {JobStageStatus.PENDING.value, "running"}:
             conn.execute(
                 """UPDATE run_job_stage_results
-                   SET status='skipped', outcome_code='run_cancelled', reason_code='run_cancelled',
+                   SET status=?, outcome_code=?, reason_code=?,
                        evidence_json=?, finished_at=COALESCE(finished_at, ?), row_revision=row_revision+1
-                   WHERE run_job_id=? AND stage_id=?""",
+                       WHERE run_job_id=? AND stage_id=?""",
                 (
-                    json.dumps({"run_cancelled": True}, sort_keys=True),
+                    job_status.value,
+                    outcome_code,
+                    outcome_code,
+                    json.dumps({outcome_code: True}, sort_keys=True),
                     finished_at.isoformat(),
                     run_job_id,
                     stage_id,
                 ),
             )
+
+
+def _materialize_cancelled_job_results(
+    conn: sqlite3.Connection,
+    run_id: str,
+    finished_at: datetime.datetime,
+) -> None:
+    _materialize_terminal_job_results(
+        conn,
+        run_id,
+        finished_at,
+        job_status=JobStageStatus.SKIPPED,
+        outcome_code="run_cancelled",
+    )
 
 
 def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] | None:

@@ -3,6 +3,7 @@ import { Button, StatusBadge, LoadingState, ErrorState } from "../../components"
 import { ApiClientError } from "../../lib/api-client";
 import { fetchSynonymPolicy, updateSynonymPolicy } from "./api";
 import type { SynonymType, SynonymPolicyResource, SynonymPolicyIssue } from "./types";
+import { formatDisplayValue, formatSynonymIssueLocation } from "../../lib/format";
 
 export interface PolicyEditorProps {
   initialType?: SynonymType;
@@ -76,12 +77,14 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
           setError("Revision conflict: Synonym policy was modified by another session. Please reload to review current state.");
         } else if (err.status === 422) {
           setError(err.message || "Policy validation failed.");
-          if (err.details && typeof err.details === "object" && "issues" in err.details) {
+          const details = err.details as { issues?: SynonymPolicyIssue[]; data?: { issues?: SynonymPolicyIssue[] } } | undefined;
+          const issues = details?.issues ?? details?.data?.issues;
+          if (Array.isArray(issues)) {
             setPolicy((prev) =>
               prev
                 ? {
                     ...prev,
-                    issues: (err.details as { issues: SynonymPolicyIssue[] }).issues,
+                    issues,
                     validation_status: "invalid",
                   }
                 : prev
@@ -166,8 +169,13 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
                     ? "warn"
                     : "danger"
                 }
-                label={`Mirror: ${policy.mirror_status}`}
+                label={`Mirror: ${formatDisplayValue(policy.mirror_status, "Unknown")}`}
               />
+              {policy.mirror_status === "repair_failed" && policy.mirror_error_code && (
+                <span style={{ fontSize: 12, color: "var(--danger, #dc2626)", fontFamily: "monospace" }}>
+                  [{policy.mirror_error_code}]
+                </span>
+              )}
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
@@ -248,10 +256,15 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
               <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, display: "grid", gap: 6 }}>
                 {policy.issues.map((issue: SynonymPolicyIssue, idx: number) => (
                   <li key={idx}>
-                    <strong>Line {issue.lines?.join(", ") || "N/A"}:</strong> [{issue.code}] {issue.message}
+                    <strong>{formatSynonymIssueLocation(issue.lines)}:</strong> [{issue.code}] {issue.message}
                     {issue.aliases && issue.aliases.length > 0 && (
                       <span style={{ color: "var(--muted)", marginLeft: 6 }}>
                         (aliases: {issue.aliases.join(", ")})
+                      </span>
+                    )}
+                    {issue.canonicals && issue.canonicals.length > 0 && (
+                      <span style={{ color: "var(--muted)", marginLeft: 6 }}>
+                        (canonicals: {issue.canonicals.join(", ")})
                       </span>
                     )}
                   </li>
