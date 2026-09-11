@@ -6671,6 +6671,23 @@ def _csv_cell(value: Any) -> str:
     return f"'{text}" if text.startswith(("=", "+", "-", "@")) else text
 
 
+_RUN_JOBS_CSV_COLUMNS: tuple[tuple[str, str, Callable[[Any], str]], ...] = (
+    ("Job Title", "title", _csv_cell),
+    ("Listing URL", "source_url", _csv_cell),
+    ("Location", "location", _csv_cell),
+    ("Work Mode", "work_mode", _csv_cell),
+    ("Language", "language", _csv_cell),
+    ("Seniority", "seniority", _csv_cell),
+    ("Job Family", "role_family", _csv_cell),
+    ("Domain", "domain", _csv_cell),
+    ("Required Skills", "skills", _csv_cell),
+    ("Result", "result_bucket", _csv_cell),
+    ("Pipeline Outcome", "outcome_code", _csv_cell),
+    ("Reason", "reason_code", _csv_cell),
+    ("Application Interest", "rating", _csv_cell),
+)
+
+
 def _redact_debug_bundle_value(value: Any) -> Any:
     if isinstance(value, dict):
         redacted: dict[str, Any] = {}
@@ -11557,31 +11574,9 @@ def create_app(
             )
             output = io.StringIO(newline="")
             writer = csv.writer(output, lineterminator="\n")
-            writer.writerow(
-                [
-                    "Job Title", "Listing URL", "Location", "Work Mode", "Language",
-                    "Seniority", "Job Family", "Domain", "Required Skills", "Result",
-                    "Pipeline Outcome", "Reason", "Application Interest",
-                ]
-            )
+            writer.writerow(column[0] for column in _RUN_JOBS_CSV_COLUMNS)
             for row in rows:
-                writer.writerow(
-                    [
-                        _csv_cell(row.get("title")),
-                        _csv_cell(row.get("source_url")),
-                        _csv_cell(row.get("location")),
-                        _csv_cell(row.get("work_mode")),
-                        _csv_cell(row.get("language")),
-                        _csv_cell(row.get("seniority")),
-                        _csv_cell(row.get("role_family")),
-                        _csv_cell(row.get("domain")),
-                        _csv_cell(row.get("skills")),
-                        _csv_cell(row.get("result_bucket")),
-                        _csv_cell(row.get("outcome_code")),
-                        _csv_cell(row.get("reason_code")),
-                        _csv_cell(row.get("rating")),
-                    ]
-                )
+                writer.writerow(column[2](row.get(column[1])) for column in _RUN_JOBS_CSV_COLUMNS)
         except ValueError as exc:
             raise ApiError(
                 422,
@@ -11598,6 +11593,24 @@ def create_app(
                 "Content-Disposition": f'attachment; filename="{safe_run_id}-pipeline-results.csv"',
                 "X-Content-Type-Options": "nosniff",
             },
+        )
+
+    @app.get("/runs/{run_id}/jobs/export.full.zip")
+    def export_full_run_jobs(
+        request: Request,
+        run_id: str,
+        search: str = "",
+        stage: str = "all",
+        result_bucket: str = "all",
+    ) -> Response:
+        return _build_enriched_filtered_export_zip(
+            request=request,
+            run_id=run_id,
+            stage=stage,
+            filter_name=result_bucket,
+            q=search,
+            include_enriched=True,
+            filename=f"fitcv-run-{run_id}-full-export.zip",
         )
 
     @app.get("/runs/{run_id}/jobs/{run_job_id}/cvs")
@@ -14960,13 +14973,14 @@ def create_app(
             context=context,
         )
 
-    @app.get("/admin/runs/{run_id}/enriched/export-filtered.zip")
-    def download_run_enriched_filtered_zip(
+    def _build_enriched_filtered_export_zip(
         request: Request,
         run_id: str,
         stage: str = "shortlisting",
         filter_name: str = "all",
         q: str = "",
+        include_enriched: bool = False,
+        filename: str | None = None,
     ) -> Response:
         run = require_run_or_404(run_id, detail="")
         selected_pipeline_outcomes = _selected_enriched_pipeline_outcomes(
@@ -14995,7 +15009,7 @@ def create_app(
         dropped_rows: list[dict[str, str]] = []
 
         for job in filtered_jobs:
-            job_url = str(job.get("job_url") or "").strip()
+            job_url = str(job.get("job_url") or job.get("source_url") or job.get("jobUrl") or "").strip()
             if not job_url:
                 continue
             raw_job = raw_jobs_by_url.get(job_url)
@@ -15015,19 +15029,20 @@ def create_app(
 
             shortlist_status, scoring_status, final_top_n_status = _derived_pipeline_flags(pipeline_status)
 
-            export_rows.append(
-                {
-                    "schema_version": "rerun_input.v1",
-                    "job_url": job_url,
-                    "source_run_id": run_id,
-                    "pipeline_outcome": pipeline_status,
-                    "filter_status": filter_status,
-                    "shortlist_status": shortlist_status,
-                    "scoring_status": scoring_status,
-                    "final_top_n_status": final_top_n_status,
-                    "raw_job": raw_job,
-                }
-            )
+            export_row = {
+                "schema_version": "rerun_input.v1",
+                "job_url": job_url,
+                "source_run_id": run_id,
+                "pipeline_outcome": pipeline_status,
+                "filter_status": filter_status,
+                "shortlist_status": shortlist_status,
+                "scoring_status": scoring_status,
+                "final_top_n_status": final_top_n_status,
+                "raw_job": raw_job,
+            }
+            if include_enriched:
+                export_row["enriched_job"] = job
+            export_rows.append(export_row)
 
         export_rows.sort(key=lambda row: str(row.get("job_url") or ""))
         jsonl_text = "\n".join(_json.dumps(row, ensure_ascii=False) for row in export_rows)
@@ -15060,7 +15075,27 @@ def create_app(
         return Response(
             content=buffer.getvalue(),
             media_type="application/zip",
-            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-filtered-export.zip"'},
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{filename or f"fitcv-run-{run_id}-filtered-export.zip"}"'
+                )
+            },
+        )
+
+    @app.get("/admin/runs/{run_id}/enriched/export-filtered.zip")
+    def download_run_enriched_filtered_zip(
+        request: Request,
+        run_id: str,
+        stage: str = "shortlisting",
+        filter_name: str = "all",
+        q: str = "",
+    ) -> Response:
+        return _build_enriched_filtered_export_zip(
+            request=request,
+            run_id=run_id,
+            stage=stage,
+            filter_name=filter_name,
+            q=q,
         )
 
     @app.get("/admin/runs/{run_id}/tabs/jobs-input", response_class=HTMLResponse)

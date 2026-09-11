@@ -19,6 +19,7 @@ import {
   unarchiveRun,
   downloadDebugBundle,
   exportRunJobsCsv,
+  exportRunJobsFull,
 } from "../runs/api";
 import {
   PipelineRunResource,
@@ -323,6 +324,21 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       });
     } catch (err: any) {
       setError(err.message || "Failed to export jobs CSV.");
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const handleExportFull = async () => {
+    setActionInProgress(true);
+    try {
+      await exportRunJobsFull(runId, {
+        stage: stageFilter,
+        result_bucket: resultBucketFilter,
+        search: activeJobSearch,
+      });
+    } catch (err: any) {
+      setError(err.message || "Failed to export full job data.");
     } finally {
       setActionInProgress(false);
     }
@@ -912,15 +928,26 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                 />
 
               {run.capabilities.export && (
-                <Button
-                  id="exportRunResults"
-                  size="compact"
-                  variant="secondary"
-                  onClick={handleExportCsv}
-                  disabled={actionInProgress}
-                >
-                  Export
-                </Button>
+                <>
+                  <Button
+                    id="exportRunResults"
+                    size="compact"
+                    variant="secondary"
+                    onClick={handleExportCsv}
+                    disabled={actionInProgress}
+                  >
+                    Export CSV
+                  </Button>
+                  <Button
+                    id="exportRunFullResults"
+                    size="compact"
+                    variant="secondary"
+                    onClick={handleExportFull}
+                    disabled={actionInProgress}
+                  >
+                    Export full data
+                  </Button>
+                </>
               )}
             </div>
           </div>

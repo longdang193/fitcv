@@ -14,6 +14,7 @@ tags:
 
 from unittest.mock import MagicMock, patch
 from typing import Any
+import csv
 import io
 import json
 import zipfile
@@ -4889,6 +4890,9 @@ def test_jobs_export_uses_full_filtered_rows_and_escapes_formulas() -> None:
         "Job Title,Listing URL,Location,Work Mode,Language,Seniority,Job Family,Domain,"
         "Required Skills,Result,Pipeline Outcome,Reason,Application Interest"
     )
+    csv_rows = list(csv.reader(io.StringIO(resp.text)))
+    assert len(csv_rows) == 2
+    assert len(csv_rows[0]) == len(csv_rows[1]) == 13
     assert "'=SUM(1,1)" in resp.text
 
 
@@ -13517,6 +13521,80 @@ def test_download_run_enriched_filtered_zip_contains_jsonl_and_manifest():
     assert row["raw_job"]["jobUrl"] == "https://j.test/ns"
     assert manifest["row_count"] == 1
     assert manifest["filters"]["pipeline_outcome"] == ["not_shortlisted"]
+
+
+def test_export_full_run_jobs_includes_enriched_job_payload():
+    import io as _io
+    import json as _json
+    import zipfile as _zipfile
+
+    enriched = [
+        {
+            "job_url": "https://j.test/full",
+            "title": "Full Export Role",
+            "domain": "analytics",
+            "job_family": "data",
+            "required_skills": ["Python"],
+            "location_type": "hybrid",
+            "seniority": "senior",
+        }
+    ]
+    export_payload = _json.dumps(
+        {"results": [{"job_url": "https://j.test/full", "pipeline_status": "accepted"}]}
+    )
+    jobs_input = _json.dumps(
+        [{"jobUrl": "https://j.test/full", "title": "Full Export Role", "description": "raw"}]
+    )
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=[],
+        results_export_json=export_payload,
+        jobs_input_json=jobs_input,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get(
+            "/runs/run-detail-test/jobs/export.full.zip?stage=all&result_bucket=all"
+        )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/zip"
+    with _zipfile.ZipFile(_io.BytesIO(resp.content)) as archive:
+        row = _json.loads(archive.read("jobs.filtered.jsonl").decode("utf-8"))
+        manifest = _json.loads(archive.read("jobs.filtered.manifest.json"))
+
+    assert row["raw_job"]["description"] == "raw"
+    assert row["enriched_job"]["domain"] == "analytics"
+    assert manifest["row_count"] == 1
+
+
+def test_export_full_run_jobs_accepts_source_snapshot_job_url():
+    import io as _io
+    import json as _json
+    import zipfile as _zipfile
+
+    enriched = [{"jobUrl": "https://j.test/canonical", "title": "Canonical Role"}]
+    export_payload = _json.dumps(
+        {"results": [{"job_url": "https://j.test/canonical", "pipeline_status": "accepted"}]}
+    )
+    jobs_input = _json.dumps(
+        [{"jobUrl": "https://j.test/canonical", "title": "Canonical Role"}]
+    )
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=[],
+        results_export_json=export_payload,
+        jobs_input_json=jobs_input,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get(
+            "/runs/run-detail-test/jobs/export.full.zip?stage=all&result_bucket=all"
+        )
+
+    with _zipfile.ZipFile(_io.BytesIO(resp.content)) as archive:
+        lines = [line for line in archive.read("jobs.filtered.jsonl").decode().splitlines() if line]
+
+    assert len(lines) == 1
+    assert _json.loads(lines[0])["job_url"] == "https://j.test/canonical"
 
 
 def test_download_run_enriched_filtered_zip_defaults_to_selected_pipeline_outcomes() -> None:

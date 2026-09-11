@@ -309,20 +309,28 @@ export async function downloadDebugBundle(runId: string): Promise<void> {
   );
 }
 
-export async function exportRunJobsCsv(
-  runId: string,
-  params?: {
-    search?: string;
-    stage?: string;
-    result_bucket?: string;
-  }
-): Promise<void> {
+type RunJobsExportParams = {
+  search?: string;
+  stage?: string;
+  result_bucket?: string;
+};
+
+function buildRunJobsExportQuery(params?: RunJobsExportParams): string {
   const query = new URLSearchParams();
   if (params?.search) query.set("search", params.search);
   if (params?.stage && params.stage !== "all") query.set("stage", params.stage);
   if (params?.result_bucket && params.result_bucket !== "all") query.set("result_bucket", params.result_bucket);
+  return query.toString();
+}
 
-  const qs = query.toString();
+export async function exportRunJobsCsv(runId: string, params?: RunJobsExportParams): Promise<void> {
+  const qs = buildRunJobsExportQuery(params);
   const path = `/runs/${encodeURIComponent(runId)}/jobs/export.csv${qs ? `?${qs}` : ""}`;
   return apiClient.download(path, `fitcv-run-${runId}-jobs.csv`);
+}
+
+export async function exportRunJobsFull(runId: string, params?: RunJobsExportParams): Promise<void> {
+  const qs = buildRunJobsExportQuery(params);
+  const path = `/runs/${encodeURIComponent(runId)}/jobs/export.full.zip${qs ? `?${qs}` : ""}`;
+  return apiClient.download(path, `fitcv-run-${runId}-full-export.zip`);
 }

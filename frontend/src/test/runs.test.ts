@@ -18,6 +18,7 @@ import {
   deleteArchivedRuns,
   downloadDebugBundle,
   exportRunJobsCsv,
+  exportRunJobsFull,
   generateIdempotencyKey,
   extractRequiredJobSkills,
 } from "../features/runs/api";
@@ -434,6 +435,16 @@ describe("runs feature route and api slice", () => {
     expect(downloadSpy).toHaveBeenCalledWith(
       "/runs/run-dbg-1/jobs/export.csv?search=Engineer&stage=screening&result_bucket=passed",
       "fitcv-run-run-dbg-1-jobs.csv"
+    );
+
+    await exportRunJobsFull("run-dbg-1", {
+      stage: "screening",
+      result_bucket: "passed",
+      search: "Engineer",
+    });
+    expect(downloadSpy).toHaveBeenCalledWith(
+      "/runs/run-dbg-1/jobs/export.full.zip?search=Engineer&stage=screening&result_bucket=passed",
+      "fitcv-run-run-dbg-1-full-export.zip"
     );
   });
 it("guards against invalid or object page parameter serialization in fetchRunJobs", async () => {
