@@ -234,6 +234,6 @@ The modern FitCV frontend is a Single-Page Application (`frontend/src/`) built w
   - `runs`: run submissions, execution progress, stage cards, job outcomes, and event console.
   - `job-evaluation`: suitability and fit evidence review, independent application interest ratings, and filtered exports.
   - `cv-review`: grounded CV generation history, safe text/markdown preview renderer, attachment download, and review decisions.
-  - `bookmarks`: saved job workspace, search/filtering, and CSV exports.
+  - `bookmarks`: saved job workspace, search/filtering, and CSV/full-data exports.
   - `personalization`: core ranking mode configuration with ETag CAS revision conflict handling.
   - `synonyms`: supporting alias taxonomy policies, suggestion review queue, and backup management.

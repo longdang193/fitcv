@@ -4133,6 +4133,7 @@ def test_central_workspace_openapi_declares_sort_selection_and_binary_contracts(
     assert "run_job_ids" not in selection_schema["properties"]
 
     assert "text/csv" in schema["paths"]["/bookmarks/actions/export"]["post"]["responses"]["200"]["content"]
+    assert "application/zip" in schema["paths"]["/bookmarks/actions/export.full.zip"]["post"]["responses"]["200"]["content"]
     assert "text/csv" in schema["paths"]["/runs/{run_id}/jobs/actions/export"]["post"]["responses"]["200"]["content"]
     assert "application/zip" in schema["paths"]["/synonym-backups/export.zip"]["get"]["responses"]["200"]["content"]
     assert "multipart/form-data" in schema["paths"]["/synonym-backups/import"]["post"]["requestBody"]["content"]
@@ -13596,6 +13597,58 @@ def test_export_full_run_jobs_accepts_source_snapshot_job_url():
     assert len(lines) == 1
     assert _json.loads(lines[0])["job_url"] == "https://j.test/canonical"
 
+
+def test_export_bookmark_full_selection_includes_raw_and_enriched_payloads():
+    app = _app()
+    app.state.run_store.resolve_job_selection_fn = lambda *args, **kwargs: {
+        "matched_run_job_ids": ["rj-1"],
+        "excluded_run_job_ids": [],
+        "selected_count": 1,
+        "matched_count": 1,
+        "excluded_count": 0,
+    }
+    app.state.run_store.list_selected_jobs_fn = lambda *args, **kwargs: [
+        {
+            "run_job_id": "rj-1",
+            "run_id": "run-1",
+            "run_name": "Bookmark Run",
+            "source_snapshot_json": json.dumps({"jobUrl": "https://j.test/bookmark", "description": "raw"}),
+            "source_url": "https://j.test/bookmark",
+            "title": "Bookmarked Role",
+            "company": "Acme",
+            "location": "Berlin",
+            "work_mode": "hybrid",
+            "language": "English",
+            "seniority": "Senior",
+            "role_family": "Data",
+            "domain": "Analytics",
+            "skills_json": json.dumps(["Python"]),
+            "current_stage_id": "shortlisting",
+        }
+    ]
+    client = TestClient(app)
+    body = {"selected_run_job_ids": ["rj-1"]}
+    preview = client.post("/bookmarks/actions/export/preview", json=body)
+    assert preview.status_code == 200
+    body["preview_revision"] = preview.json()["data"]["preview_revision"]
+
+    response = client.post(
+        "/bookmarks/actions/export.full.zip",
+        headers={"Idempotency-Key": "bookmark-full-export-1"},
+        json=body,
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        row = json.loads(archive.read("jobs.filtered.jsonl").decode("utf-8"))
+        manifest = json.loads(archive.read("jobs.filtered.manifest.json"))
+
+    assert row["raw_job"]["description"] == "raw"
+    assert row["enriched_job"]["domain"] == "Analytics"
+    assert row["source_run_id"] == "run-1"
+    assert manifest["source_scope"] == "bookmarks"
+    assert manifest["row_count"] == 1
 
 def test_download_run_enriched_filtered_zip_defaults_to_selected_pipeline_outcomes() -> None:
     import io as _io

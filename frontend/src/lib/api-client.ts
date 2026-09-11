@@ -235,16 +235,39 @@ export const apiClient = {
     return res.text();
   },
 
-  async download(path: string, fallbackFilename?: string): Promise<void> {
+  async download(path: string, fallbackFilename?: string, options: RequestOptions = {}): Promise<void> {
+    const {
+      body,
+      idempotencyKey,
+      ifMatch,
+      ifNoneMatch,
+      headers: extraHeaders = {},
+      method = "GET",
+      ...rest
+    } = options;
     const csrf = getCsrfToken();
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...extraHeaders };
     if (csrf) {
       headers["X-FitCV-CSRF"] = csrf;
     }
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+    if (ifMatch) headers["If-Match"] = ifMatch;
+    if (ifNoneMatch) headers["If-None-Match"] = ifNoneMatch;
+    let finalBody: BodyInit | undefined;
+    if (body !== undefined) {
+      if (typeof body === "string" || body instanceof FormData || body instanceof Blob) {
+        finalBody = body as BodyInit;
+      } else {
+        headers["Content-Type"] = "application/json";
+        finalBody = JSON.stringify(body);
+      }
+    }
     const res = await fetch(path, {
-      method: "GET",
+      ...rest,
+      method,
       credentials: "same-origin",
       headers,
+      body: finalBody,
     });
     if (!res.ok) {
       throw new ApiClientError(res.status, `download_failed`, `Failed to download file: ${res.statusText}`);

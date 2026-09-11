@@ -6,6 +6,7 @@ import {
   removeBookmarkSelection,
   previewBookmarkExport,
   exportBookmarkSelection,
+  exportBookmarkFullSelection,
   updateBookmarkInterest,
 } from "./api";
 import { BookmarkItem } from "./types";
@@ -176,7 +177,7 @@ export const BookmarksPage: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (full = false) => {
     setActionInProgress(true);
     try {
       const preview = await previewBookmarkExport({
@@ -185,18 +186,23 @@ export const BookmarksPage: React.FC = () => {
         search: activeSearch || undefined,
       });
 
-      await exportBookmarkSelection({
+      const exportPayload = {
         selected_run_job_ids: selectedJobIds,
         stage: stageFilter !== "all" ? stageFilter : undefined,
         search: activeSearch || undefined,
         preview_revision: preview.preview_revision,
-      });
+      };
+      if (full) {
+        await exportBookmarkFullSelection(exportPayload);
+      } else {
+        await exportBookmarkSelection(exportPayload);
+      }
 
       notificationStore.notify({
         dedupe: `action:export_bookmarks:${Date.now()}`,
         type: "info",
         title: "Bookmark export started",
-        message: `Exporting ${preview.matched_count} bookmarks to CSV.`,
+        message: `Exporting ${preview.matched_count} bookmarks to ${full ? "full data ZIP" : "CSV"}.`,
       });
     } catch (err: any) {
       notificationStore.notify({
@@ -262,9 +268,18 @@ export const BookmarksPage: React.FC = () => {
               type="button"
               variant="secondary"
               disabled={selectedJobIds.length === 0 || actionInProgress}
-              onClick={handleExport}
+              onClick={() => handleExport(false)}
             >
-              Export
+              Export CSV
+            </Button>
+            <Button
+              id="exportBookmarksFull"
+              type="button"
+              variant="secondary"
+              disabled={selectedJobIds.length === 0 || actionInProgress}
+              onClick={() => handleExport(true)}
+            >
+              Export full data
             </Button>
           </div>
         </div>

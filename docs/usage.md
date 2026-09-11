@@ -173,6 +173,6 @@ The modern FitCV application is available at `/app` (or `/app/#/<route>`):
 4. **Runs (`#/runs`)**: Pipeline run execution, live event stream, and stage debugging.
 5. **Job Evaluation (`#/job-evaluation`)**: Job fit evidence inspection and independent application interest rating.
 6. **CV Review (`#/cv-review`)**: Versioned tailored CV history, safe preview, decision recording, and download.
-7. **Bookmarks (`#/bookmarks`)**: Saved job management and CSV export.
+7. **Bookmarks (`#/bookmarks`)**: Saved job management with CSV and full-data ZIP export.
 8. **Synonyms (`#/synonyms`)**: Skill/domain/role-family synonym editor and review queue.
 9. **Personalization (`#/settings/personalization`)**: Baseline vs. personalized ranking configuration.

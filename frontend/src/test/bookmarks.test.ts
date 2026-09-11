@@ -5,6 +5,7 @@ import {
   fetchBookmarks,
   previewBookmarkExport,
   exportBookmarkSelection,
+  exportBookmarkFullSelection,
   removeBookmarkSelection,
   updateBookmarkInterest,
   generateIdempotencyKey,
@@ -180,6 +181,22 @@ describe("bookmarks slice and api", () => {
       { idempotencyKey: "fixed-export-idem", headers: { Accept: "text/csv" } }
     );
 
+    const downloadSpy = vi.spyOn(apiClient, "download").mockResolvedValueOnce();
+    await exportBookmarkFullSelection(
+      { selected_run_job_ids: ["rj-01"], preview_revision: "bm-prev-rev-1" },
+      "fixed-full-export-idem"
+    );
+    expect(downloadSpy).toHaveBeenCalledWith(
+      "/bookmarks/actions/export.full.zip",
+      "fitcv-bookmarks-full-export.zip",
+      {
+        method: "POST",
+        body: { selected_run_job_ids: ["rj-01"], preview_revision: "bm-prev-rev-1" },
+        idempotencyKey: "fixed-full-export-idem",
+        headers: { Accept: "application/zip" },
+      }
+    );
+
     const removeRes = await removeBookmarkSelection(
       { selected_run_job_ids: ["rj-01"] },
       "fixed-idem-bm"
@@ -281,5 +298,7 @@ describe("bookmarks slice and api", () => {
     expect(markup).toContain("CV Analysis");
     expect(markup).toContain("CV Generation");
     expect(markup).toContain("Search bookmarked jobs, runs, attributes, skills, or outcomes");
+    expect(markup).toContain("Export CSV");
+    expect(markup).toContain("Export full data");
   });
 });

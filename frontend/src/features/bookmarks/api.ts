@@ -113,6 +113,17 @@ export async function exportBookmarkSelection(
   }
 }
 
+export async function exportBookmarkFullSelection(
+  body: SelectionExportPayload,
+  idempotencyKey = generateIdempotencyKey()
+): Promise<void> {
+  return apiClient.download(
+    "/bookmarks/actions/export.full.zip",
+    "fitcv-bookmarks-full-export.zip",
+    { method: "POST", body, idempotencyKey, headers: { Accept: "application/zip" } }
+  );
+}
+
 export async function removeBookmarkSelection(
   body: SelectionContextPayload,
   idempotencyKey = generateIdempotencyKey()

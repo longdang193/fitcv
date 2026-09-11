@@ -6507,6 +6507,68 @@ def _selection_csv(rows: list[dict[str, Any]], *, include_run: bool) -> bytes:
     return output.getvalue().encode("utf-8-sig")
 
 
+def _selection_full_export_zip(
+    rows: list[dict[str, Any]],
+    *,
+    filters: dict[str, Any],
+    filename: str,
+) -> bytes:
+    export_rows: list[dict[str, Any]] = []
+    warnings: list[dict[str, str]] = []
+    canonical_fields = ("title", "company", "location", "work_mode", "language", "seniority", "role_family", "domain")
+
+    for row in rows:
+        try:
+            raw_job = row.get("source_snapshot") or _json.loads(str(row.get("source_snapshot_json") or "{}"))
+        except _json.JSONDecodeError:
+            raw_job = {}
+        if not isinstance(raw_job, dict):
+            raw_job = {}
+        job_url = str(row.get("source_url") or raw_job.get("job_url") or raw_job.get("jobUrl") or "").strip()
+        if not job_url:
+            warnings.append({"run_job_id": str(row.get("run_job_id") or ""), "reason": "missing_job_url"})
+            continue
+        try:
+            skills = row.get("skills") or _json.loads(str(row.get("skills_json") or "[]"))
+        except _json.JSONDecodeError:
+            skills = []
+        export_rows.append(
+            {
+                "schema_version": "rerun_input.v1",
+                "job_url": job_url,
+                "source_run_id": row.get("run_id"),
+                "source_run_name": row.get("run_name"),
+                "raw_job": raw_job,
+                "enriched_job": {
+                    "job_url": job_url,
+                    **{field: row.get(field) for field in canonical_fields},
+                    "skills": skills if isinstance(skills, list) else [],
+                },
+            }
+        )
+
+    export_rows.sort(key=lambda row: (str(row.get("job_url") or ""), str(row.get("source_run_id") or "")))
+    jsonl_bytes = ("\n".join(_json.dumps(row, ensure_ascii=False) for row in export_rows) + ("\n" if export_rows else "")).encode("utf-8")
+    manifest = {
+        "schema_version": "rerun_export_manifest.v1",
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "source_scope": "bookmarks",
+        "source_run_ids": sorted({str(row.get("source_run_id")) for row in export_rows if row.get("source_run_id")}),
+        "export_id": str(uuid.uuid4()),
+        "filters": filters,
+        "row_count": len(export_rows),
+        "ordering": "job_url_asc",
+        "jsonl_file": "jobs.filtered.jsonl",
+        "checksum_sha256": hashlib.sha256(jsonl_bytes).hexdigest(),
+        "warnings": warnings,
+    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("jobs.filtered.jsonl", jsonl_bytes)
+        archive.writestr("jobs.filtered.manifest.json", _json.dumps(manifest, ensure_ascii=False, indent=2))
+    return buffer.getvalue()
+
+
 def _run_enqueue_failure_response(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "data": data,
@@ -11114,6 +11176,44 @@ def create_app(
             str(reservation["action_id"]), content, media_type="text/csv", filename=filename
         )
         return Response(content=content, media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="fitcv-bookmarks.csv"'})
+
+    @app.post(
+        "/bookmarks/actions/export.full.zip",
+        responses={200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}},
+    )
+    def export_bookmark_full_selection(request: Request, body: SelectionExportRequest) -> Response:
+        key = _required_idempotency_key(request)
+        context = body.model_dump(exclude={"preview_revision"})
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action(
+            "bookmarks:export.full", key, _request_fingerprint(body.model_dump())
+        )
+        if reservation.get("replayed") and reservation.get("binary_response") is not None:
+            stored = reservation["binary_response"]
+            return Response(
+                content=stored["content"], media_type=stored["media_type"],
+                headers={"Content-Disposition": f'attachment; filename="{stored["filename"]}"'},
+            )
+        selection = store.resolve_job_selection(
+            body.selected_run_job_ids, scope="bookmarks", stage=body.stage,
+            result=body.result, search=body.search,
+        )
+        matched = list(selection["matched_run_job_ids"])
+        _verify_selection_preview(body.preview_revision, scope="bookmarks:", context=context, matched_ids=matched)
+        content = _selection_full_export_zip(
+            store.list_selected_jobs(matched, bookmarks_only=True),
+            filters={"stage": body.stage or "all", "result": body.result or "all", "search": body.search or ""},
+            filename="fitcv-bookmarks-full-export.zip",
+        )
+        filename = "fitcv-bookmarks-full-export.zip"
+        store.complete_idempotent_binary_action(
+            str(reservation["action_id"]), content, media_type="application/zip", filename=filename
+        )
+        return Response(
+            content=content,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     @app.post("/runs/{run_id}/jobs/actions/export/preview", response_model=SelectionPreviewEnvelope)
     def preview_run_job_export(run_id: str, body: SelectionContext) -> dict[str, Any]:
