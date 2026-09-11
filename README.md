@@ -177,6 +177,13 @@ See deep stage behavior in [docs/FitCV-pipeline.md](docs/FitCV-pipeline.md) and 
   - configurable weights + safe missing-value defaults (validated contract)
   - taxonomy-aware neighbors (domain / role-family proximity)
 
+- **Personalization optimization**
+  - optional preference-learning workflow records user ratings as decision episodes
+  - inverse optimization evaluates preference residuals and proposes ranking-policy updates
+  - promotion gates validate candidate policies before activation
+  - evidence and configuration revisions prevent stale personalization state
+  - personalization changes ranking preference, never fit qualification truth
+
 - **cv_analysis**
   - fit gate from ranking (`strong/stretch/skip`) blocks weak jobs
   - evidence retrieval + selection: lexical + optional embedding similarity
