@@ -15,6 +15,7 @@ lifecycle:
   - status: active
 """
 
+import hashlib
 import json
 import logging
 import uuid
@@ -22,6 +23,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.contracts import DEFAULT_APPLICATION_STATUSES
+from fitcv.pipeline_contracts import CV_OUTCOME_CONTRACT_VERSION, classify_cv_outcome
 
 logger = logging.getLogger(__name__)
 
@@ -58,19 +60,44 @@ def create_cv_version_record(
     cv_prompt_version: str | None = None,
     cv_generation_input_fingerprint: str | None = None,
     cv_generation_reuse_status: str | None = None,
+    quality_warnings: list[str] | None = None,
+    validation_result: dict[str, Any] | None = None,
+    diagnostic_code: str | None = None,
+    version_id: str | None = None,
+    original_outcome: str | None = None,
 ) -> dict[str, Any]:
     """Build a cv_versions record in memory.
 
     Fields:
-    - version_id     : UUID4 string (PK)
+    - version_id     : UUID string (PK)
     - generated_at   : UTC ISO-8601 timestamp
     - All kwargs passed through verbatim.
     - gap_summary    : stored as a JSON string.
 
     Does not persist by itself — call store_cv_version() for persistence.
     """
+    version_id = str(version_id or uuid.uuid4())
+    markdown_text = str(cv_markdown)
+    checksum = hashlib.sha256(markdown_text.encode("utf-8")).hexdigest() if markdown_text else None
+    outcome = classify_cv_outcome(
+        original_outcome=original_outcome,
+        validation_result=validation_result,
+        diagnostic_code=diagnostic_code,
+        content_integrity=bool(markdown_text.strip()),
+        artifact_version=version_id,
+        checksum=checksum,
+        quality_warnings=quality_warnings,
+    )
+    envelope = {
+        "contract_version": CV_OUTCOME_CONTRACT_VERSION,
+        "artifact_version_id": version_id,
+        "content_checksum": checksum,
+        "evidence_state": outcome.get("evidence_state"),
+        "outcome": outcome.get("kind"),
+        "warnings": list(outcome.get("quality_warnings") or []),
+    }
     return {
-        "version_id": str(uuid.uuid4()),
+        "version_id": version_id,
         "run_id": str(run_id) if run_id else None,
         "job_url": str(job_url),
         "enrichment_version": str(enrichment_version),
@@ -87,7 +114,8 @@ def create_cv_version_record(
             else None
         ),
         "cv_structured_json": json.dumps(cv_structured) if isinstance(cv_structured, dict) else None,
-        "cv_markdown": str(cv_markdown),
+        "cv_markdown": markdown_text,
+        "quality_warnings_json": json.dumps(envelope, sort_keys=True),
         "cv_generation_input_fingerprint": str(cv_generation_input_fingerprint or "") or None,
         "cv_generation_reuse_status": str(cv_generation_reuse_status or "") or None,
         "gap_summary": json.dumps(gap_summary),
@@ -207,10 +235,6 @@ def store_application_status(record: dict[str, Any], config: dict[str, Any]) -> 
     )
     if errors:
         raise RuntimeError(f"SQLite insert errors for application_tracker: {errors}")
-
-
-
-
 
 
 

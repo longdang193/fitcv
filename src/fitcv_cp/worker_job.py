@@ -2113,10 +2113,9 @@ def execute_pipeline_run(
                             ),
                             client=client,
                         )
-                review_pending = pending_review_required > 0
                 terminal_status = (
                     RunStatus.AWAITING_CONTINUE
-                    if (review_pending and run_mode == "manual_staged")
+                    if pending_review_required > 0
                     else RunStatus.SUCCEEDED
                 )
                 finished_at = (
@@ -2195,15 +2194,6 @@ def execute_pipeline_run(
                     "cv_generation",
                 ]
                 if pending_review_required > 0:
-                    update_run_checkpoint(
-                        run_id,
-                        client=client,
-                        checkpoint_status="awaiting_review",
-                        next_stage=None,
-                        last_completed_stage="cv_generation",
-                        completed_stages=completed_stages,
-                        checkpoint_payload_json=None,
-                    )
                     append_event(
                         RunEvent(
                             run_id=run_id,
@@ -2227,6 +2217,16 @@ def execute_pipeline_run(
                             ),
                         ),
                         client=client,
+                    )
+                if pending_review_required > 0:
+                    update_run_checkpoint(
+                        run_id,
+                        client=client,
+                        checkpoint_status="awaiting_review",
+                        next_stage=None,
+                        last_completed_stage="cv_generation",
+                        completed_stages=completed_stages,
+                        checkpoint_payload_json=None,
                     )
                 elif run_mode == "manual_staged":
                     update_run_checkpoint(
@@ -2654,7 +2654,6 @@ def execute_pipeline_run(
         finally:
             if delivery_loop is not None:
                 delivery_loop.stop(final_drain=True)
-
 
 
 

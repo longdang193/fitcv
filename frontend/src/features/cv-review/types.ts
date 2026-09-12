@@ -20,6 +20,15 @@ export interface CvCapabilities {
   regenerate: boolean;
 }
 
+export interface CvQualityWarningsEnvelope {
+  contract_version?: string;
+  artifact_version_id?: string;
+  content_checksum?: string | null;
+  evidence_state?: "passed" | "failed" | "missing" | string;
+  outcome?: "passed" | "warning" | "failure" | "missing" | string;
+  warnings?: string[];
+}
+
 export interface CvVersionResource {
   version_id: string;
   run_id: string;
@@ -27,6 +36,8 @@ export interface CvVersionResource {
   job_url: string;
   ordinal: number;
   generation_status: "generated" | "review_required" | "pending" | "running" | "generation_failed" | string;
+  outcome_status?: "generated" | "review_required" | "pending" | "failed" | "missing" | string;
+  evidence_state?: "passed" | "failed" | "missing" | string;
   content_checksum?: string | null;
   content_length?: number | null;
   media_type?: string | null;
@@ -34,10 +45,12 @@ export interface CvVersionResource {
   parent_cv_version_id?: string | null;
   created_at: string;
   error_code?: string | null;
+  failure_code?: string | null;
   error_message?: string | null;
   cv_structured?: Record<string, unknown> | null;
   evaluation?: CvEvaluationData | null;
   review_state: string;
+  quality_warnings?: CvQualityWarningsEnvelope | null;
   capabilities: CvCapabilities;
   etag?: string | null;
   [key: string]: unknown;

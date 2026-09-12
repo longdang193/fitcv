@@ -960,6 +960,7 @@ def _ensure_control_plane_schema(
         cv_markdown TEXT,
         cv_generation_input_fingerprint TEXT,
         cv_generation_reuse_status TEXT,
+        quality_warnings_json TEXT CHECK (quality_warnings_json IS NULL OR json_valid(quality_warnings_json)),
         UNIQUE (run_job_id, ordinal),
         CHECK (generation_status NOT IN ('generated', 'review_required') OR (content_blob IS NOT NULL AND content_checksum IS NOT NULL AND content_length IS NOT NULL))
     );
@@ -1261,6 +1262,17 @@ def _ensure_control_plane_schema(
             conn.execute(
                 "ALTER TABLE synonym_suggestions ADD COLUMN candidate_canonicals_json TEXT NOT NULL DEFAULT '[]'"
             )
+        cv_version_columns = {
+            str(row[1] or "")
+            for row in conn.execute("PRAGMA table_info(cv_versions)").fetchall()
+        }
+        if "quality_warnings_json" not in cv_version_columns:
+            conn.execute("ALTER TABLE cv_versions ADD COLUMN quality_warnings_json TEXT")
+            if "warning_envelope_json" in cv_version_columns:
+                conn.execute(
+                    "UPDATE cv_versions SET quality_warnings_json=warning_envelope_json "
+                    "WHERE quality_warnings_json IS NULL"
+                )
         _ensure_run_inputs_snapshot_columns(conn)
         _ensure_scan_execution_columns(conn)
         _ensure_run_history_migration_tables(conn)
@@ -8228,7 +8240,8 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
             cv_structured_json TEXT,
             cv_markdown TEXT,
             cv_generation_input_fingerprint TEXT,
-            cv_generation_reuse_status TEXT
+            cv_generation_reuse_status TEXT,
+            quality_warnings_json TEXT CHECK (quality_warnings_json IS NULL OR json_valid(quality_warnings_json))
         )
         """
     )
@@ -8244,6 +8257,13 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE cv_versions ADD COLUMN cv_generation_reuse_status TEXT"
         )
+    if "quality_warnings_json" not in existing_columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN quality_warnings_json TEXT")
+        if "warning_envelope_json" in existing_columns:
+            conn.execute(
+                "UPDATE cv_versions SET quality_warnings_json=warning_envelope_json "
+                "WHERE quality_warnings_json IS NULL"
+            )
 
 def _ensure_local_rule_filter_results_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -9808,7 +9828,8 @@ def list_cvs_for_run(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> 
                 cv_schema_version,
                 cv_structured_json,
                 cv_generation_input_fingerprint,
-                cv_generation_reuse_status
+                cv_generation_reuse_status,
+                quality_warnings_json
             FROM cv_versions
             WHERE run_id = ?
             ORDER BY generated_at DESC
@@ -9820,6 +9841,7 @@ def list_cvs_for_run(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> 
         row_dict = dict(row)
         structured_raw = row_dict.get("cv_structured_json")
         row_dict["cv_structured"] = _decode_json_or_none(structured_raw)
+        row_dict["quality_warnings"] = _decode_json_or_none(row_dict.get("quality_warnings_json"))
         results.append(row_dict)
     return results
 
@@ -9852,7 +9874,8 @@ def lookup_reusable_cv_versions(
                 cv_structured_json,
                 cv_markdown,
                 cv_generation_input_fingerprint,
-                cv_generation_reuse_status
+                cv_generation_reuse_status,
+                quality_warnings_json
             FROM cv_versions
             WHERE cv_generation_input_fingerprint IN ({placeholders})
             ORDER BY generated_at DESC
@@ -9866,6 +9889,7 @@ def lookup_reusable_cv_versions(
         if not fingerprint or fingerprint in indexed:
             continue
         row_dict["cv_structured"] = _decode_json_or_none(row_dict.get("cv_structured_json"))
+        row_dict["quality_warnings"] = _decode_json_or_none(row_dict.get("quality_warnings_json"))
         indexed[fingerprint] = row_dict
     return indexed
 
@@ -9985,8 +10009,9 @@ def insert_cv_version_row(row: dict[str, Any], *_compat_args: Any, **_compat_kwa
                         cv_structured_json,
                         cv_markdown,
                         cv_generation_input_fingerprint,
-                        cv_generation_reuse_status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        cv_generation_reuse_status,
+                        quality_warnings_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(row.get("version_id") or ""),
@@ -10001,6 +10026,7 @@ def insert_cv_version_row(row: dict[str, Any], *_compat_args: Any, **_compat_kwa
                         str(row.get("cv_markdown") or ""),
                         str(row.get("cv_generation_input_fingerprint") or ""),
                         str(row.get("cv_generation_reuse_status") or ""),
+                        str(row.get("quality_warnings_json") or "") or None,
                     ),
                 )
                 conn.commit()
@@ -12966,20 +12992,79 @@ def clear_run_job_interest(
     return {"run_job_id": run_job_id, "cleared": bool(cursor.rowcount), "action_id": action_id}
 
 
-def _cv_projection(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
-    evaluation_row = conn.execute(
-        """SELECT * FROM cv_evaluations
-           WHERE cv_version_id=? AND is_current=1 LIMIT 1""",
-        (row["version_id"],),
-    ).fetchone()
-    review_row = conn.execute(
-        """SELECT * FROM cv_review_events WHERE cv_version_id=?
-           ORDER BY created_at DESC, review_event_id DESC LIMIT 1""",
-        (row["version_id"],),
-    ).fetchone()
+_CV_VERSION_PROJECTION_COLUMNS = (
+    "version_id, run_job_id, parent_cv_version_id, ordinal, generation_status, "
+    "created_at, started_at, finished_at, duration_ms, generator_id, model_id, "
+    "prompt_id, schema_id, source_profile_revision, source_settings_revision, "
+    "input_snapshot_json, input_checksum, filename, media_type, content_length, "
+    "content_checksum, storage_path, error_code, error_message, action_id, "
+    "idempotency_key, run_id, job_url, fit_classification, generated_at, "
+    "cv_generation_model, cv_prompt_version, cv_schema_version, cv_structured_json, "
+    "cv_markdown, cv_generation_input_fingerprint, cv_generation_reuse_status, "
+    "quality_warnings_json"
+)
+_CV_EVALUATION_PROJECTION_COLUMNS = (
+    "cv_evaluation_id, cv_version_id, status, fit_classification, score, reason, "
+    "evidence_json, evaluator_id, model_id, prompt_id, schema_id, started_at, "
+    "finished_at, error_code, error_message, retry_count, next_retry_at, is_current"
+)
+_CV_REVIEW_EVENT_PROJECTION_COLUMNS = (
+    "review_event_id, cv_version_id, cv_evaluation_id, from_state, to_state, actor, "
+    "note, action_id, idempotency_key, created_at"
+)
+
+
+def _cv_projection(
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    *,
+    evaluation_row: sqlite3.Row | None = None,
+    review_row: sqlite3.Row | None = None,
+    load_related: bool = True,
+) -> dict[str, Any]:
+    if load_related and evaluation_row is None:
+        evaluation_row = conn.execute(
+            f"""SELECT {_CV_EVALUATION_PROJECTION_COLUMNS} FROM cv_evaluations
+               WHERE cv_version_id=? AND is_current=1 LIMIT 1""",
+            (row["version_id"],),
+        ).fetchone()
+    if load_related and review_row is None:
+        review_row = conn.execute(
+            f"""SELECT {_CV_REVIEW_EVENT_PROJECTION_COLUMNS} FROM cv_review_events WHERE cv_version_id=?
+               ORDER BY created_at DESC, review_event_id DESC LIMIT 1""",
+            (row["version_id"],),
+        ).fetchone()
     item = dict(row)
     item.pop("content_blob", None)
     item["cv_structured"] = _decode_json_or_none(item.get("cv_structured_json"))
+    quality_warnings = _decode_json_or_none(item.get("quality_warnings_json"))
+    if isinstance(quality_warnings, dict):
+        bound = (
+            str(quality_warnings.get("artifact_version_id") or "") == str(item.get("version_id") or "")
+            and str(quality_warnings.get("content_checksum") or "") == str(item.get("content_checksum") or "")
+        )
+        if not bound:
+            quality_warnings = {**quality_warnings, "evidence_state": "missing"}
+    item["quality_warnings"] = quality_warnings
+    evidence_state = (
+        str(quality_warnings.get("evidence_state") or "missing")
+        if isinstance(quality_warnings, dict)
+        else "missing"
+    )
+    native_status = str(item.get("generation_status") or "")
+    item["outcome_status"] = (
+        "generated"
+        if native_status == "generated" and evidence_state == "passed"
+        else "failed"
+        if native_status in {"validation_failed", "generation_failed", "persistence_failed"}
+        else "pending"
+        if native_status in {"pending", "running"}
+        else "review_required"
+        if native_status == "review_required"
+        else "missing"
+    )
+    item["failure_code"] = item.get("error_code") if item["outcome_status"] == "failed" else None
+    item["evidence_state"] = evidence_state
     item["evaluation"] = dict(evaluation_row) if evaluation_row is not None else None
     item["review_state"] = str(review_row["to_state"]) if review_row is not None else "none"
     item["capabilities"] = {
@@ -13000,26 +13085,68 @@ def _cv_projection(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]
     return item
 
 
+def _batch_cv_projections(
+    conn: sqlite3.Connection,
+    rows: list[sqlite3.Row],
+) -> list[dict[str, Any]]:
+    if not rows:
+        return []
+    version_ids = [str(row["version_id"]) for row in rows]
+    placeholders = ",".join("?" for _ in version_ids)
+    evaluations = {
+        str(row["cv_version_id"]): row
+        for row in conn.execute(
+            f"""SELECT cv_evaluation_id, cv_version_id, status, fit_classification,
+                       score, reason, evidence_json, evaluator_id, model_id, prompt_id,
+                       schema_id, started_at, finished_at, error_code, error_message,
+                       retry_count, next_retry_at, is_current
+                FROM cv_evaluations
+                WHERE is_current=1 AND cv_version_id IN ({placeholders})""",
+            version_ids,
+        ).fetchall()
+    }
+    reviews: dict[str, sqlite3.Row] = {}
+    for review in conn.execute(
+        f"""SELECT review_event_id, cv_version_id, cv_evaluation_id, from_state,
+                   to_state, actor, note, action_id, idempotency_key, created_at
+            FROM cv_review_events
+            WHERE cv_version_id IN ({placeholders})
+            ORDER BY created_at DESC, review_event_id DESC""",
+        version_ids,
+    ).fetchall():
+        reviews.setdefault(str(review["cv_version_id"]), review)
+    return [
+        _cv_projection(
+            conn,
+            row,
+            evaluation_row=evaluations.get(str(row["version_id"])),
+            review_row=reviews.get(str(row["version_id"])),
+            load_related=False,
+        )
+        for row in rows
+    ]
+
+
 def list_cv_versions(run_job_id: str, *_args: Any, **_kwargs: Any) -> list[dict[str, Any]]:
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            """SELECT * FROM cv_versions WHERE run_job_id=?
+            f"""SELECT {_CV_VERSION_PROJECTION_COLUMNS} FROM cv_versions WHERE run_job_id=?
                ORDER BY ordinal DESC, created_at DESC, version_id DESC""",
             (run_job_id,),
         ).fetchall()
-        return [_cv_projection(conn, row) for row in rows]
+        return _batch_cv_projections(conn, rows)
 
 
 def list_cvs_for_run(run_id: str, *_args: Any, **_kwargs: Any) -> list[dict[str, Any]]:
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            """SELECT * FROM cv_versions WHERE run_id=?
+            f"""SELECT {_CV_VERSION_PROJECTION_COLUMNS} FROM cv_versions WHERE run_id=?
                ORDER BY created_at DESC, ordinal DESC, version_id DESC""",
             (run_id,),
         ).fetchall()
-        return [_cv_projection(conn, row) for row in rows]
+        return _batch_cv_projections(conn, rows)
 
 
 def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> list[Any]:
@@ -13064,8 +13191,12 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
             ).fetchall()
             if len(jobs) == 1:
                 run_job_id = str(jobs[0]["run_job_id"])
-        if run_job_id is None:
-            raise ValueError("cv_version_run_job_binding_required")
+            elif jobs or conn.execute(
+                "SELECT 1 FROM pipeline_runs WHERE run_id=? LIMIT 1", (run_id,)
+            ).fetchone() is not None or conn.execute(
+                "SELECT 1 FROM run_jobs LIMIT 1"
+            ).fetchone() is not None:
+                raise ValueError("cv_version_run_job_binding_required")
         if run_job_id is not None:
             job = conn.execute(
                 "SELECT run_id, source_url FROM run_jobs WHERE run_job_id=?", (run_job_id,)
@@ -13088,8 +13219,28 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                 ).fetchone()
                 if parent is None or str(parent[0] or "") != run_job_id:
                     raise ValueError("parent_cv_version_invalid")
+        existing = conn.execute(
+            """SELECT run_job_id, run_id, job_url, content_checksum, content_length
+               FROM cv_versions WHERE version_id=? LIMIT 1""",
+            (version_id,),
+        ).fetchone()
+        if existing is not None:
+            bindings_match = all(
+                not expected or not existing[key] or str(existing[key]) == expected
+                for key, expected in (
+                    ("run_job_id", run_job_id),
+                    ("run_id", run_id),
+                    ("job_url", job_url),
+                )
+            )
+            if bindings_match and str(existing["content_checksum"] or "") == str(content_checksum or "") and (
+                existing["content_length"] is None or content_length is None or int(existing["content_length"]) == int(content_length)
+            ):
+                return []
+            raise sqlite3.IntegrityError("UNIQUE constraint failed: cv_versions.version_id")
+        placeholders = ", ".join("?" for _ in range(39))
         conn.execute(
-            """INSERT INTO cv_versions (
+            f"""INSERT INTO cv_versions (
                 version_id, run_job_id, parent_cv_version_id, ordinal, generation_status,
                 created_at, started_at, finished_at, duration_ms, generator_id, model_id,
                 prompt_id, schema_id, source_profile_revision, source_settings_revision,
@@ -13097,8 +13248,8 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                 content_checksum, content_blob, storage_path, error_code, error_message,
                 action_id, idempotency_key, run_id, job_url, fit_classification, generated_at,
                 cv_generation_model, cv_prompt_version, cv_schema_version, cv_structured_json,
-                cv_markdown, cv_generation_input_fingerprint, cv_generation_reuse_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                cv_markdown, cv_generation_input_fingerprint, cv_generation_reuse_status, quality_warnings_json
+            ) VALUES ({placeholders})""",
             (
                 version_id, run_job_id, row.get("parent_cv_version_id"), ordinal, generation_status,
                 row.get("created_at") or row.get("generated_at") or now, row.get("started_at"),
@@ -13118,6 +13269,7 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                 row.get("cv_generation_model"), row.get("cv_prompt_version"),
                 row.get("cv_schema_version"), row.get("cv_structured_json"), markdown or None,
                 row.get("cv_generation_input_fingerprint"), row.get("cv_generation_reuse_status"),
+                row.get("quality_warnings_json"),
             ),
         )
         if run_job_id is not None:
@@ -13281,7 +13433,8 @@ def update_cv_version(
                        cv_schema_version=COALESCE(?, cv_schema_version),
                        cv_structured_json=COALESCE(?, cv_structured_json), cv_markdown=COALESCE(?, cv_markdown),
                        cv_generation_input_fingerprint=COALESCE(?, cv_generation_input_fingerprint),
-                       cv_generation_reuse_status=COALESCE(?, cv_generation_reuse_status)
+                       cv_generation_reuse_status=COALESCE(?, cv_generation_reuse_status),
+                       quality_warnings_json=COALESCE(?, quality_warnings_json)
                    WHERE version_id=?""",
                 (
                     normalized_status,
@@ -13301,6 +13454,9 @@ def update_cv_version(
                     content_bytes.decode("utf-8") if content_bytes is not None else None,
                     metadata.get("cv_generation_input_fingerprint"),
                     metadata.get("cv_generation_reuse_status"),
+                    json.dumps(metadata.get("quality_warnings_json"), sort_keys=True)
+                    if isinstance(metadata.get("quality_warnings_json"), dict)
+                    else metadata.get("quality_warnings_json"),
                     version_id,
                 ),
             )

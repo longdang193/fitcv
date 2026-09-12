@@ -1846,7 +1846,7 @@ def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_map
         execute_pipeline_run(run_id="r-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update.call_args_list[-1].args[1]
-    assert final_status.value == "succeeded"
+    assert final_status.value == "awaiting_continue"
     mapping_payload = json.loads(mock_mapping_update.call_args.args[1])
     synonym_payload = json.loads(mock_syn_update.call_args.args[1])
     assert isinstance(mapping_payload.get("created_at"), str) and mapping_payload["created_at"]
@@ -1924,14 +1924,16 @@ def test_worker_run_all_keeps_awaiting_review_for_high_risk_review_required() ->
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
     }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
-       patch("fitcv_cp.worker_job.update_run_status") as mock_update:
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update, \
+       patch("fitcv_cp.worker_job.update_run_checkpoint") as mock_checkpoint:
         execute_pipeline_run(run_id="r-high-risk-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update.call_args_list[-1].args[1]
-    assert final_status.value == "succeeded"
+    assert final_status.value == "awaiting_continue"
+    assert mock_checkpoint.call_args.kwargs["checkpoint_status"] == "awaiting_review"
 
 
-def test_worker_run_all_awaiting_review_persists_terminal_snapshots_as_succeeded() -> None:
+def test_worker_run_all_awaiting_review_persists_pending_review_snapshots() -> None:
     client = MagicMock()
     client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(
@@ -1965,20 +1967,24 @@ def test_worker_run_all_awaiting_review_persists_terminal_snapshots_as_succeeded
     }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update_status, \
+       patch("fitcv_cp.worker_job.update_run_checkpoint") as mock_update_checkpoint, \
        patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export, \
        patch("fitcv_cp.worker_job.update_run_settings_used") as mock_store_settings, \
        patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_store_stage_artifacts:
         execute_pipeline_run(run_id="r-awaiting-review-persist", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update_status.call_args_list[-1].args[1]
-    assert final_status.value == "succeeded"
+    assert final_status.value == "awaiting_continue"
+    checkpoint_calls = [call for call in mock_update_checkpoint.call_args_list]
+    assert checkpoint_calls
+    assert checkpoint_calls[-1].kwargs["checkpoint_status"] == "awaiting_review"
     assert mock_store_export.called
     assert mock_store_settings.called
     assert mock_store_stage_artifacts.called
     stage_payload = json.loads(mock_store_stage_artifacts.call_args.args[1])
-    assert stage_payload["status"] == "succeeded"
-    assert stage_payload["snapshot_complete"] is True
-    assert stage_payload["degradation_reason"] == ""
+    assert stage_payload["status"] == "awaiting_continue"
+    assert stage_payload["snapshot_complete"] is False
+    assert stage_payload["degradation_reason"] == "partial_snapshot_non_terminal_success"
     assert isinstance(stage_payload.get("created_at"), str) and stage_payload["created_at"]
 
 def test_worker_run_all_routes_synonym_auto_accept_to_central_queue() -> None:
@@ -3254,6 +3260,7 @@ def test_worker_review_required_reason_totals_preserved_while_remaining_counts_o
     }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update, \
+       patch("fitcv_cp.worker_job.update_run_checkpoint") as mock_checkpoint, \
        patch("fitcv_cp.worker_job.append_event") as mock_append:
         execute_pipeline_run(run_id="r-reason-parity", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
@@ -3263,10 +3270,11 @@ def test_worker_review_required_reason_totals_preserved_while_remaining_counts_o
     final_status = final_args[1]
     final_summary = dict(status_updates[-1].kwargs.get("summary") or {})
 
-    assert final_status.value == "succeeded"
+    assert final_status.value == "awaiting_continue"
     assert int(final_summary.get("review_required_total") or 0) == 2
     assert int(final_summary.get("review_required_remaining") or 0) == 1
     assert int(final_summary.get("review_required_remaining_missing_job_url") or 0) == 1
+    assert mock_checkpoint.call_args_list[-1].kwargs["checkpoint_status"] == "awaiting_review"
 
     review_events = [call.args[0] for call in mock_append.call_args_list if call.args and str(getattr(call.args[0], "stage", "")) == "cv_review_required"]
     assert review_events

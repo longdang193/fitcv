@@ -51,6 +51,8 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({
 
   const evalData = version.evaluation;
   const reviewState = version.review_state || "none";
+  const outcomeStatus = version.outcome_status || version.generation_status;
+  const isFailure = ["failed", "generation_failed", "validation_failed", "persistence_failed"].includes(outcomeStatus);
 
   const handleDecision = async (newState: string) => {
     if (!onReviewSubmit) return;
@@ -105,6 +107,40 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({
           />
         </div>
       </div>
+
+      {Array.isArray(version.quality_warnings?.warnings) && version.quality_warnings.warnings.length > 0 && (
+        <aside
+          aria-label="CV quality warnings"
+          style={{ padding: "10px 12px", background: "var(--warning-soft, #fffbeb)", borderRadius: "var(--radius-md)" }}
+        >
+          <strong style={{ fontSize: 12, color: "var(--warning, #a16207)" }}>
+            Quality warnings
+          </strong>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12 }}>
+            {version.quality_warnings.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+          </ul>
+        </aside>
+      )}
+
+      {isFailure && (
+        <aside
+          aria-label="CV generation failure"
+          style={{ padding: "10px 12px", background: "var(--danger-soft, #fef2f2)", borderRadius: "var(--radius-md)" }}
+        >
+          <strong style={{ fontSize: 12, color: "var(--danger)" }}>Generation failed</strong>
+          <p style={{ margin: "6px 0 0", fontSize: 12 }}>{version.failure_code || version.error_code || version.error_message || "CV output was not generated."}</p>
+        </aside>
+      )}
+
+      {outcomeStatus === "missing" && (
+        <aside
+          aria-label="CV validation evidence missing"
+          style={{ padding: "10px 12px", background: "var(--warning-soft, #fffbeb)", borderRadius: "var(--radius-md)" }}
+        >
+          <strong style={{ fontSize: 12, color: "var(--warning, #a16207)" }}>Validation evidence unavailable</strong>
+          <p style={{ margin: "6px 0 0", fontSize: 12 }}>This CV cannot claim validated output until supporting evidence is available.</p>
+        </aside>
+      )}
 
       {evalData ? (
         <div style={{ display: "grid", gap: 12 }}>

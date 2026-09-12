@@ -138,6 +138,20 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
         assert "profile_json" not in profile_columns
         assert profile_columns["revision"][3] == 1
 
+
+def test_control_plane_adds_quality_warnings_to_existing_cv_schema() -> None:
+    with sqlite3.connect(":memory:") as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+        conn.execute("ALTER TABLE cv_versions DROP COLUMN quality_warnings_json")
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN warning_envelope_json TEXT")
+        conn.commit()
+
+        sqlite_store._ensure_control_plane_schema(conn)
+
+        columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(cv_versions)")}
+        assert "quality_warnings_json" in columns
+
         bookmark_columns = {row[1]: row for row in conn.execute("PRAGMA table_info(bookmarks)")}
         assert bookmark_columns["run_id"][3] == 1
         assert bookmark_columns["run_job_id"][3] == 1
@@ -4246,6 +4260,57 @@ def test_cv_version_lookup_and_markdown_round_trip() -> None:
     assert rows[0]["version_id"] == "ver-1"
     assert indexed["fp-1"]["version_id"] == "ver-1"
     assert markdown == "# CV"
+
+
+def test_cv_version_quality_warnings_round_trip() -> None:
+    run_job_id = _create_normalized_run_with_jobs(
+        "run-cv-warnings", [{"title": "Warning Job", "job_url": "https://example.com/warning"}]
+    )[0]
+    envelope = {
+        "contract_version": "1",
+        "artifact_version_id": "cv-warning-1",
+        "content_checksum": hashlib.sha256(b"# Warning CV").hexdigest(),
+        "evidence_state": "passed",
+        "outcome": "warning",
+        "warnings": ["missing_nonessential_requirement"],
+    }
+    sqlite_store.insert_cv_version_row({
+        "version_id": "cv-warning-1",
+        "run_job_id": run_job_id,
+        "generation_status": "generated",
+        "cv_markdown": "# Warning CV",
+        "quality_warnings_json": json.dumps(envelope),
+    })
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+    assert version["quality_warnings"] == envelope
+    assert version["outcome_status"] == "generated"
+    assert version["evidence_state"] == "passed"
+
+
+def test_cv_version_projection_marks_unbound_warning_evidence_missing() -> None:
+    run_job_id = _create_normalized_run_with_jobs(
+        "run-cv-missing-evidence", [{"title": "Legacy Job", "job_url": "https://example.com/legacy"}]
+    )[0]
+    sqlite_store.insert_cv_version_row({
+        "version_id": "cv-legacy-review",
+        "run_job_id": run_job_id,
+        "generation_status": "review_required",
+        "cv_markdown": "# Legacy CV",
+        "quality_warnings_json": json.dumps({
+            "contract_version": "1",
+            "artifact_version_id": "wrong-version",
+            "content_checksum": "wrong-checksum",
+            "evidence_state": "passed",
+            "outcome": "warning",
+            "warnings": ["legacy_review"],
+        }),
+    })
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+    assert version["quality_warnings"]["evidence_state"] == "missing"
+    assert version["outcome_status"] == "review_required"
+    assert version["evidence_state"] == "missing"
 
 
 def test_delete_archived_runs_prunes_old_rows_only() -> None:

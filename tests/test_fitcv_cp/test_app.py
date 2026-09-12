@@ -6340,6 +6340,300 @@ def test_admin_run_cv_review_action_persists_and_appends_event() -> None:
     mock_append.assert_called_once()
 
 
+def test_admin_run_cv_review_action_does_not_repeat_terminal_effects() -> None:
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-action-idempotent",
+        status=RunStatus.SUCCEEDED,
+        checkpoint_status="completed",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "markdown_final": "# Candidate\n\nDraft",
+                    }
+                ],
+                "hitl_review_actions": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "action": "approve_as_is",
+                        "resolution_status": "approved_as_is",
+                        "artifact_finalized": True,
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update, \
+         patch("fitcv_cp.app.insert_cv_version_row") as mock_insert, \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-action-idempotent/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    mock_update.assert_not_called()
+    mock_insert.assert_not_called()
+    mock_append.assert_not_called()
+
+
+def test_admin_run_cv_review_action_retries_closure_after_recorded_action() -> None:
+    import dataclasses
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-closure-retry",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                    }
+                ]
+            }
+        ),
+    )
+    current_run = run
+    status_calls = 0
+
+    def get_current_run(*_args, **_kwargs):
+        return current_run
+
+    def save_debug(_run_id, payload, **_kwargs):
+        nonlocal current_run
+        current_run = dataclasses.replace(current_run, cv_generation_debug_json=payload)
+
+    def fail_first_status(*_args, **_kwargs):
+        nonlocal status_calls
+        status_calls += 1
+        if status_calls == 1:
+            raise RuntimeError("simulated crash after action record")
+
+    with patch("fitcv_cp.app.get_run", side_effect=get_current_run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug", side_effect=save_debug), \
+         patch("fitcv_cp.app.update_run_status", side_effect=fail_first_status) as mock_status, \
+         patch("fitcv_cp.app._persist_stage_artifacts_terminal_snapshot"), \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.app._run_post_validation_auto_promote_global", return_value={}), \
+         patch("fitcv_cp.app._persist_post_hitl_closure_artifact_reconciliation"), \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        client = TestClient(_app(), raise_server_exceptions=False)
+        first = client.post(
+            "/admin/runs/run-review-closure-retry/cv-review-action",
+            data={
+                "job_url": "https://example.com/job-1",
+                "action": "reject",
+                "actor": "operator",
+                "confirm_no_accepted_cv_closure": "true",
+            },
+            follow_redirects=False,
+        )
+        second = client.post(
+            "/admin/runs/run-review-closure-retry/cv-review-action",
+            data={
+                "job_url": "https://example.com/job-1",
+                "action": "reject",
+                "actor": "operator",
+                "confirm_no_accepted_cv_closure": "true",
+            },
+            follow_redirects=False,
+        )
+
+    assert first.status_code == 500
+    assert second.status_code == 303
+    assert mock_status.call_count == 2
+    mock_checkpoint.assert_called_once()
+    stages = [call.args[0].stage for call in mock_append.call_args_list]
+    assert stages.count("cv_review_action") == 1
+    assert stages.count("cv_review_completed") == 1
+
+
+def test_admin_run_cv_review_action_retries_approve_as_is_without_duplicate_artifact() -> None:
+    import dataclasses
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-approve-retry",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "review_item_id": "review-1",
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "markdown_full": "# Grounded CV",
+                    }
+                ]
+            }
+        ),
+    )
+    current_run = run
+    insert_calls = 0
+    inserted_version_ids = []
+    debug_writes = 0
+
+    def get_current_run(*_args, **_kwargs):
+        return current_run
+
+    def save_debug(_run_id, payload, **_kwargs):
+        nonlocal current_run, debug_writes
+        debug_writes += 1
+        current_run = dataclasses.replace(current_run, cv_generation_debug_json=payload)
+
+    def fail_first_debug_write(_run_id, payload, **_kwargs):
+        nonlocal debug_writes
+        debug_writes += 1
+        if debug_writes == 1:
+            raise RuntimeError("simulated crash after artifact persistence")
+        save_debug(_run_id, payload, **_kwargs)
+
+    def persist_once(*_args, **_kwargs):
+        nonlocal insert_calls
+        insert_calls += 1
+        inserted_version_ids.append(str(_args[0]["version_id"]))
+        return []
+
+    with patch("fitcv_cp.app.get_run", side_effect=get_current_run), \
+         patch("fitcv_cp.app.insert_cv_version_row", side_effect=persist_once), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug", side_effect=fail_first_debug_write), \
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app.update_run_status"), \
+         patch("fitcv_cp.app._persist_stage_artifacts_terminal_snapshot"), \
+         patch("fitcv_cp.app.update_run_checkpoint"), \
+         patch("fitcv_cp.app._run_post_validation_auto_promote_global", return_value={}), \
+         patch("fitcv_cp.app._persist_post_hitl_closure_artifact_reconciliation"):
+        client = TestClient(_app(), raise_server_exceptions=False)
+        first = client.post(
+            "/admin/runs/run-review-approve-retry/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+        second = client.post(
+            "/admin/runs/run-review-approve-retry/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+
+    assert first.status_code == 500
+    assert second.status_code == 303
+    assert insert_calls == 2
+    assert inserted_version_ids[0] == inserted_version_ids[1]
+    actions = json.loads(current_run.cv_generation_debug_json)["hitl_review_actions"]
+    assert len(actions) == 1
+    assert actions[0]["artifact_version_id"]
+
+
+def test_review_finalize_replaces_same_artifact_identity_in_sqlite(tmp_path, monkeypatch) -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.app import _finalize_review_draft_as_cv_artifact
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    run = PipelineRun(
+        run_id="run-review-approve-sqlite",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps({}),
+    )
+    record = {
+        "review_item_id": "review-1",
+        "job_url": "https://example.com/job-1",
+        "status": "review_required",
+        "markdown_full": "# Grounded CV",
+    }
+
+    first = _finalize_review_draft_as_cv_artifact(
+        run=run,
+        job_url=record["job_url"],
+        record=record,
+        client=None,
+    )
+    second = _finalize_review_draft_as_cv_artifact(
+        run=run,
+        job_url=record["job_url"],
+        record=record,
+        client=None,
+    )
+
+    assert first[0] is True
+    assert second[0] is True
+    assert first[2] == second[2]
+    rows = sqlite_store.list_cvs_for_run(run.run_id)
+    assert [row["version_id"] for row in rows] == [first[2]]
+
+
+def test_admin_run_cv_review_action_reconciles_historical_checkpoint_idempotently() -> None:
+    from datetime import datetime, timezone
+
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-review-legacy-reconcile",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        last_completed_stage="cv_generation",
+        completed_stages=["cv_generation"],
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_status") as mock_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.app._persist_stage_artifacts_terminal_snapshot"), \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-legacy-reconcile/cv-review-action",
+            data={"action": "reconcile_historical"},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    assert mock_status.call_args.args[1] == RunStatus.SUCCEEDED
+    assert mock_checkpoint.call_args.kwargs["checkpoint_status"] == "completed"
+    assert mock_append.call_args.args[0].stage == "cv_review_legacy_reconciled"
+
+
 def test_admin_run_cv_review_action_resolves_by_review_item_id_without_job_url() -> None:
     from datetime import datetime, timezone
 

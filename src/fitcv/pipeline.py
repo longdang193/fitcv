@@ -4571,6 +4571,7 @@ def run_pipeline(
             )
             structured_cv_final = structured_cv
             markdown_final = cv
+            canonical_status = str(canonical_result.get("status") or "accepted")
             version = create_cv_version_record(
                 job_url=str(job.get("job_url") or ""),
                 run_id=run_id,
@@ -4588,8 +4589,16 @@ def run_pipeline(
                 cv_prompt_version=cv_prompt_version_value,
                 cv_generation_input_fingerprint=cv_generation_input_fingerprint,
                 cv_generation_reuse_status=cv_generation_reuse_status,
+                quality_warnings=list(canonical_result.get("quality_warnings") or []),
+                validation_result=validation,
+                diagnostic_code=(canonical_result.get("error") or {}).get("code")
+                if isinstance(canonical_result.get("error"), dict)
+                else None,
+                original_outcome=canonical_status,
             )
-            version["generation_status"] = str(canonical_result.get("status") or "accepted")
+            version["generation_status"] = (
+                "generated" if canonical_status == "accepted" else canonical_status
+            )
             pipeline_store.store_cv_version(version, config)
             results.append({
                 "job_url": str(job.get("job_url") or ""),

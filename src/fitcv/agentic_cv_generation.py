@@ -57,7 +57,7 @@ from fitcv.late_stage_contract import (
     CV_GENERATION_VALIDATION_FAILED_STATUS as VALIDATION_FAILED_STATUS,
     GenerationStatus,
 )
-from fitcv.pipeline_contracts import ReviewRequiredReasonCode
+from fitcv.pipeline_contracts import ReviewRequiredReasonCode, classify_cv_outcome
 from fitcv.pipeline_stages.common import job_identity_keys
 from fitcv.reuse import build_reuse_decision
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
@@ -116,6 +116,7 @@ class CvGenerationResult(TypedDict, total=False):
     structured_cv_final: dict[str, Any] | None
     markdown_final: str | None
     validation: dict[str, Any] | None
+    quality_warnings: list[str]
     outcome_reason: ErrorPayload | None
     error: ErrorPayload | None
     review_required_reason_code: str | None
@@ -1079,11 +1080,10 @@ def _finalize_generation_result(
         review_reason = _review_required_reason(analysis_record, finalized, config)
         if review_reason is not None:
             reason_code, message = review_reason
-            finalized["status"] = "review_required"
             finalized["review_required_reason_code"] = reason_code
-            finalized["outcome_reason"] = {"stage": "review", "code": reason_code, "message": message}
-            finalized["error"] = None
-            status = "review_required"
+            warnings = list(finalized.get("quality_warnings") or [])
+            warnings.append(message)
+            finalized["quality_warnings"] = sorted(set(warnings))
     reason = finalized.get("outcome_reason") or finalized.get("error")
     validation_snapshot = finalized.get("validation") or finalized.get("validation_initial")
     if not finalized.get("review_required_reason_code"):
@@ -1100,6 +1100,9 @@ def _finalize_generation_result(
         validation=validation_snapshot,
         error=reason,
     )
+    if "quality_warnings" not in finalized:
+        validation_warnings = list((validation_snapshot or {}).get("warnings") or [])
+        finalized["quality_warnings"] = sorted({str(item).strip() for item in validation_warnings if str(item).strip()})
     error = finalized.get("error")
     if isinstance(error, dict) and not error.get("code"):
         error["code"] = status or str(error.get("stage") or "failure")
