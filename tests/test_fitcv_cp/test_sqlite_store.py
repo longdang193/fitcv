@@ -4387,6 +4387,48 @@ def test_query_runs_counts_search_matches_across_views_and_pages() -> None:
     assert all_runs["active_count"] == 2
     assert all_runs["archived_count"] == 1
 
+
+def test_query_runs_escapes_literal_like_wildcards() -> None:
+    for run_id, run_name in (("run-percent", "100% match"), ("run-underscore", "under_score")):
+        run = _make_run(run_id)
+        run.run_name = run_name
+        sqlite_store.insert_run(run)
+
+    assert sqlite_store.query_runs(search="100% match")["total"] == 1
+    assert sqlite_store.query_runs(search="under_score")["total"] == 1
+    assert sqlite_store.query_runs(search="100")["total"] == 1
+
+
+def test_process_event_delivery_claims_are_atomic_and_expire() -> None:
+    from fitcv_cp.models import build_process_event
+
+    event = build_process_event(
+        process_type="pipeline",
+        process_id="run-delivery-claims",
+        operation="pipeline_start",
+        state="recorded",
+        level="info",
+        message="started",
+    )
+    sqlite_store.append_process_event(event, delivery_sinks=("langfuse",))
+
+    first = sqlite_store.claim_process_event_deliveries(limit=1, lease_seconds=30, worker_id="worker-a")
+    second = sqlite_store.claim_process_event_deliveries(limit=1, lease_seconds=30, worker_id="worker-b")
+    assert len(first) == 1
+    assert second == []
+
+    assert sqlite_store.record_process_event_delivery(
+        event.event_id, "langfuse", "failed", "timeout", claim_id=first[0]["claim_id"]
+    ) is True
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute(
+            "UPDATE process_event_deliveries SET next_attempt_at=? WHERE event_id=? AND sink=?",
+            ("2000-01-01T00:00:00+00:00", event.event_id, "langfuse"),
+        )
+        conn.commit()
+    reclaimed = sqlite_store.claim_process_event_deliveries(limit=1, lease_seconds=1, worker_id="worker-c")
+    assert len(reclaimed) == 1
+
 def test_idempotent_action_replays_same_fingerprint_and_rejects_conflict() -> None:
     first = sqlite_store.reserve_idempotent_action("runs:create", "key-1", "fingerprint-1")
     sqlite_store.complete_idempotent_action(first["action_id"], {"run_id": "run-1"})

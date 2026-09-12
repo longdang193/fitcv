@@ -508,3 +508,51 @@ def test_run_vector_search_reports_missing_and_invalid_embedding_coverage(
     assert result["diagnostics"]["missing_job_embedding_sample"] == ["https://example.com/missing"]
     assert result["diagnostics"]["invalid_job_embedding_sample"] == ["https://example.com/invalid"]
     assert result["diagnostics"]["embedding_coverage_rate"] == pytest.approx(1 / 3)
+
+
+def test_run_vector_search_lexical_v1_uses_canonical_signals_and_url_tie_breaking() -> None:
+    config = {
+        "ranking_policy": {
+            "declared_preference_component_weights": {
+                "domain": 1.0,
+                "role_family": 1.0,
+                "work_mode": 1.0,
+            }
+        },
+        "pipeline": {"vector_search_top_n": 2},
+    }
+    profile = {
+        "headline": "Data Engineer",
+        "skills": [{"name": "Python"}, {"name": "SQL"}],
+        "preferences": {
+            "target_role": "Data Engineer",
+            "domains": ["fintech"],
+            "location_types": ["remote"],
+        },
+    }
+    jobs = [
+        {
+            "job_url": "https://example.com/z",
+            "title": "Marketing Manager",
+            "required_skills": ["SEO"],
+            "domain": "retail",
+            "job_family": "marketing",
+            "location_type": "onsite",
+        },
+        {
+            "job_url": "https://example.com/a",
+            "title": "Data Platform Engineer",
+            "required_skills_canonical": ["python", "sql"],
+            "domain": "fintech",
+            "job_family": "data_engineering",
+            "location_type": "remote",
+        },
+    ]
+
+    result = run_vector_search(profile, [job["job_url"] for job in jobs], config, structured_jobs=jobs)
+
+    assert result["diagnostics"]["retrieval_strategy"] == "lexical_v1"
+    assert result["production_rows"][0]["job_url"] == "https://example.com/a"
+    assert result["production_rows"][0]["retrieval_score"] > 0
+    assert "vector_similarity" not in result["production_rows"][0]
+    assert result["diagnostics"]["embedding_generation_skipped"] is True

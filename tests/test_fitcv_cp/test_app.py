@@ -2917,6 +2917,44 @@ def test_get_runs_list_reconciles_orphaned_running_run_when_queue_job_missing() 
     assert payload[0]["backend_status"] == "failed"
     assert mock_update_status.called
 
+
+def test_get_runs_list_uses_query_projection_without_detail_expansion() -> None:
+    app = _app()
+    app.state.run_store.query_runs_fn = lambda **_kwargs: {
+        "items": [{
+            "run_id": "run-list-projection",
+            "run_name": "Projected run",
+            "backend_status": "succeeded",
+            "display_status": "Succeeded",
+            "status_detail": None,
+            "created_at": "2026-09-12T00:00:00+00:00",
+            "started_at": None,
+            "finished_at": "2026-09-12T00:01:00+00:00",
+            "archived_at": None,
+            "counts": {"total": 1, "passed": 1, "rejected": 0, "skipped": 0, "cvs_generated": 0},
+            "progress": {"completed": 1, "total": 1},
+            "warnings": {},
+            "errors": {"code": None, "message": None},
+            "partial_completion": False,
+            "input": {"original_filename": "jobs.json"},
+            "capabilities": {},
+            "integrity_warnings": [],
+            "debug_bundle": {},
+            "links": {},
+        }],
+        "total": 1,
+        "active_count": 1,
+        "archived_count": 0,
+    }
+    app.state.run_store.get_run_fn = lambda _run_id: None
+    app.state.run_store.get_run_detail_fn = MagicMock(side_effect=AssertionError("detail expansion is forbidden"))
+
+    response = TestClient(app).get("/runs")
+
+    assert response.status_code == 200
+    assert response.json()["data"][0]["run_id"] == "run-list-projection"
+    app.state.run_store.get_run_detail_fn.assert_not_called()
+
 def test_get_runs_list_keeps_running_for_inline_missing_job_status() -> None:
     from fitcv_cp.models import PipelineRun
     from datetime import datetime, timezone
@@ -15481,3 +15519,22 @@ def test_company_catalog_track_duplicate_and_persistence_failure() -> None:
         assert duplicate.json() == first.json()
         assert failed.status_code == 500
         assert failed.json()["error"]["code"] == "tracked_company_persistence_failed"
+
+
+def test_results_export_normalizes_score_state_without_fabricating_zero() -> None:
+    from fitcv_cp.app import _normalize_results_export_row
+
+    invalid = _normalize_results_export_row({
+        "job_url": "https://example.com/invalid",
+        "scores": {"ai_score": 0.0, "score_status": "unscored", "failure_code": "timeout"},
+    })
+    assert invalid["ai_score"] is None
+    assert invalid["score_status"] == "unscored"
+    assert invalid["failure_code"] == "timeout"
+
+    valid = _normalize_results_export_row({
+        "job_url": "https://example.com/zero",
+        "scores": {"ai_score": 0.0},
+    })
+    assert valid["ai_score"] == 0.0
+    assert valid["score_status"] == "valid"

@@ -137,6 +137,21 @@ def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
     assert baseline["fingerprint"] != changed["fingerprint"]
 
 
+def test_build_enrich_contract_fingerprint_changes_when_replacement_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = {
+        "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
+    }
+    monkeypatch.setattr("fitcv.enrich.get_prompt_replacement", lambda task, cfg: "Add SQL.")
+    first = build_enrich_contract_fingerprint(config)
+    monkeypatch.setattr("fitcv.enrich.get_prompt_replacement", lambda task, cfg: "Add Python.")
+    second = build_enrich_contract_fingerprint(config)
+
+    assert first["payload"]["effective_prompt_sha256"] != second["payload"]["effective_prompt_sha256"]
+    assert first["fingerprint"] != second["fingerprint"]
+
+
 
 def test_sqlite_reuse_lookup_uses_cached_structured_jobs(
     monkeypatch: pytest.MonkeyPatch,

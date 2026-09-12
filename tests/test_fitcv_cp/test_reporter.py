@@ -14,7 +14,8 @@ tags:
 
 from unittest.mock import MagicMock, patch
 import json
-from fitcv_cp.reporter import PipelineReporter
+import sqlite3
+from fitcv_cp.reporter import PipelineReporter, ProcessEventDeliveryLoop
 
 
 def test_reporter_emits_event():
@@ -27,13 +28,13 @@ def test_reporter_emits_event():
     append_mock.assert_called_once()
 
 
-def test_reporter_retries_pending_deliveries_on_emission() -> None:
+def test_reporter_does_not_retry_pending_deliveries_on_emission() -> None:
     reporter = PipelineReporter(run_id="r1")
     with patch("fitcv_cp.reporter.retry_pending_process_event_deliveries") as retry_mock, \
          patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}):
         reporter.emit("job_outcome", "info", "done")
 
-    retry_mock.assert_called_once_with(limit=5)
+    retry_mock.assert_not_called()
 
 
 def test_reporter_persists_local_event_without_bq():
@@ -42,6 +43,38 @@ def test_reporter_persists_local_event_without_bq():
     with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         reporter.emit("pipeline_start", "info", "ok")
     append_mock.assert_called_once()
+
+
+def test_delivery_loop_final_drain_completes_before_stop() -> None:
+    calls: list[int] = []
+    with patch(
+        "fitcv_cp.reporter.retry_pending_process_event_deliveries",
+        side_effect=lambda *, limit: calls.append(limit) or 0,
+    ):
+        ProcessEventDeliveryLoop(limit=20).stop(final_drain=True)
+    assert calls == [20]
+
+
+def test_remote_delivery_failure_stays_outside_emit_and_marks_retryable(tmp_path, monkeypatch) -> None:
+    from fitcv_cp import reporter
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
+    monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_PUBLIC_KEY", "public")
+    monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_SECRET_KEY", "secret")
+    monkeypatch.setenv("FITCV_LANGFUSE_BASE_URL", "https://langfuse.invalid")
+    monkeypatch.setattr(reporter.httpx, "post", lambda **_kwargs: (_ for _ in ()).throw(TimeoutError("timeout")))
+
+    reporter.PipelineReporter("run-remote-failure").emit("pipeline_start", "info", "started")
+    assert reporter.retry_pending_process_event_deliveries(limit=1) == 0
+
+    with sqlite3.connect(tmp_path / "fitcv.sqlite3") as conn:
+        status = conn.execute(
+            "SELECT status FROM process_event_deliveries WHERE event_id IN "
+            "(SELECT event_id FROM process_events WHERE process_id=?)",
+            ("run-remote-failure",),
+        ).fetchone()
+    assert status == ("failed",)
 
 
 def _obsolete_test_reporter_payload_serialized():
@@ -232,19 +265,17 @@ def _obsolete_test_reporter_uses_bounded_fallback_without_emitting_span_when_no_
 
 
 
-def test_reporter_persists_before_native_mirror(monkeypatch) -> None:
+def test_reporter_persists_without_native_remote_delivery(monkeypatch) -> None:
     from fitcv_cp import reporter
 
     calls = []
     monkeypatch.setattr(reporter, "append_process_event", lambda event, **kwargs: calls.append(("persist", event)) or {"persistence_status": "persisted", "persistence_backend": "sqlite"})
-    monkeypatch.setattr(reporter, "record_process_event_delivery", lambda *args, **kwargs: calls.append(("delivery", args, kwargs)))
-    monkeypatch.setattr(reporter, "_emit_langfuse_native_io", lambda **kwargs: calls.append(("mirror", kwargs)) or ("sent:trace", None))
     monkeypatch.setattr(reporter, "current_trace_context", lambda: {"trace_id": "trace"})
     monkeypatch.setattr(reporter, "telemetry_export_status", lambda: {"status": "enabled"})
 
     reporter.PipelineReporter("run-1").emit("enrich", "info", "started", {"attempt": 1})
 
-    assert [call[0] for call in calls] == ["persist", "mirror", "delivery"]
+    assert [call[0] for call in calls] == ["persist"]
     persisted = calls[0][1]
     assert persisted.process_type == "pipeline"
     assert persisted.process_id == "run-1"

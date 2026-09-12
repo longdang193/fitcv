@@ -1072,10 +1072,11 @@ def test_build_ranking_features_uses_policy_missing_defaults() -> None:
     assert row["normalized_factors"]["location_fit"]["value"] == pytest.approx(0.5)
     assert row["normalized_factors"]["location_fit"]["missing_default_applied"] is True
     assert row["normalized_factors"]["language_fit"]["value"] == pytest.approx(0.5)
-    assert row["holistic_ai_fit"] == pytest.approx(0.0)
-    assert row["holistic_ai_fit_missing_default_applied"] is True
+    assert row["holistic_ai_fit"] is None
+    assert row["holistic_ai_fit_missing_default_applied"] is False
     assert row["vector_similarity"] is None
-    assert row["baseline_fit"] == pytest.approx(0.0)
+    assert row["baseline_fit"] is None
+    assert row["score_status"] == "unscored"
 
 
 def test_build_ranking_features_drops_jobs_missing_from_ai_scores() -> None:
@@ -3713,6 +3714,8 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
         "param": "input",
         "request_id": "trace-http",
     }
+
+
     stage_summary = pipeline_result["stage_transition_artifacts"]["stages"]["cv_generation"]["llm_runtime_summary"]
     assert stage_summary["failed_total"] == 1
     assert stage_summary["failure_counts_by_code"] == {"adapter_http_error": 1}
@@ -6195,9 +6198,11 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
             "skip_count": 1,
             "strong_rate": pytest.approx(1 / 3),
             "stretch_rate": pytest.approx(1 / 3),
-            "skip_rate": pytest.approx(1 / 3),
-            "total_scored": 3,
-        }
+                "skip_rate": pytest.approx(1 / 3),
+                "total_scored": 3,
+                "unscored_count": 0,
+                "invalid_count": 0,
+            }
     }
 
     cv_analysis_metrics = artifacts["stages"]["cv_analysis"]["decision_summary"]["quality_metrics"]
@@ -7835,10 +7840,11 @@ def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_r
                 }
             },
             {
-                "ai_score_row": {
-                    "parser_status": "ok",
-                    "score_reasoning": "Valid",
-                }
+                    "ai_score_row": {
+                        "parser_status": "ok",
+                        "score_reasoning": "Valid",
+                        "ai_score": 0.5,
+                    }
             },
         ],
         "cv_analysis_records": [],
@@ -8910,6 +8916,8 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
         "responsibilities": ["Build pipelines"],
         "fit_label": "strong",
         "fit_label_source": "reranker",
+        "ai_score": 0.85,
+        "score_status": "valid",
     }
     config = _minimal_config()
     config["cv"]["agentic_late_stage"]["enabled"] = True
@@ -9684,3 +9692,25 @@ def test_job_sample_exports_semantic_snapshot() -> None:
 
     assert sample is not None
     assert sample["semantic_snapshot"] == snapshot
+
+
+def test_ranking_score_failures_remain_visible_and_unranked() -> None:
+    from fitcv.ranking import rank_jobs
+
+    shortlist = [
+        {"job_url": "https://example.com/zero", "raw_job_fingerprint": "zero", "vector_rank": 1},
+        {"job_url": "https://example.com/unscored", "raw_job_fingerprint": "unscored", "vector_rank": 2},
+        {"job_url": "https://example.com/invalid", "raw_job_fingerprint": "invalid", "vector_rank": 3},
+    ]
+    scores = [
+        {"job_url": "https://example.com/zero", "ai_score": 0.0, "score_status": "valid", "failure_code": None},
+        {"job_url": "https://example.com/unscored", "ai_score": None, "score_status": "unscored", "failure_code": "timeout"},
+        {"job_url": "https://example.com/invalid", "ai_score": None, "score_status": "invalid", "failure_code": "validation_failure"},
+    ]
+    rows = build_ranking_features(shortlist, scores, _minimal_profile(), _ranking_v2_config())
+    assert {row["score_status"] for row in rows} == {"valid", "unscored", "invalid"}
+    zero = next(row for row in rows if row["job_url"].endswith("/zero"))
+    assert zero["ai_score"] == 0.0
+    assert zero["baseline_fit_label"] == "skip"
+    assert all(row["baseline_fit"] is None for row in rows if row["score_status"] != "valid")
+    assert [row["job_url"] for row in rank_jobs(rows, top_n=10)] == ["https://example.com/zero"]

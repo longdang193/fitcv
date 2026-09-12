@@ -64,6 +64,13 @@ const STATUS_VALUE_MAP: Record<string, string> = {
   reranker_fit_below_threshold: "Reranker fit below threshold",
   scored_not_ranked: "Scored not ranked",
   ranked_skipped_fit_gate: "Skipped fit gate",
+  valid: "Score valid",
+  unscored: "Score unavailable",
+  invalid: "Score invalid",
+  ranking_unavailable: "Ranking unavailable",
+  provider_failure: "Scoring provider failed",
+  timeout: "Scoring timed out",
+  validation_failure: "Scoring validation failed",
 };
 
 const FACTOR_LABEL_MAP: Record<string, string> = {

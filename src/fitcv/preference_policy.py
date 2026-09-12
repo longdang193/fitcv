@@ -319,6 +319,23 @@ def resolve_run_preference_policy(
     existing_payload: dict[str, Any] | None = None,
     resolver: Callable[[PreferenceRuntimeContract], ResolvedPreferencePolicy] | None = None,
 ) -> ResolvedPreferencePolicy:
+    if ranking_rows and str(ranking_rows[0].get("retrieval_strategy") or "").strip() == "lexical_v1":
+        first = ranking_rows[0]
+        runtime = PreferenceRuntimeContract.build(
+            domain_id=config["decision_learning_policy"]["domain_id"],
+            baseline_policy_fingerprint=build_contract_fingerprint(config["ranking_policy"]),
+            ranking_contract_fingerprint=str(first.get("ranking_contract_fingerprint") or build_contract_fingerprint(config["ranking_policy"])),
+            embedding_model="incompatible",
+            embedding_dimension=1,
+            embedding_contract_fingerprint="lexical_v1",
+            learned_alpha=0.0,
+            preference_vector_norm_bound=config["decision_learning_policy"]["inverse_optimization"]["preference_vector_norm_bound"],
+        )
+        return resolve_zero_residual_policy(
+            runtime,
+            status="zero_residual_incompatible",
+            diagnostic_code="embedding_strategy_incompatible",
+        )
     if existing_payload:
         return resolved_preference_policy_from_dict(existing_payload)
     first = ranking_rows[0] if ranking_rows else {}

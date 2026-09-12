@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Button,
   Tabs,
@@ -45,6 +45,177 @@ const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
   cancelled: { variant: "neutral", label: "Cancelled" },
 };
 
+export function buildRunsQueryKey(
+  view: RunLifecycle,
+  search: string,
+  page: number,
+  pageSize: number
+): string {
+  return `${view}::${search.trim()}::${page}::${pageSize}`;
+}
+
+export interface RunsPollingCoordinatorOptions {
+  getQueryKey: () => string;
+  hasActiveRuns: () => boolean;
+  isDocumentVisible?: () => boolean;
+  fetchRuns: (params: {
+    queryKey: string;
+    showLoading: boolean;
+  }) => Promise<boolean>;
+  onPollSkipped?: (reason: "hidden" | "in_flight" | "terminal" | "destroyed") => void;
+  cadenceMs?: number;
+}
+
+// ponytail: fixed 1s visible cadence with single in-flight deduplication; add adaptive backoff or websocket push if active run volume spikes.
+export class RunsPollingCoordinator {
+  private timerId: ReturnType<typeof setInterval> | null = null;
+  private inFlight = false;
+  private inFlightQueryKey: string | null = null;
+  private activeRequestId = 0;
+  private destroyed = false;
+  private visibilityListener: (() => void) | null = null;
+
+  constructor(private readonly options: RunsPollingCoordinatorOptions) {}
+
+  public get currentRequestId(): number {
+    return this.activeRequestId;
+  }
+
+  public get isInFlight(): boolean {
+    return this.inFlight;
+  }
+
+  public get inFlightKey(): string | null {
+    return this.inFlightQueryKey;
+  }
+
+  public get isPolling(): boolean {
+    return this.timerId !== null;
+  }
+
+  public isDocumentVisible(): boolean {
+    if (this.options.isDocumentVisible) {
+      return this.options.isDocumentVisible();
+    }
+    if (typeof document === "undefined") return true;
+    return document.visibilityState === "visible";
+  }
+
+  public start(): void {
+    if (this.destroyed) return;
+    this.attachVisibilityListener();
+    if (this.options.hasActiveRuns() && this.isDocumentVisible()) {
+      this.startTimer();
+    }
+  }
+
+  public sync(): void {
+    if (this.destroyed) return;
+    if (!this.options.hasActiveRuns()) {
+      this.stopTimer();
+      return;
+    }
+    if (this.isDocumentVisible()) {
+      if (this.timerId === null) {
+        this.startTimer();
+      }
+    } else {
+      this.stopTimer();
+    }
+  }
+
+  public async load(options: { showLoading?: boolean; isPolling?: boolean } = {}): Promise<boolean> {
+    const { showLoading = true, isPolling = false } = options;
+
+    if (this.destroyed) {
+      this.options.onPollSkipped?.("destroyed");
+      return false;
+    }
+
+    if (isPolling) {
+      if (!this.options.hasActiveRuns()) {
+        this.stopTimer();
+        this.options.onPollSkipped?.("terminal");
+        return false;
+      }
+      if (!this.isDocumentVisible()) {
+        this.stopTimer();
+        this.options.onPollSkipped?.("hidden");
+        return false;
+      }
+      if (this.inFlight) {
+        this.options.onPollSkipped?.("in_flight");
+        return false;
+      }
+    }
+
+    const queryKey = this.options.getQueryKey();
+    const requestId = ++this.activeRequestId;
+    this.inFlight = true;
+    this.inFlightQueryKey = queryKey;
+
+    try {
+      const ok = await this.options.fetchRuns({ queryKey, showLoading });
+      if (this.destroyed || requestId !== this.activeRequestId || queryKey !== this.options.getQueryKey()) {
+        return false;
+      }
+      if (!this.options.hasActiveRuns()) {
+        this.stopTimer();
+      }
+      return ok;
+    } finally {
+      if (requestId === this.activeRequestId) {
+        this.inFlight = false;
+        this.inFlightQueryKey = null;
+      }
+    }
+  }
+
+  public triggerTick(): Promise<boolean> {
+    return this.load({ showLoading: false, isPolling: true });
+  }
+
+  private startTimer(): void {
+    if (this.timerId !== null || this.destroyed) return;
+    const cadence = this.options.cadenceMs ?? 1000;
+    this.timerId = setInterval(() => {
+      void this.triggerTick();
+    }, cadence);
+  }
+
+  private stopTimer(): void {
+    if (this.timerId !== null) {
+      clearInterval(this.timerId);
+      this.timerId = null;
+    }
+  }
+
+  private attachVisibilityListener(): void {
+    if (this.visibilityListener || typeof document === "undefined") return;
+    this.visibilityListener = () => {
+      if (this.destroyed) return;
+      if (this.isDocumentVisible()) {
+        if (this.options.hasActiveRuns()) {
+          void this.triggerTick();
+          this.startTimer();
+        }
+      } else {
+        this.stopTimer();
+      }
+    };
+    document.addEventListener("visibilitychange", this.visibilityListener);
+  }
+
+  public destroy(): void {
+    this.destroyed = true;
+    this.stopTimer();
+    if (this.visibilityListener && typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", this.visibilityListener);
+      this.visibilityListener = null;
+    }
+  }
+}
+
 export function isRunTerminal(status: string): boolean {
   return ["succeeded", "failed", "cancelled"].includes(status);
 }
@@ -90,46 +261,97 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   const [deletePreview, setDeletePreview] = useState<DeleteArchivedRunsPreview | null>(null);
   const [isDeletePreviewOpen, setIsDeletePreviewOpen] = useState(false);
 
-  const loadRuns = useCallback(async (showLoading = true) => {
-    if (showLoading) setLoading(true);
-    setError(null);
-    try {
-      const res = await fetchRuns({
-        view,
-        search: activeSearch,
-        page,
-        page_size: pageSize,
-      });
-      setRuns(res.data || []);
-      setTotalItems(res.total_items || 0);
-      if (res.meta) {
-        if (typeof res.meta.active_count === "number") setActiveCount(res.meta.active_count);
-        if (typeof res.meta.archived_count === "number") setArchivedCount(res.meta.archived_count);
-      }
-      return true;
-    } catch (err: any) {
-      setError(err.message || "Failed to load runs.");
-      return false;
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [view, activeSearch, page, pageSize]);
+  const queryIdentity = buildRunsQueryKey(view, activeSearch, page, pageSize);
+  const activeQueryRef = useRef(queryIdentity);
+  activeQueryRef.current = queryIdentity;
+
+  const runsRef = useRef<PipelineRunResource[]>(runs);
+  runsRef.current = runs;
+
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  const searchRef = useRef(activeSearch);
+  searchRef.current = activeSearch;
+
+  const pageRef = useRef(page);
+  pageRef.current = page;
+
+  const isMountedRef = useRef(true);
+  const coordinatorRef = useRef<RunsPollingCoordinator | null>(null);
+
+  if (!coordinatorRef.current) {
+    coordinatorRef.current = new RunsPollingCoordinator({
+      getQueryKey: () => activeQueryRef.current,
+      hasActiveRuns: () => runsRef.current.some((run) => !isRunTerminal(run.backend_status)),
+      fetchRuns: async ({ showLoading, queryKey }) => {
+        if (showLoading) setLoading(true);
+        setError(null);
+        try {
+          const res = await fetchRuns({
+            view: viewRef.current,
+            search: searchRef.current,
+            page: pageRef.current,
+            page_size: pageSize,
+          });
+          if (!isMountedRef.current || queryKey !== activeQueryRef.current) {
+            return false;
+          }
+          setRuns(res.data || []);
+          setTotalItems(res.total_items || 0);
+          if (res.meta) {
+            if (typeof res.meta.active_count === "number") setActiveCount(res.meta.active_count);
+            if (typeof res.meta.archived_count === "number") setArchivedCount(res.meta.archived_count);
+          }
+          return true;
+        } catch (err: any) {
+          if (!isMountedRef.current || queryKey !== activeQueryRef.current) {
+            return false;
+          }
+          setError(err.message || "Failed to load runs.");
+          return false;
+        } finally {
+          if (showLoading && isMountedRef.current) {
+            setLoading(false);
+          }
+        }
+      },
+    });
+  }
+
+  const loadRuns = useCallback(async (showLoading = true): Promise<boolean> => {
+    if (!coordinatorRef.current) return false;
+    return coordinatorRef.current.load({ showLoading, isPolling: false });
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    coordinatorRef.current?.start();
+    return () => {
+      isMountedRef.current = false;
+      coordinatorRef.current?.destroy();
+      coordinatorRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     setSelectedRunIds(new Set());
-    loadRuns();
-  }, [loadRuns]);
+    void coordinatorRef.current?.load({ showLoading: true, isPolling: false });
+  }, [view, activeSearch, page]);
 
   useEffect(() => {
-    if (!runs.some((run) => !isRunTerminal(run.backend_status))) return;
-    const intervalId = window.setInterval(() => void loadRuns(false), 1000);
-    return () => window.clearInterval(intervalId);
-  }, [runs, loadRuns]);
+    coordinatorRef.current?.sync();
+  }, [runs]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setActiveSearch(search.trim());
-    onPageChange(1);
+    const nextSearch = search.trim();
+    if (nextSearch === activeSearch && page === 1) {
+      void loadRuns(true);
+    } else {
+      setActiveSearch(nextSearch);
+      onPageChange(1);
+    }
   };
 
   const handleToggleSelect = (runId: string) => {

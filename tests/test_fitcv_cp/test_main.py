@@ -119,7 +119,7 @@ def test_build_app_uses_sqlite_runtime_without_remote_client(monkeypatch: pytest
     assert captured["backend_runtime"].backend_type == "sqlite"
 
 
-def test_build_app_retries_pending_process_event_deliveries(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_app_does_not_retry_pending_process_event_deliveries_synchronously(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _reload_main_module(monkeypatch)
     calls: list[int] = []
 
@@ -130,7 +130,7 @@ def test_build_app_retries_pending_process_event_deliveries(monkeypatch: pytest.
     monkeypatch.setattr(module, "create_app", lambda **_kwargs: "ok")
 
     assert module.build_app() == "ok"
-    assert calls == [20]
+    assert calls == []
 
 
 def test_build_app_always_uses_sqlite_runtime(

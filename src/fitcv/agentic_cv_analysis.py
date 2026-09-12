@@ -41,7 +41,7 @@ from fitcv.late_stage_contract import (
     shortlist_status_for_ranked_job,
     validation_status_for_cv_status,
 )
-from fitcv.ranking_contract import fit_label_from_score
+from fitcv.ranking_contract import SCORE_STATUS_VALID, fit_label_from_score, normalize_score_state
 
 _FIT_LABEL_ORDER = {"strong", "stretch", "skip"}
 FitClassification = Literal["strong", "stretch", "skip"]
@@ -134,19 +134,22 @@ def _fit_label_from_baseline_score(score: float, config: dict[str, Any]) -> FitC
     return cast(FitClassification, fit_label_from_score(score, config))
 
 
-def resolve_ranked_job_fit(job: dict[str, Any], config: dict[str, Any]) -> FitClassification:
-    ranked_fit_raw = str(job.get("baseline_fit_label") or "").strip().lower()
+def resolve_ranked_job_fit(job: dict[str, Any], config: dict[str, Any]) -> FitClassification | None:
+    score_state = normalize_score_state(job)
+    if score_state["score_status"] != SCORE_STATUS_VALID:
+        return None
+    ranked_fit_raw = str(job.get("baseline_fit_label") or job.get("fit_label") or "").strip().lower()
     if ranked_fit_raw in _FIT_LABEL_ORDER:
         return cast(FitClassification, ranked_fit_raw)
     raw_baseline_fit = job.get("baseline_fit")
     if raw_baseline_fit is None:
-        return "skip"
+        return None
     try:
         baseline_fit = float(raw_baseline_fit)
     except (TypeError, ValueError):
-        return "skip"
+        return None
     if not math.isfinite(baseline_fit):
-        return "skip"
+        return None
     return _fit_label_from_baseline_score(baseline_fit, config)
 
 
@@ -559,6 +562,31 @@ def analyze_ranked_job(
     try:
         profile = converge_candidate_profile_for_runtime(profile)
         ranking_fit_label = resolve_ranked_job_fit(job, config)
+        if ranking_fit_label is None:
+            return build_cv_analysis_record(
+                job=job,
+                status=cast(AnalysisStatus, BLOCKED_BY_RERANKER_STATUS),
+                analysis_input_fingerprint=None,
+                analysis_input_components={},
+                analysis_reuse_status="not_run_ranking_unavailable",
+                reuse_decision=build_reuse_decision(
+                    decision="not_run_ranking_unavailable",
+                    reason_code="ranking_unavailable",
+                    fingerprint=None,
+                    source_artifact_type="cv_analysis",
+                ),
+                evidence_payload=[],
+                evidence_selection_summary=None,
+                gap_summary=None,
+                requirement_coverage=[],
+                section_confidence_hints={},
+                do_not_claim=[],
+                fit_classification=ranking_fit_label,
+                error={
+                    "stage": "ranking",
+                    "message": f"Skipped {extract_job_url(job)} before CV analysis (ranking_unavailable)",
+                },
+            )
         if ranking_fit_label == "skip":
             return build_cv_analysis_record(
                 job=job,

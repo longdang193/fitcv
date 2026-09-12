@@ -1212,3 +1212,15 @@ def test_agentic_cv_generation_exposes_no_external_langgraph_runtime() -> None:
     assert not hasattr(agentic_cv_generation, "_live_runtime_provenance_or_none")
     assert not hasattr(agentic_cv_generation, "_langgraph_runtime_adapter")
     assert not hasattr(agentic_cv_generation, "_generate_cv_with_live_provider")
+
+
+def test_unknown_ranking_score_blocks_analysis_with_stable_reason() -> None:
+    from fitcv.agentic_cv_analysis import analyze_ranked_job, resolve_ranked_job_fit
+
+    job = {**_minimal_job(), "ai_score": None, "score_status": "unscored", "failure_code": "timeout"}
+    config = _minimal_config()
+    assert resolve_ranked_job_fit(job, config) is None
+    record = analyze_ranked_job(job, _minimal_profile(), config)
+    assert record["fit_classification"] is None
+    assert record["outcome_reason"]["stage"] == "ranking"
+    assert "ranking_unavailable" in record["outcome_reason"]["message"]

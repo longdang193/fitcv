@@ -36,6 +36,7 @@ from fitcv.config import (
     get_system_initial_backoff_seconds,
     get_system_maximum_attempts,
     load_prompt_task_registry,
+    resolve_model_routing_part,
     sqlite_mode_enabled,
 )
 from fitcv.fit_factors import (
@@ -58,6 +59,7 @@ from fitcv.llm_runtime import (
 from fitcv.runtime_routing import resolve_llm_routing
 from fitcv.pipeline_stages.common import extract_job_url
 from fitcv.prompts import get_prompt_definition, render_prompt
+from fitcv.prompts.loader import load_prompt_template
 from fitcv.semantic_snapshot import (
     build_semantic_snapshot,
     compile_semantic_policy,
@@ -256,6 +258,8 @@ class EnrichContractFingerprintPayload(TypedDict):
     prompt_id: str
     prompt_version: str
     template_path: str
+    effective_prompt_sha256: str
+    provider: str
     model: str
     response_schema_version: str
     skill_postprocessing_version: str
@@ -1309,12 +1313,26 @@ def get_enrich_prompt_provenance(config: dict[str, Any] | None = None) -> dict[s
     prompt_id = get_enrich_extraction_prompt_id(config)
     definition = get_prompt_definition(prompt_id)
     model_name = get_enrich_extraction_model(config or {})
+    try:
+        provider = str(resolve_model_routing_part("enrich_extraction", model_fallback=model_name).get("provider") or "fitcv_builtin")
+    except Exception:
+        provider = "fitcv_builtin"
     customization = get_prompt_replacement_metadata("enrich_extraction", config)
+    try:
+        template_text = load_prompt_template(definition.template_path).replace("\r\n", "\n").replace("\r", "\n")
+    except OSError:
+        template_text = ""
+    replacement = get_prompt_replacement("enrich_extraction", config)
+    effective_prompt_sha256 = hashlib.sha256(
+        json.dumps({"template": template_text, "replacement": replacement}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     return {
         "prompt_id": definition.prompt_id,
         "prompt_version": definition.version,
         "template_path": str(definition.template_path),
+        "effective_prompt_sha256": effective_prompt_sha256,
         "model": model_name,
+        "provider": provider,
         "prompt_customized": customization["customized"],
         "prompt_replacement_sha256": customization["replacement_sha256"],
         "prompt_replacement_char_count": customization["replacement_char_count"],
@@ -1373,6 +1391,8 @@ def build_enrich_contract_fingerprint(
         "prompt_id": prompt_provenance["prompt_id"],
         "prompt_version": prompt_provenance["prompt_version"],
         "template_path": prompt_provenance["template_path"],
+        "effective_prompt_sha256": prompt_provenance["effective_prompt_sha256"],
+        "provider": prompt_provenance["provider"],
         "model": prompt_provenance["model"],
         "response_schema_version": ENRICH_RESPONSE_SCHEMA_VERSION,
         "skill_postprocessing_version": ENRICH_SKILL_POSTPROCESSING_VERSION,

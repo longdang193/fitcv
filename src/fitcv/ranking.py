@@ -20,7 +20,7 @@ from typing import Any
 
 from fitcv.candidate import canonicalize_role_title, infer_role_family
 from fitcv.preference_policy import ResolvedPreferencePolicy, project_personalized_score
-from fitcv.ranking_contract import STRUCTURED_FACTOR_IDS
+from fitcv.ranking_contract import SCORE_STATUS_VALID, STRUCTURED_FACTOR_IDS, normalize_score_state
 from fitcv.semantic_snapshot import compile_semantic_policy, resolve_semantic_value
 
 SUPPORTED_RANKING_FEATURES = STRUCTURED_FACTOR_IDS
@@ -330,13 +330,18 @@ def rank_jobs(
     resolved_preference_policy: ResolvedPreferencePolicy | None = None,
 ) -> list[dict[str, Any]]:
     """Assign global baseline rank, then optional personalized order."""
+    scored_jobs: list[dict[str, Any]] = []
     for job in jobs:
         if not str(job.get("raw_job_fingerprint") or "").strip():
             raise ValueError("ranking row requires raw_job_fingerprint")
-        if job.get("baseline_fit") is None:
-            raise ValueError("ranking row requires baseline_fit")
+        score_state = normalize_score_state(job)
+        job["score_status"] = score_state["score_status"]
+        job["failure_code"] = score_state["failure_code"]
+        if score_state["score_status"] != SCORE_STATUS_VALID or job.get("baseline_fit") is None:
+            continue
+        scored_jobs.append(job)
     sorted_jobs = sorted(
-        jobs,
+        scored_jobs,
         key=lambda j: (
             -float(j["baseline_fit"]),
             str(j["raw_job_fingerprint"]),

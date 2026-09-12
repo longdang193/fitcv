@@ -56,7 +56,7 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 from typing import Any, Callable, cast
 
-from fitcv.ai_score import build_ai_score_input_fingerprint, run_ai_scoring
+from fitcv.ai_score import build_ai_score_input_fingerprint, build_ranking_job_input, run_ai_scoring
 from fitcv.agentic_cv_analysis import (
     analyze_ranked_job,
     build_analysis_input_summary,
@@ -157,8 +157,12 @@ from fitcv.late_stage_contract import (
     validation_status_for_cv_status as _validation_status_for_cv_status,
 )
 from fitcv.ranking_contract import (
+    SCORE_STATUS_INVALID,
+    SCORE_STATUS_UNSCORED,
+    SCORE_STATUS_VALID,
     build_baseline_result,
     fit_label_from_score,
+    normalize_score_state,
     project_legacy_ranking_aliases,
 )
 from fitcv.rule_filter import (
@@ -315,7 +319,7 @@ def _materialize_scoring_shortlist(
                 **passed_job,
                 "job_url": job_url,
                 **normalize_shortlist_row(row),
-                "shortlist_origin": "vector_search",
+                "shortlist_origin": str(row.get("shortlist_origin") or "vector_search"),
             }
         )
 
@@ -753,6 +757,9 @@ def _build_export_results(
     def _status_for(raw_job: dict[str, Any]) -> str:
         if _lookup(cv_by_identity, raw_job) is not None:
             return "ranked_with_cv"
+        scoring_row = _lookup(scoring_by_identity, raw_job)
+        if scoring_row is not None and normalize_score_state(scoring_row)["score_status"] != SCORE_STATUS_VALID:
+            return "ranking_unavailable"
         if _matches(blocked_by_reranker_identity_keys, raw_job):
             return PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER
         if _matches(skipped_fit_gate_identity_keys, raw_job):
@@ -763,7 +770,7 @@ def _build_export_results(
             return "rejected_before_enrichment"
         if _matches(rejected_after_enrichment_identity_keys, raw_job):
             return "rejected_after_enrichment"
-        if _lookup(scoring_by_identity, raw_job) is not None:
+        if scoring_row is not None:
             return "scored_not_ranked"
         if _lookup(scoring_shortlist_by_identity, raw_job) is not None:
             return "shortlisted_not_scored"
@@ -785,6 +792,7 @@ def _build_export_results(
             "rejected_before_enrichment": 8,
             "deduplicated_before_enrichment": 9,
             "unknown_pipeline_state": 10,
+            "ranking_unavailable": 11,
         }.get(status, 10)
         scores = dict(row.get("scores") or {})
         baseline_fit = float(scores.get("baseline_fit") or 0.0)
@@ -908,6 +916,13 @@ def _build_export_results(
                 "baseline_rank": score_source.get("baseline_rank"),
             }
         )
+        score_projection.update(
+            {
+                "ai_score": score_source.get("ai_score"),
+                "score_status": score_source.get("score_status"),
+                "failure_code": score_source.get("failure_code"),
+            }
+        )
         native_status = pipeline_status
         if pipeline_status == "ranked_no_cv" and cv_status in {
             "review_required",
@@ -1029,6 +1044,8 @@ def _build_export_results(
                 "job_family": (enriched_job or {}).get("job_family"),
                 "domain": (enriched_job or {}).get("domain"),
                 "pipeline_status": pipeline_status,
+                "score_status": score_source.get("score_status"),
+                "failure_code": score_source.get("failure_code"),
                 **truth_fields,
                 "reject_reasons": reject_reasons,
                 "rule_filter_marks": rule_filter_marks,
@@ -1128,23 +1145,8 @@ def _normalize_late_stage_reuse_snapshots(reuse_snapshots: dict[str, Any] | None
             continue
         ai_score_row = item.get("ai_score_row")
         if isinstance(ai_score_row, dict):
-            parser_status = str(
-                ai_score_row.get("parser_status")
-                or ai_score_row.get("reranker_parser_status")
-                or ""
-            ).strip().lower()
-            score_reasoning = str(
-                ai_score_row.get("score_reasoning")
-                or ai_score_row.get("reranker_score_reasoning")
-                or ""
-            ).strip().lower()
-            # Do not reuse poisoned reranker cache rows produced by parse failures.
-            if (
-                parser_status in {"malformed_json", "runtime_exception"}
-                or "parse failure" in score_reasoning
-                or "default credentials were not found" in score_reasoning
-                or "application default credentials" in score_reasoning
-            ):
+            score_state = normalize_score_state(ai_score_row)
+            if score_state["score_status"] != SCORE_STATUS_VALID:
                 continue
         ranking_rows.append(dict(item))
     return {
@@ -2363,7 +2365,16 @@ def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]], config:
     strong_count = 0
     stretch_count = 0
     skip_count = 0
+    unscored_count = 0
+    invalid_count = 0
     for row in ranking_inputs:
+        score_status = normalize_score_state(row)["score_status"]
+        if score_status == SCORE_STATUS_UNSCORED:
+            unscored_count += 1
+            continue
+        if score_status == SCORE_STATUS_INVALID:
+            invalid_count += 1
+            continue
         fit_label = str(row.get("baseline_fit_label") or "").strip().lower()
         if fit_label == "strong":
             strong_count += 1
@@ -2381,6 +2392,8 @@ def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]], config:
             "stretch_rate": _safe_rate(stretch_count, total_scored),
             "skip_rate": _safe_rate(skip_count, total_scored),
             "total_scored": total_scored,
+            "unscored_count": unscored_count,
+            "invalid_count": invalid_count,
         }
     }
 
@@ -2492,7 +2505,16 @@ def _rule_filter_decision_sample(
 
 
 def _ranking_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
-    return ranking_row_sample(row)
+    sample = ranking_row_sample(row)
+    if sample is None:
+        return None
+    sample.update(
+        {
+            "score_status": row.get("score_status"),
+            "failure_code": row.get("failure_code"),
+        }
+    )
+    return {key: value for key, value in sample.items() if value not in (None, "")}
 
 
 def _analysis_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None:
@@ -3038,10 +3060,13 @@ def build_ranking_features(
         vector_rank = sl_row.get("vector_rank", sl_row.get("rank"))
         raw_vector_similarity = sl_row.get("vector_similarity", sl_row.get("similarity_score"))
         vector_similarity = float(raw_vector_similarity) if raw_vector_similarity is not None else None
-        raw_ai_score = ai_row.get("ai_score")
+        raw_retrieval_score = sl_row.get("retrieval_score")
+        retrieval_score = float(raw_retrieval_score) if raw_retrieval_score is not None else None
+        score_state = normalize_score_state(ai_row)
         ranking_source: dict[str, Any] = {
             **sl_row,
             **ai_row,
+            **score_state,
         }
         required_skills = list(
             ranking_source.get("required_skills_canonical")
@@ -3075,15 +3100,18 @@ def build_ranking_features(
             "language_fit": dict(fit_factor_results.get("language_fit") or {}).get("ranking_value"),
         }
         baseline_result = build_baseline_result(
-            holistic_ai_fit=raw_ai_score,
+            holistic_ai_fit=score_state["ai_score"],
             structured_factors=structured_factors,
             context=ranking_context,
+            holistic_score_status=score_state["score_status"],
+            holistic_failure_code=score_state["failure_code"],
         )
 
         feature: dict[str, Any] = {
             **ranking_source,
             "vector_rank": int(vector_rank or 0),
             "vector_similarity": vector_similarity,
+            "retrieval_score": retrieval_score,
             **baseline_result,
             "declared_preference_fit_components": preference_fit_details["components"],
             "declared_preference_fit_match_details": preference_fit_details["match_details"],
@@ -3094,7 +3122,7 @@ def build_ranking_features(
             "eligibility_policy_fingerprint": ranking_source.get("eligibility_policy_fingerprint")
             or config.get("eligibility_policy_fingerprint"),
         }
-        for retired_key in ("ai_score", "fit_label", "final_score", "final_rank", "preference_fit"):
+        for retired_key in ("fit_label", "final_score", "final_rank", "preference_fit"):
             feature.pop(retired_key, None)
         features.append(feature)
 
@@ -3180,6 +3208,15 @@ def run_pipeline(
         if reporter is not None:
             reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
         state = _restore_pipeline_state(run_id=run_id, checkpoint_payload=checkpoint_payload)
+        checkpoint_strategy = str(state.get("shortlist_diagnostics", {}).get("retrieval_strategy") or "").strip()
+        if checkpoint_strategy and checkpoint_strategy != "lexical_v1":
+            raise ValueError("incompatible shortlist retrieval strategy in checkpoint")
+        checkpoint_policy = dict(state.get("resolved_preference_policy") or {})
+        if checkpoint_strategy == "lexical_v1" and checkpoint_policy.get("diagnostic_code") not in {
+            None,
+            "embedding_strategy_incompatible",
+        }:
+            raise ValueError("incompatible preference policy in lexical checkpoint")
         normalized_reuse_snapshots = _normalize_late_stage_reuse_snapshots(reuse_snapshots)
         ranking_ai_score_reuse_index = _index_late_stage_reuse_rows(
             normalized_reuse_snapshots["ranking_ai_scores"],
@@ -3430,15 +3467,14 @@ def run_pipeline(
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
             with observe_span("pipeline.shortlist", attributes={"run_id": run_id, "vector_top_n": vector_top_n}):
-                # Active shortlist runtime only prepares reusable job embeddings here.
-                # The candidate-side vector actually used for retrieval is generated
-                # inside run_vector_search() from the deterministic candidate query text.
+                config["retrieval_strategy"] = "lexical_v1"
                 pipeline_store.embed_and_store_jobs(passed_jobs, config)
                 raw_shortlist_result = run_vector_search(
                     profile,
                     [str(job.get("job_url") or "") for job in passed_jobs],
                     config,
                     top_n=vector_top_n,
+                    structured_jobs=passed_jobs,
                 )
                 raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
                 shortlist_audit_rows = list(raw_shortlist_result.get("audit_rows") or [])
@@ -3538,15 +3574,20 @@ def run_pipeline(
                 ai_score_candidates = shortlist[:ai_top_n]
                 ranking_reuse_enabled = _reuse_stage_enabled(config, "ranking")
                 fresh_scoring_jobs: list[dict[str, Any]] = []
+                ranking_inputs_by_url: dict[str, dict[str, Any]] = {}
                 fresh_ai_score_fingerprints: dict[str, str] = {}
                 reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
                 for shortlisted_job in ai_score_candidates:
                     top_evidence = list(shortlisted_job.get("top_evidence") or [])[:2]
+                    ranking_input = build_ranking_job_input(shortlisted_job, profile or {})
+                    if ranking_input["candidate_evidence"] and extract_job_url(shortlisted_job):
+                        ranking_inputs_by_url[extract_job_url(shortlisted_job)] = ranking_input
                     fingerprint_record = build_ai_score_input_fingerprint(
                         shortlisted_job,
                         candidate_summary,
                         top_evidence,
                         config,
+                        **({"ranking_input": ranking_input} if ranking_input["candidate_evidence"] else {}),
                     )
                     job_url = extract_job_url(shortlisted_job)
                     reused_ai_row = (
@@ -3554,6 +3595,8 @@ def run_pipeline(
                         if ranking_reuse_enabled
                         else None
                     )
+                    if reused_ai_row is not None and normalize_score_state(reused_ai_row)["score_status"] != SCORE_STATUS_VALID:
+                        reused_ai_row = None
                     if reused_ai_row is not None and job_url:
                         reused_ai_scores_by_url[job_url] = {
                             **deepcopy(reused_ai_row),
@@ -3577,13 +3620,18 @@ def run_pipeline(
                     ranking_concurrency,
                     len(fresh_scoring_jobs),
                 )
-                fresh_ai_scores = run_ai_scoring(
-                    fresh_scoring_jobs,
-                    candidate_summary,
-                    config,
-                    top_n=len(fresh_scoring_jobs),
-                    runtime_observation_callback=ranking_llm_runtime_observations.append,
-                ) if fresh_scoring_jobs else []
+                fresh_ai_scores = (
+                    run_ai_scoring(
+                        fresh_scoring_jobs,
+                        candidate_summary,
+                        config,
+                        top_n=len(fresh_scoring_jobs),
+                        runtime_observation_callback=ranking_llm_runtime_observations.append,
+                        **({"ranking_inputs": ranking_inputs_by_url} if ranking_inputs_by_url else {}),
+                    )
+                    if fresh_scoring_jobs
+                    else []
+                )
                 fresh_ai_scores_by_url: dict[str, dict[str, Any]] = {}
                 for ai_row in fresh_ai_scores:
                     job_url = str(ai_row.get("job_url") or "")

@@ -102,6 +102,10 @@ def normalize_shortlist_row(shortlist_row: Mapping[str, Any]) -> dict[str, Any]:
         "vector_rank": shortlist_row.get("vector_rank", shortlist_row.get("rank")),
         "shortlist_origin": str(shortlist_row.get("shortlist_origin") or "vector_search"),
     }
+    if shortlist_row.get("retrieval_strategy") is not None:
+        normalized["retrieval_strategy"] = shortlist_row["retrieval_strategy"]
+    if shortlist_row.get("retrieval_score") is not None:
+        normalized["retrieval_score"] = shortlist_row["retrieval_score"]
     for key in (
         "normalized_embedding",
         "embedding_vector_fingerprint",

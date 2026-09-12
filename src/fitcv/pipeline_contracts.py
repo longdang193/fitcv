@@ -321,6 +321,12 @@ JOB_OUTCOME_STATUS_MAP: Final[dict[str, tuple[str, str, str, str]]] = {
         "not_selected_in_final_ranking",
         "native",
     ),
+    "ranking_unavailable": (
+        "blocked",
+        "ranking",
+        "ranking_unavailable",
+        "native",
+    ),
     "rejected_after_enrichment": (
         "rejected",
         "rule_filter",
@@ -593,6 +599,7 @@ JOB_OUTCOME_REASON_LABELS: Final[dict[str, str]] = {
     "not_selected_by_shortlist": "Not selected by shortlist",
     "not_selected_for_scoring": "Not selected for scoring",
     "not_selected_in_final_ranking": "Not selected in final ranking",
+    "ranking_unavailable": "Ranking unavailable",
     "rule_filter_rejected": "Rejected by rule filter",
     "pre_enrichment_filter_rejected": "Rejected before enrichment",
     "duplicate_job_url": "Duplicate job URL",
