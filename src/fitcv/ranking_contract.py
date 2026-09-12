@@ -24,6 +24,10 @@ FIT_LABEL_STRONG = "strong"
 FIT_LABEL_STRETCH = "stretch"
 FIT_LABEL_SKIP = "skip"
 VALID_FIT_LABELS = frozenset({FIT_LABEL_STRONG, FIT_LABEL_STRETCH, FIT_LABEL_SKIP})
+SCORE_STATUS_VALID = "valid"
+SCORE_STATUS_UNSCORED = "unscored"
+SCORE_STATUS_INVALID = "invalid"
+SCORE_STATUSES = frozenset({SCORE_STATUS_VALID, SCORE_STATUS_UNSCORED, SCORE_STATUS_INVALID})
 
 STRUCTURED_FACTOR_IDS = (
     "must_have_match",
@@ -89,6 +93,85 @@ def _fit_label_from_thresholds(score: float, thresholds: Mapping[str, Any]) -> s
 def fit_label_from_score(score: float, config: dict[str, Any]) -> str:
     ranking_policy = _mapping(config.get("ranking_policy"), "ranking_policy")
     return _fit_label_from_thresholds(score, ranking_policy.get("fit_label_thresholds"))
+
+
+def is_finite_score(value: Any) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+        and 0.0 <= float(value) <= 1.0
+    )
+
+
+def normalize_score_state(row: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize current and legacy score rows without inventing scores."""
+    raw_status = str(row.get("score_status") or "").strip().lower()
+    raw_failure = str(row.get("failure_code") or "").strip() or None
+    parser_status = str(
+        row.get("parser_status") or row.get("reranker_parser_status") or ""
+    ).strip().lower()
+    score_reasoning = str(
+        row.get("score_reasoning") or row.get("reranker_score_reasoning") or ""
+    ).strip().lower()
+    score = row.get("ai_score")
+    if score is None and not raw_status and not raw_failure and not parser_status:
+        score = row.get("holistic_ai_fit", row.get("baseline_fit"))
+
+    parser_failures = {
+        "malformed_json": SCORE_STATUS_INVALID,
+        "non_object_payload": SCORE_STATUS_INVALID,
+        "missing_ai_score": SCORE_STATUS_INVALID,
+        "invalid_ai_score": SCORE_STATUS_INVALID,
+    }
+    if raw_failure in parser_failures:
+        status = parser_failures[raw_failure]
+    elif raw_failure in {"timeout", "adapter_timeout"}:
+        status = SCORE_STATUS_UNSCORED
+        raw_failure = "timeout"
+    elif raw_failure in {
+        "provider_failure",
+        "adapter_http_error",
+        "adapter_transport_error",
+        "adapter_contract_error",
+    }:
+        status = SCORE_STATUS_UNSCORED
+        raw_failure = "provider_failure"
+    elif raw_failure in {"validation_failure", "validation_error"}:
+        status = SCORE_STATUS_INVALID
+        raw_failure = "validation_failure"
+    elif raw_status in SCORE_STATUSES:
+        status = raw_status
+    elif parser_status in parser_failures:
+        status = parser_failures[parser_status]
+        raw_failure = raw_failure or parser_status
+    elif parser_status == "runtime_exception":
+        status = SCORE_STATUS_UNSCORED
+        raw_failure = raw_failure or "provider_failure"
+    elif "parse failure" in score_reasoning:
+        status = SCORE_STATUS_INVALID
+        raw_failure = raw_failure or "parser_failure"
+    elif "scoring error" in score_reasoning:
+        status = SCORE_STATUS_UNSCORED
+        raw_failure = raw_failure or "provider_failure"
+    elif is_finite_score(score):
+        status = SCORE_STATUS_VALID
+    else:
+        status = SCORE_STATUS_UNSCORED
+        raw_failure = raw_failure or "legacy_ambiguous_score_state"
+
+    if status == SCORE_STATUS_VALID and not is_finite_score(score):
+        status = SCORE_STATUS_INVALID
+        raw_failure = raw_failure or "invalid_ai_score"
+    if status == SCORE_STATUS_INVALID and not raw_failure:
+        raw_failure = "validation_failure"
+    if status == SCORE_STATUS_UNSCORED and not raw_failure:
+        raw_failure = "score_unavailable"
+    return {
+        "ai_score": float(score) if status == SCORE_STATUS_VALID and score is not None else None,
+        "score_status": status,
+        "failure_code": raw_failure,
+    }
 
 
 def validate_weight_contract(weights: dict[str, float], *, expected_sum: float = 1.0) -> None:
@@ -271,6 +354,8 @@ def build_baseline_result(
     holistic_ai_fit: Any,
     structured_factors: Mapping[str, Any],
     context: Mapping[str, Any],
+    holistic_score_status: str | None = None,
+    holistic_failure_code: str | None = None,
 ) -> dict[str, Any]:
     policy = _mapping(context.get("ranking_policy"), "ranking_contract.ranking_policy")
     defaults = _mapping(policy["missing_value_defaults"], "ranking_policy.missing_value_defaults")
@@ -303,21 +388,29 @@ def build_baseline_result(
             "contribution": contribution,
         }
 
-    holistic_missing = holistic_ai_fit is None
-    holistic_value = (
-        float(defaults["holistic_ai_fit"])
-        if holistic_missing
-        else _unit_float(holistic_ai_fit, "holistic_ai_fit")
+    score_state = normalize_score_state(
+        {
+            "ai_score": holistic_ai_fit,
+            "score_status": holistic_score_status,
+            "failure_code": holistic_failure_code,
+        }
     )
+    holistic_missing = score_state["score_status"] != SCORE_STATUS_VALID
+    holistic_value = score_state["ai_score"]
     baseline_weights = _mapping(policy["baseline_weights"], "ranking_policy.baseline_weights")
-    baseline_fit = (
-        holistic_value * float(baseline_weights["holistic_ai_fit"])
-        + structured_fit * float(baseline_weights["structured_fit"])
-    )
-    label = _fit_label_from_thresholds(baseline_fit, policy["fit_label_thresholds"])
+    baseline_fit = None
+    label = None
+    if not holistic_missing:
+        baseline_fit = (
+            float(holistic_value) * float(baseline_weights["holistic_ai_fit"])
+            + structured_fit * float(baseline_weights["structured_fit"])
+        )
+        label = _fit_label_from_thresholds(baseline_fit, policy["fit_label_thresholds"])
     return {
         "holistic_ai_fit": holistic_value,
-        "holistic_ai_fit_missing_default_applied": holistic_missing,
+        "holistic_ai_fit_missing_default_applied": False,
+        "score_status": score_state["score_status"],
+        "failure_code": score_state["failure_code"],
         "structured_fit": structured_fit,
         "baseline_fit": baseline_fit,
         "baseline_fit_label": label,

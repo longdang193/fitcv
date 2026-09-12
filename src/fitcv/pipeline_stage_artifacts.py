@@ -17,6 +17,8 @@ lifecycle:
 
 from typing import Any, Callable, Protocol, cast
 
+from fitcv.ranking_contract import SCORE_STATUS_INVALID, SCORE_STATUS_UNSCORED, SCORE_STATUS_VALID, normalize_score_state
+
 
 def truncate_stage_text(value: str, *, limit: int) -> str:
     if len(value) <= limit:
@@ -478,6 +480,8 @@ def build_shortlist_stage_block(
                 **(
                     {
                         "vector_similarity": item.get("vector_similarity"),
+                        "retrieval_score": item.get("retrieval_score"),
+                        "retrieval_strategy": item.get("retrieval_strategy"),
                         "vector_rank": item.get("vector_rank"),
                         "shortlist_origin": item.get("shortlist_origin"),
                     }
@@ -560,9 +564,24 @@ def build_ranking_stage_block(
     personalization["rank_change_rate"] = (
         personalization["rank_change_count"] / len(ranking_inputs) if ranking_inputs else 0.0
     )
+    score_status_counts = {
+        "valid_count": 0,
+        "unscored_count": 0,
+        "invalid_count": 0,
+    }
+    for row in ai_scores:
+        status = normalize_score_state(row)["score_status"]
+        score_status_counts[f"{status}_count"] += 1
+    ranking_status = (
+        "failed"
+        if ai_scores and score_status_counts["valid_count"] == 0
+        else "partial"
+        if score_status_counts["unscored_count"] or score_status_counts["invalid_count"]
+        else "completed"
+    )
     block = stage_block_builder(
         stage_id="ranking",
-        status="completed",
+        status=ranking_status,
         input_counts={
             "ai_scores": len(ai_scores),
             "ranking_inputs": len(ranking_inputs),
@@ -573,6 +592,8 @@ def build_ranking_stage_block(
         },
         decision_summary={
             "ranking_fit_label_counts": ranking_fit_distribution,
+            **score_status_counts,
+            "reason_code": "ranking_unavailable" if ranking_status == "failed" else None,
             "quality_metrics": ranking_quality_metrics,
             "reuse_metrics": ranking_reuse_metrics,
             "ranking_prompt_id": ranking_prompt_provenance["prompt_id"],

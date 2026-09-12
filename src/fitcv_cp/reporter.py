@@ -17,6 +17,7 @@ import datetime
 import json
 import logging
 import os
+import threading
 import uuid
 from typing import Any, Optional
 
@@ -29,7 +30,7 @@ from fitcv.telemetry import (
 )
 from fitcv_cp.sqlite_store import (
     append_process_event,
-    list_pending_process_event_deliveries,
+    claim_process_event_deliveries,
     record_process_event_delivery,
 )
 from fitcv_cp.models import (
@@ -259,6 +260,7 @@ def deliver_process_event(
     event: ProcessEvent,
     *,
     rich_contract: dict[str, Any] | None = None,
+    delivery_claim_id: str | None = None,
 ) -> tuple[str, str | None]:
     trace_context = json.loads(event.trace_context_json) if event.trace_context_json else {}
     trace_id = str(trace_context.get("trace_id") or event.event_id)
@@ -279,16 +281,20 @@ def deliver_process_event(
         "langfuse",
         "delivered" if delivered else "failed",
         native_reason,
+        claim_id=delivery_claim_id,
     )
     return native_status, native_reason
 
 
 def retry_pending_process_event_deliveries(*, limit: int = 20) -> int:
     delivered_count = 0
-    for item in list_pending_process_event_deliveries(limit=limit):
+    for item in claim_process_event_deliveries(limit=limit):
         if item["sink"] != "langfuse":
             continue
-        status, _reason = deliver_process_event(item["event"])
+        status, _reason = deliver_process_event(
+            item["event"],
+            delivery_claim_id=str(item.get("claim_id") or ""),
+        )
         if status.startswith("sent:") or status in {
             "disabled",
             "not_applicable",
@@ -296,6 +302,47 @@ def retry_pending_process_event_deliveries(*, limit: int = 20) -> int:
         }:
             delivered_count += 1
     return delivered_count
+
+
+class ProcessEventDeliveryLoop:
+    def __init__(self, *, limit: int = 20, interval_seconds: float = 1.0) -> None:
+        self._limit = max(1, min(int(limit), 100))
+        self._interval_seconds = max(0.1, float(interval_seconds))
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> "ProcessEventDeliveryLoop":
+        if self._thread is not None and self._thread.is_alive():
+            return self
+
+        def drain() -> None:
+            while not self._stop.is_set():
+                try:
+                    retry_pending_process_event_deliveries(limit=self._limit)
+                except Exception as exc:
+                    logger.warning("Process-event delivery drain failed: %s", exc)
+                self._stop.wait(self._interval_seconds)
+
+        self._thread = threading.Thread(
+            target=drain,
+            name="fitcv-process-event-delivery",
+            daemon=True,
+        )
+        self._thread.start()
+        return self
+
+    def stop(self, *, final_drain: bool = False) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5.5)
+        if final_drain:
+            self._drain_once()
+
+    def _drain_once(self) -> None:
+        try:
+            retry_pending_process_event_deliveries(limit=self._limit)
+        except Exception as exc:
+            logger.warning("Final process-event delivery drain failed: %s", exc)
 
 
 class PipelineReporter:
@@ -309,10 +356,6 @@ class PipelineReporter:
         message: str,
         payload: Optional[dict[str, Any]] = None,
     ) -> None:
-        try:
-            retry_pending_process_event_deliveries(limit=5)
-        except Exception as exc:
-            logger.warning("Pending process-event delivery retry failed during emission: %s", exc)
         source_payload = dict(payload or {})
         trace_context: dict[str, Any] | None = None
         rich_contract: dict[str, Any] | None = None
@@ -362,6 +405,5 @@ class PipelineReporter:
                 return
             if status.get("persistence_backend") != "sqlite" or rich_contract is None:
                 return
-            deliver_process_event(event, rich_contract=rich_contract)
         except Exception as exc:
             logger.warning("Reporter failed to write event: %s", exc)

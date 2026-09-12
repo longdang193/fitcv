@@ -177,7 +177,7 @@ def test_central_synonym_sync_ignores_stale_auto_accept_transition() -> None:
     suggestions = sqlite_store.query_synonym_suggestions(synonym_type="skills")
     assert suggestions["items"][0]["review_status"] == "approved"
 
-def test_worker_entrypoints_retry_pending_process_event_deliveries(
+def test_pipeline_worker_does_not_start_delivery_before_runtime_ready(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from fitcv_cp import reporter, worker_job
@@ -200,7 +200,7 @@ def test_worker_entrypoints_retry_pending_process_event_deliveries(
     with pytest.raises(RuntimeError, match="stop-after-retry"):
         worker_job.execute_cv_regenerate_once(run_id="r1", job_url="https://example.com/job")
 
-    assert calls == [20, 20]
+    assert calls == []
 
 
 def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_stretch() -> None:

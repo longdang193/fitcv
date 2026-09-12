@@ -209,7 +209,9 @@ def test_parse_score_response_score_clamped_below_upper_bound() -> None:
         "score_reasoning": "", "matched_strengths": [], "key_risks": [],
     })
     result = parse_score_response(raw)
-    assert result["ai_score"] <= 1.0
+    assert result["ai_score"] is None
+    assert result["score_status"] == "invalid"
+    assert result["failure_code"] == "invalid_ai_score"
 
 
 def test_parse_score_response_score_clamped_above_lower_bound() -> None:
@@ -218,7 +220,9 @@ def test_parse_score_response_score_clamped_above_lower_bound() -> None:
         "score_reasoning": "", "matched_strengths": [], "key_risks": [],
     })
     result = parse_score_response(raw)
-    assert result["ai_score"] >= 0.0
+    assert result["ai_score"] is None
+    assert result["score_status"] == "invalid"
+    assert result["failure_code"] == "invalid_ai_score"
 
 
 def test_parse_score_response_bad_fit_label_dropped() -> None:
@@ -230,9 +234,11 @@ def test_parse_score_response_bad_fit_label_dropped() -> None:
     assert result["legacy_model_fit_label"] is None
 
 
-def test_parse_score_response_malformed_json_returns_defaults() -> None:
+def test_parse_score_response_malformed_json_is_unscored() -> None:
     result = parse_score_response("not json at all")
-    assert result["ai_score"] == 0.0
+    assert result["ai_score"] is None
+    assert result["score_status"] == "invalid"
+    assert result["failure_code"] == "malformed_json"
     assert result["legacy_model_fit_label"] is None
     assert result["score_reasoning"] == "Scoring response parse failure: malformed_json"
     assert result["parser_status"] == "malformed_json"
@@ -257,6 +263,33 @@ def test_parse_score_response_does_not_derive_fit_label() -> None:
     })
     result = parse_score_response(raw)
     assert result["legacy_model_fit_label"] is None
+
+
+@pytest.mark.parametrize(
+    ("payload", "failure_code"),
+    [
+        ({}, "missing_ai_score"),
+        ({"ai_score": None}, "missing_ai_score"),
+        ({"ai_score": "NaN"}, "invalid_ai_score"),
+    ],
+)
+def test_parse_score_response_invalid_scores_are_not_fit(payload: dict[str, Any], failure_code: str) -> None:
+    result = parse_score_response(json.dumps(payload))
+    assert result["ai_score"] is None
+    assert result["score_status"] == "invalid"
+    assert result["failure_code"] == failure_code
+
+
+def test_parse_score_response_preserves_valid_zero() -> None:
+    result = parse_score_response(json.dumps({
+        "ai_score": 0.0,
+        "score_reasoning": "no match",
+        "matched_strengths": [],
+        "key_risks": ["missing experience"],
+    }))
+    assert result["ai_score"] == 0.0
+    assert result["score_status"] == "valid"
+    assert result["failure_code"] is None
 
 
 def test_score_job_uses_shared_runtime_contract() -> None:
@@ -689,8 +722,9 @@ def test_execute_ranking_runtime_keeps_empty_output_stage_owned() -> None:
     request = captured["request"]
     assert request.routing_part == "ranking_ai_score"
     assert request.response_mode == "json_object"
-    assert result.status == "succeeded"
-    assert result.parsed_value["parser_status"] == "malformed_json"
+    assert result.status == "failed"
+    assert result.failure.code == "validation_error"
+    assert result.parsed_value["score_status"] == "invalid"
 
 
 def test_run_ai_scoring_emits_stable_runtime_observation(monkeypatch: pytest.MonkeyPatch) -> None:

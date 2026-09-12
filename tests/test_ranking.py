@@ -326,12 +326,16 @@ def test_eligibility_artifacts_do_not_change_ranking_order_or_fit_labels() -> No
             "raw_job_fingerprint": "f1",
             "baseline_fit": 0.8,
             "baseline_fit_label": "strong",
+            "score_status": "valid",
+            "ai_score": 0.8,
         },
         {
             "job_url": "u2",
             "raw_job_fingerprint": "f2",
             "baseline_fit": 0.6,
             "baseline_fit_label": "stretch",
+            "score_status": "valid",
+            "ai_score": 0.6,
         },
     ]
     artifact = {
@@ -480,10 +484,11 @@ def test_build_baseline_result_uses_policy_default_for_missing_holistic_ai_fit()
         context=context,
     )
 
-    assert result["holistic_ai_fit"] == 0.0
-    assert result["holistic_ai_fit_missing_default_applied"] is True
-    assert result["baseline_fit"] == 0.0
-    assert result["baseline_fit_label"] == "skip"
+    assert result["holistic_ai_fit"] is None
+    assert result["holistic_ai_fit_missing_default_applied"] is False
+    assert result["score_status"] == "unscored"
+    assert result["baseline_fit"] is None
+    assert result["baseline_fit_label"] is None
 
 
 def test_rank_jobs_uses_stable_fingerprint_before_url() -> None:

@@ -113,6 +113,7 @@ from fitcv.pipeline_contracts import (
     timeline_stage_download_for_event,
     timeline_stage_label,
 )
+from fitcv.ranking_contract import normalize_score_state
 from fitcv.pipeline_stages.common import job_identity_keys, normalize_job_url_key
 from fitcv.prompts import get_prompt_definition, render_prompt, required_template_variables
 from fitcv.prompts.loader import load_prompt_template
@@ -3946,6 +3947,14 @@ def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
 
 def _normalize_results_export_row(row: dict[str, Any]) -> dict[str, Any]:
     normalized = dict(row)
+    score_source = {
+        **(dict(normalized.get("scores") or {}) if isinstance(normalized.get("scores"), dict) else {}),
+        **normalized,
+    }
+    score_state = normalize_score_state(score_source)
+    normalized["ai_score"] = score_state["ai_score"]
+    normalized["score_status"] = score_state["score_status"]
+    normalized["failure_code"] = score_state["failure_code"]
     decision_chain = normalized.get("decision_chain")
     if not isinstance(decision_chain, dict):
         decision_chain = {}
@@ -11274,15 +11283,23 @@ def create_app(
         for run in result.get("items", []):
             if isinstance(run, PipelineRun):
                 run = _reconcile_orphaned_run(run)
-            run_id = run.run_id if isinstance(run, PipelineRun) else str(run.get("run_id") or "")
-            detail = store.get_run_detail(run_id) if run_id else None
-            if detail is not None:
-                detail.pop("stages", None)
-                resources.append(detail)
-            elif isinstance(run, PipelineRun):
                 resources.append(_run_to_dict(run))
-            else:
-                resources.append(dict(run))
+                continue
+            run_id = str(run.get("run_id") or "")
+            canonical = store.get_run(run_id) if run_id else None
+            if canonical is not None:
+                reconciled = _reconcile_orphaned_run(canonical)
+                if reconciled.status != canonical.status:
+                    run = {
+                        **run,
+                        "backend_status": reconciled.status.value,
+                        "display_status": run_status_projection(reconciled)["display_status"],
+                        "errors": {
+                            "code": reconciled.error_stage,
+                            "message": reconciled.error_message,
+                        },
+                    }
+            resources.append(dict(run))
         return _collection_response(
             resources,
             page=page,
@@ -15246,11 +15263,21 @@ def create_app(
             raise HTTPException(status_code=409, detail="Run results export is only available for completed runs")
         if not run.results_export_json:
             raise HTTPException(status_code=404, detail="Run results export is not available for this run")
+        export_payload = build_terminal_run_artifact_payloads(run_record=run, events=[]).get(
+            "export.json",
+            {"run_id": run.run_id, "results": []},
+        )
+        if isinstance(export_payload, dict) and isinstance(export_payload.get("results"), list):
+            export_payload = {
+                **export_payload,
+                "results": [
+                    _normalize_results_export_row(dict(row))
+                    for row in export_payload["results"]
+                    if isinstance(row, dict)
+                ],
+            }
         pretty_json = _json.dumps(
-            build_terminal_run_artifact_payloads(run_record=run, events=[]).get(
-                "export.json",
-                {"run_id": run.run_id, "results": []},
-            ),
+            export_payload,
             ensure_ascii=False,
             indent=2,
         )

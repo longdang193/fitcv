@@ -42,6 +42,8 @@ export type JobStageStatus =
 
 export type ResultBucket = "passed" | "rejected" | null;
 
+export type ScoreStatus = "valid" | "unscored" | "invalid";
+
 export interface RunCapabilities {
   inspect: boolean;
   cancel: boolean;
@@ -155,6 +157,9 @@ export interface RunJobItem {
   cv_versions_count?: number;
   latest_cv_generation_status?: string | null;
   latest_cv_review_state?: string | null;
+  ai_score?: number | null;
+  score_status?: ScoreStatus | string | null;
+  failure_code?: string | null;
   attributes?: Record<string, unknown>;
   capabilities?: {
     bookmark?: boolean;

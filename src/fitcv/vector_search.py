@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_skills, infer_role_family
+from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
 from fitcv.embeddings import generate_embedding, get_shortlist_embedding_model
 from fitcv.shortlist_runtime import (
     build_contract_fingerprint,
@@ -42,6 +43,7 @@ CANDIDATE_QUERY_SCHEMA_VERSION = "shortlist_candidate_query_v1"
 REUSED_CACHED_QUERY_EMBEDDING_STATUS = "reused_cached_query_embedding"
 FRESH_QUERY_EMBEDDING_STATUS = "fresh_query_embedding"
 VECTOR_RETRIEVAL_STRATEGY = "vector_cosine_v1"
+LEXICAL_RETRIEVAL_STRATEGY = "lexical_v1"
 VECTOR_DIAGNOSTIC_SAMPLE_LIMIT = 20
 
 logger = logging.getLogger(__name__)
@@ -349,6 +351,7 @@ def build_candidate_query_embedding_contract_fingerprint(config: dict[str, Any])
     """Fingerprint shortlist candidate-query embedding behavior to invalidate reuse."""
     payload = {
         "embedding_model": get_shortlist_embedding_model(config),
+        "retrieval_strategy": str(config.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY),
         "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
     }
     fingerprint = build_contract_fingerprint(payload)
@@ -458,11 +461,76 @@ def run_vector_search(
     passed_job_urls: list[str],
     config: dict[str, Any],
     top_n: int | None = None,
+    *,
+    structured_jobs: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Score passed jobs against cached local job embeddings."""
+    """Retrieve passed jobs with lexical signals or compatible vectors."""
     eligible_job_urls = sorted({str(job_url).strip() for job_url in passed_job_urls if str(job_url).strip()})
     if not eligible_job_urls:
         return _empty_vector_search_result()
+    if structured_jobs is not None:
+        components = build_candidate_query_components(profile, config)
+        prefs = dict(profile.get("preferences") or {})
+        candidate_skills = flatten_skills(profile)
+        jobs_by_url = {str(job.get("job_url") or ""): job for job in structured_jobs}
+        scored: list[dict[str, Any]] = []
+        for job_url in eligible_job_urls:
+            job = jobs_by_url.get(job_url)
+            if job is None:
+                continue
+            required = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
+            skill_score = compute_must_have_match(required, candidate_skills, config)
+            title_score = compute_title_relevance(
+                str(job.get("title") or job.get("job_title") or "") or None,
+                str(prefs.get("target_role") or "") or None,
+                job_family=str(job.get("job_family") or "") or None,
+                config=config,
+            )
+            preference = compute_declared_preference_fit_details(job, prefs, config)
+            parts = preference["components"]
+            retrieval_score = (skill_score + title_score + float(parts["domain"]) + float(parts["work_mode"])) / 4.0
+            scored.append({
+                **job,
+                "job_url": job_url,
+                "retrieval_score": retrieval_score,
+                "retrieval_components": {
+                    "skill_overlap": skill_score,
+                    "title_relevance": title_score,
+                    "domain": parts["domain"],
+                    "location": parts["work_mode"],
+                },
+            })
+        scored.sort(key=lambda item: (-float(item["retrieval_score"]), str(item["job_url"])))
+        ranked_rows = [
+            {**row, "vector_rank": index + 1, "shortlist_origin": "lexical_search", "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY}
+            for index, row in enumerate(scored)
+        ]
+        effective_top_n = int(top_n if top_n is not None else (config.get("pipeline") or {}).get("vector_search_top_n", 50))
+        production_rows = ranked_rows[:effective_top_n]
+        audit_sample_n = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
+        audit_rows = [{**row, "shortlist_origin": "audit"} for row in ranked_rows[effective_top_n:effective_top_n + audit_sample_n]]
+        cutoff = production_rows[-1] if production_rows else None
+        return {
+            "production_rows": production_rows,
+            "audit_rows": audit_rows,
+            "diagnostics": {
+                "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+                "eligible_jobs_total": len(eligible_job_urls),
+                "scored_jobs_total": len(ranked_rows),
+                "production_shortlist_total": len(production_rows),
+                "production_cutoff_rank": cutoff.get("vector_rank") if cutoff else None,
+                "production_cutoff_retrieval_score": cutoff.get("retrieval_score") if cutoff else None,
+                "embedding_generation_skipped": True,
+                "personalization_unavailable_reason": "embedding_strategy_incompatible",
+            },
+            "candidate_query": {
+                "text": build_candidate_query_text(profile, config),
+                "components": components,
+                "candidate_query_signature": build_candidate_query_signature_record(components)["signature"],
+                "candidate_query_contract_fingerprint": build_contract_fingerprint({"retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY, "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION}),
+                "candidate_query_reuse_status": "not_applicable_lexical",
+            },
+        }
     effective_top_n = (
         top_n
         if top_n is not None
@@ -621,6 +689,10 @@ def store_shortlist(
     config: dict[str, Any],
 ) -> None:
     """Insert vector shortlist rows into local sqlite store."""
+    shortlist = [
+        item for item in shortlist
+        if str(item.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY) == VECTOR_RETRIEVAL_STRATEGY
+    ]
     if not shortlist:
         return
     now = datetime.now(tz=timezone.utc).isoformat()

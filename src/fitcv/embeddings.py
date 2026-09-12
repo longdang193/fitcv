@@ -34,6 +34,7 @@ from fitcv.shortlist_runtime import (
 
 JOB_SUMMARY_CHUNK_TYPE = "job_summary"
 SHORTLIST_SUMMARY_SCHEMA_VERSION = "shortlist_job_summary_v2"
+EMBEDDING_CONTRACT_VERSION = "embedding_v2"
 SHORTLIST_DEFAULT_EMBEDDING_MODEL = "text-embedding-005"
 REUSED_CACHED_EMBEDDING_STATUS = "reused_cached_embedding"
 FRESH_EMBEDDING_STATUS = "fresh_embedding"
@@ -120,6 +121,7 @@ def get_shortlist_embedding_model(config: dict[str, Any]) -> str:
 def build_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
     """Fingerprint deterministic local embedding behavior."""
     payload = {
+        "contract_version": EMBEDDING_CONTRACT_VERSION,
         "embedding_backend": "sqlite_deterministic_local",
         "embedding_dimension": SQLITE_EMBED_DIM,
         "embedding_model": get_shortlist_embedding_model(config),
@@ -319,6 +321,20 @@ def _ensure_sqlite_embedding_tables(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(job_embeddings)").fetchall()}
+    for name, definition in (
+        ("embedding_input_signature", "TEXT"),
+        ("embedding_contract_fingerprint", "TEXT"),
+        ("embedding_input_signature_payload_json", "TEXT"),
+    ):
+        if name not in columns:
+            conn.execute(f"ALTER TABLE job_embeddings ADD COLUMN {name} {definition}")
+    conn.execute(
+        "DELETE FROM job_embeddings WHERE embedding_input_signature IS NOT NULL AND embedding_contract_fingerprint IS NOT NULL AND id NOT IN (SELECT MAX(id) FROM job_embeddings WHERE embedding_input_signature IS NOT NULL AND embedding_contract_fingerprint IS NOT NULL GROUP BY job_url, chunk_type, embedding_input_signature, embedding_contract_fingerprint)"
+    )
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_job_embeddings_contract ON job_embeddings(job_url, chunk_type, embedding_input_signature, embedding_contract_fingerprint)"
+    )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS candidate_embeddings (
@@ -344,14 +360,32 @@ def embed_and_store_jobs(
     """Embed each job summary and store rows in local sqlite table."""
     if not structured_jobs:
         return 0
+    if str(config.get("retrieval_strategy") or "").strip() == "lexical_v1":
+        for job in structured_jobs:
+            job["embedding_reuse_status"] = "not_applicable_lexical"
+        return 0
     now = datetime.now(tz=timezone.utc).isoformat()
     embedding_contract = build_embedding_contract_fingerprint(config)
     rows: list[dict[str, Any]] = []
+    contract_fingerprint = embedding_contract["fingerprint"]
+    with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+        configure_sqlite_connection(conn)
+        _ensure_sqlite_embedding_tables(conn)
+        existing = {
+            (str(row[0]), str(row[1]), str(row[2]), str(row[3]))
+            for row in conn.execute(
+                "SELECT job_url, chunk_type, embedding_input_signature, embedding_contract_fingerprint FROM job_embeddings"
+            )
+        }
     for job in structured_jobs:
         signature_record = build_job_summary_signature_record(job)
         job["embedding_input_signature"] = signature_record["signature"]
-        job["embedding_contract_fingerprint"] = embedding_contract["fingerprint"]
+        job["embedding_contract_fingerprint"] = contract_fingerprint
         chunk = build_job_summary_chunk(job)[0]
+        key = (str(job.get("job_url") or ""), chunk["chunk_type"], signature_record["signature"], contract_fingerprint)
+        if key in existing:
+            job["embedding_reuse_status"] = REUSED_CACHED_EMBEDDING_STATUS
+            continue
         vector = generate_embedding(chunk["chunk_text"], config)
         job["embedding_reuse_status"] = FRESH_EMBEDDING_STATUS
         rows.append(
@@ -362,7 +396,7 @@ def embed_and_store_jobs(
                 "embedding_json": json.dumps(vector),
                 "created_at": now,
                 "embedding_input_signature": signature_record["signature"],
-                "embedding_contract_fingerprint": embedding_contract["fingerprint"],
+                "embedding_contract_fingerprint": contract_fingerprint,
                 "embedding_input_signature_payload_json": signature_record["payload_json"],
             }
         )
@@ -377,6 +411,7 @@ def embed_and_store_jobs(
                   job_url, chunk_type, chunk_text, embedding_json, created_at,
                   embedding_input_signature, embedding_contract_fingerprint, embedding_input_signature_payload_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_url, chunk_type, embedding_input_signature, embedding_contract_fingerprint) DO NOTHING
                 """,
                 [
                     (

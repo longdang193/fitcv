@@ -755,6 +755,7 @@ def _ensure_control_plane_schema(
         error_code TEXT,
         error_message TEXT,
         partial_completion INTEGER NOT NULL DEFAULT 0 CHECK (partial_completion IN (0, 1)),
+        search_text_normalized TEXT NOT NULL DEFAULT '',
         row_revision INTEGER NOT NULL DEFAULT 1 CHECK (row_revision > 0),
         compatibility_json TEXT NOT NULL CHECK (json_valid(compatibility_json)),
         CHECK (finished_at IS NULL OR backend_status IN ('cancelled', 'succeeded', 'failed')),
@@ -1245,6 +1246,9 @@ def _ensure_control_plane_schema(
         }
         if "settings_used_json" not in pipeline_run_columns:
             conn.execute("ALTER TABLE pipeline_runs ADD COLUMN settings_used_json TEXT")
+        if "search_text_normalized" not in pipeline_run_columns:
+            conn.execute("ALTER TABLE pipeline_runs ADD COLUMN search_text_normalized TEXT NOT NULL DEFAULT ''")
+            pipeline_run_columns.add("search_text_normalized")
         synonym_columns = {
             str(row[1] or "")
             for row in conn.execute("PRAGMA table_info(synonym_suggestions)").fetchall()
@@ -1302,6 +1306,11 @@ def _ensure_control_plane_schema(
                     "INSERT INTO pipeline_settings VALUES (?, ?, ?, ?)",
                     (key, json.dumps(value), "system", now),
                 )
+        if {"run_name", "compatibility_json", "search_text_normalized"} <= pipeline_run_columns:
+            for row in conn.execute(
+                "SELECT run_id FROM pipeline_runs WHERE search_text_normalized = ''"
+            ).fetchall():
+                _refresh_run_search_projection(conn, str(row[0]))
         conn.execute(f"PRAGMA user_version = {CONTROL_PLANE_SCHEMA_VERSION}")
         conn.commit()
     except Exception:
@@ -8570,6 +8579,9 @@ def _ensure_process_event_tables(
             reason TEXT,
             attempt_count INTEGER NOT NULL DEFAULT 0,
             updated_at TEXT NOT NULL,
+            next_attempt_at TEXT NOT NULL DEFAULT '',
+            lease_id TEXT,
+            lease_expires_at TEXT,
             PRIMARY KEY(event_id, sink),
             FOREIGN KEY(event_id) REFERENCES process_events(event_id)
         );
@@ -8588,6 +8600,20 @@ def _ensure_process_event_tables(
             SELECT RAISE(ABORT, 'process_events are immutable');
         END;
         """
+    )
+    columns = {
+        str(row[1]) for row in conn.execute("PRAGMA table_info(process_event_deliveries)").fetchall()
+    }
+    for column, definition in (
+        ("next_attempt_at", "TEXT NOT NULL DEFAULT ''"),
+        ("lease_id", "TEXT"),
+        ("lease_expires_at", "TEXT"),
+    ):
+        if column not in columns:
+            conn.execute(f"ALTER TABLE process_event_deliveries ADD COLUMN {column} {definition}")
+    conn.execute(
+        "UPDATE process_event_deliveries SET next_attempt_at = updated_at "
+        "WHERE next_attempt_at IS NULL OR next_attempt_at = ''"
     )
     if migrate_legacy:
         _migrate_legacy_process_events(conn)
@@ -8705,10 +8731,10 @@ def _insert_process_event(
         conn.execute(
             """
             INSERT OR IGNORE INTO process_event_deliveries(
-                event_id, sink, status, reason, attempt_count, updated_at
-            ) VALUES (?, ?, 'pending', NULL, 0, ?)
+                event_id, sink, status, reason, attempt_count, updated_at, next_attempt_at
+            ) VALUES (?, ?, 'pending', NULL, 0, ?, ?)
             """,
-            (event.event_id, sink, now),
+            (event.event_id, sink, now, now),
         )
     return "inserted"
 
@@ -8940,30 +8966,124 @@ def append_process_event(
 
 
 def record_process_event_delivery(
-    event_id: str, sink: str, status: str, reason: str | None = None
-) -> None:
+    event_id: str,
+    sink: str,
+    status: str,
+    reason: str | None = None,
+    *,
+    claim_id: str | None = None,
+) -> bool:
     if status not in {"pending", "delivered", "failed"}:
         raise ValueError("invalid process event delivery status")
     db_path = Path(_local_sqlite_path())
     with _sqlite_connection(db_path) as conn:
         _ensure_process_event_tables(conn)
-        conn.execute(
-            """
-            INSERT INTO process_event_deliveries(
-                event_id, sink, status, reason, attempt_count, updated_at
-            ) VALUES (?, ?, ?, ?, 1, ?)
-            ON CONFLICT(event_id, sink) DO UPDATE SET
-                status = excluded.status,
-                reason = excluded.reason,
-                attempt_count = process_event_deliveries.attempt_count + 1,
-                updated_at = excluded.updated_at
-            """,
-            (
-                event_id, sink, status, reason,
-                datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            ),
-        )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if claim_id:
+            row = conn.execute(
+                "SELECT attempt_count FROM process_event_deliveries "
+                "WHERE event_id=? AND sink=? AND lease_id=?",
+                (event_id, sink, claim_id),
+            ).fetchone()
+            if row is None:
+                return False
+            next_attempt = now
+            if status == "failed":
+                delay = min(300, 2 ** min(int(row[0]), 8))
+                next_attempt += datetime.timedelta(seconds=delay)
+            updated = conn.execute(
+                """
+                UPDATE process_event_deliveries
+                SET status=?, reason=?, attempt_count=attempt_count+1, updated_at=?,
+                    next_attempt_at=?, lease_id=NULL, lease_expires_at=NULL
+                WHERE event_id=? AND sink=? AND lease_id=?
+                """,
+                (
+                    status, reason, now.isoformat(), next_attempt.isoformat(),
+                    event_id, sink, claim_id,
+                ),
+            ).rowcount
+        else:
+            updated = conn.execute(
+                """
+                INSERT INTO process_event_deliveries(
+                    event_id, sink, status, reason, attempt_count, updated_at, next_attempt_at
+                ) VALUES (?, ?, ?, ?, 1, ?, ?)
+                ON CONFLICT(event_id, sink) DO UPDATE SET
+                    status = excluded.status,
+                    reason = excluded.reason,
+                    attempt_count = process_event_deliveries.attempt_count + 1,
+                    updated_at = excluded.updated_at,
+                    next_attempt_at = excluded.next_attempt_at,
+                    lease_id = NULL,
+                    lease_expires_at = NULL
+                """,
+                (event_id, sink, status, reason, now.isoformat(), now.isoformat()),
+            ).rowcount
         conn.commit()
+    return bool(updated)
+
+
+def claim_process_event_deliveries(
+    *, limit: int = 20, lease_seconds: int = 30, worker_id: str | None = None
+) -> list[dict[str, Any]]:
+    db_path = Path(_local_sqlite_path())
+    if not db_path.exists():
+        return []
+    now = datetime.datetime.now(datetime.timezone.utc)
+    lease_until = now + datetime.timedelta(seconds=max(1, int(lease_seconds)))
+    normalized_limit = max(1, min(int(limit), 100))
+    owner = str(worker_id or uuid.uuid4())
+    with _sqlite_connection(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_process_event_tables(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute(
+            """
+            SELECT e.*, d.sink, d.status AS delivery_status, d.reason AS delivery_reason,
+                   d.attempt_count, d.updated_at, d.next_attempt_at
+            FROM process_event_deliveries d
+            JOIN process_events e ON e.event_id = d.event_id
+            WHERE d.status IN ('pending', 'failed')
+              AND COALESCE(d.next_attempt_at, d.updated_at) <= ?
+              AND (d.lease_id IS NULL OR d.lease_expires_at <= ?)
+            ORDER BY COALESCE(d.next_attempt_at, d.updated_at), e.recorded_at, e.event_id
+            LIMIT ?
+            """,
+            (now.isoformat(), now.isoformat(), normalized_limit),
+        ).fetchall()
+        claimed: list[dict[str, Any]] = []
+        for row in rows:
+            claim_id = f"{owner}:{uuid.uuid4()}"
+            updated = conn.execute(
+                """
+                UPDATE process_event_deliveries
+                SET lease_id=?, lease_expires_at=?
+                WHERE event_id=? AND sink=?
+                  AND status IN ('pending', 'failed')
+                  AND COALESCE(next_attempt_at, updated_at) <= ?
+                  AND (lease_id IS NULL OR lease_expires_at <= ?)
+                """,
+                (
+                    claim_id, lease_until.isoformat(), row["event_id"], row["sink"],
+                    now.isoformat(), now.isoformat(),
+                ),
+            ).rowcount
+            if not updated:
+                continue
+            claimed.append(
+                {
+                    "event": _process_event_from_record(dict(row)),
+                    "sink": str(row["sink"]),
+                    "status": str(row["delivery_status"]),
+                    "reason": row["delivery_reason"],
+                    "attempt_count": int(row["attempt_count"]),
+                    "claim_id": claim_id,
+                }
+            )
+        conn.commit()
+    return claimed
 
 
 def list_pending_process_event_deliveries(
@@ -8982,10 +9102,14 @@ def list_pending_process_event_deliveries(
             FROM process_event_deliveries d
             JOIN process_events e ON e.event_id = d.event_id
             WHERE d.status IN ('pending', 'failed')
+              AND COALESCE(d.next_attempt_at, d.updated_at) <= ?
+              AND (d.lease_id IS NULL OR d.lease_expires_at <= ?)
             ORDER BY d.updated_at, e.recorded_at, e.event_id
             LIMIT ?
             """,
-            (max(1, min(int(limit), 100)),),
+            (datetime.datetime.now(datetime.timezone.utc).isoformat(),
+             datetime.datetime.now(datetime.timezone.utc).isoformat(),
+             max(1, min(int(limit), 100))),
         ).fetchall()
     return [
         {
@@ -9947,6 +10071,49 @@ def _run_name(run: PipelineRun) -> str:
     )[:120]
 
 
+def _normalize_run_search_text(*values: Any) -> str:
+    return unicodedata.normalize("NFKC", " ".join(str(value or "") for value in values)).casefold()
+
+
+def _run_search_text_from_values(
+    *, run_id: Any, run_name: Any, original_filename: Any = None,
+    candidate_profile_id: Any = None, candidate_profile_name: Any = None,
+    candidate_profile_source: Any = None,
+) -> str:
+    return _normalize_run_search_text(
+        run_id, run_name, original_filename, candidate_profile_id,
+        candidate_profile_name, candidate_profile_source,
+    )
+
+
+def _refresh_run_search_projection(conn: sqlite3.Connection, run_id: str) -> None:
+    row = conn.execute(
+        """
+        SELECT p.run_id, p.run_name, p.compatibility_json,
+               i.original_filename, i.candidate_profile_id, i.candidate_profile_name
+        FROM pipeline_runs p LEFT JOIN run_inputs i ON i.run_id = p.run_id
+        WHERE p.run_id=?
+        """,
+        (run_id,),
+    ).fetchone()
+    if row is None:
+        return
+    compatibility = _decode_json_or_none(row[2]) or {}
+    conn.execute(
+        "UPDATE pipeline_runs SET search_text_normalized=? WHERE run_id=?",
+        (
+            _run_search_text_from_values(
+                run_id=row[0], run_name=row[1],
+                original_filename=row[3],
+                candidate_profile_id=row[4],
+                candidate_profile_name=row[5],
+                candidate_profile_source=compatibility.get("candidate_profile_source"),
+            ),
+            run_id,
+        ),
+    )
+
+
 def _settings_revision(run: PipelineRun) -> str:
     payload = str(run.effective_settings_json or run.settings_used_json or "{}")
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -9983,6 +10150,7 @@ def _write_normalized_run(conn: sqlite3.Connection, run: PipelineRun, *, insert:
             """,
             values,
         )
+        _refresh_run_search_projection(conn, run.run_id)
         return
     conn.execute(
         """
@@ -9996,6 +10164,7 @@ def _write_normalized_run(conn: sqlite3.Connection, run: PipelineRun, *, insert:
         """,
         values,
     )
+    _refresh_run_search_projection(conn, run.run_id)
 
 
 def _normalized_run_from_row(row: sqlite3.Row) -> PipelineRun | None:
@@ -10437,6 +10606,7 @@ def create_run_bundle(
                         json.dumps(job.get("skills") or job.get("required_skills") or job.get("required_skills_canonical") or job.get("required_skills_display") or job.get("must_have_skills") or []),
                     ),
                 )
+            _refresh_run_search_projection(conn, run.run_id)
             if owns_transaction:
                 conn.commit()
         except Exception:
@@ -11324,56 +11494,103 @@ def query_runs(
         raise ValueError("page_size must be 10, 20, or 50")
     if view not in {"active", "archived", "all"}:
         raise ValueError("view must be active, archived, or all")
-    normalized_search = unicodedata.normalize("NFKC", str(search)).strip().casefold()
+    normalized_search = _normalize_run_search_text(search).strip()
+    escaped_search = normalized_search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    search_clauses: list[str] = []
+    params: list[Any] = []
+    if normalized_search:
+        search_clauses.append("p.search_text_normalized LIKE ? ESCAPE '\\'")
+        params.append(f"%{escaped_search}%")
+    search_predicate = " AND ".join(search_clauses) or "1=1"
+    clauses = list(search_clauses)
+    if view == "active":
+        clauses.append("p.archived_at IS NULL")
+    elif view == "archived":
+        clauses.append("p.archived_at IS NOT NULL")
+    predicate = " AND ".join(clauses) or "1=1"
+    projection = """
+        p.*,
+        i.original_filename AS input_original_filename,
+        i.candidate_profile_id AS input_candidate_profile_id,
+        i.candidate_profile_name AS input_candidate_profile_name
+    """
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
+        counts = conn.execute(
+            f"""
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN p.archived_at IS NULL THEN 1 ELSE 0 END) AS active_count,
+                   SUM(CASE WHEN p.archived_at IS NOT NULL THEN 1 ELSE 0 END) AS archived_count
+            FROM pipeline_runs p
+            WHERE {search_predicate}
+            """,
+            params,
+        ).fetchone()
+        visible_total = conn.execute(
+            f"SELECT COUNT(*) FROM pipeline_runs p WHERE {predicate}", params
+        ).fetchone()[0]
+        page_number = max(1, int(page))
+        offset = (page_number - 1) * page_size
         rows = conn.execute(
-            """
-            SELECT p.*,
-                   i.original_filename AS input_original_filename,
-                   i.candidate_profile_id AS input_candidate_profile_id,
-                   i.candidate_profile_name AS input_candidate_profile_name
+            f"""
+            SELECT {projection}
             FROM pipeline_runs p
             LEFT JOIN run_inputs i ON i.run_id = p.run_id
+            WHERE {predicate}
             ORDER BY p.created_at DESC, p.run_id DESC
-            """
+            LIMIT ? OFFSET ?
+            """,
+            (*params, page_size, offset),
         ).fetchall()
 
-    matched_rows = []
-    for row in rows:
-        if normalized_search:
-            compatibility = _decode_json_or_none(row["compatibility_json"])
-            compatibility = compatibility if isinstance(compatibility, dict) else {}
-            searchable = " ".join(
-                str(value or "")
-                for value in (
-                    row["run_id"],
-                    row["run_name"],
-                    row["input_original_filename"],
-                    row["input_candidate_profile_id"],
-                    row["input_candidate_profile_name"],
-                    compatibility.get("candidate_profile_source"),
-                )
-            )
-            if normalized_search not in unicodedata.normalize("NFKC", searchable).casefold():
-                continue
-        matched_rows.append(row)
+    def list_projection(row: sqlite3.Row) -> dict[str, Any] | None:
+        run = _normalized_run_from_row(row)
+        if run is None:
+            return None
+        total_jobs = int(row["total_jobs"])
+        passed_jobs = int(row["passed_jobs"])
+        return {
+            "run_id": run.run_id,
+            "run_name": str(row["run_name"]),
+            "backend_status": run.status.value,
+            "display_status": run_display_status(run.status),
+            "status_detail": row["status_detail"],
+            "created_at": run.created_at.isoformat(),
+            "started_at": run.started_at.isoformat() if run.started_at else None,
+            "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+            "archived_at": run.archived_at.isoformat() if run.archived_at else None,
+            "counts": {
+                "total": total_jobs,
+                "passed": passed_jobs,
+                "rejected": int(row["rejected_jobs"]),
+                "skipped": max(0, total_jobs - passed_jobs - int(row["rejected_jobs"])),
+                "cvs_generated": int(row["cvs_generated"]),
+            },
+            "progress": {
+                "completed": int(row["progress_completed"]),
+                "total": int(row["progress_total"]),
+            },
+            "warnings": _json_dict(row["warning_json"]),
+            "errors": {"code": row["error_code"], "message": row["error_message"]},
+            "partial_completion": bool(row["partial_completion"]),
+            "input": {
+                "original_filename": row["input_original_filename"],
+                "candidate_profile_id": row["input_candidate_profile_id"],
+                "candidate_profile_name": row["input_candidate_profile_name"],
+            },
+            "capabilities": _run_capabilities(run),
+            "integrity_warnings": [],
+            "debug_bundle": _debug_bundle_projection(run),
+            "links": {},
+        }
 
-    active_rows = [row for row in matched_rows if row["archived_at"] is None]
-    archived_rows = [row for row in matched_rows if row["archived_at"] is not None]
-    if view == "active":
-        visible_rows = active_rows
-    elif view == "archived":
-        visible_rows = archived_rows
-    else:
-        visible_rows = matched_rows
+    items = [item for row in rows if (item := list_projection(row)) is not None]
     page_number = max(1, int(page))
-    offset = (page_number - 1) * page_size
     return {
-        "items": [_normalized_run_from_row(row) for row in visible_rows[offset:offset + page_size]],
-        "total": len(visible_rows),
-        "active_count": len(active_rows),
-        "archived_count": len(archived_rows),
+        "items": items,
+        "total": int(visible_total or 0),
+        "active_count": int(counts["active_count"] or 0),
+        "archived_count": int(counts["archived_count"] or 0),
         "page": page_number,
         "page_size": page_size,
     }
@@ -13277,6 +13494,21 @@ def get_cv_markdown(version_id: str, *_args: Any, **_kwargs: Any) -> str | None:
     return bytes(download["content"]).decode("utf-8")
 
 
+def _debug_bundle_projection(run: PipelineRun) -> dict[str, Any]:
+    evidence_fields = (
+        run.results_export_json,
+        run.settings_used_json,
+        run.effective_settings_json,
+        run.cv_generation_debug_json,
+        run.stage_transition_artifacts_json,
+    )
+    if any(str(value or "").strip() for value in evidence_fields):
+        return {"run_id": run.run_id, "status": "available", "reason": None, "action": "download"}
+    if run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONTINUE, RunStatus.CANCELLING}:
+        return {"run_id": run.run_id, "status": "not_ready", "reason": "run_in_progress", "action": "wait"}
+    return {"run_id": run.run_id, "status": "unavailable", "reason": "artifact_not_available", "action": "inspect_console"}
+
+
 def get_debug_bundle_availability(
     run_id: str, *_args: Any, **_kwargs: Any
 ) -> dict[str, Any]:
@@ -13288,28 +13520,7 @@ def get_debug_bundle_availability(
             "reason": "run_not_found",
             "action": None,
         }
-    evidence_fields = (
-        run.results_export_json,
-        run.settings_used_json,
-        run.effective_settings_json,
-        run.cv_generation_debug_json,
-        run.stage_transition_artifacts_json,
-    )
-    if any(str(value or "").strip() for value in evidence_fields):
-        return {"run_id": run_id, "status": "available", "reason": None, "action": "download"}
-    if run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONTINUE, RunStatus.CANCELLING}:
-        return {
-            "run_id": run_id,
-            "status": "not_ready",
-            "reason": "run_in_progress",
-            "action": "wait",
-        }
-    return {
-        "run_id": run_id,
-        "status": "unavailable",
-        "reason": "artifact_not_available",
-        "action": "inspect_console",
-    }
+    return _debug_bundle_projection(run)
 
 
 def persist_pipeline_snapshot(

@@ -47,6 +47,7 @@ from fitcv.contracts import (
     SETTINGS_USED_SCHEMA_VERSION,
 )
 from fitcv.pipeline import PipelineCancelled, run_pipeline
+from fitcv.ranking_contract import normalize_score_state
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
     ResolvedPreferencePolicy,
@@ -302,15 +303,13 @@ def execute_cv_regenerate_once(
     action_id: str | None = None,
 ) -> None:
     load_dotenv_defaults()
-    from fitcv_cp.reporter import retry_pending_process_event_deliveries
+    from fitcv_cp.reporter import ProcessEventDeliveryLoop
 
-    try:
-        retry_pending_process_event_deliveries(limit=20)
-    except Exception as exc:
-        logger.warning("Pending process-event delivery retry failed at CV worker start: %s", exc)
+    delivery_loop: ProcessEventDeliveryLoop | None = None
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
     client = None
+    delivery_loop = ProcessEventDeliveryLoop(limit=20).start()
     now = datetime.datetime.now(datetime.timezone.utc)
     reserved_version_id: str | None = None
     evaluation_id: str | None = None
@@ -537,6 +536,8 @@ def execute_cv_regenerate_once(
             client=client,
         )
         raise
+    finally:
+        delivery_loop.stop(final_drain=True)
 
 
 
@@ -674,6 +675,17 @@ def _build_results_export_payload(
             "stage_owned_subreason": deterministic_summary["stage_owned_subreason"],
             "outcome_counts": deterministic_summary["outcome_counts"],
         }
+    normalized_export_results: list[dict[str, Any]] = []
+    for row in export_results:
+        normalized_row = dict(row)
+        nested_scores = normalized_row.get("scores")
+        score_source = {
+            **(dict(nested_scores) if isinstance(nested_scores, dict) else {}),
+            **normalized_row,
+        }
+        score_state = normalize_score_state(score_source)
+        normalized_row.update(score_state)
+        normalized_export_results.append(normalized_row)
     payload = {
         "run_id": run_id,
         "results_schema_version": "results_job_ledger_v4",
@@ -697,7 +709,7 @@ def _build_results_export_payload(
         "stage_result_summary": stage_result_summary,
         "data_plane": data_plane_contract_payload(effective_config),
         "replay_context": replay_context_payload(replay_context=replay_context, run_id=run_id),
-        "results": json_safe(export_results),
+        "results": json_safe(normalized_export_results),
     }
     candidate_profile: dict[str, Any] = {}
     candidate_profile_raw = getattr(run_record, "candidate_profile_json", None)
@@ -1529,12 +1541,9 @@ def execute_pipeline_run(
     queue_job_id: str | None = None,
 ) -> None:
     load_dotenv_defaults()
-    from fitcv_cp.reporter import PipelineReporter, retry_pending_process_event_deliveries
+    from fitcv_cp.reporter import PipelineReporter, ProcessEventDeliveryLoop
 
-    try:
-        retry_pending_process_event_deliveries(limit=20)
-    except Exception as exc:
-        logger.warning("Pending process-event delivery retry failed at pipeline worker start: %s", exc)
+    delivery_loop: ProcessEventDeliveryLoop | None = None
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
     client = None
@@ -1553,6 +1562,8 @@ def execute_pipeline_run(
                 attempt_queue_job_id = str(job.id)
         except Exception:
             pass
+
+    delivery_loop = ProcessEventDeliveryLoop(limit=20).start()
 
     with observe_span(
         "fitcv.worker_job",
@@ -2639,6 +2650,10 @@ def execute_pipeline_run(
                 persist_terminal_run_artifact_mirror(run_id=run_id)
             except Exception as mirror_exc:
                 logger.warning("[run_id=%s] Failed to persist terminal artifact mirror: %s", run_id, mirror_exc)
+
+        finally:
+            if delivery_loop is not None:
+                delivery_loop.stop(final_drain=True)
 
 
 

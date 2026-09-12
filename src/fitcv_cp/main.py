@@ -84,12 +84,21 @@ def build_app() -> Any:
     redis_url = None if local_mode else os.environ.get("REDIS_URL", "redis://redis:6379/0")
     logger.info("control-plane backend mode: sqlite")
     application = create_app(redis_url=redis_url, backend_runtime=runtime)
-    try:
-        from fitcv_cp.reporter import retry_pending_process_event_deliveries
+    from fitcv_cp.reporter import ProcessEventDeliveryLoop
 
-        retry_pending_process_event_deliveries(limit=20)
-    except Exception as exc:
-        logger.warning("Pending process-event delivery retry failed during app startup: %s", exc)
+    if not hasattr(application, "state"):
+        return application
+    delivery_loop = ProcessEventDeliveryLoop(limit=20)
+    application.state.process_event_delivery_loop = delivery_loop
+
+    @application.on_event("startup")
+    async def start_process_event_delivery_loop() -> None:
+        delivery_loop.start()
+
+    @application.on_event("shutdown")
+    async def stop_process_event_delivery_loop() -> None:
+        delivery_loop.stop(final_drain=True)
+
     return application
 
 
