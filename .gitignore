@@ -41,6 +41,7 @@ data/*dataset_linkedin-jobs-scraper*.json
 *.sqlite3-shm
 
 data/fitcv_cp.sqlite3
+
 # Local runtime/state databases (do not version)
 data/fitcv_cp_runtime.sqlite3*
 data/fitcv_cp_settings.sqlite3*
@@ -64,3 +65,6 @@ tmp/fitcv-local-*/
 /.serena/
 /.tura/
 /.tmp-tests/
+
+# Others
+design/fitcv-coverletter/
