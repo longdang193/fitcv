@@ -18,7 +18,89 @@ lifecycle:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Final, cast
+from typing import Any, Final, Mapping, cast
+
+
+CV_OUTCOME_CONTRACT_VERSION: Final = "1"
+
+
+class CVEvidenceState(str, Enum):
+    PASSED = "passed"
+    FAILED = "failed"
+    MISSING = "missing"
+
+
+class CVOutcomeKind(str, Enum):
+    PASSED = "passed"
+    WARNING = "warning"
+    FAILURE = "failure"
+    MISSING = "missing"
+
+
+_BLOCKING_DIAGNOSTIC_CODES: Final[frozenset[str]] = frozenset({
+    "provider_error", "timeout", "empty_output", "template_violation",
+    "markdown_structure_violation", "grounding_failed", "validation_failed",
+    "unsupported_claim", "cv_persistence_failed", "persistence_failed",
+})
+
+
+def classify_cv_outcome(
+    *,
+    original_outcome: str | None,
+    validation_result: Mapping[str, Any] | None,
+    diagnostic_code: str | None,
+    content_integrity: bool | None,
+    artifact_version: str | None = None,
+    checksum: str | None = None,
+    quality_warnings: list[str] | tuple[str, ...] | None = None,
+) -> dict[str, Any]:
+    """Classify CV outcome without changing legacy status values."""
+    evidence_state = CVEvidenceState.MISSING
+    validation = validation_result or {}
+    validation_proven = bool(validation.get("valid") is True or validation.get("passed") is True)
+    if artifact_version and checksum and content_integrity is not None:
+        if not content_integrity:
+            evidence_state = CVEvidenceState.FAILED
+        elif validation_proven:
+            evidence_state = CVEvidenceState.PASSED
+    code = str(diagnostic_code or "").strip().lower()
+    validation_failed = bool(
+        validation.get("valid") is False
+        or validation.get("passed") is False
+        or validation.get("grounding_violations")
+        or validation.get("unsupported_claims")
+        or validation.get("markdown_quality_blocking_issues")
+        or validation.get("missing_sections")
+    )
+    blocking = code in _BLOCKING_DIAGNOSTIC_CODES or validation_failed or original_outcome in {
+        "failed", "generation_failed", "validation_failed", "persistence_failed",
+    }
+    warnings = sorted({str(item).strip() for item in (quality_warnings or []) if str(item).strip()})
+    if blocking:
+        kind = CVOutcomeKind.FAILURE
+    elif evidence_state is CVEvidenceState.PASSED:
+        kind = CVOutcomeKind.WARNING if warnings else CVOutcomeKind.PASSED
+    else:
+        kind = CVOutcomeKind.MISSING
+    return {
+        "contract_version": CV_OUTCOME_CONTRACT_VERSION,
+        "kind": kind.value,
+        "evidence_state": evidence_state.value,
+        "diagnostic_code": code or None,
+        "artifact_version": artifact_version,
+        "checksum": checksum,
+        "quality_warnings": warnings,
+        "generated_eligible": kind in {CVOutcomeKind.PASSED, CVOutcomeKind.WARNING},
+    }
+
+
+CV_WARNING_ENVELOPE_FIELDS: Final[tuple[str, ...]] = (
+    "contract_version", "kind", "evidence_state", "diagnostic_code",
+    "artifact_version", "checksum",
+)
+
+
+
 
 PIPELINE_STAGE_SEQUENCE: Final[tuple[str, ...]] = (
     "normalize",

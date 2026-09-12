@@ -1893,6 +1893,7 @@ def _finalize_review_draft_as_cv_artifact(
     row = next((item for item in rows if str(item.get("job_url") or "").strip() == str(job_url or "").strip()), {})
     effective_settings = _effective_settings_dict(run)
     fit_classification = str(record.get("fit_classification") or row.get("fit_classification") or "unknown").strip() or "unknown"
+    finalization_key = str(record.get("review_item_id") or job_url).strip()
     version_record = create_cv_version_record(
         job_url=str(job_url),
         run_id=str(run.run_id),
@@ -1924,6 +1925,7 @@ def _finalize_review_draft_as_cv_artifact(
         ) or None,
         cv_generation_input_fingerprint=str(record.get("cv_generation_input_fingerprint") or "") or None,
         cv_generation_reuse_status=str(record.get("cv_generation_reuse_status") or "") or None,
+        version_id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"fitcv:review-finalize:{run.run_id}:{finalization_key}")),
     )
     errors = insert_cv_version_row(version_record, client=client)
     if errors:
@@ -14334,9 +14336,44 @@ def create_app(
             note=str(form.get("note") or "").strip() or None,
         )
         allow_no_accepted_closure = str(form.get("confirm_no_accepted_cv_closure") or "").strip().lower() in {"1", "true", "yes", "on"}
-        allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject"}
+        allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject", "reconcile_historical"}
         if payload.action not in allowed_actions:
             raise HTTPException(status_code=422, detail="Invalid review action")
+
+        if payload.action == "reconcile_historical":
+            if run.status == RunStatus.AWAITING_CONTINUE and str(run.checkpoint_status or "") == "awaiting_review":
+                now = datetime.datetime.now(datetime.timezone.utc)
+                update_run_status(run_id, RunStatus.SUCCEEDED, client=client, finished_at=now)
+                _persist_stage_artifacts_terminal_snapshot(
+                    run_id=run_id,
+                    client=client,
+                    terminal_status=RunStatus.SUCCEEDED,
+                    snapshot_at=now,
+                    snapshot_complete=True,
+                    degradation_reason="",
+                )
+                last_completed_stage, completed_stages, checkpoint_payload_json = _checkpoint_truth_for_review_closure(run)
+                update_run_checkpoint(
+                    run_id,
+                    client=client,
+                    checkpoint_status="completed",
+                    next_stage=None,
+                    last_completed_stage=last_completed_stage,
+                    completed_stages=completed_stages,
+                    checkpoint_payload_json=checkpoint_payload_json,
+                )
+                append_event(
+                    RunEvent(
+                        run_id=run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="cv_review_legacy_reconciled",
+                        level="info",
+                        message="Historical review checkpoint reconciled; run marked succeeded.",
+                        created_at=now,
+                    ),
+                    client=client,
+                )
+            return RedirectResponse(f"/admin/runs/{run_id}/review-queue", status_code=303)
 
         debug_payload = _load_run_cv_generation_debug_payload(run)
         if not isinstance(debug_payload, dict):
@@ -14362,10 +14399,39 @@ def create_app(
             raise HTTPException(status_code=404, detail="Review-required record not found for selector")
         target_job_url = str(target_record.get("job_url") or "").strip()
         target_review_item_id = str(target_record.get("review_item_id") or "").strip() or None
+        closure_recovery = False
+        existing_actions = [
+            item
+            for item in list(debug_payload.get("hitl_review_actions") or [])
+            if isinstance(item, dict)
+            and (
+                (target_review_item_id and str(item.get("review_item_id") or "").strip() == target_review_item_id)
+                or (target_job_url and str(item.get("job_url") or "").strip() == target_job_url)
+            )
+        ]
+        if existing_actions:
+            latest_action = existing_actions[-1]
+            latest_resolution = _normalize_hitl_resolution_status(
+                str(latest_action.get("action") or "").strip() or None,
+                str(latest_action.get("resolution_status") or "").strip() or None,
+            )
+            if not _is_hitl_resolution_pending(latest_resolution):
+                recovered_run = dataclasses.replace(
+                    run,
+                    cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
+                )
+                recovered_queue = _build_hitl_review_queue(recovered_run)
+                closure_recovery = bool(
+                    _is_hitl_review_pending_state(run)
+                    and int(recovered_queue.get("total_review_required") or 0) > 0
+                    and int(recovered_queue.get("pending_count") or 0) == 0
+                )
+                if not closure_recovery:
+                    return RedirectResponse(f"/admin/runs/{run_id}/review-queue", status_code=303)
         accepted_increment = 0
         finalized_version_id: str | None = None
         regeneration_job_id: str | None = None
-        if payload.action == "approve_as_is":
+        if not closure_recovery and payload.action == "approve_as_is":
             finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
                 run=run,
                 job_url=target_job_url,
@@ -14375,7 +14441,7 @@ def create_app(
             if not finalized_ok:
                 raise HTTPException(status_code=409, detail=f"Cannot approve as final CV: {finalized_reason}")
             accepted_increment = 1
-        elif payload.action == "regenerate_once":
+        elif not closure_recovery and payload.action == "regenerate_once":
             regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
                 run_id=run_id,
                 job_url=target_job_url,
@@ -14385,55 +14451,56 @@ def create_app(
             )
 
         now = datetime.datetime.now(datetime.timezone.utc)
-        action_entry = {
-            "review_item_id": target_review_item_id,
-            "job_url": target_job_url,
-            "job_title": str(target_record.get("job_title") or "").strip() or None,
-            "action": payload.action,
-            "resolution_status": _normalize_hitl_resolution_status(payload.action, None),
-            "artifact_finalized": bool(accepted_increment),
-            "artifact_version_id": finalized_version_id,
-            "actor": payload.actor or "admin",
-            "note": payload.note,
-            "created_at": now.isoformat(),
-        }
-        if payload.action == "regenerate_once":
-            action_entry["regeneration_requested_at"] = now.isoformat()
-            action_entry["regeneration_job_id"] = regeneration_job_id
-        review_actions = [item for item in list(debug_payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
-        review_actions.append(action_entry)
-        debug_payload["hitl_review_actions"] = review_actions
-        update_run_cv_generation_debug(
-            run_id,
-            _json.dumps(debug_payload, ensure_ascii=False),
-            client=client,
-        )
-        append_event(
-            RunEvent(
-                run_id=run_id,
-                event_id=str(uuid.uuid4()),
-                stage="cv_review_action",
-                level="info",
-                message=f"CV review action '{payload.action}' recorded",
-                created_at=now,
-                payload_json=_json.dumps(
-                    {
-                        "review_item_id": target_review_item_id,
-                        "job_url": target_job_url,
-                        "job_title": target_record.get("job_title"),
-                        "action": payload.action,
-                        "regeneration_job_id": regeneration_job_id,
-                        "artifact_finalized": bool(accepted_increment),
-                        "artifact_version_id": finalized_version_id,
-                        "actor": payload.actor,
-                        "note": payload.note,
-                    },
-                    ensure_ascii=False,
+        if not closure_recovery:
+            action_entry = {
+                "review_item_id": target_review_item_id,
+                "job_url": target_job_url,
+                "job_title": str(target_record.get("job_title") or "").strip() or None,
+                "action": payload.action,
+                "resolution_status": _normalize_hitl_resolution_status(payload.action, None),
+                "artifact_finalized": bool(accepted_increment),
+                "artifact_version_id": finalized_version_id,
+                "actor": payload.actor or "admin",
+                "note": payload.note,
+                "created_at": now.isoformat(),
+            }
+            if payload.action == "regenerate_once":
+                action_entry["regeneration_requested_at"] = now.isoformat()
+                action_entry["regeneration_job_id"] = regeneration_job_id
+            review_actions = [item for item in list(debug_payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+            review_actions.append(action_entry)
+            debug_payload["hitl_review_actions"] = review_actions
+            update_run_cv_generation_debug(
+                run_id,
+                _json.dumps(debug_payload, ensure_ascii=False),
+                client=client,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_review_action",
+                    level="info",
+                    message=f"CV review action '{payload.action}' recorded",
+                    created_at=now,
+                    payload_json=_json.dumps(
+                        {
+                            "review_item_id": target_review_item_id,
+                            "job_url": target_job_url,
+                            "job_title": target_record.get("job_title"),
+                            "action": payload.action,
+                            "regeneration_job_id": regeneration_job_id,
+                            "artifact_finalized": bool(accepted_increment),
+                            "artifact_version_id": finalized_version_id,
+                            "actor": payload.actor,
+                            "note": payload.note,
+                        },
+                        ensure_ascii=False,
+                    ),
                 ),
-            ),
-            client=client,
-        )
-        if payload.action == "regenerate_once":
+                client=client,
+            )
+        if not closure_recovery and payload.action == "regenerate_once":
             append_event(
                 RunEvent(
                     run_id=run_id,

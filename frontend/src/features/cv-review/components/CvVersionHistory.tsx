@@ -15,6 +15,7 @@ function getStatusVariant(status: string): StatusVariant {
     case "generated":
       return "success";
     case "review_required":
+    case "missing":
       return "warn";
     case "pending":
     case "running":
@@ -22,6 +23,7 @@ function getStatusVariant(status: string): StatusVariant {
     case "generation_failed":
     case "validation_failed":
     case "persistence_failed":
+    case "failed":
       return "danger";
     default:
       return "neutral";
@@ -56,6 +58,7 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
         {versions.map((ver) => {
           const isSelected = ver.version_id === selectedVersionId;
           const createdDate = formatTimestamp(ver.created_at, "Unknown date");
+          const outcomeStatus = ver.outcome_status || ver.generation_status;
           return (
             <li key={ver.version_id}>
               <button
@@ -80,8 +83,8 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
                     v{ver.ordinal || 1} · <span title={ver.version_id}>{formatIdentifier(ver.version_id)}</span>
                   </strong>
                   <StatusBadge
-                    status={getStatusVariant(ver.generation_status)}
-                    label={ver.generation_status}
+                    status={getStatusVariant(outcomeStatus)}
+                    label={outcomeStatus}
                   />
                 </div>
 
@@ -97,6 +100,11 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
                 {ver.review_state && ver.review_state !== "none" && (
                   <div style={{ fontSize: 11, color: "var(--text)" }}>
                     Review: <span className="cv-review-badge">{ver.review_state}</span>
+                  </div>
+                )}
+                {Array.isArray(ver.quality_warnings?.warnings) && ver.quality_warnings.warnings.length > 0 && (
+                  <div style={{ fontSize: 11, color: "var(--warning, #a16207)" }}>
+                    {ver.quality_warnings.warnings.length} quality warning{ver.quality_warnings.warnings.length === 1 ? "" : "s"}
                   </div>
                 )}
               </button>

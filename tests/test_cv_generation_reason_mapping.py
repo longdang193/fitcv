@@ -3,6 +3,7 @@ from fitcv.agentic_cv_generation import (
     normalize_review_required_reason_code,
 )
 from fitcv.late_stage_contract import CV_GENERATION_REVIEW_REQUIRED_STATUS
+from fitcv.pipeline_contracts import classify_cv_outcome
 
 
 def test_review_gate_maps_to_specific_reason_code_for_unsupported_requirements() -> None:
@@ -63,3 +64,44 @@ def test_validation_evidence_fingerprint_is_stable_for_identical_inputs() -> Non
         error=error,
     )
     assert fp1 == fp2
+
+
+def test_warning_outcome_requires_valid_bound_artifact() -> None:
+    result = classify_cv_outcome(
+        original_outcome="accepted",
+        validation_result={"valid": True},
+        diagnostic_code=None,
+        content_integrity=True,
+        artifact_version="cv-1",
+        checksum="sha256:cv-1",
+        quality_warnings=["missing_nonessential_requirement"],
+    )
+    assert result["kind"] == "warning"
+    assert result["evidence_state"] == "passed"
+    assert result["generated_eligible"] is True
+
+
+def test_hard_validation_failure_never_becomes_generated() -> None:
+    result = classify_cv_outcome(
+        original_outcome="accepted",
+        validation_result={"valid": False, "grounding_violations": ["claim"]},
+        diagnostic_code=None,
+        content_integrity=True,
+        artifact_version="cv-1",
+        checksum="sha256:cv-1",
+    )
+    assert result["kind"] == "failure"
+    assert result["generated_eligible"] is False
+
+
+def test_missing_validation_evidence_stays_missing() -> None:
+    result = classify_cv_outcome(
+        original_outcome="accepted",
+        validation_result=None,
+        diagnostic_code=None,
+        content_integrity=True,
+        artifact_version="cv-1",
+        checksum="sha256:cv-1",
+    )
+    assert result["kind"] == "missing"
+    assert result["evidence_state"] == "missing"

@@ -124,6 +124,24 @@ def test_create_cv_version_record_includes_structured_cv_and_generation_metadata
     assert record["cv_prompt_version"] == "cv_prompt_v3"
 
 
+def test_create_cv_version_record_preserves_failed_original_outcome_without_diagnostic() -> None:
+    record = create_cv_version_record(
+        job_url="u",
+        run_id="rid",
+        enrichment_version="v1",
+        vector_rank=1,
+        ai_score=0.8,
+        final_score=0.7,
+        evidence_ids=["ev-001"],
+        prompt_version="v1",
+        cv_markdown="# CV",
+        gap_summary={},
+        fit_classification="strong",
+        original_outcome="validation_failed",
+    )
+    assert json.loads(record["quality_warnings_json"])["outcome"] == "failure"
+
+
 
 
 def test_store_cv_version_uses_control_plane_store(tmp_path, monkeypatch) -> None:
