@@ -1,4 +1,16 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+export const SYNONYM_SEARCH_DEBOUNCE_MS = 250;
+
+export function buildSynonymSuggestionsQueryKey(
+  type: string = 'all',
+  status: string = 'pending',
+  search: string = '',
+  page: number = 1,
+  pageSize: number = 20
+): string {
+  return `${type}::${status}::${search.trim()}::${page}::${pageSize}`;
+}
 import { Button, StatusBadge, LoadingState, EmptyState, ErrorState, Notice, ZeroResultsState } from '../../components';
 import { getApiErrorMessage } from '../../lib/api-client';
 import {
@@ -37,6 +49,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
   const [selectedType, setSelectedType] = useState<SynonymType | 'all'>('all');
   const [selectedStatus, setSelectedStatus] = useState<ReviewStatus | 'all'>('pending');
   const [search, setSearch] = useState<string>('');
+  const [activeSearch, setActiveSearch] = useState<string>('');
   const [counts, setCounts] = useState<Record<string, { pending?: number; approved?: number; declined?: number; total?: number }>>({});
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -48,28 +61,80 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
   const [detailSuggestionId, setDetailSuggestionId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
 
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef<number>(0);
+  const isMountedRef = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Debounce search input and reset page to 1
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      setActiveSearch(search.trim());
+      setPage(1);
+    }, SYNONYM_SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, [search]);
+
+  // ponytail: guarded suggestions loader rejecting stale responses by request identity; add cache if tab hopping becomes frequent.
   const loadSuggestions = useCallback(async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    abortControllerRef.current = controller;
+
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
     try {
       const query: SynonymSuggestionQuery = {
         type: selectedType,
         status: selectedStatus,
-        search: search.trim() || undefined,
+        search: activeSearch || undefined,
         page,
         pageSize,
       };
       const result = await fetchSynonymSuggestions(query);
+      if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        return false;
+      }
       setItems(result.items);
       setTotal(result.total);
       setCounts(result.counts || {});
       setSelectedIds(new Set());
+      return true;
     } catch (err: any) {
+      if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        return false;
+      }
       setError(getApiErrorMessage(err, 'Failed to load synonym suggestions.'));
+      return false;
     } finally {
-      setLoading(false);
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [selectedType, selectedStatus, search, page, pageSize]);
+  }, [selectedType, selectedStatus, activeSearch, page, pageSize]);
 
   useEffect(() => {
     loadSuggestions();
@@ -216,6 +281,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
     setSelectedType('all');
     setSelectedStatus('pending');
     setSearch('');
+    setActiveSearch('');
     setPage(1);
   };
 
@@ -294,13 +360,13 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
           <label className='page-search synonym-search'>
             <span className='sr-only'>Search synonyms</span>
             <input
+              id='synonymSearchInput'
               className='field page-search-input'
               type='search'
               placeholder='Search alias or canonical...'
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
-                setPage(1);
               }}
             />
           </label>
@@ -391,9 +457,9 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
         <ErrorState message={error} onRetry={loadSuggestions} />
       ) : items.length === 0 ? (
         <div className='table-card'>
-          {hasActiveSynonymFilters(search, selectedType, selectedStatus) ? (
+          {hasActiveSynonymFilters(activeSearch, selectedType, selectedStatus) ? (
             <ZeroResultsState
-              query={search.trim() || undefined}
+              query={activeSearch.trim() || undefined}
               filterDescription='No suggestions match active search or filters.'
               clearLabel='Reset filters'
               onClear={resetFilters}

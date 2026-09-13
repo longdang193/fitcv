@@ -107,9 +107,12 @@ def _is_recoverable_sqlite_error(exc: sqlite3.Error) -> bool:
     message = str(exc).lower()
     return (
         "disk i/o error" in message
-        or "database is locked" in message
         or "file is not a database" in message
     )
+
+
+def _is_locked_sqlite_error(exc: sqlite3.Error) -> bool:
+    return "database is locked" in str(exc).lower()
 
 def _rotate_local_sqlite_family(db_path: Path, *, reason: str) -> Path | None:
     if not db_path.exists():
@@ -146,7 +149,6 @@ def _load_local_settings_rows() -> list[sqlite3.Row]:
         try:
             with sqlite3.connect(db_path, timeout=30) as conn:
                 conn.row_factory = sqlite3.Row
-                _ensure_local_pipeline_settings_table(conn)
                 rows = conn.execute(
                     """
                     SELECT setting_key, setting_value_json
@@ -156,9 +158,13 @@ def _load_local_settings_rows() -> list[sqlite3.Row]:
                 ).fetchall()
             return rows
         except sqlite3.Error as exc:
+            if attempt == 1 and _is_locked_sqlite_error(exc):
+                continue
             if attempt == 1 and _is_recoverable_sqlite_error(exc):
                 _rotate_local_sqlite_family(db_path, reason=str(exc))
                 return []
+            if _is_locked_sqlite_error(exc):
+                raise
             raise
     return []
 
@@ -335,6 +341,8 @@ def mutate_settings_atomically(
                 candidate_overrides.update({key: effective[key] for key in canonical_changes})
                 return candidate_overrides
         except sqlite3.Error as exc:
+            if attempt == 1 and _is_locked_sqlite_error(exc):
+                continue
             if attempt == 1 and _is_recoverable_sqlite_error(exc):
                 _rotate_local_sqlite_family(db_path, reason=str(exc))
                 continue
@@ -400,9 +408,15 @@ def _hydrate_llm_configuration_tasks(value: dict[str, Any]) -> dict[str, Any]:
 
 def _load_configuration_resource(resource_name: str) -> dict[str, Any]:
     db_path = _local_sqlite_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+    if not db_path.exists():
+        try:
+            value = copy.deepcopy(CONFIGURATION_RESOURCE_DEFAULTS[resource_name])
+        except KeyError:
+            raise KeyError(resource_name) from None
+        if resource_name == "llm_configuration":
+            value = _hydrate_llm_configuration_tasks(value)
+        return _resource_result(resource_name, value, 1, "")
     with sqlite3.connect(db_path, timeout=30) as conn:
-        _ensure_configuration_schema(conn)
         row = conn.execute(
             """
             SELECT resource_json, revision, updated_at

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 from fitcv_cp.backend_runtime import set_backend_runtime
-from fitcv_cp import settings_store as ss
+from fitcv_cp import settings_store as ss, sqlite_store
 
 from fitcv_cp.settings_store import (
     SettingsRevisionConflict,
@@ -45,7 +45,9 @@ def _sqlite_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_load_llm_configuration_hydrates_missing_declared_tasks(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
     load_llm_configuration()
     with sqlite3.connect(tmp_path / "settings.sqlite3") as conn:
         value, revision = conn.execute(
@@ -73,7 +75,9 @@ def test_load_llm_configuration_hydrates_missing_declared_tasks(tmp_path, monkey
 
 
 def test_load_llm_configuration_preserves_existing_task_values(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
     load_llm_configuration()
     with sqlite3.connect(tmp_path / "settings.sqlite3") as conn:
         value, revision = conn.execute(

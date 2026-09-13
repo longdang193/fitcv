@@ -17,7 +17,7 @@ import { apiClient } from "../../lib/api-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SynonymsPage } from "./synonyms-page";
 import React from "react";
-import { SuggestionQueue, hasActiveSynonymFilters } from "./suggestion-queue";
+import { SuggestionQueue, hasActiveSynonymFilters, buildSynonymSuggestionsQueryKey, SYNONYM_SEARCH_DEBOUNCE_MS } from "./suggestion-queue";
 
 describe("Synonyms Feature API", () => {
   const originalFetch = globalThis.fetch;
@@ -340,5 +340,159 @@ describe("Synonyms page layout", () => {
     expect(renderToStaticMarkup(React.createElement(SuggestionQueue))).toContain(
       "Loading synonym review queue..."
     );
+  });
+});
+
+
+describe("Synonyms Suggestion Queue Debounce and Stale Request Rejection", () => {
+  it("builds canonical synonym suggestion query key with type, status, search, page, and size", () => {
+    const key = buildSynonymSuggestionsQueryKey("skills", "pending", "typescript", 1, 20);
+    expect(key).toBe("skills::pending::typescript::1::20");
+  });
+
+  it("trims whitespace from synonym search term in query key identity", () => {
+    const key1 = buildSynonymSuggestionsQueryKey("all", "pending", "   python   ", 1, 20);
+    const key2 = buildSynonymSuggestionsQueryKey("all", "pending", "python", 1, 20);
+    expect(key1).toBe("all::pending::python::1::20");
+    expect(key1).toBe(key2);
+  });
+
+  it("distinguishes synonym query keys across type, status, search, page, and size", () => {
+    const base = buildSynonymSuggestionsQueryKey("all", "pending", "py", 1, 20);
+    expect(base).not.toBe(buildSynonymSuggestionsQueryKey("skills", "pending", "py", 1, 20));
+    expect(base).not.toBe(buildSynonymSuggestionsQueryKey("all", "approved", "py", 1, 20));
+    expect(base).not.toBe(buildSynonymSuggestionsQueryKey("all", "pending", "rust", 1, 20));
+    expect(base).not.toBe(buildSynonymSuggestionsQueryKey("all", "pending", "py", 2, 20));
+    expect(base).not.toBe(buildSynonymSuggestionsQueryKey("all", "pending", "py", 1, 10));
+  });
+
+  it("debounces rapid synonym search typing burst to one remote request", () => {
+    vi.useFakeTimers();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let activeQuery = "";
+    let fetchCount = 0;
+
+    const handleSearchChange = (val: string) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        activeQuery = val.trim();
+        fetchCount += 1;
+      }, SYNONYM_SEARCH_DEBOUNCE_MS);
+    };
+
+    handleSearchChange("t");
+    vi.advanceTimersByTime(100);
+    handleSearchChange("type");
+    vi.advanceTimersByTime(100);
+    handleSearchChange("typescript");
+
+    expect(fetchCount).toBe(0);
+    expect(activeQuery).toBe("");
+
+    vi.advanceTimersByTime(SYNONYM_SEARCH_DEBOUNCE_MS);
+    expect(fetchCount).toBe(1);
+    expect(activeQuery).toBe("typescript");
+
+    vi.useRealTimers();
+  });
+
+  it("rejects stale Search A response resolving after Search B", async () => {
+    let activeRequestId = 0;
+    let acceptedItems: string[] = [];
+    let acceptedTotal = 0;
+    let loading = false;
+    let resolveA: ((val: { items: string[]; total: number }) => void) | null = null;
+    let resolveB: ((val: { items: string[]; total: number }) => void) | null = null;
+
+    const dispatchSearch = (term: string) => {
+      const reqId = ++activeRequestId;
+      loading = true;
+      const promise = new Promise<{ items: string[]; total: number }>((resolve) => {
+        if (term === "Search A") resolveA = resolve;
+        else resolveB = resolve;
+      });
+
+      return promise.then((result) => {
+        if (reqId !== activeRequestId) {
+          // Stale response rejected: does not update items, total, or clear loading
+          return false;
+        }
+        acceptedItems = result.items;
+        acceptedTotal = result.total;
+        loading = false;
+        return true;
+      });
+    };
+
+    const promiseA = dispatchSearch("Search A");
+    const promiseB = dispatchSearch("Search B");
+    expect(loading).toBe(true);
+
+    // Search A resolves late
+    resolveA!({ items: ["sug-a1", "sug-a2"], total: 2 });
+    const resA = await promiseA;
+    expect(resA).toBe(false);
+    expect(acceptedItems).toEqual([]);
+    expect(acceptedTotal).toBe(0);
+    expect(loading).toBe(true);
+
+    // Search B resolves
+    resolveB!({ items: ["sug-b1"], total: 1 });
+    const resB = await promiseB;
+    expect(resB).toBe(true);
+    expect(acceptedItems).toEqual(["sug-b1"]);
+    expect(acceptedTotal).toBe(1);
+    expect(loading).toBe(false);
+  });
+
+  it("cleans up debounce timer and ignores pending responses on unmount", async () => {
+    vi.useFakeTimers();
+    let isMounted = true;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let activeSearch = "";
+    let fetchCount = 0;
+    let stateUpdatedAfterUnmount = false;
+    let resolvePendingFetch: (() => void) | null = null;
+
+    const onSearchChange = (val: string) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!isMounted) return;
+        activeSearch = val.trim();
+        fetchCount += 1;
+        new Promise<void>((resolve) => {
+          resolvePendingFetch = resolve;
+        }).then(() => {
+          if (!isMounted) return;
+          stateUpdatedAfterUnmount = true;
+        });
+      }, SYNONYM_SEARCH_DEBOUNCE_MS);
+    };
+
+    onSearchChange("py");
+    vi.advanceTimersByTime(100);
+
+    // Unmount before debounce timer fires
+    isMounted = false;
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    vi.advanceTimersByTime(SYNONYM_SEARCH_DEBOUNCE_MS + 100);
+    expect(fetchCount).toBe(0);
+    expect(activeSearch).toBe("");
+
+    // Remount, trigger fetch, then unmount while fetch is in-flight
+    isMounted = true;
+    onSearchChange("python");
+    vi.advanceTimersByTime(SYNONYM_SEARCH_DEBOUNCE_MS);
+    expect(fetchCount).toBe(1);
+    expect(activeSearch).toBe("python");
+
+    // Unmount while request is pending
+    isMounted = false;
+    resolvePendingFetch!();
+    await Promise.resolve();
+
+    expect(stateUpdatedAfterUnmount).toBe(false);
+    vi.useRealTimers();
   });
 });

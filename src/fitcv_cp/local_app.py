@@ -48,7 +48,11 @@ from fitcv_cp.local_storage import (
     write_bootstrap,
     write_pending_operation,
 )
-from fitcv_cp.sqlite_store import ensure_control_plane_database, initialize_control_plane_database
+from fitcv_cp.sqlite_store import (
+    ensure_control_plane_database,
+    initialize_control_plane_database,
+    resolve_candidate_profile_path,
+)
 from fitcv_cp.windows_tray import WindowsTray
 
 
@@ -236,7 +240,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         previous_root = process_pending_storage_operation(app_version=LOCAL_APP_VERSION)
         paths = activate_local_storage(app_version=LOCAL_APP_VERSION, bundle_root=bundle_root)
-        ensure_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
+        ensure_control_plane_database(
+            paths.sqlite_path, resolve_candidate_profile_path(paths.candidate_profile_path)
+        )
         migrate_packaged_local_integration_state(paths)
     except Exception as exc:
         if previous_root is not None:

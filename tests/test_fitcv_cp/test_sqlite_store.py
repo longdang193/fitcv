@@ -5,7 +5,9 @@ import json
 import os
 import sqlite3
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -74,6 +76,22 @@ def test_local_cancel_terminalizes_unclaimed_and_awaiting_runs() -> None:
     assert sqlite_store.get_run_detail(awaiting.run_id)["capabilities"]["cancel"] is False
 
 
+def test_run_exists_checks_identity_without_reconstructing_pipeline_run() -> None:
+    run = _make_run("run-exists")
+    sqlite_store.insert_run(run)
+
+    def fail_reconstruction(_row: object) -> None:
+        raise AssertionError("run_exists must not reconstruct PipelineRun")
+
+    original = sqlite_store._normalized_run_from_row
+    sqlite_store._normalized_run_from_row = fail_reconstruction  # type: ignore[assignment]
+    try:
+        assert sqlite_store.run_exists(run.run_id) is True
+        assert sqlite_store.run_exists("missing-run") is False
+    finally:
+        sqlite_store._normalized_run_from_row = original
+
+
 def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -> None:
     with sqlite3.connect(":memory:") as conn:
         sqlite_store._configure_sqlite_connection(conn)
@@ -137,6 +155,30 @@ def test_control_plane_schema_initializes_normalized_tables_and_foreign_keys() -
         assert profile_columns["profile_name"][3] == 0
         assert "profile_json" not in profile_columns
         assert profile_columns["revision"][3] == 1
+
+
+def test_concurrent_startup_converges_on_one_initialized_database(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    synonym_paths = {
+        synonym_type: tmp_path / f"{synonym_type}.yaml"
+        for synonym_type in ("skills", "domain", "role_family")
+    }
+
+    def bootstrap() -> None:
+        sqlite_store.ensure_control_plane_database(
+            database_path,
+            tmp_path / "missing-profile.yaml",
+            synonym_paths=synonym_paths,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list(executor.map(lambda _index: bootstrap(), range(2)))
+
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 7
+        assert connection.execute(
+            "SELECT COUNT(*) FROM configuration_resources"
+        ).fetchone()[0] == 8
 
 
 def test_control_plane_adds_quality_warnings_to_existing_cv_schema() -> None:
@@ -1059,6 +1101,55 @@ def test_provider_persistence_enforces_revisions_uniqueness_and_secret_boundary(
     assert sqlite_store.list_api_provider_models(
         "provider-1", database_path=database_path
     ) == [model]
+
+
+def test_provider_read_getters_do_not_create_missing_state(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    sqlite_store.initialize_control_plane_database(
+        database_path, tmp_path / "missing-profile.yaml"
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "INSERT INTO custom_api_providers "
+            "(provider_id, display_name, compatibility, revision, created_at, updated_at) "
+            "VALUES ('provider-missing-state', 'Missing State', 'openai', 1, 'now', 'now')"
+        )
+        connection.commit()
+
+    statements: list[str] = []
+    original_connect = sqlite_store.sqlite3.connect
+
+    def traced_connect(*args, **kwargs):
+        connection = original_connect(*args, **kwargs)
+        connection.set_trace_callback(statements.append)
+        return connection
+
+    original_state = sqlite_store.sqlite3.connect
+    try:
+        sqlite_store.sqlite3.connect = traced_connect
+        provider = sqlite_store.get_custom_api_provider(
+            "provider-missing-state", database_path=database_path
+        )
+        models = sqlite_store.list_api_provider_models(
+            "provider-missing-state", database_path=database_path
+        )
+    finally:
+        sqlite_store.sqlite3.connect = original_state
+
+    assert provider is not None
+    assert provider["provider_revision"] is None
+    assert models == []
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute(
+            "SELECT 1 FROM api_provider_state WHERE provider_id = ?",
+            ("provider-missing-state",),
+        ).fetchone() is None
+    assert not any(
+        statement.lstrip().upper().startswith(
+            ("BEGIN", "CREATE", "ALTER", "UPDATE", "INSERT", "DELETE")
+        )
+        for statement in statements
+    )
 
 
 def test_integration_migration_record_is_idempotent(tmp_path: Path) -> None:
@@ -2479,6 +2570,17 @@ def test_repair_active_synonym_policy_mirrors_marks_state_in_sync(tmp_path: Path
     assert "ts: typescript" in paths["skills"].read_text(encoding="utf-8")
     assert "domain_neighbors:\n  data: [analytics]\n" in paths["domain"].read_text(encoding="utf-8")
 
+
+def test_ensure_control_plane_database_does_not_rewrite_taxonomy_mirrors(tmp_path: Path) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    candidate_profile_path = tmp_path / "missing-profile.yaml"
+    sqlite_store.initialize_control_plane_database(database_path, candidate_profile_path)
+
+    with patch.object(sqlite_store, "repair_active_synonym_policy_mirrors") as repair_mock:
+        sqlite_store.ensure_control_plane_database(database_path, candidate_profile_path)
+
+    repair_mock.assert_not_called()
+
 @pytest.mark.parametrize("failure_call", [1, 2, 3])
 def test_repair_active_synonym_policy_mirrors_recovers_after_each_replace_failure(
     tmp_path: Path,
@@ -2935,6 +3037,71 @@ def test_bulk_synonym_approval_conflict_persists_actionable_issue_metadata() -> 
         "aliases": ["a"],
         "canonicals": ["existing", "new"],
     }]
+
+
+def test_automation_preflight_skips_conflicts_and_cycles_without_approving_rows() -> None:
+    sqlite_store.insert_run(_make_run("run-automation-preflight"))
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "skills", "alias": "same", "canonical": "first", "run_id": "run-automation-preflight", "evidence": {}},
+        {"synonym_type": "skills", "alias": "same", "canonical": "second", "run_id": "run-automation-preflight", "evidence": {}},
+        {"synonym_type": "skills", "alias": "cycle-a", "canonical": "cycle-b", "run_id": "run-automation-preflight", "evidence": {}},
+        {"synonym_type": "skills", "alias": "cycle-b", "canonical": "cycle-a", "run_id": "run-automation-preflight", "evidence": {}},
+    ])
+    items = sqlite_store.query_synonym_suggestions(synonym_type="skills", review_status="pending")["items"]
+    result = sqlite_store.preflight_synonym_suggestion_automation(
+        [item["suggestion_id"] for item in items]
+    )
+
+    assert result["safe_ids"] == []
+    assert {item["reason"] for item in result["skipped"]} == {"alias_conflict", "synonym_cycle"}
+    assert all(item["review_status"] == "pending" for item in items)
+
+
+def test_automation_action_keeps_manual_conflict_rows_pending() -> None:
+    sqlite_store.insert_run(_make_run("run-automation-action"))
+    active = sqlite_store.activate_synonym_policy_bundle(
+        "skills",
+        editor_text="same: existing\n",
+        normalized_policy={"same": "existing"},
+        expected_draft_revision=0,
+        expected_active_bundle_revision_id=None,
+    )
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "skills", "alias": "same", "canonical": "new", "run_id": "run-automation-action", "evidence": {}},
+    ])
+    suggestion = sqlite_store.query_synonym_suggestions(synonym_type="skills", review_status="pending")["items"][0]
+
+    summary = sqlite_store.apply_synonym_suggestion_action(
+        [suggestion["suggestion_id"]],
+        action="approve",
+        acted_by="automation",
+        automation=True,
+        source_operation="synonym-auto:test",
+    )
+
+    assert summary["skipped_count"] == 1
+    assert sqlite_store.get_synonym_suggestion(suggestion["suggestion_id"])["review_status"] == "pending"
+    assert sqlite_store.resolve_active_synonym_bundle()["bundle_revision_id"] == active["active_bundle_revision_id"]
+
+
+def test_synonym_automation_checkpoint_round_trips_through_processing_history() -> None:
+    checkpoint = {
+        "operation_id": "synonym-auto:checkpoint",
+        "run_id": "run-checkpoint",
+        "candidate_ids": ["one", "two"],
+        "safe_ids": ["one", "two"],
+        "completed_ids": ["one"],
+        "skipped_ids": [],
+        "failed_ids": [],
+        "remaining_ids": ["two"],
+        "outcomes": {"approved": ["one"], "active": ["one"]},
+    }
+
+    sqlite_store.record_synonym_automation_checkpoint(
+        checkpoint["operation_id"], checkpoint
+    )
+
+    assert sqlite_store.get_synonym_automation_checkpoint(checkpoint["operation_id"]) == checkpoint
 
 
 def test_run_source_cleanup_deletes_zero_source_pending_and_declined() -> None:
@@ -5361,6 +5528,64 @@ def test_run_detail_projects_input_capabilities_and_integrity_warning() -> None:
     screening = next(stage for stage in detail["stages"] if stage["stage_id"] == "screening")
     assert screening["results_available"] is True
     assert detail["integrity_warnings"][0]["code"] == "run_count_mismatch"
+
+
+def test_run_detail_summarizes_inputs_and_preserves_artifact_snapshots() -> None:
+    run = _make_run("run-detail-input-summary")
+    run.jobs_input_json = json.dumps([{"title": "Analyst", "job_url": "https://example.com/1"}])
+    run.jobs_input_manifest_json = json.dumps(
+        {
+            "source_filenames": ["jobs.json"],
+            "media_type": "application/json",
+            "byte_length": 123,
+            "sha256": "jobs-sha256",
+        }
+    )
+    run.candidate_profile_source = "candidate-profile-1"
+    run.candidate_profile_json = json.dumps(
+        {"name": "Candidate", "private_snapshot": "x" * 2000}
+    )
+    run.effective_settings_json = json.dumps({"private_settings": "x" * 2000})
+    sqlite_store.insert_run(run)
+
+    detail = sqlite_store.get_run_detail(run.run_id)
+    assert detail is not None
+    input_summary = detail["input"]
+    assert set(input_summary) == {
+        "original_filename",
+        "media_type",
+        "byte_length",
+        "sha256",
+        "record_count",
+        "jobs_manifest_json",
+        "candidate_profile_id",
+        "candidate_profile_revision_id",
+        "candidate_profile_revision",
+        "candidate_profile_schema_version",
+        "candidate_profile_checksum",
+        "candidate_profile_name",
+        "candidate_profile",
+        "settings_revision",
+        "synonym_policy_bundle_revision_id",
+        "synonym_policy_bundle_checksum",
+        "run_input_contract_version",
+        "created_at",
+    }
+    assert input_summary["jobs_manifest_json"] == run.jobs_input_manifest_json
+    assert input_summary["candidate_profile"]["name"] == "Candidate"
+    assert input_summary["candidate_profile_name"] == "Candidate"
+    assert not {
+        "jobs_snapshot_json",
+        "candidate_profile_json",
+        "settings_snapshot_json",
+        "synonym_policy_bundle_snapshot_json",
+    } & set(input_summary)
+
+    stored_run = sqlite_store.get_run(run.run_id)
+    assert stored_run is not None
+    assert stored_run.jobs_input_json == run.jobs_input_json
+    assert stored_run.candidate_profile_json == run.candidate_profile_json
+    assert stored_run.effective_settings_json == run.effective_settings_json
 
 
 def test_nonterminal_run_detail_omits_terminal_count_warning_and_projects_status() -> None:

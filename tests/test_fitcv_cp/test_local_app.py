@@ -106,10 +106,14 @@ def test_prepare_local_environment_forces_inline_without_redis(
 def _provider_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[object, TestClient]:
     from fitcv_cp import local_routes
     from fitcv_cp.backend_runtime import set_backend_runtime
+    from fitcv_cp.sqlite_store import ensure_control_plane_database
 
     set_backend_runtime(None)
     monkeypatch.setenv("FITCV_LOCAL_MODE", "1")
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    ensure_control_plane_database(
+        tmp_path / "fitcv.sqlite3", tmp_path / "missing-profile.yaml"
+    )
     monkeypatch.setattr(local_routes, "onboarding_is_complete", lambda: True)
     credentials: dict[str, str] = {}
     monkeypatch.setattr(

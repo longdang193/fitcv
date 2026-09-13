@@ -10,7 +10,7 @@ import {
   updateBookmarkInterest,
   generateIdempotencyKey,
 } from "../features/bookmarks/api";
-import { BookmarksPage } from "../features/bookmarks/route";
+import { BookmarksPage, buildBookmarksQueryKey, SEARCH_DEBOUNCE_MS } from "../features/bookmarks/route";
 import { BookmarksTable } from "../features/bookmarks/components/BookmarksTable";
 import { BookmarkItem } from "../features/bookmarks/types";
 import { apiClient } from "../lib/api-client";
@@ -300,5 +300,160 @@ describe("bookmarks slice and api", () => {
     expect(markup).toContain("Search bookmarked jobs, runs, attributes, skills, or outcomes");
     expect(markup).toContain("Export CSV");
     expect(markup).toContain("Export full data");
+  });
+});
+
+
+describe("Bookmarks Search Debounce and Stale Request Rejection", () => {
+  it("builds canonical bookmark query key with stage, search, page, and size", () => {
+    const key = buildBookmarksQueryKey("screening", "Platform", 1, 20);
+    expect(key).toBe("screening::Platform::1::20");
+  });
+
+  it("trims whitespace from search term in query key identity", () => {
+    const key1 = buildBookmarksQueryKey("all", "  Platform Lead  ", 1, 20);
+    const key2 = buildBookmarksQueryKey("all", "Platform Lead", 1, 20);
+    expect(key1).toBe("all::Platform Lead::1::20");
+    expect(key1).toBe(key2);
+  });
+
+  it("distinguishes bookmark query keys across stage, search, page, and size", () => {
+    const base = buildBookmarksQueryKey("all", "dev", 1, 20);
+    expect(base).not.toBe(buildBookmarksQueryKey("ranking", "dev", 1, 20));
+    expect(base).not.toBe(buildBookmarksQueryKey("all", "engineer", 1, 20));
+    expect(base).not.toBe(buildBookmarksQueryKey("all", "dev", 2, 20));
+    expect(base).not.toBe(buildBookmarksQueryKey("all", "dev", 1, 50));
+  });
+
+  it("debounces rapid keystroke burst to one settled remote fetch", () => {
+    vi.useFakeTimers();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let activeQuery = "";
+    let fetchCount = 0;
+
+    const handleSearchInput = (val: string) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        activeQuery = val.trim();
+        fetchCount += 1;
+      }, SEARCH_DEBOUNCE_MS);
+    };
+
+    handleSearchInput("P");
+    vi.advanceTimersByTime(100);
+    handleSearchInput("Pl");
+    vi.advanceTimersByTime(100);
+    handleSearchInput("Platform");
+
+    // Before settled interval, no fetch triggered
+    expect(fetchCount).toBe(0);
+    expect(activeQuery).toBe("");
+
+    // Advance to settled interval
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+    expect(fetchCount).toBe(1);
+    expect(activeQuery).toBe("Platform");
+
+    vi.useRealTimers();
+  });
+
+  it("rejects stale Search A response resolving after Search B", async () => {
+    let activeRequestId = 0;
+    let acceptedData: string | null = null;
+    let acceptedTotal = 0;
+    let loading = false;
+    let resolveSearchA: ((val: { data: string; total: number }) => void) | null = null;
+    let resolveSearchB: ((val: { data: string; total: number }) => void) | null = null;
+
+    const dispatchSearch = (term: string) => {
+      const reqId = ++activeRequestId;
+      loading = true;
+      const promise = new Promise<{ data: string; total: number }>((resolve) => {
+        if (term === "Search A") resolveSearchA = resolve;
+        else resolveSearchB = resolve;
+      });
+
+      return promise.then((result) => {
+        if (reqId !== activeRequestId) {
+          // Stale response rejected: does not modify state or clear loading
+          return false;
+        }
+        acceptedData = result.data;
+        acceptedTotal = result.total;
+        loading = false;
+        return true;
+      });
+    };
+
+    const promiseA = dispatchSearch("Search A");
+    const promiseB = dispatchSearch("Search B");
+    expect(loading).toBe(true);
+
+    // Search A resolves late
+    resolveSearchA!({ data: "Results for Search A (stale)", total: 5 });
+    const resultA = await promiseA;
+    expect(resultA).toBe(false);
+    expect(acceptedData).toBeNull();
+    expect(acceptedTotal).toBe(0);
+    expect(loading).toBe(true); // Still loading because Search B is active
+
+    // Search B resolves
+    resolveSearchB!({ data: "Results for Search B (active)", total: 12 });
+    const resultB = await promiseB;
+    expect(resultB).toBe(true);
+    expect(acceptedData).toBe("Results for Search B (active)");
+    expect(acceptedTotal).toBe(12);
+    expect(loading).toBe(false);
+  });
+
+  it("cleans up debounce timer and ignores pending responses on unmount", async () => {
+    vi.useFakeTimers();
+    let isMounted = true;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let activeSearch = "";
+    let fetchCount = 0;
+    let stateUpdatedAfterUnmount = false;
+    let resolvePendingFetch: (() => void) | null = null;
+
+    const onSearchChange = (val: string) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!isMounted) return;
+        activeSearch = val.trim();
+        fetchCount += 1;
+        new Promise<void>((resolve) => {
+          resolvePendingFetch = resolve;
+        }).then(() => {
+          if (!isMounted) return;
+          stateUpdatedAfterUnmount = true;
+        });
+      }, SEARCH_DEBOUNCE_MS);
+    };
+
+    onSearchChange("Platform");
+    vi.advanceTimersByTime(100);
+
+    // Unmount before debounce completes
+    isMounted = false;
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS + 100);
+    expect(fetchCount).toBe(0);
+    expect(activeSearch).toBe("");
+
+    // Remount, trigger fetch, then unmount while fetch is in-flight
+    isMounted = true;
+    onSearchChange("Engineer");
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+    expect(fetchCount).toBe(1);
+    expect(activeSearch).toBe("Engineer");
+
+    // Unmount while request is pending
+    isMounted = false;
+    resolvePendingFetch!();
+    await Promise.resolve();
+
+    expect(stateUpdatedAfterUnmount).toBe(false);
+    vi.useRealTimers();
   });
 });

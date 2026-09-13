@@ -1,4 +1,15 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+
+export const SEARCH_DEBOUNCE_MS = 250;
+
+export function buildBookmarksQueryKey(
+  stage: string = "all",
+  search: string = "",
+  page: number = 1,
+  pageSize: number = 20
+): string {
+  return `${stage}::${search.trim()}::${page}::${pageSize}`;
+}
 import { BookmarksTable } from "./components/BookmarksTable";
 import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawer";
 import {
@@ -47,8 +58,50 @@ export const BookmarksPage: React.FC = () => {
   } | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
 
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef<number>(0);
+  const isMountedRef = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Debounce search input and reset page to 1
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      setActiveSearch(search.trim());
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, [search]);
+
+  // ponytail: guarded bookmark list loader rejecting stale responses by request identity; add LRU cache if stage hopping is frequent.
   const loadBookmarkList = useCallback(
     async (targetPage = 1) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      abortControllerRef.current = controller;
+
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       try {
         setLoadError(null);
@@ -58,10 +111,17 @@ export const BookmarksPage: React.FC = () => {
           stage: stageFilter !== "all" ? stageFilter : undefined,
           search: activeSearch,
         });
+        if (!isMountedRef.current || requestId !== requestIdRef.current) {
+          return false;
+        }
         setBookmarks(res.data || []);
         setPage(res.page || targetPage);
         setTotal(res.total_items || 0);
+        return true;
       } catch (err: any) {
+        if (!isMountedRef.current || requestId !== requestIdRef.current) {
+          return false;
+        }
         setLoadError(err.message || "Failed to load bookmarks.");
         notificationStore.notify({
           dedupe: `req:load_bookmarks:${Date.now()}`,
@@ -69,8 +129,11 @@ export const BookmarksPage: React.FC = () => {
           title: "Failed to load bookmarks",
           message: err.message,
         });
+        return false;
       } finally {
-        setLoading(false);
+        if (isMountedRef.current && requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     },
     [pageSize, stageFilter, activeSearch]
@@ -254,10 +317,7 @@ export const BookmarksPage: React.FC = () => {
             type="search"
             value={search}
             onChange={(e) => {
-              const val = e.target.value;
-              setSearch(val);
-              setActiveSearch(val.trim());
-              setPage(1);
+              setSearch(e.target.value);
             }}
             placeholder="Search bookmarked jobs, runs, attributes, skills, or outcomes"
             aria-label="Search bookmarked jobs"

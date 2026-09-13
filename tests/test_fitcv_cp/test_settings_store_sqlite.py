@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from fitcv_cp.backend_runtime import BackendRuntime, set_backend_runtime
-from fitcv_cp import settings_store as ss
+from fitcv_cp import settings_store as ss, sqlite_store
 
 
 def setup_function(_function) -> None:
@@ -132,6 +132,28 @@ def test_local_settings_load_recovers_from_disk_io_error(tmp_path, monkeypatch):
     assert "settings.sqlite3-shm" in moved_names
 
 
+def test_local_settings_load_surfaces_locked_database_without_rotation(tmp_path, monkeypatch):
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    ss.save_setting("pipeline.final_top_n", 20, updated_by="local")
+    wal_path = Path(f"{sqlite_path}-wal")
+    shm_path = Path(f"{sqlite_path}-shm")
+    wal_path.write_bytes(b"wal-sentinel")
+    shm_path.write_bytes(b"shm-sentinel")
+    def locked_connect(*_args, **_kwargs):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(ss.sqlite3, "connect", locked_connect)
+
+    with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+        ss.load_active_settings()
+
+    assert sqlite_path.exists()
+    assert wal_path.read_bytes() == b"wal-sentinel"
+    assert shm_path.read_bytes() == b"shm-sentinel"
+    assert not list(tmp_path.glob("settings.corrupt.*"))
+
+
 def test_local_settings_path_prefers_active_backend_runtime_over_env(tmp_path, monkeypatch):
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "env-settings.sqlite3"))
     set_backend_runtime(
@@ -196,7 +218,9 @@ def test_local_settings_save_recovers_after_first_disk_io_error(tmp_path, monkey
 
 
 def test_configuration_resources_hydrate_legacy_llm_tasks(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
     ss.load_llm_configuration()
     with sqlite3.connect(tmp_path / "settings.sqlite3") as conn:
         value, revision = conn.execute(
@@ -237,8 +261,31 @@ def test_configuration_resources_hydrate_legacy_llm_tasks(tmp_path, monkeypatch)
     assert set(updated["tasks"]) == set(ss.LLM_TASK_IDS)
 
 
+def test_configuration_resource_read_is_write_free_after_bootstrap(tmp_path, monkeypatch):
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
+    statements: list[str] = []
+    original_connect = ss.sqlite3.connect
+
+    def traced_connect(*args, **kwargs):
+        connection = original_connect(*args, **kwargs)
+        connection.set_trace_callback(statements.append)
+        return connection
+
+    monkeypatch.setattr(ss.sqlite3, "connect", traced_connect)
+    ss.load_llm_configuration()
+
+    assert not any(
+        statement.lstrip().upper().startswith(("BEGIN", "CREATE", "ALTER", "UPDATE", "INSERT", "DELETE"))
+        for statement in statements
+    )
+
+
 def test_configuration_resources_have_independent_revisions(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
 
     llm = ss.load_llm_configuration()
     system = ss.load_system_settings()
@@ -256,7 +303,9 @@ def test_configuration_resources_have_independent_revisions(tmp_path, monkeypatc
 
 
 def test_configuration_resource_rejects_stale_revision_without_writing(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
     current = ss.load_system_settings()
     updated = ss.patch_system_settings(
         {"maximum_attempts": 4},
@@ -273,7 +322,9 @@ def test_configuration_resource_rejects_stale_revision_without_writing(tmp_path,
 
 
 def test_configuration_resource_validation_is_atomic(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
     current = ss.load_llm_configuration()
 
     with pytest.raises(ValueError, match="timeout_seconds"):
@@ -291,7 +342,9 @@ def test_configuration_resource_validation_is_atomic(tmp_path, monkeypatch):
 
 
 def test_llm_configuration_rejects_unavailable_model_reference(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
     current = ss.load_llm_configuration()
 
     with pytest.raises(ValueError, match="unavailable provider models"):
@@ -304,7 +357,9 @@ def test_llm_configuration_rejects_unavailable_model_reference(tmp_path, monkeyp
 
 
 def test_prompt_configuration_normalizes_newlines_and_enforces_limit(tmp_path, monkeypatch):
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "settings.sqlite3"))
+    sqlite_path = tmp_path / "settings.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    sqlite_store.ensure_control_plane_database(sqlite_path, tmp_path / "missing-profile.yaml")
     current = ss.load_prompt_configurations()["cv_generation_structured_write"]
     from fitcv.config import load_prompt_task_registry
     from fitcv.prompts.loader import load_prompt_template

@@ -11446,7 +11446,7 @@ def create_app(
     ) -> dict[str, Any]:
         page, page_size = _validated_page(page, page_size)
         store = _resolve_run_store()
-        if store.get_run_detail(run_id) is None:
+        if not sqlite_store_module.run_exists(run_id):
             raise ApiError(
                 404,
                 "run_not_found",

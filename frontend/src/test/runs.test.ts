@@ -537,6 +537,35 @@ it("guards against invalid or object page parameter serialization in fetchRunJob
     expect(markup).toContain('aria-label="Open candidate profile with ID prof-structured-obj-123"');
   });
 
+  it("renders slim run input summary fields without snapshot JSON", () => {
+    const run: PipelineRunResource = {
+      run_id: "run-slim-input",
+      run_name: "Slim Input Run",
+      backend_status: "succeeded",
+      display_status: "Succeeded",
+      created_at: "2026-08-30T10:00:00Z",
+      counts: { total: 7, passed: 5, rejected: 2, skipped: 0, cvs_generated: 0 },
+      progress: { completed: 7, total: 7 },
+      capabilities: { inspect: true, cancel: false, archive: false, unarchive: false, delete: false, export: true },
+      input: {
+        original_filename: "jobs.csv",
+        record_count: 7,
+        jobs_manifest_json: JSON.stringify({
+          sources: [{ type: "scan", scan_name: "LinkedIn Scan" }],
+        }),
+        candidate_profile: { profile_id: "prof-slim", name: "Platform Lead", revision: 3 },
+      },
+    };
+
+    const markup = renderToStaticMarkup(React.createElement(InputSummaryCard, { run }));
+    expect(markup).toContain("Platform Lead");
+    expect(markup).toContain("Rev 3");
+    expect(markup).toContain("LinkedIn Scan");
+    expect(markup).toContain("Upload: jobs.csv");
+    expect(markup).not.toContain("candidate_profile_json");
+    expect(markup).not.toContain("jobs_snapshot_json");
+  });
+
   it("extracts profile ID from JSON payload and renders accessible link in InputSummaryCard", () => {
     const runWithJsonProfile: PipelineRunResource = {
       run_id: "run-p2",
