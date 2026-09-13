@@ -66,6 +66,8 @@ def main() -> int:
 
     input_path = Path(args.input)
     output_path = Path(args.output)
+    if input_path.resolve() == output_path.resolve():
+        parser.error("--input and --output must refer to different files")
     rows = list(_iter_rows(input_path))
     filtered = [row for row in rows if _is_analysis_ready(row)]
 
