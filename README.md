@@ -1,10 +1,14 @@
 # FitCV
 
-> Evidence-first job matching + CV generation, backed by operator control plane.
+## Analyze job markets. Decide with evidence.
 
-FitCV helps people turn noisy job postings into a reviewable shortlist and grounded
-CV outputs. It narrows work in stages, keeps decisions inspectable, and stops safely
-when evidence is missing or a result needs human review.
+**FitCV systematically analyzes thousands of job postings to identify recurring requirements, skills, and role patterns—then translates those insights into evidence-based application decisions.**
+
+It turns job-search noise into a reviewable shortlist, shows which requirements your experience supports, and prepares grounded CV outputs for roles worth your time. Every decision stays inspectable; you remain in control of what to pursue and submit.
+
+> **Find the pattern. See the evidence. Apply with intent.**
+
+> **Technical Preview:** FitCV’s current workflows analyze the job data you bring in and expose ranking, evidence, gaps, and grounded outputs. Corpus-scale pattern reporting and supported batch size depend on source and runtime capacity.
 
 ## FitCV Local
 
