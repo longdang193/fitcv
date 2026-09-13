@@ -1075,6 +1075,7 @@ def score_evidence_item(item: dict[str, Any], jd_skills: list[str]) -> float:
     """Compute a weighted score in [0.0, 1.0] for one normalised evidence item."""
     item_skills = _canonicalize_term_set(list(item.get("skills") or []))
     jd_lower = _canonicalize_term_set(jd_skills)
+    jd_tokens = set().union(*(_tokenize(term) for term in jd_skills)) if jd_skills else set()
 
     if jd_lower and item_skills:
         skill_ratio = len(item_skills & jd_lower) / len(jd_lower)
@@ -1082,8 +1083,8 @@ def score_evidence_item(item: dict[str, Any], jd_skills: list[str]) -> float:
         skill_ratio = 0.0
 
     biz_value = _tokenize(str(item.get("scoring_context") or item.get("business_value") or ""))
-    if jd_lower and biz_value:
-        biz_ratio = min(len(biz_value & jd_lower) / len(jd_lower), 1.0)
+    if jd_tokens and biz_value:
+        biz_ratio = min(len(biz_value & jd_tokens) / len(jd_tokens), 1.0)
     else:
         biz_ratio = 0.0
 

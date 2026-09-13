@@ -1395,6 +1395,35 @@ def test_ranking_selector_is_stable_and_empty_safe() -> None:
     assert select_ranking_evidence([], {"required_skills": ["SQL"]}) == []
 
 
+def test_ranking_selector_uses_job_context_when_skills_are_missing() -> None:
+    pool = [
+        {
+            "evidence_id": "irrelevant",
+            "text": "Led payroll migration",
+            "skills": [],
+            "scoring_context": "Led payroll migration",
+            "role": "Finance Manager",
+        },
+        {
+            "evidence_id": "relevant",
+            "text": "Built ETL pipelines",
+            "skills": [],
+            "scoring_context": "Built ETL pipelines",
+            "role": "Data Engineer",
+        },
+    ]
+    job = {
+        "title": "Senior Data Engineer",
+        "job_family": "data_engineering",
+        "domain": "banking",
+        "responsibilities": ["Build ETL pipelines", "Support banking reporting"],
+    }
+
+    selected = select_ranking_evidence(pool, job, limit=1)
+
+    assert selected[0]["evidence_id"] == "relevant"
+
+
 def test_profile_evidence_pool_projects_once_per_revision(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = 0
     original = evidence_module.project_candidate_evidence
