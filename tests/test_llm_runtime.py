@@ -17,6 +17,7 @@ tags:
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Any
 from unittest.mock import patch
 
@@ -25,6 +26,7 @@ import pytest
 from fitcv.llm_runtime import (
     LlmAdapterError,
     LlmAdapterResponse,
+    LlmTransportPool,
     LlmTaskRequest,
     LlmValidationResult,
     execute_llm_task,
@@ -32,6 +34,202 @@ from fitcv.llm_runtime import (
     parse_llm_json_object,
 )
 from fitcv.runtime_routing import LlmRouting
+
+
+def test_transport_pool_reuses_safe_identity_and_closes_evicted_clients() -> None:
+    class Client:
+        def __init__(self, **kwargs: Any) -> None:
+            self.kwargs = kwargs
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    created: list[Client] = []
+
+    def factory(**kwargs: Any) -> Client:
+        client = Client(**kwargs)
+        created.append(client)
+        return client
+
+    pool = LlmTransportPool(max_clients=1, client_factory=factory)
+    first = pool.get(_route(), "secret-a")
+    assert pool.get(_route(), "secret-a") is first
+    second = pool.get(_route(), "secret-b")
+    assert second is not first
+    assert first.closed
+    pool.close()
+    assert second.closed
+
+
+def test_transport_pool_keys_base_url_api_key_timeout_and_passes_bounded_limits() -> None:
+    created: list[dict[str, Any]] = []
+
+    class Client:
+        def close(self) -> None:
+            return
+
+    def factory(**kwargs: Any) -> Client:
+        created.append(kwargs)
+        return Client()
+
+    pool = LlmTransportPool(max_clients=8, client_factory=factory)
+    route = _route()
+    pool.get(route, "secret")
+    pool.get(replace(route, base_url="https://other.example/v1"), "secret")
+    pool.get(route, "other-secret")
+    pool.get(replace(route, timeout_seconds=13.0), "secret")
+
+    assert len(created) == 4
+    limits = created[0]["limits"]
+    assert limits.max_connections == 8
+    assert limits.max_keepalive_connections == 8
+
+
+def test_transport_pool_discards_failed_client_and_recovers() -> None:
+    clients: list[Any] = []
+
+    class Client:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    def factory(**_kwargs: Any) -> Client:
+        client = Client()
+        clients.append(client)
+        return client
+
+    pool = LlmTransportPool(client_factory=factory)
+    route = _route()
+    failed = pool.get(route, "secret")
+    pool.discard(route, "secret")
+    recovered = pool.get(route, "secret")
+
+    assert failed.closed
+    assert recovered is not failed
+    pool.reset()
+    assert recovered.closed
+    assert len(clients) == 2
+
+
+def test_transport_pool_stale_discard_keeps_newer_client() -> None:
+    clients: list[Any] = []
+
+    class Client:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    def factory(**_kwargs: Any) -> Client:
+        client = Client()
+        clients.append(client)
+        return client
+
+    pool = LlmTransportPool(client_factory=factory)
+    route = _route()
+    stale = pool.get(route, "secret")
+    pool.discard(route, "secret")
+    current = pool.get(route, "secret")
+
+    pool.discard(route, "secret", stale)
+
+    assert not current.closed
+    assert pool.get(route, "secret") is current
+    pool.close()
+
+
+def test_openai_adapter_reuses_compatible_client_until_pool_close() -> None:
+    from fitcv.llm_runtime import _openai_compatible_adapter
+
+    class Response:
+        headers: dict[str, str] = {}
+
+        def raise_for_status(self) -> None:
+            return
+
+        def json(self) -> dict[str, str]:
+            return {"output_text": "ok"}
+
+    class Client:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.closed = False
+
+        def post(self, *_args: Any, **_kwargs: Any) -> Response:
+            self.calls += 1
+            return Response()
+
+        def close(self) -> None:
+            self.closed = True
+
+    clients: list[Client] = []
+
+    def factory(**_kwargs: Any) -> Client:
+        client = Client()
+        clients.append(client)
+        return client
+
+    pool = LlmTransportPool(client_factory=factory)
+    route = _route()
+    request = _request()
+    first = _openai_compatible_adapter(request, route, "secret", transport_pool=pool)
+    second = _openai_compatible_adapter(request, route, "secret", transport_pool=pool)
+
+    assert first.raw_text == second.raw_text == "ok"
+    assert len(clients) == 1
+    assert clients[0].calls == 2
+    pool.close()
+    assert clients[0].closed
+
+
+def test_openai_adapter_discards_transport_failed_client_before_recovery() -> None:
+    import httpx
+    from fitcv.llm_runtime import _openai_compatible_adapter
+
+    class Response:
+        headers: dict[str, str] = {}
+
+        def raise_for_status(self) -> None:
+            return
+
+        def json(self) -> dict[str, str]:
+            return {"output_text": "recovered"}
+
+    class Client:
+        def __init__(self, failed: bool) -> None:
+            self.failed = failed
+            self.closed = False
+
+        def post(self, *_args: Any, **_kwargs: Any) -> Response:
+            if self.failed:
+                raise httpx.ConnectError("broken keep-alive socket")
+            return Response()
+
+        def close(self) -> None:
+            self.closed = True
+
+    clients: list[Client] = []
+
+    def factory(**_kwargs: Any) -> Client:
+        client = Client(not clients)
+        clients.append(client)
+        return client
+
+    pool = LlmTransportPool(client_factory=factory)
+    route = _route()
+    with pytest.raises(LlmAdapterError) as error:
+        _openai_compatible_adapter(_request(), route, "secret", transport_pool=pool)
+    assert error.value.code == "adapter_transport_error"
+    assert clients[0].closed
+
+    recovered = _openai_compatible_adapter(_request(), route, "secret", transport_pool=pool)
+    assert recovered.raw_text == "recovered"
+    assert len(clients) == 2
+    pool.close()
 
 class _FakePacingClock:
     def __init__(self) -> None:

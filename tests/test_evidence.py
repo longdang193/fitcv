@@ -22,7 +22,14 @@ import yaml
 from fitcv import evidence as evidence_module
 from fitcv.candidate import canonical_candidate_checksum
 from fitcv.config import apply_runtime_synonym_overlay
-from fitcv.evidence import project_candidate_evidence, retrieve_evidence, retrieve_evidence_bundle, score_evidence_item
+from fitcv.evidence import (
+    build_profile_evidence_pool,
+    project_candidate_evidence,
+    retrieve_evidence,
+    retrieve_evidence_bundle,
+    score_evidence_item,
+    select_ranking_evidence,
+)
 from fitcv.ranking import compute_title_relevance
 
 
@@ -1362,3 +1369,44 @@ def test_cv_analysis_input_fingerprint_tracks_bounded_alias_equivalence() -> Non
     assert baseline["fingerprint"] == unrelated["fingerprint"]
     assert baseline["fingerprint"] != target_changed["fingerprint"]
     assert baseline["fingerprint"] != alias_added["fingerprint"]
+
+
+def test_ranking_selector_gives_different_jobs_relevant_evidence() -> None:
+    pool = [
+        {"evidence_id": "sql", "text": "Built SQL warehouse", "skills": ["SQL"], "scoring_context": "SQL warehouse"},
+        {"evidence_id": "python", "text": "Built Python service", "skills": ["Python"], "scoring_context": "Python service"},
+    ]
+    sql = select_ranking_evidence(pool, {"required_skills": ["SQL"]})
+    python = select_ranking_evidence(pool, {"required_skills": ["Python"]})
+    assert sql[0]["evidence_id"] == "sql"
+    assert python[0]["evidence_id"] == "python"
+    assert sql[0]["text"] == "Built SQL warehouse"
+
+
+def test_ranking_selector_is_stable_and_empty_safe() -> None:
+    pool = [
+        {"evidence_id": "b", "text": "same", "skills": ["SQL"], "scoring_context": "same"},
+        {"evidence_id": "a", "text": "same", "skills": ["SQL"], "scoring_context": "same"},
+    ]
+    first = select_ranking_evidence(pool, {"required_skills": ["SQL"]})
+    second = select_ranking_evidence(pool, {"required_skills": ["SQL"]})
+    assert [item["evidence_id"] for item in first] == ["a", "b"]
+    assert first == second
+    assert select_ranking_evidence([], {"required_skills": ["SQL"]}) == []
+
+
+def test_profile_evidence_pool_projects_once_per_revision(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+    original = evidence_module.project_candidate_evidence
+
+    def projected(profile: dict) -> list[dict]:
+        nonlocal calls
+        calls += 1
+        return original(profile)
+
+    monkeypatch.setattr(evidence_module, "project_candidate_evidence", projected)
+    profile = _v2_profile()
+    pool = build_profile_evidence_pool(profile)
+    select_ranking_evidence(pool, {"required_skills": ["SQL"]})
+    select_ranking_evidence(pool, {"required_skills": ["Python"]})
+    assert calls == 1

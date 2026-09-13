@@ -6619,12 +6619,12 @@ def _validated_page(page: int, page_size: int) -> tuple[int, int]:
         field_errors.append(
             {"field": "page", "code": "invalid_value", "message": "Use 1 or greater."}
         )
-    if page_size not in {10, 20, 50}:
+    if page_size not in {10, 20, 50, 100, 500}:
         field_errors.append(
             {
                 "field": "page_size",
                 "code": "invalid_value",
-                "message": "Use 10, 20, or 50.",
+                "message": "Use 10, 20, 50, 100, or 500.",
             }
         )
     if field_errors:
@@ -11287,21 +11287,109 @@ def create_app(
                 run = _reconcile_orphaned_run(run)
                 resources.append(_run_to_dict(run))
                 continue
-            run_id = str(run.get("run_id") or "")
-            canonical = store.get_run(run_id) if run_id else None
-            if canonical is not None:
-                reconciled = _reconcile_orphaned_run(canonical)
-                if reconciled.status != canonical.status:
-                    run = {
-                        **run,
-                        "backend_status": reconciled.status.value,
-                        "display_status": run_status_projection(reconciled)["display_status"],
-                        "errors": {
-                            "code": reconciled.error_stage,
-                            "message": reconciled.error_message,
-                        },
-                    }
             resources.append(dict(run))
+
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        for run in resources:
+            reconciliation = dict(run.pop("_reconciliation", {}) or {})
+            backend_status = str(run.get("backend_status") or "")
+            if backend_status not in {RunStatus.QUEUED.value, RunStatus.RUNNING.value}:
+                continue
+            run_id = str(run.get("run_id") or "").strip()
+            queue_job_id = str(reconciliation.get("queue_job_id") or "").strip()
+            expected_revision = reconciliation.get("row_revision")
+            target_status: RunStatus | None = None
+            started_at: datetime.datetime | None = None
+            finished_at: datetime.datetime | None = None
+            error_message: str | None = None
+            event_message: str | None = None
+            if backend_status == RunStatus.RUNNING.value:
+                started_value = run.get("started_at")
+                try:
+                    started = datetime.datetime.fromisoformat(str(started_value)) if started_value else None
+                except ValueError:
+                    started = None
+                if started is None:
+                    started = now_utc
+                elif started.tzinfo is None:
+                    started = started.replace(tzinfo=datetime.timezone.utc)
+                else:
+                    started = started.astimezone(datetime.timezone.utc)
+                age_seconds = max(0.0, (now_utc - started).total_seconds())
+                if age_seconds >= 300 and not reconciliation.get("completed_stages") and not reconciliation.get("has_events"):
+                    target_status = RunStatus.FAILED
+                    finished_at = now_utc
+                    error_message = "Run remained RUNNING without progress/events for >5 minutes (orphaned startup)."
+                    event_message = "Run reconciled from orphaned startup (no progress/events >5 minutes)"
+            if target_status is None and queue_job_id:
+                try:
+                    queue_status = str(get_queue_job_status(queue_job_id, redis_url=redis_url) or "").strip().lower()
+                except Exception:
+                    queue_status = ""
+                if backend_status == RunStatus.QUEUED.value:
+                    created_value = run.get("created_at")
+                    try:
+                        created = datetime.datetime.fromisoformat(str(created_value)) if created_value else now_utc
+                    except ValueError:
+                        created = now_utc
+                    if (now_utc - created.astimezone(datetime.timezone.utc)).total_seconds() >= 10 and queue_status == "started":
+                        target_status = RunStatus.RUNNING
+                        started_at = now_utc
+                        event_message = f"Run reconciled from QUEUED to RUNNING (queue status={queue_status})"
+                    elif queue_status in {"finished", "failed", "stopped", "canceled", "cancelled"}:
+                        target_status = RunStatus.FAILED
+                        finished_at = now_utc
+                        error_message = (
+                            f"Queue job {queue_job_id} ended with status={queue_status} while run remained QUEUED "
+                            "(likely web/worker storage mismatch or persistence failure)."
+                        )
+                        event_message = f"Run reconciled from orphaned queued state (queue status={queue_status})"
+                elif queue_status in {"failed", "stopped", "canceled", "cancelled", "missing"} and not (queue_status == "missing" and queue_job_id.startswith("inline-")):
+                    target_status = RunStatus.FAILED
+                    finished_at = now_utc
+                    error_message = (
+                        f"Queue job {queue_job_id} missing while run remained RUNNING"
+                        if queue_status == "missing"
+                        else f"Queue job {queue_job_id} ended with status={queue_status} before lifecycle finalization"
+                    )
+                    event_message = (
+                        "Run reconciled from orphaned running state (queue job missing)"
+                        if queue_status == "missing"
+                        else f"Run reconciled from orphaned running state (queue status={queue_status})"
+                    )
+            if target_status is None or not run_id:
+                continue
+            persisted = update_run_status(
+                run_id,
+                target_status,
+                started_at=started_at,
+                finished_at=finished_at,
+                error_message=error_message,
+                store=store,
+                expected_row_revision=expected_revision,
+            )
+            if persisted.get("persistence_status") != "persisted":
+                continue
+            run["backend_status"] = target_status.value
+            run["display_status"] = target_status.value
+            if started_at is not None:
+                run["started_at"] = started_at.isoformat()
+            if finished_at is not None:
+                run["finished_at"] = finished_at.isoformat()
+            if error_message is not None:
+                run["errors"] = {"code": None, "message": error_message}
+            if event_message:
+                append_event(
+                    RunEvent(
+                        run_id=run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="run_reconciled",
+                        level="warning" if target_status is RunStatus.RUNNING else "error",
+                        message=event_message,
+                        created_at=now_utc,
+                    ),
+                    client=client,
+                )
         return _collection_response(
             resources,
             page=page,

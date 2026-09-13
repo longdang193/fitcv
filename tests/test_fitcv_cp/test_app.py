@@ -2955,6 +2955,53 @@ def test_get_runs_list_uses_query_projection_without_detail_expansion() -> None:
     assert response.json()["data"][0]["run_id"] == "run-list-projection"
     app.state.run_store.get_run_detail_fn.assert_not_called()
 
+
+def test_get_runs_list_reconciles_projected_queue_state_without_detail_read() -> None:
+    app = _app()
+    app.state.run_store.query_runs_fn = lambda **_kwargs: {
+        "items": [{
+            "run_id": "run-project-queued",
+            "run_name": "Projected queued run",
+            "backend_status": "queued",
+            "display_status": "queued",
+            "status_detail": None,
+            "created_at": "2026-09-12T00:00:00+00:00",
+            "started_at": None,
+            "finished_at": None,
+            "archived_at": None,
+            "counts": {"total": 1, "passed": 0, "rejected": 0, "skipped": 1, "cvs_generated": 0},
+            "progress": {"completed": 0, "total": 1},
+            "warnings": {},
+            "errors": {"code": None, "message": None},
+            "partial_completion": False,
+            "input": {"original_filename": "jobs.json"},
+            "capabilities": {},
+            "integrity_warnings": [],
+            "debug_bundle": {},
+            "links": {},
+            "_reconciliation": {
+                "queue_job_id": "rq-project-queued",
+                "row_revision": 7,
+                "has_events": True,
+                "completed_stages": ["normalize"],
+            },
+        }],
+        "total": 1,
+        "active_count": 1,
+        "archived_count": 0,
+    }
+    app.state.run_store.get_run_fn = MagicMock(side_effect=AssertionError("detail read forbidden"))
+    with patch("fitcv_cp.app.get_queue_job_status", return_value="started"), \
+         patch("fitcv_cp.app.update_run_status", return_value={"persistence_status": "persisted"}) as update_status, \
+         patch("fitcv_cp.app.append_event") as append_event:
+        response = TestClient(app).get("/runs")
+
+    assert response.status_code == 200
+    assert response.json()["data"][0]["backend_status"] == "running"
+    assert update_status.call_args.kwargs["expected_row_revision"] == 7
+    append_event.assert_called_once()
+    app.state.run_store.get_run_fn.assert_not_called()
+
 def test_get_runs_list_keeps_running_for_inline_missing_job_status() -> None:
     from fitcv_cp.models import PipelineRun
     from datetime import datetime, timezone
@@ -4491,7 +4538,7 @@ def test_runs_rejects_invalid_page_size_with_machine_error() -> None:
             {
                 "field": "page_size",
                 "code": "invalid_value",
-                "message": "Use 10, 20, or 50.",
+                "message": "Use 10, 20, 50, 100, or 500.",
             }
         ],
         "retryable": False,

@@ -1410,7 +1410,7 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
     from fitcv.pipeline import run_pipeline
 
     profile = _minimal_profile()
-    shortlist = [{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}]
+    shortlist = [{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}]
     checkpoint_payload = {
         "raw_jobs": [_minimal_job("https://example.com/1")],
         "normalized": [_minimal_job("https://example.com/1")],
@@ -1485,8 +1485,8 @@ def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
         "enriched": [job],
         "passed_jobs": [job],
         "candidate_filter_rejected_jobs": [],
-        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
-        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
+        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
         "shortlist_diagnostics": {},
         "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8}],
         "ranking_inputs": ranked,
@@ -1537,7 +1537,7 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
 
     profile = _minimal_profile()
     job = _minimal_job("https://example.com/1")
-    shortlist = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    shortlist = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}]
     ranked = [{
         **job,
         "job_url": job["job_url"],
@@ -1645,8 +1645,8 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
         "enriched": [job],
         "passed_jobs": [job],
         "candidate_filter_rejected_jobs": [],
-        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
-        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
+        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
         "shortlist_diagnostics": {},
         "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8}],
         "ranking_inputs": ranked,
@@ -1722,7 +1722,7 @@ def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_
         "enriched": [job],
         "passed_jobs": [job],
         "candidate_filter_rejected_jobs": [],
-        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "shortlist_origin": "vector_search"}],
         "shortlist_diagnostics": {},
         "ai_scores": [job],
@@ -1788,7 +1788,7 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
         "enriched": [job],
         "passed_jobs": [job],
         "candidate_filter_rejected_jobs": [],
-        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "shortlist_origin": "vector_search"}],
         "shortlist_diagnostics": {},
         "ai_scores": [job],
@@ -2736,6 +2736,60 @@ def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
     }
     assert ranking_block["inputs_sample"][0]["ai_score_reuse_status"] == "reused_exact_match"
     assert ranking_block["inputs_sample"][0]["ai_score_input_fingerprint"] == ai_score_fingerprint
+
+
+def test_run_pipeline_freezes_ranking_route_until_next_invocation() -> None:
+    from fitcv.pipeline import run_pipeline
+    from fitcv.runtime_routing import LlmRouting
+
+    jobs = [_minimal_job(), {**_minimal_job(), "job_url": "https://example.com/2"}]
+    profile = _minimal_profile()
+    config = _minimal_config()
+    candidate_summary = "candidate"
+    first = LlmRouting("test", "https://one.example", "responses", "model-one", 10.0, temperature=.1)
+    second = LlmRouting("test", "https://two.example", "responses", "model-two", 20.0, temperature=.9)
+    seen: list[tuple[str, str, float]] = []
+
+    def fingerprint(job: dict[str, Any], *_: Any, **kwargs: Any) -> dict[str, str]:
+        route = kwargs["resolved_route"]
+        seen.append(("fingerprint", route.model, route.temperature))
+        config["mutated_between_candidates"] = True
+        return {"fingerprint": str(job["job_url"])}
+
+    def score(scoring_jobs: list[dict[str, Any]], *_: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        route = kwargs["resolved_route"]
+        seen.extend(("execute", route.model, route.temperature) for _ in scoring_jobs)
+        return [{"job_url": job["job_url"], "ai_score": .5} for job in scoring_jobs]
+
+    def invoke() -> None:
+        with patch("fitcv.pipeline.load_config", return_value=config), \
+             patch("fitcv.pipeline.parse_jobs_file", return_value=jobs), \
+             patch("fitcv.pipeline.normalize_batch", return_value=jobs), \
+             patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=(jobs, [])), \
+             patch("fitcv.pipeline.load_raw_jobs"), \
+             patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"] for job in jobs], "rejected": []}), \
+             patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
+             patch("fitcv.pipeline.enrich_batch", return_value=jobs), \
+             patch("fitcv.pipeline.load_structured_jobs"), \
+             patch("fitcv.pipeline.load_run_structured_jobs"), \
+             patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
+             patch("fitcv.pipeline.load_candidate_profile"), \
+             patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"] for job in jobs], "rejected": []}), \
+             patch("fitcv.pipeline.store_filter_results"), \
+             patch("fitcv.pipeline.embed_and_store_jobs"), \
+             patch("fitcv.pipeline.run_vector_search", return_value=_vector_search_envelope([{**job, "vector_similarity": .9, "vector_rank": index + 1} for index, job in enumerate(jobs)], candidate_query={"components": {}, "text": candidate_summary})), \
+             patch("fitcv.pipeline.build_ai_score_input_fingerprint", side_effect=fingerprint), \
+             patch("fitcv.pipeline.run_ai_scoring", side_effect=score), \
+             patch("fitcv.pipeline.store_final_ranking"):
+            run_pipeline("data/sample_jobs.json", config_path=".env.yaml", stop_after_stage="ranking")
+
+    with patch("fitcv.pipeline.resolve_llm_routing", side_effect=[first, second]) as resolver:
+        invoke()
+        assert seen == [("fingerprint", "model-one", .1), ("fingerprint", "model-one", .1), ("execute", "model-one", .1), ("execute", "model-one", .1)]
+        seen.clear()
+        invoke()
+        assert seen == [("fingerprint", "model-two", .9), ("fingerprint", "model-two", .9), ("execute", "model-two", .9), ("execute", "model-two", .9)]
+        assert resolver.call_count == 2
 
 
 def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
@@ -4241,7 +4295,7 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
     mock_profile_json.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": [], "passed_records": [{"job_url": job["job_url"], "marks": []}]}
     mock_vec.return_value = _vector_search_envelope(
-        [{"job_url": job["job_url"], "vector_similarity": 0.95, "vector_rank": 1}],
+        [{"job_url": job["job_url"], "vector_similarity": 0.95, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
         candidate_query={"components": {}, "text": "candidate"},
     )
     mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.91}]
@@ -4266,6 +4320,10 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
         run_id="run-staged-parity",
         stop_after_stage="ranking",
     )
+    pause_result["checkpoint_payload"]["resolved_preference_policy"] = {
+        "diagnostic_code": "embedding_strategy_incompatible",
+        "runtime_contract": {"embedding_contract_fingerprint": "lexical_v1"},
+    }
     resumed_result = run_pipeline(
         "data/sample_jobs.json",
         config=staged_config,
@@ -8399,7 +8457,7 @@ def test_run_pipeline_short_circuits_baseline_skip_before_cv_analysis_dependenci
         "enriched": [job],
         "passed_jobs": [job],
         "candidate_filter_rejected_jobs": [],
-        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "shortlist_origin": "vector_search"}],
         "shortlist_diagnostics": {},
         "ai_scores": [job],
@@ -8766,7 +8824,7 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
         "enriched": [job],
         "passed_jobs": [job],
         "candidate_filter_rejected_jobs": [],
-        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
         "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
         "shortlist_diagnostics": {},
         "ai_scores": [],

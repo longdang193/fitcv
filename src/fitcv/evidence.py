@@ -814,6 +814,9 @@ def normalise_evidence_item(
 
 def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
     """Flatten every canonical nested evidence item through one runtime path."""
+    cached = profile.get("_projected_evidence_pool")
+    if isinstance(cached, list):
+        return copy.deepcopy(cached)
     canonical = converge_candidate_profile_for_runtime(profile)
     linked_claims: dict[str, dict[str, list[str]]] = {
         section: {} for section in ("skills", "role_families", "domain_tags", "responsibility_themes")
@@ -912,6 +915,35 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                     }
                 )
     return projected
+
+
+def select_ranking_evidence(
+    evidence_pool: list[dict[str, Any]],
+    job: dict[str, Any],
+    *,
+    limit: int = 2,
+) -> list[dict[str, Any]]:
+    """Select bounded, deterministic, job-relevant evidence from projected pool."""
+    if limit <= 0 or not evidence_pool:
+        return []
+    terms = [
+        *list(job.get("required_skills_canonical") or job.get("required_skills") or []),
+        *list(job.get("preferred_skills_canonical") or job.get("preferred_skills") or []),
+        *list(job.get("responsibilities") or []),
+        str(job.get("title") or ""),
+        str(job.get("job_family") or ""),
+        str(job.get("domain") or ""),
+    ]
+    ranked = sorted(
+        ({**item, "score": score_evidence_item(item, terms)} for item in evidence_pool),
+        key=lambda item: (-float(item.get("score") or 0.0), str(item.get("evidence_id") or "")),
+    )
+    return ranked[:limit]
+
+
+def build_profile_evidence_pool(profile: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project profile evidence once for ranking callers."""
+    return project_candidate_evidence(profile)
 
 
 def _sort_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:

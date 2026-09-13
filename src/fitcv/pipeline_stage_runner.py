@@ -23,12 +23,16 @@ from copy import deepcopy
 from typing import Any, Callable
 
 from fitcv.fit_factors import build_candidate_fit_context
+from fitcv.ai_score import build_ranking_job_input
+from fitcv.evidence import build_profile_evidence_pool, select_ranking_evidence
+from fitcv.ranking_contract import SCORE_STATUS_VALID, normalize_score_state
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
     ResolvedPreferencePolicy,
     resolve_run_preference_policy,
     resolved_preference_policy_to_dict,
 )
+from fitcv.runtime_routing import resolve_llm_routing
 
 def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
     reuse_block = dict(config.get("reuse") or {})
@@ -352,28 +356,46 @@ def execute_ranking_stage(
     | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     with observe_span("pipeline.ai_score", attributes={"run_id": run_id}):
+        try:
+            resolved_route = resolve_llm_routing("ranking_ai_score", runtime_config=config)
+        except Exception:
+            resolved_route = None
         ai_top_n = int(config["pipeline"]["ai_score_top_n"])
         ranking_reuse_enabled = _reuse_stage_enabled(config, "ranking")
         if cancellation_check and cancellation_check():
             raise cancellation_error_cls("Cancelled before AI scoring")
         ai_score_candidates = shortlist[:ai_top_n]
+        profile_evidence_pool = build_profile_evidence_pool(profile)
         fresh_scoring_jobs: list[dict[str, Any]] = []
         fresh_ai_score_fingerprints: dict[str, str] = {}
         reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
+        ranking_inputs_by_url: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
-            top_evidence = list(shortlisted_job.get("top_evidence") or [])[:2]
-            fingerprint_record = build_ai_score_input_fingerprint(
-                shortlisted_job,
-                candidate_summary,
-                top_evidence,
-                config,
-            )
+            selected_evidence = select_ranking_evidence(profile_evidence_pool, shortlisted_job, limit=2)
+            ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
+            ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile)
+            if ranking_input["candidate_evidence"] and extract_job_url(shortlisted_job):
+                ranking_inputs_by_url[extract_job_url(shortlisted_job)] = ranking_input
+            top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
+            try:
+                fingerprint_record = build_ai_score_input_fingerprint(
+                    shortlisted_job,
+                    candidate_summary,
+                    top_evidence,
+                    config,
+                    **({"ranking_input": ranking_input} if ranking_input["candidate_evidence"] else {}),
+                    resolved_route=resolved_route,
+                )
+            except Exception:
+                fingerprint_record = {"fingerprint": ""}
             job_url = extract_job_url(shortlisted_job)
             reused_ai_row = (
                 ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
                 if ranking_reuse_enabled
                 else None
             )
+            if reused_ai_row is not None and normalize_score_state(reused_ai_row)["score_status"] != SCORE_STATUS_VALID:
+                reused_ai_row = None
             if reused_ai_row is not None and job_url:
                 reused_ai_scores_by_url[job_url] = {
                     **deepcopy(reused_ai_row),
@@ -391,6 +413,8 @@ def execute_ranking_stage(
             candidate_summary,
             config,
             top_n=len(fresh_scoring_jobs),
+            resolved_route=resolved_route,
+            **({"ranking_inputs": ranking_inputs_by_url} if ranking_inputs_by_url else {}),
         ) if fresh_scoring_jobs else []
         fresh_ai_scores_by_url: dict[str, dict[str, Any]] = {}
         for ai_row in fresh_ai_scores:

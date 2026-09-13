@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -97,7 +98,13 @@ def build_app() -> Any:
 
     @application.on_event("shutdown")
     async def stop_process_event_delivery_loop() -> None:
-        delivery_loop.stop(final_drain=True)
+        delivery_loop.stop(
+            final_drain=True,
+            shutdown_deadline=time.monotonic() + 5.5,
+        )
+        from fitcv.llm_runtime import close_ranking_transport_pool
+
+        close_ranking_transport_pool()
 
     return application
 

@@ -56,7 +56,7 @@ from fitcv.llm_runtime import (
     execute_llm_task,
     project_llm_runtime_evidence,
 )
-from fitcv.runtime_routing import resolve_llm_routing
+from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
 from fitcv.pipeline_stages.common import extract_job_url
 from fitcv.prompts import get_prompt_definition, render_prompt
 from fitcv.prompts.loader import load_prompt_template
@@ -1384,16 +1384,29 @@ def build_raw_job_fingerprint(job: dict[str, Any]) -> RawJobFingerprintResult:
 
 def build_enrich_contract_fingerprint(
     config: dict[str, Any] | None = None,
+    *,
+    resolved_route: LlmRouting | None = None,
 ) -> EnrichContractFingerprintResult:
     prompt_provenance = get_enrich_prompt_provenance(config)
+    route = resolved_route
+    if route is None:
+        try:
+            route = resolve_llm_routing("enrich_extraction", runtime_config=config)
+        except Exception:
+            route = None
     payload: EnrichContractFingerprintPayload = {
         "contract_version": ENRICH_CONTRACT_VERSION,
         "prompt_id": prompt_provenance["prompt_id"],
         "prompt_version": prompt_provenance["prompt_version"],
         "template_path": prompt_provenance["template_path"],
         "effective_prompt_sha256": prompt_provenance["effective_prompt_sha256"],
-        "provider": prompt_provenance["provider"],
-        "model": prompt_provenance["model"],
+        "provider": getattr(route, "provider", prompt_provenance["provider"]),
+        "model": getattr(route, "model", prompt_provenance["model"]),
+        "base_url": getattr(route, "base_url", None),
+        "wire_api": getattr(route, "wire_api", None),
+        "timeout_seconds": getattr(route, "timeout_seconds", None),
+        "temperature": getattr(route, "temperature", None),
+        "configuration_revision": getattr(route, "configuration_revision", None),
         "response_schema_version": ENRICH_RESPONSE_SCHEMA_VERSION,
         "skill_postprocessing_version": ENRICH_SKILL_POSTPROCESSING_VERSION,
         "actual_location_extraction_version": ACTUAL_LOCATION_EXTRACTION_VERSION,
@@ -1405,6 +1418,30 @@ def build_enrich_contract_fingerprint(
         "payload": payload,
         "fingerprint": _fingerprint_hash(payload),
     }
+
+
+def build_enrich_request(
+    job: dict[str, Any],
+    config: dict[str, Any],
+    *,
+    resolved_route: LlmRouting | None = None,
+) -> dict[str, Any]:
+    prompt = build_extraction_prompt(
+        description=str(job.get("description", "")),
+        scraped_metadata={
+            "title": job.get("title", ""),
+            "experienceLevel": job.get("experience_level", ""),
+            "contractType": job.get("contract_type", ""),
+            "sector": job.get("sector", ""),
+            "location": job.get("location", ""),
+        },
+        config=config,
+    )
+    route = resolved_route or resolve_llm_routing("enrich_extraction", runtime_config=config)
+    request = LlmTaskRequest(routing_part="enrich_extraction", prompt=prompt, response_mode="json_object")
+    request_payload = {"routing_part": request.routing_part, "prompt": request.prompt, "response_mode": request.response_mode}
+    route_payload = {key: getattr(route, key) for key in ("provider", "base_url", "wire_api", "model", "timeout_seconds", "request_start_interval_secs", "auth_mode", "temperature", "model_record_id", "configuration_revision")}
+    return {"request": request, "route": route, "request_payload": request_payload, "route_payload": route_payload, "fingerprint": _fingerprint_hash({"job_url": extract_job_url(job), "request": request_payload, "route": route_payload})}
 
 
 # ── response parsing ──────────────────────────────────────────────────────────
@@ -1900,23 +1937,11 @@ def _execute_enrich_runtime(
     config: dict[str, Any],
     *,
     adapter: LlmAdapter | None = None,
+    enrich_request: dict[str, Any] | None = None,
+    resolved_route: LlmRouting | None = None,
 ) -> LlmRuntimeResult:
-    prompt = build_extraction_prompt(
-        description=str(job.get("description", "")),
-        scraped_metadata={
-            "title": job.get("title", ""),
-            "experienceLevel": job.get("experience_level", ""),
-            "contractType": job.get("contract_type", ""),
-            "sector": job.get("sector", ""),
-            "location": job.get("location", ""),
-        },
-        config=config,
-    )
-    request = LlmTaskRequest(
-        routing_part="enrich_extraction",
-        prompt=prompt,
-        response_mode="json_object",
-    )
+    request_record = enrich_request or build_enrich_request(job, config, resolved_route=resolved_route)
+    request = request_record["request"]
 
     def _parser(response: LlmAdapterResponse) -> dict[str, Any]:
         raw_text = response.raw_text
@@ -1949,7 +1974,7 @@ def _execute_enrich_runtime(
         parser=_parser,
         validator=_validator,
         adapter=adapter,
-        resolved_route=resolve_llm_routing("enrich_extraction", runtime_config=config),
+        resolved_route=request_record["route"],
     )
 
 
@@ -1976,9 +2001,13 @@ def _enrich_result_to_row(
     return merge_scraped_and_enriched(job, extraction["parsed"], config)
 
 
-def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+def enrich_job(
+    job: dict[str, Any], config: dict[str, Any], *,
+    enrich_request: dict[str, Any] | None = None,
+    resolved_route: LlmRouting | None = None,
+) -> dict[str, Any]:
     """Extract structured fields through shared LLM runtime."""
-    return _enrich_result_to_row(job, config, _execute_enrich_runtime(job, config))
+    return _enrich_result_to_row(job, config, _execute_enrich_runtime(job, config, enrich_request=enrich_request, resolved_route=resolved_route))
 
 
 def _enrich_one(
@@ -1989,6 +2018,7 @@ def _enrich_one(
     runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
     input_index: int = 0,
     cancellation_callback: Callable[[], None] | None = None,
+    resolved_route: LlmRouting | None = None,
 ) -> dict[str, Any]:
     """Enrich one job with System-owned fixed-backoff retry semantics."""
     maximum_attempts = get_system_maximum_attempts(config)
@@ -2005,10 +2035,21 @@ def _enrich_one(
             except Exception:  # noqa: BLE001
                 pass
         try:
+            request_record = build_enrich_request(job, config, resolved_route=resolved_route)
             if runtime_observation_callback is None:
-                enriched = enrich_job(job, config)
+                try:
+                    enriched = enrich_job(job, config, enrich_request=request_record, resolved_route=resolved_route)
+                except TypeError as exc:
+                    if "unexpected keyword argument" not in str(exc):
+                        raise
+                    enriched = enrich_job(job, config)
             else:
-                result = _execute_enrich_runtime(job, config)
+                try:
+                    result = _execute_enrich_runtime(job, config, enrich_request=request_record, resolved_route=resolved_route)
+                except TypeError as exc:
+                    if "unexpected keyword argument" not in str(exc):
+                        raise
+                    result = _execute_enrich_runtime(job, config)
                 try:
                     runtime_observation_callback(
                         {
@@ -2073,6 +2114,10 @@ def enrich_batch(
     )
     if not normalized_jobs:
         return []
+    try:
+        resolved_route = resolve_llm_routing("enrich_extraction", runtime_config=config)
+    except Exception:
+        resolved_route = None
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
         future_to_idx = {
@@ -2084,6 +2129,7 @@ def enrich_batch(
                 runtime_observation_callback=runtime_observation_callback,
                 input_index=idx,
                 cancellation_callback=cancellation_callback,
+                resolved_route=resolved_route,
             ): idx
             for idx, job in enumerate(normalized_jobs)
         }

@@ -1413,6 +1413,8 @@ def initialize_control_plane_database(
             candidate_profiles=candidate_profiles,
             startup_warning=warning,
         )
+        _ensure_process_event_tables(conn)
+        conn.commit()
         conn.execute("BEGIN IMMEDIATE")
         _seed_synonym_policy_bundle(conn, policies)
         conn.commit()
@@ -1433,6 +1435,7 @@ def ensure_control_plane_database(
         return
     with _sqlite_connection(database_path) as conn:
         _ensure_control_plane_schema(conn)
+        _ensure_process_event_tables(conn)
     repair_active_synonym_policy_mirrors(
         database_path=database_path,
         synonym_paths=synonym_paths,
@@ -2024,8 +2027,8 @@ def query_synonym_suggestions(
     sort: str = "updated_desc",
     database_path: Path | None = None,
 ) -> dict[str, Any]:
-    if page_size not in {10, 20, 50}:
-        raise ValueError("page_size must be 10, 20, or 50")
+    if page_size not in {10, 20, 50, 100, 500}:
+        raise ValueError("page_size must be 10, 20, 50, 100, or 500")
     if sort != "updated_desc":
         raise ValueError("synonym_sort_invalid")
     clauses: list[str] = []
@@ -9045,7 +9048,11 @@ def record_process_event_delivery(
 
 
 def claim_process_event_deliveries(
-    *, limit: int = 20, lease_seconds: int = 30, worker_id: str | None = None
+    *,
+    limit: int = 20,
+    lease_seconds: int = 30,
+    worker_id: str | None = None,
+    sink: str | None = None,
 ) -> list[dict[str, Any]]:
     db_path = Path(_local_sqlite_path())
     if not db_path.exists():
@@ -9059,8 +9066,9 @@ def claim_process_event_deliveries(
         _ensure_process_event_tables(conn)
         conn.commit()
         conn.execute("BEGIN IMMEDIATE")
+        sink_clause = " AND d.sink = ?" if sink else ""
         rows = conn.execute(
-            """
+            f"""
             SELECT e.*, d.sink, d.status AS delivery_status, d.reason AS delivery_reason,
                    d.attempt_count, d.updated_at, d.next_attempt_at
             FROM process_event_deliveries d
@@ -9068,16 +9076,18 @@ def claim_process_event_deliveries(
             WHERE d.status IN ('pending', 'failed')
               AND COALESCE(d.next_attempt_at, d.updated_at) <= ?
               AND (d.lease_id IS NULL OR d.lease_expires_at <= ?)
+              {sink_clause}
             ORDER BY COALESCE(d.next_attempt_at, d.updated_at), e.recorded_at, e.event_id
             LIMIT ?
             """,
-            (now.isoformat(), now.isoformat(), normalized_limit),
+            ((now.isoformat(), now.isoformat(), sink, normalized_limit)
+             if sink else (now.isoformat(), now.isoformat(), normalized_limit)),
         ).fetchall()
         claimed: list[dict[str, Any]] = []
         for row in rows:
             claim_id = f"{owner}:{uuid.uuid4()}"
             updated = conn.execute(
-                """
+                f"""
                 UPDATE process_event_deliveries
                 SET lease_id=?, lease_expires_at=?
                 WHERE event_id=? AND sink=?
@@ -10259,6 +10269,7 @@ def insert_run(run: PipelineRun, *_compat_args: Any, **_compat_kwargs: Any) -> N
         return
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         _ensure_control_plane_schema(conn)
+        _ensure_process_event_tables(conn)
         _write_normalized_run(conn, dataclasses.replace(run), insert=True)
         conn.commit()
 
@@ -10325,6 +10336,7 @@ def update_run_status(
     partial_completion: bool | None = None,
     progress_completed: int | None = None,
     progress_total: int | None = None,
+    expected_row_revision: int | None = None,
     **_compat_kwargs: Any,
 ) -> PersistenceResult:
     def mutate(run: PipelineRun) -> PipelineRun:
@@ -10367,6 +10379,9 @@ def update_run_status(
         if row is None:
             conn.rollback()
             return _persistence_result("degraded", "run_not_found")
+        if expected_row_revision is not None and int(row["row_revision"]) != int(expected_row_revision):
+            conn.rollback()
+            return _persistence_result("degraded", "run_revision_conflict")
         run = _normalized_run_from_row(row)
         if run is None:
             conn.rollback()
@@ -10455,6 +10470,8 @@ def create_run_bundle(
     with connection_context as conn:
         if owns_transaction:
             _ensure_control_plane_schema(conn)
+            _ensure_process_event_tables(conn)
+            conn.commit()
         try:
             if owns_transaction:
                 conn.execute("BEGIN IMMEDIATE")
@@ -11516,8 +11533,8 @@ def query_runs(
     page: int = 1,
     page_size: int = 20,
 ) -> dict[str, Any]:
-    if page_size not in {10, 20, 50}:
-        raise ValueError("page_size must be 10, 20, or 50")
+    if page_size not in {10, 20, 50, 100, 500}:
+        raise ValueError("page_size must be 10, 20, 50, 100, or 500")
     if view not in {"active", "archived", "all"}:
         raise ValueError("view must be active, archived, or all")
     normalized_search = _normalize_run_search_text(search).strip()
@@ -11538,7 +11555,11 @@ def query_runs(
         p.*,
         i.original_filename AS input_original_filename,
         i.candidate_profile_id AS input_candidate_profile_id,
-        i.candidate_profile_name AS input_candidate_profile_name
+        i.candidate_profile_name AS input_candidate_profile_name,
+        EXISTS (
+            SELECT 1 FROM process_events e
+            WHERE e.process_type = 'pipeline' AND e.process_id = p.run_id
+        ) AS reconciliation_has_events
     """
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
@@ -11608,6 +11629,12 @@ def query_runs(
             "integrity_warnings": [],
             "debug_bundle": _debug_bundle_projection(run),
             "links": {},
+            "_reconciliation": {
+                "queue_job_id": run.queue_job_id,
+                "row_revision": int(row["row_revision"]),
+                "has_events": bool(row["reconciliation_has_events"]),
+                "completed_stages": list(run.completed_stages or []),
+            },
         }
 
     items = [item for row in rows if (item := list_projection(row)) is not None]

@@ -15,6 +15,8 @@ tags:
 from unittest.mock import MagicMock, patch
 import json
 import sqlite3
+import threading
+import time
 from fitcv_cp.reporter import PipelineReporter, ProcessEventDeliveryLoop
 
 
@@ -49,10 +51,88 @@ def test_delivery_loop_final_drain_completes_before_stop() -> None:
     calls: list[int] = []
     with patch(
         "fitcv_cp.reporter.retry_pending_process_event_deliveries",
-        side_effect=lambda *, limit: calls.append(limit) or 0,
+        side_effect=lambda *, limit, shutdown_deadline: calls.append(limit) or 0,
     ):
         ProcessEventDeliveryLoop(limit=20).stop(final_drain=True)
     assert calls == [20]
+
+
+def test_delivery_loop_shutdown_deadline_does_not_wait_for_slow_request() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    calls: list[float | None] = []
+
+    def slow_retry(*, limit: int, shutdown_deadline: float | None = None) -> int:
+        calls.append(shutdown_deadline)
+        if shutdown_deadline is not None:
+            return 0
+        entered.set()
+        release.wait(2)
+        return 0
+
+    with patch("fitcv_cp.reporter.retry_pending_process_event_deliveries", side_effect=slow_retry):
+        loop = ProcessEventDeliveryLoop(limit=20, interval_seconds=0.1).start()
+        assert entered.wait(1)
+        started = time.monotonic()
+        loop.stop(final_drain=True, shutdown_deadline=started + 0.05)
+        elapsed = time.monotonic() - started
+    release.set()
+    if loop._thread is not None:
+        loop._thread.join(timeout=1)
+    assert elapsed < 0.5
+    assert len(calls) == 2
+    assert calls[0] is None
+    assert calls[1] is not None
+
+
+def test_final_drain_skips_claim_when_request_timeout_exceeds_deadline() -> None:
+    from fitcv_cp import reporter
+
+    with patch.object(reporter, "claim_process_event_deliveries") as claim_mock, patch.object(
+        reporter, "deliver_process_event"
+    ) as deliver_mock:
+        started = time.monotonic()
+        deadline = started + 0.2
+        ProcessEventDeliveryLoop(limit=20).stop(
+            final_drain=True,
+            shutdown_deadline=deadline,
+        )
+        elapsed = time.monotonic() - started
+
+    assert elapsed <= 0.5
+    claim_mock.assert_not_called()
+    deliver_mock.assert_not_called()
+
+
+def test_retry_uses_stored_rich_contract(tmp_path, monkeypatch) -> None:
+    from fitcv_cp import reporter
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
+    contract = {
+        "status": "ready",
+        "degradation_reason": None,
+        "input": {"stage": "normalize", "payload": {"source": "stored"}},
+        "output": {"event_status": "emitted"},
+    }
+    event = reporter.build_process_event(
+        process_type="pipeline",
+        process_id="run-rich-contract",
+        operation="normalize",
+        state="recorded",
+        level="info",
+        message="done",
+        payload={"langfuse_rich_io": contract},
+    )
+    reporter.append_event(event, delivery_sinks=("langfuse",))
+    seen: list[dict[str, object] | None] = []
+    with patch.object(
+        reporter,
+        "deliver_process_event",
+        side_effect=lambda event, *, rich_contract, delivery_claim_id: seen.append(rich_contract) or ("degraded", "failed"),
+    ):
+        assert reporter.retry_pending_process_event_deliveries(limit=1) == 0
+    assert seen == [contract]
 
 
 def test_remote_delivery_failure_stays_outside_emit_and_marks_retryable(tmp_path, monkeypatch) -> None:

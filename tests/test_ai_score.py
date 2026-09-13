@@ -837,3 +837,109 @@ def test_ai_score_contract_fingerprint_uses_hash_only_prompt_customization() -> 
     assert record["payload"]["prompt_customized"] is True
     assert record["payload"]["prompt_replacement_char_count"] == len(raw)
     assert raw not in str(record)
+
+
+def test_observation_toggle_keeps_identical_model_input(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv.ai_score import run_ai_scoring
+    from fitcv.llm_runtime import LlmRuntimeProvenance, LlmRuntimeResult, LlmValidationResult
+    from fitcv.runtime_routing import LlmRouting
+
+    route = LlmRouting("test", "https://test.example", "responses", "model-a", 12.0)
+    captured: list[tuple[str, str, str]] = []
+    result = LlmRuntimeResult(
+        status="succeeded", parsed_value={"ai_score": .5, "legacy_model_fit_label": None,
+        "score_reasoning": "ok", "matched_strengths": [], "key_risks": [], "parser_status": "ok"},
+        validation=LlmValidationResult(True, [], {}), failure=None,
+        provenance=LlmRuntimeProvenance("ranking_ai_score", "test", "fake", "test", "model-a", "responses", 1, None, None, 1),
+        adapter_response=None,
+    )
+
+    def execute(*args: Any, **kwargs: Any) -> LlmRuntimeResult:
+        request = kwargs["ranking_request"]["request"]
+        captured.append((request.prompt, request.routing_part, request.response_mode))
+        return result
+
+    monkeypatch.setattr("fitcv.ai_score._execute_ranking_runtime", execute)
+    job = {"job_url": "u", "title": "Data Engineer", "required_skills": ["SQL"]}
+    run_ai_scoring([job], "candidate", {}, resolved_route=route)
+    run_ai_scoring([job], "candidate", {}, runtime_observation_callback=lambda _: None, resolved_route=route)
+    assert captured[0] == captured[1]
+
+
+def test_ranking_stage_freezes_route_until_next_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
+    from contextlib import nullcontext
+    from fitcv.pipeline_stage_runner import execute_ranking_stage
+    from fitcv.runtime_routing import LlmRouting
+
+    first = LlmRouting("test", "https://one.example", "responses", "model-one", 10.0, temperature=.1)
+    second = LlmRouting("test", "https://two.example", "responses", "model-two", 20.0, temperature=.9)
+    config = {"pipeline": {"ai_score_top_n": 2}, "reuse": {"ranking": {"enabled": False}}}
+    seen: list[tuple[str, str, float]] = []
+
+    def fingerprint(job: dict[str, Any], *_: Any, **kwargs: Any) -> dict[str, str]:
+        route = kwargs["resolved_route"]
+        seen.append(("fingerprint", route.model, route.temperature))
+        config["changed"] = True
+        return {"fingerprint": job["job_url"]}
+
+    def score(jobs: list[dict[str, Any]], *_: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        route = kwargs["resolved_route"]
+        seen.extend(("execute", route.model, route.temperature) for _ in jobs)
+        return [{"job_url": job["job_url"], "ai_score": .5} for job in jobs]
+
+    class Store:
+        def store_final_ranking(self, *_: Any) -> None: pass
+
+    def invoke(job_url: str) -> None:
+        execute_ranking_stage(
+            run_id="r", state={}, shortlist=[{"job_url": job_url}], candidate_summary="candidate", profile={},
+            config=config, final_top_n=1, reporter=None, pipeline_store=Store(), observe_span=lambda *_a, **_k: nullcontext(),
+            set_span_attributes=lambda _: None, cancellation_check=None, cancellation_error_cls=RuntimeError,
+            ranking_ai_score_reuse_index={}, build_ai_score_input_fingerprint=fingerprint, extract_job_url=lambda job: job["job_url"],
+            run_ai_scoring=score, build_ranking_features=lambda *_a, **_k: [], rank_jobs=lambda *_a, **_k: [],
+            preference_policy_resolver=lambda _: None,
+        )
+
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolve_llm_routing", lambda *_a, **_k: first if len(seen) < 2 else second)
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolve_run_preference_policy", lambda **_: object())
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolved_preference_policy_to_dict", lambda _: {})
+    invoke("one")
+    assert seen == [("fingerprint", "model-one", .1), ("execute", "model-one", .1)]
+    invoke("two")
+    assert seen[-2:] == [("fingerprint", "model-two", .9), ("execute", "model-two", .9)]
+
+
+def test_stage_runner_recomputes_invalid_cached_score(monkeypatch: pytest.MonkeyPatch) -> None:
+    from contextlib import nullcontext
+    from fitcv.pipeline_stage_runner import execute_ranking_stage
+    from fitcv.runtime_routing import LlmRouting
+
+    calls: list[str] = []
+    route = LlmRouting("test", "https://test.example", "responses", "model", 10.0)
+
+    class Store:
+        def store_final_ranking(self, *_: Any) -> None: pass
+
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolve_llm_routing", lambda *_a, **_k: route)
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolve_run_preference_policy", lambda **_: object())
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolved_preference_policy_to_dict", lambda _: {})
+    execute_ranking_stage(
+        run_id="r", state={}, shortlist=[{"job_url": "u"}], candidate_summary="candidate", profile={},
+        config={"pipeline": {"ai_score_top_n": 1}, "reuse": {"ranking": {"enabled": True}}}, final_top_n=1,
+        reporter=None, pipeline_store=Store(), observe_span=lambda *_a, **_k: nullcontext(), set_span_attributes=lambda _: None,
+        cancellation_check=None, cancellation_error_cls=RuntimeError,
+        ranking_ai_score_reuse_index={"fp": {"job_url": "u", "ai_score": "malformed", "score_status": "invalid"}},
+        build_ai_score_input_fingerprint=lambda *_a, **_k: {"fingerprint": "fp"}, extract_job_url=lambda job: job["job_url"],
+        run_ai_scoring=lambda jobs, *_a, **_k: calls.extend(["recomputed"]) or [{"job_url": jobs[0]["job_url"], "ai_score": .5}],
+        build_ranking_features=lambda *_a, **_k: [], rank_jobs=lambda *_a, **_k: [], preference_policy_resolver=lambda _: None,
+    )
+    assert calls == ["recomputed"]
+
+
+def test_route_resolution_failure_maps_to_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    monkeypatch.setattr("fitcv.ai_score.resolve_llm_routing", lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("routing unavailable")))
+    rows = run_ai_scoring([{"job_url": "u"}], "candidate", {})
+    assert rows[0]["failure_code"] == "provider_failure"
+    assert rows[0]["score_status"] == "unscored"
