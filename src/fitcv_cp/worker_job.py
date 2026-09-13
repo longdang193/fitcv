@@ -537,7 +537,13 @@ def execute_cv_regenerate_once(
         )
         raise
     finally:
-        delivery_loop.stop(final_drain=True)
+        delivery_loop.stop(
+            final_drain=True,
+            shutdown_deadline=time.monotonic() + 5.5,
+        )
+        from fitcv.llm_runtime import close_ranking_transport_pool
+
+        close_ranking_transport_pool()
 
 
 
@@ -2653,7 +2659,13 @@ def execute_pipeline_run(
 
         finally:
             if delivery_loop is not None:
-                delivery_loop.stop(final_drain=True)
+                delivery_loop.stop(
+                    final_drain=True,
+                    shutdown_deadline=time.monotonic() + 5.5,
+                )
+            from fitcv.llm_runtime import close_ranking_transport_pool
+
+            close_ranking_transport_pool()
 
 
 

@@ -814,6 +814,9 @@ def normalise_evidence_item(
 
 def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
     """Flatten every canonical nested evidence item through one runtime path."""
+    cached = profile.get("_projected_evidence_pool")
+    if isinstance(cached, list):
+        return copy.deepcopy(cached)
     canonical = converge_candidate_profile_for_runtime(profile)
     linked_claims: dict[str, dict[str, list[str]]] = {
         section: {} for section in ("skills", "role_families", "domain_tags", "responsibility_themes")
@@ -912,6 +915,35 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                     }
                 )
     return projected
+
+
+def select_ranking_evidence(
+    evidence_pool: list[dict[str, Any]],
+    job: dict[str, Any],
+    *,
+    limit: int = 2,
+) -> list[dict[str, Any]]:
+    """Select bounded, deterministic, job-relevant evidence from projected pool."""
+    if limit <= 0 or not evidence_pool:
+        return []
+    terms = [
+        *list(job.get("required_skills_canonical") or job.get("required_skills") or []),
+        *list(job.get("preferred_skills_canonical") or job.get("preferred_skills") or []),
+        *list(job.get("responsibilities") or []),
+        str(job.get("title") or ""),
+        str(job.get("job_family") or ""),
+        str(job.get("domain") or ""),
+    ]
+    ranked = sorted(
+        ({**item, "score": score_evidence_item(item, terms)} for item in evidence_pool),
+        key=lambda item: (-float(item.get("score") or 0.0), str(item.get("evidence_id") or "")),
+    )
+    return ranked[:limit]
+
+
+def build_profile_evidence_pool(profile: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project profile evidence once for ranking callers."""
+    return project_candidate_evidence(profile)
 
 
 def _sort_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1043,6 +1075,7 @@ def score_evidence_item(item: dict[str, Any], jd_skills: list[str]) -> float:
     """Compute a weighted score in [0.0, 1.0] for one normalised evidence item."""
     item_skills = _canonicalize_term_set(list(item.get("skills") or []))
     jd_lower = _canonicalize_term_set(jd_skills)
+    jd_tokens = set().union(*(_tokenize(term) for term in jd_skills)) if jd_skills else set()
 
     if jd_lower and item_skills:
         skill_ratio = len(item_skills & jd_lower) / len(jd_lower)
@@ -1050,8 +1083,8 @@ def score_evidence_item(item: dict[str, Any], jd_skills: list[str]) -> float:
         skill_ratio = 0.0
 
     biz_value = _tokenize(str(item.get("scoring_context") or item.get("business_value") or ""))
-    if jd_lower and biz_value:
-        biz_ratio = min(len(biz_value & jd_lower) / len(jd_lower), 1.0)
+    if jd_tokens and biz_value:
+        biz_ratio = min(len(biz_value & jd_tokens) / len(jd_tokens), 1.0)
     else:
         biz_ratio = 0.0
 

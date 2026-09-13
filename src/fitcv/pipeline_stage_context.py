@@ -23,6 +23,43 @@ from typing import Any, ClassVar
 from fitcv.ranking_contract import adapt_legacy_ranking_row
 
 
+def _validate_checkpoint_retrieval_strategy(payload: dict[str, Any]) -> None:
+    diagnostics = payload.get("shortlist_diagnostics")
+    diagnostic_strategy = str(diagnostics.get("retrieval_strategy") or "").strip() if isinstance(diagnostics, dict) else ""
+    rows = [
+        row
+        for key in ("raw_shortlist", "shortlist")
+        for row in (payload.get(key) or [])
+        if isinstance(row, dict)
+    ]
+    vector_rows = [
+        row for row in rows
+        if any(key in row for key in ("vector_rank", "vector_similarity", "similarity_score"))
+        or str(row.get("shortlist_origin") or "").strip() == "vector_search"
+    ]
+    row_strategies = {
+        str(row.get("retrieval_strategy") or "").strip()
+        for row in vector_rows
+        if str(row.get("retrieval_strategy") or "").strip()
+    }
+    expected_strategy = diagnostic_strategy or (next(iter(row_strategies)) if len(row_strategies) == 1 else "")
+    if vector_rows and len(row_strategies) > 1:
+        raise ValueError(
+            "incompatible shortlist retrieval strategy in checkpoint: "
+            "vector-derived rows have mismatched retrieval_strategy values"
+        )
+    if vector_rows and not expected_strategy:
+        raise ValueError(
+            "incompatible shortlist retrieval strategy in checkpoint: "
+            "legacy vector-derived checkpoint missing retrieval_strategy"
+        )
+    if diagnostic_strategy and any(strategy != diagnostic_strategy for strategy in row_strategies):
+        raise ValueError(
+            "incompatible shortlist retrieval strategy in checkpoint: "
+            "vector-derived row retrieval_strategy does not match shortlist diagnostics"
+        )
+
+
 @dataclass
 class PipelineState:
     CHECKPOINT_SCHEMA_VERSION: ClassVar[int] = 1
@@ -61,6 +98,7 @@ class PipelineState:
         payload = root_payload
         if isinstance(root_payload.get("checkpoint_payload"), dict):
             payload = dict(root_payload["checkpoint_payload"])
+        _validate_checkpoint_retrieval_strategy(payload)
 
         schema_version = root_payload.get("schema_version", payload.get("schema_version"))
         if schema_version is not None:

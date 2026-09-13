@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -126,3 +127,14 @@ def test_deterministic_replay() -> None:
         row["raw_job_fingerprint"] for row in replay
     ]
     assert [row["baseline_rank"] for row in first] == [row["baseline_rank"] for row in replay]
+
+
+def test_label_permutation_does_not_change_retrieval_request() -> None:
+    from scripts.benchmark_ranking import build_retrieval_request
+
+    pool = deepcopy(_gold()["profiles"]["backend"])
+    baseline = build_retrieval_request("backend", pool)
+    for index, row in enumerate(pool["candidates"]):
+        row["label"], row["relevance_grade"] = ("relevant", 3) if index % 2 else ("irrelevant", 0)
+        row["split"] = "held_out" if row["split"] == "calibration" else "calibration"
+    assert build_retrieval_request("backend", pool) == baseline

@@ -131,9 +131,11 @@ from fitcv.enrich import (
     load_structured_jobs,
     lookup_reusable_structured_jobs,
 )
+from fitcv.evidence import build_profile_evidence_pool, select_ranking_evidence
 from fitcv.fit_factors import build_candidate_fit_context
 from fitcv.ingest import load_raw_jobs, parse_jobs_file, prepare_raw_rows
 from fitcv.pipeline_stage_runner import merge_passed_filter_records
+from fitcv.runtime_routing import resolve_llm_routing
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
     compute_must_have_match,
@@ -3209,14 +3211,29 @@ def run_pipeline(
             reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
         state = _restore_pipeline_state(run_id=run_id, checkpoint_payload=checkpoint_payload)
         checkpoint_strategy = str(state.get("shortlist_diagnostics", {}).get("retrieval_strategy") or "").strip()
-        if checkpoint_strategy and checkpoint_strategy != "lexical_v1":
+        row_strategies = {
+            str(row.get("retrieval_strategy") or "").strip()
+            for key in ("raw_shortlist", "shortlist")
+            for row in (state.get(key) or [])
+            if isinstance(row, dict) and str(row.get("retrieval_strategy") or "").strip()
+        }
+        checkpoint_strategies = row_strategies | ({checkpoint_strategy} if checkpoint_strategy else set())
+        if len(checkpoint_strategies) > 1 or any(strategy != "lexical_v1" for strategy in checkpoint_strategies):
             raise ValueError("incompatible shortlist retrieval strategy in checkpoint")
+        effective_strategy = checkpoint_strategy or (next(iter(row_strategies)) if len(row_strategies) == 1 else "")
         checkpoint_policy = dict(state.get("resolved_preference_policy") or {})
-        if checkpoint_strategy == "lexical_v1" and checkpoint_policy.get("diagnostic_code") not in {
+        if effective_strategy == "lexical_v1" and checkpoint_policy.get("diagnostic_code") not in {
             None,
             "embedding_strategy_incompatible",
         }:
             raise ValueError("incompatible preference policy in lexical checkpoint")
+        checkpoint_runtime_contract = checkpoint_policy.get("runtime_contract")
+        if effective_strategy == "lexical_v1" and isinstance(checkpoint_runtime_contract, dict):
+            if (
+                checkpoint_policy.get("resolution_status") == "active"
+                or str(checkpoint_runtime_contract.get("embedding_contract_fingerprint") or "") != "lexical_v1"
+            ):
+                raise ValueError("incompatible preference policy in lexical checkpoint")
         normalized_reuse_snapshots = _normalize_late_stage_reuse_snapshots(reuse_snapshots)
         ranking_ai_score_reuse_index = _index_late_stage_reuse_rows(
             normalized_reuse_snapshots["ranking_ai_scores"],
@@ -3568,6 +3585,10 @@ def run_pipeline(
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("ranking"):
             with observe_span("pipeline.ai_score", attributes={"run_id": run_id}):
+                try:
+                    resolved_route = resolve_llm_routing("ranking_ai_score", runtime_config=config)
+                except Exception:
+                    resolved_route = None
                 ai_top_n = pipeline_int(config, "ai_score_top_n", default=0)
                 if cancellation_check and cancellation_check():
                     raise PipelineCancelled("Cancelled before AI scoring")
@@ -3577,18 +3598,25 @@ def run_pipeline(
                 ranking_inputs_by_url: dict[str, dict[str, Any]] = {}
                 fresh_ai_score_fingerprints: dict[str, str] = {}
                 reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
+                profile_evidence_pool = build_profile_evidence_pool(profile or {})
                 for shortlisted_job in ai_score_candidates:
-                    top_evidence = list(shortlisted_job.get("top_evidence") or [])[:2]
-                    ranking_input = build_ranking_job_input(shortlisted_job, profile or {})
+                    selected_evidence = select_ranking_evidence(profile_evidence_pool, shortlisted_job, limit=2)
+                    ranking_profile = {**(profile or {}), "_projected_evidence_pool": selected_evidence}
+                    ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile)
+                    top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
                     if ranking_input["candidate_evidence"] and extract_job_url(shortlisted_job):
                         ranking_inputs_by_url[extract_job_url(shortlisted_job)] = ranking_input
-                    fingerprint_record = build_ai_score_input_fingerprint(
-                        shortlisted_job,
-                        candidate_summary,
-                        top_evidence,
-                        config,
-                        **({"ranking_input": ranking_input} if ranking_input["candidate_evidence"] else {}),
-                    )
+                    try:
+                        fingerprint_record = build_ai_score_input_fingerprint(
+                            shortlisted_job,
+                            candidate_summary,
+                            top_evidence,
+                            config,
+                            resolved_route=resolved_route,
+                            **({"ranking_input": ranking_input} if ranking_input["candidate_evidence"] else {}),
+                        )
+                    except Exception:
+                        fingerprint_record = {"fingerprint": ""}
                     job_url = extract_job_url(shortlisted_job)
                     reused_ai_row = (
                         ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
@@ -3627,6 +3655,7 @@ def run_pipeline(
                         config,
                         top_n=len(fresh_scoring_jobs),
                         runtime_observation_callback=ranking_llm_runtime_observations.append,
+                        resolved_route=resolved_route,
                         **({"ranking_inputs": ranking_inputs_by_url} if ranking_inputs_by_url else {}),
                     )
                     if fresh_scoring_jobs

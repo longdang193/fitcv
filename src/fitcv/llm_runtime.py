@@ -19,6 +19,8 @@ lifecycle:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections import OrderedDict
+from contextlib import nullcontext
 import json
 import threading
 import time
@@ -57,6 +59,79 @@ _PROVIDER_SENSITIVE_VALUE_MARKERS = (
     "token=",
     "token:",
 )
+_RANKING_TRANSPORT_POOL: LlmTransportPool | None = None
+_RANKING_TRANSPORT_POOL_LOCK = threading.Lock()
+
+
+class LlmTransportPool:
+    def __init__(self, *, max_clients: int = 8, client_factory: Callable[..., Any] | None = None) -> None:
+        if max_clients < 1:
+            raise ValueError("max_clients must be positive")
+        self.max_clients = max_clients
+        self._client_factory = client_factory
+        self._clients: OrderedDict[tuple[Any, ...], Any] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def get(self, route: LlmRouting, api_key: str) -> Any:
+        import httpx
+
+        key = (route.base_url.rstrip("/"), api_key, route.timeout_seconds)
+        with self._lock:
+            client = self._clients.pop(key, None)
+            if client is not None:
+                self._clients[key] = client
+                return client
+            limits = httpx.Limits(max_connections=8, max_keepalive_connections=8)
+            if self._client_factory is None:
+                client = httpx.Client(
+                    timeout=route.timeout_seconds,
+                    limits=limits,
+                )
+            else:
+                client = self._client_factory(
+                    timeout=route.timeout_seconds,
+                    limits=limits,
+                )
+            self._clients[key] = client
+            while len(self._clients) > self.max_clients:
+                _, evicted = self._clients.popitem(last=False)
+                evicted.close()
+            return client
+
+    def close(self) -> None:
+        with self._lock:
+            clients = list(self._clients.values())
+            self._clients.clear()
+        for client in clients:
+            client.close()
+
+    def discard(self, route: LlmRouting, api_key: str, client: Any | None = None) -> None:
+        key = (route.base_url.rstrip("/"), api_key, route.timeout_seconds)
+        with self._lock:
+            current = self._clients.get(key)
+            if current is None or (client is not None and current is not client):
+                return
+            self._clients.pop(key)
+        current.close()
+
+    reset = close
+
+
+def get_ranking_transport_pool() -> LlmTransportPool:
+    global _RANKING_TRANSPORT_POOL
+    with _RANKING_TRANSPORT_POOL_LOCK:
+        if _RANKING_TRANSPORT_POOL is None:
+            _RANKING_TRANSPORT_POOL = LlmTransportPool()
+        return _RANKING_TRANSPORT_POOL
+
+
+def close_ranking_transport_pool() -> None:
+    global _RANKING_TRANSPORT_POOL
+    with _RANKING_TRANSPORT_POOL_LOCK:
+        pool = _RANKING_TRANSPORT_POOL
+        _RANKING_TRANSPORT_POOL = None
+    if pool is not None:
+        pool.close()
 
 
 @dataclass(frozen=True)
@@ -373,6 +448,7 @@ def execute_llm_task(
     validator: LlmValidator,
     adapter: LlmAdapter | None = None,
     resolved_route: LlmRouting | None = None,
+    transport_pool: LlmTransportPool | None = None,
 ) -> LlmRuntimeResult:
     _validate_request(request)
     started = time.monotonic()
@@ -410,7 +486,10 @@ def execute_llm_task(
     )
     try:
         _wait_for_provider_request_start(route)
-        response = selected_adapter(request, route, api_key)
+        if default_adapter and route.wire_api != "messages":
+            response = selected_adapter(request, route, api_key, transport_pool=transport_pool)
+        else:
+            response = selected_adapter(request, route, api_key)
     except LlmAdapterError as exc:
         return _failed(
             request,
@@ -543,6 +622,8 @@ def _openai_compatible_adapter(
     request: LlmTaskRequest,
     route: LlmRouting,
     api_key: str,
+    *,
+    transport_pool: LlmTransportPool | None = None,
 ) -> LlmAdapterResponse:
     import httpx
 
@@ -554,8 +635,10 @@ def _openai_compatible_adapter(
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     attempts = 0
+    client: Any | None = None
     try:
-        with httpx.Client(timeout=route.timeout_seconds) as client:
+        client = transport_pool.get(route, api_key) if transport_pool is not None else httpx.Client(timeout=route.timeout_seconds)
+        with nullcontext(client) if transport_pool is not None else client:
             if route.wire_api == "responses":
                 attempts += 1
                 payload: dict[str, Any] = {"model": route.model, "input": request.prompt}
@@ -597,6 +680,8 @@ def _openai_compatible_adapter(
                 body = decode_openai_compat_response_body(response)
                 raw_text = extract_openai_chat_completions_text(body)
     except httpx.TimeoutException as exc:
+        if transport_pool is not None:
+            transport_pool.discard(route, api_key, client)
         raise LlmAdapterError(
             "adapter_timeout",
             str(exc),
@@ -620,6 +705,8 @@ def _openai_compatible_adapter(
             ),
         ) from exc
     except httpx.TransportError as exc:
+        if transport_pool is not None:
+            transport_pool.discard(route, api_key, client)
         raise LlmAdapterError(
             "adapter_transport_error",
             str(exc),

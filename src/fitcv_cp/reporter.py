@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import threading
+import time
 import uuid
 from typing import Any, Optional
 
@@ -41,6 +42,8 @@ from fitcv_cp.models import (
 from fitcv_cp.runtime_contracts import is_truthy_env
 
 logger = logging.getLogger(__name__)
+_DELIVERY_REQUEST_TIMEOUT_SECONDS = 5.0
+_DELIVERY_LEASE_BUFFER_SECONDS = 1
 
 def _truncate_string(value: str) -> str:
     return str(sanitize_process_event_value(value))
@@ -225,7 +228,12 @@ def _emit_langfuse_native_io(
         "metadata": {"source": "fitcv-control-plane"},
     }
     try:
-        resp = httpx.post(ingestion_url, headers=headers, json=body, timeout=5.0)
+        resp = httpx.post(
+            ingestion_url,
+            headers=headers,
+            json=body,
+            timeout=_DELIVERY_REQUEST_TIMEOUT_SECONDS,
+        )
         if 200 <= resp.status_code < 300:
             return f"sent:{trace_id}", None
         return "degraded", f"langfuse_ingestion_http_{resp.status_code}"
@@ -286,13 +294,41 @@ def deliver_process_event(
     return native_status, native_reason
 
 
-def retry_pending_process_event_deliveries(*, limit: int = 20) -> int:
+def _stored_rich_contract(event: ProcessEvent) -> dict[str, Any] | None:
+    if not event.payload_json:
+        return None
+    try:
+        payload = json.loads(event.payload_json)
+    except (TypeError, ValueError):
+        return None
+    contract = payload.get("langfuse_rich_io")
+    return dict(contract) if isinstance(contract, dict) else None
+
+
+def retry_pending_process_event_deliveries(
+    *, limit: int = 20, shutdown_deadline: float | None = None
+) -> int:
     delivered_count = 0
-    for item in claim_process_event_deliveries(limit=limit):
-        if item["sink"] != "langfuse":
-            continue
+    if shutdown_deadline is not None and (
+        time.monotonic() + _DELIVERY_REQUEST_TIMEOUT_SECONDS > shutdown_deadline
+    ):
+        return 0
+    lease_seconds = int(
+        _DELIVERY_REQUEST_TIMEOUT_SECONDS * max(1, min(int(limit), 100))
+        + _DELIVERY_LEASE_BUFFER_SECONDS
+    )
+    for item in claim_process_event_deliveries(
+        limit=limit,
+        lease_seconds=lease_seconds,
+        sink="langfuse",
+    ):
+        if shutdown_deadline is not None and (
+            time.monotonic() + _DELIVERY_REQUEST_TIMEOUT_SECONDS > shutdown_deadline
+        ):
+            break
         status, _reason = deliver_process_event(
             item["event"],
+            rich_contract=_stored_rich_contract(item["event"]),
             delivery_claim_id=str(item.get("claim_id") or ""),
         )
         if status.startswith("sent:") or status in {
@@ -331,16 +367,26 @@ class ProcessEventDeliveryLoop:
         self._thread.start()
         return self
 
-    def stop(self, *, final_drain: bool = False) -> None:
+    def stop(
+        self,
+        *,
+        final_drain: bool = False,
+        shutdown_deadline: float | None = None,
+    ) -> None:
+        if shutdown_deadline is None:
+            shutdown_deadline = time.monotonic() + 5.5
         self._stop.set()
         if self._thread is not None:
-            self._thread.join(timeout=5.5)
+            self._thread.join(timeout=max(0.0, shutdown_deadline - time.monotonic()))
         if final_drain:
-            self._drain_once()
+            self._drain_once(shutdown_deadline=shutdown_deadline)
 
-    def _drain_once(self) -> None:
+    def _drain_once(self, *, shutdown_deadline: float | None = None) -> None:
         try:
-            retry_pending_process_event_deliveries(limit=self._limit)
+            retry_pending_process_event_deliveries(
+                limit=self._limit,
+                shutdown_deadline=shutdown_deadline,
+            )
         except Exception as exc:
             logger.warning("Final process-event delivery drain failed: %s", exc)
 

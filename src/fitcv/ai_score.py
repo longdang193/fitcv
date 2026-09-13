@@ -42,11 +42,13 @@ from fitcv.llm_runtime import (
     LlmRuntimeFailure,
     LlmRuntimeResult,
     LlmTaskRequest,
+    LlmTransportPool,
+    get_ranking_transport_pool,
     LlmValidationResult,
     execute_llm_task,
     project_llm_runtime_evidence,
 )
-from fitcv.runtime_routing import resolve_llm_routing
+from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
 from fitcv.persistence import get_local_sqlite_path
 from fitcv.pipeline_stages.common import job_identity_keys
 from fitcv.evidence import project_candidate_evidence
@@ -67,16 +69,23 @@ def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
     return hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
 
 
-def build_ai_score_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+def build_ai_score_contract_fingerprint(
+    config: dict[str, Any], *, resolved_route: LlmRouting | None = None
+) -> dict[str, Any]:
     customization = get_prompt_replacement_metadata("ranking_ai_score", config)
     model = get_ranking_ai_score_model(config)
-    try:
-        provider = str(resolve_model_routing_part("ranking_ai_score", model_fallback=model).get("provider") or "fitcv_builtin")
-    except Exception:
-        provider = "fitcv_builtin"
+    route = resolved_route
+    if route is None:
+        try:
+            route = resolve_llm_routing("ranking_ai_score", model_fallback=model, runtime_config=config)
+        except Exception:
+            route = None
     payload = {
         "ai_score_model": get_ranking_ai_score_model(config),
-        "provider": provider,
+        "route": {
+            key: getattr(route, key, None)
+            for key in ("provider", "base_url", "wire_api", "model", "timeout_seconds", "temperature", "configuration_revision", "model_record_id")
+        },
         "prompt_schema_version": RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION,
         "prompt_id": get_ranking_prompt_id(config),
         "prompt_customized": customization["customized"],
@@ -96,26 +105,48 @@ def build_ai_score_input_fingerprint(
     config: dict[str, Any],
     *,
     ranking_input: dict[str, Any] | None = None,
+    resolved_route: LlmRouting | None = None,
 ) -> dict[str, Any]:
-    from fitcv.embeddings import build_job_summary_text
-
-    prompt = build_scoring_prompt(
-        jd_summary=(ranking_input or {}).get("job_requirements") or build_job_summary_text(job),
-        candidate_summary=(ranking_input or {}).get("candidate_summary") or candidate_summary,
-        top_evidence=(ranking_input or {}).get("candidate_evidence") or top_evidence[:2],
-        config=config,
+    request_record = build_ranking_request(
+        job, candidate_summary, top_evidence, config,
+        ranking_input=ranking_input, resolved_route=resolved_route,
     )
-    contract_record = build_ai_score_contract_fingerprint(config)
     payload = {
         "job_url": str(job.get("job_url") or ""),
-        "prompt": prompt,
+        "request": request_record["request_payload"],
+        "route": request_record["route_payload"],
+        "prompt": request_record["request"].prompt,
         "ranking_input": ranking_input or {},
-        "contract_fingerprint": contract_record["fingerprint"],
+        "contract_fingerprint": build_ai_score_contract_fingerprint(config, resolved_route=resolved_route)["fingerprint"],
     }
     return {
         "payload": payload,
         "fingerprint": _stable_json_fingerprint(payload),
     }
+
+
+def build_ranking_request(
+    job: dict[str, Any],
+    candidate_summary: str,
+    top_evidence: list[Any],
+    config: dict[str, Any],
+    *,
+    ranking_input: dict[str, Any] | None = None,
+    resolved_route: LlmRouting | None = None,
+) -> dict[str, Any]:
+    from fitcv.embeddings import build_job_summary_text
+
+    source = ranking_input or {}
+    jd_summary = source.get("job_requirements") or build_job_summary_text(job)
+    candidate_text = source.get("candidate_summary") or candidate_summary
+    evidence = source.get("candidate_evidence") or top_evidence[:2]
+    evidence_text = [item.get("text", "") if isinstance(item, dict) else str(item) for item in evidence]
+    prompt = build_scoring_prompt(jd_summary, candidate_text, evidence_text, config=config)
+    route = resolved_route or resolve_llm_routing("ranking_ai_score", runtime_config=config)
+    request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")
+    request_payload = {"routing_part": request.routing_part, "prompt": request.prompt, "response_mode": request.response_mode}
+    route_payload = {key: getattr(route, key) for key in ("provider", "base_url", "wire_api", "model", "timeout_seconds", "request_start_interval_secs", "auth_mode", "temperature", "model_record_id", "configuration_revision")}
+    return {"request": request, "route": route, "request_payload": request_payload, "route_payload": route_payload, "fingerprint": _stable_json_fingerprint({"job_url": str(job.get("job_url") or ""), "request": request_payload, "route": route_payload})}
 
 
 # ── prompt construction ────────────────────────────────────────────────────────
@@ -273,20 +304,12 @@ def _execute_ranking_runtime(
     config: dict[str, Any],
     *,
     adapter: LlmAdapter | None = None,
+    ranking_request: dict[str, Any] | None = None,
+    resolved_route: LlmRouting | None = None,
+    transport_pool: LlmTransportPool | None = None,
 ) -> LlmRuntimeResult:
-    from fitcv.embeddings import build_job_summary_text
-
-    prompt = build_scoring_prompt(
-        jd_summary=build_job_summary_text(job),
-        candidate_summary=candidate_summary,
-        top_evidence=top_evidence[:2],
-        config=config,
-    )
-    request = LlmTaskRequest(
-        routing_part="ranking_ai_score",
-        prompt=prompt,
-        response_mode="json_object",
-    )
+    record = ranking_request or build_ranking_request(job, candidate_summary, top_evidence, config, resolved_route=resolved_route)
+    request = record["request"]
 
     def _parser(response: LlmAdapterResponse) -> dict[str, Any]:
         return parse_score_response(response.raw_text, config=config)
@@ -326,7 +349,8 @@ def _execute_ranking_runtime(
         parser=_parser,
         validator=_validator,
         adapter=adapter,
-        resolved_route=resolve_llm_routing("ranking_ai_score", runtime_config=config),
+        resolved_route=record["route"],
+        transport_pool=transport_pool,
     )
 
 
@@ -373,11 +397,23 @@ def score_job(
     candidate_summary: str,
     top_evidence: list[str],
     config: dict[str, Any],
+    *,
+    ranking_request: dict[str, Any] | None = None,
+    resolved_route: LlmRouting | None = None,
+    transport_pool: LlmTransportPool | None = None,
 ) -> dict[str, Any]:
     """Score one job through shared LLM runtime."""
     return _ranking_result_to_row(
         job,
-        _execute_ranking_runtime(job, candidate_summary, top_evidence, config),
+        _execute_ranking_runtime(
+            job,
+            candidate_summary,
+            top_evidence,
+            config,
+            ranking_request=ranking_request,
+            resolved_route=resolved_route,
+            transport_pool=transport_pool,
+        ),
     )
 
 
@@ -391,6 +427,8 @@ def run_ai_scoring(
     *,
     runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
     ranking_inputs: dict[str, dict[str, Any]] | None = None,
+    resolved_route: LlmRouting | None = None,
+    transport_pool: LlmTransportPool | None = None,
 ) -> list[dict[str, Any]]:
     """Score at most top_n shortlisted jobs.
 
@@ -412,20 +450,25 @@ def run_ai_scoring(
         default=1,
     )
     selected_jobs = shortlist[:effective_top_n]
+    transport_pool = transport_pool or get_ranking_transport_pool()
 
     def _score_single(input_index: int, job: dict[str, Any]) -> dict[str, Any]:
         ranking_input = dict((ranking_inputs or {}).get(str(job.get("job_url") or "")) or job.get("ranking_input") or {})
         top_evidence = list(ranking_input.get("candidate_evidence") or job.get("top_evidence", []) or [])[:2]
         scoring_candidate_summary = str(ranking_input.get("candidate_summary") or candidate_summary)
         try:
+            request_record = build_ranking_request(job, scoring_candidate_summary, top_evidence, config, ranking_input=ranking_input, resolved_route=resolved_route)
             if runtime_observation_callback is None:
                 return score_job(
                     job=job,
                     candidate_summary=scoring_candidate_summary,
                     top_evidence=top_evidence,
                     config=config,
+                    ranking_request=request_record,
+                    resolved_route=resolved_route,
+                    transport_pool=transport_pool,
                 )
-            result = _execute_ranking_runtime(job, candidate_summary, top_evidence, config)
+            result = _execute_ranking_runtime(job, scoring_candidate_summary, top_evidence, config, ranking_request=request_record, transport_pool=transport_pool)
             identity_keys = job_identity_keys(job)
             runtime_observation_callback(
                 {
@@ -464,12 +507,7 @@ def run_ai_scoring(
             }
             for future in as_completed(future_to_index):
                 scored_by_index[future_to_index[future]] = future.result()
-
-    scored: list[dict[str, Any]] = []
-    for i in range(len(selected_jobs)):
-        scored.append(scored_by_index[i])
-
-    return scored
+    return [scored_by_index[i] for i in range(len(selected_jobs))]
 
 
 # ── integration: persist scores ───────────────────────────────────────────────

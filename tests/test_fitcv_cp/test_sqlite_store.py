@@ -4464,6 +4464,50 @@ def test_query_runs_escapes_literal_like_wildcards() -> None:
     assert sqlite_store.query_runs(search="100")["total"] == 1
 
 
+def test_query_runs_includes_reconciliation_projection_for_large_pages() -> None:
+    sqlite_store.insert_run(_make_run("run-projection-inputs"))
+
+    result = sqlite_store.query_runs(view="all", page=1, page_size=500)
+
+    assert result["page_size"] == 500
+    reconciliation = result["items"][0]["_reconciliation"]
+    assert reconciliation["row_revision"] == 1
+    assert reconciliation["queue_job_id"] is None
+    assert reconciliation["has_events"] is False
+
+
+def test_query_runs_is_read_only_after_schema_initialization(monkeypatch: pytest.MonkeyPatch) -> None:
+    sqlite_store.insert_run(_make_run("run-read-only"))
+    statements: list[str] = []
+    original_connect = sqlite_store.sqlite3.connect
+
+    def connect(*args: object, **kwargs: object):
+        connection = original_connect(*args, **kwargs)
+        connection.set_trace_callback(statements.append)
+        return connection
+
+    monkeypatch.setattr(sqlite_store.sqlite3, "connect", connect)
+    sqlite_store.query_runs(view="all")
+
+    writes = ("CREATE", "ALTER", "UPDATE", "INSERT", "DELETE", "REPLACE")
+    assert not any(statement.lstrip().upper().startswith(writes) for statement in statements)
+
+
+def test_update_run_status_rejects_stale_projection_revision() -> None:
+    run = _make_run("run-revision-conflict")
+    sqlite_store.insert_run(run)
+
+    result = sqlite_store.update_run_status(
+        run.run_id,
+        RunStatus.RUNNING,
+        expected_row_revision=999,
+    )
+
+    assert result["persistence_status"] == "degraded"
+    assert result["degradation_reason"] == "run_revision_conflict"
+    assert sqlite_store.get_run(run.run_id).status is RunStatus.QUEUED
+
+
 def test_process_event_delivery_claims_are_atomic_and_expire() -> None:
     from fitcv_cp.models import build_process_event
 
@@ -4481,10 +4525,14 @@ def test_process_event_delivery_claims_are_atomic_and_expire() -> None:
     second = sqlite_store.claim_process_event_deliveries(limit=1, lease_seconds=30, worker_id="worker-b")
     assert len(first) == 1
     assert second == []
+    assert sqlite_store.append_process_event(event, delivery_sinks=("langfuse",))["persistence_status"] == "persisted"
 
     assert sqlite_store.record_process_event_delivery(
         event.event_id, "langfuse", "failed", "timeout", claim_id=first[0]["claim_id"]
     ) is True
+    assert sqlite_store.record_process_event_delivery(
+        event.event_id, "langfuse", "delivered", None, claim_id=first[0]["claim_id"]
+    ) is False
     with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
         conn.execute(
             "UPDATE process_event_deliveries SET next_attempt_at=? WHERE event_id=? AND sink=?",
