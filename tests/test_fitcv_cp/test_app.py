@@ -4546,9 +4546,12 @@ def test_runs_rejects_invalid_page_size_with_machine_error() -> None:
     }
 
 
-def test_run_stages_and_jobs_use_canonical_envelopes() -> None:
+def test_run_stages_and_jobs_use_canonical_envelopes(monkeypatch: pytest.MonkeyPatch) -> None:
     app = _app()
+    monkeypatch.setattr("fitcv_cp.app.sqlite_store_module.run_exists", lambda run_id: run_id == "run-1")
+    detail_calls: list[str] = []
     app.state.run_store.get_run_detail_fn = lambda run_id: {
+        "_detail_call": detail_calls.append(run_id),
         "run_id": run_id,
         "stages": [{"stage_id": "enrichment", "label": "Enrichment", "ordinal": 1}],
     }
@@ -4584,6 +4587,14 @@ def test_run_stages_and_jobs_use_canonical_envelopes() -> None:
         "rejected": 0,
         "skipped": 0,
     }
+    assert detail_calls == ["run-1"]
+
+
+def test_run_jobs_preserves_missing_run_error_contract() -> None:
+    response = TestClient(_app()).get("/runs/missing-run/jobs")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "run_not_found"
 
 
 def test_run_archive_action_returns_refreshed_resource() -> None:

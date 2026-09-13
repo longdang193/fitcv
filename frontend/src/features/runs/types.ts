@@ -90,10 +90,35 @@ export interface RunInputSource {
 
 export interface RunInputSummary {
   run_id?: string;
-  jobs_input_source?: string;
+  original_filename?: string | null;
+  media_type?: string | null;
+  byte_length?: number | null;
+  sha256?: string | null;
+  record_count?: number | null;
+  jobs_manifest_json?: string;
   jobs_input_manifest_json?: string;
+  jobs_input_source?: string;
+  candidate_profile_id?: string | null;
+  candidate_profile_revision_id?: string | null;
+  candidate_profile_revision?: number | string | null;
+  candidate_profile_schema_version?: string | null;
+  candidate_profile_checksum?: string | null;
+  candidate_profile_name?: string | null;
+  candidate_profile?: {
+    profile_id?: string | null;
+    revision_id?: string | null;
+    revision?: number | string | null;
+    schema_version?: string | null;
+    checksum?: string | null;
+    name?: string | null;
+  } | null;
   candidate_profile_source?: string;
   candidate_profile_json?: string;
+  settings_revision?: number | string | null;
+  synonym_policy_bundle_revision_id?: string | null;
+  synonym_policy_bundle_checksum?: string | null;
+  run_input_contract_version?: string | null;
+  created_at?: string | null;
   run_mode?: string;
   config_path?: string;
   sources?: RunInputSource[];

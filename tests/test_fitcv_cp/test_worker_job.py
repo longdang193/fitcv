@@ -62,6 +62,13 @@ def test_central_synonym_sync_ingests_evidence_and_uses_shared_approve_transacti
         "fitcv_cp.worker_job.ingest_synonym_suggestions",
         return_value={"suggestion_ids": ["suggestion-1"]},
     ) as ingest_mock, patch(
+        "fitcv_cp.worker_job.preflight_synonym_suggestion_automation",
+        return_value={"safe_ids": ["suggestion-1"], "skipped": []},
+    ), patch(
+        "fitcv_cp.worker_job.record_synonym_automation_checkpoint",
+    ), patch(
+        "fitcv_cp.worker_job.update_run_checkpoint",
+    ), patch(
         "fitcv_cp.worker_job.apply_synonym_suggestion_action",
         return_value={"approved": 1},
     ) as approve_mock:
@@ -84,9 +91,9 @@ def test_central_synonym_sync_ingests_evidence_and_uses_shared_approve_transacti
             },
         }
     ]
-    approve_mock.assert_called_once_with(
-        ["suggestion-1"], action="approve", acted_by="automation"
-    )
+    approve_mock.assert_called_once()
+    assert approve_mock.call_args.args[0] == ["suggestion-1"]
+    assert approve_mock.call_args.kwargs["automation"] is True
 
 
 def test_central_synonym_sync_batches_mixed_types_before_approval() -> None:
@@ -110,6 +117,13 @@ def test_central_synonym_sync_batches_mixed_types_before_approval() -> None:
             "suggestion_ids": [suggestions[0]["synonym_type"]]
         },
     ) as ingest_mock, patch(
+        "fitcv_cp.worker_job.preflight_synonym_suggestion_automation",
+        side_effect=lambda ids: {"safe_ids": ids, "skipped": []},
+    ), patch(
+        "fitcv_cp.worker_job.record_synonym_automation_checkpoint",
+    ), patch(
+        "fitcv_cp.worker_job.update_run_checkpoint",
+    ), patch(
         "fitcv_cp.worker_job.apply_synonym_suggestion_action",
         return_value={"approved": 1},
     ) as approve_mock:
@@ -166,6 +180,13 @@ def test_central_synonym_sync_ignores_stale_auto_accept_transition() -> None:
     with patch(
         "fitcv_cp.worker_job.ingest_synonym_suggestions",
         side_effect=ingest_then_approve,
+    ), patch(
+        "fitcv_cp.worker_job.preflight_synonym_suggestion_automation",
+        side_effect=lambda ids: {"safe_ids": ids, "skipped": []},
+    ), patch(
+        "fitcv_cp.worker_job.record_synonym_automation_checkpoint",
+    ), patch(
+        "fitcv_cp.worker_job.update_run_checkpoint",
     ), patch(
         "fitcv_cp.worker_job.apply_synonym_suggestion_action",
         side_effect=real_apply,
@@ -539,10 +560,16 @@ def test_worker_uses_local_runtime_without_remote_client_bootstrap():
         "fitcv_cp.worker_job.get_run",
         return_value=mock_run,
     ), patch(
+        "fitcv_cp.worker_job.resolve_candidate_profile_path",
+        return_value=Path("missing-profile.yaml"),
+    ), patch(
+        "fitcv_cp.worker_job.ensure_control_plane_database",
+    ) as ensure_database, patch(
         "fitcv_cp.worker_job.run_pipeline",
         return_value={"run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0},
     ):
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+    ensure_database.assert_called_once()
 
 
 def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends() -> None:
@@ -599,6 +626,9 @@ def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends
         ), patch("fitcv_cp.worker_job._get_bq", return_value=client), patch(
             "fitcv_cp.worker_job.get_run",
             return_value=mock_run,
+        ), patch(
+            "fitcv_cp.worker_job.resolve_candidate_profile_path",
+            return_value=Path("missing-profile.yaml"),
         ), patch("fitcv_cp.worker_job.run_pipeline", return_value=ai_plane_result), patch(
             "fitcv_cp.worker_job.update_run_results_export"
         ) as mock_store_export:
@@ -1373,6 +1403,9 @@ def test_execute_pipeline_run_loads_dotenv_defaults_before_pipeline(monkeypatch:
         "fitcv_cp.worker_job.get_run",
         return_value=mock_run,
     ), patch(
+        "fitcv_cp.worker_job.resolve_candidate_profile_path",
+        return_value=Path("missing-profile.yaml"),
+    ), patch(
         "fitcv_cp.worker_job.run_pipeline",
         side_effect=_assert_env,
     ), patch(
@@ -1839,8 +1872,9 @@ def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_map
         "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
     }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
-       patch("fitcv_cp.worker_job._sync_central_synonym_suggestions"), \
-       patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping_update, \
+           patch("fitcv_cp.worker_job._sync_central_synonym_suggestions"), \
+           patch("fitcv_cp.worker_job.ensure_control_plane_database"), \
+           patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping_update, \
        patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={"persistence_status": "persisted"}) as mock_syn_update, \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
         execute_pipeline_run(run_id="r-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")

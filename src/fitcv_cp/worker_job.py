@@ -65,12 +65,15 @@ from fitcv_cp.sqlite_store import (
     apply_synonym_suggestion_action,
     get_events,
     get_run,
+    get_synonym_automation_checkpoint,
     ingest_synonym_suggestions,
     insert_cv_evaluation_row,
     insert_cv_review_event,
     list_runs,
     list_run_structured_jobs,
     persist_pipeline_snapshot,
+    preflight_synonym_suggestion_automation,
+    record_synonym_automation_checkpoint,
     reserve_cv_regeneration,
     update_cv_evaluation,
     update_cv_version,
@@ -85,6 +88,8 @@ from fitcv_cp.sqlite_store import (
     update_run_stage_transition_artifacts,
     update_run_status,
     resolve_active_ranking_policy,
+    ensure_control_plane_database,
+    resolve_candidate_profile_path,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.data_plane import data_plane_contract_payload
@@ -1298,6 +1303,7 @@ def _sync_central_synonym_suggestions(
     run_record: Any,
     payload: dict[str, Any],
 ) -> None:
+    mode = _synonym_management_mode_from_run_record(run_record)
     field_types = {"skill": "skills", "domain": "domain", "role_family": "role_family"}
     suggestions_by_type: dict[str, list[dict[str, Any]]] = {}
     for proposal in list(payload.get("proposals") or []):
@@ -1325,24 +1331,185 @@ def _sync_central_synonym_suggestions(
         )
     if not suggestions_by_type:
         return
-    mode = _synonym_management_mode_from_run_record(run_record)
-    for suggestions in suggestions_by_type.values():
-        result = ingest_synonym_suggestions(suggestions)
-        if not bool(mode.get("auto_accept_suggestions_enabled")):
-            continue
-        actionable_ids = list(
-            result.get("actionable_suggestion_ids") or result.get("suggestion_ids") or []
-        )
-        if actionable_ids:
+
+    if not bool(mode.get("auto_accept_suggestions_enabled")):
+        for suggestions in suggestions_by_type.values():
+            ingest_synonym_suggestions(suggestions)
+        return
+
+    candidate_descriptor = {
+        synonym_type: [
+            {key: value for key, value in suggestion.items() if key != "run_id"}
+            for suggestion in suggestions
+        ]
+        for synonym_type, suggestions in suggestions_by_type.items()
+    }
+    candidate_fingerprint = stable_sha256_fingerprint(candidate_descriptor)
+    operation_id = f"synonym-auto:{run_id}:{candidate_fingerprint}"
+    checkpoint = get_synonym_automation_checkpoint(operation_id)
+    if checkpoint is None:
+        raw_checkpoint = getattr(run_record, "checkpoint_payload_json", None)
+        if isinstance(raw_checkpoint, str) and raw_checkpoint.strip():
             try:
-                apply_synonym_suggestion_action(
-                    actionable_ids,
+                container = json.loads(raw_checkpoint)
+                candidate = container.get("checkpoint_payload", {}).get("synonym_automation")
+                if isinstance(candidate, dict) and candidate.get("operation_id") == operation_id:
+                    checkpoint = candidate
+            except (TypeError, ValueError, AttributeError):
+                checkpoint = None
+
+    if checkpoint is None:
+        results_by_type: dict[str, dict[str, Any]] = {}
+        for synonym_type, suggestions in suggestions_by_type.items():
+            results_by_type[synonym_type] = ingest_synonym_suggestions(suggestions)
+        candidate_ids_by_type = {
+            synonym_type: list(
+                result.get("actionable_suggestion_ids") or result.get("suggestion_ids") or []
+            )
+            for synonym_type, result in results_by_type.items()
+        }
+        preflight_by_type = {
+            synonym_type: preflight_synonym_suggestion_automation(ids)
+            for synonym_type, ids in candidate_ids_by_type.items()
+            if ids
+        }
+        skipped = [
+            item
+            for result in preflight_by_type.values()
+            for item in list(result.get("skipped") or [])
+        ]
+        skipped_ids = [str(item["suggestion_id"]) for item in skipped]
+        checkpoint = {
+            "operation_id": operation_id,
+            "run_id": run_id,
+            "candidate_fingerprint": candidate_fingerprint,
+            "candidate_ids": [item for ids in candidate_ids_by_type.values() for item in ids],
+            "candidate_ids_by_type": candidate_ids_by_type,
+            "safe_ids": [
+                item
+                for result in preflight_by_type.values()
+                for item in list(result.get("safe_ids") or [])
+            ],
+            "mapping_set": [
+                item
+                for result in preflight_by_type.values()
+                for item in list(result.get("mapping_set") or [])
+            ],
+            "skipped": skipped,
+            "skipped_ids": skipped_ids,
+            "completed_ids": [],
+            "failed_ids": [],
+            "remaining_ids": [
+                item
+                for result in preflight_by_type.values()
+                for item in list(result.get("safe_ids") or [])
+            ],
+            "outcomes": {
+                "approved": [],
+                "active": [],
+                "blocked": [],
+                "skipped": skipped_ids,
+                "failed": [],
+            },
+        }
+        record_synonym_automation_checkpoint(operation_id, checkpoint)
+
+    def persist_checkpoint(updated: dict[str, Any]) -> None:
+        record_synonym_automation_checkpoint(operation_id, updated)
+        update_run_checkpoint(
+            run_id,
+            checkpoint_status="synonym_automation",
+            next_stage=None,
+            last_completed_stage="synonym_suggestions",
+            completed_stages=["synonym_suggestions"],
+            checkpoint_payload_json=json.dumps(
+                {"checkpoint_payload": {"synonym_automation": updated}},
+                ensure_ascii=False,
+            ),
+        )
+
+    remaining_ids = list(checkpoint.get("remaining_ids") or [])
+    if not remaining_ids:
+        persist_checkpoint(checkpoint)
+        return
+    ids_by_type = {
+        synonym_type: [item for item in remaining_ids if item in ids]
+        for synonym_type, ids in dict(checkpoint.get("candidate_ids_by_type") or {}).items()
+    }
+    if not ids_by_type:
+        ids_by_type = {"skills": remaining_ids}
+
+    for synonym_type, type_ids in ids_by_type.items():
+        for offset in range(0, len(type_ids), 1000):
+            chunk = type_ids[offset:offset + 1000]
+            next_remaining = [item for item in remaining_ids if item not in chunk]
+            next_completed = list(dict.fromkeys([*(checkpoint.get("completed_ids") or []), *chunk]))
+            next_failed = [item for item in checkpoint.get("failed_ids") or [] if item not in chunk]
+            next_outcomes = {
+                key: list(value)
+                for key, value in dict(checkpoint.get("outcomes") or {}).items()
+            }
+            try:
+                result = apply_synonym_suggestion_action(
+                    chunk,
                     action="approve",
                     acted_by="automation",
+                    automation=True,
+                    source_operation=operation_id,
+                    automation_checkpoint={
+                        **checkpoint,
+                        "completed_ids": next_completed,
+                        "failed_ids": next_failed,
+                        "remaining_ids": next_remaining,
+                        "outcomes": next_outcomes,
+                    },
                 )
-            except ValueError as exc:
-                if str(exc) != "invalid_synonym_transition":
-                    raise
+            except Exception as exc:
+                if isinstance(exc, ValueError) and str(exc) == "invalid_synonym_transition":
+                    next_outcomes.setdefault("skipped", []).extend(chunk)
+                    next_checkpoint = {
+                        **checkpoint,
+                        "skipped_ids": list(dict.fromkeys([*(checkpoint.get("skipped_ids") or []), *chunk])),
+                        "remaining_ids": next_remaining,
+                        "outcomes": next_outcomes,
+                    }
+                    persist_checkpoint(next_checkpoint)
+                    checkpoint = next_checkpoint
+                    remaining_ids = next_remaining
+                    continue
+                failed_checkpoint = {
+                    **checkpoint,
+                    "failed_ids": list(dict.fromkeys([*(checkpoint.get("failed_ids") or []), *chunk])),
+                    "remaining_ids": list(dict.fromkeys([*chunk, *next_remaining])),
+                    "outcomes": {
+                        **next_outcomes,
+                        "failed": list(dict.fromkeys([*next_outcomes.get("failed", []), *chunk])),
+                    },
+                }
+                persist_checkpoint(failed_checkpoint)
+                raise
+            skipped_count = int(result.get("skipped_count") or 0) if isinstance(result, dict) else 0
+            if skipped_count:
+                next_outcomes.setdefault("skipped", []).extend(chunk)
+                next_checkpoint = {
+                    **checkpoint,
+                    "skipped_ids": list(dict.fromkeys([*(checkpoint.get("skipped_ids") or []), *chunk])),
+                    "remaining_ids": next_remaining,
+                    "outcomes": next_outcomes,
+                }
+            else:
+                next_outcomes.setdefault("approved", []).extend(chunk)
+                next_outcomes.setdefault("active", []).extend(chunk)
+                next_checkpoint = {
+                    **checkpoint,
+                    "completed_ids": next_completed,
+                    "failed_ids": next_failed,
+                    "remaining_ids": next_remaining,
+                    "outcomes": next_outcomes,
+                }
+            persist_checkpoint(next_checkpoint)
+            checkpoint = next_checkpoint
+            remaining_ids = next_remaining
 
 def _persist_shared_progress_snapshot(
     *,
@@ -1552,6 +1719,10 @@ def execute_pipeline_run(
     delivery_loop: ProcessEventDeliveryLoop | None = None
     runtime = resolve_backend_runtime()
     set_backend_runtime(runtime)
+    if str(runtime.sqlite_path or "").strip():
+        ensure_control_plane_database(
+            Path(runtime.sqlite_path), resolve_candidate_profile_path(config_path=config_path)
+        )
     client = None
 
     summary: dict[str, Any] = {}

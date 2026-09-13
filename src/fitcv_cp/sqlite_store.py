@@ -299,6 +299,10 @@ def _is_transient_sqlite_open_error(exc: sqlite3.OperationalError) -> bool:
     return "unable to open database file" in message or "disk i/o error" in message
 
 
+def _is_sqlite_lock_error(exc: sqlite3.OperationalError) -> bool:
+    return "database is locked" in str(exc).strip().lower()
+
+
 def _local_sqlite_path() -> str:
     runtime = get_backend_runtime()
     if runtime is not None and str(runtime.sqlite_path or "").strip():
@@ -313,6 +317,8 @@ def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
             if _is_transient_sqlite_open_error(exc):
                 logger.warning("sqlite %s pragma skipped due to transient open failure: %s", label, exc)
                 return
+            if _is_sqlite_lock_error(exc):
+                raise
             raise
 
     _safe_pragma("PRAGMA journal_mode=WAL;", "journal_mode")
@@ -1334,6 +1340,44 @@ def _ensure_control_plane_schema(
             conn.execute("PRAGMA foreign_keys = ON")
 
 
+def _require_control_plane_schema(conn: sqlite3.Connection) -> None:
+    version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if version != CONTROL_PLANE_SCHEMA_VERSION:
+        raise DatabaseSchemaIncompatibleError(version)
+    required_tables = {
+        "api_provider_state",
+        "configuration_resources",
+        "pipeline_runs",
+        "pipeline_settings",
+    }
+    existing_tables = {
+        str(row[0])
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        )
+    }
+    missing = required_tables - existing_tables
+    if missing:
+        raise RuntimeError(f"control-plane schema is incomplete: {sorted(missing)}")
+
+
+def resolve_candidate_profile_path(
+    candidate_profile_path: Path | str | None = None,
+    *,
+    config_path: Path | str | None = None,
+) -> Path:
+    if candidate_profile_path is not None:
+        return Path(candidate_profile_path)
+    from fitcv.config import load_config
+
+    configured = str(
+        dict(load_config(config_path).get("paths") or {}).get("candidate_profile") or ""
+    ).strip()
+    if not configured:
+        raise ValueError("paths.candidate_profile must be configured")
+    return Path(configured)
+
+
 def _policy_checksum(value: Any) -> str:
     payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -1436,10 +1480,6 @@ def ensure_control_plane_database(
     with _sqlite_connection(database_path) as conn:
         _ensure_control_plane_schema(conn)
         _ensure_process_event_tables(conn)
-    repair_active_synonym_policy_mirrors(
-        database_path=database_path,
-        synonym_paths=synonym_paths,
-    )
 
 def _synonym_policy_resource(conn: sqlite3.Connection, synonym_type: str) -> dict[str, Any]:
     conn.row_factory = sqlite3.Row
@@ -2156,6 +2196,8 @@ def _record_synonym_processing_run(
     pending: int = 0,
     added: int = 0,
     issues: int = 0,
+    source_operation: str | None = None,
+    summary_extra: dict[str, Any] | None = None,
 ) -> str:
     processing_run_id = str(uuid.uuid4())
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -2163,9 +2205,12 @@ def _record_synonym_processing_run(
         "action": action, "total_processed": total, "approved": approved,
         "declined": declined, "pending": pending, "successfully_added": added,
     }
+    if summary_extra:
+        summary.update(summary_extra)
     conn.execute(
         "INSERT INTO synonym_processing_runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (processing_run_id, now, total, approved, declined, pending, added, action, issues, json.dumps(summary)),
+        (processing_run_id, now, total, approved, declined, pending, added,
+         source_operation or action, issues, json.dumps(summary)),
     )
     conn.execute(
         """DELETE FROM synonym_processing_runs WHERE processing_run_id IN (
@@ -2175,6 +2220,169 @@ def _record_synonym_processing_run(
     )
     return processing_run_id
 
+
+def _synonym_cycle_nodes(mapping: dict[str, str]) -> set[str]:
+    cycle_nodes: set[str] = set()
+    for start in mapping:
+        path: list[str] = []
+        positions: dict[str, int] = {}
+        current: str | None = start
+        while current in mapping and current not in positions:
+            positions[current] = len(path)
+            path.append(current)
+            current = mapping[current]
+        if current in positions:
+            cycle_nodes.update(path[positions[current]:])
+    return cycle_nodes
+
+
+def preflight_synonym_suggestion_automation(
+    suggestion_ids: list[str], *, database_path: Path | None = None
+) -> dict[str, Any]:
+    ids = list(dict.fromkeys(str(value).strip() for value in suggestion_ids if str(value).strip()))
+    if not ids:
+        return {"safe_ids": [], "skipped": [], "mapping_set": []}
+    path = database_path or Path(_local_sqlite_path())
+    placeholders = ",".join("?" for _ in ids)
+    with _sqlite_connection(path) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        rows = conn.execute(
+            f"SELECT suggestion_id, synonym_type, normalized_alias, normalized_canonical, review_status "
+            f"FROM synonym_suggestions WHERE suggestion_id IN ({placeholders})",
+            ids,
+        ).fetchall()
+        if len(rows) != len(ids):
+            raise ValueError("synonym_suggestion_not_found")
+        types = {str(row["synonym_type"]) for row in rows}
+        if len(types) != 1:
+            raise ValueError("mixed_synonym_types")
+        synonym_type = next(iter(types))
+        active = resolve_active_synonym_bundle(database_path=path)["normalized_bundle"]
+        before = dict(active.get(synonym_type) or {})
+
+    by_alias: dict[str, list[sqlite3.Row]] = {}
+    for row in rows:
+        by_alias.setdefault(str(row["normalized_alias"]), []).append(row)
+    conflicting_ids: set[str] = set()
+    requested: dict[str, str] = {}
+    for alias, alias_rows in by_alias.items():
+        canonicals = {str(row["normalized_canonical"]) for row in alias_rows}
+        if len(canonicals) > 1:
+            conflicting_ids.update(str(row["suggestion_id"]) for row in alias_rows)
+            continue
+        canonical = next(iter(canonicals))
+        if alias in before and before[alias] != canonical:
+            conflicting_ids.update(str(row["suggestion_id"]) for row in alias_rows)
+            continue
+        requested[alias] = canonical
+
+    merged = dict(before)
+    merged.update(requested)
+    cycle_nodes = _synonym_cycle_nodes(merged)
+    cycle_ids = {
+        str(row["suggestion_id"])
+        for row in rows
+        if str(row["normalized_alias"]) in cycle_nodes
+    }
+    skipped_ids = conflicting_ids | cycle_ids
+    skipped = [
+        {
+            "suggestion_id": str(row["suggestion_id"]),
+            "reason": "synonym_cycle" if str(row["suggestion_id"]) in cycle_ids else "alias_conflict",
+        }
+        for row in rows
+        if str(row["suggestion_id"]) in skipped_ids
+    ]
+    safe_ids = [
+        str(row["suggestion_id"])
+        for row in rows
+        if str(row["suggestion_id"]) not in skipped_ids
+        and str(row["review_status"]) in {"pending", "declined"}
+    ]
+    safe_mapping = dict(before)
+    for row in rows:
+        if str(row["suggestion_id"]) in safe_ids:
+            safe_mapping[str(row["normalized_alias"])] = str(row["normalized_canonical"])
+    try:
+        compile_global_synonym_map(synonym_type, safe_mapping)
+    except ValueError as exc:
+        reason = "synonym_cycle" if "cycle" in str(exc).lower() else "alias_conflict"
+        skipped = [
+            {"suggestion_id": str(row["suggestion_id"]), "reason": reason}
+            for row in rows
+            if str(row["suggestion_id"]) in safe_ids
+        ] + skipped
+        safe_ids = []
+    return {
+        "safe_ids": safe_ids,
+        "skipped": skipped,
+        "mapping_set": [
+            {
+                "suggestion_id": str(row["suggestion_id"]),
+                "synonym_type": synonym_type,
+                "alias": str(row["normalized_alias"]),
+                "canonical": str(row["normalized_canonical"]),
+            }
+            for row in rows
+        ],
+    }
+
+
+def record_synonym_automation_checkpoint(
+    operation_id: str, checkpoint: dict[str, Any], *, database_path: Path | None = None
+) -> str:
+    outcomes = dict(checkpoint.get("outcomes") or {})
+    summary = {
+        "automation_checkpoint": checkpoint,
+        "processed_ids": list(checkpoint.get("completed_ids") or [])
+        + list(checkpoint.get("skipped_ids") or [])
+        + list(checkpoint.get("failed_ids") or []),
+        "approved_ids": list(outcomes.get("approved") or []),
+        "active_ids": list(outcomes.get("active") or []),
+        "blocked_ids": list(outcomes.get("blocked") or []),
+        "skipped_ids": list(checkpoint.get("skipped_ids") or []),
+        "failed_ids": list(checkpoint.get("failed_ids") or []),
+        "remaining_ids": list(checkpoint.get("remaining_ids") or []),
+    }
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        processing_run_id = _record_synonym_processing_run(
+            conn,
+            action="automation_checkpoint",
+            total=len(summary["processed_ids"]),
+            approved=len(summary["approved_ids"]),
+            pending=len(summary["remaining_ids"]),
+            added=len(summary["active_ids"]),
+            issues=len(summary["failed_ids"]),
+            source_operation=operation_id,
+            summary_extra=summary,
+        )
+        conn.commit()
+    return processing_run_id
+
+
+def get_synonym_automation_checkpoint(
+    operation_id: str, *, database_path: Path | None = None
+) -> dict[str, Any] | None:
+    path = database_path or Path(_local_sqlite_path())
+    with _sqlite_connection(path) as conn:
+        _ensure_control_plane_schema(conn)
+        row = conn.execute(
+            "SELECT summary_json FROM synonym_processing_runs WHERE source_operation = ? "
+            "ORDER BY processed_at DESC, processing_run_id DESC LIMIT 1",
+            (operation_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    try:
+        summary = json.loads(row[0])
+    except (TypeError, ValueError):
+        return None
+    checkpoint = summary.get("automation_checkpoint")
+    return checkpoint if isinstance(checkpoint, dict) else None
+
 def apply_synonym_suggestion_action(
     suggestion_ids: list[str],
     *,
@@ -2182,6 +2390,9 @@ def apply_synonym_suggestion_action(
     acted_by: str,
     expected_draft_revision: int | None = None,
     expected_active_bundle_revision_id: str | None = None,
+    automation: bool = False,
+    source_operation: str | None = None,
+    automation_checkpoint: dict[str, Any] | None = None,
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     ids = list(dict.fromkeys(str(value).strip() for value in suggestion_ids if str(value).strip()))
@@ -2217,6 +2428,7 @@ def apply_synonym_suggestion_action(
             added = 0
             policy_effect = "absent"
             issue_count = 0
+            automation_skipped_ids: list[str] = []
             if action == "approve":
                 policy = _synonym_policy_resource(conn, synonym_type)
                 if expected_draft_revision is not None and (
@@ -2273,48 +2485,60 @@ def apply_synonym_suggestion_action(
                         if before.get(alias) != canonical
                     )
                 except ValueError as exc:
-                    issue_count = 1
-                    policy_effect = "blocked"
-                    issue = {
-                        "code": "synonym_cycle" if "cycle" in str(exc).lower() else "synonym_alias_conflict",
-                        "message": "Approved mapping is blocked by synonym policy validation.",
-                        "severity": "error",
-                        "lines": [
-                            line_number
-                            for line_number, (alias, _canonical) in enumerate(
-                                sorted(merged.items()), start=1
-                            )
-                            if alias in (conflicting_aliases or requested)
-                        ],
-                        "aliases": sorted(conflicting_aliases or requested),
-                        "canonicals": sorted({
-                            canonical
-                            for alias in (conflicting_aliases or requested)
-                            for canonical in requested_canonicals.get(alias, set())
-                        }),
-                    }
-                    conn.execute(
-                        """INSERT INTO synonym_policy_drafts (
-                               synonym_type, editor_text, normalized_policy_json, issues_json,
-                               validation_status, base_type_revision_id, revision, updated_at
-                           ) VALUES (?, ?, NULL, ?, 'invalid', ?, ?, ?)
-                           ON CONFLICT(synonym_type) DO UPDATE SET
-                             editor_text=excluded.editor_text,
-                             normalized_policy_json=NULL,
-                             issues_json=excluded.issues_json,
-                             validation_status='invalid',
-                             base_type_revision_id=excluded.base_type_revision_id,
-                             revision=excluded.revision,
-                             updated_at=excluded.updated_at""",
-                        (
-                            synonym_type,
-                            editor_text,
-                            json.dumps([issue]),
-                            policy["active_type_revision_id"],
-                            int(policy["draft_revision"]) + 1,
-                            datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                        ),
-                    )
+                    if automation:
+                        policy_effect = "absent"
+                        issue_count = 1
+                        automation_skipped_ids = list(ids)
+                        if automation_checkpoint is not None:
+                            automation_checkpoint = {
+                                **automation_checkpoint,
+                                "skipped_ids": list(dict.fromkeys(
+                                    [*(automation_checkpoint.get("skipped_ids") or []), *ids]
+                                )),
+                            }
+                    else:
+                        issue_count = 1
+                        policy_effect = "blocked"
+                        issue = {
+                            "code": "synonym_cycle" if "cycle" in str(exc).lower() else "synonym_alias_conflict",
+                            "message": "Approved mapping is blocked by synonym policy validation.",
+                            "severity": "error",
+                            "lines": [
+                                line_number
+                                for line_number, (alias, _canonical) in enumerate(
+                                    sorted(merged.items()), start=1
+                                )
+                                if alias in (conflicting_aliases or requested)
+                            ],
+                            "aliases": sorted(conflicting_aliases or requested),
+                            "canonicals": sorted({
+                                canonical
+                                for alias in (conflicting_aliases or requested)
+                                for canonical in requested_canonicals.get(alias, set())
+                            }),
+                        }
+                        conn.execute(
+                            """INSERT INTO synonym_policy_drafts (
+                                   synonym_type, editor_text, normalized_policy_json, issues_json,
+                                   validation_status, base_type_revision_id, revision, updated_at
+                               ) VALUES (?, ?, NULL, ?, 'invalid', ?, ?, ?)
+                               ON CONFLICT(synonym_type) DO UPDATE SET
+                                 editor_text=excluded.editor_text,
+                                 normalized_policy_json=NULL,
+                                 issues_json=excluded.issues_json,
+                                 validation_status='invalid',
+                                 base_type_revision_id=excluded.base_type_revision_id,
+                                 revision=excluded.revision,
+                                 updated_at=excluded.updated_at""",
+                            (
+                                synonym_type,
+                                editor_text,
+                                json.dumps([issue]),
+                                policy["active_type_revision_id"],
+                                int(policy["draft_revision"]) + 1,
+                                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            ),
+                        )
             now = datetime.datetime.now(datetime.timezone.utc).isoformat()
             if action == "clear":
                 conn.execute(
@@ -2322,6 +2546,26 @@ def apply_synonym_suggestion_action(
                     ids,
                 )
             else:
+                update_ids = [item for item in ids if item not in automation_skipped_ids]
+                if not update_ids:
+                    update_ids = []
+                if not update_ids:
+                    processing_run_id = _record_synonym_processing_run(
+                        conn, action=action, total=len(ids), pending=len(ids), issues=issue_count,
+                        source_operation=source_operation,
+                        summary_extra={"automation_checkpoint": automation_checkpoint}
+                        if automation_checkpoint else None,
+                    )
+                    conn.commit()
+                    return {
+                        "processing_run_id": processing_run_id,
+                        "processed_count": len(ids),
+                        "approved_count": 0,
+                        "declined_count": 0,
+                        "successfully_added_count": 0,
+                        "issue_count": issue_count,
+                        "skipped_count": len(automation_skipped_ids),
+                    }
                 conn.execute(
                     f"""UPDATE synonym_suggestions SET review_status = ?, policy_effect = ?,
                         decided_at = ?, decided_by = ?, updated_at = ?, revision = revision + 1
@@ -2332,14 +2576,18 @@ def apply_synonym_suggestion_action(
                         now,
                         acted_by,
                         now,
-                        *ids,
+                        *update_ids,
                     ),
                 )
             processing_run_id = _record_synonym_processing_run(
                 conn, action=action, total=len(ids),
-                approved=len(ids) if action == "approve" else 0,
+                approved=len(ids) - len(automation_skipped_ids) if action == "approve" else 0,
                 declined=len(ids) if action == "decline" else 0,
-                pending=0, added=added, issues=issue_count,
+                pending=len(automation_checkpoint.get("remaining_ids") or []) if automation_checkpoint else 0,
+                added=added, issues=issue_count,
+                source_operation=source_operation,
+                summary_extra={"automation_checkpoint": automation_checkpoint}
+                if automation_checkpoint else None,
             )
             conn.commit()
         except Exception:
@@ -2348,10 +2596,11 @@ def apply_synonym_suggestion_action(
     return {
         "processing_run_id": processing_run_id,
         "processed_count": len(ids),
-        "approved_count": len(ids) if action == "approve" else 0,
+        "approved_count": len(ids) - len(automation_skipped_ids) if action == "approve" else 0,
         "declined_count": len(ids) if action == "decline" else 0,
         "successfully_added_count": added,
         "issue_count": issue_count,
+        "skipped_count": len(automation_skipped_ids),
     }
 
 def query_synonym_processing_runs(
@@ -4896,7 +5145,13 @@ def _sqlite_connection(db_path: Path) -> Iterator[sqlite3.Connection]:
             _configure_sqlite_connection(conn)
             break
         except sqlite3.OperationalError as exc:
-            if _is_transient_sqlite_open_error(exc) and attempt < (_SQLITE_OPEN_RETRY_ATTEMPTS - 1):
+            if (
+                (_is_transient_sqlite_open_error(exc) or _is_sqlite_lock_error(exc))
+                and attempt < (_SQLITE_OPEN_RETRY_ATTEMPTS - 1)
+            ):
+                if conn is not None:
+                    conn.close()
+                    conn = None
                 time.sleep(_SQLITE_OPEN_RETRY_DELAY_SECONDS)
                 continue
             raise
@@ -4915,10 +5170,15 @@ def _sqlite_connection(db_path: Path) -> Iterator[sqlite3.Connection]:
 
 
 @contextmanager
-def _provider_store_connection(database_path: Path | None = None) -> Iterator[sqlite3.Connection]:
+def _provider_store_connection(
+    database_path: Path | None = None, *, write: bool = False
+) -> Iterator[sqlite3.Connection]:
     path = database_path or Path(_local_sqlite_path())
     with _sqlite_connection(path) as conn:
-        _ensure_control_plane_schema(conn)
+        if write:
+            _ensure_control_plane_schema(conn)
+        else:
+            _require_control_plane_schema(conn)
         conn.row_factory = sqlite3.Row
         yield conn
 
@@ -5640,6 +5900,18 @@ def delete_archived_scans(
     return {"deleted_count": len(preview["eligible_scan_ids"]), "deleted_scan_ids": preview["eligible_scan_ids"]}
 
 
+def _provider_state_revision(conn: sqlite3.Connection, provider_id: str) -> int | None:
+    row = conn.execute(
+        "SELECT revision FROM api_provider_state WHERE provider_id = ?",
+        (provider_id,),
+    ).fetchone()
+    return None if row is None else int(row[0])
+
+
+def _provider_database_exists(database_path: Path | None) -> bool:
+    return (database_path or Path(_local_sqlite_path())).exists()
+
+
 def _ensure_provider_state(conn: sqlite3.Connection, provider_id: str) -> int:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     conn.execute(
@@ -5658,7 +5930,11 @@ def _ensure_provider_state(conn: sqlite3.Connection, provider_id: str) -> int:
 def _require_provider_revision(
     conn: sqlite3.Connection, provider_id: str, expected_revision: int
 ) -> int:
-    revision = _ensure_provider_state(conn, provider_id)
+    revision = _provider_state_revision(conn, provider_id)
+    if revision is None:
+        if expected_revision not in {0, 1}:
+            raise ProviderPersistenceRevisionConflict("provider changed since last read")
+        return _ensure_provider_state(conn, provider_id)
     if revision != expected_revision:
         raise ProviderPersistenceRevisionConflict("provider changed since last read")
     return revision
@@ -5676,19 +5952,21 @@ def _bump_provider_revision(conn: sqlite3.Connection, provider_id: str) -> int:
 def get_api_provider_revision(
     provider_id: str, *, database_path: Path | None = None
 ) -> int:
+    if not _provider_database_exists(database_path):
+        return 0
     with _provider_store_connection(database_path) as conn:
-        revision = _ensure_provider_state(conn, provider_id)
-        conn.commit()
-    return revision
+        return _provider_state_revision(conn, provider_id) or 0
 
 
 def list_custom_api_providers(*, database_path: Path | None = None) -> list[dict[str, Any]]:
+    if not _provider_database_exists(database_path):
+        return []
     with _provider_store_connection(database_path) as conn:
         rows = conn.execute(
             """
             SELECT providers.*, state.revision AS provider_revision
             FROM custom_api_providers AS providers
-            JOIN api_provider_state AS state USING (provider_id)
+            LEFT JOIN api_provider_state AS state USING (provider_id)
             ORDER BY providers.display_name, providers.provider_id
             """
         ).fetchall()
@@ -5698,6 +5976,8 @@ def list_custom_api_providers(*, database_path: Path | None = None) -> list[dict
 def get_custom_api_provider(
     provider_id: str, *, database_path: Path | None = None
 ) -> dict[str, Any] | None:
+    if not _provider_database_exists(database_path):
+        return None
     with _provider_store_connection(database_path) as conn:
         row = conn.execute(
             "SELECT * FROM custom_api_providers WHERE provider_id = ?",
@@ -5705,8 +5985,7 @@ def get_custom_api_provider(
         ).fetchone()
         if row is not None:
             result = dict(row)
-            result["provider_revision"] = _ensure_provider_state(conn, provider_id)
-            conn.commit()
+            result["provider_revision"] = _provider_state_revision(conn, provider_id)
             return result
     return None
 
@@ -5719,7 +5998,7 @@ def create_custom_api_provider(
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         conn.execute(
             """
@@ -5746,7 +6025,7 @@ def update_custom_api_provider(
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         _require_provider_revision(conn, provider_id, expected_revision)
         cursor = conn.execute(
@@ -5774,7 +6053,7 @@ def delete_custom_api_provider(
     expected_revision: int,
     database_path: Path | None = None,
 ) -> None:
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         _require_provider_revision(conn, provider_id, expected_revision)
         cursor = conn.execute("DELETE FROM custom_api_providers WHERE provider_id = ?", (provider_id,))
@@ -5790,7 +6069,7 @@ def delete_custom_api_provider_bundle(
     expected_revision: int,
     database_path: Path | None = None,
 ) -> None:
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         _require_provider_revision(conn, provider_id, expected_revision)
         if conn.execute("SELECT 1 FROM custom_api_providers WHERE provider_id = ?", (provider_id,)).fetchone() is None:
@@ -5805,6 +6084,8 @@ def delete_custom_api_provider_bundle(
 def get_api_provider_connection(
     provider_id: str, *, database_path: Path | None = None
 ) -> dict[str, Any] | None:
+    if not _provider_database_exists(database_path):
+        return None
     with _provider_store_connection(database_path) as conn:
         row = conn.execute(
             "SELECT * FROM api_provider_connections WHERE provider_id = ?",
@@ -5812,8 +6093,7 @@ def get_api_provider_connection(
         ).fetchone()
         if row is not None:
             result = dict(row)
-            result["provider_revision"] = _ensure_provider_state(conn, provider_id)
-            conn.commit()
+            result["provider_revision"] = _provider_state_revision(conn, provider_id)
             return result
     return None
 
@@ -5830,7 +6110,7 @@ def save_api_provider_connection(
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         _require_provider_revision(conn, provider_id, expected_revision)
         current = conn.execute(
@@ -5890,7 +6170,7 @@ def delete_api_provider_connection(
     expected_revision: int,
     database_path: Path | None = None,
 ) -> None:
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         _require_provider_revision(conn, provider_id, expected_revision)
         cursor = conn.execute(
@@ -5916,19 +6196,22 @@ def delete_api_provider_connection(
 def list_api_provider_models(
     provider_id: str, *, database_path: Path | None = None
 ) -> list[dict[str, Any]]:
+    if not _provider_database_exists(database_path):
+        return []
     with _provider_store_connection(database_path) as conn:
-        provider_revision = _ensure_provider_state(conn, provider_id)
+        provider_revision = _provider_state_revision(conn, provider_id)
         rows = conn.execute(
             "SELECT * FROM api_provider_models WHERE provider_id = ? ORDER BY model_id, model_record_id",
             (provider_id,),
         ).fetchall()
-        conn.commit()
     return [{**dict(row), "provider_revision": provider_revision} for row in rows]
 
 
 def get_api_provider_model(
     model_record_id: str, *, database_path: Path | None = None
 ) -> dict[str, Any] | None:
+    if not _provider_database_exists(database_path):
+        return None
     with _provider_store_connection(database_path) as conn:
         row = conn.execute(
             "SELECT * FROM api_provider_models WHERE model_record_id = ?",
@@ -5936,8 +6219,7 @@ def get_api_provider_model(
         ).fetchone()
         if row is not None:
             result = dict(row)
-            result["provider_revision"] = _ensure_provider_state(conn, str(row["provider_id"]))
-            conn.commit()
+            result["provider_revision"] = _provider_state_revision(conn, str(row["provider_id"]))
             return result
     return None
 
@@ -5953,7 +6235,7 @@ def create_api_provider_model(
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         _require_provider_revision(conn, provider_id, expected_revision)
         conn.execute(
@@ -5993,7 +6275,7 @@ def update_api_provider_model(
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT provider_id FROM api_provider_models WHERE model_record_id = ?",
@@ -6036,7 +6318,7 @@ def delete_api_provider_model(
     expected_revision: int,
     database_path: Path | None = None,
 ) -> None:
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT provider_id FROM api_provider_models WHERE model_record_id = ?",
@@ -6060,6 +6342,9 @@ def delete_api_provider_model(
 def integration_migration_applied(
     migration_key: str, *, database_path: Path | None = None
 ) -> bool:
+    path = database_path or Path(_local_sqlite_path())
+    if not path.exists():
+        return False
     with _provider_store_connection(database_path) as conn:
         row = conn.execute(
             "SELECT 1 FROM integration_migrations WHERE migration_key = ?",
@@ -6075,7 +6360,7 @@ def record_integration_migration(
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     completed_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with _provider_store_connection(database_path) as conn:
+    with _provider_store_connection(database_path, write=True) as conn:
         conn.execute(
             """
             INSERT OR IGNORE INTO integration_migrations (
@@ -10280,9 +10565,20 @@ def get_run(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> Optional[
         return None
     with _sqlite_connection(path) as conn:
         conn.row_factory = sqlite3.Row
-        _ensure_control_plane_schema(conn)
+        _require_control_plane_schema(conn)
         row = conn.execute("SELECT * FROM pipeline_runs WHERE run_id = ?", (run_id,)).fetchone()
     return _normalized_run_from_row(row) if row is not None else None
+
+
+def run_exists(run_id: str, *_compat_args: Any, **_compat_kwargs: Any) -> bool:
+    path = Path(_local_sqlite_path())
+    if not path.exists():
+        return False
+    with _sqlite_connection(path) as conn:
+        _require_control_plane_schema(conn)
+        return conn.execute(
+            "SELECT 1 FROM pipeline_runs WHERE run_id = ? LIMIT 1", (run_id,)
+        ).fetchone() is not None
 
 
 def list_runs(
@@ -10298,7 +10594,7 @@ def list_runs(
     where = "WHERE archived_at IS NOT NULL" if archived_only else "" if include_archived else "WHERE archived_at IS NULL"
     with _sqlite_connection(path) as conn:
         conn.row_factory = sqlite3.Row
-        _ensure_control_plane_schema(conn)
+        _require_control_plane_schema(conn)
         rows = conn.execute(
             f"SELECT * FROM pipeline_runs {where} ORDER BY created_at DESC, run_id DESC LIMIT ?",
             (max(1, int(limit)),),
@@ -11433,6 +11729,7 @@ def backfill_legacy_run_history(
         else:
             _ensure_control_plane_schema(conn)
             _ensure_process_event_tables(conn, migrate_legacy=False)
+            conn.commit()
         runs = _run_history_process_sources(
             conn,
             source_table=_RUN_HISTORY_RUNS_TABLE,
@@ -12594,14 +12891,21 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
         return None
     with _sqlite_connection(path) as conn:
         conn.row_factory = sqlite3.Row
-        _ensure_control_plane_schema(conn)
+        _require_control_plane_schema(conn)
         run_row = conn.execute(
             "SELECT * FROM pipeline_runs WHERE run_id=?", (run_id,)
         ).fetchone()
         if run_row is None:
             return None
         input_row = conn.execute(
-            "SELECT * FROM run_inputs WHERE run_id=?", (run_id,)
+            """SELECT original_filename, media_type, byte_length, sha256, record_count,
+                      jobs_manifest_json, candidate_profile_id, candidate_profile_revision_id,
+                      candidate_profile_revision, candidate_profile_schema_version,
+                      candidate_profile_checksum, candidate_profile_name, settings_revision,
+                      synonym_policy_bundle_revision_id, synonym_policy_bundle_checksum,
+                      run_input_contract_version, created_at
+               FROM run_inputs WHERE run_id=?""",
+            (run_id,),
         ).fetchone()
         stage_rows = conn.execute(
             "SELECT * FROM run_stage_executions WHERE run_id=? ORDER BY ordinal", (run_id,)

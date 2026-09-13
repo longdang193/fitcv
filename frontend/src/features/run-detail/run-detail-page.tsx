@@ -64,6 +64,17 @@ const PIPELINE_STAGES: { stage_id: RunStageId; label: string; ordinal: number }[
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
+export function buildRunJobsQueryKey(
+  runId: string,
+  stage: string,
+  resultBucket: string,
+  search: string,
+  page: number,
+  pageSize: number
+): string {
+  return `${runId}::${stage}::${resultBucket}::${search.trim()}::${page}::${pageSize}`;
+}
+
 export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, initialRun, initialJobs }) => {
   const [run, setRun] = useState<PipelineRunResource | null>(initialRun || null);
   const [loading, setLoading] = useState(!initialRun);
@@ -127,13 +138,16 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const eventCursorRef = useRef<string | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const searchDebounceRef = useRef<number | null>(null);
+  const jobsRequestIdRef = useRef(0);
+  const jobsAbortRef = useRef<AbortController | null>(null);
+  const pollInFlightRef = useRef(false);
 
   const isTerminal = useMemo(() => {
     if (!run) return false;
     return ["succeeded", "failed", "cancelled"].includes(run.backend_status);
   }, [run]);
 
-  // Debounce search input
+  // Debounce search input and reset page to 1
   useEffect(() => {
     if (searchDebounceRef.current) {
       clearTimeout(searchDebounceRef.current);
@@ -160,34 +174,59 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       if (isInitial) setLoading(false);
     }
   }, [runId]);
-  // Load jobs
-  const loadJobs = useCallback(async (page = 1, overridePageSize?: number, quiet = false) => {
-    if (!quiet) setJobsLoading(true);
-    try {
-      const res = await fetchRunJobs(runId, {
-        page,
-        page_size: overridePageSize || jobsPageSize,
-        stage: stageFilter,
-        result_bucket: resultBucketFilter,
-        search: activeJobSearch,
-      });
-      setJobs(res.data || []);
-      setJobsPage(res.page || page);
-      setJobsTotal(res.total_items || 0);
-      if (res.meta) {
-        setJobsMeta({
-          total_evaluated: Number(res.meta.total_evaluated || 0),
-          passed: Number(res.meta.passed || 0),
-          rejected: Number(res.meta.rejected || 0),
-          skipped: Number(res.meta.skipped || 0),
-        });
+
+  // ponytail: guarded jobs fetcher rejecting stale responses by request identity; add response cache if switching stages is frequent.
+  const loadJobs = useCallback(
+    async (pageOverride?: number, overridePageSize?: number, quiet = false) => {
+      const targetPage = pageOverride ?? jobsPage;
+      const targetSize = overridePageSize ?? jobsPageSize;
+
+      if (!quiet && jobsAbortRef.current) {
+        jobsAbortRef.current.abort();
       }
-    } catch {
-      // Background tolerance
-    } finally {
-      if (!quiet) setJobsLoading(false);
-    }
-  }, [runId, jobsPageSize, stageFilter, resultBucketFilter, activeJobSearch]);
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      jobsAbortRef.current = controller;
+
+      const requestId = ++jobsRequestIdRef.current;
+      if (!quiet) setJobsLoading(true);
+
+      try {
+        const res = await fetchRunJobs(runId, {
+          page: targetPage,
+          page_size: targetSize,
+          stage: stageFilter,
+          result_bucket: resultBucketFilter,
+          search: activeJobSearch,
+        });
+
+        // Stale response rejection: only latest request identity may update jobs state
+        if (requestId !== jobsRequestIdRef.current) {
+          return false;
+        }
+
+        setJobs(res.data || []);
+        setJobsPage(res.page || targetPage);
+        setJobsTotal(res.total_items || 0);
+        if (res.meta) {
+          setJobsMeta({
+            total_evaluated: Number(res.meta.total_evaluated || 0),
+            passed: Number(res.meta.passed || 0),
+            rejected: Number(res.meta.rejected || 0),
+            skipped: Number(res.meta.skipped || 0),
+          });
+        }
+        return true;
+      } catch {
+        // Background tolerance
+        return false;
+      } finally {
+        if (requestId === jobsRequestIdRef.current && !quiet) {
+          setJobsLoading(false);
+        }
+      }
+    },
+    [runId, jobsPage, jobsPageSize, stageFilter, resultBucketFilter, activeJobSearch]
+  );
 
   // Poll events without reloading page
   const pollEvents = useCallback(async () => {
@@ -208,49 +247,89 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     }
   }, [runId]);
 
+  // Initial load: detail and initial events only (depends only on runId)
   useEffect(() => {
+    let active = true;
     eventCursorRef.current = null;
     setEvents([]);
-    setJobs([]);
-    setJobsTotal(0);
-    setJobsPage(1);
-    setJobsMeta({ total_evaluated: 0, passed: 0, rejected: 0, skipped: 0 });
+    if (!initialJobs) {
+      setJobs([]);
+      setJobsTotal(0);
+      setJobsPage(1);
+      setJobsMeta({ total_evaluated: 0, passed: 0, rejected: 0, skipped: 0 });
+    }
     setError(null);
     setActionNotice(null);
-  }, [runId]);
 
-  // Initial load
-  useEffect(() => {
     loadRunDetail(true);
-    loadJobs(1);
-    pollEvents();
-  }, [loadRunDetail, loadJobs, pollEvents]);
 
-  // Reload jobs on filter / search changes
+    async function fetchInitialEvents() {
+      try {
+        const eventsRes = await fetchRunEvents(runId, null, 100);
+        if (!active) return;
+        if (eventsRes.events && eventsRes.events.length > 0) {
+          setEvents(eventsRes.events);
+          if (eventsRes.next_cursor) {
+            eventCursorRef.current = eventsRes.next_cursor;
+          }
+        }
+      } catch {}
+    }
+
+    void fetchInitialEvents();
+
+    return () => {
+      active = false;
+      if (jobsAbortRef.current) jobsAbortRef.current.abort();
+    };
+  }, [runId, loadRunDetail]);
+
+  // Jobs request owner: only this effect triggers jobs fetching on search/filter/page identity
   useEffect(() => {
-    loadJobs(1);
-  }, [stageFilter, resultBucketFilter, activeJobSearch]);
+    void loadJobs();
+  }, [loadJobs]);
 
-  // Polling loop for active runs
+  // Single-flight polling loop for active runs; stops on terminal status or unmount
   useEffect(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
     }
 
-    if (!isTerminal) {
-      pollTimerRef.current = window.setInterval(() => {
-        loadRunDetail(false);
-        pollEvents();
-        loadJobs(jobsPage, undefined, true);
-      }, 2500);
-    }
+    if (!run || isTerminal) return;
+
+    pollTimerRef.current = window.setInterval(async () => {
+      if (pollInFlightRef.current) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+
+      pollInFlightRef.current = true;
+      try {
+        const updatedRun = await fetchRun(runId);
+        setRun(updatedRun);
+        if (["succeeded", "failed", "cancelled"].includes(updatedRun.backend_status)) {
+          if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+          }
+          return;
+        }
+
+        await pollEvents();
+        await loadJobs(undefined, undefined, true);
+      } catch {
+      } finally {
+        pollInFlightRef.current = false;
+      }
+    }, 2500);
 
     return () => {
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
       }
+      pollInFlightRef.current = false;
     };
-  }, [isTerminal, loadRunDetail, loadJobs, jobsPage, pollEvents]);
+  }, [runId, isTerminal, Boolean(run), pollEvents, loadJobs]);
 
   // Handlers for actions
   const handleCancel = async () => {
@@ -605,22 +684,35 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   if (input?.candidate_profile_json) {
     try { parsedProfile = JSON.parse(input.candidate_profile_json); } catch {}
   }
-  if (input?.jobs_input_manifest_json) {
+  const manifestSource = input?.jobs_manifest_json || input?.jobs_input_manifest_json;
+  if (manifestSource) {
     try {
-      const manifest = JSON.parse(input.jobs_input_manifest_json);
+      const manifest = typeof manifestSource === "string" ? JSON.parse(manifestSource) : manifestSource;
       if (manifest.sources && Array.isArray(manifest.sources)) {
         parsedSources = manifest.sources;
+      } else if (manifest.source_filenames && Array.isArray(manifest.source_filenames)) {
+        parsedSources = manifest.source_filenames.map((name: string) => ({
+          type: "upload",
+          filename: name,
+          record_count: input?.record_count ?? 0,
+        }));
       }
     } catch {}
+  } else if (Array.isArray(input?.sources)) {
+    parsedSources = input.sources;
   }
-  const candidateProfileObj = (input as any)?.candidate_profile;
+  const candidateProfileObj = input?.candidate_profile;
   const profileName =
     candidateProfileObj?.name ||
+    input?.candidate_profile_name ||
     parsedProfile?.name ||
     parsedProfile?.profile_name ||
-    input?.candidate_profile_name ||
     input?.candidate_profile_source ||
     "Candidate Profile";
+  const profileRevision =
+    candidateProfileObj?.revision ??
+    input?.candidate_profile_revision ??
+    parsedProfile?.revision;
   const profileIdValue =
     candidateProfileObj?.profile_id ||
     (input?.candidate_profile_id as string | undefined) ||
@@ -634,8 +726,16 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       ? input.candidate_profile_source
       : undefined);
   const profileId = profileIdValue || "—";
-  const profileState = parsedProfile?.archived ? "Archived · historical reference" : "Active";
-  const uploadFileName = input?.upload_file_name || input?.filename || "";
+  const profileState =
+    parsedProfile?.archived || (candidateProfileObj as any)?.archived
+      ? "Archived · historical reference"
+      : "Active";
+  const uploadFileName =
+    input?.original_filename ||
+    input?.upload_file_name ||
+    input?.filename ||
+    parsedSources.find((s: any) => s.type === "upload")?.filename ||
+    "";
   const scanSources = parsedSources.filter((s: any) => s.type === "scan");
 
   return (
@@ -838,6 +938,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                 ) : (
                   profileName
                 )}
+                {profileRevision ? ` (Rev ${profileRevision})` : ""}
               </dd>
             </div>
             <div className="detail-item">
@@ -1124,7 +1225,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                           const newSize = Number(e.target.value);
                           setJobsPageSize(newSize);
                           setJobsPage(1);
-                          loadJobs(1, newSize);
                         }}
                       >
                         {PAGE_SIZE_OPTIONS.map((size) => (
@@ -1143,7 +1243,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                         onClick={() => {
                           const p = jobsPage - 1;
                           setJobsPage(p);
-                          loadJobs(p);
                         }}
                         aria-label="Previous page"
                       >
@@ -1162,7 +1261,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                 variant={p === jobsPage ? "primary" : "secondary"}
                                 onClick={() => {
                                   setJobsPage(p);
-                                  loadJobs(p);
                                 }}
                                 aria-label={"Page " + p}
                                 aria-current={p === jobsPage ? "page" : undefined}
@@ -1179,7 +1277,6 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                         onClick={() => {
                           const p = jobsPage + 1;
                           setJobsPage(p);
-                          loadJobs(p);
                         }}
                         aria-label="Next page"
                       >

@@ -91,6 +91,12 @@ def _configure_source_build(
         raising=False,
     )
     monkeypatch.setattr(
+        module,
+        "resolve_candidate_profile_path",
+        lambda: candidate_profile_path,
+        raising=False,
+    )
+    monkeypatch.setattr(
         "fitcv_cp.reporter.retry_pending_process_event_deliveries",
         lambda *, limit: 0,
     )

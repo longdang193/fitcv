@@ -17,24 +17,36 @@ export const InputSummaryCard: React.FC<InputSummaryCardProps> = ({ run }) => {
     } catch {}
   }
 
-  if (input?.jobs_input_manifest_json) {
+  const manifestSource = input?.jobs_manifest_json || input?.jobs_input_manifest_json;
+  if (manifestSource) {
     try {
-      const manifest = JSON.parse(input.jobs_input_manifest_json);
+      const manifest = typeof manifestSource === "string" ? JSON.parse(manifestSource) : manifestSource;
       if (manifest.sources && Array.isArray(manifest.sources)) {
         parsedSources = manifest.sources;
+      } else if (manifest.source_filenames && Array.isArray(manifest.source_filenames)) {
+        parsedSources = manifest.source_filenames.map((name: string) => ({
+          type: "upload",
+          filename: name,
+          record_count: input?.record_count ?? 0,
+        }));
       }
     } catch {}
+  } else if (Array.isArray(input?.sources)) {
+    parsedSources = input.sources;
   }
 
-  const candidateProfileObj = (input as any)?.candidate_profile;
+  const candidateProfileObj = input?.candidate_profile;
   const profileName =
     candidateProfileObj?.name ||
+    input?.candidate_profile_name ||
     parsedProfile?.name ||
     parsedProfile?.profile_name ||
-    input?.candidate_profile_name ||
     input?.candidate_profile_source ||
     "Default";
-  const profileRevision = parsedProfile?.revision ?? input?.candidate_profile_revision;
+  const profileRevision =
+    candidateProfileObj?.revision ??
+    input?.candidate_profile_revision ??
+    parsedProfile?.revision;
   const profileIdValue =
     candidateProfileObj?.profile_id ||
     (input?.candidate_profile_id as string | undefined) ||
@@ -47,7 +59,18 @@ export const InputSummaryCard: React.FC<InputSummaryCardProps> = ({ run }) => {
     input.candidate_profile_source !== "Upload"
       ? input.candidate_profile_source
       : undefined);
-  const sourceKind = input?.jobs_input_source || "Upload";
+
+  const hasScan = parsedSources.some((s: any) => s.type === "scan");
+  const hasUpload =
+    Boolean(input?.original_filename) ||
+    parsedSources.some((s: any) => s.type === "upload");
+  const defaultSourceKind =
+    hasScan && hasUpload
+      ? "Upload + Scan"
+      : hasScan
+      ? "Scan"
+      : "Upload";
+  const sourceKind = input?.jobs_input_source || defaultSourceKind;
 
   return (
     <div
@@ -93,15 +116,26 @@ export const InputSummaryCard: React.FC<InputSummaryCardProps> = ({ run }) => {
         <div style={{ fontSize: 13, color: "var(--muted)", overflowWrap: "anywhere", wordBreak: "break-word" }}>
           <span style={{ fontWeight: 600 }}>Source Mode:</span> <span>{sourceKind}</span>
         </div>
-        {parsedSources && parsedSources.length > 0 && (
+        {parsedSources && parsedSources.length > 0 ? (
           <div style={{ fontSize: 12, color: "var(--muted)", overflowWrap: "anywhere", wordBreak: "break-word" }}>
             {parsedSources.map((s: any, idx: number) => (
               <div key={idx} style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                 • {s.type === "scan" ? `Scan: ${s.scan_name || s.scan_id}` : `Upload: ${s.filename}`} ({s.record_count ?? 0} jobs)
               </div>
             ))}
+            {input?.original_filename && !parsedSources.some((s: any) => s.type === "upload") && (
+              <div style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                • Upload: {input.original_filename} ({input.record_count ?? run.counts?.total ?? 0} jobs)
+              </div>
+            )}
           </div>
-        )}
+        ) : input?.original_filename ? (
+          <div style={{ fontSize: 12, color: "var(--muted)", overflowWrap: "anywhere", wordBreak: "break-word" }}>
+            <div style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
+              • Upload: {input.original_filename} ({input?.record_count ?? run.counts?.total ?? 0} jobs)
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
