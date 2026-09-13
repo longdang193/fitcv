@@ -32,7 +32,7 @@ export async function updateSynonymPolicy(
   return res.data.data;
 }
 
-export async function fetchSynonymSuggestions(query: SynonymSuggestionQuery = {}): Promise<{
+export async function fetchSynonymSuggestions(query: SynonymSuggestionQuery = {}, signal?: AbortSignal): Promise<{
   items: SynonymSuggestionResource[];
   page: number;
   pageSize: number;
@@ -59,7 +59,9 @@ export async function fetchSynonymSuggestions(query: SynonymSuggestionQuery = {}
 
   const qs = params.toString();
   const path = '/synonym-suggestions' + (qs ? '?' + qs : '');
-  const res = await apiClient.get<SynonymSuggestionCollectionEnvelope>(path);
+  const res = signal
+    ? await apiClient.get<SynonymSuggestionCollectionEnvelope>(path, { signal })
+    : await apiClient.get<SynonymSuggestionCollectionEnvelope>(path);
 
   return {
     items: res.data.data || [],

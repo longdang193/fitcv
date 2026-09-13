@@ -53,6 +53,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
   const [counts, setCounts] = useState<Record<string, { pending?: number; approved?: number; declined?: number; total?: number }>>({});
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [acting, setActing] = useState<boolean>(false);
@@ -105,6 +106,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
 
     const requestId = ++requestIdRef.current;
     setLoading(true);
+    setLoadError(null);
     setError(null);
     try {
       const query: SynonymSuggestionQuery = {
@@ -114,7 +116,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
         page,
         pageSize,
       };
-      const result = await fetchSynonymSuggestions(query);
+      const result = await fetchSynonymSuggestions(query, controller?.signal);
       if (!isMountedRef.current || requestId !== requestIdRef.current) {
         return false;
       }
@@ -127,7 +129,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       if (!isMountedRef.current || requestId !== requestIdRef.current) {
         return false;
       }
-      setError(getApiErrorMessage(err, 'Failed to load synonym suggestions.'));
+      setLoadError(getApiErrorMessage(err, 'Failed to load synonym suggestions.'));
       return false;
     } finally {
       if (isMountedRef.current && requestId === requestIdRef.current) {
@@ -298,6 +300,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
 
       {/* Error message */}
       {error && <Notice variant='error'>{error}</Notice>}
+      {loadError && items.length > 0 && <Notice variant='error'>{loadError}</Notice>}
 
       {/* Filters Bar */}
       <div
@@ -451,12 +454,13 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       )}
 
       {/* Main Table */}
-      {loading ? (
+      {loading && items.length === 0 ? (
         <LoadingState message='Loading synonym review queue...' />
-      ) : error && items.length === 0 ? (
-        <ErrorState message={error} onRetry={loadSuggestions} />
+      ) : loadError && items.length === 0 ? (
+        <ErrorState message={loadError} onRetry={loadSuggestions} />
       ) : items.length === 0 ? (
-        <div className='table-card'>
+        <div className='table-card' aria-busy={loading || undefined} style={{ position: 'relative' }}>
+          {loading && <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'grid', placeItems: 'start center', paddingTop: 12, pointerEvents: 'none' }}><LoadingState message='Refreshing...' /></div>}
           {hasActiveSynonymFilters(activeSearch, selectedType, selectedStatus) ? (
             <ZeroResultsState
               query={activeSearch.trim() || undefined}

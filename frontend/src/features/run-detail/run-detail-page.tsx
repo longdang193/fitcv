@@ -119,6 +119,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   // Jobs state & filters (ranking is default pipeline-results view)
   const [jobs, setJobs] = useState<RunJobItem[]>(initialJobs || []);
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState<string | null>(null);
   const [jobsPage, setJobsPage] = useState(1);
   const [jobsTotal, setJobsTotal] = useState(0);
   const [jobsPageSize, setJobsPageSize] = useState(10);
@@ -141,6 +142,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const jobsRequestIdRef = useRef(0);
   const jobsAbortRef = useRef<AbortController | null>(null);
   const pollInFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  const lifecycleGenerationRef = useRef(0);
+  const eventsAbortRef = useRef<AbortController | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
+  const jobsKeyRef = useRef("");
+  const terminalFinalizedRef = useRef(false);
 
   const isTerminal = useMemo(() => {
     if (!run) return false;
@@ -162,16 +169,24 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   }, [jobSearch]);
 
   // Load main run detail
-  const loadRunDetail = useCallback(async (isInitial = false) => {
+  const loadRunDetail = useCallback(async (
+    isInitial = false,
+    signal?: AbortSignal,
+    generation = lifecycleGenerationRef.current
+  ) => {
     if (isInitial) setLoading(true);
     try {
-      const res = await fetchRun(runId);
+      const res = await fetchRun(runId, signal);
+      if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return false;
       setRun(res);
       setError(null);
+      return true;
     } catch (err: any) {
+      if (!mountedRef.current || generation !== lifecycleGenerationRef.current || err?.name === "AbortError") return false;
       setError(err.message || "Failed to load run details.");
+      return false;
     } finally {
-      if (isInitial) setLoading(false);
+      if (isInitial && mountedRef.current) setLoading(false);
     }
   }, [runId]);
 
@@ -180,15 +195,25 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     async (pageOverride?: number, overridePageSize?: number, quiet = false) => {
       const targetPage = pageOverride ?? jobsPage;
       const targetSize = overridePageSize ?? jobsPageSize;
+      const queryKey = buildRunJobsQueryKey(
+        runId,
+        stageFilter,
+        resultBucketFilter,
+        activeJobSearch,
+        targetPage,
+        targetSize
+      );
 
-      if (!quiet && jobsAbortRef.current) {
+      if (jobsAbortRef.current) {
         jobsAbortRef.current.abort();
       }
       const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
       jobsAbortRef.current = controller;
 
       const requestId = ++jobsRequestIdRef.current;
+      jobsKeyRef.current = queryKey;
       if (!quiet) setJobsLoading(true);
+      if (!quiet) setJobsError(null);
 
       try {
         const res = await fetchRunJobs(runId, {
@@ -197,14 +222,16 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           stage: stageFilter,
           result_bucket: resultBucketFilter,
           search: activeJobSearch,
+          signal: controller?.signal,
         });
 
         // Stale response rejection: only latest request identity may update jobs state
-        if (requestId !== jobsRequestIdRef.current) {
+        if (!mountedRef.current || requestId !== jobsRequestIdRef.current || jobsKeyRef.current !== queryKey) {
           return false;
         }
 
         setJobs(res.data || []);
+        setJobsError(null);
         setJobsPage(res.page || targetPage);
         setJobsTotal(res.total_items || 0);
         if (res.meta) {
@@ -216,11 +243,14 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           });
         }
         return true;
-      } catch {
+      } catch (err: any) {
         // Background tolerance
+        if (mountedRef.current && requestId === jobsRequestIdRef.current && jobsKeyRef.current === queryKey && err?.name !== "AbortError") {
+          setJobsError(err.message || "Failed to load jobs.");
+        }
         return false;
       } finally {
-        if (requestId === jobsRequestIdRef.current && !quiet) {
+        if (mountedRef.current && requestId === jobsRequestIdRef.current && jobsKeyRef.current === queryKey) {
           setJobsLoading(false);
         }
       }
@@ -229,27 +259,40 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   );
 
   // Poll events without reloading page
-  const pollEvents = useCallback(async () => {
+  const pollEvents = useCallback(async (signal?: AbortSignal, generation = lifecycleGenerationRef.current) => {
     try {
-      const eventsRes = await fetchRunEvents(runId, eventCursorRef.current, 100);
+      const eventsRes = await fetchRunEvents(runId, eventCursorRef.current, 100, signal);
+      if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return false;
       if (eventsRes.events && eventsRes.events.length > 0) {
         setEvents((prev) => {
           const existingIds = new Set(prev.map((e) => e.event_id));
           const fresh = eventsRes.events.filter((e) => !existingIds.has(e.event_id));
           return [...prev, ...fresh];
         });
-        if (eventsRes.next_cursor) {
-          eventCursorRef.current = eventsRes.next_cursor;
-        }
       }
+      eventCursorRef.current = eventsRes.next_cursor ?? null;
+      return eventsRes;
     } catch {
       // Background poll failure tolerated
+      return null;
     }
   }, [runId]);
 
+  const drainEvents = useCallback(async (signal: AbortSignal | undefined, generation: number) => {
+    let eventsRes = await pollEvents(signal, generation);
+    while (eventsRes && eventsRes.next_cursor && mountedRef.current && generation === lifecycleGenerationRef.current) {
+      eventsRes = await pollEvents(signal, generation);
+    }
+  }, [pollEvents]);
+
   // Initial load: detail and initial events only (depends only on runId)
   useEffect(() => {
-    let active = true;
+    const generation = ++lifecycleGenerationRef.current;
+    mountedRef.current = true;
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    eventsAbortRef.current?.abort();
+    eventsAbortRef.current = controller;
+    terminalFinalizedRef.current = false;
     eventCursorRef.current = null;
     setEvents([]);
     if (!initialJobs) {
@@ -261,26 +304,28 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     setError(null);
     setActionNotice(null);
 
-    loadRunDetail(true);
+    void loadRunDetail(true, controller?.signal, generation);
 
     async function fetchInitialEvents() {
       try {
-        const eventsRes = await fetchRunEvents(runId, null, 100);
-        if (!active) return;
+        const eventsRes = await fetchRunEvents(runId, null, 100, controller?.signal);
+        if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return;
         if (eventsRes.events && eventsRes.events.length > 0) {
           setEvents(eventsRes.events);
-          if (eventsRes.next_cursor) {
-            eventCursorRef.current = eventsRes.next_cursor;
-          }
         }
+        eventCursorRef.current = eventsRes.next_cursor ?? null;
       } catch {}
     }
 
     void fetchInitialEvents();
 
     return () => {
-      active = false;
+      lifecycleGenerationRef.current++;
+      mountedRef.current = false;
+      controller?.abort();
+      eventsAbortRef.current?.abort();
       if (jobsAbortRef.current) jobsAbortRef.current.abort();
+      pollAbortRef.current?.abort();
     };
   }, [runId, loadRunDetail]);
 
@@ -291,6 +336,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
   // Single-flight polling loop for active runs; stops on terminal status or unmount
   useEffect(() => {
+    const generation = lifecycleGenerationRef.current;
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
@@ -303,22 +349,33 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
 
       pollInFlightRef.current = true;
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      pollAbortRef.current = controller;
       try {
-        const updatedRun = await fetchRun(runId);
-        setRun(updatedRun);
+        const updatedRun = await fetchRun(runId, controller?.signal);
+        if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return;
         if (["succeeded", "failed", "cancelled"].includes(updatedRun.backend_status)) {
           if (pollTimerRef.current) {
             clearInterval(pollTimerRef.current);
             pollTimerRef.current = null;
           }
+          if (!terminalFinalizedRef.current) {
+            terminalFinalizedRef.current = true;
+            await loadJobs(undefined, undefined, true);
+            await drainEvents(controller?.signal, generation);
+          }
+          if (mountedRef.current && generation === lifecycleGenerationRef.current) setRun(updatedRun);
           return;
         }
 
-        await pollEvents();
+        setRun(updatedRun);
+        await pollEvents(controller?.signal, generation);
+        if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return;
         await loadJobs(undefined, undefined, true);
       } catch {
       } finally {
         pollInFlightRef.current = false;
+        if (pollAbortRef.current === controller) pollAbortRef.current = null;
       }
     }, 2500);
 
@@ -327,9 +384,10 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
       }
-      pollInFlightRef.current = false;
+      lifecycleGenerationRef.current++;
+      pollAbortRef.current?.abort();
     };
-  }, [runId, isTerminal, Boolean(run), pollEvents, loadJobs]);
+  }, [runId, isTerminal, Boolean(run), pollEvents, drainEvents, loadJobs]);
 
   // Handlers for actions
   const handleCancel = async () => {
@@ -1063,10 +1121,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
               </div>
             )}
 
-            {jobsLoading ? (
+            {jobsLoading && jobs.length === 0 ? (
               <LoadingState message="Loading jobs..." />
             ) : (
-              <div className="table-card">
+              <div className="table-card" aria-busy={jobsLoading || undefined} style={{ position: "relative" }}>
+                {jobsLoading && <div style={{ position: "absolute", inset: 0, zIndex: 1, display: "grid", placeItems: "start center", paddingTop: 12, pointerEvents: "none" }}><LoadingState message="Refreshing..." /></div>}
+                {jobsError && <div className="notice error" role="alert" style={{ margin: 12 }}>{jobsError}</div>}
                 <div className="table-scroll" tabIndex={0} role="region" aria-label="Pipeline job results">
                   <table className="run-table jobs-table">
                     <thead>

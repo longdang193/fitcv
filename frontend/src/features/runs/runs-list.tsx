@@ -682,7 +682,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
       </div>
 
       {/* Table */}
-      {loading ? (
+      {loading && runs.length === 0 ? (
         <LoadingState message="Loading runs..." />
       ) : (
         <DataTable
@@ -697,6 +697,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
           pageSize={pageSize}
           total={totalItems}
           onPageChange={onPageChange}
+          busy={loading}
           emptyMessage={
             activeSearch
               ? "No runs match this search."

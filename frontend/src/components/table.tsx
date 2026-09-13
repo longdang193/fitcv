@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "./button";
+import { LoadingState } from "./states";
 
 export interface TableColumn<T> {
   key: string;
@@ -64,6 +65,7 @@ export interface DataTableProps<T> {
   bulkActions?: React.ReactNode | ((selectedCount: number) => React.ReactNode);
   selectedLabel?: string;
   className?: string;
+  busy?: boolean;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -85,6 +87,7 @@ export function DataTable<T extends Record<string, any>>({
   bulkActions,
   selectedLabel,
   className = "",
+  busy = false,
 }: DataTableProps<T>) {
   const getKey = (item: T): string => {
     if (typeof keyField === "function") {
@@ -99,7 +102,12 @@ export function DataTable<T extends Record<string, any>>({
   const selectedCount = selectedKeys?.size || 0;
 
   return (
-    <div className={`table-card ${className}`.trim()}>
+    <div className={`table-card ${className}`.trim()} aria-busy={busy || undefined} style={{ position: "relative" }}>
+      {busy && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 1, display: "grid", placeItems: "start center", paddingTop: 12, pointerEvents: "none" }}>
+          <LoadingState message="Refreshing..." />
+        </div>
+      )}
       {hasSelection && selectedCount > 0 && bulkActions && (
         <SelectionBar
           count={selectedCount}

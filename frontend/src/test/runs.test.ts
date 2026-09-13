@@ -28,6 +28,7 @@ import { parseRunSourceIds } from "../features/runs/route";
 import { EventConsole } from "../features/run-detail/components/EventConsole";
 import { PROVIDER_SETTINGS_HREF, RunErrorAction } from "../features/runs/new-run-dialog";
 import { isDistinctStatusDetail, isRunTerminal } from "../features/runs/runs-list";
+import { DataTable } from "../components/table";
 
 describe("runs feature route and api slice", () => {
   beforeEach(() => {
@@ -446,6 +447,21 @@ describe("runs feature route and api slice", () => {
       "/runs/run-dbg-1/jobs/export.full.zip?search=Engineer&stage=screening&result_bucket=passed",
       "fitcv-run-run-dbg-1-full-export.zip"
     );
+  });
+
+  it("keeps retained rows mounted while table refresh is busy", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(DataTable, {
+        columns: [{ key: "name", header: "Name" }],
+        data: [{ id: "run-1", name: "Retained run" }],
+        keyField: "id",
+        busy: true,
+      })
+    );
+
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain("Retained run");
+    expect(markup).toContain("Refreshing...");
   });
 it("guards against invalid or object page parameter serialization in fetchRunJobs", async () => {
     const mockResponse = {

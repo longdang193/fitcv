@@ -4660,6 +4660,35 @@ def test_query_runs_is_read_only_after_schema_initialization(monkeypatch: pytest
     assert not any(statement.lstrip().upper().startswith(writes) for statement in statements)
 
 
+def test_ordinary_control_plane_reads_are_write_free(monkeypatch: pytest.MonkeyPatch) -> None:
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    sqlite_store.ensure_control_plane_database(database_path, database_path.with_name("missing-profile.yaml"))
+    statements: list[str] = []
+    original_connect = sqlite_store.sqlite3.connect
+
+    def traced_connect(*args: object, **kwargs: object):
+        connection = original_connect(*args, **kwargs)
+        connection.set_trace_callback(statements.append)
+        return connection
+
+    monkeypatch.setattr(sqlite_store.sqlite3, "connect", traced_connect)
+    sqlite_store.query_bookmarks(database_path=database_path)
+    sqlite_store.query_synonym_suggestions(database_path=database_path)
+    sqlite_store.query_scans(database_path=database_path)
+
+    writes = ("BEGIN", "CREATE", "ALTER", "UPDATE", "INSERT", "DELETE", "REPLACE")
+    assert not any(statement.lstrip().upper().startswith(writes) for statement in statements)
+
+
+def test_locked_control_plane_read_fails_visibly(monkeypatch: pytest.MonkeyPatch) -> None:
+    def locked_connect(*args: object, **kwargs: object):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(sqlite_store.sqlite3, "connect", locked_connect)
+    with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+        sqlite_store.query_runs(view="all")
+
+
 def test_update_run_status_rejects_stale_projection_revision() -> None:
     run = _make_run("run-revision-conflict")
     sqlite_store.insert_run(run)
@@ -5227,6 +5256,27 @@ def test_query_run_jobs_recovers_required_skills_from_source_snapshot() -> None:
     result = sqlite_store.query_run_jobs("run-required-skills-fallback", page_size=10)
 
     assert result["items"][0]["skills"] == ["Python", "SQL"]
+
+
+def test_query_run_jobs_hydrates_only_requested_page_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    run_id = "run-page-first-hydration"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": f"Job {index:02d}", "job_url": f"https://example.com/{index}"} for index in range(25)],
+    )
+    hydrated_ids: list[str] = []
+    original_hydrate = sqlite_store._hydrate_run_job_ids
+
+    def capture_hydration(*args: object, **kwargs: object) -> list[dict[str, object]]:
+        hydrated_ids.extend(str(value) for value in args[2])
+        return original_hydrate(*args, **kwargs)
+
+    monkeypatch.setattr(sqlite_store, "_hydrate_run_job_ids", capture_hydration)
+    result = sqlite_store.query_run_jobs(run_id, page=2, page_size=10)
+
+    assert result["total"] == 25
+    assert len(result["items"]) == 10
+    assert hydrated_ids == [item["run_job_id"] for item in result["items"]]
 
 
 def test_job_collections_project_canonical_enrichment_fields() -> None:

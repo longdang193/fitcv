@@ -110,6 +110,7 @@ export const BookmarksPage: React.FC = () => {
           page_size: pageSize,
           stage: stageFilter !== "all" ? stageFilter : undefined,
           search: activeSearch,
+          signal: controller?.signal,
         });
         if (!isMountedRef.current || requestId !== requestIdRef.current) {
           return false;

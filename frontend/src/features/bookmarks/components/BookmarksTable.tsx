@@ -1,5 +1,5 @@
 import React from "react";
-import { DataTable, TableColumn, Button } from "../../../components";
+import { DataTable, TableColumn, Button, LoadingState } from "../../../components";
 import { BookmarkItem } from "../types";
 import { InterestRating } from "../../job-evaluation/components/InterestRating";
 import { PipelineOutcome } from "../../job-evaluation/components/PipelineOutcome";
@@ -202,6 +202,10 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
     },
   ];
 
+  if (loading && bookmarks.length === 0) {
+    return <LoadingState message="Loading bookmarks..." />;
+  }
+
   return (
     <DataTable
       className="bookmarks-table"
@@ -216,6 +220,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
       pageSize={pageSize}
       total={total}
       onPageChange={onPageChange}
+      busy={loading}
       emptyMessage={
         loading
           ? "Loading bookmarks..."

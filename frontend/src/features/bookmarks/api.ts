@@ -29,6 +29,7 @@ export async function fetchBookmarks(params?: {
   stage?: string;
   result?: string;
   search?: string;
+  signal?: AbortSignal;
 }): Promise<BookmarksPaginationEnvelope> {
   const query = new URLSearchParams();
   if (params?.page) query.set("page", String(params.page));
@@ -40,7 +41,9 @@ export async function fetchBookmarks(params?: {
 
   const qs = query.toString();
   const path = `/bookmarks${qs ? `?${qs}` : ""}`;
-  const res = await apiClient.get<any>(path);
+  const res = params?.signal
+    ? await apiClient.get<any>(path, { signal: params.signal })
+    : await apiClient.get<any>(path);
   const payload = isRecord(res.data) ? res.data : {};
   const rawPage = isRecord(payload.page) ? payload.page : {};
   const data = Array.isArray(payload.data) ? payload.data : [];

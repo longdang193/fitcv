@@ -108,10 +108,11 @@ export async function fetchRuns(params?: {
   };
 }
 
-export async function fetchRun(runId: string): Promise<PipelineRunResource> {
-  const res = await apiClient.get<{ data: PipelineRunResource }>(
-    `/runs/${encodeURIComponent(runId)}`
-  );
+export async function fetchRun(runId: string, signal?: AbortSignal): Promise<PipelineRunResource> {
+  const path = `/runs/${encodeURIComponent(runId)}`;
+  const res = signal
+    ? await apiClient.get<{ data: PipelineRunResource }>(path, { signal })
+    : await apiClient.get<{ data: PipelineRunResource }>(path);
   return (res.data as any)?.data || res.data;
 }
 
@@ -171,6 +172,7 @@ export async function fetchRunJobs(
     search?: string;
     stage?: string;
     result_bucket?: string;
+    signal?: AbortSignal;
   }
 ): Promise<PaginationEnvelope<RunJobItem, RunJobsPaginationMeta>> {
   const query = new URLSearchParams();
@@ -186,7 +188,9 @@ export async function fetchRunJobs(
 
   const qs = query.toString();
   const path = `/runs/${encodeURIComponent(runId)}/jobs${qs ? `?${qs}` : ""}`;
-  const res = await apiClient.get<any>(path);
+  const res = params?.signal
+    ? await apiClient.get<any>(path, { signal: params.signal })
+    : await apiClient.get<any>(path);
   const payload = isRecord(res.data) ? res.data : null;
   if (!payload || !Array.isArray(payload.data)) throw new Error("Invalid jobs response.");
   const page = readPage(payload);
@@ -213,7 +217,8 @@ export async function fetchRunJobs(
 export async function fetchRunEvents(
   runId: string,
   cursor?: string | null,
-  limit = 100
+  limit = 100,
+  signal?: AbortSignal
 ): Promise<RunEventsPage> {
   const query = new URLSearchParams();
   if (cursor) query.set("cursor", cursor);
@@ -221,7 +226,9 @@ export async function fetchRunEvents(
 
   const qs = query.toString();
   const path = `/runs/${encodeURIComponent(runId)}/events${qs ? `?${qs}` : ""}`;
-  const res = await apiClient.get<unknown>(path);
+  const res = signal
+    ? await apiClient.get<unknown>(path, { signal })
+    : await apiClient.get<unknown>(path);
   const data = isRecord(res.data) ? res.data : null;
   const meta = data && isRecord(data.meta) ? data.meta : null;
   if (!data || !Array.isArray(data.data) || !meta) throw new Error("Invalid events response.");

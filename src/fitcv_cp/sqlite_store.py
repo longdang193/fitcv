@@ -1869,8 +1869,8 @@ def activate_synonym_policy_bundle_set(
     path = database_path or Path(_local_sqlite_path())
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     with _sqlite_connection(path) as conn:
-        conn.row_factory = sqlite3.Row
         _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
         conn.execute("BEGIN IMMEDIATE")
         state = conn.execute("SELECT * FROM synonym_policy_state WHERE state_id = 1").fetchone()
         active_id = str(state["active_bundle_revision_id"]) if state and state["active_bundle_revision_id"] else None
@@ -2084,9 +2084,8 @@ def query_synonym_suggestions(
         params.extend([f"%{search.strip()}%", f"%{search.strip()}%"])
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     path = database_path or Path(_local_sqlite_path())
-    with _sqlite_connection(path) as conn:
+    with _provider_store_connection(path, write=False) as conn:
         conn.row_factory = sqlite3.Row
-        _ensure_control_plane_schema(conn)
         total = int(conn.execute(
             f"SELECT COUNT(*) FROM synonym_suggestions s {where}", params
         ).fetchone()[0])
@@ -2244,9 +2243,7 @@ def preflight_synonym_suggestion_automation(
         return {"safe_ids": [], "skipped": [], "mapping_set": []}
     path = database_path or Path(_local_sqlite_path())
     placeholders = ",".join("?" for _ in ids)
-    with _sqlite_connection(path) as conn:
-        conn.row_factory = sqlite3.Row
-        _ensure_control_plane_schema(conn)
+    with _provider_store_connection(path, write=False) as conn:
         rows = conn.execute(
             f"SELECT suggestion_id, synonym_type, normalized_alias, normalized_canonical, review_status "
             f"FROM synonym_suggestions WHERE suggestion_id IN ({placeholders})",
@@ -2404,9 +2401,7 @@ def apply_synonym_suggestion_action(
         raise ValueError("invalid_synonym_action")
     path = database_path or Path(_local_sqlite_path())
     placeholders = ",".join("?" for _ in ids)
-    with _sqlite_connection(path) as conn:
-        conn.row_factory = sqlite3.Row
-        _ensure_control_plane_schema(conn)
+    with _provider_store_connection(path, write=True) as conn:
         try:
             conn.execute("BEGIN IMMEDIATE")
             rows = conn.execute(
@@ -5136,13 +5131,22 @@ def _rotate_corrupt_sqlite_artifacts(db_path: Path) -> None:
 
 
 @contextmanager
-def _sqlite_connection(db_path: Path) -> Iterator[sqlite3.Connection]:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+def _sqlite_connection(db_path: Path, *, read_only: bool = False) -> Iterator[sqlite3.Connection]:
+    if not read_only:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
     conn: sqlite3.Connection | None = None
     for attempt in range(_SQLITE_OPEN_RETRY_ATTEMPTS):
         try:
-            conn = sqlite3.connect(db_path, timeout=30)
-            _configure_sqlite_connection(conn)
+            if read_only:
+                if not db_path.exists():
+                    raise FileNotFoundError(db_path)
+                uri = f"file:{db_path.resolve().as_posix()}?mode=ro"
+                conn = sqlite3.connect(uri, timeout=30, uri=True)
+                conn.execute("PRAGMA busy_timeout=30000;")
+                conn.execute("PRAGMA foreign_keys=ON;")
+            else:
+                conn = sqlite3.connect(db_path, timeout=30)
+                _configure_sqlite_connection(conn)
             break
         except sqlite3.OperationalError as exc:
             if (
@@ -5174,7 +5178,7 @@ def _provider_store_connection(
     database_path: Path | None = None, *, write: bool = False
 ) -> Iterator[sqlite3.Connection]:
     path = database_path or Path(_local_sqlite_path())
-    with _sqlite_connection(path) as conn:
+    with _sqlite_connection(path, read_only=not write) as conn:
         if write:
             _ensure_control_plane_schema(conn)
         else:
@@ -5183,10 +5187,15 @@ def _provider_store_connection(
         yield conn
 
 @contextmanager
-def _scan_store_connection(database_path: Path | None = None) -> Iterator[sqlite3.Connection]:
+def _scan_store_connection(
+    database_path: Path | None = None, *, write: bool = False
+) -> Iterator[sqlite3.Connection]:
     path = database_path or Path(_local_sqlite_path())
-    with _sqlite_connection(path) as conn:
-        _ensure_control_plane_schema(conn)
+    with _sqlite_connection(path, read_only=not write) as conn:
+        if write:
+            _ensure_control_plane_schema(conn)
+        else:
+            _require_control_plane_schema(conn)
         conn.row_factory = sqlite3.Row
         yield conn
 
@@ -5289,12 +5298,7 @@ def query_tracked_companies(
                 validate_trusted_provider_config(config)
             except (JobSourceError, IndexError, TypeError, ValueError, json.JSONDecodeError):
                 item["provider_config_error"] = "provider_config_invalid"
-                conn.execute(
-                    "UPDATE tracked_companies SET is_scannable = 0 WHERE company_id = ?",
-                    (item["company_id"],),
-                )
             items.append(item)
-        conn.commit()
         return {"items": items, "total": total}
 
 
@@ -5462,7 +5466,7 @@ def bind_scan_queue_job(
     normalized_job_id = str(queue_job_id or "").strip()
     if not normalized_job_id:
         raise ValueError("scan_queue_job_id_required")
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
             row = conn.execute(
@@ -5546,7 +5550,7 @@ def create_tracked_company(
     company_id = f"company-{uuid.uuid4().hex[:12]}"
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
-        with _scan_store_connection(database_path) as conn:
+        with _scan_store_connection(database_path, write=True) as conn:
             conn.execute(
                 """
                 INSERT INTO tracked_companies (
@@ -5675,7 +5679,7 @@ def query_scans(
 def request_scan_cancel(
     scan_id: str, *, expected_revision: int | None = None, database_path: Path | None = None
 ) -> dict[str, Any]:
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
         if row is None:
             raise ValueError("scan_not_found")
@@ -5690,7 +5694,7 @@ def request_scan_cancel(
     return get_scan_detail(scan_id, database_path=database_path) or {}
 
 def claim_scan_execution(scan_id: str, *, database_path: Path | None = None) -> bool:
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         claim_id = f"claim-{uuid.uuid4().hex}"
         conn.execute("BEGIN IMMEDIATE")
@@ -5713,7 +5717,7 @@ def update_scan_heartbeat(
     scan_id: str, *, claim_id: str, database_path: Path | None = None
 ) -> bool:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         cursor = conn.execute(
             "UPDATE scans SET heartbeat_at=? WHERE scan_id=? AND execution_status='running' AND claim_id=?",
             (now, scan_id, claim_id),
@@ -5727,7 +5731,7 @@ def recover_stale_scan_execution(
     cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
         seconds=max(1, int(stale_after_seconds))
     )
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         cursor = conn.execute(
             """
             UPDATE scans
@@ -5750,7 +5754,7 @@ def recover_stale_scan_execution(
 def fail_scan_execution(
     scan_id: str, *, error_code: str, error_message: str, database_path: Path | None = None
 ) -> dict[str, Any]:
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         conn.execute(
             "UPDATE scans SET execution_status='failed', failure_code=?, failure_message=?, finished_at=?, heartbeat_at=NULL, claim_id=NULL, recovery_state='failed', row_revision=row_revision+1 WHERE scan_id=? AND execution_status IN ('queued','running','cancelling')",
@@ -5760,7 +5764,7 @@ def fail_scan_execution(
     return get_scan_detail(scan_id, database_path=database_path) or {}
 
 def cancel_scan_execution(scan_id: str, *, database_path: Path | None = None) -> dict[str, Any]:
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         conn.execute(
             "UPDATE scans SET execution_status='cancelled', finished_at=?, heartbeat_at=NULL, claim_id=NULL, recovery_state='cancelled', row_revision=row_revision+1 WHERE scan_id=? AND execution_status='cancelling'",
@@ -5779,7 +5783,7 @@ def commit_scan_output(scan_id: str, *, output_json: str, database_path: Path | 
         raise ValueError("scan_output_not_canonical")
     raw = output_json.encode("utf-8")
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
             row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
@@ -5839,7 +5843,7 @@ def transition_scan_lifecycle(
 ) -> dict[str, Any]:
     if target not in {"active", "archived"}:
         raise ValueError("scan_lifecycle_invalid")
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         resources: list[dict[str, Any]] = []
         for item in items:
             row = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (item["scan_id"],)).fetchone()
@@ -5891,7 +5895,7 @@ def preview_delete_archived_scans(scan_ids: list[str], *, database_path: Path | 
 def delete_archived_scans(
     scan_ids: list[str], *, preview_revision: str, database_path: Path | None = None
 ) -> dict[str, Any]:
-    with _scan_store_connection(database_path) as conn:
+    with _scan_store_connection(database_path, write=True) as conn:
         preview = _scan_delete_preview(conn, scan_ids)
         if preview["preview_revision"] != preview_revision or preview["referenced_scan_ids"] or preview["blocked_scan_ids"] or preview["missing_scan_ids"]:
             raise ValueError("delete_preview_stale")
@@ -12113,9 +12117,8 @@ def query_bookmarks(
     if sort != "bookmarked_desc":
         raise ValueError("bookmark_sort_invalid")
     path = database_path or Path(_local_sqlite_path())
-    with _sqlite_connection(path) as conn:
+    with _provider_store_connection(path, write=False) as conn:
         conn.row_factory = sqlite3.Row
-        _ensure_control_plane_schema(conn)
         rows = conn.execute(
             f"""SELECT b.bookmark_id, b.created_at AS bookmarked_at,
                        r.run_id, r.run_name, j.*,
@@ -13074,8 +13077,9 @@ def _filtered_run_job_rows(
         raise ValueError("stage must be all or a canonical stage id")
     if result_bucket not in {None, "all", "passed", "rejected", "skipped"}:
         raise ValueError("result_bucket must be all, passed, rejected, or skipped")
-    with _sqlite_connection(database_path or Path(_local_sqlite_path())) as conn:
+    with _sqlite_connection(database_path or Path(_local_sqlite_path()), read_only=True) as conn:
         conn.row_factory = sqlite3.Row
+        _require_control_plane_schema(conn)
         jobs = conn.execute(
             "SELECT * FROM run_jobs WHERE run_id=? ORDER BY title COLLATE NOCASE, run_job_id",
             (run_id,),
@@ -13238,6 +13242,227 @@ def _filtered_run_job_rows(
     return filtered, totals
 
 
+def _select_run_job_ids(
+    conn: sqlite3.Connection,
+    run_id: str,
+    *,
+    stage: str | None,
+    result_bucket: str | None,
+    search: str,
+) -> tuple[list[str], dict[str, int]]:
+    if stage not in {None, "all", *(item.stage_id for item in PROTOTYPE_STAGES)}:
+        raise ValueError("stage must be all or a canonical stage id")
+    if result_bucket not in {None, "all", "passed", "rejected", "skipped"}:
+        raise ValueError("result_bucket must be all, passed, rejected, or skipped")
+    jobs = conn.execute(
+        "SELECT * FROM run_jobs WHERE run_id=? ORDER BY title COLLATE NOCASE, run_job_id",
+        (run_id,),
+    ).fetchall()
+    result_rows = conn.execute(
+        """SELECT r.* FROM run_job_stage_results r
+           JOIN run_jobs j ON j.run_job_id=r.run_job_id
+           WHERE j.run_id=?""",
+        (run_id,),
+    ).fetchall()
+    structured_by_url = _run_structured_payloads(conn, run_id)
+    usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
+    results_by_job: dict[str, dict[str, sqlite3.Row]] = {}
+    for result_row in result_rows:
+        results_by_job.setdefault(str(result_row["run_job_id"]), {})[
+            str(result_row["stage_id"])
+        ] = result_row
+    normalized_search = search.strip().casefold()
+    selected_ids: list[str] = []
+    totals = {"passed": 0, "rejected": 0, "skipped": 0}
+    for job_row in jobs:
+        run_job_id = str(job_row["run_job_id"])
+        job_results = results_by_job.get(run_job_id, {})
+        selected_result: sqlite3.Row | None = None
+        selected_category: str | None = None
+        selected_evidence: dict[str, Any] = {}
+        candidate_stage_ids = (
+            [stage]
+            if stage not in {None, "all"}
+            else [str(job_row["current_stage_id"] or "").strip()]
+            + [
+                item.stage_id
+                for item in reversed(PROTOTYPE_STAGES)
+                if item.stage_id != str(job_row["current_stage_id"] or "").strip()
+            ]
+        )
+        for stage_id in candidate_stage_ids:
+            if not stage_id:
+                continue
+            result_row = job_results.get(str(stage_id))
+            if result_row is None:
+                continue
+            evidence = _json_dict(result_row["evidence_json"])
+            bucket = _job_result_bucket(
+                str(result_row["status"]),
+                run_job_id=run_job_id,
+                evidence=evidence,
+                usable_cv_job_ids=usable_cv_job_ids,
+            )
+            category = (
+                "skipped"
+                if str(result_row["status"]) == JobStageStatus.SKIPPED.value and bucket is None
+                else bucket.value if bucket is not None else None
+            )
+            if stage in {None, "all"} or category is not None:
+                selected_result, selected_category, selected_evidence = result_row, category, evidence
+                break
+        if stage not in {None, "all"} and selected_category is None:
+            continue
+        skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
+        source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
+        canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        if not skills:
+            skills = _normalise_job_skill_values(canonical.get("required_skills_canonical"))
+        if not skills:
+            skills = _normalise_job_skill_values(canonical.get("required_skills"))
+        if not skills and isinstance(source_snapshot, dict):
+            for field_name in ("skills", "required_skills", "required_skills_display", "required_skills_canonical", "must_have_skills"):
+                skills = _normalise_job_skill_values(source_snapshot.get(field_name))
+                if skills:
+                    break
+        job_fields = {
+            key: job_row[key]
+            for key in job_row.keys()
+            if key not in {"source_snapshot_json", "skills_json"}
+        }
+        actual_location = canonical.get("actual_location")
+        canonical_location = canonical.get("location")
+        if not canonical_location and isinstance(actual_location, dict):
+            canonical_location = actual_location.get("raw_text") or ", ".join(
+                str(actual_location.get(field_name)).strip()
+                for field_name in ("city", "region", "country")
+                if str(actual_location.get(field_name) or "").strip()
+            ) or None
+        for field_name, value in {
+            "location": canonical_location,
+            "work_mode": canonical.get("location_type"),
+            "language": _language_display(canonical.get("language_requirements")),
+            "seniority": canonical.get("seniority"),
+            "role_family": canonical.get("job_family"),
+            "domain": canonical.get("domain"),
+        }.items():
+            if not job_fields.get(field_name) and value not in (None, "", [], {}):
+                job_fields[field_name] = value
+        outcome_code = selected_result["outcome_code"] if selected_result is not None else None
+        reason_code = selected_result["reason_code"] if selected_result is not None else None
+        searchable = " ".join(
+            str(value or "")
+            for value in (
+                job_fields["title"], job_fields["company"], job_fields["location"], job_fields["work_mode"],
+                job_fields["language"], job_fields["seniority"], job_fields["role_family"], job_fields["domain"],
+                " ".join(str(item) for item in skills), outcome_code, reason_code,
+            )
+        ).casefold()
+        if normalized_search and normalized_search not in searchable:
+            continue
+        if selected_category in totals:
+            totals[selected_category] += 1
+        if result_bucket not in {None, "all"} and selected_category != result_bucket:
+            continue
+        selected_ids.append(run_job_id)
+    return selected_ids, totals
+
+
+def _hydrate_run_job_ids(
+    conn: sqlite3.Connection,
+    run_id: str,
+    run_job_ids: list[str],
+    *,
+    stage: str | None = None,
+) -> list[dict[str, Any]]:
+    if not run_job_ids:
+        return []
+    placeholders = ",".join("?" for _ in run_job_ids)
+    jobs = conn.execute(
+        f"SELECT * FROM run_jobs WHERE run_id=? AND run_job_id IN ({placeholders})",
+        (run_id, *run_job_ids),
+    ).fetchall()
+    result_rows = conn.execute(
+        f"SELECT r.* FROM run_job_stage_results r WHERE r.run_job_id IN ({placeholders})",
+        run_job_ids,
+    ).fetchall()
+    bookmark_rows = conn.execute(
+        f"SELECT * FROM bookmarks WHERE run_id=? AND run_job_id IN ({placeholders})",
+        (run_id, *run_job_ids),
+    ).fetchall()
+    interest_rows = conn.execute(
+        f"SELECT * FROM run_job_interest WHERE run_job_id IN ({placeholders})",
+        run_job_ids,
+    ).fetchall()
+    structured_by_url = _run_structured_payloads(conn, run_id)
+    usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
+    results_by_job: dict[str, dict[str, sqlite3.Row]] = {}
+    for result_row in result_rows:
+        results_by_job.setdefault(str(result_row["run_job_id"]), {})[str(result_row["stage_id"])] = result_row
+    bookmarks = {str(row["run_job_id"]): dict(row) for row in bookmark_rows}
+    interests = {str(row["run_job_id"]): dict(row) for row in interest_rows}
+    projected: list[dict[str, Any]] = []
+    jobs_by_id = {str(row["run_job_id"]): row for row in jobs}
+    for run_job_id in run_job_ids:
+        job_row = jobs_by_id.get(run_job_id)
+        if job_row is None:
+            continue
+        job_results = results_by_job.get(run_job_id, {})
+        selected_result = None
+        selected_category = None
+        selected_evidence: dict[str, Any] = {}
+        current_stage_id = str(job_row["current_stage_id"] or "").strip()
+        candidate_stage_ids = (
+            [stage]
+            if stage not in {None, "all"}
+            else ([current_stage_id] if current_stage_id else [])
+            + [item.stage_id for item in reversed(PROTOTYPE_STAGES) if item.stage_id != current_stage_id]
+        )
+        for stage_id in candidate_stage_ids:
+            result_row = job_results.get(stage_id)
+            if result_row is None:
+                continue
+            evidence = _json_dict(result_row["evidence_json"])
+            bucket = _job_result_bucket(str(result_row["status"]), run_job_id=run_job_id, evidence=evidence, usable_cv_job_ids=usable_cv_job_ids)
+            selected_result, selected_evidence = result_row, evidence
+            selected_category = "skipped" if str(result_row["status"]) == JobStageStatus.SKIPPED.value and bucket is None else bucket.value if bucket is not None else None
+            break
+        skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
+        source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
+        canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        if not skills:
+            skills = _normalise_job_skill_values(canonical.get("required_skills_canonical")) or _normalise_job_skill_values(canonical.get("required_skills"))
+        if not skills and isinstance(source_snapshot, dict):
+            for field_name in ("skills", "required_skills", "required_skills_display", "required_skills_canonical", "must_have_skills"):
+                skills = _normalise_job_skill_values(source_snapshot.get(field_name))
+                if skills:
+                    break
+        job_fields = {key: job_row[key] for key in job_row.keys() if key not in {"source_snapshot_json", "skills_json"}}
+        actual_location = canonical.get("actual_location")
+        canonical_location = canonical.get("location")
+        if not canonical_location and isinstance(actual_location, dict):
+            canonical_location = actual_location.get("raw_text") or ", ".join(str(actual_location.get(field_name)).strip() for field_name in ("city", "region", "country") if str(actual_location.get(field_name) or "").strip()) or None
+        for field_name, value in {"location": canonical_location, "work_mode": canonical.get("location_type"), "language": _language_display(canonical.get("language_requirements")), "seniority": canonical.get("seniority"), "role_family": canonical.get("job_family"), "domain": canonical.get("domain")}.items():
+            if not job_fields.get(field_name) and value not in (None, "", [], {}):
+                job_fields[field_name] = value
+        bookmark = bookmarks.get(run_job_id)
+        interest = interests.get(run_job_id)
+        projected.append({
+            **job_fields, "source_snapshot": source_snapshot, "skills": skills,
+            "stage_id": selected_result["stage_id"] if selected_result is not None else None,
+            "status": selected_result["status"] if selected_result is not None else "pending",
+            "outcome_code": selected_result["outcome_code"] if selected_result is not None else None,
+            "reason_code": selected_result["reason_code"] if selected_result is not None else None,
+            "evidence": selected_evidence, "result_bucket": selected_category,
+            "stage_summaries": [{"stage_id": item.stage_id, "status": job_results[item.stage_id]["status"] if item.stage_id in job_results else "pending"} for item in PROTOTYPE_STAGES],
+            "bookmarked": bookmark is not None, "bookmark_id": bookmark["bookmark_id"] if bookmark else None,
+            "rating": int(interest["rating"]) if interest else None,
+            "rating_contract_revision": interest["rating_contract_revision"] if interest else None,
+            "capabilities": {"bookmark": True, "rate": True, "download_cv": run_job_id in usable_cv_job_ids, "regenerate_cv": bool(job_row["current_cv_version_id"])},
+        })
+    return projected
+
+
 def query_run_jobs(
     run_id: str,
     *,
@@ -13249,14 +13474,21 @@ def query_run_jobs(
 ) -> dict[str, Any]:
     if page_size not in {10, 20, 50}:
         raise ValueError("page_size must be 10, 20, or 50")
-    rows, totals = _filtered_run_job_rows(
-        run_id, stage=stage, result_bucket=result_bucket, search=search
-    )
     page_number = max(1, int(page))
-    offset = (page_number - 1) * page_size
+    database_path = Path(_local_sqlite_path())
+    with _sqlite_connection(database_path, read_only=True) as conn:
+        conn.row_factory = sqlite3.Row
+        _require_control_plane_schema(conn)
+        conn.execute("BEGIN")
+        matching_ids, totals = _select_run_job_ids(
+            conn, run_id, stage=stage, result_bucket=result_bucket, search=search
+        )
+        offset = (page_number - 1) * page_size
+        page_ids = matching_ids[offset:offset + page_size]
+        rows = _hydrate_run_job_ids(conn, run_id, page_ids, stage=stage)
     return {
-        "items": rows[offset:offset + page_size],
-        "total": len(rows),
+        "items": rows,
+        "total": len(matching_ids),
         "total_evaluated": totals["passed"] + totals["rejected"] + totals["skipped"],
         "passed": totals["passed"],
         "rejected": totals["rejected"],
@@ -13267,16 +13499,14 @@ def query_run_jobs(
 
 
 def get_run_job(run_id: str, run_job_id: str) -> dict[str, Any] | None:
-    rows, _totals = _filtered_run_job_rows(
-        run_id,
-        stage=None,
-        result_bucket=None,
-        search="",
-    )
-    return next(
-        (row for row in rows if str(row.get("run_job_id") or "") == run_job_id),
-        None,
-    )
+    with _sqlite_connection(Path(_local_sqlite_path()), read_only=True) as conn:
+        conn.row_factory = sqlite3.Row
+        _require_control_plane_schema(conn)
+        row = conn.execute(
+            "SELECT 1 FROM run_jobs WHERE run_id=? AND run_job_id=?",
+            (run_id, run_job_id),
+        ).fetchone()
+        return _hydrate_run_job_ids(conn, run_id, [run_job_id])[0] if row else None
 
 
 def iter_run_jobs_for_export(

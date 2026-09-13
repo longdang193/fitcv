@@ -147,7 +147,9 @@ def _load_local_settings_rows() -> list[sqlite3.Row]:
         return []
     for attempt in (1, 2):
         try:
-            with sqlite3.connect(db_path, timeout=30) as conn:
+            with sqlite3.connect(
+                f"file:{db_path.resolve().as_posix()}?mode=ro", timeout=30, uri=True
+            ) as conn:
                 conn.row_factory = sqlite3.Row
                 rows = conn.execute(
                     """
@@ -416,7 +418,9 @@ def _load_configuration_resource(resource_name: str) -> dict[str, Any]:
         if resource_name == "llm_configuration":
             value = _hydrate_llm_configuration_tasks(value)
         return _resource_result(resource_name, value, 1, "")
-    with sqlite3.connect(db_path, timeout=30) as conn:
+    with sqlite3.connect(
+        f"file:{db_path.resolve().as_posix()}?mode=ro", timeout=30, uri=True
+    ) as conn:
         row = conn.execute(
             """
             SELECT resource_json, revision, updated_at
