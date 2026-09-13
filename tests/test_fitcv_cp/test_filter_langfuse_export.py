@@ -13,8 +13,11 @@ tags:
 """
 
 import json
+import sys
 
-from scripts.filter_langfuse_export import _is_analysis_ready
+import pytest
+
+from scripts.filter_langfuse_export import _is_analysis_ready, main
 
 
 def test_analysis_ready_accepts_rich_io_with_stringified_output() -> None:
@@ -42,3 +45,19 @@ def test_analysis_ready_rejects_string_null_payloads() -> None:
         "output": "null",
     }
     assert _is_analysis_ready(row) is False
+
+
+def test_filter_rejects_same_input_and_output_paths(tmp_path, monkeypatch) -> None:
+    source = tmp_path / "export.json"
+    original = '[{"name": "event", "input": {}}]\n'
+    source.write_text(original, encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["filter_langfuse_export", "--input", str(source), "--output", str(source)],
+    )
+
+    with pytest.raises(SystemExit):
+        main()
+
+    assert source.read_text(encoding="utf-8") == original
