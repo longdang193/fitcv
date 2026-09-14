@@ -12,6 +12,11 @@ export interface BookmarkItem {
   cv_version_id?: string | null;
   cv_generation_status?: string | null;
   cv_available?: number | boolean;
+  capabilities?: {
+    bookmark?: boolean;
+    rate?: boolean;
+    [key: string]: unknown;
+  };
   stage_id?: string;
   status?: string;
   outcome_code?: string;

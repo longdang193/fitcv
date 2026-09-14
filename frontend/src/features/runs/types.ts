@@ -188,6 +188,7 @@ export interface RunJobItem {
   attributes?: Record<string, unknown>;
   capabilities?: {
     bookmark?: boolean;
+    rate?: boolean;
     interest?: boolean;
     cv_view?: boolean;
     cv_generate?: boolean;

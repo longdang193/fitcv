@@ -95,6 +95,7 @@ export const JobEvaluationTable: React.FC<JobEvaluationTableProps> = ({
       render: (item) => (
         <InterestRating
           rating={item.interest_rating}
+          disabled={item.capabilities?.rate === false}
           onChange={(newRating) => onChangeInterest(item, newRating)}
           ariaLabelPrefix={`Application interest for ${item.title}`}
         />

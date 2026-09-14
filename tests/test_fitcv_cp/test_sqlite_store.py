@@ -5320,6 +5320,57 @@ def test_job_collections_project_canonical_enrichment_fields() -> None:
     assert {key: bookmark_item[key] for key in expected} == expected
 
 
+def test_job_collections_expose_rate_only_for_decision_feedback_alternatives() -> None:
+    run_id = "run-rate-capabilities"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "Eligible", "job_url": "https://example.com/eligible"},
+            {"title": "Ineligible", "job_url": "https://example.com/ineligible"},
+        ],
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        for run_job_id, fingerprint in zip(run_job_ids, ("eligible-fp", "ineligible-fp")):
+            row = conn.execute(
+                "SELECT source_snapshot_json FROM run_jobs WHERE run_job_id=?", (run_job_id,)
+            ).fetchone()
+            snapshot = json.loads(str(row[0]))
+            snapshot["raw_job_fingerprint"] = fingerprint
+            conn.execute(
+                "UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id=?",
+                (json.dumps(snapshot), run_job_id),
+            )
+        conn.commit()
+    sqlite_store.update_run_results_export(
+        run_id,
+        json.dumps(
+            {
+                "schema_version": "results_job_ledger_v4",
+                "decision_feedback_source": {
+                    "schema_version": "decision_feedback_source_v1",
+                    "alternatives": [{"alternative_id": "eligible-fp"}],
+                },
+            }
+        ),
+    )
+    for run_job_id in run_job_ids:
+        sqlite_store.set_bookmark(run_job_id)
+
+    run_items = {
+        item["title"]: item
+        for item in sqlite_store.query_run_jobs(run_id, page_size=20)["items"]
+    }
+    bookmark_items = {
+        item["title"]: item
+        for item in sqlite_store.query_bookmarks(page_size=20)["items"]
+    }
+
+    assert run_items["Eligible"]["capabilities"]["rate"] is True
+    assert run_items["Ineligible"]["capabilities"]["rate"] is False
+    assert bookmark_items["Eligible"]["capabilities"]["rate"] is True
+    assert bookmark_items["Ineligible"]["capabilities"]["rate"] is False
+
+
 def test_cancel_normalized_run_terminalizes_open_stages_and_is_idempotent() -> None:
     _create_normalized_run_with_jobs(
         "run-awaiting-cancel-stages", [{"title": "Analyst", "job_url": "https://example.com/1"}]

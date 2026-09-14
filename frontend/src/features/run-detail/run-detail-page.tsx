@@ -1303,6 +1303,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                                     <InterestRating
                                       rating={currentRating}
+                                      disabled={item.capabilities?.rate === false}
                                       onChange={(newRating) => handleRateJob(item, newRating)}
                                       ariaLabelPrefix={`Application Interest for ${item.title || "Job"}`}
                                     />

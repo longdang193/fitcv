@@ -39,6 +39,7 @@ from fitcv.decision_feedback import (
     DecisionRatingEvent,
     RatingEventType,
     RatingValue,
+    resolve_decision_feedback_alternative_id,
 )
 from fitcv.candidate_ingest import CandidateIngestError, validate_candidate_source_upload
 from fitcv.inverse_optimization import InverseOptimizationRequest, InverseTrainingEpisode
@@ -12170,6 +12171,7 @@ def query_bookmarks(
             "stage_summaries",
         ):
             item[key] = projection[key]
+        item["capabilities"] = projection["capabilities"]
         item["cv_available"] = int(item["cv_available"])
         items.append(item)
     total = len(items)
@@ -13098,6 +13100,9 @@ def _filtered_run_job_rows(
                JOIN run_jobs j ON j.run_job_id=i.run_job_id WHERE j.run_id=?""",
             (run_id,),
         ).fetchall()
+        run_row = conn.execute(
+            "SELECT compatibility_json FROM pipeline_runs WHERE run_id=?", (run_id,)
+        ).fetchone()
         structured_by_url = _run_structured_payloads(conn, run_id)
         usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
 
@@ -13108,6 +13113,24 @@ def _filtered_run_job_rows(
         ] = result_row
     bookmarks = {str(row["run_job_id"]): dict(row) for row in bookmark_rows}
     interests = {str(row["run_job_id"]): dict(row) for row in interest_rows}
+    run_compatibility = _decode_json_or_none(run_row["compatibility_json"]) if run_row else None
+    run_payload = _decode_json_or_none(
+        run_compatibility.get("results_export_json")
+        if isinstance(run_compatibility, dict)
+        else None
+    )
+    decision_feedback_source = (
+        run_payload.get("decision_feedback_source")
+        if isinstance(run_payload, dict)
+        and run_payload.get("schema_version") == "results_job_ledger_v4"
+        and isinstance(run_payload.get("decision_feedback_source"), dict)
+        else None
+    )
+    decision_feedback_alternatives = (
+        decision_feedback_source.get("alternatives", [])
+        if isinstance(decision_feedback_source, dict)
+        else []
+    )
     projected: list[dict[str, Any]] = []
     normalized_search = search.strip().casefold()
     for job_row in jobs:
@@ -13223,7 +13246,11 @@ def _filtered_run_job_rows(
                 "rating_contract_revision": interest["rating_contract_revision"] if interest else None,
                 "capabilities": {
                     "bookmark": True,
-                    "rate": True,
+                    "rate": resolve_decision_feedback_alternative_id(
+                        {**job_fields, "source_snapshot": source_snapshot},
+                        decision_feedback_alternatives,
+                    )
+                    is not None,
                     "download_cv": run_job_id in usable_cv_job_ids,
                     "regenerate_cv": bool(job_row["current_cv_version_id"]),
                 },
@@ -13394,6 +13421,9 @@ def _hydrate_run_job_ids(
         f"SELECT * FROM run_job_interest WHERE run_job_id IN ({placeholders})",
         run_job_ids,
     ).fetchall()
+    run_row = conn.execute(
+        "SELECT compatibility_json FROM pipeline_runs WHERE run_id=?", (run_id,)
+    ).fetchone()
     structured_by_url = _run_structured_payloads(conn, run_id)
     usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
     results_by_job: dict[str, dict[str, sqlite3.Row]] = {}
@@ -13401,6 +13431,24 @@ def _hydrate_run_job_ids(
         results_by_job.setdefault(str(result_row["run_job_id"]), {})[str(result_row["stage_id"])] = result_row
     bookmarks = {str(row["run_job_id"]): dict(row) for row in bookmark_rows}
     interests = {str(row["run_job_id"]): dict(row) for row in interest_rows}
+    run_compatibility = _decode_json_or_none(run_row["compatibility_json"]) if run_row else None
+    run_payload = _decode_json_or_none(
+        run_compatibility.get("results_export_json")
+        if isinstance(run_compatibility, dict)
+        else None
+    )
+    decision_feedback_source = (
+        run_payload.get("decision_feedback_source")
+        if isinstance(run_payload, dict)
+        and run_payload.get("schema_version") == "results_job_ledger_v4"
+        and isinstance(run_payload.get("decision_feedback_source"), dict)
+        else None
+    )
+    decision_feedback_alternatives = (
+        decision_feedback_source.get("alternatives", [])
+        if isinstance(decision_feedback_source, dict)
+        else []
+    )
     projected: list[dict[str, Any]] = []
     jobs_by_id = {str(row["run_job_id"]): row for row in jobs}
     for run_job_id in run_job_ids:
@@ -13458,7 +13506,16 @@ def _hydrate_run_job_ids(
             "bookmarked": bookmark is not None, "bookmark_id": bookmark["bookmark_id"] if bookmark else None,
             "rating": int(interest["rating"]) if interest else None,
             "rating_contract_revision": interest["rating_contract_revision"] if interest else None,
-            "capabilities": {"bookmark": True, "rate": True, "download_cv": run_job_id in usable_cv_job_ids, "regenerate_cv": bool(job_row["current_cv_version_id"])},
+            "capabilities": {
+                "bookmark": True,
+                "rate": resolve_decision_feedback_alternative_id(
+                    {**job_fields, "source_snapshot": source_snapshot},
+                    decision_feedback_alternatives,
+                )
+                is not None,
+                "download_cv": run_job_id in usable_cv_job_ids,
+                "regenerate_cv": bool(job_row["current_cv_version_id"]),
+            },
         })
     return projected
 

@@ -108,7 +108,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <InterestRating
               rating={item.rating}
-              disabled={!onChangeInterest}
+              disabled={!onChangeInterest || item.capabilities?.rate === false}
               onChange={(newRating) => onChangeInterest?.(item, newRating)}
               ariaLabelPrefix={`Application Interest for ${item.title}`}
             />

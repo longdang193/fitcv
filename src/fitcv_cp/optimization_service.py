@@ -29,6 +29,7 @@ from fitcv.decision_feedback import (
     RatingEventType,
     RatingValue,
     build_episode_records,
+    resolve_decision_feedback_alternative_id,
     optimizer_policy_fingerprint,
     reduce_rating_event_states,
     validate_decision_learning_policy,
@@ -92,34 +93,7 @@ def materialize_run_job_rating(
 
     created_at = datetime.datetime.now(datetime.timezone.utc)
     episode, alternatives = build_episode_records(source, created_at=created_at)
-    snapshot = run_job.get("source_snapshot")
-    snapshot = snapshot if isinstance(snapshot, dict) else {}
-    alternative_ids = {
-        str(alternative.alternative_id): alternative for alternative in alternatives
-    }
-    identity_candidates = (
-        run_job.get("raw_job_fingerprint"),
-        snapshot.get("raw_job_fingerprint"),
-        run_job.get("job_id"),
-    )
-    alternative_id = next(
-        (
-            str(candidate)
-            for candidate in identity_candidates
-            if str(candidate or "") in alternative_ids
-        ),
-        None,
-    )
-    if alternative_id is None:
-        source_url = str(run_job.get("source_url") or "").strip()
-        alternative_id = next(
-            (
-                alternative.alternative_id
-                for alternative in alternatives
-                if alternative.source_job_url == source_url
-            ),
-            None,
-        )
+    alternative_id = resolve_decision_feedback_alternative_id(run_job, alternatives)
     if alternative_id is None:
         raise ValueError("run job is not an eligible decision alternative")
 

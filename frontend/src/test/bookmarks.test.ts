@@ -456,4 +456,34 @@ describe("Bookmarks Search Debounce and Stale Request Rejection", () => {
     expect(stateUpdatedAfterUnmount).toBe(false);
     vi.useRealTimers();
   });
+
+  it("disables rating controls when backend marks bookmark as ineligible", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(BookmarksTable, {
+        bookmarks: [{
+          bookmark_id: "bm-ineligible",
+          bookmarked_at: "2026-08-30T10:00:00Z",
+          run_id: "run-ineligible",
+          run_job_id: "job-ineligible",
+          title: "Ineligible Job",
+          company: "Acme",
+          rating: null,
+          capabilities: { rate: false },
+        }],
+        loading: false,
+        page: 1,
+        pageSize: 20,
+        total: 1,
+        onPageChange: () => {},
+        selectedJobIds: [],
+        onToggleSelectJob: () => {},
+        onToggleSelectAll: () => {},
+        onRemoveSingle: () => {},
+        onInspectEvidence: () => {},
+        onChangeInterest: () => {},
+      })
+    );
+
+    expect(markup).toContain('disabled=""');
+  });
 });

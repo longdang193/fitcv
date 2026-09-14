@@ -601,6 +601,44 @@ def build_decision_feedback_source(
     return source_payload
 
 
+def resolve_decision_feedback_alternative_id(
+    run_job: dict[str, Any], alternatives: Iterable[Any]
+) -> str | None:
+    alternative_rows = {
+        str(
+            alternative.get("alternative_id")
+            if isinstance(alternative, dict)
+            else getattr(alternative, "alternative_id", "")
+        ): alternative
+        for alternative in alternatives
+    }
+    snapshot = run_job.get("source_snapshot")
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    identity_candidates = (
+        run_job.get("raw_job_fingerprint"),
+        snapshot.get("raw_job_fingerprint"),
+        run_job.get("job_id"),
+    )
+    for candidate in identity_candidates:
+        candidate_id = str(candidate or "")
+        if candidate_id in alternative_rows:
+            return candidate_id
+    source_url = str(run_job.get("source_url") or "").strip()
+    for alternative in alternative_rows.values():
+        alternative_url = (
+            alternative.get("source_job_url")
+            if isinstance(alternative, dict)
+            else getattr(alternative, "source_job_url", "")
+        )
+        if str(alternative_url or "") == source_url:
+            return str(
+                alternative.get("alternative_id")
+                if isinstance(alternative, dict)
+                else getattr(alternative, "alternative_id", "")
+            )
+    return None
+
+
 def build_episode_records(
     source: dict[str, Any],
     *,
