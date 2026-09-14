@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Button,
   Tabs,
@@ -52,6 +52,9 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
   const [pageSize] = useState(20);
   const [activeCount, setActiveCount] = useState(0);
   const [archivedCount, setArchivedCount] = useState(0);
+  const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+  const requestAbortRef = useRef<AbortController | null>(null);
 
   // Multi-selection state
   const [selectedScanIds, setSelectedScanIds] = useState<Set<string>>(new Set());
@@ -65,15 +68,36 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
   const [deletePreview, setDeletePreview] = useState<DeletePreviewResult | null>(null);
   const [isDeletePreviewOpen, setIsDeletePreviewOpen] = useState(false);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestIdRef.current += 1;
+      requestAbortRef.current?.abort();
+    };
+  }, []);
+
   const loadScans = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    requestAbortRef.current?.abort();
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    requestAbortRef.current = controller;
+    const requestId = ++requestIdRef.current;
+    const queryKey = `${lifecycle}:${page}:${pageSize}`;
+    const ownsRequest = () => (
+      mountedRef.current && requestId === requestIdRef.current && queryKey === `${lifecycle}:${page}:${pageSize}`
+    );
+    if (ownsRequest()) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const res = await fetchScans({
         lifecycle,
         page,
         page_size: pageSize,
+        signal: controller?.signal,
       });
+      if (!ownsRequest()) return;
       setScans(res.data || []);
       setTotalItems(res.page?.total_items ?? res.total_items ?? res.total ?? 0);
       if (res.meta) {
@@ -81,15 +105,16 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
         if (typeof res.meta.archived_count === "number") setArchivedCount(res.meta.archived_count);
       }
     } catch (err: any) {
+      if (!ownsRequest() || err?.name === "AbortError") return;
       setError(err.message || "Failed to load scans");
     } finally {
-      setLoading(false);
+      if (ownsRequest()) setLoading(false);
     }
   }, [lifecycle, page, pageSize]);
 
   useEffect(() => {
     setSelectedScanIds(new Set());
-    loadScans();
+    void loadScans();
   }, [loadScans]);
 
   const handleToggleSelect = (scanId: string) => {

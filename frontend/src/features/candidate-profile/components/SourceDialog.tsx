@@ -40,7 +40,7 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
   const triggerElementRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isMountedRef = useRef(true);
+  const requestRef = useRef({ id: 0, controller: null as AbortController | null });
 
   // Focus return & keydown (Escape & Focus Containment) management
   useEffect(() => {
@@ -94,41 +94,45 @@ export const SourceDialog: React.FC<SourceDialogProps> = ({
   }, [open, onClose]);
 
   const loadSourceBlock = useCallback(async () => {
+    const request = requestRef.current;
+    request.controller?.abort();
+    const requestId = ++request.id;
+    const controller = new AbortController();
+    request.controller = controller;
     if (!sourceBlockId) {
       setSourceBlock(null);
       setError(null);
+      setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchSourceBlock(attemptId, sourceBlockId);
-      if (isMountedRef.current) {
-        setSourceBlock(data);
-        setError(null);
-      }
+      const data = await fetchSourceBlock(attemptId, sourceBlockId, controller.signal);
+      if (request.id !== requestId) return;
+      setSourceBlock(data);
+      setError(null);
     } catch (err: any) {
-      if (isMountedRef.current) {
-        setError(err.message || "Failed to load source block");
-      }
+      if (request.id !== requestId || err?.name === "AbortError") return;
+      setError(err.message || "Failed to load source block");
     } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
+      if (request.id === requestId) setLoading(false);
     }
   }, [attemptId, sourceBlockId]);
 
   useEffect(() => {
-    isMountedRef.current = true;
     if (open && sourceBlockId) {
-      loadSourceBlock();
+      void loadSourceBlock();
     } else {
+      requestRef.current.controller?.abort();
+      requestRef.current.id += 1;
       setSourceBlock(null);
       setError(null);
       setLoading(false);
     }
     return () => {
-      isMountedRef.current = false;
+      requestRef.current.controller?.abort();
+      requestRef.current.id += 1;
     };
   }, [open, sourceBlockId, loadSourceBlock]);
 

@@ -111,6 +111,7 @@ export async function fetchCreationAttempts(params?: {
   search?: string;
   page?: number;
   page_size?: number;
+  signal?: AbortSignal;
 }): Promise<PaginationEnvelope<CreationAttempt>> {
   const query = new URLSearchParams();
   if (params?.status) query.set("status", params.status);
@@ -120,7 +121,9 @@ export async function fetchCreationAttempts(params?: {
 
   const qs = query.toString();
   const path = `/candidate-profile-creation-attempts${qs ? `?${qs}` : ""}`;
-  const res = await apiClient.get<PaginationEnvelope<CreationAttempt>>(path);
+  const res = params?.signal
+    ? await apiClient.get<PaginationEnvelope<CreationAttempt>>(path, { signal: params.signal })
+    : await apiClient.get<PaginationEnvelope<CreationAttempt>>(path);
   return res.data;
 }
 
@@ -141,22 +144,25 @@ export async function createCreationAttempt(
   return (res.data as any)?.data || res.data;
 }
 
-export async function fetchCreationAttempt(attemptId: string): Promise<CreationAttempt> {
-  const res = await apiClient.get<{ data: CreationAttempt }>(
-    `/candidate-profile-creation-attempts/${encodeURIComponent(attemptId)}`
-  );
+export async function fetchCreationAttempt(attemptId: string, signal?: AbortSignal): Promise<CreationAttempt> {
+  const path = `/candidate-profile-creation-attempts/${encodeURIComponent(attemptId)}`;
+  const res = signal
+    ? await apiClient.get<{ data: CreationAttempt }>(path, { signal })
+    : await apiClient.get<{ data: CreationAttempt }>(path);
   return (res.data as any)?.data || res.data;
 }
 
 export async function fetchSourceBlock(
   attemptId: string,
-  sourceBlockId: string
+  sourceBlockId: string,
+  signal?: AbortSignal
 ): Promise<SourceBlock> {
-  const res = await apiClient.get<{ data: SourceBlock }>(
-    `/candidate-profile-creation-attempts/${encodeURIComponent(
-      attemptId
-    )}/source-blocks/${encodeURIComponent(sourceBlockId)}`
-  );
+  const path = `/candidate-profile-creation-attempts/${encodeURIComponent(
+    attemptId
+  )}/source-blocks/${encodeURIComponent(sourceBlockId)}`;
+  const res = signal
+    ? await apiClient.get<{ data: SourceBlock }>(path, { signal })
+    : await apiClient.get<{ data: SourceBlock }>(path);
   return (res.data as any)?.data || res.data;
 }
 
@@ -380,6 +386,7 @@ export async function fetchProfiles(params?: {
   search?: string;
   page?: number;
   page_size?: number;
+  signal?: AbortSignal;
 }): Promise<PaginationEnvelope<CandidateProfile>> {
   const query = new URLSearchParams();
   const viewParam = params?.view || params?.lifecycle;
@@ -390,7 +397,9 @@ export async function fetchProfiles(params?: {
 
   const qs = query.toString();
   const path = `/candidate-profiles${qs ? `?${qs}` : ""}`;
-  const res = await apiClient.get<PaginationEnvelope<CandidateProfile>>(path);
+  const res = params?.signal
+    ? await apiClient.get<PaginationEnvelope<CandidateProfile>>(path, { signal: params.signal })
+    : await apiClient.get<PaginationEnvelope<CandidateProfile>>(path);
   return res.data;
 }
 
@@ -402,10 +411,11 @@ export function normalizeCandidateProfileDetail(raw: CandidateProfileDetail): Ca
   };
 }
 
-export async function fetchProfileDetail(profileId: string): Promise<CandidateProfileDetail> {
-  const res = await apiClient.get<{ data: CandidateProfileDetail }>(
-    `/candidate-profiles/${encodeURIComponent(profileId)}`
-  );
+export async function fetchProfileDetail(profileId: string, signal?: AbortSignal): Promise<CandidateProfileDetail> {
+  const path = `/candidate-profiles/${encodeURIComponent(profileId)}`;
+  const res = signal
+    ? await apiClient.get<{ data: CandidateProfileDetail }>(path, { signal })
+    : await apiClient.get<{ data: CandidateProfileDetail }>(path);
   const data = (res.data as any)?.data || res.data;
   return normalizeCandidateProfileDetail(data);
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { SourceDialog } from "./SourceDialog";
 import { Button, LoadingState, ErrorState, StatusBadge, Dialog, LiveStatus } from "../../../components";
 import {
@@ -49,21 +49,35 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
   };
 
 
-  const loadDetail = async () => {
+  const requestRef = useRef({ id: 0, controller: null as AbortController | null });
+
+  const loadDetail = useCallback(async () => {
+    const request = requestRef.current;
+    request.controller?.abort();
+    const controller = new AbortController();
+    const requestId = ++request.id;
+    request.controller = controller;
     setLoading(true);
     setError(null);
     try {
-      const profData = await fetchProfileDetail(profileId);
+      const profData = await fetchProfileDetail(profileId, controller.signal);
+      if (request.id !== requestId) return;
       setProfile(profData);
-      setLoading(false);
     } catch (err: any) {
+      if (request.id !== requestId || err?.name === "AbortError") return;
       setError(err.message || "Failed to load candidate profile details.");
-      setLoading(false);
+    } finally {
+      if (request.id === requestId) setLoading(false);
     }
-  };
+  }, [profileId]);
 
   useEffect(() => {
-    loadDetail();
+    setProfile((previous) => (previous?.profile_id === profileId ? previous : null));
+    void loadDetail();
+    return () => {
+      requestRef.current.controller?.abort();
+      requestRef.current.id += 1;
+    };
   }, [profileId]);
 
   const canonical = profile?.canonical || profile?.profile?.canonical || profile?.overview || {};
@@ -154,7 +168,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
     }
   };
 
-  if (loading) {
+  if (loading && !profile) {
     return <LoadingState message="Loading candidate profile..." />;
   }
 
@@ -165,7 +179,9 @@ export const DetailView: React.FC<DetailViewProps> = ({ profileId, onBack, onEdi
   const isArchived = profile.lifecycle === "archived";
 
   return (
-    <div className="candidate-profile-detail-container">
+      <div className="candidate-profile-detail-container">
+      {loading && <LiveStatus message="Refreshing candidate profile..." />}
+      {error && <div role="alert" style={{ color: "var(--danger)", marginBottom: 12 }}>{error}</div>}
       {/* Back button & page header */}
       <div className="details-page-head">
         <a

@@ -19,6 +19,7 @@ import {
   fetchScanEvents,
   fetchScanJobs,
   fetchScanOutputJson,
+  retainScanEventCursor,
 } from "./api";
 import {
   ScanResource,
@@ -55,6 +56,7 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
 
@@ -76,72 +78,166 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
   const [jsonLoadError, setJsonLoadError] = useState<string | null>(null);
 
   const pollTimerRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
+  const scanSessionRef = useRef(0);
+  const detailRequestIdRef = useRef(0);
+  const detailAbortRef = useRef<AbortController | null>(null);
+  const eventsRequestIdRef = useRef(0);
+  const eventsAbortRef = useRef<AbortController | null>(null);
+  const jobsRequestIdRef = useRef(0);
+  const jobsAbortRef = useRef<AbortController | null>(null);
+  const jsonRequestIdRef = useRef(0);
+  const jsonAbortRef = useRef<AbortController | null>(null);
+  const pollingSessionRef = useRef(0);
 
-  const loadScanData = useCallback(async (isInitial = false) => {
-    if (isInitial) setLoading(true);
-    try {
-      const [res, eventsRes] = await Promise.all([
-        fetchScan(scanId),
-        fetchScanEvents(scanId, eventCursorRef.current, 50),
-      ]);
-      setScan(res);
-      setError(null);
-      setRefreshError(null);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      scanSessionRef.current += 1;
+      detailRequestIdRef.current += 1;
+      eventsRequestIdRef.current += 1;
+      jobsRequestIdRef.current += 1;
+      jsonRequestIdRef.current += 1;
+      detailAbortRef.current?.abort();
+      eventsAbortRef.current?.abort();
+      jobsAbortRef.current?.abort();
+      jsonAbortRef.current?.abort();
+      if (pollTimerRef.current !== null) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      pollingSessionRef.current += 1;
+    };
+  }, []);
 
-      if (eventsRes.events && eventsRes.events.length > 0) {
+  const loadScanData = useCallback(async (isInitial = false, session = scanSessionRef.current) => {
+    detailAbortRef.current?.abort();
+    eventsAbortRef.current?.abort();
+    const detailController = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const eventsController = typeof AbortController !== "undefined" ? new AbortController() : null;
+    detailAbortRef.current = detailController;
+    eventsAbortRef.current = eventsController;
+    const detailRequestId = ++detailRequestIdRef.current;
+    const eventsRequestId = ++eventsRequestIdRef.current;
+    const requestCursor = eventCursorRef.current;
+    const ownsDetail = () => (
+      mountedRef.current && session === scanSessionRef.current && detailRequestId === detailRequestIdRef.current
+    );
+    const ownsEvents = () => (
+      mountedRef.current && session === scanSessionRef.current && eventsRequestId === eventsRequestIdRef.current
+    );
+
+    if (isInitial && ownsDetail()) setLoading(true);
+
+    const detailPromise = fetchScan(scanId, detailController?.signal)
+      .then((res) => {
+        if (!ownsDetail()) return null;
+        setScan(res);
+        setError(null);
+        setRefreshError(null);
+        return res;
+      })
+      .catch((err: any) => {
+        if (!ownsDetail() || err?.name === "AbortError") return null;
+        const message = err.message || "Failed to load scan details";
+        if (isInitial) setError(message);
+        else setRefreshError(message);
+        return null;
+      })
+      .finally(() => {
+        if (isInitial && ownsDetail()) setLoading(false);
+      });
+
+    const eventsPromise = fetchScanEvents(scanId, requestCursor, 50, eventsController?.signal)
+      .then((eventsRes) => {
+        if (!ownsEvents()) return;
+        setEventsError(null);
+        eventCursorRef.current = retainScanEventCursor(requestCursor, eventsRes.next_cursor);
         setEvents((prev) => {
-          const ids = new Set(prev.map((e) => e.event_id));
-          const fresh = eventsRes.events.filter((e) => !ids.has(e.event_id));
+          const ids = new Set(prev.map((event) => event.event_id));
+          const fresh = (eventsRes.events || []).filter((event) => !ids.has(event.event_id));
           return [...prev, ...fresh];
         });
-        if (eventsRes.next_cursor) {
-          eventCursorRef.current = eventsRes.next_cursor;
-        }
-      }
-    } catch (err: any) {
-      const message = err.message || "Failed to load scan details";
-      if (isInitial) setError(message);
-      else setRefreshError(message);
-    } finally {
-      if (isInitial) setLoading(false);
-    }
+      })
+      .catch((err: any) => {
+        if (!ownsEvents() || err?.name === "AbortError") return;
+        setEventsError(err.message || "Failed to load scan events");
+      });
+
+    const [loadedScan] = await Promise.all([detailPromise, eventsPromise]);
+    return loadedScan as ScanResource | null;
   }, [scanId]);
 
   const loadJobs = useCallback(async (page = 1) => {
-    setJobsLoadAttempted(true);
-    setJobsLoading(true);
-    setJobsLoadError(null);
+    jobsAbortRef.current?.abort();
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    jobsAbortRef.current = controller;
+    const requestId = ++jobsRequestIdRef.current;
+    const session = scanSessionRef.current;
+    const ownsRequest = () => (
+      mountedRef.current && session === scanSessionRef.current && requestId === jobsRequestIdRef.current
+    );
+    if (ownsRequest()) {
+      setJobsLoadAttempted(true);
+      setJobsLoading(true);
+      setJobsLoadError(null);
+    }
     try {
-      const res = await fetchScanJobs(scanId, page, 20);
+      const res = await fetchScanJobs(scanId, page, 20, controller?.signal);
+      if (!ownsRequest()) return;
       setJobs(res.data || []);
       setJobsPage(res.page?.number ?? page);
       setJobsTotal(res.page?.total_items ?? res.total_items ?? res.total ?? 0);
     } catch (err: any) {
+      if (!ownsRequest() || err?.name === "AbortError") return;
       setJobsLoadError(err.message || "Unable to load scan output.");
     } finally {
-      setJobsLoading(false);
+      if (ownsRequest()) setJobsLoading(false);
     }
   }, [scanId]);
 
   const loadJson = useCallback(async () => {
-    setJsonLoadAttempted(true);
-    setJsonLoading(true);
-    setJsonLoadError(null);
+    jsonAbortRef.current?.abort();
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    jsonAbortRef.current = controller;
+    const requestId = ++jsonRequestIdRef.current;
+    const session = scanSessionRef.current;
+    const ownsRequest = () => (
+      mountedRef.current && session === scanSessionRef.current && requestId === jsonRequestIdRef.current
+    );
+    if (ownsRequest()) {
+      setJsonLoadAttempted(true);
+      setJsonLoading(true);
+      setJsonLoadError(null);
+    }
     try {
-      const data = await fetchScanOutputJson(scanId);
+      const data = await fetchScanOutputJson(scanId, controller?.signal);
+      if (!ownsRequest()) return;
       setJsonOutput(data);
     } catch (err: any) {
+      if (!ownsRequest() || err?.name === "AbortError") return;
       setJsonOutput(null);
       setJsonLoadError(err.message || "Unable to load JSON payload.");
     } finally {
-      setJsonLoading(false);
+      if (ownsRequest()) setJsonLoading(false);
     }
   }, [scanId]);
 
   // Initial load
   useEffect(() => {
+    const session = ++scanSessionRef.current;
+    detailAbortRef.current?.abort();
+    eventsAbortRef.current?.abort();
+    jobsAbortRef.current?.abort();
+    jsonAbortRef.current?.abort();
+    detailRequestIdRef.current += 1;
+    eventsRequestIdRef.current += 1;
+    jobsRequestIdRef.current += 1;
+    jsonRequestIdRef.current += 1;
     eventCursorRef.current = null;
     setEvents([]);
+    setEventsError(null);
     setJobs([]);
     setJobsPage(1);
     setJobsTotal(0);
@@ -150,7 +246,18 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
     setJsonOutput(null);
     setJsonLoadAttempted(false);
     setJsonLoadError(null);
-    loadScanData(true);
+    void loadScanData(true, session);
+    return () => {
+      scanSessionRef.current += 1;
+      detailRequestIdRef.current += 1;
+      eventsRequestIdRef.current += 1;
+      jobsRequestIdRef.current += 1;
+      jsonRequestIdRef.current += 1;
+      detailAbortRef.current?.abort();
+      eventsAbortRef.current?.abort();
+      jobsAbortRef.current?.abort();
+      jsonAbortRef.current?.abort();
+    };
   }, [loadScanData]);
 
   // Polling for active execution states
@@ -161,16 +268,33 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
       return;
     }
 
-    const poll = async () => {
-      await loadScanData(false);
-      pollTimerRef.current = window.setTimeout(poll, 3000);
+    const pollingSession = ++pollingSessionRef.current;
+    const scanSession = scanSessionRef.current;
+    const canContinue = () => (
+      mountedRef.current &&
+      pollingSession === pollingSessionRef.current &&
+      scanSession === scanSessionRef.current &&
+      (typeof document === "undefined" || document.visibilityState === "visible")
+    );
+    const schedule = () => {
+      if (!canContinue() || pollTimerRef.current !== null) return;
+      pollTimerRef.current = window.setTimeout(async () => {
+        pollTimerRef.current = null;
+        if (!canContinue()) return;
+        const updatedScan = await loadScanData(false, scanSession);
+        if (!canContinue()) return;
+        if (updatedScan && !["queued", "running", "cancelling"].includes(updatedScan.execution_status)) return;
+        schedule();
+      }, 3000);
     };
 
-    pollTimerRef.current = window.setTimeout(poll, 3000);
+    schedule();
     return () => {
-      if (pollTimerRef.current) {
+      if (pollTimerRef.current !== null) {
         clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
       }
+      pollingSessionRef.current += 1;
     };
   }, [scan?.execution_status, loadScanData]);
 
@@ -373,9 +497,9 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
         </div>
       )}
 
-      {refreshError && (
+      {(refreshError || eventsError) && (
         <div className="notice error" role="status" style={{ marginBottom: 16 }}>
-          Scan refresh failed: {refreshError}{" "}
+          Scan refresh failed: {refreshError || eventsError}{" "}
           <Button variant="secondary" size="compact" onClick={() => loadScanData(false)}>
             Retry Refresh
           </Button>

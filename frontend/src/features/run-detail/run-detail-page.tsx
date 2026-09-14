@@ -24,6 +24,7 @@ import {
 import {
   PipelineRunResource,
   RunJobItem,
+  RunEventsPage,
   RunEventRecord,
   RunStageId,
 } from "../runs/types";
@@ -63,6 +64,18 @@ const PIPELINE_STAGES: { stage_id: RunStageId; label: string; ordinal: number }[
 ];
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const MAX_EVENT_PAGE_DRAIN = 100;
+
+export function isTerminalRunStatus(status: string): boolean {
+  return ["succeeded", "failed", "cancelled"].includes(status);
+}
+
+export function retainEventCursor(
+  requestCursor: string | null,
+  nextCursor: string | null | undefined
+): string | null {
+  return nextCursor ?? requestCursor;
+}
 
 export function buildRunJobsQueryKey(
   runId: string,
@@ -136,23 +149,42 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
   // Events / Console State
   const [events, setEvents] = useState<RunEventRecord[]>([]);
+  const [finalRefreshError, setFinalRefreshError] = useState<string | null>(null);
   const eventCursorRef = useRef<string | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const searchDebounceRef = useRef<number | null>(null);
+  const detailRequestIdRef = useRef(0);
+  const detailSessionRef = useRef(0);
+  const detailAbortRef = useRef<AbortController | null>(null);
   const jobsRequestIdRef = useRef(0);
   const jobsAbortRef = useRef<AbortController | null>(null);
+  const eventsRequestIdRef = useRef(0);
+  const eventsSessionRef = useRef(0);
   const pollInFlightRef = useRef(false);
   const mountedRef = useRef(true);
-  const lifecycleGenerationRef = useRef(0);
   const eventsAbortRef = useRef<AbortController | null>(null);
   const pollAbortRef = useRef<AbortController | null>(null);
   const jobsKeyRef = useRef("");
+  const pollingSessionRef = useRef(0);
+  const finalizationSessionRef = useRef(0);
+  const finalJobsCompleteRef = useRef(false);
+  const finalEventsCompleteRef = useRef(false);
   const terminalFinalizedRef = useRef(false);
 
   const isTerminal = useMemo(() => {
-    if (!run) return false;
-    return ["succeeded", "failed", "cancelled"].includes(run.backend_status);
+    return Boolean(run && isTerminalRunStatus(run.backend_status));
   }, [run]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      detailAbortRef.current?.abort();
+      jobsAbortRef.current?.abort();
+      eventsAbortRef.current?.abort();
+      pollAbortRef.current?.abort();
+    };
+  }, []);
 
   // Debounce search input and reset page to 1
   useEffect(() => {
@@ -171,22 +203,30 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   // Load main run detail
   const loadRunDetail = useCallback(async (
     isInitial = false,
-    signal?: AbortSignal,
-    generation = lifecycleGenerationRef.current
+    session = detailSessionRef.current
   ) => {
-    if (isInitial) setLoading(true);
+    detailAbortRef.current?.abort();
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    detailAbortRef.current = controller;
+    const requestId = ++detailRequestIdRef.current;
+    const ownsRequest = () => (
+      mountedRef.current &&
+      session === detailSessionRef.current &&
+      requestId === detailRequestIdRef.current
+    );
+    if (isInitial && ownsRequest()) setLoading(true);
     try {
-      const res = await fetchRun(runId, signal);
-      if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return false;
+      const res = await fetchRun(runId, controller?.signal);
+      if (!ownsRequest()) return false;
       setRun(res);
       setError(null);
       return true;
     } catch (err: any) {
-      if (!mountedRef.current || generation !== lifecycleGenerationRef.current || err?.name === "AbortError") return false;
+      if (!ownsRequest() || err?.name === "AbortError") return false;
       setError(err.message || "Failed to load run details.");
       return false;
     } finally {
-      if (isInitial && mountedRef.current) setLoading(false);
+      if (isInitial && ownsRequest()) setLoading(false);
     }
   }, [runId]);
 
@@ -259,10 +299,21 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   );
 
   // Poll events without reloading page
-  const pollEvents = useCallback(async (signal?: AbortSignal, generation = lifecycleGenerationRef.current) => {
+  const pollEvents = useCallback(async (
+    signal?: AbortSignal,
+    session = eventsSessionRef.current
+  ): Promise<RunEventsPage | null> => {
+    const requestId = ++eventsRequestIdRef.current;
+    const requestCursor = eventCursorRef.current;
+    const ownsRequest = () => (
+      mountedRef.current &&
+      session === eventsSessionRef.current &&
+      requestId === eventsRequestIdRef.current
+    );
+    if (!ownsRequest()) return null;
     try {
-      const eventsRes = await fetchRunEvents(runId, eventCursorRef.current, 100, signal);
-      if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return false;
+      const eventsRes = await fetchRunEvents(runId, requestCursor, 100, signal);
+      if (!ownsRequest()) return null;
       if (eventsRes.events && eventsRes.events.length > 0) {
         setEvents((prev) => {
           const existingIds = new Set(prev.map((e) => e.event_id));
@@ -270,7 +321,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           return [...prev, ...fresh];
         });
       }
-      eventCursorRef.current = eventsRes.next_cursor ?? null;
+      eventCursorRef.current = retainEventCursor(requestCursor, eventsRes.next_cursor);
       return eventsRes;
     } catch {
       // Background poll failure tolerated
@@ -278,23 +329,73 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     }
   }, [runId]);
 
-  const drainEvents = useCallback(async (signal: AbortSignal | undefined, generation: number) => {
-    let eventsRes = await pollEvents(signal, generation);
-    while (eventsRes && eventsRes.next_cursor && mountedRef.current && generation === lifecycleGenerationRef.current) {
-      eventsRes = await pollEvents(signal, generation);
+  const drainEvents = useCallback(async (
+    signal: AbortSignal | undefined,
+    session = eventsSessionRef.current
+  ) => {
+    let eventsRes = await pollEvents(signal, session);
+    let pagesDrained = 0;
+    while (
+      eventsRes &&
+      eventsRes.next_cursor != null &&
+      mountedRef.current &&
+      session === eventsSessionRef.current &&
+      pagesDrained < MAX_EVENT_PAGE_DRAIN
+    ) {
+      pagesDrained += 1;
+      eventsRes = await pollEvents(signal, session);
     }
+    return Boolean(eventsRes && eventsRes.next_cursor == null);
   }, [pollEvents]);
+
+  const finalizeTerminal = useCallback(async (session = finalizationSessionRef.current) => {
+    if (!mountedRef.current || session !== finalizationSessionRef.current || terminalFinalizedRef.current) return;
+    terminalFinalizedRef.current = true;
+    setFinalRefreshError(null);
+    const failures: string[] = [];
+
+    if (!finalJobsCompleteRef.current) {
+      let complete = await loadJobs(undefined, undefined, true);
+      if (!complete && mountedRef.current && session === finalizationSessionRef.current) {
+        complete = await loadJobs(undefined, undefined, true);
+      }
+      if (complete) finalJobsCompleteRef.current = true;
+      else failures.push("Jobs");
+    }
+
+    if (!finalEventsCompleteRef.current) {
+      if (mountedRef.current && session === finalizationSessionRef.current) {
+        let complete = await drainEvents(undefined, eventsSessionRef.current);
+        if (!complete && mountedRef.current && session === finalizationSessionRef.current) {
+          complete = await drainEvents(undefined, eventsSessionRef.current);
+        }
+        if (complete) finalEventsCompleteRef.current = true;
+        else failures.push("Events");
+      }
+    }
+
+    if (mountedRef.current && session === finalizationSessionRef.current && failures.length > 0) {
+      setFinalRefreshError(`Final refresh failed for ${failures.join(" and ")}.`);
+    }
+  }, [drainEvents, loadJobs]);
 
   // Initial load: detail and initial events only (depends only on runId)
   useEffect(() => {
-    const generation = ++lifecycleGenerationRef.current;
-    mountedRef.current = true;
-    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const detailSession = ++detailSessionRef.current;
+    const eventsSession = ++eventsSessionRef.current;
+    ++finalizationSessionRef.current;
     eventsAbortRef.current?.abort();
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     eventsAbortRef.current = controller;
     terminalFinalizedRef.current = false;
+    finalJobsCompleteRef.current = false;
+    finalEventsCompleteRef.current = false;
     eventCursorRef.current = null;
+    eventsRequestIdRef.current += 1;
     setEvents([]);
+    setFinalRefreshError(null);
+    setRun(initialRun || null);
+    setLoading(!initialRun);
     if (!initialJobs) {
       setJobs([]);
       setJobsTotal(0);
@@ -304,39 +405,35 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     setError(null);
     setActionNotice(null);
 
-    void loadRunDetail(true, controller?.signal, generation);
-
-    async function fetchInitialEvents() {
-      try {
-        const eventsRes = await fetchRunEvents(runId, null, 100, controller?.signal);
-        if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return;
-        if (eventsRes.events && eventsRes.events.length > 0) {
-          setEvents(eventsRes.events);
-        }
-        eventCursorRef.current = eventsRes.next_cursor ?? null;
-      } catch {}
-    }
-
-    void fetchInitialEvents();
+    void loadRunDetail(!initialRun, detailSession);
+    void pollEvents(controller?.signal, eventsSession);
 
     return () => {
-      lifecycleGenerationRef.current++;
-      mountedRef.current = false;
+      detailSessionRef.current += 1;
+      eventsSessionRef.current += 1;
+      finalizationSessionRef.current += 1;
+      detailRequestIdRef.current += 1;
+      eventsRequestIdRef.current += 1;
+      jobsRequestIdRef.current += 1;
       controller?.abort();
+      detailAbortRef.current?.abort();
       eventsAbortRef.current?.abort();
-      if (jobsAbortRef.current) jobsAbortRef.current.abort();
-      pollAbortRef.current?.abort();
+      jobsAbortRef.current?.abort();
     };
-  }, [runId, loadRunDetail]);
+  }, [runId, loadRunDetail, pollEvents]);
 
   // Jobs request owner: only this effect triggers jobs fetching on search/filter/page identity
   useEffect(() => {
     void loadJobs();
   }, [loadJobs]);
 
+  useEffect(() => {
+    if (run && isTerminal) void finalizeTerminal();
+  }, [run, isTerminal, finalizeTerminal]);
+
   // Single-flight polling loop for active runs; stops on terminal status or unmount
   useEffect(() => {
-    const generation = lifecycleGenerationRef.current;
+    const pollingSession = ++pollingSessionRef.current;
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
@@ -353,29 +450,27 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       pollAbortRef.current = controller;
       try {
         const updatedRun = await fetchRun(runId, controller?.signal);
-        if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return;
-        if (["succeeded", "failed", "cancelled"].includes(updatedRun.backend_status)) {
+        if (!mountedRef.current || pollingSession !== pollingSessionRef.current) return;
+        if (isTerminalRunStatus(updatedRun.backend_status)) {
           if (pollTimerRef.current) {
             clearInterval(pollTimerRef.current);
             pollTimerRef.current = null;
           }
-          if (!terminalFinalizedRef.current) {
-            terminalFinalizedRef.current = true;
-            await loadJobs(undefined, undefined, true);
-            await drainEvents(controller?.signal, generation);
-          }
-          if (mountedRef.current && generation === lifecycleGenerationRef.current) setRun(updatedRun);
+          setRun(updatedRun);
+          void finalizeTerminal();
           return;
         }
 
         setRun(updatedRun);
-        await pollEvents(controller?.signal, generation);
-        if (!mountedRef.current || generation !== lifecycleGenerationRef.current) return;
+        await pollEvents(controller?.signal, eventsSessionRef.current);
+        if (!mountedRef.current || pollingSession !== pollingSessionRef.current) return;
         await loadJobs(undefined, undefined, true);
       } catch {
       } finally {
-        pollInFlightRef.current = false;
-        if (pollAbortRef.current === controller) pollAbortRef.current = null;
+        if (pollingSession === pollingSessionRef.current) {
+          pollInFlightRef.current = false;
+          if (pollAbortRef.current === controller) pollAbortRef.current = null;
+        }
       }
     }, 2500);
 
@@ -384,10 +479,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
       }
-      lifecycleGenerationRef.current++;
+      pollingSessionRef.current++;
+      pollInFlightRef.current = false;
       pollAbortRef.current?.abort();
+      pollAbortRef.current = null;
     };
-  }, [runId, isTerminal, Boolean(run), pollEvents, drainEvents, loadJobs]);
+  }, [runId, isTerminal, Boolean(run), pollEvents, finalizeTerminal, loadJobs]);
 
   // Handlers for actions
   const handleCancel = async () => {
@@ -882,6 +979,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       {error && (
         <div className="notice error" role="alert">
           {error}
+        </div>
+      )}
+
+      {finalRefreshError && (
+        <div className="notice error" role="alert">
+          {finalRefreshError}
         </div>
       )}
 

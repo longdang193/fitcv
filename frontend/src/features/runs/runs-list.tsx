@@ -11,7 +11,7 @@ import {
 } from "../../components";
 import { formatIdentifier, formatTimestamp } from "../../lib/format";
 import {
-  fetchRuns,
+  fetchRuns as fetchRunsApi,
   cancelRun,
   archiveRun,
   unarchiveRun,
@@ -61,7 +61,11 @@ export interface RunsPollingCoordinatorOptions {
   fetchRuns: (params: {
     queryKey: string;
     showLoading: boolean;
-  }) => Promise<boolean>;
+  }) => Promise<unknown>;
+  onRequestStart?: (context: { queryKey: string; requestId: number; showLoading: boolean }) => void;
+  onResponse?: (data: unknown, context: { queryKey: string; requestId: number; showLoading: boolean }) => void;
+  onError?: (error: unknown, context: { queryKey: string; requestId: number; showLoading: boolean }) => void;
+  onSettled?: (context: { queryKey: string; requestId: number; showLoading: boolean }) => void;
   onPollSkipped?: (reason: "hidden" | "in_flight" | "terminal" | "destroyed") => void;
   cadenceMs?: number;
 }
@@ -151,22 +155,34 @@ export class RunsPollingCoordinator {
 
     const queryKey = this.options.getQueryKey();
     const requestId = ++this.activeRequestId;
+    const context = { queryKey, requestId, showLoading };
     this.inFlight = true;
     this.inFlightQueryKey = queryKey;
+    this.options.onRequestStart?.(context);
 
     try {
-      const ok = await this.options.fetchRuns({ queryKey, showLoading });
+      const data = await this.options.fetchRuns({ queryKey, showLoading });
       if (this.destroyed || requestId !== this.activeRequestId || queryKey !== this.options.getQueryKey()) {
         return false;
       }
+      this.options.onResponse?.(data, context);
       if (!this.options.hasActiveRuns()) {
         this.stopTimer();
       }
-      return ok;
+      return true;
+    } catch (error) {
+      if (this.destroyed || requestId !== this.activeRequestId || queryKey !== this.options.getQueryKey()) {
+        return false;
+      }
+      this.options.onError?.(error, context);
+      return false;
     } finally {
       if (requestId === this.activeRequestId) {
         this.inFlight = false;
         this.inFlightQueryKey = null;
+        if (!this.destroyed && queryKey === this.options.getQueryKey()) {
+          this.options.onSettled?.(context);
+        }
       }
     }
   }
@@ -208,6 +224,9 @@ export class RunsPollingCoordinator {
 
   public destroy(): void {
     this.destroyed = true;
+    this.activeRequestId += 1;
+    this.inFlight = false;
+    this.inFlightQueryKey = null;
     this.stopTimer();
     if (this.visibilityListener && typeof document !== "undefined") {
       document.removeEventListener("visibilitychange", this.visibilityListener);
@@ -277,47 +296,38 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   const pageRef = useRef(page);
   pageRef.current = page;
 
-  const isMountedRef = useRef(true);
   const coordinatorRef = useRef<RunsPollingCoordinator | null>(null);
 
-  if (!coordinatorRef.current) {
-    coordinatorRef.current = new RunsPollingCoordinator({
+  const createCoordinator = useCallback(() => new RunsPollingCoordinator({
       getQueryKey: () => activeQueryRef.current,
       hasActiveRuns: () => runsRef.current.some((run) => !isRunTerminal(run.backend_status)),
-      fetchRuns: async ({ showLoading, queryKey }) => {
+      fetchRuns: () => fetchRunsApi({
+        view: viewRef.current,
+        search: searchRef.current,
+        page: pageRef.current,
+        page_size: pageSize,
+      }),
+      onRequestStart: ({ showLoading }) => {
         if (showLoading) setLoading(true);
         setError(null);
-        try {
-          const res = await fetchRuns({
-            view: viewRef.current,
-            search: searchRef.current,
-            page: pageRef.current,
-            page_size: pageSize,
-          });
-          if (!isMountedRef.current || queryKey !== activeQueryRef.current) {
-            return false;
-          }
-          setRuns(res.data || []);
-          setTotalItems(res.total_items || 0);
-          if (res.meta) {
-            if (typeof res.meta.active_count === "number") setActiveCount(res.meta.active_count);
-            if (typeof res.meta.archived_count === "number") setArchivedCount(res.meta.archived_count);
-          }
-          return true;
-        } catch (err: any) {
-          if (!isMountedRef.current || queryKey !== activeQueryRef.current) {
-            return false;
-          }
-          setError(err.message || "Failed to load runs.");
-          return false;
-        } finally {
-          if (showLoading && isMountedRef.current) {
-            setLoading(false);
-          }
+      },
+      onResponse: (data) => {
+        const res = data as Awaited<ReturnType<typeof fetchRunsApi>>;
+        setRuns(res.data || []);
+        setTotalItems(res.total_items || 0);
+        if (res.meta) {
+          if (typeof res.meta.active_count === "number") setActiveCount(res.meta.active_count);
+          if (typeof res.meta.archived_count === "number") setArchivedCount(res.meta.archived_count);
         }
       },
-    });
-  }
+      onError: (err) => {
+        const error = err as { message?: string };
+        setError(error.message || "Failed to load runs.");
+      },
+      onSettled: ({ showLoading }) => {
+        if (showLoading) setLoading(false);
+      },
+    }), [pageSize]);
 
   const loadRuns = useCallback(async (showLoading = true): Promise<boolean> => {
     if (!coordinatorRef.current) return false;
@@ -325,14 +335,13 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   }, []);
 
   useEffect(() => {
-    isMountedRef.current = true;
+    coordinatorRef.current = createCoordinator();
     coordinatorRef.current?.start();
     return () => {
-      isMountedRef.current = false;
       coordinatorRef.current?.destroy();
       coordinatorRef.current = null;
     };
-  }, []);
+  }, [createCoordinator]);
 
   useEffect(() => {
     setSelectedRunIds(new Set());

@@ -24,6 +24,23 @@ export function isExplicitOfflineOrMock(explicitFlag?: boolean): boolean {
   return false;
 }
 
+function valuesEqual(left: unknown, right: unknown): boolean {
+  return Array.isArray(left) || Array.isArray(right) ? JSON.stringify(left) === JSON.stringify(right) : left === right;
+}
+
+function getDirtyChanges(baseValues: Record<string, any>, draftValues: Record<string, any>): Record<string, any> {
+  const changes: Record<string, any> = {};
+  for (const section of PIPELINE_SECTIONS) {
+    for (const key of section.ownedKeys) {
+      const equal = key === "rule_filter.selected_filters"
+        ? JSON.stringify([...(baseValues[key] || [])].sort()) === JSON.stringify([...(draftValues[key] || [])].sort())
+        : valuesEqual(baseValues[key], draftValues[key]);
+      if (!equal) changes[key] = draftValues[key];
+    }
+  }
+  return changes;
+}
+
 export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
   open,
   onClose,
@@ -32,7 +49,8 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
   allowOfflineFallback,
 }) => {
   const [activeSectionId, setActiveSectionId] = useState<PipelineSectionId>(initialSection);
-  const [savedValues, setSavedValues] = useState<Record<string, any>>({});
+  const [baseValues, setBaseValues] = useState<Record<string, any>>({});
+  const [, setLatestServerValues] = useState<Record<string, any>>({});
   const [draftValues, setDraftValues] = useState<Record<string, any>>({});
   const [canonicalDefaults, setCanonicalDefaults] = useState<Record<string, any>>(() => buildFallbackDefaults());
   const [revision, setRevision] = useState<string>("");
@@ -46,6 +64,15 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
   const wasOpenRef = useRef(false);
   const isBackdropMouseDownRef = useRef(false);
   const navRef = useRef<HTMLElement>(null);
+  const baseValuesRef = useRef<Record<string, any>>({});
+  const draftValuesRef = useRef<Record<string, any>>({});
+  const revisionRef = useRef("");
+  const loadedRef = useRef(false);
+  const loadRef = useRef({ id: 0, controller: null as AbortController | null });
+
+  baseValuesRef.current = baseValues;
+  draftValuesRef.current = draftValues;
+  revisionRef.current = revision;
 
   const handleNavKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
     const isNext = e.key === "ArrowDown" || e.key === "ArrowRight";
@@ -171,13 +198,19 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
     return PIPELINE_SECTIONS.find((s) => s.id === activeSectionId) || PIPELINE_SECTIONS[0];
   }, [activeSectionId]);
 
-  const loadSettings = useCallback(async () => {
+  const loadSettings = useCallback(async ({ resolveDraft = false }: { resolveDraft?: boolean } = {}) => {
+    const request = loadRef.current;
+    request.controller?.abort();
+    const controller = new AbortController();
+    const requestId = ++request.id;
+    request.controller = controller;
     setLoading(true);
     setLoadError(null);
     setError(null);
     setConflictNotice(null);
     try {
-      const res = await apiClient.get<any>("/settings/pipeline");
+      const res = await apiClient.get<any>("/settings/pipeline", { signal: controller.signal });
+      if (request.id !== requestId) return;
       const data = res.data?.data || res.data || {};
       const vals = data.values || {};
       const defs = data.defaults || {};
@@ -186,50 +219,52 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
       const mergedDefaults = { ...buildFallbackDefaults(), ...defs };
       const initialValues: Record<string, any> = { ...mergedDefaults, ...vals };
 
-      setSavedValues(initialValues);
-      setDraftValues(initialValues);
+      const isDirty = Object.keys(getDirtyChanges(baseValuesRef.current, draftValuesRef.current)).length > 0;
+      const remoteChanged =
+        rev !== revisionRef.current || JSON.stringify(initialValues) !== JSON.stringify(baseValuesRef.current);
+      if (resolveDraft || !isDirty || !loadedRef.current) {
+        setBaseValues(initialValues);
+        setDraftValues(initialValues);
+        setRevision(rev);
+        setConflictNotice(null);
+      } else if (remoteChanged) {
+        setConflictNotice("Settings changed on the server while this draft was being edited. Reload to discard local edits and use the latest revision.");
+      }
+      setLatestServerValues(initialValues);
       setCanonicalDefaults(mergedDefaults);
-      setRevision(rev);
+      loadedRef.current = true;
     } catch (err: any) {
+      if (request.id !== requestId || err?.name === "AbortError") return;
       if (isExplicitOfflineOrMock(allowOfflineFallback)) {
         const fallback = buildFallbackDefaults();
-        setSavedValues(fallback);
+        setBaseValues(fallback);
         setDraftValues(fallback);
+        setLatestServerValues(fallback);
         setCanonicalDefaults(fallback);
+        setRevision("");
+        loadedRef.current = true;
       } else {
         setLoadError(err?.message || "Failed to load pipeline settings.");
       }
     } finally {
-      setLoading(false);
+      if (request.id === requestId) setLoading(false);
     }
   }, [allowOfflineFallback]);
 
   useEffect(() => {
     if (open) {
-      loadSettings();
+      void loadSettings();
       if (initialSection) {
         setActiveSectionId(initialSection);
       }
     }
+    return () => {
+      loadRef.current.controller?.abort();
+      loadRef.current.id += 1;
+    };
   }, [open, loadSettings, initialSection]);
 
-  const dirtyChanges = useMemo(() => {
-    const changes: Record<string, any> = {};
-    for (const section of PIPELINE_SECTIONS) {
-      for (const key of section.ownedKeys) {
-        if (key === "rule_filter.selected_filters") {
-          const savedList: string[] = (savedValues[key] || []).slice().sort();
-          const draftList: string[] = (draftValues[key] || []).slice().sort();
-          if (JSON.stringify(savedList) !== JSON.stringify(draftList)) {
-            changes[key] = draftValues[key];
-          }
-        } else if (draftValues[key] !== undefined && draftValues[key] !== savedValues[key]) {
-          changes[key] = draftValues[key];
-        }
-      }
-    }
-    return changes;
-  }, [draftValues, savedValues]);
+  const dirtyChanges = useMemo(() => getDirtyChanges(baseValues, draftValues), [baseValues, draftValues]);
 
   const dirtyCount = Object.keys(dirtyChanges).length;
 
@@ -307,19 +342,27 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
     setSaving(true);
     setError(null);
     setConflictNotice(null);
+    loadRef.current.controller?.abort();
+    loadRef.current.id += 1;
+    const saveRequestId = loadRef.current.id;
+    const saveRevision = revisionRef.current;
+    const saveDraft = { ...draftValuesRef.current };
 
     try {
       const res = await apiClient.patch<any>("/settings/pipeline", {
         changes: dirtyChanges,
-        expected_revision: revision || undefined,
+        expected_revision: saveRevision || undefined,
       });
+      if (loadRef.current.id !== saveRequestId) return;
       const data = res.data?.data || res.data || {};
-      const newValues = data.values || { ...draftValues };
-      const newRevision = data.revision || revision;
+      const newValues = data.values || saveDraft;
+      const newRevision = data.revision || saveRevision;
 
-      setSavedValues(newValues);
+      setBaseValues(newValues);
       setDraftValues(newValues);
+      setLatestServerValues(newValues);
       if (newRevision) setRevision(newRevision);
+      setConflictNotice(null);
 
       notificationStore.notify({
         dedupe: "pipeline:settings:saved",
@@ -333,6 +376,7 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
       }
       onClose();
     } catch (err: any) {
+      if (loadRef.current.id !== saveRequestId) return;
       if (err.status === 409 || err.code === "settings_revision_conflict") {
         setConflictNotice(
           err.message || "Pipeline settings changed since last read. Reload to view updated settings."
@@ -413,21 +457,23 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
           aria-labelledby={`pipeline-tab-${activeSectionId}`}
           aria-label={activeSection.title}
         >
-          {loading ? (
+          {loading && !loadedRef.current ? (
             <div style={{ padding: 40 }}>
               <LoadingState message="Loading settings..." />
             </div>
-          ) : loadError ? (
+          ) : loadError && !loadedRef.current ? (
             <div style={{ padding: 40 }}>
               <ErrorState
                 title="Failed to Load Settings"
                 message={loadError}
                 actionLabel="Retry"
-                onRetry={loadSettings}
+                onRetry={() => loadSettings()}
               />
             </div>
           ) : (
             <>
+              {loading && <div role="status" style={{ color: "var(--muted)", fontSize: 13 }}>Refreshing settings...</div>}
+              {loadError && <div role="alert" className="notice is-error" style={{ margin: "12px 0" }}>{loadError}</div>}
               <div className="section-panel-header">
                 <div>
                   <p className="eyebrow">Pipeline Stage</p>
@@ -452,7 +498,7 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
                 <div className="notice is-warning" role="alert" style={{ margin: "12px 0" }}>
                   <strong>Settings Conflict (409)</strong>
                   <p>{conflictNotice}</p>
-                  <Button size="compact" variant="secondary" onClick={loadSettings}>
+                  <Button size="compact" variant="secondary" onClick={() => loadSettings({ resolveDraft: true })}>
                     Reload Latest Settings
                   </Button>
                 </div>

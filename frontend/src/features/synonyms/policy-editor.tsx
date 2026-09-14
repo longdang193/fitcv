@@ -5,6 +5,13 @@ import { fetchSynonymPolicy, updateSynonymPolicy } from "./api";
 import type { SynonymType, SynonymPolicyResource, SynonymPolicyIssue } from "./types";
 import { formatDisplayValue, formatSynonymIssueLocation } from "../../lib/format";
 
+type PolicyDraft = {
+  baseText: string;
+  draftText: string;
+  baseRevision: number;
+  baseActiveBundleRevisionId: string | null;
+};
+
 export interface PolicyEditorProps {
   initialType?: SynonymType;
   onPolicyUpdated?: () => void;
@@ -23,54 +30,111 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
   const [selectedType, setSelectedType] = useState<SynonymType>(initialType);
   const [policy, setPolicy] = useState<SynonymPolicyResource | null>(null);
   const [editorText, setEditorText] = useState<string>("");
+  const [draftsByType, setDraftsByType] = useState<Partial<Record<SynonymType, PolicyDraft>>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [conflictError, setConflictError] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showNormalized, setShowNormalized] = useState<boolean>(false);
+  const draftsRef = React.useRef(draftsByType);
+  const requestRef = React.useRef(0);
+  draftsRef.current = draftsByType;
 
-  const loadPolicy = useCallback(async (type: SynonymType) => {
+  const loadPolicy = useCallback(async (type: SynonymType, resolveDraft = false) => {
+    const requestId = ++requestRef.current;
     setLoading(true);
     setError(null);
     setConflictError(false);
     setFeedback(null);
     try {
       const data = await fetchSynonymPolicy(type);
+      if (requestRef.current !== requestId) return;
+      const serverText = data.editor_text || "";
+      const existingDraft = draftsRef.current[type];
+      const isDirty = Boolean(existingDraft && existingDraft.draftText !== existingDraft.baseText);
+      const remoteChanged = Boolean(
+        existingDraft &&
+          (existingDraft.baseRevision !== data.draft_revision || existingDraft.baseText !== serverText)
+      );
+      const nextDraft =
+        resolveDraft || !existingDraft || !isDirty
+          ? {
+              baseText: serverText,
+              draftText: serverText,
+              baseRevision: data.draft_revision,
+              baseActiveBundleRevisionId: data.active_bundle_revision_id,
+            }
+          : existingDraft;
+      setDraftsByType((previous) => ({ ...previous, [type]: nextDraft }));
       setPolicy(data);
-      setEditorText(data.editor_text || "");
+      setEditorText(nextDraft.draftText);
+      if (isDirty && remoteChanged && !resolveDraft) {
+        setError("Policy changed on the server while this draft was being edited. Reload to discard local edits and use the latest revision.");
+      }
     } catch (err: unknown) {
+      if (requestRef.current !== requestId) return;
       const msg = err instanceof ApiClientError ? err.message : "Failed to load synonym policy.";
       setError(msg);
     } finally {
-      setLoading(false);
+      if (requestRef.current === requestId) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadPolicy(selectedType);
+    setPolicy(null);
+    setEditorText(draftsRef.current[selectedType]?.draftText || "");
+    void loadPolicy(selectedType);
+    return () => {
+      requestRef.current += 1;
+    };
   }, [selectedType, loadPolicy]);
+
+  const handleEditorChange = (value: string) => {
+    setEditorText(value);
+    setDraftsByType((previous) => {
+      const current = previous[selectedType];
+      if (!current) return previous;
+      return { ...previous, [selectedType]: { ...current, draftText: value } };
+    });
+  };
 
   const handleSave = async () => {
     if (!policy) return;
+    const type = selectedType;
+    const draft = draftsRef.current[type];
+    if (!draft) return;
+    const saveRequestId = ++requestRef.current;
     setSaving(true);
     setError(null);
     setConflictError(false);
     setFeedback(null);
 
     try {
-      const updated = await updateSynonymPolicy(selectedType, {
+      const updated = await updateSynonymPolicy(type, {
         editor_text: editorText,
-        expected_draft_revision: policy.draft_revision,
-        expected_active_bundle_revision_id: policy.active_bundle_revision_id,
+        expected_draft_revision: draft.baseRevision,
+        expected_active_bundle_revision_id: draft.baseActiveBundleRevisionId,
       });
+      if (requestRef.current !== saveRequestId) return;
+      const updatedText = updated.editor_text || "";
+      setDraftsByType((previous) => ({
+        ...previous,
+        [type]: {
+          baseText: updatedText,
+          draftText: updatedText,
+          baseRevision: updated.draft_revision,
+          baseActiveBundleRevisionId: updated.active_bundle_revision_id,
+        },
+      }));
       setPolicy(updated);
-      setEditorText(updated.editor_text || "");
+      setEditorText(updatedText);
       setFeedback(`Policy activated successfully (Draft rev ${updated.draft_revision}).`);
       if (onPolicyUpdated) {
         onPolicyUpdated();
       }
     } catch (err: unknown) {
+      if (requestRef.current !== saveRequestId) return;
       if (err instanceof ApiClientError) {
         if (err.status === 409 || err.code === "revision_conflict") {
           setConflictError(true);
@@ -101,7 +165,8 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
     }
   };
 
-  const isDirty = policy ? editorText !== (policy.editor_text || "") : false;
+  const currentDraft = draftsByType[selectedType];
+  const isDirty = Boolean(currentDraft && currentDraft.draftText !== currentDraft.baseText);
   const mappingCount = policy?.normalized_policy ? Object.keys(policy.normalized_policy).length : 0;
 
   return (
@@ -124,7 +189,7 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
         })}
       </div>
 
-      {loading ? (
+      {loading && !policy ? (
         <LoadingState message={`Loading ${selectedType} synonym policy...`} />
       ) : error && !policy ? (
         <ErrorState
@@ -135,6 +200,7 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
         />
       ) : policy ? (
         <div style={{ display: "grid", gap: 16 }}>
+          {loading && <div role="status" style={{ color: "var(--muted)", fontSize: 13 }}>Refreshing {selectedType} synonym policy...</div>}
           {/* Status Bar */}
           <div
             className="table-card"
@@ -182,7 +248,7 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
               <Button
                 variant="secondary"
                 size="compact"
-                onClick={() => loadPolicy(selectedType)}
+                onClick={() => loadPolicy(selectedType, true)}
                 disabled={saving}
               >
                 Reload
@@ -231,7 +297,7 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
               <div>{error}</div>
               {conflictError && (
                 <div style={{ marginTop: 8 }}>
-                  <Button size="compact" variant="secondary" onClick={() => loadPolicy(selectedType)}>
+                  <Button size="compact" variant="secondary" onClick={() => loadPolicy(selectedType, true)}>
                     Reload Latest Policy
                   </Button>
                 </div>
@@ -286,7 +352,7 @@ export const PolicyEditor: React.FC<PolicyEditorProps> = ({
             <textarea
               id="synonym-policy-textarea"
               value={editorText}
-              onChange={(e) => setEditorText(e.target.value)}
+              onChange={(e) => handleEditorChange(e.target.value)}
               rows={16}
               spellCheck={false}
               style={{

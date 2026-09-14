@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button, DataTable, LoadingState, SelectionBar, Tabs, StatusBadge, LiveStatus, Dialog } from "../../../components";
 import {
   fetchCreationAttempts,
@@ -32,25 +32,31 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const [totalItems, setTotalItems] = useState(0);
   const [pageSize] = useState(20);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [attemptsLoading, setAttemptsLoading] = useState(true);
+  const [profilesLoading, setProfilesLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [attemptsError, setAttemptsError] = useState<string | null>(null);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [draftDeleteTarget, setDraftDeleteTarget] = useState<CreationAttempt | null>(null);
 
-  // Load drafts and profiles
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setSelectedKeys(new Set());
+  const attemptsRequestRef = useRef({ id: 0, controller: null as AbortController | null });
+  const profilesRequestRef = useRef({ id: 0, controller: null as AbortController | null });
+  const isCurrentRequest = (request: { id: number }, id: number) => request.id === id;
+
+  const loadAttempts = useCallback(async () => {
+    const request = attemptsRequestRef.current;
+    request.controller?.abort();
+    const controller = new AbortController();
+    const requestId = ++request.id;
+    request.controller = controller;
+    setAttemptsLoading(true);
+    setAttemptsError(null);
 
     try {
-      const [draftsRes, profsRes] = await Promise.all([
-        fetchCreationAttempts({ page: 1, page_size: 20 }),
-        fetchProfiles({ view: activeTab, page, page_size: pageSize }),
-      ]);
-
+      const draftsRes = await fetchCreationAttempts({ page: 1, page_size: 20, signal: controller.signal });
+      if (!isCurrentRequest(request, requestId)) return;
       const drafts = (draftsRes as any)?.data?.items || (draftsRes as any)?.items || draftsRes.data || [];
       setAttempts(
         drafts.filter(
@@ -58,26 +64,57 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
             attempt.creation_status !== "succeeded" && attempt.next_action !== "view_profile"
         )
       );
+    } catch (err: any) {
+      if (!isCurrentRequest(request, requestId) || err?.name === "AbortError") return;
+      setAttemptsError(err.message || "Failed to load creation drafts.");
+    } finally {
+      if (isCurrentRequest(request, requestId)) setAttemptsLoading(false);
+    }
+  }, []);
 
+  const loadProfiles = useCallback(async () => {
+    const request = profilesRequestRef.current;
+    request.controller?.abort();
+    const controller = new AbortController();
+    const requestId = ++request.id;
+    request.controller = controller;
+    setProfilesLoading(true);
+    setProfilesError(null);
+    setSelectedKeys(new Set());
+
+    try {
+      const profsRes = await fetchProfiles({ view: activeTab, page, page_size: pageSize, signal: controller.signal });
+      if (!isCurrentRequest(request, requestId)) return;
       const profileItems = (profsRes as any)?.data?.items || (profsRes as any)?.items || profsRes.data || [];
       setProfiles(profileItems);
       setTotalItems(profsRes.page?.total_items ?? profsRes.total_items ?? profsRes.total ?? profileItems.length);
-
       const meta = profsRes.meta || {};
       const total = profsRes.page?.total_items ?? profsRes.total_items ?? profsRes.total ?? profileItems.length;
       setActiveCount(meta.active_count ?? (activeTab === "active" ? total : 0));
       setArchivedCount(meta.archived_count ?? (activeTab === "archived" ? total : 0));
-
-      setLoading(false);
     } catch (err: any) {
-      setError(err.message || "Failed to load candidate profiles.");
-      setLoading(false);
+      if (!isCurrentRequest(request, requestId) || err?.name === "AbortError") return;
+      setProfilesError(err.message || "Failed to load candidate profiles.");
+    } finally {
+      if (isCurrentRequest(request, requestId)) setProfilesLoading(false);
     }
   }, [activeTab, page, pageSize]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void loadAttempts();
+    return () => {
+      attemptsRequestRef.current.controller?.abort();
+      attemptsRequestRef.current.id += 1;
+    };
+  }, [loadAttempts]);
+
+  useEffect(() => {
+    void loadProfiles();
+    return () => {
+      profilesRequestRef.current.controller?.abort();
+      profilesRequestRef.current.id += 1;
+    };
+  }, [loadProfiles]);
 
   // Row selection toggle
   const handleToggleSelect = (key: string) => {
@@ -105,7 +142,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     if (archivableProfiles.length === 0) return;
 
     setActionLoading(true);
-    setError(null);
+    setProfilesError(null);
     setStatusMessage(`Archiving ${archivableProfiles.length} profile(s)...`);
 
     try {
@@ -114,9 +151,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       }
       setStatusMessage("Profiles archived.");
       setActionLoading(false);
-      await loadData();
+      await loadProfiles();
     } catch (err: any) {
-      setError(err.message || "Failed to archive selected profiles.");
+      setProfilesError(err.message || "Failed to archive selected profiles.");
       setActionLoading(false);
     }
   };
@@ -126,7 +163,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     if (selectedProfiles.length === 0) return;
 
     setActionLoading(true);
-    setError(null);
+    setProfilesError(null);
     setStatusMessage(`Deleting ${selectedProfiles.length} profile(s)...`);
 
     try {
@@ -136,9 +173,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
       setDeleteConfirmOpen(false);
       setStatusMessage("Profiles deleted.");
       setActionLoading(false);
-      await loadData();
+      await loadProfiles();
     } catch (err: any) {
-      setError(err.message || "Failed to delete selected profiles.");
+      setProfilesError(err.message || "Failed to delete selected profiles.");
       setActionLoading(false);
     }
   };
@@ -159,7 +196,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           : undefined;
       onResumeAttempt(retried.attempt_id, targetStage);
     } catch (err: any) {
-      setError(err.message || "Failed to retry draft.");
+      setAttemptsError(err.message || "Failed to retry draft.");
       setActionLoading(false);
     }
   };
@@ -167,7 +204,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const handleDeleteDraft = async () => {
     if (!draftDeleteTarget) return;
     setActionLoading(true);
-    setError(null);
+    setAttemptsError(null);
     setStatusMessage(`Deleting draft ${draftDeleteTarget.profile_name}...`);
     try {
       await discardCreationAttempt(draftDeleteTarget.attempt_id, draftDeleteTarget.revision);
@@ -179,9 +216,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
         title: "Draft deleted",
         message: `${draftDeleteTarget.profile_name || "Candidate profile draft"} was removed.`,
       });
-      await loadData();
+      await loadAttempts();
     } catch (err: any) {
-      setError(err.message || "Failed to delete draft.");
+      setAttemptsError(err.message || "Failed to delete draft.");
       notificationStore.notify({
         dedupe: `candidate-profile:draft-delete-failed:${draftDeleteTarget.attempt_id}`,
         type: "error",
@@ -212,7 +249,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
         </Button>
       </div>
 
-      {error && (
+      {(attemptsError || profilesError) && (
         <div
           role="alert"
           style={{
@@ -225,7 +262,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
             fontWeight: 500,
           }}
         >
-          {error}
+          {attemptsError || profilesError}
         </div>
       )}
 
@@ -247,7 +284,10 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           </span>
         </div>
 
-        {attempts.length === 0 ? (
+        {attemptsError && <div role="alert" style={{ color: "var(--danger)", fontSize: 13 }}>{attemptsError}</div>}
+        {attemptsLoading && attempts.length === 0 ? (
+          <LoadingState message="Loading creation drafts..." />
+        ) : attempts.length === 0 ? (
           <div className="creation-draft creation-draft-empty">
             No creation drafts. Upload Markdown, DOCX, or YAML to start a new profile review.
           </div>
@@ -387,27 +427,30 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           />
         )}
 
-        {loading ? (
+        {profilesError && <div role="alert" style={{ color: "var(--danger)", fontSize: 13 }}>{profilesError}</div>}
+        {profilesLoading && profiles.length === 0 ? (
           <LoadingState message="Loading profiles..." />
         ) : (
-          <DataTable<CandidateProfile>
-            className="profile-table-card"
-            data={profiles}
-            keyField="profile_id"
-            selectedKeys={selectedKeys}
-            onToggleSelect={handleToggleSelect}
-            onSelectAll={handleSelectAll}
-            isAllSelected={profiles.length > 0 && selectedKeys.size === profiles.length}
-            page={page}
-            pageSize={pageSize}
-            total={totalItems}
-            onPageChange={setPage}
-            emptyMessage={
-              activeTab === "active"
-                ? "No active candidate profiles found. Create a profile to get started."
-                : "No archived candidate profiles."
-            }
-            columns={[
+          <>
+            {profilesLoading && <div role="status" style={{ color: "var(--muted)", fontSize: 13 }}>Refreshing profiles...</div>}
+            <DataTable<CandidateProfile>
+              className="profile-table-card"
+              data={profiles}
+              keyField="profile_id"
+              selectedKeys={selectedKeys}
+              onToggleSelect={handleToggleSelect}
+              onSelectAll={handleSelectAll}
+              isAllSelected={profiles.length > 0 && selectedKeys.size === profiles.length}
+              page={page}
+              pageSize={pageSize}
+              total={totalItems}
+              onPageChange={setPage}
+              emptyMessage={
+                activeTab === "active"
+                  ? "No active candidate profiles found. Create a profile to get started."
+                  : "No archived candidate profiles."
+              }
+              columns={[
               {
                 key: "profile_id",
                 header: "Profile ID",
@@ -445,8 +488,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                   </span>
                 ),
               },
-            ]}
-          />
+              ]}
+            />
+          </>
         )}
       </Tabs>
 

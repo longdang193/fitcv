@@ -66,7 +66,7 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
   const [isRetrying, setIsRetrying] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Processing candidate document...");
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isMountedRef = useRef(true);
+  const lifecycleRef = useRef({ generation: 0, controller: null as AbortController | null });
   const statusRetryCountRef = useRef(0);
 
   const isTerminalOrReady = useCallback(
@@ -74,15 +74,16 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
     [targetStage]
   );
 
-  const scheduleNextPoll = useCallback((delayMs = 1000) => {
+  const scheduleNextPoll = useCallback((generation: number, delayMs = 1000) => {
+    if (lifecycleRef.current.generation !== generation) return;
     if (pollTimerRef.current) {
       clearTimeout(pollTimerRef.current);
     }
     pollTimerRef.current = setTimeout(async () => {
-      if (!isMountedRef.current) return;
+      if (lifecycleRef.current.generation !== generation) return;
       try {
-        const data = await fetchCreationAttempt(attemptId);
-        if (!isMountedRef.current) return;
+        const data = await fetchCreationAttempt(attemptId, lifecycleRef.current.controller?.signal);
+        if (lifecycleRef.current.generation !== generation) return;
         statusRetryCountRef.current = 0;
         setStatusFetchError(null);
         setAttempt(data);
@@ -111,27 +112,31 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
           typeof data.poll_after_ms === "number" && data.poll_after_ms > 0
             ? data.poll_after_ms
             : 1000;
-        scheduleNextPoll(nextDelay);
+        scheduleNextPoll(generation, nextDelay);
       } catch (err: any) {
-        if (!isMountedRef.current) return;
+        if (lifecycleRef.current.generation !== generation || err?.name === "AbortError") return;
         statusRetryCountRef.current += 1;
         setStatusFetchError(err.message || "Failed to check processing status.");
-        scheduleNextPoll(Math.min(5000, 1000 * statusRetryCountRef.current));
+        scheduleNextPoll(generation, Math.min(5000, 1000 * statusRetryCountRef.current));
       }
     }, delayMs);
   }, [attemptId, onReady, isTerminalOrReady]);
 
   useEffect(() => {
-    isMountedRef.current = true;
+    lifecycleRef.current.controller?.abort();
+    const generation = ++lifecycleRef.current.generation;
+    const controller = new AbortController();
+    lifecycleRef.current.controller = controller;
     setError(null);
     setStatusFetchError(null);
+    setIsRetrying(false);
     statusRetryCountRef.current = 0;
     setStatusMessage("Processing candidate document...");
 
     async function initialPoll() {
       try {
-        const data = await fetchCreationAttempt(attemptId);
-        if (!isMountedRef.current) return;
+        const data = await fetchCreationAttempt(attemptId, controller.signal);
+        if (lifecycleRef.current.generation !== generation) return;
         statusRetryCountRef.current = 0;
         setStatusFetchError(null);
         setAttempt(data);
@@ -160,19 +165,20 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
           typeof data.poll_after_ms === "number" && data.poll_after_ms > 0
             ? data.poll_after_ms
             : 1000;
-        scheduleNextPoll(nextDelay);
+        scheduleNextPoll(generation, nextDelay);
       } catch (err: any) {
-        if (!isMountedRef.current) return;
+        if (lifecycleRef.current.generation !== generation || err?.name === "AbortError") return;
         statusRetryCountRef.current += 1;
         setStatusFetchError(err.message || "Failed to check processing status.");
-        scheduleNextPoll(Math.min(5000, 1000 * statusRetryCountRef.current));
+        scheduleNextPoll(generation, Math.min(5000, 1000 * statusRetryCountRef.current));
       }
     }
 
     initialPoll();
 
     return () => {
-      isMountedRef.current = false;
+      lifecycleRef.current.generation += 1;
+      controller.abort();
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
       }
@@ -181,13 +187,14 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
 
   const handleRetry = async () => {
     if (!attempt) return;
+    const generation = lifecycleRef.current.generation;
     setIsRetrying(true);
     setError(null);
     setStatusMessage("Retrying processing...");
 
     try {
       const res = await retryAttempt(attempt.attempt_id, attempt.revision);
-      if (!isMountedRef.current) return;
+      if (lifecycleRef.current.generation !== generation) return;
       setAttempt(res);
       setIsRetrying(false);
 
@@ -208,9 +215,9 @@ export const ProcessingStep: React.FC<ProcessingStepProps> = ({
         typeof res.poll_after_ms === "number" && res.poll_after_ms > 0
           ? res.poll_after_ms
           : 1000;
-      scheduleNextPoll(nextDelay);
+      scheduleNextPoll(generation, nextDelay);
     } catch (err: any) {
-      if (!isMountedRef.current) return;
+      if (lifecycleRef.current.generation !== generation) return;
       setError(err.message || "Failed to retry processing.");
       setIsRetrying(false);
     }

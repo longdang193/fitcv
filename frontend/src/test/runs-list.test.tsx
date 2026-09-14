@@ -152,6 +152,59 @@ describe("Runs List Polling and Query Identity", () => {
       coordinator.destroy();
     });
 
+    it("accepts only newest response when same query requests resolve out of order", async () => {
+      const queryKey = "active::::1::20";
+      let resolveFirst: ((value: string) => void) | null = null;
+      let resolveSecond: ((value: string) => void) | null = null;
+      const committed: string[] = [];
+      const settled: number[] = [];
+
+      const coordinator = new RunsPollingCoordinator({
+        getQueryKey: () => queryKey,
+        hasActiveRuns: () => true,
+        fetchRuns: ({ showLoading }) => showLoading
+          ? new Promise<string>((resolve) => { resolveFirst = resolve; })
+          : new Promise<string>((resolve) => { resolveSecond = resolve; }),
+        onResponse: (value) => committed.push(value as string),
+        onSettled: ({ requestId }) => settled.push(requestId),
+      });
+
+      const first = coordinator.load({ showLoading: true });
+      const second = coordinator.load({ showLoading: false });
+      resolveSecond!("new");
+      expect(await second).toBe(true);
+      resolveFirst!("old");
+      expect(await first).toBe(false);
+      expect(committed).toEqual(["new"]);
+      expect(settled).toEqual([2]);
+      coordinator.destroy();
+    });
+
+    it("creates a live coordinator after StrictMode setup-cleanup-setup replay", async () => {
+      let fetchCount = 0;
+      const createCoordinator = () => new RunsPollingCoordinator({
+        getQueryKey: () => "active::::1::20",
+        hasActiveRuns: () => true,
+        isDocumentVisible: () => true,
+        fetchRuns: async () => {
+          fetchCount += 1;
+          return {};
+        },
+      });
+
+      const firstSetup = createCoordinator();
+      firstSetup.start();
+      firstSetup.destroy();
+      expect(firstSetup.isPolling).toBe(false);
+
+      const secondSetup = createCoordinator();
+      secondSetup.start();
+      expect(secondSetup.isPolling).toBe(true);
+      expect(await secondSetup.triggerTick()).toBe(true);
+      expect(fetchCount).toBe(1);
+      secondSetup.destroy();
+    });
+
     it("pauses polling when tab is hidden and resumes on visibility restore", async () => {
       vi.useFakeTimers();
       let isVisible = true;

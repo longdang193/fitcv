@@ -57,6 +57,7 @@ export async function fetchScans(params: {
   search?: string;
   page?: number;
   page_size?: number;
+  signal?: AbortSignal;
 }): Promise<ScanListResponse> {
   const query = new URLSearchParams();
   if (params.lifecycle) query.set("lifecycle", params.lifecycle);
@@ -66,12 +67,17 @@ export async function fetchScans(params: {
   if (params.page) query.set("page", String(params.page));
   if (params.page_size) query.set("page_size", String(params.page_size));
 
-  const res = await apiClient.get<ScanListResponse>(`/scans?${query.toString()}`);
+  const res = params.signal
+    ? await apiClient.get<ScanListResponse>(`/scans?${query.toString()}`, { signal: params.signal })
+    : await apiClient.get<ScanListResponse>(`/scans?${query.toString()}`);
   return res.data;
 }
 
-export async function fetchScan(scanId: string): Promise<ScanResource> {
-  const res = await apiClient.get<{ data: ScanResource }>(`/scans/${encodeURIComponent(scanId)}`);
+export async function fetchScan(scanId: string, signal?: AbortSignal): Promise<ScanResource> {
+  const path = `/scans/${encodeURIComponent(scanId)}`;
+  const res = signal
+    ? await apiClient.get<{ data: ScanResource }>(path, { signal })
+    : await apiClient.get<{ data: ScanResource }>(path);
   return res.data.data;
 }
 
@@ -229,30 +235,45 @@ export async function deleteScans(
 export async function fetchScanEvents(
   scanId: string,
   cursor?: string | null,
-  limit = 200
+  limit = 200,
+  signal?: AbortSignal
 ): Promise<ProcessEventsPage> {
   const query = new URLSearchParams({ limit: String(limit) });
   if (cursor) query.set("cursor", cursor);
-  const res = await apiClient.get<{ data: ProcessEventsPage }>(
-    `/scans/${encodeURIComponent(scanId)}/events?${query.toString()}`
-  );
+  const path = `/scans/${encodeURIComponent(scanId)}/events?${query.toString()}`;
+  const res = signal
+    ? await apiClient.get<{ data: ProcessEventsPage }>(path, { signal })
+    : await apiClient.get<{ data: ProcessEventsPage }>(path);
   return res.data.data;
 }
 
 export async function fetchScanJobs(
   scanId: string,
   page = 1,
-  pageSize = 20
+  pageSize = 20,
+  signal?: AbortSignal
 ): Promise<ScanJobsResponse> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res = await apiClient.get<ScanJobsResponse>(
-    `/scans/${encodeURIComponent(scanId)}/jobs?${query.toString()}`
-  );
+  const path = `/scans/${encodeURIComponent(scanId)}/jobs?${query.toString()}`;
+  const res = signal
+    ? await apiClient.get<ScanJobsResponse>(path, { signal })
+    : await apiClient.get<ScanJobsResponse>(path);
   return res.data;
 }
 
-export async function fetchScanOutputJson(scanId: string): Promise<string> {
-  return apiClient.previewText(`/scans/${encodeURIComponent(scanId)}/output`);
+export async function fetchScanOutputJson(scanId: string, signal?: AbortSignal): Promise<string> {
+  const path = `/scans/${encodeURIComponent(scanId)}/output`;
+  const res = signal
+    ? await apiClient.get<unknown>(path, { signal })
+    : await apiClient.get<unknown>(path);
+  return typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+}
+
+export function retainScanEventCursor(
+  requestCursor: string | null,
+  nextCursor: string | null | undefined
+): string | null {
+  return nextCursor ?? requestCursor;
 }
 
 export function buildRunSourcesHash(scanIds: string[]): string {

@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   RunDetailPage,
   buildRunJobsQueryKey,
+  isTerminalRunStatus,
+  retainEventCursor,
 } from "./run-detail-page";
 import { PipelineRunResource, RunJobItem } from "../runs/types";
 
@@ -52,6 +54,23 @@ function createMockJob(jobId: string, title: string): RunJobItem {
 describe("Run Detail Request Ownership and Polling Coordination", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe("Terminal status and event cursor rules", () => {
+    it("recognizes only terminal backend statuses", () => {
+      expect(isTerminalRunStatus("succeeded")).toBe(true);
+      expect(isTerminalRunStatus("failed")).toBe(true);
+      expect(isTerminalRunStatus("cancelled")).toBe(true);
+      expect(isTerminalRunStatus("running")).toBe(false);
+      expect(isTerminalRunStatus("awaiting_continue")).toBe(false);
+    });
+
+    it("retains last request cursor when backend exhausts final page", () => {
+      expect(retainEventCursor(null, null)).toBeNull();
+      expect(retainEventCursor(null, "cursor-1")).toBe("cursor-1");
+      expect(retainEventCursor("cursor-1", null)).toBe("cursor-1");
+      expect(retainEventCursor("cursor-1", undefined)).toBe("cursor-1");
+    });
   });
 
   describe("buildRunJobsQueryKey", () => {

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { DataTable } from "../components";
 import {
   fetchScans,
+  fetchScan,
   createScan,
   verifyTrackedCompany,
   createTrackedCompany,
@@ -19,12 +20,14 @@ import {
   fetchScanJobs,
   fetchScanOutputJson,
   buildRunSourcesHash,
+  retainScanEventCursor,
 } from "../features/scans/api";
 import { apiClient } from "../lib/api-client";
 import { buildScanJobColumns, getScanEventMessage } from "../features/scans/scan-detail";
 import { ScanJobItem } from "../features/scans/types";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { shouldLoadScanOutput } from "../features/scans/scan-detail";
+import { parseHash } from "../features/scans/route";
 import newScanDialogSource from "../features/scans/new-scan-dialog.tsx?raw";
 
 describe("scans feature route and api slice", () => {
@@ -41,6 +44,30 @@ describe("scans feature route and api slice", () => {
 
     const matched = matchRoute("#/scans?lifecycle=archived", routes);
     expect(matched.id).toBe("scans");
+  });
+
+  it("restores deterministic Scans defaults when hash omits query parameters", () => {
+    expect(parseHash("#/scans?lifecycle=archived&page=3&scan_id=scan-1")).toEqual({
+      lifecycle: "archived",
+      page: 3,
+      selectedScanId: "scan-1",
+    });
+    expect(parseHash("#/scans")).toEqual({
+      lifecycle: "active",
+      page: 1,
+      selectedScanId: null,
+    });
+    expect(parseHash("#/scans?lifecycle=invalid&page=0")).toEqual({
+      lifecycle: "active",
+      page: 1,
+      selectedScanId: null,
+    });
+  });
+
+  it("retains last valid event cursor after final-page exhaustion", () => {
+    expect(retainScanEventCursor(null, null)).toBeNull();
+    expect(retainScanEventCursor("cursor-1", null)).toBe("cursor-1");
+    expect(retainScanEventCursor("cursor-1", "cursor-2")).toBe("cursor-2");
   });
 
   it("loads succeeded scan output once, including empty output", () => {
@@ -409,11 +436,31 @@ describe("scans feature route and api slice", () => {
     expect(jobsRes.data[0].title).toBe("Frontend Engineer");
   });
 
+  it("passes abort signals through scan reads", async () => {
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValue({ data: { data: [] }, status: 200 } as any);
+    const signal = new AbortController().signal;
+
+    await fetchScans({ signal });
+    await fetchScan("scan-1", signal);
+    await fetchScanEvents("scan-1", null, 50, signal);
+    await fetchScanJobs("scan-1", 1, 20, signal);
+    await fetchScanOutputJson("scan-1", signal);
+
+    expect(getSpy).toHaveBeenNthCalledWith(1, "/scans?", { signal });
+    expect(getSpy).toHaveBeenNthCalledWith(2, "/scans/scan-1", { signal });
+    expect(getSpy).toHaveBeenNthCalledWith(3, "/scans/scan-1/events?limit=50", { signal });
+    expect(getSpy).toHaveBeenNthCalledWith(4, "/scans/scan-1/jobs?page=1&page_size=20", { signal });
+    expect(getSpy).toHaveBeenNthCalledWith(5, "/scans/scan-1/output", { signal });
+  });
+
   it("preserves output bytes for preview and encodes Run source handoff", async () => {
-    const previewSpy = vi.spyOn(apiClient, "previewText").mockResolvedValueOnce('[{"title":"Exact"}]');
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: '[{"title":"Exact"}]',
+      status: 200,
+    } as any);
 
     await expect(fetchScanOutputJson("scan/1")).resolves.toBe('[{"title":"Exact"}]');
-    expect(previewSpy).toHaveBeenCalledWith("/scans/scan%2F1/output");
+    expect(getSpy).toHaveBeenCalledWith("/scans/scan%2F1/output");
     expect(buildRunSourcesHash(["scan-1", "scan/2"])).toBe("#/runs?scan_ids=scan-1&scan_ids=scan%2F2");
   });
 
@@ -438,7 +485,7 @@ describe("scans feature route and api slice", () => {
     expect(markup).toContain("https://example.com/jobs/1");
     expect(markup).toContain("Acme");
     expect(markup).toContain("2026-08-30");
-    expect(markup).toContain("Full-time");
+    expect(markup).toContain("Full time");
     expect(getScanEventMessage({
       event_id: "event-1",
       event_seq: 1,
