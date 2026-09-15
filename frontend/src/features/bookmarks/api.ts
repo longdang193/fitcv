@@ -1,3 +1,4 @@
+import { DateRange } from "../../components/DateRangeFilter";
 import { apiClient } from "../../lib/api-client";
 import { setJobInterest, clearJobInterest } from "../job-evaluation/api";
 import {
@@ -29,6 +30,8 @@ export async function fetchBookmarks(params?: {
   stage?: string;
   result?: string;
   search?: string;
+  date_range?: DateRange | string;
+  timezone?: string;
   signal?: AbortSignal;
 }): Promise<BookmarksPaginationEnvelope> {
   const query = new URLSearchParams();
@@ -37,6 +40,8 @@ export async function fetchBookmarks(params?: {
   if (params?.stage && params.stage !== "all") query.set("stage", params.stage);
   if (params?.result && params.result !== "all") query.set("result", params.result);
   if (params?.search) query.set("search", params.search);
+  if (params?.date_range) query.set("date_range", params.date_range);
+  if (params?.timezone) query.set("timezone", params.timezone);
   query.set("sort", "bookmarked_desc");
 
   const qs = query.toString();

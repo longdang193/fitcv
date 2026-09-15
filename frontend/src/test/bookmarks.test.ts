@@ -10,7 +10,7 @@ import {
   updateBookmarkInterest,
   generateIdempotencyKey,
 } from "../features/bookmarks/api";
-import { BookmarksPage, buildBookmarksQueryKey, SEARCH_DEBOUNCE_MS } from "../features/bookmarks/route";
+import { BookmarksPage, buildBookmarksQueryKey, parseBookmarksRoute, SEARCH_DEBOUNCE_MS } from "../features/bookmarks/route";
 import { BookmarksTable } from "../features/bookmarks/components/BookmarksTable";
 import { BookmarkItem } from "../features/bookmarks/types";
 import { apiClient } from "../lib/api-client";
@@ -42,6 +42,48 @@ describe("bookmarks slice and api", () => {
     expect(getNextFilterTabIndex("ArrowLeft", 0, 2)).toBe(1);
     expect(getNextFilterTabIndex("Home", 1, 2)).toBe(0);
     expect(getNextFilterTabIndex("End", 0, 2)).toBe(1);
+  });
+
+  it("parses Bookmarks route hash with date_range default and values", () => {
+    expect(parseBookmarksRoute("#/bookmarks")).toEqual({
+      dateRange: "today",
+      page: 1,
+      stage: "all",
+      search: "",
+    });
+
+    expect(parseBookmarksRoute("#/bookmarks?date_range=7d&page=3&stage=ranking&search=react")).toEqual({
+      dateRange: "7d",
+      page: 3,
+      stage: "ranking",
+      search: "react",
+    });
+
+    expect(parseBookmarksRoute("#/bookmarks?date_range=invalid&page=0")).toEqual({
+      dateRange: "today",
+      page: 1,
+      stage: "all",
+      search: "",
+    });
+  });
+
+  it("fetches bookmarks collection with date_range and timezone", async () => {
+    const mockRes = {
+      data: { data: [], page: 1, page_size: 20, total_items: 0 },
+      status: 200,
+    };
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce(mockRes as any);
+
+    await fetchBookmarks({
+      stage: "ranking",
+      search: "react",
+      date_range: "7d",
+      timezone: "Europe/Berlin",
+    });
+
+    expect(getSpy).toHaveBeenCalledWith(
+      "/bookmarks?stage=ranking&search=react&date_range=7d&timezone=Europe%2FBerlin&sort=bookmarked_desc"
+    );
   });
 
   it("registers and matches bookmarks feature route", () => {
@@ -305,24 +347,27 @@ describe("bookmarks slice and api", () => {
 
 
 describe("Bookmarks Search Debounce and Stale Request Rejection", () => {
-  it("builds canonical bookmark query key with stage, search, page, and size", () => {
+  it("builds canonical bookmark query key with stage, search, page, size, and dateRange", () => {
     const key = buildBookmarksQueryKey("screening", "Platform", 1, 20);
-    expect(key).toBe("screening::Platform::1::20");
+    expect(key).toBe("screening::Platform::1::20::today");
+    const customKey = buildBookmarksQueryKey("screening", "Platform", 1, 20, "7d");
+    expect(customKey).toBe("screening::Platform::1::20::7d");
   });
 
   it("trims whitespace from search term in query key identity", () => {
     const key1 = buildBookmarksQueryKey("all", "  Platform Lead  ", 1, 20);
     const key2 = buildBookmarksQueryKey("all", "Platform Lead", 1, 20);
-    expect(key1).toBe("all::Platform Lead::1::20");
+    expect(key1).toBe("all::Platform Lead::1::20::today");
     expect(key1).toBe(key2);
   });
 
-  it("distinguishes bookmark query keys across stage, search, page, and size", () => {
+  it("distinguishes bookmark query keys across stage, search, page, size, and dateRange", () => {
     const base = buildBookmarksQueryKey("all", "dev", 1, 20);
     expect(base).not.toBe(buildBookmarksQueryKey("ranking", "dev", 1, 20));
     expect(base).not.toBe(buildBookmarksQueryKey("all", "engineer", 1, 20));
     expect(base).not.toBe(buildBookmarksQueryKey("all", "dev", 2, 20));
     expect(base).not.toBe(buildBookmarksQueryKey("all", "dev", 1, 50));
+    expect(base).not.toBe(buildBookmarksQueryKey("all", "dev", 1, 20, "24h"));
   });
 
   it("debounces rapid keystroke burst to one settled remote fetch", () => {
@@ -455,6 +500,29 @@ describe("Bookmarks Search Debounce and Stale Request Rejection", () => {
 
     expect(stateUpdatedAfterUnmount).toBe(false);
     vi.useRealTimers();
+  });
+
+  it("renders BookmarksTable empty state with Show All when dateRange is filtered", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(BookmarksTable, {
+        bookmarks: [],
+        loading: false,
+        page: 1,
+        pageSize: 20,
+        total: 0,
+        onPageChange: () => {},
+        selectedJobIds: [],
+        onToggleSelectJob: () => {},
+        onToggleSelectAll: () => {},
+        onRemoveSingle: () => {},
+        onInspectEvidence: () => {},
+        dateRange: "today",
+        onDateRangeChange: () => {},
+      })
+    );
+
+    expect(markup).toContain("No bookmarks found for this date range.");
+    expect(markup).toContain("Show All");
   });
 
   it("disables rating controls when backend marks bookmark as ineligible", () => {

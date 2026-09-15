@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { RunsListPage } from "./runs-list";
 import { RunDetailPage } from "../run-detail/run-detail-page";
 import { RunLifecycle } from "./types";
+import { DateRange, parseDateRange } from "../../components/DateRangeFilter";
 
 export function parseRunSourceIds(hash: string): string[] {
   const queryIndex = hash.indexOf("?");
@@ -11,34 +12,42 @@ export function parseRunSourceIds(hash: string): string[] {
     .filter(Boolean);
 }
 
+export interface RunsRouteState {
+  view: RunLifecycle;
+  page: number;
+  selectedRunId: string | null;
+  dateRange: DateRange;
+  initialScanIds: string[];
+}
+
+export function parseRunsRoute(hash: string): RunsRouteState {
+  const queryIndex = hash.indexOf("?");
+  const params = queryIndex >= 0 ? new URLSearchParams(hash.slice(queryIndex + 1)) : new URLSearchParams();
+  const v = params.get("view");
+  const view: RunLifecycle = (v === "active" || v === "archived" || v === "all") ? v : "active";
+  const p = Number(params.get("page"));
+  const page = Number.isInteger(p) && p > 0 ? p : 1;
+  const selectedRunId = params.get("run_id") || null;
+  const dateRange = parseDateRange(params.get("date_range"));
+  const initialScanIds = parseRunSourceIds(hash);
+  return { view, page, selectedRunId, dateRange, initialScanIds };
+}
+
 export const RunsFeature: React.FC = () => {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [view, setView] = useState<RunLifecycle>("active");
   const [page, setPage] = useState<number>(1);
+  const [dateRange, setDateRange] = useState<DateRange>("today");
   const [initialScanIds, setInitialScanIds] = useState<string[]>([]);
 
-  // Sync state with URL hash: e.g. #/runs?view=archived&page=2&run_id=run-123
   useEffect(() => {
     const parseHash = () => {
-      const hash = window.location.hash || "#/runs";
-      setView("active");
-      setPage(1);
-      setSelectedRunId(null);
-      setInitialScanIds(parseRunSourceIds(hash));
-      const parts = hash.split("?");
-      if (parts.length > 1) {
-        const params = new URLSearchParams(parts[1]);
-        const v = params.get("view");
-        if (v === "active" || v === "archived" || v === "all") {
-          setView(v);
-        }
-        const p = Number(params.get("page"));
-        if (p > 0) {
-          setPage(p);
-        }
-        const id = params.get("run_id");
-        setSelectedRunId(id || null);
-      }
+      const state = parseRunsRoute(window.location.hash || "#/runs");
+      setView(state.view);
+      setPage(state.page);
+      setSelectedRunId(state.selectedRunId);
+      setDateRange(state.dateRange);
+      setInitialScanIds(state.initialScanIds);
     };
 
     parseHash();
@@ -46,11 +55,17 @@ export const RunsFeature: React.FC = () => {
     return () => window.removeEventListener("hashchange", parseHash);
   }, []);
 
-  const updateUrl = (newView: RunLifecycle, newPage: number, runId: string | null) => {
+  const updateUrl = (
+    newView: RunLifecycle,
+    newPage: number,
+    runId: string | null,
+    newDateRange: DateRange = "today"
+  ) => {
     const params = new URLSearchParams();
     if (newView !== "active") params.set("view", newView);
     if (newPage > 1) params.set("page", String(newPage));
     if (runId) params.set("run_id", runId);
+    if (newDateRange !== "today") params.set("date_range", newDateRange);
 
     const queryString = params.toString();
     const newHash = queryString ? `#/runs?${queryString}` : `#/runs`;
@@ -61,22 +76,29 @@ export const RunsFeature: React.FC = () => {
     setView(newView);
     setPage(1);
     setSelectedRunId(null);
-    updateUrl(newView, 1, null);
+    updateUrl(newView, 1, null, dateRange);
+  };
+
+  const handleDateRangeChange = (newRange: DateRange) => {
+    setDateRange(newRange);
+    setPage(1);
+    setSelectedRunId(null);
+    updateUrl(view, 1, null, newRange);
   };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    updateUrl(view, newPage, selectedRunId);
+    updateUrl(view, newPage, selectedRunId, dateRange);
   };
 
   const handleSelectRun = (runId: string) => {
     setSelectedRunId(runId);
-    updateUrl(view, page, runId);
+    updateUrl(view, page, runId, dateRange);
   };
 
   const handleBackToList = () => {
     setSelectedRunId(null);
-    updateUrl(view, page, null);
+    updateUrl(view, page, null, dateRange);
   };
 
   if (selectedRunId) {
@@ -87,7 +109,9 @@ export const RunsFeature: React.FC = () => {
     <RunsListPage
       view={view}
       page={page}
+      dateRange={dateRange}
       onViewChange={handleViewChange}
+      onDateRangeChange={handleDateRangeChange}
       onPageChange={handlePageChange}
       onSelectRun={handleSelectRun}
       initialScanIds={initialScanIds}

@@ -1,3 +1,4 @@
+import type { DateRange } from "../../components/DateRangeFilter";
 import { apiClient, generateIdempotencyKey } from "../../lib/api-client";
 import {
   ScanResource,
@@ -57,6 +58,8 @@ export async function fetchScans(params: {
   search?: string;
   page?: number;
   page_size?: number;
+  date_range?: DateRange | string;
+  timezone?: string;
   signal?: AbortSignal;
 }): Promise<ScanListResponse> {
   const query = new URLSearchParams();
@@ -66,6 +69,8 @@ export async function fetchScans(params: {
   if (params.search) query.set("search", params.search);
   if (params.page) query.set("page", String(params.page));
   if (params.page_size) query.set("page_size", String(params.page_size));
+  if (params.date_range) query.set("date_range", params.date_range);
+  if (params.timezone) query.set("timezone", params.timezone);
 
   const res = params.signal
     ? await apiClient.get<ScanListResponse>(`/scans?${query.toString()}`, { signal: params.signal })

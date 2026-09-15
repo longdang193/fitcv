@@ -78,6 +78,40 @@ from fitcv_cp.run_lifecycle import (
     run_display_status,
     run_stage_status_from_pipeline,
 )
+
+DATE_RANGE_VALUES = {"today", "24h", "7d", "30d", "all"}
+
+
+def normalize_date_range(value: str | None) -> str:
+    normalized = str(value or "").strip().lower()
+    return normalized if normalized in DATE_RANGE_VALUES else "today"
+
+
+def date_range_start(
+    value: str | None,
+    timezone_name: str | None = None,
+    *,
+    now: datetime.datetime | None = None,
+) -> str | None:
+    date_range = normalize_date_range(value)
+    if date_range == "all":
+        return None
+    current = now or datetime.datetime.now(datetime.timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=datetime.timezone.utc)
+    current = current.astimezone(datetime.timezone.utc)
+    if date_range == "today":
+        try:
+            from zoneinfo import ZoneInfo
+
+            local_now = current.astimezone(ZoneInfo(str(timezone_name or "UTC")))
+        except (TypeError, ValueError, KeyError):
+            local_now = current
+        start = local_now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(datetime.timezone.utc)
+    else:
+        hours = {"24h": 24, "7d": 24 * 7, "30d": 24 * 30}[date_range]
+        start = current - datetime.timedelta(hours=hours)
+    return start.isoformat()
 from fitcv_cp.scan_contracts import derive_scan_capabilities, resolve_publication_cutoff
 from fitcv.ingest import canonicalize_jobs
 from fitcv_cp.synonym_policy_io import (
@@ -5665,12 +5699,19 @@ def get_scan_detail(scan_id: str, *, database_path: Path | None = None) -> dict[
 
 def query_scans(
     *, lifecycle: str = "active", execution_status: str | None = None, usable_for_run: bool | None = None,
-    search: str = "", page: int = 1, page_size: int = 20, database_path: Path | None = None,
+    search: str = "", page: int = 1, page_size: int = 20, date_range: str = "all",
+    timezone: str | None = None, database_path: Path | None = None,
 ) -> dict[str, Any]:
+    start = date_range_start(date_range, timezone)
+    clauses = ["lifecycle = ?"]
+    params: list[Any] = [lifecycle]
+    if start is not None:
+        clauses.append("created_at >= ?")
+        params.append(start)
     with _scan_store_connection(database_path) as conn:
         rows = conn.execute(
-            "SELECT * FROM scans WHERE lifecycle = ? ORDER BY created_at DESC, scan_id DESC",
-            (lifecycle,),
+            f"SELECT * FROM scans WHERE {' AND '.join(clauses)} ORDER BY created_at DESC, scan_id DESC",
+            params,
         ).fetchall()
         resources = [_scan_resource(conn, row) for row in rows]
     needle = search.strip().casefold()
@@ -11834,12 +11875,15 @@ def query_runs(
     search: str = "",
     page: int = 1,
     page_size: int = 20,
+    date_range: str = "all",
+    timezone: str | None = None,
 ) -> dict[str, Any]:
     if page_size not in {10, 20, 50, 100, 500}:
         raise ValueError("page_size must be 10, 20, 50, 100, or 500")
     if view not in {"active", "archived", "all"}:
         raise ValueError("view must be active, archived, or all")
     normalized_search = _normalize_run_search_text(search).strip()
+    start = date_range_start(date_range, timezone)
     escaped_search = normalized_search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     search_clauses: list[str] = []
     params: list[Any] = []
@@ -11847,11 +11891,20 @@ def query_runs(
         search_clauses.append("p.search_text_normalized LIKE ? ESCAPE '\\'")
         params.append(f"%{escaped_search}%")
     search_predicate = " AND ".join(search_clauses) or "1=1"
+    count_clauses = list(search_clauses)
+    count_params = list(params)
+    if start is not None:
+        count_clauses.append("p.created_at >= ?")
+        count_params.append(start)
+    count_predicate = " AND ".join(count_clauses) or "1=1"
     clauses = list(search_clauses)
     if view == "active":
         clauses.append("p.archived_at IS NULL")
     elif view == "archived":
         clauses.append("p.archived_at IS NOT NULL")
+    if start is not None:
+        clauses.append("p.created_at >= ?")
+        params.append(start)
     predicate = " AND ".join(clauses) or "1=1"
     projection = """
         p.*,
@@ -11871,9 +11924,9 @@ def query_runs(
                    SUM(CASE WHEN p.archived_at IS NULL THEN 1 ELSE 0 END) AS active_count,
                    SUM(CASE WHEN p.archived_at IS NOT NULL THEN 1 ELSE 0 END) AS archived_count
             FROM pipeline_runs p
-            WHERE {search_predicate}
-            """,
-            params,
+                WHERE {count_predicate}
+                """,
+                count_params,
         ).fetchone()
         visible_total = conn.execute(
             f"SELECT COUNT(*) FROM pipeline_runs p WHERE {predicate}", params
@@ -12111,6 +12164,8 @@ def query_bookmarks(
     page: int = 1,
     page_size: int = 20,
     sort: str = "bookmarked_desc",
+    date_range: str = "today",
+    timezone: str | None = None,
     database_path: Path | None = None,
 ) -> dict[str, Any]:
     if page_size not in {10, 20, 50}:
@@ -12118,6 +12173,9 @@ def query_bookmarks(
     if sort != "bookmarked_desc":
         raise ValueError("bookmark_sort_invalid")
     path = database_path or Path(_local_sqlite_path())
+    start = date_range_start(date_range, timezone)
+    date_clause = " AND b.created_at >= ?" if start is not None else ""
+    date_params = (start,) if start is not None else ()
     with _provider_store_connection(path, write=False) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
@@ -12134,7 +12192,9 @@ def query_bookmarks(
                 JOIN pipeline_runs r ON r.run_id=b.run_id
                 LEFT JOIN run_job_interest i ON i.run_job_id=j.run_job_id
                 LEFT JOIN cv_versions cv ON cv.version_id=j.current_cv_version_id
+                WHERE 1=1{date_clause}
                  ORDER BY b.created_at DESC, b.bookmark_id"""
+            , date_params
         ).fetchall()
     raw_items = [dict(row) for row in rows]
     projection_by_job: dict[str, dict[str, Any]] = {}

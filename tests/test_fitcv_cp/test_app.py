@@ -4250,6 +4250,34 @@ def test_central_workspace_list_routes_forward_canonical_sort_values() -> None:
     assert captured["synonym"]["sort"] == "updated_desc"
 
 
+def test_date_range_defaults_today_and_forwards_explicit_all() -> None:
+    app = _app()
+    captured: dict[str, dict[str, object]] = {}
+    empty = {"items": [], "total": 0, "page": 1, "page_size": 20}
+    def capture(name: str, **kwargs: object) -> dict[str, object]:
+        captured[name] = kwargs
+        return empty
+
+    app.state.run_store.query_runs_fn = lambda **kwargs: capture("runs", **kwargs)
+    app.state.run_store.query_scans_fn = lambda **kwargs: capture("scans", **kwargs)
+    app.state.run_store.query_bookmarks_fn = lambda **kwargs: capture("bookmarks", **kwargs)
+    client = TestClient(app)
+
+    assert client.get("/runs").status_code == 200
+    assert client.get("/scans").status_code == 200
+    assert client.get("/bookmarks").status_code == 200
+    assert captured["runs"]["date_range"] == "today"
+    assert captured["scans"]["date_range"] == "today"
+    assert captured["bookmarks"]["date_range"] == "today"
+
+    client.get("/runs", params={"date_range": "all", "timezone": "Europe/Berlin"})
+    client.get("/scans", params={"date_range": "all", "timezone": "Europe/Berlin"})
+    client.get("/bookmarks", params={"date_range": "all", "timezone": "Europe/Berlin"})
+    assert captured["runs"]["date_range"] == "all"
+    assert captured["scans"]["date_range"] == "all"
+    assert captured["bookmarks"]["date_range"] == "all"
+
+
 def test_synonym_suggestion_route_exposes_canonical_tab_counts() -> None:
     app = _app()
     app.state.run_store.query_synonym_suggestions_fn = lambda **kwargs: {

@@ -24,10 +24,13 @@ import {
 } from "../features/scans/api";
 import { apiClient } from "../lib/api-client";
 import { buildScanJobColumns, getScanEventMessage } from "../features/scans/scan-detail";
+import { ScansListPage } from "../features/scans/scans-list";
 import { ScanJobItem } from "../features/scans/types";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { shouldLoadScanOutput } from "../features/scans/scan-detail";
 import { parseHash } from "../features/scans/route";
+import runSourceSelectionSource from "../features/scans/run-source-selection.tsx?raw";
+import { buildScansQueryKey } from "../features/scans/scans-list";
 import newScanDialogSource from "../features/scans/new-scan-dialog.tsx?raw";
 
 describe("scans feature route and api slice", () => {
@@ -51,17 +54,37 @@ describe("scans feature route and api slice", () => {
       lifecycle: "archived",
       page: 3,
       selectedScanId: "scan-1",
+      dateRange: "today",
     });
     expect(parseHash("#/scans")).toEqual({
       lifecycle: "active",
       page: 1,
       selectedScanId: null,
+      dateRange: "today",
     });
     expect(parseHash("#/scans?lifecycle=invalid&page=0")).toEqual({
       lifecycle: "active",
       page: 1,
       selectedScanId: null,
+      dateRange: "today",
     });
+    expect(parseHash("#/scans?lifecycle=archived&page=2&date_range=7d")).toEqual({
+      lifecycle: "archived",
+      page: 2,
+      selectedScanId: null,
+      dateRange: "7d",
+    });
+    expect(parseHash("#/scans?date_range=unknown")).toEqual({
+      lifecycle: "active",
+      page: 1,
+      selectedScanId: null,
+      dateRange: "today",
+    });
+  });
+
+  it("builds canonical Scans query keys including dateRange", () => {
+    expect(buildScansQueryKey("active", 1, 20)).toBe("active:1:20:today");
+    expect(buildScansQueryKey("archived", 2, 50, "30d")).toBe("archived:2:50:30d");
   });
 
   it("retains last valid event cursor after final-page exhaustion", () => {
@@ -138,6 +161,28 @@ describe("scans feature route and api slice", () => {
     expect(getSpy).toHaveBeenCalledWith("/scans?lifecycle=active&page=1&page_size=20");
     expect(result.data.length).toBe(1);
     expect(result.data[0].scan_id).toBe("scan-1");
+  });
+
+  it("requests date_range=all explicitly from Run source selection", async () => {
+    expect(runSourceSelectionSource).toContain('date_range: "all"');
+
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      data: { data: [], page: 1, page_size: 50, total_items: 0 },
+      status: 200,
+    } as any);
+
+    await fetchScans({
+      lifecycle: "active",
+      execution_status: "succeeded",
+      usable_for_run: true,
+      page: 1,
+      page_size: 50,
+      date_range: "all",
+    });
+
+    expect(getSpy).toHaveBeenCalledWith(
+      expect.stringContaining("date_range=all")
+    );
   });
 
   it("verifies and creates tracked company", async () => {
@@ -462,6 +507,30 @@ describe("scans feature route and api slice", () => {
     await expect(fetchScanOutputJson("scan/1")).resolves.toBe('[{"title":"Exact"}]');
     expect(getSpy).toHaveBeenCalledWith("/scans/scan%2F1/output");
     expect(buildRunSourcesHash(["scan-1", "scan/2"])).toBe("#/runs?scan_ids=scan-1&scan_ids=scan%2F2");
+  });
+
+  it("renders ScansListPage with DateRangeFilter and offers Show All empty state", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(ScansListPage, {
+        onSelectScan: () => {},
+        lifecycle: "active",
+        onTabChange: () => {},
+        page: 1,
+        onPageChange: () => {},
+        dateRange: "today",
+        onDateRangeChange: () => {},
+        initialLoading: false,
+      })
+    );
+
+    expect(markup).toContain("role=\"radiogroup\"");
+    expect(markup).toContain("Today");
+    expect(markup).toContain("24h");
+    expect(markup).toContain("7D");
+    expect(markup).toContain("30D");
+    expect(markup).toContain("All");
+    expect(markup).toContain("No active scans found for this date range.");
+    expect(markup).toContain("Show All");
   });
 
   it("renders canonical scan output fields and readable event messages", () => {

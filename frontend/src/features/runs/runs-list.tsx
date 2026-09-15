@@ -1,3 +1,4 @@
+import { DateRange, DateRangeFilter, getClientTimezone } from "../../components/DateRangeFilter";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Button,
@@ -33,6 +34,9 @@ export interface RunsListPageProps {
   page: number;
   onPageChange: (newPage: number) => void;
   initialScanIds?: string[];
+  dateRange?: DateRange;
+  onDateRangeChange?: (newRange: DateRange) => void;
+  initialLoading?: boolean;
 }
 
 const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
@@ -49,9 +53,10 @@ export function buildRunsQueryKey(
   view: RunLifecycle,
   search: string,
   page: number,
-  pageSize: number
+  pageSize: number,
+  dateRange: DateRange = "today"
 ): string {
-  return `${view}::${search.trim()}::${page}::${pageSize}`;
+  return `${view}::${search.trim()}::${page}::${pageSize}::${dateRange}`;
 }
 
 export interface RunsPollingCoordinatorOptions {
@@ -250,10 +255,15 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   onViewChange,
   page,
   onPageChange,
+  dateRange = "today",
+  onDateRangeChange,
   initialScanIds = [],
+  initialLoading = true,
 }) => {
+  const dateRangeRef = useRef<DateRange>(dateRange);
+  dateRangeRef.current = dateRange;
   const [runs, setRuns] = useState<PipelineRunResource[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
@@ -280,7 +290,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   const [deletePreview, setDeletePreview] = useState<DeleteArchivedRunsPreview | null>(null);
   const [isDeletePreviewOpen, setIsDeletePreviewOpen] = useState(false);
 
-  const queryIdentity = buildRunsQueryKey(view, activeSearch, page, pageSize);
+  const queryIdentity = buildRunsQueryKey(view, activeSearch, page, pageSize, dateRange);
   const activeQueryRef = useRef(queryIdentity);
   activeQueryRef.current = queryIdentity;
 
@@ -306,6 +316,8 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
         search: searchRef.current,
         page: pageRef.current,
         page_size: pageSize,
+        date_range: dateRangeRef.current,
+        timezone: getClientTimezone(),
       }),
       onRequestStart: ({ showLoading }) => {
         if (showLoading) setLoading(true);
@@ -346,7 +358,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
   useEffect(() => {
     setSelectedRunIds(new Set());
     void coordinatorRef.current?.load({ showLoading: true, isPolling: false });
-  }, [view, activeSearch, page]);
+  }, [view, activeSearch, page, dateRange]);
 
   useEffect(() => {
     coordinatorRef.current?.sync();
@@ -651,15 +663,21 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
         </div>
       )}
 
-      {/* Tabs and Search */}
+      {/* Tabs, DateRangeFilter and Search */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <Tabs
-          items={tabItems}
-          activeId={view}
-          onChange={(id) => {
-            onViewChange(id as RunLifecycle);
-          }}
-        />
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <Tabs
+            items={tabItems}
+            activeId={view}
+            onChange={(id) => {
+              onViewChange(id as RunLifecycle);
+            }}
+          />
+          <DateRangeFilter
+            value={dateRange}
+            onChange={onDateRangeChange || (() => {})}
+          />
+        </div>
         <form className="page-search-form" onSubmit={handleSearchSubmit}>
           <label className="page-search">
             <span className="sr-only">Search runs</span>
@@ -707,6 +725,26 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
           total={totalItems}
           onPageChange={onPageChange}
           busy={loading}
+          emptyState={
+            dateRange !== "all" ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "16px 0" }}>
+                <span>
+                  {activeSearch
+                    ? "No runs match this search and date range."
+                    : `No ${view === "archived" ? "archived" : "active"} runs found for this date range.`}
+                </span>
+                {onDateRangeChange && (
+                  <Button
+                    variant="secondary"
+                    size="compact"
+                    onClick={() => onDateRangeChange("all")}
+                  >
+                    Show All
+                  </Button>
+                )}
+              </div>
+            ) : undefined
+          }
           emptyMessage={
             activeSearch
               ? "No runs match this search."

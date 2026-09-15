@@ -1,3 +1,4 @@
+import type { DateRange } from "../../components/DateRangeFilter";
 import { apiClient } from "../../lib/api-client";
 import {
   PipelineRunResource,
@@ -83,6 +84,8 @@ export async function fetchRuns(params?: {
   search?: string;
   page?: number;
   page_size?: number;
+  date_range?: DateRange | string;
+  timezone?: string;
 }): Promise<PaginationEnvelope<PipelineRunResource, RunsPaginationMeta>> {
   const query = new URLSearchParams();
   if (params?.view) query.set("view", params.view);
@@ -91,6 +94,8 @@ export async function fetchRuns(params?: {
     query.set("page", String(parseInteger(params.page, 1, 1)));
   }
   if (params?.page_size) query.set("page_size", String(params.page_size));
+  if (params?.date_range) query.set("date_range", params.date_range);
+  if (params?.timezone) query.set("timezone", params.timezone);
 
   const qs = query.toString();
   const path = `/runs${qs ? `?${qs}` : ""}`;

@@ -1,3 +1,4 @@
+import { DateRange, DateRangeFilter, getClientTimezone } from "../../components/DateRangeFilter";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Button,
@@ -27,6 +28,9 @@ export interface ScansListPageProps {
   onTabChange: (tab: ScanLifecycle) => void;
   page: number;
   onPageChange: (newPage: number) => void;
+  dateRange?: DateRange;
+  onDateRangeChange?: (dateRange: DateRange) => void;
+  initialLoading?: boolean;
 }
 
 const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
@@ -38,15 +42,27 @@ const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
   cancelled: { variant: "neutral", label: "Cancelled" },
 };
 
+export function buildScansQueryKey(
+  lifecycle: ScanLifecycle,
+  page: number,
+  pageSize: number,
+  dateRange: DateRange = "today"
+): string {
+  return `${lifecycle}:${page}:${pageSize}:${dateRange}`;
+}
+
 export const ScansListPage: React.FC<ScansListPageProps> = ({
   onSelectScan,
   lifecycle,
   onTabChange,
   page,
   onPageChange,
+  dateRange = "today",
+  onDateRangeChange,
+  initialLoading = true,
 }) => {
   const [scans, setScans] = useState<ScanResource[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState<string | null>(null);
   const [totalItems, setTotalItems] = useState(0);
   const [pageSize] = useState(20);
@@ -82,9 +98,9 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     requestAbortRef.current = controller;
     const requestId = ++requestIdRef.current;
-    const queryKey = `${lifecycle}:${page}:${pageSize}`;
+    const queryKey = buildScansQueryKey(lifecycle, page, pageSize, dateRange);
     const ownsRequest = () => (
-      mountedRef.current && requestId === requestIdRef.current && queryKey === `${lifecycle}:${page}:${pageSize}`
+      mountedRef.current && requestId === requestIdRef.current && queryKey === buildScansQueryKey(lifecycle, page, pageSize, dateRange)
     );
     if (ownsRequest()) {
       setLoading(true);
@@ -95,6 +111,8 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
         lifecycle,
         page,
         page_size: pageSize,
+        date_range: dateRange,
+        timezone: getClientTimezone(),
         signal: controller?.signal,
       });
       if (!ownsRequest()) return;
@@ -110,7 +128,7 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
     } finally {
       if (ownsRequest()) setLoading(false);
     }
-  }, [lifecycle, page, pageSize]);
+  }, [lifecycle, page, pageSize, dateRange]);
 
   useEffect(() => {
     setSelectedScanIds(new Set());
@@ -309,7 +327,7 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <Tabs
           items={[
             { id: "active", label: "Active", count: activeCount || undefined },
@@ -317,6 +335,10 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
           ]}
           activeId={lifecycle}
           onChange={(tab) => onTabChange(tab as ScanLifecycle)}
+        />
+        <DateRangeFilter
+          value={dateRange}
+          onChange={onDateRangeChange || (() => {})}
         />
       </div>
 
@@ -411,6 +433,26 @@ export const ScansListPage: React.FC<ScansListPageProps> = ({
           pageSize={pageSize}
           total={totalItems}
           onPageChange={onPageChange}
+          emptyState={
+            dateRange !== "all" ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "16px 0" }}>
+                <span>
+                  {lifecycle === "active"
+                    ? "No active scans found for this date range."
+                    : "No archived scans found for this date range."}
+                </span>
+                {onDateRangeChange && (
+                  <Button
+                    variant="secondary"
+                    size="compact"
+                    onClick={() => onDateRangeChange("all")}
+                  >
+                    Show All
+                  </Button>
+                )}
+              </div>
+            ) : undefined
+          }
           emptyMessage={
             lifecycle === "active"
               ? "No active scans found. Start a New Scan to fetch job postings."

@@ -1,14 +1,34 @@
+import { DateRange, DateRangeFilter, parseDateRange, getClientTimezone } from "../../components/DateRangeFilter";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 
 export const SEARCH_DEBOUNCE_MS = 250;
+
+export interface BookmarksRouteState {
+  dateRange: DateRange;
+  page: number;
+  stage: string;
+  search: string;
+}
+
+export function parseBookmarksRoute(hash: string): BookmarksRouteState {
+  const queryIndex = hash.indexOf("?");
+  const params = queryIndex >= 0 ? new URLSearchParams(hash.slice(queryIndex + 1)) : new URLSearchParams();
+  const dateRange = parseDateRange(params.get("date_range"));
+  const p = Number(params.get("page"));
+  const page = Number.isInteger(p) && p > 0 ? p : 1;
+  const stage = params.get("stage") || "all";
+  const search = params.get("search") || "";
+  return { dateRange, page, stage, search };
+}
 
 export function buildBookmarksQueryKey(
   stage: string = "all",
   search: string = "",
   page: number = 1,
-  pageSize: number = 20
+  pageSize: number = 20,
+  dateRange: DateRange = "today"
 ): string {
-  return `${stage}::${search.trim()}::${page}::${pageSize}`;
+  return `${stage}::${search.trim()}::${page}::${pageSize}::${dateRange}`;
 }
 import { BookmarksTable } from "./components/BookmarksTable";
 import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawer";
@@ -44,6 +64,7 @@ export const BookmarksPage: React.FC = () => {
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
 
+  const [dateRange, setDateRange] = useState<DateRange>("today");
   const [stageFilter, setStageFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
@@ -76,21 +97,76 @@ export const BookmarksPage: React.FC = () => {
     };
   }, []);
 
+  const updateUrl = useCallback((
+    newDateRange: DateRange,
+    newPage: number,
+    newStage: string,
+    newSearch: string
+  ) => {
+    const params = new URLSearchParams();
+    if (newDateRange !== "today") params.set("date_range", newDateRange);
+    if (newPage > 1) params.set("page", String(newPage));
+    if (newStage && newStage !== "all") params.set("stage", newStage);
+    if (newSearch) params.set("search", newSearch);
+
+    const qs = params.toString();
+    const newHash = qs ? `#/bookmarks?${qs}` : `#/bookmarks`;
+    if (window.location.hash !== newHash) {
+      window.location.hash = newHash;
+    }
+  }, []);
+
+  useEffect(() => {
+    const readHash = () => {
+      const state = parseBookmarksRoute(window.location.hash || "#/bookmarks");
+      setDateRange(state.dateRange);
+      setPage(state.page);
+      setStageFilter(state.stage);
+      setSearch(state.search);
+      setActiveSearch(state.search);
+    };
+
+    readHash();
+    window.addEventListener("hashchange", readHash);
+    return () => window.removeEventListener("hashchange", readHash);
+  }, []);
+
+  const handleDateRangeChange = (newRange: DateRange) => {
+    setDateRange(newRange);
+    setPage(1);
+    setSelectedJobIds([]);
+    updateUrl(newRange, 1, stageFilter, activeSearch);
+  };
+
+  const handleStageChange = (stageId: string) => {
+    setStageFilter(stageId);
+    setPage(1);
+    setSelectedJobIds([]);
+    updateUrl(dateRange, 1, stageId, activeSearch);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    updateUrl(dateRange, newPage, stageFilter, activeSearch);
+  };
+
   // Debounce search input and reset page to 1
   useEffect(() => {
     if (searchDebounceRef.current) {
       clearTimeout(searchDebounceRef.current);
     }
     searchDebounceRef.current = setTimeout(() => {
-      setActiveSearch(search.trim());
+      const trimmed = search.trim();
+      setActiveSearch(trimmed);
       setPage(1);
+      updateUrl(dateRange, 1, stageFilter, trimmed);
     }, SEARCH_DEBOUNCE_MS);
     return () => {
       if (searchDebounceRef.current) {
         clearTimeout(searchDebounceRef.current);
       }
     };
-  }, [search]);
+  }, [search, dateRange, stageFilter, updateUrl]);
 
   // ponytail: guarded bookmark list loader rejecting stale responses by request identity; add LRU cache if stage hopping is frequent.
   const loadBookmarkList = useCallback(
@@ -102,17 +178,27 @@ export const BookmarksPage: React.FC = () => {
       abortControllerRef.current = controller;
 
       const requestId = ++requestIdRef.current;
-      setLoading(true);
-      try {
+      const queryKey = buildBookmarksQueryKey(stageFilter, activeSearch, targetPage, pageSize, dateRange);
+      const ownsRequest = () => (
+        isMountedRef.current &&
+        requestId === requestIdRef.current &&
+        queryKey === buildBookmarksQueryKey(stageFilter, activeSearch, targetPage, pageSize, dateRange)
+      );
+      if (ownsRequest()) {
+        setLoading(true);
         setLoadError(null);
+      }
+      try {
         const res = await fetchBookmarks({
           page: targetPage,
           page_size: pageSize,
           stage: stageFilter !== "all" ? stageFilter : undefined,
           search: activeSearch,
+          date_range: dateRange,
+          timezone: getClientTimezone(),
           signal: controller?.signal,
         });
-        if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        if (!ownsRequest()) {
           return false;
         }
         setBookmarks(res.data || []);
@@ -120,7 +206,7 @@ export const BookmarksPage: React.FC = () => {
         setTotal(res.total_items || 0);
         return true;
       } catch (err: any) {
-        if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        if (!ownsRequest() || err?.name === "AbortError") {
           return false;
         }
         setLoadError(err.message || "Failed to load bookmarks.");
@@ -132,12 +218,12 @@ export const BookmarksPage: React.FC = () => {
         });
         return false;
       } finally {
-        if (isMountedRef.current && requestId === requestIdRef.current) {
+        if (ownsRequest()) {
           setLoading(false);
         }
       }
     },
-    [pageSize, stageFilter, activeSearch]
+    [pageSize, stageFilter, activeSearch, dateRange]
   );
 
   useEffect(() => {
@@ -303,15 +389,15 @@ export const BookmarksPage: React.FC = () => {
           activeId={stageFilter}
           ariaLabel="Bookmark pipeline stages"
           panelId="bookmarkTablePanel"
-          onChange={(stageId) => {
-            setStageFilter(stageId);
-            setPage(1);
-            setSelectedJobIds([]);
-          }}
+          onChange={handleStageChange}
         />
 
         {/* Results Toolbar */}
         <div className="results-toolbar">
+          <DateRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+          />
           <input
             className="field page-search-input results-search"
             id="bookmarkSearch"
@@ -386,7 +472,7 @@ export const BookmarksPage: React.FC = () => {
             pageSize={pageSize}
             total={total}
             onPageChange={(p) => {
-              setPage(p);
+              handlePageChange(p);
               loadBookmarkList(p);
             }}
             selectedJobIds={selectedJobIds}
@@ -401,7 +487,9 @@ export const BookmarksPage: React.FC = () => {
             onInspectEvidence={handleInspect}
             onChangeInterest={handleChangeInterest}
             onSelectRun={handleSelectRun}
-            hasFilters={stageFilter !== "all" || Boolean(activeSearch)}
+            hasFilters={stageFilter !== "all" || Boolean(activeSearch) || dateRange !== "all"}
+            dateRange={dateRange}
+            onDateRangeChange={handleDateRangeChange}
           />
         </div>
       </div>

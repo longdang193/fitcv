@@ -6613,3 +6613,39 @@ def test_candidate_profile_independent_drafts_can_be_reviewed_and_approved(tmp_p
     assert first["creation_status"] == second["creation_status"] == "ready_to_confirm"
     assert first["fingerprints"]["approved_baseline"] == second["fingerprints"]["approved_baseline"]
     assert first["fingerprints"]["approved_derived"] == second["fingerprints"]["approved_derived"]
+
+
+@pytest.mark.parametrize(
+    ("date_range", "expected"),
+    [("today", "2026-09-13T22:00:00+00:00"), ("24h", "2026-09-13T12:30:00+00:00"),
+     ("7d", "2026-09-07T12:30:00+00:00"), ("30d", "2026-08-15T12:30:00+00:00")],
+)
+def test_date_range_start_boundaries(date_range: str, expected: str) -> None:
+    now = datetime.datetime(2026, 9, 14, 12, 30, tzinfo=datetime.timezone.utc)
+
+    assert sqlite_store.date_range_start(date_range, "Europe/Berlin", now=now) == expected
+
+
+def test_date_range_invalid_timezone_falls_back_to_utc() -> None:
+    now = datetime.datetime(2026, 9, 14, 12, 30, tzinfo=datetime.timezone.utc)
+
+    assert sqlite_store.date_range_start("today", "not/a-timezone", now=now) == "2026-09-14T00:00:00+00:00"
+
+
+def test_query_runs_filters_before_pagination_and_all_preserves_rows() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    recent = _make_run("run-date-recent")
+    old = _make_run("run-date-old")
+    sqlite_store.insert_run(recent)
+    sqlite_store.insert_run(old)
+    with sqlite_store._sqlite_connection(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as conn:
+        conn.execute("UPDATE pipeline_runs SET created_at=? WHERE run_id=?", ((now - datetime.timedelta(hours=1)).isoformat(), recent.run_id))
+        conn.execute("UPDATE pipeline_runs SET created_at=? WHERE run_id=?", ((now - datetime.timedelta(days=2)).isoformat(), old.run_id))
+        conn.commit()
+
+    filtered = sqlite_store.query_runs(view="all", date_range="24h", page=1, page_size=10)
+    complete = sqlite_store.query_runs(view="all", date_range="all", page=1, page_size=10)
+
+    assert filtered["total"] == 1
+    assert [item["run_id"] for item in filtered["items"]] == [recent.run_id]
+    assert complete["total"] == 2

@@ -8,6 +8,7 @@ import {
   isRunTerminal,
 } from "../features/runs/runs-list";
 import { PipelineRunResource, RunBackendStatus } from "../features/runs/types";
+import runsListSource from "../features/runs/runs-list.tsx?raw";
 
 function createMockRun(runId: string, status: RunBackendStatus): PipelineRunResource {
   return {
@@ -37,13 +38,15 @@ describe("Runs List Polling and Query Identity", () => {
   describe("buildRunsQueryKey", () => {
     it("builds canonical query identity string", () => {
       const key = buildRunsQueryKey("active", "python engineer", 2, 20);
-      expect(key).toBe("active::python engineer::2::20");
+      expect(key).toBe("active::python engineer::2::20::today");
+      const rangeKey = buildRunsQueryKey("active", "python engineer", 2, 20, "7d");
+      expect(rangeKey).toBe("active::python engineer::2::20::7d");
     });
 
     it("trims whitespace from search parameter", () => {
       const key1 = buildRunsQueryKey("active", "  lead dev  ", 1, 20);
       const key2 = buildRunsQueryKey("active", "lead dev", 1, 20);
-      expect(key1).toBe("active::lead dev::1::20");
+      expect(key1).toBe("active::lead dev::1::20::today");
       expect(key1).toBe(key2);
     });
 
@@ -52,10 +55,12 @@ describe("Runs List Polling and Query Identity", () => {
       const archivedKey = buildRunsQueryKey("archived", "", 1, 20);
       const p2Key = buildRunsQueryKey("active", "", 2, 20);
       const searchKey = buildRunsQueryKey("active", "data", 1, 20);
+      const rangeKey = buildRunsQueryKey("active", "", 1, 20, "30d");
 
       expect(activeKey).not.toBe(archivedKey);
       expect(activeKey).not.toBe(p2Key);
       expect(activeKey).not.toBe(searchKey);
+      expect(activeKey).not.toBe(rangeKey);
     });
   });
 
@@ -321,6 +326,56 @@ describe("Runs List Polling and Query Identity", () => {
       const nextTick = await coordinator.triggerTick();
       expect(nextTick).toBe(false);
     });
+
+    it("reloads on dateRange changes while retaining stale-response protection during deep-link race", async () => {
+      let activeRange = "today";
+      let loading = true;
+      const committed: string[] = [];
+      let resolveToday: ((data: unknown) => void) | null = null;
+      let resolve7d: ((data: unknown) => void) | null = null;
+
+      const coordinator = new RunsPollingCoordinator({
+        getQueryKey: () => `active::::1::20::${activeRange}`,
+        hasActiveRuns: () => true,
+        isDocumentVisible: () => true,
+        fetchRuns: ({ queryKey }) => {
+          if (queryKey === "active::::1::20::today") {
+            return new Promise((resolve) => {
+              resolveToday = resolve;
+            });
+          }
+          return new Promise((resolve) => {
+            resolve7d = resolve;
+          });
+        },
+        onRequestStart: ({ showLoading }) => {
+          if (showLoading) loading = true;
+        },
+        onResponse: (data) => {
+          committed.push((data as { tag: string }).tag);
+        },
+        onSettled: ({ showLoading }) => {
+          if (showLoading) loading = false;
+        },
+      });
+
+      const req1 = coordinator.load({ showLoading: true, isPolling: false });
+      expect(loading).toBe(true);
+
+      activeRange = "7d";
+      const req2 = coordinator.load({ showLoading: true, isPolling: false });
+
+      resolveToday!({ tag: "stale-today-data" });
+      expect(await req1).toBe(false);
+      expect(committed).toEqual([]);
+
+      resolve7d!({ tag: "fresh-7d-data" });
+      expect(await req2).toBe(true);
+      expect(committed).toEqual(["fresh-7d-data"]);
+      expect(loading).toBe(false);
+
+      coordinator.destroy();
+    });
   });
 
   describe("RunsListPage Component Rendering", () => {
@@ -341,7 +396,7 @@ describe("Runs List Polling and Query Identity", () => {
       expect(markup).toContain("New Run");
     });
 
-    it("renders tabs for Active, Archived, and All Runs with search input", () => {
+    it("renders tabs for Active, Archived, and All Runs with search input and DateRangeFilter", () => {
       const markup = renderToStaticMarkup(
         React.createElement(RunsListPage, {
           onSelectRun: () => {},
@@ -349,6 +404,8 @@ describe("Runs List Polling and Query Identity", () => {
           onViewChange: () => {},
           page: 1,
           onPageChange: () => {},
+          dateRange: "7d",
+          onDateRangeChange: () => {},
         })
       );
 
@@ -356,6 +413,34 @@ describe("Runs List Polling and Query Identity", () => {
       expect(markup).toContain("Archived");
       expect(markup).toContain("All Runs");
       expect(markup).toContain("Search runs by ID, name, input...");
+      expect(markup).toContain("role=\"radiogroup\"");
+      expect(markup).toContain("Today");
+      expect(markup).toContain("24h");
+      expect(markup).toContain("7D");
+      expect(markup).toContain("30D");
+      expect(markup).toContain("All");
+    });
+
+    it("offers explicit Show All path in empty state when dateRange is filtered", () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(RunsListPage, {
+          onSelectRun: () => {},
+          view: "active",
+          onViewChange: () => {},
+          page: 1,
+          onPageChange: () => {},
+          dateRange: "today",
+          onDateRangeChange: () => {},
+          initialLoading: false,
+        })
+      );
+
+      expect(markup).toContain("No active runs found for this date range.");
+      expect(markup).toContain("Show All");
+    });
+
+    it("reloads query when dateRange changes by including dateRange in query effect dependencies", () => {
+      expect(runsListSource).toMatch(/useEffect\(\(\)\s*=>\s*\{[\s\S]*?coordinatorRef\.current\?\.load[\s\S]*?\},\s*\[[^\]]*dateRange[^\]]*\]/);
     });
   });
 });

@@ -33,6 +33,7 @@ export const RunSourceSelectionDialog: React.FC<RunSourceSelectionProps> = ({
         usable_for_run: true,
         page: 1,
         page_size: 50,
+        date_range: "all",
       });
       const eligible = (res.data || []).filter((s) => s.capabilities.use_for_run);
       setScans(eligible);

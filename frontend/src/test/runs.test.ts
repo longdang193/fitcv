@@ -24,7 +24,7 @@ import {
 } from "../features/runs/api";
 import { apiClient } from "../lib/api-client";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
-import { parseRunSourceIds } from "../features/runs/route";
+import { parseRunSourceIds, parseRunsRoute } from "../features/runs/route";
 import { EventConsole } from "../features/run-detail/components/EventConsole";
 import { PROVIDER_SETTINGS_HREF, RunErrorAction } from "../features/runs/new-run-dialog";
 import { isDistinctStatusDetail, isRunTerminal } from "../features/runs/runs-list";
@@ -64,6 +64,57 @@ describe("runs feature route and api slice", () => {
 
     const matchedDetail = matchRoute("#/runs?run_id=run-101", routes);
     expect(matchedDetail.id).toBe("runs");
+  });
+
+  it("parses Runs route hash with date_range default and values", () => {
+    expect(parseRunsRoute("#/runs")).toEqual({
+      view: "active",
+      page: 1,
+      selectedRunId: null,
+      dateRange: "today",
+      initialScanIds: [],
+    });
+
+    expect(parseRunsRoute("#/runs?view=archived&page=2&date_range=7d&run_id=run-1")).toEqual({
+      view: "archived",
+      page: 2,
+      selectedRunId: "run-1",
+      dateRange: "7d",
+      initialScanIds: [],
+    });
+
+    expect(parseRunsRoute("#/runs?date_range=invalid")).toEqual({
+      view: "active",
+      page: 1,
+      selectedRunId: null,
+      dateRange: "today",
+      initialScanIds: [],
+    });
+  });
+
+  it("fetches runs collection with date_range and timezone query parameters", async () => {
+    const mockResponse = {
+      data: {
+        data: [],
+        page: { number: 1, size: 20, total_items: 0, total_pages: 1 },
+        meta: { active_count: 0, archived_count: 0, view: "active" },
+      },
+      status: 200,
+    };
+
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValueOnce(mockResponse as any);
+
+    await fetchRuns({
+      view: "active",
+      page: 1,
+      page_size: 20,
+      date_range: "30d",
+      timezone: "Europe/Berlin",
+    });
+
+    expect(getSpy).toHaveBeenCalledWith(
+      "/runs?view=active&page=1&page_size=20&date_range=30d&timezone=Europe%2FBerlin"
+    );
   });
 
   it("parses scan IDs handed off from Scan outputs", () => {

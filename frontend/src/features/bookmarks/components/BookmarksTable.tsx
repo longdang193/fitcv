@@ -1,3 +1,4 @@
+import type { DateRange } from "../../../components/DateRangeFilter";
 import React from "react";
 import { DataTable, TableColumn, Button, LoadingState } from "../../../components";
 import { BookmarkItem } from "../types";
@@ -21,6 +22,8 @@ export interface BookmarksTableProps {
   onChangeInterest?: (bookmark: BookmarkItem, rating: number | null) => void;
   onSelectRun?: (runId: string) => void;
   hasFilters?: boolean;
+  dateRange?: DateRange;
+  onDateRangeChange?: (newRange: DateRange) => void;
 }
 
 export const BookmarksTable: React.FC<BookmarksTableProps> = ({
@@ -38,6 +41,8 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
   onChangeInterest,
   onSelectRun,
   hasFilters = false,
+  dateRange,
+  onDateRangeChange,
 }) => {
   const selectedSet = new Set(selectedJobIds);
   const allSelected =
@@ -221,6 +226,26 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
       total={total}
       onPageChange={onPageChange}
       busy={loading}
+      emptyState={
+        dateRange && dateRange !== "all" ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "16px 0" }}>
+            <span>
+              {hasFilters
+                ? "No bookmarks match this view and date range."
+                : "No bookmarks found for this date range."}
+            </span>
+            {onDateRangeChange && (
+              <Button
+                variant="secondary"
+                size="compact"
+                onClick={() => onDateRangeChange("all")}
+              >
+                Show All
+              </Button>
+            )}
+          </div>
+        ) : undefined
+      }
       emptyMessage={
         loading
           ? "Loading bookmarks..."

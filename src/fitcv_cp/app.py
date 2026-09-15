@@ -9349,6 +9349,8 @@ def create_app(
         search: str = "",
         page: int = 1,
         page_size: int = 20,
+        date_range: str = "today",
+        timezone: str | None = None,
     ) -> dict[str, Any]:
         page, page_size = _validated_page(page, page_size)
         if lifecycle not in {"active", "archived"}:
@@ -9361,6 +9363,8 @@ def create_app(
                 search=search.strip(),
                 page=page,
                 page_size=page_size,
+                date_range=date_range,
+                timezone=timezone,
             )
         )
         return _collection_response(
@@ -11102,11 +11106,15 @@ def create_app(
         page: int = 1,
         page_size: int = 20,
         sort: Literal["bookmarked_desc"] = "bookmarked_desc",
+        date_range: str = "today",
+        timezone: str | None = None,
     ) -> dict[str, Any]:
         page, page_size = _validated_page(page, page_size)
         result_page = _resolve_run_store().query_bookmarks(
             stage=stage, result=result, search=search, page=page, page_size=page_size,
             sort=sort,
+            date_range=date_range,
+            timezone=timezone,
         )
         return _collection_response(
             list(result_page.get("items") or []), page=page, page_size=page_size,
@@ -11263,6 +11271,8 @@ def create_app(
         search: str = "",
         page: int = 1,
         page_size: int = 20,
+        date_range: str = "today",
+        timezone: str | None = None,
     ) -> dict[str, Any]:
         page, page_size = _validated_page(page, page_size)
         if view not in {"active", "archived", "all"}:
@@ -11280,7 +11290,10 @@ def create_app(
                 action="Fix highlighted fields and retry.",
             )
         store = _resolve_run_store()
-        result = store.query_runs(view=view, search=search, page=page, page_size=page_size)
+        result = store.query_runs(
+            view=view, search=search, page=page, page_size=page_size,
+            date_range=date_range, timezone=timezone,
+        )
         resources: list[dict[str, Any]] = []
         for run in result.get("items", []):
             if isinstance(run, PipelineRun):

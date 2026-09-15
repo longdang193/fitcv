@@ -260,6 +260,8 @@ class MockScanBackend:
         search: str = "",
         page: int = 1,
         page_size: int = 20,
+        date_range: str = "all",
+        timezone: str | None = None,
     ) -> dict[str, Any]:
         if self.fail_next_scan_list:
             self.fail_next_scan_list = False
