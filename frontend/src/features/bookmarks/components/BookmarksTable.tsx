@@ -2,7 +2,7 @@ import type { DateRange } from "../../../components/DateRangeFilter";
 import React from "react";
 import { DataTable, TableColumn, Button, LoadingState } from "../../../components";
 import { BookmarkItem } from "../types";
-import { InterestRating } from "../../job-evaluation/components/InterestRating";
+import { getInterestRatingDisabledReason, InterestRating } from "../../job-evaluation/components/InterestRating";
 import { PipelineOutcome } from "../../job-evaluation/components/PipelineOutcome";
 import { formatDisplayValue, formatIdentifier } from "../../../lib/format";
 import { extractRequiredJobSkills } from "../../runs/api";
@@ -114,6 +114,7 @@ export const BookmarksTable: React.FC<BookmarksTableProps> = ({
             <InterestRating
               rating={item.rating}
               disabled={!onChangeInterest || item.capabilities?.rate === false}
+              disabledReason={getInterestRatingDisabledReason(item)}
               onChange={(newRating) => onChangeInterest?.(item, newRating)}
               ariaLabelPrefix={`Application Interest for ${item.title}`}
             />

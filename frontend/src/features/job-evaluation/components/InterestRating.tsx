@@ -1,8 +1,30 @@
 import React, { useState } from "react";
+import { formatOutcomeReason } from "../../../lib/format";
+
+export interface InterestRatingSource {
+  capabilities?: { rate?: boolean };
+  reason_code?: string | null;
+  result_bucket?: string | null;
+  status?: string | null;
+}
+
+export function getInterestRatingDisabledReason(item: InterestRatingSource): string | undefined {
+  if (item.capabilities?.rate !== false) return undefined;
+  if (item.reason_code === "not_selected_by_shortlist") {
+    return "Rating unavailable: this job was not selected for shortlist decision feedback.";
+  }
+  const reason = formatOutcomeReason(item.reason_code);
+  if (reason) return `Rating unavailable: ${reason}.`;
+  if (item.result_bucket === "skipped" || item.status === "skipped") {
+    return "Rating unavailable: this job was not selected for decision feedback.";
+  }
+  return "Rating unavailable: this job is not eligible for decision feedback.";
+}
 
 export interface InterestRatingProps {
   rating: number | null | undefined;
   disabled?: boolean;
+  disabledReason?: string;
   onChange: (newRating: number | null) => void;
   ariaLabelPrefix?: string;
 }
@@ -18,12 +40,16 @@ const RATING_LABELS: Record<number, string> = {
 export const InterestRating: React.FC<InterestRatingProps> = ({
   rating,
   disabled = false,
+  disabledReason,
   onChange,
   ariaLabelPrefix = "Application interest",
 }) => {
   const [hovered, setHovered] = useState<number | null>(null);
 
   const activeVal = hovered !== null ? hovered : (rating || 0);
+  const unavailableReason = disabled
+    ? disabledReason || "Rating unavailable: this job is not eligible for decision feedback."
+    : "";
 
   return (
     <div
@@ -32,10 +58,10 @@ export const InterestRating: React.FC<InterestRatingProps> = ({
         display: "inline-flex",
         alignItems: "center",
         gap: 2,
-        whiteSpace: "nowrap",
+        flexWrap: "wrap",
       }}
       role="radiogroup"
-      aria-label={`${ariaLabelPrefix}: ${rating ? `${rating} of 5 stars` : "Unrated"}`}
+      aria-label={`${ariaLabelPrefix}: ${rating ? `${rating} of 5 stars` : "Unrated"}${unavailableReason ? `. ${unavailableReason}` : ""}`}
     >
       {[1, 2, 3, 4, 5].map((star) => {
         const isFilled = star <= activeVal;
@@ -74,6 +100,14 @@ export const InterestRating: React.FC<InterestRatingProps> = ({
         >
           Clear
         </button>
+      ) : null}
+      {unavailableReason ? (
+        <span
+          className="interest-rating-unavailable"
+          style={{ color: "var(--muted)", fontSize: 11, flexBasis: "100%" }}
+        >
+          {unavailableReason}
+        </span>
       ) : null}
     </div>
   );

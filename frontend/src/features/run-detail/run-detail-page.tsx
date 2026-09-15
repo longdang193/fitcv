@@ -29,7 +29,7 @@ import {
   RunStageId,
 } from "../runs/types";
 import { setJobBookmark, clearJobBookmark, setJobInterest, clearJobInterest } from "../job-evaluation/api";
-import { InterestRating } from "../job-evaluation/components/InterestRating";
+import { getInterestRatingDisabledReason, InterestRating } from "../job-evaluation/components/InterestRating";
 import { PipelineOutcome } from "../job-evaluation/components/PipelineOutcome";
 import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawer";
 import { fetchCvPreview, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
@@ -1304,6 +1304,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                     <InterestRating
                                       rating={currentRating}
                                       disabled={item.capabilities?.rate === false}
+                                      disabledReason={getInterestRatingDisabledReason(item)}
                                       onChange={(newRating) => handleRateJob(item, newRating)}
                                       ariaLabelPrefix={`Application Interest for ${item.title || "Job"}`}
                                     />

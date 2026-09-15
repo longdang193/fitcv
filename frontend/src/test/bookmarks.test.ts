@@ -536,6 +536,7 @@ describe("Bookmarks Search Debounce and Stale Request Rejection", () => {
           title: "Ineligible Job",
           company: "Acme",
           rating: null,
+          reason_code: "not_selected_by_shortlist",
           capabilities: { rate: false },
         }],
         loading: false,
@@ -553,5 +554,6 @@ describe("Bookmarks Search Debounce and Stale Request Rejection", () => {
     );
 
     expect(markup).toContain('disabled=""');
+    expect(markup).toContain("Rating unavailable: this job was not selected for shortlist decision feedback.");
   });
 });

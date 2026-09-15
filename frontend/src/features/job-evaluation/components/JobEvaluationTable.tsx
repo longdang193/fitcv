@@ -1,7 +1,7 @@
 import React from "react";
 import { DataTable, TableColumn, StatusBadge, Button } from "../../../components";
 import { RunJobItem } from "../../runs/types";
-import { InterestRating } from "./InterestRating";
+import { getInterestRatingDisabledReason, InterestRating } from "./InterestRating";
 
 export interface JobEvaluationTableProps {
   jobs: RunJobItem[];
@@ -96,6 +96,7 @@ export const JobEvaluationTable: React.FC<JobEvaluationTableProps> = ({
         <InterestRating
           rating={item.interest_rating}
           disabled={item.capabilities?.rate === false}
+          disabledReason={getInterestRatingDisabledReason(item)}
           onChange={(newRating) => onChangeInterest(item, newRating)}
           ariaLabelPrefix={`Application interest for ${item.title}`}
         />

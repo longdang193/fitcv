@@ -176,6 +176,7 @@ export interface RunJobItem {
   current_stage_id: string;
   status: JobStageStatus;
   result_bucket: ResultBucket;
+  reason_code?: string | null;
   bookmarked?: boolean;
   bookmark_id?: string | null;
   interest_rating?: number | null;
