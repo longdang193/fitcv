@@ -421,6 +421,12 @@ describe("Runs List Polling and Query Identity", () => {
       expect(markup).toContain("All");
     });
 
+    it("keeps DateRangeFilter in a right-aligned row separate from tabs and search", () => {
+      expect(runsListSource).toMatch(
+        /<div style=\{\{ marginBottom: 16,[\s\S]*?<Tabs[\s\S]*?<DateRangeFilter[\s\S]*?\/>\s*<\/div>\s*<form className="page-search-form"/
+      );
+    });
+
     it("offers explicit Show All path in empty state when dateRange is filtered", () => {
       const markup = renderToStaticMarkup(
         React.createElement(RunsListPage, {

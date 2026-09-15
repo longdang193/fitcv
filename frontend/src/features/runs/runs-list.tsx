@@ -663,22 +663,21 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
         </div>
       )}
 
-      {/* Tabs, DateRangeFilter and Search */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <Tabs
-            items={tabItems}
-            activeId={view}
-            onChange={(id) => {
-              onViewChange(id as RunLifecycle);
-            }}
-          />
-          <DateRangeFilter
-            value={dateRange}
-            onChange={onDateRangeChange || (() => {})}
-          />
-        </div>
-        <form className="page-search-form" onSubmit={handleSearchSubmit}>
+      {/* Tabs and DateRangeFilter */}
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <Tabs
+          items={tabItems}
+          activeId={view}
+          onChange={(id) => {
+            onViewChange(id as RunLifecycle);
+          }}
+        />
+        <DateRangeFilter
+          value={dateRange}
+          onChange={onDateRangeChange || (() => {})}
+        />
+      </div>
+      <form className="page-search-form" onSubmit={handleSearchSubmit}>
           <label className="page-search">
             <span className="sr-only">Search runs</span>
             <input
@@ -705,8 +704,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
               Clear
             </Button>
           )}
-        </form>
-      </div>
+      </form>
 
       {/* Table */}
       {loading && runs.length === 0 ? (
