@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" data-preset="signal-flow">
+<html lang="en" data-theme="dark" data-preset="classic">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.17.0-dev.1">
-  <title>FitCV: From Job Input to Evidence-Gated CV Diagram</title>
+  <title>FitCV: From Job Posting to Justified Application Decision Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -4955,12 +4955,12 @@
            data-preset-badge-blueprint="BLUEPRINT / REV 01"
            data-preset-badge-editorial="EDITORIAL / FIELD NOTE">
         <div class="pulse-dot"></div>
-        <h1>FitCV: From Job Input to Evidence-Gated CV</h1>
+        <h1>FitCV: From Job Posting to Justified Application Decision</h1>
       </div>
-      <p class="subtitle">Operator-controlled narrowing, reviewable ranking, and grounded output</p>
+      <p class="subtitle">Filter early, rank with evidence, generate only when justified</p>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"happy-path","label":"Follow one run","focus":["input_jobs","run_setup","normalize_enrich","rule_filter","shortlist","ranking","cv_analysis","cv_generation","artifacts"],"note":"Trace raw jobs through staged narrowing, evidence checks, and persisted outputs."},{"id":"operator-review","label":"Inspect before output","focus":["run_setup","ranking","cv_analysis","artifacts"],"note":"See where the operator reviews ranked jobs and the evidence behind late-stage decisions."},{"id":"stop-conditions","label":"See safe stops","focus":["rule_filter","cv_analysis","cv_generation","artifacts"],"note":"Follow rows that are filtered, blocked by fit or evidence, or retained for review instead of emitted as final CV output."}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"follow_job","label":"Follow one job","focus":["job_input","candidate_profile","prepare","eligibility","rank","evidence_gate","grounded_cv","artifacts"],"note":"Follow a posting from raw input through ranking, evidence checks, and grounded output."},{"id":"explain_fit","label":"Why this job?","focus":["candidate_profile","rank","evidence_gate","grounded_cv","artifacts"],"note":"See how candidate evidence supports a ranked opportunity and a justified CV."},{"id":"explain_stop","label":"Why not this job?","focus":["eligibility","filtered","evidence_gate","review","artifacts"],"note":"Follow filtered and review-required outcomes without losing the reason or evidence."}]</script>
 
     <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"S cycles","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.story":"the guided story","viewer.owner.chapter":"the active chapter","viewer.owner.chapterPreview":"the chapter delta preview","viewer.owner.handoff":"the chapter handoff","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyShareCard":"Copy Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.period":"Clipboard image write not supported by this browser.","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.copiedShare":"Copied Share Card","viewer.export.downloadedShare":"Downloaded Share Card","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Route: {source} → {target} · {count} directed hop","viewer.export.card.routeSummary.other":"Route: {source} → {target} · {count} directed hops","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.card.defaultBadge":"ARCHIFY · {preset} · {theme}","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guided.region":"Guided diagram views","viewer.guided.previous":"Previous guided view","viewer.guided.previous.title":"Previous guided view ([)","viewer.guided.next":"Next guided view","viewer.guided.next.title":"Next guided view (])","viewer.guided.views":"Guided views","viewer.guided.explore":"Explore this system","viewer.guided.intro":"Step through curated paths without changing the source diagram.","viewer.guided.trail":"Story trail","viewer.guided.beat":"Beat","viewer.guided.nextBeat":"Next","viewer.guided.play":"Play guided story","viewer.guided.play.title":"Play guided story (P)","viewer.guided.pause":"Pause guided story","viewer.guided.pause.title":"Pause guided story (P)","viewer.guided.replay":"Replay guided story","viewer.guided.replay.title":"Replay guided story (P)","viewer.guided.playStory":"Play story","viewer.guided.pauseStory":"Pause","viewer.guided.replayStory":"Replay story","viewer.guided.motionUnavailable":"Story playback unavailable while motion is Still","viewer.guided.enableMotion":"Switch motion to Live to play the guided story","viewer.guided.selectBeatLink":"Select a Story Beat to copy its exact link","viewer.guided.copyMoment":"Copy moment","viewer.guided.momentCopied":"Moment link copied","viewer.guided.momentCopyFailed":"Could not copy story moment link","viewer.guided.copied":"Copied","viewer.guided.copyFailed":"Copy failed","viewer.guided.showAll":"Show all","viewer.guided.showAll.aria":"Show entire diagram","viewer.guided.chapters":"Story chapters","viewer.guided.storyTrail":"Story trail for {label}: {count} beats","viewer.guided.chapter.open":"Open chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.current":"Current chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.selectedNodes":"{count} selected nodes","viewer.guided.chapter.stops":"{count} stops","viewer.guided.chapter.stop.one":"{count} stop","viewer.guided.chapter.stop.other":"{count} stops","viewer.guided.chapter.current.title":"{label} — current chapter, {count} stops","viewer.guided.chapter.delta.expanded":"{stay} stay, {enter} enter, {leave} leave","viewer.guided.chapter.delta.aria":"Open chapter {index} of {total}: {label}. Chapter focus delta: {delta}","viewer.guided.chapter.delta.title":"{label} — {delta} chapter focus","viewer.guided.handoff":"{from} → {to} · via {label}","viewer.guided.share.chapter":"Chapter {index} / {total}","viewer.guided.share.initial":"Chapter 01 / 01","viewer.guided.share.default":"Guided chapter","viewer.guided.state.ready":"Ready","viewer.guided.state.playing":"Playing","viewer.guided.state.settled":"Settled","viewer.guided.state.paused":"Paused","viewer.guided.state.pinned":"Pinned","viewer.guided.state.still":"Still","viewer.guided.share.step":"Step {index} / {total} · {label}","viewer.guided.share.staticMoment":"{step} · Static moment","viewer.guided.share.complete":"{count} steps complete · {note}","viewer.guided.share.settled":"Path settled for reading.","viewer.guided.share.staticPath":"{count} steps · Static path","viewer.guided.share.ready":"{count} steps · Ready","viewer.guided.share.aria":"{state} chapter {index} of {total}: {label}. {beat}. {route}","viewer.guided.beat.start":"Beat {index} / {total} · {label} · starting point","viewer.guided.beat.forward":"Beat {index} / {total} · {from} → {to}","viewer.guided.beat.reverse":"Beat {index} / {total} · {from} → {to} · reverse authored link","viewer.guided.beat.multiple":"Beat {index} / {total} · {from} ⇄ {to} · {count} authored links","viewer.guided.beat.group":"Beat {index} / {total} · {from} · {to} · grouped · no direct link","viewer.guided.beat.aria.prefix":"Story beat {index} of {total}: {label}. ","viewer.guided.beat.aria.start":"Starting point.","viewer.guided.beat.aria.forward":"From {from} through one authored forward relationship.","viewer.guided.beat.aria.reverse":"From {from}; the authored relationship points from {to} to {from}.","viewer.guided.beat.aria.multiple":"From {from} through {count} authored relationships; shown without arbitrary motion.","viewer.guided.beat.aria.group":"Grouped from {from} with no direct authored relationship.","viewer.guided.caption.start":"Starting point","viewer.guided.caption.grouped":"Grouped transition · no direct authored link","viewer.guided.caption.more":" +{count} more","viewer.guided.caption.reverse":"Reverse authored relationship","viewer.guided.caption.relationships":"{count} authored relationships","viewer.guided.caption.relationship":"Authored relationship","viewer.guided.caption.direction":"authored direction: {from} → {to}","viewer.guided.caption.starting":"Authored starting point","viewer.guided.beatLink":"Copy link to current story moment: Beat {index} of {total}: {label}","viewer.guided.noStory":"This diagram has no authored guided story.","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.story":"Play the guided story","viewer.guide.story.hint":"Walk the authored chapters and real relationships.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.facts":"{nodes} · {relationships} · {views}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.fact.view.one":"{count} guided view","viewer.guide.fact.view.other":"{count} guided views","viewer.guide.story.available.one":"Walk {count} authored chapter and its real relationships.","viewer.guide.story.available.other":"Walk {count} authored chapters and their real relationships.","viewer.guide.story.unavailable":"No authored guided story in this diagram.","viewer.guide.open":"Open diagram guide","viewer.guide.noStory":"This diagram has no authored guided story.","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.sourceMarker":"SRC","viewer.passport.beacon.one":"{count} verified source; focus this node to inspect","viewer.passport.beacon.other":"{count} verified sources; focus this node to inspect","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Route probe","viewer.route.start":"Choose a start node","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Traced route","viewer.route.pickTwo":"Pick two semantic nodes on the diagram","viewer.route.pickOne":"Pick a semantic node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Choose the source, then the destination. Direction matters.","viewer.route.destination":"Choose a destination from {label}","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"A route needs two distinct semantic nodes.","viewer.route.unreachable":"No directed route to {label}","viewer.route.unreachable.detail":"{target} is not reachable from {source}. Pick a highlighted destination.","viewer.route.start.instructions":"Select the source. The next step will reveal only directed destinations.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest authored route","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} directed hop","viewer.route.overview.hop.other":"{count} directed hops","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} directed destination available. Pick a highlighted node.","viewer.route.destination.count.other":"{count} directed destinations available. Pick a highlighted node.","viewer.route.noOutgoing":"No outgoing route starts here. Clear and choose another source.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"PATH","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset diagram view","viewer.nav.camera.title":"{semantic}{hint} · reset view (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.map":"MAP","viewer.nav.level.read":"READ","viewer.nav.level.full":"FULL","viewer.nav.level.auto":"AUTO","viewer.nav.detail.map":"Zoom in to reveal relationship labels and node context","viewer.nav.detail.read":"Zoom in again to reveal tags and annotations","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
@@ -5005,9 +5005,9 @@
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
          data-preset-badge-editorial-plate="ARCHIFY / PLATE 04">
-      <svg viewBox="0 0 913 668" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="signal-flow" data-quality-profile="showcase">
-        <title id="archify-diagram-title">FitCV: From Job Input to Evidence-Gated CV</title>
-        <desc id="archify-diagram-description">Operator-controlled narrowing, reviewable ranking, and grounded output</desc>
+      <svg viewBox="0 0 1096 668" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
+        <title id="archify-diagram-title">FitCV: From Job Posting to Justified Application Decision</title>
+        <desc id="archify-diagram-description">Filter early, rank with evidence, generate only when justified</desc>
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -5031,254 +5031,250 @@
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Swimlanes -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="760" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / Operator</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="898" height="106" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / Inputs</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="178" width="760" height="114" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="200" class="t-dim" font-size="10" font-weight="600">02 / FitCV Pipeline</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="178" width="898" height="114" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="200" class="t-dim" font-size="10" font-weight="600">02 / Decision Pipeline</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="312" width="760" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="334" class="t-dim" font-size="10" font-weight="600">03 / Run Artifacts</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="312" width="898" height="106" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="334" class="t-dim" font-size="10" font-weight="600">03 / Outcomes + Proof</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-3" x="40" y="438" width="760" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="exception-lane" data-composition-frame-id="lane-3-exception" x="46" y="444" width="748" height="94" rx="8" class="c-security-group" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-3" x="40" y="438" width="898" height="106" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="exception-lane" data-composition-frame-id="lane-3-exception" x="46" y="444" width="886" height="94" rx="8" class="c-security-group" stroke-width="1"/>
         <text x="54" y="460" class="t-security" font-size="10" font-weight="600">EX / Stops + Review</text>
 
         <!-- Phase headers -->
         <line x1="48" y1="35" x2="260" y2="35" class="a-default" stroke-width="1.1"/>
         <rect x="48" y="27" width="212" height="16" rx="4" class="c-mask"/>
         <text x="154" y="39" class="t-muted" font-size="8" font-weight="600" text-anchor="middle">Prepare</text>
-        <line x1="288" y1="35" x2="667.6" y2="35" class="a-emphasis" stroke-width="1.1"/>
-        <rect x="288" y="27" width="379.6" height="16" rx="4" class="c-mask"/>
-        <text x="477.8" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">Narrow</text>
-        <line x1="695.6" y1="35" x2="787.6" y2="35" class="a-dashed" stroke-width="1.1"/>
-        <rect x="695.6" y="27" width="92" height="16" rx="4" class="c-mask"/>
-        <text x="741.6" y="39" class="t-messagebus" font-size="8" font-weight="600" text-anchor="middle">Ground + emit</text>
+        <line x1="288" y1="35" x2="547.6" y2="35" class="a-emphasis" stroke-width="1.1"/>
+        <rect x="288" y="27" width="259.6" height="16" rx="4" class="c-mask"/>
+        <text x="417.8" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">Narrow + rank</text>
+        <line x1="647.2" y1="35" x2="750.4000000000001" y2="35" class="a-security" stroke-width="1.1"/>
+        <rect x="647.2" y="27" width="103.19999999999999" height="16" rx="4" class="c-mask"/>
+        <text x="698.8000000000001" y="39" class="t-security" font-size="8" font-weight="600" text-anchor="middle">Evidence decision</text>
+        <line x1="834" y1="35" x2="954" y2="35" class="a-dashed" stroke-width="1.1"/>
+        <rect x="834" y="27" width="120" height="16" rx="4" class="c-mask"/>
+        <text x="894" y="39" class="t-messagebus" font-size="8" font-weight="600" text-anchor="middle">Act + preserve proof</text>
 
         <!-- Workflow groups -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-0" x="284" y="216" width="387.6" height="72" rx="9" class="c-lane" stroke-width="1"/>
-        <text x="294" y="214" class="t-backend" font-size="7" font-weight="600">Layered narrowing</text>
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-1" x="571.6" y="216" width="220" height="72" rx="9" class="c-security-group" stroke-width="1"/>
-        <text x="581.6" y="214" class="t-security" font-size="7" font-weight="600">Evidence-gated late stage</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-0" x="164" y="216" width="387.6" height="72" rx="9" class="c-lane" stroke-width="1"/>
+        <text x="174" y="214" class="t-backend" font-size="7" font-weight="600">Cheap work first</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-1" x="643.2" y="216" width="100" height="72" rx="9" class="c-security-group" stroke-width="1"/>
+        <text x="653.2" y="214" class="t-security" font-size="7" font-weight="600">Evidence gate</text>
 
         <!-- Edge paths -->
-        <path data-edge-from="cv_analysis" data-edge-to="cv_generation" data-edge-label="evidence supports fit" data-edge-key="0" data-composition-points="787.6,253;894.4,253;894.4,380;787.6,380" d="M 787.6 253 L 894.4 253 L 894.4 380 L 787.6 380" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="cv_analysis" data-edge-to="review_required" data-edge-label="blocked / skipped / failed / review required" data-edge-key="1" data-composition-points="741.6,287;741.6,330;530,330;530,450;621.6,450;621.6,472" d="M 741.6 287 L 741.6 330 L 530 330 L 530 450 L 621.6 450 L 621.6 472" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="cv_generation" data-edge-to="artifacts" data-edge-label="validated output" data-edge-key="2" data-composition-points="787.6,380;803.6,380;803.6,560;741.6,560;741.6,540" d="M 787.6 380 L 803.6 380 L 803.6 560 L 741.6 560 L 741.6 540" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="cv_generation" data-edge-to="review_required" data-edge-label="validation or persistence issue" data-edge-key="3" data-composition-points="695.6,380;679.6,380;679.6,560;621.6,560;621.6,540" d="M 695.6 380 L 679.6 380 L 679.6 560 L 621.6 560 L 621.6 540" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="input_jobs" data-edge-to="run_setup" data-edge-key="4" data-composition-points="140,120;168,120" d="M 140 120 L 168 120" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="normalize_enrich" data-edge-to="rule_filter" data-edge-key="5" data-composition-points="380,253;408,253" d="M 380 253 L 408 253" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="ranking" data-edge-to="cv_analysis" data-edge-label="ranked jobs" data-edge-key="6" data-composition-points="667.6,120;741.6,120;741.6,219" d="M 667.6 120 L 741.6 120 L 741.6 219" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="rule_filter" data-edge-to="filtered" data-edge-label="fails rules" data-edge-key="7" data-composition-points="500,253;516,253;516,365;454,365;454,472" d="M 500 253 L 516 253 L 516 365 L 454 365 L 454 472" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="rule_filter" data-edge-to="shortlist" data-edge-label="passes rules" data-edge-key="8" data-composition-points="454,219;454,162;559.6,162;559.6,253;575.6,253" d="M 454 219 L 454 162 L 559.6 162 L 559.6 253 L 575.6 253" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="run_setup" data-edge-to="normalize_enrich" data-edge-key="9" data-composition-points="214,154;214,253;288,253" d="M 214 154 L 214 253 L 288 253" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="shortlist" data-edge-to="ranking" data-edge-key="10" data-composition-points="575.6,246;559.6,246;559.6,120;575.6,120" d="M 575.6 246 L 559.6 246 L 559.6 120 L 575.6 120" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="candidate_profile" data-edge-to="prepare" data-edge-label="profile context" data-edge-key="0" data-composition-points="214,146;214,168;276,168;276,246;260,246" d="M 214 146 L 214 168 L 276 168 L 276 246 L 260 246" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="eligibility" data-edge-to="filtered" data-edge-label="fails rules" data-edge-key="1" data-composition-points="334,287;334,365;396,365;396,506;380,506" d="M 334 287 L 334 365 L 396 365 L 396 506 L 380 506" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="eligibility" data-edge-to="rank" data-edge-label="passes rules" data-edge-key="2" data-composition-points="334,287;334,303;501.6,303;501.6,287" d="M 334 287 L 334 303 L 501.6 303 L 501.6 287" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="evidence_gate" data-edge-to="grounded_cv" data-edge-label="evidence supports fit" data-edge-key="3" data-composition-points="739.2,253;755.2,253;755.2,434;693.2,434;693.2,414" d="M 739.2 253 L 755.2 253 L 755.2 434 L 693.2 434 L 693.2 414" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="evidence_gate" data-edge-to="review" data-edge-label="gaps or uncertainty" data-edge-key="4" data-composition-points="739.2,253;1080,253;1080,506;739.2,506" d="M 739.2 253 L 1080 253 L 1080 506 L 739.2 506" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="filtered" data-edge-to="artifacts" data-edge-label="decision recorded" data-edge-key="5" data-composition-points="334,472;334,456;950,456;950,380;926,380" d="M 334 472 L 334 456 L 950 456 L 950 380 L 926 380" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="grounded_cv" data-edge-to="artifacts" data-edge-label="validated output" data-edge-key="6" data-composition-points="739.2,380;755.2,380;755.2,296;880,296;880,346" d="M 739.2 380 L 755.2 380 L 755.2 296 L 880 296 L 880 346" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="job_input" data-edge-to="prepare" data-edge-key="7" data-composition-points="48,120;32,120;32,308;214,308;214,287" d="M 48 120 L 32 120 L 32 308 L 214 308 L 214 287" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="prepare" data-edge-to="eligibility" data-edge-key="8" data-composition-points="214,287;214,303;334,303;334,287" d="M 214 287 L 214 303 L 334 303 L 334 287" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="rank" data-edge-to="evidence_gate" data-edge-label="ranked candidates" data-edge-key="9" data-composition-points="547.6,253;647.2,253" d="M 547.6 253 L 647.2 253" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="review" data-edge-to="artifacts" data-edge-label="decision recorded" data-edge-key="10" data-composition-points="693.2,540;693.2,560;880,560;880,414" d="M 693.2 540 L 693.2 560 L 880 560 L 880 414" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
 
         <!-- Nodes -->
-        <g id="node-input_jobs" data-node-id="input_jobs" data-node-label="Input jobs" tabindex="0" role="button" aria-label="Focus Input jobs, raw postings, Operator › Prepare" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="raw postings" data-node-context="Operator › Prepare">
-          <title>Input jobs · raw postings · Operator › Prepare</title>
+        <g id="node-job_input" data-node-id="job_input" data-node-label="Job postings" tabindex="0" role="button" aria-label="Focus Job postings, raw input, Inputs › Prepare" aria-pressed="false" data-node-kind="external" data-node-sublabel="raw input" data-node-context="Inputs › Prepare">
+          <title>Job postings · raw input · Inputs › Prepare</title>
           <rect x="48" y="94" width="92" height="52" rx="6" class="c-mask"/>
-          <rect x="48" y="94" width="92" height="52" rx="6" class="c-frontend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(54 100) scale(0.6875)">
+          <rect x="48" y="94" width="92" height="52" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(54 100) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="94" y="115" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Job postings</text>
+          <text data-detail="context" x="94" y="132" class="t-muted" font-size="8" text-anchor="middle">raw input</text>
+        </g>
+
+        <g id="node-candidate_profile" data-node-id="candidate_profile" data-node-label="Profile" tabindex="0" role="button" aria-label="Focus Profile, evidence + prefs, Inputs › Prepare" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="evidence + prefs" data-node-context="Inputs › Prepare">
+          <title>Profile · evidence + prefs · Inputs › Prepare</title>
+          <rect x="168" y="94" width="92" height="52" rx="6" class="c-mask"/>
+          <rect x="168" y="94" width="92" height="52" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(174 100) scale(0.6875)">
             <rect x="2" y="3" width="12" height="10" rx="2"/>
             <path d="M2 6.5h12"/>
             <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="94" y="115" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Input jobs</text>
-          <text data-detail="context" x="94" y="132" class="t-muted" font-size="8" text-anchor="middle">raw postings</text>
+          <text data-node-label="" data-detail-anchor="" x="214" y="115" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Profile</text>
+          <text data-detail="context" x="214" y="132" class="t-muted" font-size="8" text-anchor="middle">evidence + prefs</text>
         </g>
 
-        <g id="node-run_setup" data-node-id="run_setup" data-node-label="Create run" tabindex="0" role="button" aria-label="Focus Create run, settings + mode, Operator › Prepare" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="settings + mode" data-node-tag="Run All / staged" data-node-context="Operator › Prepare">
-          <title>Create run · settings + mode · Operator › Prepare · Run All / staged</title>
-          <rect x="168" y="86" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="168" y="86" width="92" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(174 92) scale(0.6875)">
-            <rect x="2" y="3" width="12" height="10" rx="2"/>
-            <path d="M2 6.5h12"/>
-            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
-            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="214" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Create run</text>
-          <text data-detail="context" x="214" y="124" class="t-muted" font-size="8" text-anchor="middle">settings + mode</text>
-        <text data-detail="fine" x="214" y="142" class="t-frontend" font-size="7" text-anchor="middle">Run All / staged</text>
-        </g>
-
-        <g id="node-ranking" data-node-id="ranking" data-node-label="Rank + review" tabindex="0" role="button" aria-label="Focus Rank + review, reviewable shortlist, Operator › Narrow" aria-pressed="false" data-node-kind="backend" data-node-sublabel="reviewable shortlist" data-node-tag="AI score + final rank" data-node-context="Operator › Narrow">
-          <title>Rank + review · reviewable shortlist · Operator › Narrow · AI score + final rank</title>
-          <rect x="575.6" y="86" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="575.6" y="86" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(581.6 92) scale(0.6875)">
+        <g id="node-prepare" data-node-id="prepare" data-node-label="Prepare" tabindex="0" role="button" aria-label="Focus Prepare, normalize + enrich, Decision Pipeline › Cheap work first › Prepare" aria-pressed="false" data-node-kind="backend" data-node-sublabel="normalize + enrich" data-node-tag="comparable jobs" data-node-context="Decision Pipeline › Cheap work first › Prepare">
+          <title>Prepare · normalize + enrich · Decision Pipeline › Cheap work first › Prepare · comparable jobs</title>
+          <rect x="168" y="219" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="168" y="219" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(174 225) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="621.6" y="107" class="t-primary" font-size="10.7" font-weight="600" text-anchor="middle">Rank + review</text>
-          <text data-detail="context" x="621.6" y="124" class="t-muted" font-size="7" text-anchor="middle">reviewable shortlist</text>
-        <text data-detail="fine" x="621.6" y="142" class="t-backend" font-size="6.6" text-anchor="middle">AI score + final rank</text>
+          <text data-node-label="" data-detail-anchor="" x="214" y="240" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Prepare</text>
+          <text data-detail="context" x="214" y="257" class="t-muted" font-size="7.7" text-anchor="middle">normalize + enrich</text>
+        <text data-detail="fine" x="214" y="275" class="t-backend" font-size="7" text-anchor="middle">comparable jobs</text>
         </g>
 
-        <g id="node-normalize_enrich" data-node-id="normalize_enrich" data-node-label="Normalize" tabindex="0" role="button" aria-label="Focus Normalize, enrich records, FitCV Pipeline › Layered narrowing › Narrow" aria-pressed="false" data-node-kind="backend" data-node-sublabel="enrich records" data-node-context="FitCV Pipeline › Layered narrowing › Narrow">
-          <title>Normalize · enrich records · FitCV Pipeline › Layered narrowing › Narrow</title>
-          <rect x="288" y="227" width="92" height="52" rx="6" class="c-mask"/>
-          <rect x="288" y="227" width="92" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(294 233) scale(0.6875)">
-            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="334" y="248" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Normalize</text>
-          <text data-detail="context" x="334" y="265" class="t-muted" font-size="8" text-anchor="middle">enrich records</text>
-        </g>
-
-        <g id="node-rule_filter" data-node-id="rule_filter" data-node-label="Rule filter" tabindex="0" role="button" aria-label="Focus Rule filter, remove weak paths, FitCV Pipeline › Layered narrowing › Narrow" aria-pressed="false" data-node-kind="security" data-node-sublabel="remove weak paths" data-node-tag="before embedding" data-node-context="FitCV Pipeline › Layered narrowing › Narrow">
-          <title>Rule filter · remove weak paths · FitCV Pipeline › Layered narrowing › Narrow · before embedding</title>
-          <rect x="408" y="219" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="408" y="219" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(414 225) scale(0.6875)">
+        <g id="node-eligibility" data-node-id="eligibility" data-node-label="Filter" tabindex="0" role="button" aria-label="Focus Filter, cheap rules first, Decision Pipeline › Cheap work first › Narrow + rank" aria-pressed="false" data-node-kind="security" data-node-sublabel="cheap rules first" data-node-tag="obvious mismatches stop" data-node-context="Decision Pipeline › Cheap work first › Narrow + rank">
+          <title>Filter · cheap rules first · Decision Pipeline › Cheap work first › Narrow + rank · obvious mismatches stop</title>
+          <rect x="288" y="219" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="288" y="219" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(294 225) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="454" y="240" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Rule filter</text>
-          <text data-detail="context" x="454" y="257" class="t-muted" font-size="8" text-anchor="middle">remove weak paths</text>
-        <text data-detail="fine" x="454" y="275" class="t-security" font-size="7" text-anchor="middle">before embedding</text>
+          <text data-node-label="" data-detail-anchor="" x="334" y="240" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Filter</text>
+          <text data-detail="context" x="334" y="257" class="t-muted" font-size="8" text-anchor="middle">cheap rules first</text>
+        <text data-detail="fine" x="334" y="275" class="t-security" font-size="6" text-anchor="middle">obvious mismatches stop</text>
         </g>
 
-        <g id="node-shortlist" data-node-id="shortlist" data-node-label="Shortlist" tabindex="0" role="button" aria-label="Focus Shortlist, eligible jobs only, FitCV Pipeline › Layered narrowing › Narrow" aria-pressed="false" data-node-kind="backend" data-node-sublabel="eligible jobs only" data-node-context="FitCV Pipeline › Layered narrowing › Narrow">
-          <title>Shortlist · eligible jobs only · FitCV Pipeline › Layered narrowing › Narrow</title>
-          <rect x="575.6" y="227" width="92" height="52" rx="6" class="c-mask"/>
-          <rect x="575.6" y="227" width="92" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(581.6 233) scale(0.6875)">
+        <g id="node-rank" data-node-id="rank" data-node-label="Rank matches" tabindex="0" role="button" aria-label="Focus Rank matches, fit signals, Decision Pipeline › Cheap work first › Narrow + rank" aria-pressed="false" data-node-kind="backend" data-node-sublabel="fit signals" data-node-tag="reviewable shortlist" data-node-context="Decision Pipeline › Cheap work first › Narrow + rank">
+          <title>Rank matches · fit signals · Decision Pipeline › Cheap work first › Narrow + rank · reviewable shortlist</title>
+          <rect x="455.6" y="219" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="455.6" y="219" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(461.6 225) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="621.6" y="248" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Shortlist</text>
-          <text data-detail="context" x="621.6" y="265" class="t-muted" font-size="7.7" text-anchor="middle">eligible jobs only</text>
+          <text data-node-label="" data-detail-anchor="" x="501.6" y="240" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Rank matches</text>
+          <text data-detail="context" x="501.6" y="257" class="t-muted" font-size="8" text-anchor="middle">fit signals</text>
+        <text data-detail="fine" x="501.6" y="275" class="t-backend" font-size="7" text-anchor="middle">reviewable shortlist</text>
         </g>
 
-        <g id="node-cv_analysis" data-node-id="cv_analysis" data-node-label="Evidence gate" tabindex="0" role="button" aria-label="Focus Evidence gate, evidence + gap check, FitCV Pipeline › Evidence-gated late stage › Ground + emit" aria-pressed="false" data-node-kind="security" data-node-sublabel="evidence + gap check" data-node-tag="ready or blocked" data-node-context="FitCV Pipeline › Evidence-gated late stage › Ground + emit">
-          <title>Evidence gate · evidence + gap check · FitCV Pipeline › Evidence-gated late stage › Ground + emit · ready or blocked</title>
-          <rect x="695.6" y="219" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="695.6" y="219" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(701.6 225) scale(0.6875)">
+        <g id="node-evidence_gate" data-node-id="evidence_gate" data-node-label="Evidence gate" tabindex="0" role="button" aria-label="Focus Evidence gate, support + gaps, Decision Pipeline › Evidence gate › Evidence decision" aria-pressed="false" data-node-kind="security" data-node-sublabel="support + gaps" data-node-tag="central decision" data-node-context="Decision Pipeline › Evidence gate › Evidence decision">
+          <title>Evidence gate · support + gaps · Decision Pipeline › Evidence gate › Evidence decision · central decision</title>
+          <rect x="647.2" y="219" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="647.2" y="219" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(653.2 225) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="741.6" y="240" class="t-primary" font-size="10.7" font-weight="600" text-anchor="middle">Evidence gate</text>
-          <text data-detail="context" x="741.6" y="257" class="t-muted" font-size="7" text-anchor="middle">evidence + gap check</text>
-        <text data-detail="fine" x="741.6" y="275" class="t-security" font-size="7" text-anchor="middle">ready or blocked</text>
+          <text data-node-label="" data-detail-anchor="" x="693.2" y="240" class="t-primary" font-size="10.7" font-weight="600" text-anchor="middle">Evidence gate</text>
+          <text data-detail="context" x="693.2" y="257" class="t-muted" font-size="8" text-anchor="middle">support + gaps</text>
+        <text data-detail="fine" x="693.2" y="275" class="t-security" font-size="7" text-anchor="middle">central decision</text>
         </g>
 
-        <g id="node-cv_generation" data-node-id="cv_generation" data-node-label="Generate CV" tabindex="0" role="button" aria-label="Focus Generate CV, grounded + validated, Run Artifacts › Ground + emit" aria-pressed="false" data-node-kind="backend" data-node-sublabel="grounded + validated" data-node-tag="late-stage" data-node-context="Run Artifacts › Ground + emit">
-          <title>Generate CV · grounded + validated · Run Artifacts › Ground + emit · late-stage</title>
-          <rect x="695.6" y="346" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="695.6" y="346" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(701.6 352) scale(0.6875)">
+        <g id="node-grounded_cv" data-node-id="grounded_cv" data-node-label="Grounded CV" tabindex="0" role="button" aria-label="Focus Grounded CV, validated output, Outcomes + Proof › Evidence decision" aria-pressed="false" data-node-kind="backend" data-node-sublabel="validated output" data-node-tag="ready to use" data-node-context="Outcomes + Proof › Evidence decision">
+          <title>Grounded CV · validated output · Outcomes + Proof › Evidence decision · ready to use</title>
+          <rect x="647.2" y="346" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="647.2" y="346" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(653.2 352) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="741.6" y="367" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Generate CV</text>
-          <text data-detail="context" x="741.6" y="384" class="t-muted" font-size="7" text-anchor="middle">grounded + validated</text>
-        <text data-detail="fine" x="741.6" y="402" class="t-backend" font-size="7" text-anchor="middle">late-stage</text>
+          <text data-node-label="" data-detail-anchor="" x="693.2" y="367" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Grounded CV</text>
+          <text data-detail="context" x="693.2" y="384" class="t-muted" font-size="8" text-anchor="middle">validated output</text>
+        <text data-detail="fine" x="693.2" y="402" class="t-backend" font-size="7" text-anchor="middle">ready to use</text>
         </g>
 
-        <g id="node-filtered" data-node-id="filtered" data-node-label="Filtered out" tabindex="0" role="button" aria-label="Focus Filtered out, not eligible, Stops + Review › Narrow" aria-pressed="false" data-node-kind="security" data-node-sublabel="not eligible" data-node-tag="stop" data-node-context="Stops + Review › Narrow">
-          <title>Filtered out · not eligible · Stops + Review › Narrow · stop</title>
-          <rect x="408" y="472" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="408" y="472" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(414 478) scale(0.6875)">
-            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
-            <path d="m5.8 8 1.5 1.5 3-3"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="454" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Filtered out</text>
-          <text data-detail="context" x="454" y="510" class="t-muted" font-size="8" text-anchor="middle">not eligible</text>
-        <text data-detail="fine" x="454" y="528" class="t-security" font-size="7" text-anchor="middle">stop</text>
-        </g>
-
-        <g id="node-review_required" data-node-id="review_required" data-node-label="Review" tabindex="0" role="button" aria-label="Focus Review, blocked / failed, Stops + Review › Narrow" aria-pressed="false" data-node-kind="security" data-node-sublabel="blocked / failed" data-node-tag="inspect artifacts" data-node-context="Stops + Review › Narrow">
-          <title>Review · blocked / failed · Stops + Review › Narrow · inspect artifacts</title>
-          <rect x="575.6" y="472" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="575.6" y="472" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(581.6 478) scale(0.6875)">
-            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
-            <path d="m5.8 8 1.5 1.5 3-3"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="621.6" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Review</text>
-          <text data-detail="context" x="621.6" y="510" class="t-muted" font-size="8" text-anchor="middle">blocked / failed</text>
-        <text data-detail="fine" x="621.6" y="528" class="t-security" font-size="7" text-anchor="middle">inspect artifacts</text>
-        </g>
-
-        <g id="node-artifacts" data-node-id="artifacts" data-node-label="Outputs" tabindex="0" role="button" aria-label="Focus Outputs, ledger + artifacts, Stops + Review › Ground + emit" aria-pressed="false" data-node-kind="database" data-node-sublabel="ledger + artifacts" data-node-tag="inspectable" data-node-context="Stops + Review › Ground + emit">
-          <title>Outputs · ledger + artifacts · Stops + Review › Ground + emit · inspectable</title>
-          <rect x="695.6" y="472" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="695.6" y="472" width="92" height="68" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(701.6 478) scale(0.6875)">
+        <g id="node-artifacts" data-node-id="artifacts" data-node-label="Proof" tabindex="0" role="button" aria-label="Focus Proof, saved proof, Outcomes + Proof › Act + preserve proof" aria-pressed="false" data-node-kind="database" data-node-sublabel="saved proof" data-node-tag="inspectable proof" data-node-context="Outcomes + Proof › Act + preserve proof">
+          <title>Proof · saved proof · Outcomes + Proof › Act + preserve proof · inspectable proof</title>
+          <rect x="834" y="346" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="834" y="346" width="92" height="68" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(840 352) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="741.6" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Outputs</text>
-          <text data-detail="context" x="741.6" y="510" class="t-muted" font-size="7.7" text-anchor="middle">ledger + artifacts</text>
-        <text data-detail="fine" x="741.6" y="528" class="t-database" font-size="7" text-anchor="middle">inspectable</text>
+          <text data-node-label="" data-detail-anchor="" x="880" y="367" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Proof</text>
+          <text data-detail="context" x="880" y="384" class="t-muted" font-size="8" text-anchor="middle">saved proof</text>
+        <text data-detail="fine" x="880" y="402" class="t-database" font-size="7" text-anchor="middle">inspectable proof</text>
+        </g>
+
+        <g id="node-filtered" data-node-id="filtered" data-node-label="Filtered" tabindex="0" role="button" aria-label="Focus Filtered, not eligible, Stops + Review › Narrow + rank" aria-pressed="false" data-node-kind="security" data-node-sublabel="not eligible" data-node-tag="reason preserved" data-node-context="Stops + Review › Narrow + rank">
+          <title>Filtered · not eligible · Stops + Review › Narrow + rank · reason preserved</title>
+          <rect x="288" y="472" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="288" y="472" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(294 478) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="334" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Filtered</text>
+          <text data-detail="context" x="334" y="510" class="t-muted" font-size="8" text-anchor="middle">not eligible</text>
+        <text data-detail="fine" x="334" y="528" class="t-security" font-size="7" text-anchor="middle">reason preserved</text>
+        </g>
+
+        <g id="node-review" data-node-id="review" data-node-label="Review" tabindex="0" role="button" aria-label="Focus Review, human decision, Stops + Review › Evidence decision" aria-pressed="false" data-node-kind="security" data-node-sublabel="human decision" data-node-tag="inspect evidence" data-node-context="Stops + Review › Evidence decision">
+          <title>Review · human decision · Stops + Review › Evidence decision · inspect evidence</title>
+          <rect x="647.2" y="472" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="647.2" y="472" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(653.2 478) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="693.2" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Review</text>
+          <text data-detail="context" x="693.2" y="510" class="t-muted" font-size="8" text-anchor="middle">human decision</text>
+        <text data-detail="fine" x="693.2" y="528" class="t-security" font-size="7" text-anchor="middle">inspect evidence</text>
         </g>
 
         <!-- Edge labels -->
-        <g data-detail="context" data-edge-from="cv_analysis" data-edge-to="cv_generation" data-edge-label="evidence supports fit" data-edge-key="0">
-          <rect x="785.6" y="233" width="110.8" height="14" rx="3" class="c-mask"/>
-          <text x="841" y="243" class="t-security" font-size="8" text-anchor="middle">evidence supports fit</text>
+        <g data-detail="context" data-edge-from="candidate_profile" data-edge-to="prepare" data-edge-label="profile context" data-edge-key="0">
+          <rect x="204" y="148" width="82" height="14" rx="3" class="c-mask"/>
+          <text x="245" y="158" class="t-muted" font-size="8" text-anchor="middle">profile context</text>
         </g>
-        <g data-detail="context" data-edge-from="cv_analysis" data-edge-to="review_required" data-edge-label="blocked / skipped / failed / review required" data-edge-key="1">
-          <rect x="525.1999999999999" y="310" width="221.2" height="14" rx="3" class="c-mask"/>
-          <text x="635.8" y="320" class="t-security" font-size="8" text-anchor="middle">blocked / skipped / failed / review required</text>
+        <g data-detail="context" data-edge-from="eligibility" data-edge-to="filtered" data-edge-label="fails rules" data-edge-key="1">
+          <rect x="333.6" y="345" width="62.8" height="14" rx="3" class="c-mask"/>
+          <text x="365" y="355" class="t-security" font-size="8" text-anchor="middle">fails rules</text>
         </g>
-        <g data-detail="context" data-edge-from="cv_generation" data-edge-to="artifacts" data-edge-label="validated output" data-edge-key="2">
-          <rect x="729.2" y="540" width="86.8" height="14" rx="3" class="c-mask"/>
-          <text x="772.6" y="550" class="t-backend" font-size="8" text-anchor="middle">validated output</text>
+        <g data-detail="context" data-edge-from="eligibility" data-edge-to="rank" data-edge-label="passes rules" data-edge-key="2">
+          <rect x="384" y="283" width="67.6" height="14" rx="3" class="c-mask"/>
+          <text x="417.8" y="293" class="t-backend" font-size="8" text-anchor="middle">passes rules</text>
         </g>
-        <g data-detail="context" data-edge-from="cv_generation" data-edge-to="review_required" data-edge-label="validation or persistence issue" data-edge-key="3">
-          <rect x="571.2" y="540" width="158.79999999999998" height="14" rx="3" class="c-mask"/>
-          <text x="650.6" y="550" class="t-security" font-size="8" text-anchor="middle">validation or persistence issue</text>
+        <g data-detail="context" data-edge-from="evidence_gate" data-edge-to="grounded_cv" data-edge-label="evidence supports fit" data-edge-key="3">
+          <rect x="668.8000000000001" y="414" width="110.8" height="14" rx="3" class="c-mask"/>
+          <text x="724.2" y="424" class="t-backend" font-size="8" text-anchor="middle">evidence supports fit</text>
         </g>
-
-
-        <g data-detail="context" data-edge-from="ranking" data-edge-to="cv_analysis" data-edge-label="ranked jobs" data-edge-key="6">
-          <rect x="673.2" y="100" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="704.6" y="110" class="t-muted" font-size="8" text-anchor="middle">ranked jobs</text>
+        <g data-detail="context" data-edge-from="evidence_gate" data-edge-to="review" data-edge-label="gaps or uncertainty" data-edge-key="4">
+          <rect x="859" y="233" width="101.2" height="14" rx="3" class="c-mask"/>
+          <text x="909.6" y="243" class="t-security" font-size="8" text-anchor="middle">gaps or uncertainty</text>
         </g>
-        <g data-detail="context" data-edge-from="rule_filter" data-edge-to="filtered" data-edge-label="fails rules" data-edge-key="7">
-          <rect x="453.6" y="345" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="485" y="355" class="t-security" font-size="8" text-anchor="middle">fails rules</text>
+        <g data-detail="context" data-edge-from="filtered" data-edge-to="artifacts" data-edge-label="decision recorded" data-edge-key="5">
+          <rect x="596.2" y="436" width="91.6" height="14" rx="3" class="c-mask"/>
+          <text x="642" y="446" class="t-database" font-size="8" text-anchor="middle">decision recorded</text>
         </g>
-        <g data-detail="context" data-edge-from="rule_filter" data-edge-to="shortlist" data-edge-label="passes rules" data-edge-key="8">
-          <rect x="473" y="142" width="67.6" height="14" rx="3" class="c-mask"/>
-          <text x="506.8" y="152" class="t-backend" font-size="8" text-anchor="middle">passes rules</text>
+        <g data-detail="context" data-edge-from="grounded_cv" data-edge-to="artifacts" data-edge-label="validated output" data-edge-key="6">
+          <rect x="774.2" y="276" width="86.8" height="14" rx="3" class="c-mask"/>
+          <text x="817.6" y="286" class="t-backend" font-size="8" text-anchor="middle">validated output</text>
         </g>
 
 
+        <g data-detail="context" data-edge-from="rank" data-edge-to="evidence_gate" data-edge-label="ranked candidates" data-edge-key="9">
+          <rect x="551.6000000000001" y="233" width="91.6" height="14" rx="3" class="c-mask"/>
+          <text x="597.4000000000001" y="243" class="t-muted" font-size="8" text-anchor="middle">ranked candidates</text>
+        </g>
+        <g data-detail="context" data-edge-from="review" data-edge-to="artifacts" data-edge-label="decision recorded" data-edge-key="10">
+          <rect x="740.8000000000001" y="540" width="91.6" height="14" rx="3" class="c-mask"/>
+          <text x="786.6" y="550" class="t-database" font-size="8" text-anchor="middle">decision recorded</text>
+        </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
           <text x="20" y="568" class="t-primary" font-size="12" font-weight="650">Legend</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="Operator surface" data-legend-x="20" data-legend-baseline="588" data-legend-width="113">
+          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="Input or operator action" data-legend-x="20" data-legend-baseline="588" data-legend-width="148">
             <rect x="20" y="580" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-            <text x="42" y="588" class="t-muted" font-size="7.5" font-weight="500">Operator surface</text>
+            <text x="42" y="588" class="t-muted" font-size="7.5" font-weight="500">Input or operator action</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Pipeline stage" data-legend-x="140" data-legend-baseline="588" data-legend-width="104">
-            <rect x="140" y="580" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-            <text x="162" y="588" class="t-muted" font-size="7.5" font-weight="500">Pipeline stage</text>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Decision stage" data-legend-x="175" data-legend-baseline="588" data-legend-width="104">
+            <rect x="175" y="580" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+            <text x="197" y="588" class="t-muted" font-size="7.5" font-weight="500">Decision stage</text>
           </g>
-          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="Gate or stop" data-legend-x="251" data-legend-baseline="588" data-legend-width="96">
-            <rect x="251" y="580" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
-            <text x="273" y="588" class="t-muted" font-size="7.5" font-weight="500">Gate or stop</text>
+          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="Gate or stop" data-legend-x="286" data-legend-baseline="588" data-legend-width="96">
+            <rect x="286" y="580" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
+            <text x="308" y="588" class="t-muted" font-size="7.5" font-weight="500">Gate or stop</text>
           </g>
-          <g data-legend-semantic-kind="messagebus" data-legend-x="354" data-legend-baseline="588" data-legend-width="70">
-            <rect x="354" y="580" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
-            <text x="376" y="588" class="t-muted" font-size="7.5" font-weight="500">Tool action</text>
+          <g data-legend-semantic-kind="messagebus" data-legend-x="389" data-legend-baseline="588" data-legend-width="70">
+            <rect x="389" y="580" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
+            <text x="411" y="588" class="t-muted" font-size="7.5" font-weight="500">Tool action</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Persisted artifact" data-legend-x="431" data-legend-baseline="588" data-legend-width="122">
-            <rect x="431" y="580" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
-            <text x="453" y="588" class="t-muted" font-size="7.5" font-weight="500">Persisted artifact</text>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Persisted proof" data-legend-x="466" data-legend-baseline="588" data-legend-width="109">
+            <rect x="466" y="580" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+            <text x="488" y="588" class="t-muted" font-size="7.5" font-weight="500">Persisted proof</text>
           </g>
-          <g data-legend-semantic-kind="cloud" data-legend-x="560" data-legend-baseline="588" data-legend-width="79">
-            <rect x="560" y="580" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
-            <text x="582" y="588" class="t-muted" font-size="7.5" font-weight="500">Cloud service</text>
+          <g data-legend-semantic-kind="cloud" data-legend-x="582" data-legend-baseline="588" data-legend-width="79">
+            <rect x="582" y="580" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
+            <text x="604" y="588" class="t-muted" font-size="7.5" font-weight="500">Cloud service</text>
           </g>
-          <g data-legend-semantic-kind="external" data-legend-x="646" data-legend-baseline="588" data-legend-width="88">
-            <rect x="646" y="580" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
-            <text x="668" y="588" class="t-muted" font-size="7.5" font-weight="500">External system</text>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="Source input" data-legend-x="668" data-legend-baseline="588" data-legend-width="96">
+            <rect x="668" y="580" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+            <text x="690" y="588" class="t-muted" font-size="7.5" font-weight="500">Source input</text>
           </g>
         </g>
       </svg>
@@ -5467,41 +5463,7 @@
 
     <!-- Info Cards -->
     <div class="cards">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-dot emerald"></div>
-          <h3>One run, staged narrowing</h3>
-        </div>
-        <ul>
-          <li>&bull; Raw postings become stable records before matching</li>
-          <li>&bull; Rule filtering happens before embedding</li>
-          <li>&bull; Ranking leaves a smaller shortlist for deeper work</li>
-        </ul>
-      </div>
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-dot rose"></div>
-          <h3>Evidence gates output</h3>
-        </div>
-        <ul>
-          <li>&bull; CV analysis retrieves evidence and checks fit before generation</li>
-          <li>&bull; Blocked or failed late-stage rows remain reviewable</li>
-          <li>&bull; Generation is not the first step and is not unconditional</li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-dot cyan"></div>
-          <h3>Operator-visible truth</h3>
-        </div>
-        <ul>
-          <li>&bull; Run mode can be Run All or Stage by Stage</li>
-          <li>&bull; Run ledgers and stage-owned artifacts preserve inspection context</li>
-          <li>&bull; Final outputs stay tied to the run that produced them</li>
-        </ul>
-      </div>
     </div>
 
   </div>

@@ -67,9 +67,11 @@ Stage order:
 [Open the interactive Archify workflow](docs/fitcv-readme-workflow.html) ·
 [View the canonical Archify source](docs/fitcv-readme-workflow.json)
 
-Use **Follow one run** to trace jobs from input through persisted artifacts,
-**Inspect before output** to focus on ranking and evidence review, and **See safe
-stops** to follow filtered, blocked, failed, or review-required rows.
+Use **Follow one job** to trace a posting from raw input through preparation,
+filtering, ranking, evidence checks, grounded output, and saved proof. Use **Why
+this job?** to inspect how candidate evidence supports a ranked match. Use **Why
+not this job?** to follow filtered or review-required outcomes without losing
+their reason or evidence.
 
 ## Stage Methods (How Each Stage Works)
 
