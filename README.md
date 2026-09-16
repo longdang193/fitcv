@@ -2,104 +2,35 @@
 
 ## Analyze job markets. Decide with evidence.
 
-**FitCV systematically analyzes thousands of job postings to identify recurring requirements, skills, and role patterns—then translates those insights into evidence-based application decisions.**
+**FitCV turns raw job postings into a ranked, inspectable shortlist—and generates tailored CVs only when candidate evidence supports them.**
 
-It turns job-search noise into a reviewable shortlist, shows which requirements your experience supports, and prepares grounded CV outputs for roles worth your time. Every decision stays inspectable; you remain in control of what to pursue and submit.
+Instead of handing the entire job search to an LLM, FitCV separates deterministic filtering, retrieval, ranking, evidence checks, and generation into a traceable pipeline.
 
 > **Find the pattern. See the evidence. Apply with intent.**
 
 > **Technical Preview:** FitCV’s current workflows analyze the job data you bring in and expose ranking, evidence, gaps, and grounded outputs. Corpus-scale pattern reporting and supported batch size depend on source and runtime capacity.
 
-## FitCV Local
+![Run history](docs/screenshots/runs.png)
 
-FitCV Local is the primary path for non-technical Windows users. It keeps the
-candidate profile, settings, run history, artifacts, exports, logs, and backups
-under a user-owned local data folder.
+## Why FitCV
 
-### Install and onboard
+- **Evidence-gated AI**: CV generation starts only after requirements are matched against candidate evidence.
+- **Layered retrieval and ranking**: deterministic rules, semantic similarity, lexical signals, and configurable ranking narrow the search before expensive AI work.
+- **Inspectability by design**: runs persist decisions, evidence, warnings, failures, and artifacts instead of hiding them behind a final score.
+- **Cost-aware execution**: cheap filtering happens early; enrichment and generation focus on candidates worth deeper analysis.
+- **Local or server deployment**: packaged FitCV Local supports non-technical Windows users while the control plane remains available for engineering workflows.
 
-1. Get `FitCV-Local-<version>-Technical-Preview-Setup.exe` from your FitCV
-   distribution and run it.
-2. Launch **FitCV Local** from the Start menu. The browser opens local onboarding.
-3. Choose a fixed local data folder. Do not use a network, UNC, removable, or
-   unwritable location.
-4. Open **Candidate Profile** and create or review a source-backed profile.
-5. Open **API Providers**, select OpenAI, an OpenAI-compatible provider, or
-   9router, then enter the API root, authentication details, API key when
-   required, and wire API (`Responses` or `Chat Completions`).
-6. Use **Discover models**, add or select at least one model, and use **Test
-   provider**. FitCV does not enable run submission until provider readiness passes.
-7. In **LLM Configuration**, select the **Default Route** model. Add task-specific
-   models only when needed.
-8. Review whole-run retry and optional bounded task prompt guidance, then select
-   **Finish Setup**.
+## Quick Start
 
-Normal FitCV Local use needs no Python, Git, Docker, Redis, separate worker,
-repository checkout, terminal, or manually edited `.env` file. Current Windows
-artifact is unsigned and explicitly labeled **Technical Preview**. Stable public
-release waits for code signing and clean-Windows-VM acceptance.
+**FitCV Local** is the primary path for non-technical Windows users. Install the
+Technical Preview, launch it from Start, choose a user-owned data folder, complete
+Candidate Profile and provider setup, then open **Runs** to submit job input.
 
-### Run a workflow
-
-1. Open the **Runs** page (`/app/#/runs`).
-2. Submit job input by path, upload, or paste, then choose **Run All** or
-   **Stage by Stage**.
-3. Wait for progress and open run details. FitCV processes jobs through
-   `normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, `cv_analysis`,
-   and `cv_generation`.
-4. Review ranked jobs, fit decisions, evidence, warnings, and next actions.
-5. Open stage artifacts and exports when you need to verify why a job was kept,
-   filtered, blocked, failed, or held for review. Download generated CV output
-   only after reviewing it.
-
-FitCV keeps filtered, blocked, failed, and review-required rows inspectable. They
-do not silently become CVs. A second packaged run waits until the active run ends.
-
-### Back up and recover
-
-Open **Data & Backup** when the workspace is idle:
-
-- **Download Backup** creates a validated `.fitcv.zip` backup.
-- **Import Backup** validates the archive and restarts FitCV to finish the import.
-- Cold data relocation moves the local workspace and also requires a restart.
-
-Common fixes:
-
-| Problem | Recovery |
-|---|---|
-| Provider test fails | Recheck API root, API key, selected wire API, and model; save changes and test again. |
-| Run cannot start | Finish candidate profile setup, add a validated model, configure required credentials, and pass provider test. |
-| Run says workspace is busy | Wait for the active run to finish; submit one packaged run at a time. |
-| Local data cannot open | Close FitCV, make the selected folder available and writable, then launch FitCV again. Existing data is retained. |
-| FitCV stopped | Close the stopped browser tab, then launch FitCV Local again from Start. |
-| Data looks wrong or is missing | Restore the latest validated backup from **Data & Backup**. |
-
-Use **System** to download redacted diagnostics when support needs startup,
-storage, readiness, or provider-routing details. Diagnostics exclude API keys,
-authorization headers, profile content, prompts, job descriptions, CV text, and
-raw database rows.
-
-## Who FitCV Serves
-
-FitCV serves job seekers and workflow owners who need repeatable job matching,
-inspectable decisions, and CV outputs grounded in candidate evidence.
-
-- **FitCV Local users**: non-technical Windows users who configure a candidate
-  profile and provider, run jobs, review matches and artifacts, and decide what to
-  use. They do not need Python, Git, Docker, Redis, or a terminal.
-- **Developers and operators**: people who run or maintain server deployments,
-  pipeline logic, settings, provider routing, and run infrastructure. They inspect
-  stages, events, diagnostics, and artifacts through the control plane.
-
-## What It Does
-
-- Ingest many job posts
-- Normalize + enrich to stable structured fields
-- Filter weak candidates before expensive work
-- Rank best jobs with explainable outcomes
-- Analyze readiness + evidence
-- Generate CV outputs with validation/repair safeguards
-- Persist artifacts so operator can inspect what happened
+Normal local use needs no Python, Git, Docker, Redis, separate worker, repository
+checkout, terminal, or manually edited `.env` file. Detailed onboarding, backup,
+recovery, troubleshooting, and developer setup live in
+[docs/fitcv-control-plane-setup.md](docs/fitcv-control-plane-setup.md) and
+[docs/setup.md](docs/setup.md).
 
 ## Job Data Input (LinkedIn via Apify)
 
@@ -115,7 +46,7 @@ Stage order:
 
 `normalize → enrich → rule_filter → shortlist → ranking → cv_analysis → cv_generation`
 
-## Workflow
+## How It Works
 
 1. **normalize** canonicalizes and deduplicates raw job postings.
 2. **enrich** adds stable structured fields for matching and review.
@@ -129,114 +60,46 @@ Stage order:
    outputs. Filtered, blocked, failed, or review-required rows remain inspectable;
    they do not silently become CVs.
 
-[Explore the workflow diagram](docs/fitcv-readme-workflow.html).
+## Workflow Diagram
 
-## Archify Workflow Artifact
+![FitCV workflow: job input to evidence-gated CV output](docs/fitcv-readme-workflow.svg)
 
-The workflow diagram is the canonical Archify artifact for this README:
-
-- [Open the rendered Archify workflow](docs/fitcv-readme-workflow.html)
-- [Open the canonical Archify source](docs/fitcv-readme-workflow.json)
+[Open the interactive Archify workflow](docs/fitcv-readme-workflow.html) ·
+[View the canonical Archify source](docs/fitcv-readme-workflow.json)
 
 Use **Follow one run** to trace jobs from input through persisted artifacts,
 **Inspect before output** to focus on ranking and evidence review, and **See safe
 stops** to follow filtered, blocked, failed, or review-required rows.
 
-## Why It’s Different
-
-- **Evidence-first pipeline**: stage outputs are stage-owned truth; UI shows derived views.
-- **Operator control plane**: trigger runs, inspect stages/items, download artifacts, manage lifecycle.
-- **Cost control by design**: narrowing happens in layers; late-stage work gated by readiness.
-- **Portability**: sqlite and bigquery backends aim to preserve same operator-visible contracts.
-See deep stage behavior in [docs/FitCV-pipeline.md](docs/FitCV-pipeline.md) and [docs/pipeline.md](docs/pipeline.md).
-
 ## Stage Methods (How Each Stage Works)
 
 - **normalize**
-  - whitespace normalization + key canonicalization
-  - exact dedupe by `job_url`
-  - near-dedupe by `(company_id, title, sha256(description))` (keeps first, records exclusions)
+  - Canonicalizes raw postings and removes exact or near-duplicate jobs while recording exclusions.
 
 - **enrich**
-  - LLM structured extraction (prompt render + runtime model routing)
-  - global request pacing (rate slot) to reduce provider throttling
-  - sqlite cache for reused structured jobs (reuse status + contract fingerprint)
+  - Extracts stable structured fields through the routed LLM runtime, with pacing and SQLite reuse safeguards.
 
 - **rule_filter**
-  - deterministic gates before embeddings/LLM cost
-  - config-driven signals (seniority, location/contract/experience excludes, must-have skills, domain prefs)
-  - synonym canonicalization for skills (taxonomy-aware matching)
+  - Applies deterministic, config-driven eligibility gates and taxonomy-aware skill matching before expensive work.
 
 - **shortlist**
-  - candidate+job embedding retrieval (`embeddings.py`)
-  - vector shortlist with similarity scoring (cosine)
-  - deterministic lexical BM25 query-term payload from canonical candidate components (`config/shortlist_lexical.yaml`)
-  - shortlist debug hashes (`components_hash`, `canonical_text_hash`, `bm25_terms_hash`, `protected_terms_hash`) for invariance/symmetry evidence
-  - query embedding cache + contract fingerprint (reuse vs fresh)
-  - top-N controls (`vector_search_top_n`, retrieval strategy)
-  - note: hybrid retrieval fusion (`vector + bm25 + rrf`) remains proposed and is not yet runtime-enabled on main
+  - Retrieves a bounded candidate/job shortlist with vector and lexical signals, cache reuse, and top-N controls; hybrid RRF fusion remains proposed.
 
 - **ranking**
-  - weighted ensemble over features: `ai_score`, `must_have_match`, `vector_similarity`, `title_relevance`, `seniority_fit`, `preference_fit`
-  - configurable weights + safe missing-value defaults (validated contract)
-  - taxonomy-aware neighbors (domain / role-family proximity)
+  - Combines fit, similarity, relevance, seniority, and preference signals with validated weights and taxonomy-aware neighbors.
 
 - **Personalization optimization**
-  - optional preference-learning workflow records user ratings as decision episodes
-  - inverse optimization evaluates preference residuals and proposes ranking-policy updates
-  - promotion gates validate candidate policies before activation
-  - evidence and configuration revisions prevent stale personalization state
-  - personalization changes ranking preference, never fit qualification truth
+  - Optionally learns ranking preferences from ratings, validates policy proposals before activation, and never changes fit qualification truth.
 
 - **cv_analysis**
-  - fit gate from ranking (`strong/stretch/skip`) blocks weak jobs
-  - evidence retrieval + selection: lexical + optional embedding similarity
-  - quotas + trimming (top-k per evidence type, bullet/highlight limits)
-  - gap analysis + requirement coverage summary (what missing, what supported)
+  - Applies fit gates, retrieves supporting evidence, and reports requirement coverage and gaps before generation.
 
 - **cv_generation**
-  - structured JSON generation via OpenAI-compatible API (`responses` preferred, fallback `chat/completions`)
-  - template variants by `job_family`, section composition from config
-  - validation: required sections present, placeholder detection, grounding/consistency checks
-  - one internal LLM runtime owns provider routing, transport fallback, normalized failures, and safe provenance
+  - Generates grounded structured CV output with configured templates, provider fallback, and validation/repair safeguards.
 
-## Major Features and Engineering Highlights
-
-- **Control-plane run operations**: trigger runs, inspect stages/items, stop/archive lifecycle actions.
-- **Settings-driven execution**: persistent settings applied through control-plane settings store.
-- **Artifact-backed observability**: run/item diagnostics and downloadable outputs.
-- **Reuse/performance safeguards**: bounded reuse in selected stages to reduce redundant work.
-- **Generation safety**: validation and deterministic repair path for low-risk output defects.
-- **Bookmarks**: save jobs from run detail and review later at `/admin/bookmarks` (persists across runs).
-
-Related docs:
-
-- [docs/api.md](docs/api.md)
-- [docs/architecture.md](docs/architecture.md)
-- [docs/component_boundaries.md](docs/component_boundaries.md)
-- [docs/configuration.md](docs/configuration.md)
-- [docs/observability.md](docs/observability.md)
-
-## Demo
-
-FitCV Local opens browser automatically. Reopen current instance from Start menu,
-or use its loopback URL shown by installed application.
-
-Developer/server mode uses:
-
-```text
-http://localhost:8000/admin/runs
-```
-
-Bookmark flow:
-
-- open run detail → Pipeline Results
-- click star to save/remove
-- review saved list at `http://localhost:8000/admin/bookmarks`
+Detailed mechanics and contracts: [docs/FitCV-pipeline.md](docs/FitCV-pipeline.md) and [docs/pipeline.md](docs/pipeline.md).
 
 ## Screenshots
-
-![Run history](docs/screenshots/runs.png)
 
 ![Candidate profiles](docs/screenshots/candidate-profile.png)
 
@@ -264,13 +127,6 @@ Primary architecture references:
 - [docs/fitcv-control-plane-setup.md](docs/fitcv-control-plane-setup.md)
 - [docs/pipeline.md](docs/pipeline.md)
 
-Runtime queue truth:
-
-- Approved Option 1 local/packaged Scan execution uses the existing inline
-  `LocalJobExecutor`; it does not require `REDIS_URL` or reachable Redis.
-- Server/Docker Scan remains Redis/RQ-backed.
-- Non-Scan Run, Candidate Profile, and CV regeneration remain Redis/RQ-backed.
-
 ## Tech Stack
 
 - Python 3.11, FastAPI, Jinja2 templates
@@ -279,19 +135,7 @@ Runtime queue truth:
 - SQLite + BigQuery backend adapters
 - Test suite for config/contracts and control-plane behaviors
 
-## Getting Started
-
-### FitCV Local
-
-- Windows 11 or supported Windows 10
-- Internet access only when selected LLM provider requires it
-- Provider API key when selected provider requires authentication
-
-Install Technical Preview, launch from Start menu, and complete browser onboarding.
-User database, candidate profile, controller overlay, artifacts, exports, logs, and
-backups stay under selected user-owned data folder.
-
-### Developer / Server
+## Developer Setup
 
 Python, Docker, Redis, and RQ remain supported engineering deployment choices:
 
@@ -301,6 +145,12 @@ docker compose up -d --build redis web worker
 
 Read [docs/setup.md](docs/setup.md) and
 [docs/fitcv-control-plane-setup.md](docs/fitcv-control-plane-setup.md).
+
+## Project Status
+
+FitCV Local is an unsigned **Technical Preview**. Stable public release waits for
+code signing and clean-Windows-VM acceptance; corpus-scale reporting and supported
+batch size depend on source and runtime capacity.
 
 ## Docs Index
 
