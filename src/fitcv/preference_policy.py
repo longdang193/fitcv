@@ -321,6 +321,15 @@ def resolve_run_preference_policy(
 ) -> ResolvedPreferencePolicy:
     if ranking_rows and str(ranking_rows[0].get("retrieval_strategy") or "").strip() == "lexical_v1":
         first = ranking_rows[0]
+        policy = config["decision_learning_policy"]["inverse_optimization"]
+        preference_optimization = config.get("preference_optimization")
+        preference_settings = (
+            preference_optimization if isinstance(preference_optimization, dict) else {}
+        )
+        personalization_strength = preference_settings.get(
+            "personalization_strength",
+            policy["learned_alpha"],
+        )
         runtime = PreferenceRuntimeContract.build(
             domain_id=config["decision_learning_policy"]["domain_id"],
             baseline_policy_fingerprint=build_contract_fingerprint(config["ranking_policy"]),
@@ -328,8 +337,8 @@ def resolve_run_preference_policy(
             embedding_model="incompatible",
             embedding_dimension=1,
             embedding_contract_fingerprint="lexical_v1",
-            learned_alpha=0.0,
-            preference_vector_norm_bound=config["decision_learning_policy"]["inverse_optimization"]["preference_vector_norm_bound"],
+            learned_alpha=personalization_strength,
+            preference_vector_norm_bound=policy["preference_vector_norm_bound"],
         )
         return resolve_zero_residual_policy(
             runtime,

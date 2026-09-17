@@ -280,6 +280,23 @@ def test_baseline_mode_bypasses_active_policy_resolver() -> None:
     assert resolved.runtime_contract.learned_alpha == pytest.approx(0.08)
 
 
+def test_lexical_mode_resolves_zero_residual_with_valid_runtime_alpha() -> None:
+    resolved = resolve_run_preference_policy(
+        ranking_rows=[
+            {
+                "retrieval_strategy": "lexical_v1",
+                "ranking_contract_fingerprint": "ranking",
+            }
+        ],
+        config=_resolution_config(ranking_mode="personalized", strength=0.08),
+    )
+
+    assert resolved.resolution_status == "zero_residual_incompatible"
+    assert resolved.diagnostic_code == "embedding_strategy_incompatible"
+    assert resolved.preference_vector == (0.0,)
+    assert resolved.runtime_contract.learned_alpha == pytest.approx(0.08)
+
+
 def test_personalized_mode_uses_persisted_strength_for_compatible_policy() -> None:
     captured: dict[str, PreferenceRuntimeContract] = {}
 

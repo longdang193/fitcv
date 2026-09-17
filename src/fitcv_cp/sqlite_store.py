@@ -13021,6 +13021,15 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
         )
         projected_stages.append(stage)
 
+    default_results_stage = next(
+        (
+            str(stage["stage_id"])
+            for stage in reversed(projected_stages)
+            if stage["results_available"]
+        ),
+        PROTOTYPE_STAGES[-1].stage_id,
+    )
+
     screening_counts = recomputed_by_stage.get("screening", {"passed": 0, "rejected": 0})
     integrity_warnings: list[dict[str, Any]] = []
     stored_counts = {
@@ -13077,6 +13086,7 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
         "partial_completion": bool(run_row["partial_completion"]),
         "input": input_payload,
         "stages": projected_stages,
+        "default_results_stage": default_results_stage,
         "capabilities": _run_capabilities(run),
         "integrity_warnings": integrity_warnings,
         "debug_bundle": get_debug_bundle_availability(run_id),

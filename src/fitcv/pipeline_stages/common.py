@@ -18,7 +18,7 @@ lifecycle:
 from __future__ import annotations
 
 from typing import Any, Mapping
-from urllib.parse import parse_qsl, urlencode, urlparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
 
 from fitcv.candidate import flatten_skills, infer_effective_preferences
 
@@ -46,10 +46,12 @@ def extract_job_url(job: Mapping[str, Any]) -> str:
         "",
     )
 
-def normalize_job_url_key(job_url: str | None) -> str:
+def normalize_job_url_key(job_url: str | None, *, base_url: str | None = None) -> str:
     normalized_url = str(job_url or "").strip()
     if not normalized_url:
         return ""
+    if base_url and not urlparse(normalized_url).scheme and not urlparse(normalized_url).netloc:
+        normalized_url = urljoin(str(base_url).strip(), normalized_url)
     try:
         parsed = urlparse(normalized_url)
     except Exception:
@@ -78,6 +80,16 @@ def normalize_job_url_key(job_url: str | None) -> str:
         fragment="",
     ).geturl()
 
+
+def _job_url_base(job: Mapping[str, Any]) -> str:
+    for field_name in ("source_url", "sourceUrl", "company_url", "companyUrl"):
+        candidate = str(job.get(field_name) or "").strip()
+        parsed = urlparse(candidate)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+    return ""
+
+
 def job_identity_keys(job: Mapping[str, Any]) -> list[str]:
     keys: list[str] = []
     seen: set[str] = set()
@@ -88,8 +100,12 @@ def job_identity_keys(job: Mapping[str, Any]) -> list[str]:
         keys.append(fingerprint_key)
         seen.add(fingerprint_key)
 
+    base_url = _job_url_base(job)
     for field_name in JOB_URL_FIELDS:
-        normalized_url = normalize_job_url_key(str(job.get(field_name) or ""))
+        normalized_url = normalize_job_url_key(
+            str(job.get(field_name) or ""),
+            base_url=base_url,
+        )
         if not normalized_url:
             continue
         url_key = f"url:{normalized_url}"

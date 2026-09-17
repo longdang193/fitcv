@@ -5628,6 +5628,7 @@ def test_run_detail_projects_input_capabilities_and_integrity_warning() -> None:
     assert len(detail["stages"]) == 6
     screening = next(stage for stage in detail["stages"] if stage["stage_id"] == "screening")
     assert screening["results_available"] is True
+    assert detail["default_results_stage"] == "screening"
     assert detail["integrity_warnings"][0]["code"] == "run_count_mismatch"
 
 

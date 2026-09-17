@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from fitcv.contracts import (
     REQUIRED_INDEED_FIELDS,
@@ -33,6 +32,7 @@ from fitcv.contracts import (
     SCRAPER_CAMEL_TO_SNAKE,
 )
 from fitcv.persistence import get_local_sqlite_path
+from fitcv.pipeline_stages.common import normalize_job_url_key
 
 # ── field mapping: LinkedIn scraper camelCase → raw_jobs snake_case ──────────
 
@@ -272,9 +272,7 @@ def _is_indeed_job(job: dict[str, Any]) -> bool:
 
 def _stepstone_job_url(job: dict[str, Any]) -> str:
     raw_url = str(job.get("url") or "").strip()
-    parsed = urlsplit(urljoin("https://www.stepstone.de", raw_url))
-    query = [(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True) if key.lower() != "rltr"]
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), ""))
+    return normalize_job_url_key(raw_url, base_url="https://www.stepstone.de")
 
 
 def _stepstone_work_type(job: dict[str, Any]) -> str:

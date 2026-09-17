@@ -4645,6 +4645,7 @@ def test_run_stages_and_jobs_use_canonical_envelopes(monkeypatch: pytest.MonkeyP
     app.state.run_store.get_run_detail_fn = lambda run_id: {
         "_detail_call": detail_calls.append(run_id),
         "run_id": run_id,
+        "default_results_stage": "enrichment",
         "stages": [{"stage_id": "enrichment", "label": "Enrichment", "ordinal": 1}],
     }
     app.state.run_store.query_run_jobs_fn = lambda run_id, **kwargs: {
@@ -4658,10 +4659,13 @@ def test_run_stages_and_jobs_use_canonical_envelopes(monkeypatch: pytest.MonkeyP
     }
 
     stages = TestClient(app).get("/runs/run-1/stages")
+    detail = TestClient(app).get("/runs/run-1")
     jobs = TestClient(app).get("/runs/run-1/jobs?page=1&page_size=10")
 
     assert stages.status_code == 200
     assert stages.json()["data"][0]["stage_id"] == "enrichment"
+    assert detail.status_code == 200
+    assert detail.json()["data"]["default_results_stage"] == "enrichment"
     assert jobs.status_code == 200
     assert jobs.json()["page"] == {
         "number": 1,
@@ -4679,7 +4683,7 @@ def test_run_stages_and_jobs_use_canonical_envelopes(monkeypatch: pytest.MonkeyP
         "rejected": 0,
         "skipped": 0,
     }
-    assert detail_calls == ["run-1"]
+    assert detail_calls == ["run-1", "run-1"]
 
 
 def test_run_jobs_preserves_missing_run_error_contract() -> None:

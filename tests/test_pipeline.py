@@ -464,6 +464,46 @@ def test_build_export_results_matches_raw_indeed_url_to_normalized_pipeline_rows
     assert rows[0]["pipeline_status"] == "ranked_no_cv"
 
 
+def test_build_export_results_matches_raw_stepstone_url_to_normalized_pipeline_rows() -> None:
+    raw_url = "/jobs--Data-Engineer--14515580-inline.html?rltr=1_1_25_seorl_m_0_0_0_0_1_0"
+    canonical_url = "https://www.stepstone.de/jobs--Data-Engineer--14515580-inline.html"
+    ranking_row = {
+        "job_url": canonical_url,
+        "title": "Data Engineer",
+        "baseline_fit": 0.82,
+        "baseline_fit_label": "strong",
+        "baseline_rank": 1,
+        "holistic_ai_fit": 0.71,
+        "vector_similarity": 0.65,
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[
+            {
+                "url": raw_url,
+                "companyUrl": "https://www.stepstone.de/cmp/en/acme-1/work",
+                "title": "Data Engineer",
+            }
+        ],
+        enriched=[dict(ranking_row)],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[dict(ranking_row)],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[dict(ranking_row)],
+        ranked=[dict(ranking_row)],
+        cv_analysis_results=[],
+        cv_results=[],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["pipeline_status"] == "ranked_no_cv"
+    assert rows[0]["job_url"] == raw_url
+
+
 def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
     job = {
         "job_url": "https://example.com/ready",
@@ -6696,6 +6736,8 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
 
     run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
+    assert "structured_jobs" not in mock_vec.call_args.kwargs
+    assert mock_config.return_value.get("retrieval_strategy") != "lexical_v1"
     shortlist_arg = mock_ai.call_args.args[0]
     assert len(shortlist_arg) == 1
     assert shortlist_arg[0]["job_url"] == job["job_url"]

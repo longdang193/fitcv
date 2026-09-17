@@ -70,6 +70,16 @@ export function isTerminalRunStatus(status: string): boolean {
   return ["succeeded", "failed", "cancelled"].includes(status);
 }
 
+export function resolveDefaultResultsStage(
+  run?: Pick<PipelineRunResource, "default_results_stage"> | null
+): RunStageId {
+  return run?.default_results_stage || "ranking";
+}
+
+export function shouldLoadRunJobs(run: PipelineRunResource | null): boolean {
+  return run !== null;
+}
+
 export function retainEventCursor(
   requestCursor: string | null,
   nextCursor: string | null | undefined
@@ -129,14 +139,14 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     setInspectingJob(projectedJob);
   };
 
-  // Jobs state & filters (ranking is default pipeline-results view)
+  // Jobs state & filters
   const [jobs, setJobs] = useState<RunJobItem[]>(initialJobs || []);
   const [jobsLoading, setJobsLoading] = useState(false);
   const [jobsError, setJobsError] = useState<string | null>(null);
   const [jobsPage, setJobsPage] = useState(1);
   const [jobsTotal, setJobsTotal] = useState(0);
   const [jobsPageSize, setJobsPageSize] = useState(10);
-  const [stageFilter, setStageFilter] = useState<string>("ranking");
+  const [stageFilter, setStageFilter] = useState<RunStageId>(() => resolveDefaultResultsStage(initialRun));
   const [resultBucketFilter, setResultBucketFilter] = useState<string>("all");
   const [jobSearch, setJobSearch] = useState("");
   const [activeJobSearch, setActiveJobSearch] = useState("");
@@ -170,6 +180,8 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const finalJobsCompleteRef = useRef(false);
   const finalEventsCompleteRef = useRef(false);
   const terminalFinalizedRef = useRef(false);
+  const stageFilterInitializedRef = useRef(Boolean(initialRun));
+  const runReady = shouldLoadRunJobs(run);
 
   const isTerminal = useMemo(() => {
     return Boolean(run && isTerminalRunStatus(run.backend_status));
@@ -219,6 +231,10 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       const res = await fetchRun(runId, controller?.signal);
       if (!ownsRequest()) return false;
       setRun(res);
+      if (!stageFilterInitializedRef.current) {
+        setStageFilter(resolveDefaultResultsStage(res));
+        stageFilterInitializedRef.current = true;
+      }
       setError(null);
       return true;
     } catch (err: any) {
@@ -395,6 +411,8 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     setEvents([]);
     setFinalRefreshError(null);
     setRun(initialRun || null);
+    stageFilterInitializedRef.current = Boolean(initialRun);
+    setStageFilter(resolveDefaultResultsStage(initialRun));
     setLoading(!initialRun);
     if (!initialJobs) {
       setJobs([]);
@@ -424,8 +442,9 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
   // Jobs request owner: only this effect triggers jobs fetching on search/filter/page identity
   useEffect(() => {
+    if (!runReady) return;
     void loadJobs();
-  }, [loadJobs]);
+  }, [loadJobs, runReady]);
 
   useEffect(() => {
     if (run && isTerminal) void finalizeTerminal();

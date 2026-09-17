@@ -1,6 +1,6 @@
 import pytest
 
-from fitcv.pipeline import _checkpoint_payload_from_state
+from fitcv.pipeline import _checkpoint_payload_from_state, _validate_checkpoint_retrieval_strategy
 from fitcv.pipeline_stage_context import PipelineState, infer_last_completed_stage_from_state
 
 
@@ -50,6 +50,15 @@ def test_pipeline_state_accepts_vector_checkpoint_with_matching_strategy() -> No
         },
     )
     assert state.shortlist[0]["job_url"] == "x"
+
+
+def test_pipeline_checkpoint_accepts_canonical_vector_strategy() -> None:
+    assert _validate_checkpoint_retrieval_strategy(
+        {
+            "shortlist_diagnostics": {"retrieval_strategy": "vector_cosine_v1"},
+            "shortlist": [{"job_url": "x", "retrieval_strategy": "vector_cosine_v1"}],
+        }
+    ) == "vector_cosine_v1"
 
 
 def test_pipeline_state_rejects_vector_rows_with_mismatched_strategies() -> None:

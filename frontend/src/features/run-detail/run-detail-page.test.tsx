@@ -6,7 +6,9 @@ import {
   RunDetailPage,
   buildRunJobsQueryKey,
   isTerminalRunStatus,
+  resolveDefaultResultsStage,
   retainEventCursor,
+  shouldLoadRunJobs,
 } from "./run-detail-page";
 import { PipelineRunResource, RunJobItem } from "../runs/types";
 
@@ -54,6 +56,16 @@ function createMockJob(jobId: string, title: string): RunJobItem {
 describe("Run Detail Request Ownership and Polling Coordination", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("uses backend-selected result stage for partial runs", () => {
+    expect(resolveDefaultResultsStage({ default_results_stage: "screening" } as PipelineRunResource)).toBe("screening");
+    expect(resolveDefaultResultsStage(createMockRun("fallback"))).toBe("ranking");
+  });
+
+  it("does not request jobs before run detail loads", () => {
+    expect(shouldLoadRunJobs(null)).toBe(false);
+    expect(shouldLoadRunJobs(createMockRun("ready"))).toBe(true);
   });
 
   describe("Terminal status and event cursor rules", () => {

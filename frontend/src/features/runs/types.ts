@@ -161,6 +161,7 @@ export interface PipelineRunResource {
   partial_completion?: boolean;
   input?: RunInputSummary | null;
   stages?: RunStageResource[];
+  default_results_stage?: RunStageId | null;
   capabilities: RunCapabilities;
   integrity_warnings?: IntegrityWarning[];
   debug_bundle?: DebugBundleAvailability;

@@ -193,7 +193,7 @@ from fitcv.telemetry import (
     render_langfuse_markdown_sections,
     set_span_attributes,
 )
-from fitcv.vector_search import run_vector_search
+from fitcv.vector_search import LEXICAL_RETRIEVAL_STRATEGY, VECTOR_RETRIEVAL_STRATEGY, run_vector_search
 from fitcv.vector_search import store_shortlist
 from fitcv.pipeline_observability import build_cv_analysis_item_observation_attributes as _build_cv_analysis_item_observation_attributes_observability
 from fitcv.pipeline_observability import build_cv_generation_item_observation_attributes as _build_cv_generation_item_observation_attributes_observability
@@ -1381,6 +1381,21 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
             continue
         payload[key] = json_safe_value(state.get(key) or [])
     return payload
+
+
+def _validate_checkpoint_retrieval_strategy(state: dict[str, Any]) -> str:
+    checkpoint_strategy = str(state.get("shortlist_diagnostics", {}).get("retrieval_strategy") or "").strip()
+    row_strategies = {
+        str(row.get("retrieval_strategy") or "").strip()
+        for key in ("raw_shortlist", "shortlist")
+        for row in (state.get(key) or [])
+        if isinstance(row, dict) and str(row.get("retrieval_strategy") or "").strip()
+    }
+    checkpoint_strategies = row_strategies | ({checkpoint_strategy} if checkpoint_strategy else set())
+    supported_strategies = {LEXICAL_RETRIEVAL_STRATEGY, VECTOR_RETRIEVAL_STRATEGY}
+    if len(checkpoint_strategies) > 1 or any(strategy not in supported_strategies for strategy in checkpoint_strategies):
+        raise ValueError("incompatible shortlist retrieval strategy in checkpoint")
+    return checkpoint_strategy or (next(iter(row_strategies)) if len(row_strategies) == 1 else "")
 
 
 def _infer_last_completed_stage_from_state(state: dict[str, Any]) -> str | None:
@@ -3244,17 +3259,7 @@ def run_pipeline(
         if reporter is not None:
             reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
         state = _restore_pipeline_state(run_id=run_id, checkpoint_payload=checkpoint_payload)
-        checkpoint_strategy = str(state.get("shortlist_diagnostics", {}).get("retrieval_strategy") or "").strip()
-        row_strategies = {
-            str(row.get("retrieval_strategy") or "").strip()
-            for key in ("raw_shortlist", "shortlist")
-            for row in (state.get(key) or [])
-            if isinstance(row, dict) and str(row.get("retrieval_strategy") or "").strip()
-        }
-        checkpoint_strategies = row_strategies | ({checkpoint_strategy} if checkpoint_strategy else set())
-        if len(checkpoint_strategies) > 1 or any(strategy != "lexical_v1" for strategy in checkpoint_strategies):
-            raise ValueError("incompatible shortlist retrieval strategy in checkpoint")
-        effective_strategy = checkpoint_strategy or (next(iter(row_strategies)) if len(row_strategies) == 1 else "")
+        effective_strategy = _validate_checkpoint_retrieval_strategy(state)
         checkpoint_policy = dict(state.get("resolved_preference_policy") or {})
         if effective_strategy == "lexical_v1" and checkpoint_policy.get("diagnostic_code") not in {
             None,
@@ -3518,14 +3523,12 @@ def run_pipeline(
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
             with observe_span("pipeline.shortlist", attributes={"run_id": run_id, "vector_top_n": vector_top_n}):
-                config["retrieval_strategy"] = "lexical_v1"
                 pipeline_store.embed_and_store_jobs(passed_jobs, config)
                 raw_shortlist_result = run_vector_search(
                     profile,
                     [str(job.get("job_url") or "") for job in passed_jobs],
                     config,
                     top_n=vector_top_n,
-                    structured_jobs=passed_jobs,
                 )
                 raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
                 shortlist_audit_rows = list(raw_shortlist_result.get("audit_rows") or [])
