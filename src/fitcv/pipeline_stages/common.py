@@ -22,6 +22,8 @@ from urllib.parse import parse_qsl, urlencode, urlparse
 
 from fitcv.candidate import flatten_skills, infer_effective_preferences
 
+JOB_URL_FIELDS = ("source_job_url", "job_url", "url", "jobUrl")
+
 
 def pipeline_int(config: Mapping[str, Any], key: str, *, default: int = 0) -> int:
     pipeline_block = config.get("pipeline")
@@ -35,7 +37,14 @@ def pipeline_int(config: Mapping[str, Any], key: str, *, default: int = 0) -> in
 
 
 def extract_job_url(job: Mapping[str, Any]) -> str:
-    return str(job.get("job_url") or job.get("jobUrl") or "")
+    return next(
+        (
+            str(job.get(field_name) or "").strip()
+            for field_name in JOB_URL_FIELDS
+            if str(job.get(field_name) or "").strip()
+        ),
+        "",
+    )
 
 def normalize_job_url_key(job_url: str | None) -> str:
     normalized_url = str(job_url or "").strip()
@@ -79,7 +88,7 @@ def job_identity_keys(job: Mapping[str, Any]) -> list[str]:
         keys.append(fingerprint_key)
         seen.add(fingerprint_key)
 
-    for field_name in ("source_job_url", "job_url", "jobUrl"):
+    for field_name in JOB_URL_FIELDS:
         normalized_url = normalize_job_url_key(str(job.get(field_name) or ""))
         if not normalized_url:
             continue

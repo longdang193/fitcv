@@ -29,7 +29,7 @@ from fitcv.evidence import (
     retrieve_evidence_bundle,
 )
 from fitcv.gap_analysis import compute_gap
-from fitcv.pipeline_stages.common import job_identity_keys
+from fitcv.pipeline_stages.common import extract_job_url, job_identity_keys
 from fitcv.reuse import build_reuse_decision
 from fitcv.late_stage_contract import (
     AnalysisStatus,
@@ -75,10 +75,6 @@ class CvAnalysisRecord(TypedDict, total=False):
     outcome_reason: ErrorPayload | None
     error: ErrorPayload | None
     cv_analysis_trace: dict[str, Any]
-
-
-def extract_job_url(job: dict[str, Any]) -> str:
-    return str(job.get("job_url") or job.get("jobUrl") or "")
 
 
 def extract_job_title(job: dict[str, Any]) -> str:
@@ -138,7 +134,7 @@ def resolve_ranked_job_fit(job: dict[str, Any], config: dict[str, Any]) -> FitCl
     score_state = normalize_score_state(job)
     if score_state["score_status"] != SCORE_STATUS_VALID:
         return None
-    ranked_fit_raw = str(job.get("baseline_fit_label") or job.get("fit_label") or "").strip().lower()
+    ranked_fit_raw = str(job.get("baseline_fit_label") or "").strip().lower()
     if ranked_fit_raw in _FIT_LABEL_ORDER:
         return cast(FitClassification, ranked_fit_raw)
     raw_baseline_fit = job.get("baseline_fit")

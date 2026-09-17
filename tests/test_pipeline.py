@@ -425,6 +425,45 @@ def test_build_export_results_uses_raw_job_fingerprint_when_urls_drift() -> None
     assert rows[0]["scores"]["final_score"] == pytest.approx(0.82)
 
 
+def test_build_export_results_matches_raw_indeed_url_to_normalized_pipeline_rows() -> None:
+    job_url = "https://de.indeed.com/viewjob?jk=indeed123"
+    ranking_row = {
+        "job_url": job_url,
+        "title": "Indeed Role",
+        "baseline_fit": 0.82,
+        "baseline_fit_label": "strong",
+        "baseline_rank": 1,
+        "holistic_ai_fit": 0.71,
+        "vector_similarity": 0.65,
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[
+            {
+                "url": job_url,
+                "jobUrl": "https://employer.example/apply/indeed123",
+                "title": "Indeed Role",
+            }
+        ],
+        enriched=[dict(ranking_row)],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[dict(ranking_row)],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[dict(ranking_row)],
+        ranked=[dict(ranking_row)],
+        cv_analysis_results=[],
+        cv_results=[],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["job_url"] == job_url
+    assert rows[0]["pipeline_status"] == "ranked_no_cv"
+
+
 def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
     job = {
         "job_url": "https://example.com/ready",

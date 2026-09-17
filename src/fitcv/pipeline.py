@@ -673,12 +673,7 @@ def _build_export_results(
 ) -> list[dict[str, Any]]:
     def _identity_seed(row: dict[str, Any]) -> dict[str, Any]:
         seeded = dict(row)
-        seeded["source_job_url"] = str(
-            seeded.get("source_job_url")
-            or seeded.get("job_url")
-            or seeded.get("jobUrl")
-            or ""
-        ).strip()
+        seeded["source_job_url"] = extract_job_url(seeded)
         return seeded
 
     def _index_rows_by_identity(

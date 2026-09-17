@@ -18,6 +18,7 @@ from unittest.mock import patch
 from fitcv.agentic_cv_analysis import (
     analyze_ranked_job,
     build_analysis_input_summary,
+    extract_job_url,
     resolve_ranked_job_fit,
 )
 from fitcv.contracts import CV_ANALYSIS_REUSE_SCHEMA_VERSION
@@ -51,6 +52,17 @@ def _config() -> dict:
         "pipeline": {"evidence_top_k": 3},
         "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
     }
+
+
+def test_extract_job_url_accepts_indeed_url_alias() -> None:
+    assert extract_job_url(
+        {
+            "url": "https://de.indeed.com/viewjob?jk=indeed123",
+            "jobUrl": "https://employer.example/apply/indeed123",
+        }
+    ) == (
+        "https://de.indeed.com/viewjob?jk=indeed123"
+    )
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
@@ -207,9 +219,9 @@ def test_resolve_ranked_job_fit_uses_persisted_baseline_label_only() -> None:
     assert resolve_ranked_job_fit(job_b, _config()) == "stretch"
 
 
-def test_resolve_ranked_job_fit_derives_from_baseline_score_then_defaults_to_skip() -> None:
+def test_resolve_ranked_job_fit_derives_from_baseline_score_then_marks_missing_score_unknown() -> None:
     assert resolve_ranked_job_fit({"baseline_fit": 0.55}, _config()) == "stretch"
-    assert resolve_ranked_job_fit({"ai_score": 0.99, "fit_label": "strong"}, _config()) == "skip"
+    assert resolve_ranked_job_fit({"ai_score": 0.99, "fit_label": "strong"}, _config()) is None
 
 def test_build_analysis_input_summary_prefers_canonical_skill_lists_when_available() -> None:
     summary = build_analysis_input_summary(
