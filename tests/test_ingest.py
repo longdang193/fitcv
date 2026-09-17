@@ -11,6 +11,8 @@ from fitcv.ingest import (
     parse_jobs_file,
     prepare_raw_rows,
     snake_case_keys,
+    validate_indeed_schema,
+    validate_job_schema,
     validate_linkedin_schema,
 )
 
@@ -23,6 +25,21 @@ def _canonical_job(**overrides: object) -> dict[str, object]:
         "description": "Build Datenpipelines.",
         "contractType": "Full-time",
         "experienceLevel": "Senior",
+    }
+    job.update(overrides)
+    return job
+
+
+def _indeed_job(**overrides: object) -> dict[str, object]:
+    job: dict[str, object] = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "title": "Werkstudent",
+        "dateOnIndeed": "2026-09-16T19:55:44.426Z",
+        "description": {"text": "Build pipelines"},
+        "employer": {"name": "WITRON Group"},
+        "location": {"city": "Parkstein", "countryName": "Deutschland"},
+        "jobTypes": {"VDTG7": "Praktikum"},
+        "jobUrl": "https://careers.example.com/jobs/abc",
     }
     job.update(overrides)
     return job
@@ -48,6 +65,24 @@ def test_canonicalize_jobs_reuses_required_fields_and_preserves_optional_values(
     assert json.loads(artifact.json_text) == [job]
     assert "München" in artifact.json_text
     assert "\\u00fcnchen" not in artifact.json_text
+
+
+def test_canonicalize_jobs_accepts_indeed_shape_and_preserves_raw_record() -> None:
+    job = _indeed_job()
+
+    artifact = ingest.canonicalize_jobs([job])
+
+    assert artifact.jobs == [job]
+    assert json.loads(artifact.json_text) == [job]
+    assert validate_indeed_schema(job) == []
+    assert validate_job_schema(job) == []
+
+
+def test_validate_indeed_schema_reports_missing_raw_fields() -> None:
+    job = _indeed_job()
+    del job["description"]
+
+    assert validate_job_schema(job) == ["Missing required field: 'description'"]
 
 
 def test_canonicalize_jobs_is_deterministic_and_digest_matches_exact_utf8() -> None:

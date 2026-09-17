@@ -26,7 +26,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fitcv.contracts import REQUIRED_SCRAPER_FIELDS, SCRAPER_CAMEL_TO_SNAKE
+from fitcv.contracts import (
+    REQUIRED_INDEED_FIELDS,
+    REQUIRED_SCRAPER_FIELDS,
+    SCRAPER_CAMEL_TO_SNAKE,
+)
 from fitcv.persistence import get_local_sqlite_path
 
 # ── field mapping: LinkedIn scraper camelCase → raw_jobs snake_case ──────────
@@ -54,7 +58,7 @@ def canonicalize_jobs(value: Any) -> CanonicalJobs:
     for index, job in enumerate(value):
         if not isinstance(job, dict):
             raise ValueError(f"Job at index {index} must be an object")
-        errors = validate_linkedin_schema(job)
+        errors = validate_job_schema(job)
         if errors:
             raise ValueError(f"Invalid job at index {index}: {'; '.join(errors)}")
 
@@ -118,6 +122,22 @@ def validate_linkedin_schema(job: dict[str, Any]) -> list[str]:
         for field in _REQUIRED_SCRAPER_FIELDS
         if field not in job
     ]
+
+
+def validate_indeed_schema(job: dict[str, Any]) -> list[str]:
+    """Return missing required fields for raw Indeed scraper records."""
+    return [
+        f"Missing required field: '{field}'"
+        for field in REQUIRED_INDEED_FIELDS
+        if field not in job
+    ]
+
+
+def validate_job_schema(job: dict[str, Any]) -> list[str]:
+    """Validate a supported raw job shape without changing its source keys."""
+    if _is_indeed_job(job):
+        return validate_indeed_schema(job)
+    return validate_linkedin_schema(job)
 
 # ── key conversion ────────────────────────────────────────────────────────────
 

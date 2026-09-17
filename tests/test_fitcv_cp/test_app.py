@@ -1907,6 +1907,70 @@ def test_real_run_route_accepts_upload_only_and_scan_only(
     assert scan_run.jobs_input_source == "scan"
     assert sqlite_store.query_run_jobs(scan_run.run_id)["items"][0]["title"] == "Scan Job"
 
+
+def test_real_run_route_accepts_indeed_upload(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    app = _app()
+    profile_id = _seed_active_profile()
+    submission = RunSubmission(
+        run_id="ignored",
+        queue_job_id="queue-indeed",
+        backend_run_id="queue-indeed",
+        backend="default_queue",
+    )
+    indeed_job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "title": "Werkstudent",
+        "dateOnIndeed": "2026-09-16T19:55:44.426Z",
+        "description": {"text": "Build pipelines"},
+        "employer": {"name": "WITRON Group"},
+        "location": {"city": "Parkstein", "countryName": "Deutschland"},
+        "jobTypes": {"VDTG7": "Praktikum"},
+        "jobUrl": "https://careers.example.com/jobs/abc",
+    }
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch("fitcv_cp.app.submit_run", return_value=submission):
+        response = TestClient(app).post(
+            "/runs",
+            data={"profile_id": profile_id},
+            files={"jobs_file": ("indeed.json", json.dumps([indeed_job]), "application/json")},
+            headers={"Idempotency-Key": "real-indeed-upload"},
+        )
+
+    assert response.status_code == 201, response.text
+    run = sqlite_store.get_run(response.json()["data"]["run_id"])
+    assert run.jobs_input_source == "upload"
+    assert json.loads(run.jobs_input_json)[0]["url"] == indeed_job["url"]
+    assert sqlite_store.query_run_jobs(run.run_id)["items"][0]["location"] == "Parkstein, Deutschland"
+
+
+def test_real_run_route_rejects_malformed_indeed_upload(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    app = _app()
+    profile_id = _seed_active_profile()
+    malformed_job = {
+        "url": "https://de.indeed.com/viewjob?jk=abc",
+        "title": "Werkstudent",
+        "dateOnIndeed": "2026-09-16T19:55:44.426Z",
+        "employer": {"name": "WITRON Group"},
+    }
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch("fitcv_cp.app.submit_run") as submit:
+        response = TestClient(app).post(
+            "/runs",
+            data={"profile_id": profile_id},
+            files={"jobs_file": ("indeed.json", json.dumps([malformed_job]), "application/json")},
+            headers={"Idempotency-Key": "real-malformed-indeed-upload"},
+        )
+
+    assert response.status_code == 422
+    assert "Missing required field: 'description'" in response.text
+    submit.assert_not_called()
+
 def test_managed_run_keeps_profile_metadata_outside_analysis_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
     from fitcv.candidate import validate_candidate_profile_v2
 

@@ -75,7 +75,12 @@ from fitcv.decision_feedback import (
     reduce_rating_events,
 )
 from fitcv.enrich import derive_required_skills_display
-from fitcv.ingest import CanonicalJobs, canonicalize_jobs, write_canonical_jobs
+from fitcv.ingest import (
+    CanonicalJobs,
+    canonicalize_jobs,
+    snake_case_keys,
+    write_canonical_jobs,
+)
 from fitcv.job_sources import (
     JobSourceError,
     acquire_scanner_jobs,
@@ -9106,7 +9111,7 @@ def create_app(
                         "jobs_manifest_json": jobs_input_manifest_json or "{}",
                         "run_input_contract_version": run_input_contract_version,
                     },
-                    jobs=[dict(job) for job in parsed_run_jobs if isinstance(job, dict)],
+                    jobs=[snake_case_keys(dict(job)) for job in parsed_run_jobs if isinstance(job, dict)],
                 )
             except Exception as exc:
                 try:

@@ -18,7 +18,7 @@ FitCV accepts legacy path and paste inputs plus managed upload and Scan inputs. 
 
 `src/fitcv/contracts.py` owns required scraper fields. `src/fitcv/ingest.py` owns validation, deterministic serialization, SHA-256 calculation, and atomic writes.
 
-Each job requires:
+Canonical/LinkedIn-shaped upload records require:
 
 - `jobUrl`
 - `title`
@@ -26,6 +26,16 @@ Each job requires:
 - `description`
 - `contractType`
 - `experienceLevel`
+
+Indeed scraper uploads use their raw source shape instead. They require:
+
+- `url`
+- `title`
+- `description`
+
+Indeed `employer`, `location`, and `jobTypes` fields remain source-specific
+optional fields at ingress. `canonicalize_jobs` preserves these raw records;
+the normalize stage maps them into the existing snake-case pipeline shape.
 
 Optional fields remain unchanged. Source order and each source's job order remain unchanged. A successful Scan may export `[]`; empty Scan output is downloadable but cannot be selected for a Run.
 

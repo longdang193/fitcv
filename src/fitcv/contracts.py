@@ -125,6 +125,12 @@ REQUIRED_SCRAPER_FIELDS: tuple[str, ...] = (
     "experienceLevel",
 )
 
+REQUIRED_INDEED_FIELDS: tuple[str, ...] = (
+    "url",
+    "title",
+    "description",
+)
+
 DEFAULT_APPLICATION_STATUSES: tuple[str, ...] = (
     "applied",
     "not_applied",
