@@ -12,6 +12,11 @@ This file is repo-wide instruction layer. More specific directory instructions o
 
 ## Core Rules
 
+- Plan plus Git owns workflow truth. CoS owns assignment, continuation,
+  escalation, and acceptance. The shared attempt contract owns admission,
+  budget, settlement, lifecycle, and eligibility. Worker wrappers own
+  execution facts; transport layers own delivery and diagnostics.
+
 - Keep changes aligned with owning code, documentation, and configuration layers.
 - Read scoped `AGENTS.md` files before modifying files under their directories.
 - Treat source code and tests as authoritative when documentation or analysis tools disagree.
