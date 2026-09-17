@@ -131,6 +131,13 @@ REQUIRED_INDEED_FIELDS: tuple[str, ...] = (
     "description",
 )
 
+CANONICAL_JOB_METADATA_FIELDS: tuple[str, ...] = (
+    "source_provider",
+    "source_job_id",
+    "description_source",
+    "description_complete",
+)
+
 DEFAULT_APPLICATION_STATUSES: tuple[str, ...] = (
     "applied",
     "not_applied",

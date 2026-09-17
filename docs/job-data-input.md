@@ -18,7 +18,7 @@ FitCV accepts legacy path and paste inputs plus managed upload and Scan inputs. 
 
 `src/fitcv/contracts.py` owns required scraper fields. `src/fitcv/ingest.py` owns validation, deterministic serialization, SHA-256 calculation, and atomic writes.
 
-Canonical/LinkedIn-shaped upload records require:
+LinkedIn-shaped upload records require:
 
 - `jobUrl`
 - `title`
@@ -36,6 +36,16 @@ Indeed scraper uploads use their raw source shape instead. They require:
 Indeed `employer`, `location`, and `jobTypes` fields remain source-specific
 optional fields at ingress. `canonicalize_jobs` preserves these raw records;
 the normalize stage maps them into the existing snake-case pipeline shape.
+
+Stepstone search exports use the same adapter boundary. Detection uses record
+shape, not filename. The adapter maps `id`, `url`, `title`, `companyName`,
+`datePosted`, `location`, `textSnippet`, and `workFromHome` into the canonical
+shape, resolves relative URLs against `https://www.stepstone.de`, strips the
+`rltr` tracking query, and preserves the full source record in `raw_json`.
+`textSnippet` is marked `description_source: text_snippet` and
+`description_complete: false`; such jobs remain visible as review-required and
+do not enter CV generation. Stepstone-only fields such as benefits, labels,
+skills, and raw work-from-home codes remain owned by `raw_json`.
 
 Optional fields remain unchanged. Source order and each source's job order remain unchanged. A successful Scan may export `[]`; empty Scan output is downloadable but cannot be selected for a Run.
 
@@ -76,7 +86,7 @@ Worker verifies queued path, persisted path, manifest digest, snapshot digest, a
 
 ## Downstream behavior
 
-Normalize stage still owns snake-case mapping, description cleanup, date parsing, and deduplication. Scan provider identity does not affect normalization, filtering, ranking, enrichment, or CV generation.
+Normalize stage still owns snake-case mapping, description cleanup, date parsing, and deduplication. Source identity is canonicalized as `source_provider` plus `source_job_id` before URL fallback. Provider identity does not create source-specific downstream branches.
 
 ## Apify helper
 

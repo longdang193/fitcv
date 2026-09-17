@@ -171,6 +171,49 @@ def test_parse_salary_rejects_mixed_period() -> None:
     assert parse_salary("€45,000.00/yr - €100.00/hr") is None
 
 
+def test_deduplicate_jobs_prefers_source_identity_over_url() -> None:
+    jobs = [
+        {
+            "source_provider": "stepstone",
+            "source_job_id": "14515580",
+            "job_url": "https://www.stepstone.de/jobs/first",
+            "title": "Intern",
+        },
+        {
+            "source_provider": "stepstone",
+            "source_job_id": "14515580",
+            "job_url": "https://www.stepstone.de/jobs/second",
+            "title": "Intern",
+        },
+    ]
+
+    result = deduplicate_jobs(jobs)
+
+    assert len(result) == 1
+
+
+def test_normalize_job_preserves_stepstone_content_quality_metadata() -> None:
+    job = {
+        "id": 14515580,
+        "title": "Intern",
+        "url": "/jobs--intern--14515580-inline.html?rltr=1",
+        "companyId": 227662,
+        "companyName": "PHOENIX Pharma SE",
+        "datePosted": "2026-09-17T08:13:30+02:00",
+        "location": "Mannheim",
+        "workFromHome": "2",
+        "harmonisedId": "1b4c44b1-534c-4e91-9c59-b06ecf157a44",
+        "textSnippet": "Join PHOENIX.",
+    }
+
+    result = normalize_job(job)
+
+    assert result["source_provider"] == "stepstone"
+    assert result["source_job_id"] == "14515580"
+    assert result["description_source"] == "text_snippet"
+    assert result["description_complete"] is False
+
+
 # ── normalize_job + normalize_batch ────────────────────────────────────────────
 
 def test_normalize_job_cleans_whitespace() -> None:

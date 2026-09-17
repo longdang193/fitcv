@@ -1642,6 +1642,79 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
     assert result["cvs_generated"] == 1
     assert "shortlist_debug" not in result
     assert result["export_results"][0]["pipeline_status"] == "ranked_with_cv"
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_blocks_incomplete_description_before_cv_generation(
+    mock_config: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_store_cv: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    profile = _minimal_profile()
+    job = {
+        **_minimal_job("https://www.stepstone.de/jobs--intern--14515580-inline.html"),
+        "source_provider": "stepstone",
+        "source_job_id": "14515580",
+        "description_complete": False,
+    }
+    ranked = [{**job, "baseline_fit_label": "stretch", "ranking_fit_label": "stretch"}]
+    checkpoint_payload = {
+        "raw_jobs": [job],
+        "normalized": [job],
+        "deduplicated_jobs": [],
+        "pre_filter_rejected_jobs": [],
+        "enriched": [job],
+        "passed_jobs": [job],
+        "candidate_filter_rejected_jobs": [],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
+        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
+        "shortlist_diagnostics": {"retrieval_strategy": "lexical_v1"},
+        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8}],
+        "ranking_inputs": ranked,
+        "ranked": ranked,
+        "cv_analysis_results": [{
+            "job_url": job["job_url"],
+            "job_title": job["job_title"],
+            "status": "ready_for_generation",
+            "ranking_fit_label": "stretch",
+            "fit_classification": "stretch",
+            "job_snapshot": ranked[0],
+            "evidence_payload": [],
+            "evidence_used": [],
+            "gap_summary": {"matched": [], "partial": [], "missing": []},
+        }],
+        "cv_results": [],
+        "cv_generation_debug_records": [],
+    }
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
+    mock_profile_yaml.return_value = profile
+
+    with patch("fitcv.pipeline.run_agentic_cv_generation") as mock_generate:
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+            run_id="stepstone-incomplete-description",
+            start_stage="cv_generation",
+            checkpoint_payload=checkpoint_payload,
+        )
+
+    mock_generate.assert_not_called()
+    assert result["cvs_generated"] == 0
+    record = result["cv_generation_debug_records"][0]
+    assert record["status"] == "review_required"
+    assert record["source_stage"] == "cv_generation"
+    assert record["stage_owned_subreason"] == "review_required"
+    assert record["review_required_reason_code"] == "job_description_incomplete"
+    assert record["job_snapshot"] == ranked[0]
+    assert mock_store_cv.call_count == 0
+
+
 def test_pipeline_source_has_no_direct_ranking_fit_label_assignment_in_fresh_compute_branch() -> None:
     source = Path("src/fitcv/pipeline.py").read_text(encoding="utf-8")
     assert '"ranking_fit_label": fit' not in source

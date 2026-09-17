@@ -35,15 +35,23 @@ def normalize_whitespace(text: str) -> str:
 # ── exact deduplication ───────────────────────────────────────────────────────
 
 def deduplicate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Remove exact duplicates by job_url, preserving insertion order."""
-    seen: set[str] = set()
+    """Remove exact duplicates by source identity or job_url."""
+    seen: set[tuple[str, str]] = set()
     result: list[dict[str, Any]] = []
     for job in jobs:
-        url = _job_url(job)
-        if url not in seen:
-            seen.add(url)
+        identity = _job_identity(job)
+        if identity not in seen:
+            seen.add(identity)
             result.append(job)
     return result
+
+
+def _job_identity(job: dict[str, Any]) -> tuple[str, str]:
+    provider = str(job.get("source_provider") or "").strip().lower()
+    source_job_id = str(job.get("source_job_id") or "").strip()
+    if provider and source_job_id:
+        return (f"source:{provider}", source_job_id)
+    return ("url", _job_url(job))
 
 
 def _job_url(job: dict[str, Any]) -> str:

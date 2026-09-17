@@ -24,7 +24,8 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from fitcv.contracts import (
     REQUIRED_INDEED_FIELDS,
@@ -47,6 +48,14 @@ class CanonicalJobs:
     jobs: list[dict[str, Any]]
     json_text: str
     sha256: str
+
+
+@dataclass(frozen=True)
+class JobInputAdapter:
+    source_id: str
+    detect: Callable[[dict[str, Any]], bool]
+    validate: Callable[[dict[str, Any]], list[str]]
+    normalize: Callable[[dict[str, Any]], dict[str, Any]]
 
 
 def canonicalize_jobs(value: Any) -> CanonicalJobs:
@@ -133,11 +142,34 @@ def validate_indeed_schema(job: dict[str, Any]) -> list[str]:
     ]
 
 
+def validate_stepstone_schema(job: dict[str, Any]) -> list[str]:
+    """Return missing required fields for raw Stepstone search records."""
+    required_fields = ("id", "title", "url", "datePosted", "location", "textSnippet")
+    return [
+        f"Missing required field: '{field}'"
+        for field in required_fields
+        if field not in job
+    ]
+
+
+def _is_stepstone_job(job: dict[str, Any]) -> bool:
+    return "harmonisedId" in job and "workFromHome" in job and "textSnippet" in job
+
+
+def _is_linkedin_job(job: dict[str, Any]) -> bool:
+    return not _is_stepstone_job(job) and not _is_indeed_job(job) and (
+        "jobUrl" in job
+        or ("companyName" in job and "experienceLevel" in job)
+        or "job_url" in job
+    )
+
+
 def validate_job_schema(job: dict[str, Any]) -> list[str]:
     """Validate a supported raw job shape without changing its source keys."""
-    if _is_indeed_job(job):
-        return validate_indeed_schema(job)
-    return validate_linkedin_schema(job)
+    try:
+        return resolve_job_adapter(job).validate(job)
+    except ValueError as exc:
+        return [str(exc)]
 
 # ── key conversion ────────────────────────────────────────────────────────────
 
@@ -238,12 +270,36 @@ def _is_indeed_job(job: dict[str, Any]) -> bool:
     )
 
 
+def _stepstone_job_url(job: dict[str, Any]) -> str:
+    raw_url = str(job.get("url") or "").strip()
+    parsed = urlsplit(urljoin("https://www.stepstone.de", raw_url))
+    query = [(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True) if key.lower() != "rltr"]
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), ""))
+
+
+def _stepstone_work_type(job: dict[str, Any]) -> str:
+    return {
+        "0": "onsite",
+        "1": "remote",
+        "2": "hybrid",
+    }.get(str(job.get("workFromHome") or ""), "")
+
+
 def _source_location_scalar(value: Any) -> str | None:
     return value if isinstance(value, str) else None
 
 
 def build_source_location(job: dict[str, Any]) -> dict[str, str | None]:
     location = job.get("location")
+    if _is_stepstone_job(job):
+        raw_text = location if isinstance(location, str) else ""
+        return {
+            "raw_text": raw_text,
+            "city_raw": None,
+            "region_raw": None,
+            "country_raw": None,
+            "provider": "stepstone",
+        }
     if _is_indeed_job(job):
         location_mapping = location if isinstance(location, dict) else {}
         return {
@@ -289,8 +345,82 @@ def _normalize_indeed_job(job: dict[str, Any]) -> dict[str, Any]:
         "salary": "",
         "apply_url": apply_url,
         "apply_type": "EXTERNAL" if apply_url else "",
+        "source_provider": "indeed",
+        "source_job_id": str(job.get("key") or job.get("refNum") or _indeed_job_url(job)),
+        "description_source": "description",
+        "description_complete": bool(_indeed_description_text(job).strip()),
         "raw_json": json.dumps(job, ensure_ascii=False),
     }
+
+
+def _normalize_stepstone_job(job: dict[str, Any]) -> dict[str, Any]:
+    job_url = _stepstone_job_url(job)
+    posted_time = str(job.get("datePosted") or "")
+    labels = job.get("labels") if isinstance(job.get("labels"), list) else []
+    apply_type = "QUICK_APPLY" if any(
+        isinstance(label, dict) and str(label.get("type") or "") == "QUICK_APPLY"
+        for label in labels
+    ) else "EXTERNAL"
+    return {
+        "job_url": job_url,
+        "title": str(job.get("title") or ""),
+        "location": str(job.get("location") or ""),
+        "source_location": build_source_location(job),
+        "posted_time": posted_time,
+        "published_at": posted_time.split("T", 1)[0] if posted_time else None,
+        "company_name": str(job.get("companyName") or ""),
+        "company_url": str(job.get("companyUrl") or ""),
+        "company_id": str(job.get("companyId") or ""),
+        "description": str(job.get("textSnippet") or ""),
+        "applications_count": "",
+        "contract_type": "",
+        "experience_level": "",
+        "work_type": _stepstone_work_type(job),
+        "sector": "",
+        "salary": "",
+        "apply_url": job_url,
+        "apply_type": apply_type,
+        "source_provider": "stepstone",
+        "source_job_id": str(job.get("id") or ""),
+        "description_source": "text_snippet",
+        "description_complete": False,
+        "raw_json": json.dumps(job, ensure_ascii=False),
+    }
+
+
+def _normalize_linkedin_job(job: dict[str, Any]) -> dict[str, Any]:
+    mapped = {_CAMEL_TO_SNAKE.get(key, key): value for key, value in job.items()}
+    description = str(mapped.get("description") or "")
+    source_provider = str(job.get("source") or "linkedin").strip().lower() or "linkedin"
+    mapped.update(
+        {
+            "source_provider": source_provider,
+            "source_job_id": str(job.get("id") or mapped.get("job_url") or ""),
+            "description_source": "description",
+            "description_complete": bool(description.strip()),
+            "raw_json": json.dumps(job, ensure_ascii=False),
+        }
+    )
+    return mapped
+
+
+_JOB_INPUT_ADAPTERS: tuple[JobInputAdapter, ...] = (
+    JobInputAdapter("stepstone", _is_stepstone_job, validate_stepstone_schema, _normalize_stepstone_job),
+    JobInputAdapter("indeed", _is_indeed_job, validate_indeed_schema, _normalize_indeed_job),
+    JobInputAdapter("linkedin", _is_linkedin_job, validate_linkedin_schema, _normalize_linkedin_job),
+)
+
+
+def resolve_job_adapter(job: dict[str, Any]) -> JobInputAdapter:
+    matches = [adapter for adapter in _JOB_INPUT_ADAPTERS if adapter.detect(job)]
+    if not matches:
+        supported = ", ".join(adapter.source_id for adapter in _JOB_INPUT_ADAPTERS)
+        raise ValueError(f"Unsupported job source; expected one of: {supported}")
+    if len(matches) > 1:
+        raise ValueError(
+            "Ambiguous job source: " + ", ".join(adapter.source_id for adapter in matches)
+        )
+    return matches[0]
 
 
 def snake_case_keys(job: dict[str, Any]) -> dict[str, Any]:
@@ -298,9 +428,7 @@ def snake_case_keys(job: dict[str, Any]) -> dict[str, Any]:
 
     Fields not in the mapping are preserved as-is with their original key.
     """
-    if _is_indeed_job(job):
-        return _normalize_indeed_job(job)
-    return {_CAMEL_TO_SNAKE.get(k, k): v for k, v in job.items()}
+    return resolve_job_adapter(job).normalize(job)
 
 # ── row preparation ───────────────────────────────────────────────────────────
 

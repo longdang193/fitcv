@@ -2070,6 +2070,45 @@ def _build_cv_generation_debug_record(
     return payload
 
 
+def _build_incomplete_description_debug_record(
+    analysis_record: dict[str, Any],
+) -> dict[str, Any]:
+    job_snapshot = deepcopy(dict(analysis_record.get("job_snapshot") or {}))
+    record = _build_cv_generation_debug_record(
+        generation_result={
+            "job_url": str(analysis_record.get("job_url") or job_snapshot.get("job_url") or ""),
+            "job_title": str(analysis_record.get("job_title") or job_snapshot.get("job_title") or job_snapshot.get("title") or ""),
+            "status": CV_GENERATION_REVIEW_REQUIRED_STATUS,
+            "ranking_fit_label": analysis_record.get("ranking_fit_label"),
+            "fit_classification": analysis_record.get("fit_classification"),
+            "job_snapshot": job_snapshot,
+            "evidence_used": list(analysis_record.get("evidence_used") or []),
+            "evidence_selection_summary": dict(analysis_record.get("evidence_selection_summary") or {}),
+            "analysis_input_summary": dict(analysis_record.get("analysis_input_summary") or {}),
+            "gap_summary": analysis_record.get("gap_summary"),
+            "decision_chain": dict(analysis_record.get("decision_chain") or {}),
+            "error": {
+                "stage": "cv_generation",
+                "code": "job_description_incomplete",
+                "message": "Job description is incomplete; CV generation requires review.",
+            },
+        },
+        enabled_sections=[],
+        cv_generation_model=None,
+        cv_prompt_id="",
+        cv_prompt_template_path="",
+    )
+    record.update(
+        {
+            "source_stage": "cv_generation",
+            "stage_owned_subreason": CV_GENERATION_REVIEW_REQUIRED_STATUS,
+            "review_required_reason_code": "job_description_incomplete",
+            "job_snapshot": job_snapshot,
+        }
+    )
+    return record
+
+
 def _resolved_cv_generation_model(
     default_model: str | None,
     runtime_observations: list[dict[str, Any]] | None,
@@ -4095,9 +4134,26 @@ def run_pipeline(
         cv_analysis_results = list(state["cv_analysis_results"])
         if cancellation_check and cancellation_check():
             raise PipelineCancelled("Cancelled before CV generation")
+        existing_incomplete_description_keys = {
+            identity_key
+            for debug_record in cv_generation_debug_records
+            if str(debug_record.get("review_required_reason_code") or "")
+            == "job_description_incomplete"
+            for identity_key in job_identity_keys(debug_record)
+        }
+        for analysis_record in cv_analysis_results:
+            job_snapshot = dict(analysis_record.get("job_snapshot") or {})
+            if job_snapshot.get("description_complete") is False:
+                if any(key in existing_incomplete_description_keys for key in job_identity_keys(job_snapshot)):
+                    continue
+                cv_generation_debug_records.append(
+                    _build_incomplete_description_debug_record(analysis_record)
+                )
+                existing_incomplete_description_keys.update(job_identity_keys(job_snapshot))
         generation_ready_records = [
             record for record in cv_analysis_results
             if str(record.get("status") or "") == "ready_for_generation"
+            and dict(record.get("job_snapshot") or {}).get("description_complete") is not False
         ]
         indexed_generation_ready_records = list(enumerate(generation_ready_records))
         configured_cv_generation_concurrency = get_stage_runtime_concurrency(

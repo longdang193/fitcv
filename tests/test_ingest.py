@@ -45,6 +45,27 @@ def _indeed_job(**overrides: object) -> dict[str, object]:
     return job
 
 
+def _stepstone_job(**overrides: object) -> dict[str, object]:
+    job: dict[str, object] = {
+        "id": 14515580,
+        "title": "Intern (m/f/d) Strategic Commercial Partnership Management",
+        "url": "/jobs--intern-m-f-d--14515580-inline.html?rltr=1_1_25",
+        "companyId": 227662,
+        "companyName": "PHOENIX Pharma SE",
+        "companyUrl": "https://www.stepstone.de/cmp/en/phoenix-pharma-se-227662/work",
+        "datePosted": "2026-09-17T08:13:30+02:00",
+        "location": "Mannheim",
+        "workFromHome": "2",
+        "harmonisedId": "1b4c44b1-534c-4e91-9c59-b06ecf157a44",
+        "textSnippet": "Join PHOENIX and support our international team.",
+        "jobBenefitsHtml": "<ul><li>Hybrid working</li></ul>",
+        "labels": [{"label": "Easy Apply", "type": "QUICK_APPLY"}],
+        "skills": [],
+    }
+    job.update(overrides)
+    return job
+
+
 def test_canonicalize_jobs_rejects_non_list_and_non_object_rows() -> None:
     with pytest.raises(ValueError, match="JSON array"):
         ingest.canonicalize_jobs({"jobs": []})
@@ -76,6 +97,33 @@ def test_canonicalize_jobs_accepts_indeed_shape_and_preserves_raw_record() -> No
     assert json.loads(artifact.json_text) == [job]
     assert validate_indeed_schema(job) == []
     assert validate_job_schema(job) == []
+
+
+def test_canonicalize_jobs_accepts_stepstone_shape_and_preserves_raw_record() -> None:
+    job = _stepstone_job()
+
+    artifact = ingest.canonicalize_jobs([job])
+
+    assert artifact.jobs == [job]
+    assert json.loads(artifact.json_text) == [job]
+    assert validate_job_schema(job) == []
+
+
+def test_stepstone_mapping_builds_stable_canonical_fields() -> None:
+    job = _stepstone_job()
+
+    result = snake_case_keys(job)
+
+    assert result["source_provider"] == "stepstone"
+    assert result["source_job_id"] == "14515580"
+    assert result["job_url"] == "https://www.stepstone.de/jobs--intern-m-f-d--14515580-inline.html"
+    assert result["apply_url"] == result["job_url"]
+    assert result["published_at"] == "2026-09-17"
+    assert result["description"] == job["textSnippet"]
+    assert result["description_source"] == "text_snippet"
+    assert result["description_complete"] is False
+    assert result["work_type"] == "hybrid"
+    assert result["raw_json"] == json.dumps(job, ensure_ascii=False)
 
 
 def test_validate_indeed_schema_reports_missing_raw_fields() -> None:

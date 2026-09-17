@@ -1063,7 +1063,7 @@ def test_generate_from_analysis_returns_complete_canonical_result(
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
-def test_generate_from_analysis_emits_review_required_as_outcome(
+def test_generate_from_analysis_persists_review_required_as_quality_warning(
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
@@ -1092,11 +1092,11 @@ def test_generate_from_analysis_emits_review_required_as_outcome(
 
     result = generate_from_analysis(analysis_record, _minimal_profile(), _minimal_config())
 
-    assert result["status"] == "review_required"
+    assert result["status"] == "accepted"
     assert result["review_required_reason_code"] == "unsupported_requirement_gap"
-    assert result["outcome_reason"]["stage"] == "review"
-    assert result["outcome_reason"]["code"] == "unsupported_requirement_gap"
+    assert result["outcome_reason"] is None
     assert result["error"] is None
+    assert result["quality_warnings"] == ["Unsupported requirements require review: Python"]
     assert result["structured_cv_final"] is not None
     assert result["markdown_final"]
     assert result["validation_evidence_fingerprint"]
