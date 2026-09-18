@@ -100,6 +100,14 @@ provenance atomically.
 
 Provider choices and portal verification remain owned by `src/fitcv/job_sources.py`; managed Scan API, persistence, and UI do not copy provider routing rules.
 
+## External career tools
+
+FitCV can be used alongside tools such as
+[career-ops](https://github.com/career-ops-hq/career-ops) for job discovery,
+portal scanning, or application tracking. FitCV does not currently provide a
+dedicated career-ops adapter or shared synchronization layer; external job
+data must use a supported input path and retain its source provenance.
+
 ## Snapshot and projection
 
 Successful run creation stores:

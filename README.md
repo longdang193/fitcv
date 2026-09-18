@@ -59,6 +59,17 @@ uploaded file.
 Scans save canonical job data and provenance; they do not add pipeline stages.
 Empty Scans are valid and downloadable, but cannot start a Run.
 
+### Works Alongside Other Career Tools
+
+FitCV can complement tools such as
+[career-ops](https://github.com/career-ops-hq/career-ops). Use another tool for
+job discovery, portal scanning, or application tracking, then bring supported
+job data into FitCV for evidence-gated filtering, ranking, and CV generation.
+
+FitCV does not currently provide a dedicated career-ops adapter or shared
+synchronization layer. Treat workflows as separate unless an explicit import
+contract is added.
+
 Single source of truth: [docs/job-data-input.md](docs/job-data-input.md).
 
 Stage order:
