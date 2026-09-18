@@ -47,7 +47,7 @@ shape, resolves relative URLs against `https://www.stepstone.de`, strips the
 do not enter CV generation. Stepstone-only fields such as benefits, labels,
 skills, and raw work-from-home codes remain owned by `raw_json`.
 
-Optional fields remain unchanged. Source order and each source's job order remain unchanged. A successful Scan may export `[]`; empty Scan output is downloadable but cannot be selected for a Run.
+Optional fields remain unchanged. Source order and each source's job order remain unchanged.
 
 ## Run sources
 
@@ -65,11 +65,40 @@ Legacy admin route accepts a pasted JSON array.
 
 ### Managed Scan
 
-Tracked companies store verified careers portals once. Scan creation selects one or more active tracked companies plus optional title, location, publication-window, and row-limit filters; users do not re-enter provider IDs or careers URLs.
+Managed Scan fetches jobs from verified ATS careers portals through the
+operator-curated catalog.
 
-A successful Scan stores one immutable canonical output and digest. Run UI may select one or more active, successful, non-empty Scan outputs. One uploaded file and ordered Scan outputs are additive: uploaded jobs first, then Scan outputs in selected order. Run creation rejects requests with neither source and records protected Scan provenance atomically.
+#### Lifecycle
 
-Provider choices and portal verification remain owned by `src/fitcv/job_sources.py`; managed Scan API, persistence, and UI do not copy provider routing rules. Stable provider failures remain `provider_timeout`, `provider_http_error`, `provider_payload_error`, and `provider_detail_error`.
+1. **Catalog**: Operators maintain company records in
+   `config/scan_catalog.yaml`. Only trackable records can be tracked.
+2. **Track**: Users track companies once in Company Catalog. Provider IDs and
+   careers URLs come from the catalog; users do not re-enter them.
+3. **Create Scan**: Users select one or more tracked companies and may set
+   title, location, publication-window, and row-limit filters.
+4. **Review**: A successful Scan stores one immutable canonical JSON output and
+   digest. Users can review the result and provider diagnostics.
+5. **Run**: Run UI accepts one or more successful, non-empty Scan outputs.
+   Uploaded jobs and selected Scan outputs combine in order: upload first, then
+   Scans in selected order.
+
+#### Empty, quarantined, and historical data
+
+- **Empty Scan**: A successful Scan may contain `[]`. It remains downloadable,
+  but cannot be selected as Run input.
+- **Quarantined or discovery-only company**: The company remains visible for
+  audit, but cannot be tracked or scanned.
+- **Run history**: Run creation copies canonical jobs and source provenance
+  into the Run snapshot. Historical Runs do not depend on current catalog
+  entries or Scan output availability.
+- **Provider failure**: Stable error codes are `provider_timeout`,
+  `provider_http_error`, `provider_payload_error`, and
+  `provider_detail_error`.
+
+Run creation rejects requests with neither source and records protected Scan
+provenance atomically.
+
+Provider choices and portal verification remain owned by `src/fitcv/job_sources.py`; managed Scan API, persistence, and UI do not copy provider routing rules.
 
 ## Snapshot and projection
 

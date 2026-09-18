@@ -1,6 +1,6 @@
 schema_version: 1
 catalog_source: bundled
-catalog_revision: "2026-09-08-v3"
+catalog_revision: "2026-09-18-v4"
 companies:
   - catalog_id: company-anthropic
     company_name: Anthropic
@@ -68,3 +68,14 @@ companies:
       status: verified
       checked_at: "2026-09-08"
       evidence_ref: docs/superpowers/evidence/2026-09-08-scan-provider-catalog-live-probes.md
+  - catalog_id: company-great-place-to-work-de
+    company_name: Great Place to Work Deutschland
+    careers_url: https://gptw.jobs.personio.de
+    provider_id: personio
+    provider_label: Personio
+    trackable: true
+    discovery_only: false
+    verification:
+      status: verified
+      checked_at: "2026-09-18"
+      evidence_ref: docs/superpowers/evidence/2026-09-18-great-place-to-work-personio-probe.md

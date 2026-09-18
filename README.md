@@ -49,6 +49,16 @@ Notes:
 - Stepstone relative URLs are normalized to `https://www.stepstone.de`; tracking parameter `rltr` is removed.
 - Stepstone `textSnippet` data remains visible for review but is not eligible for CV generation.
 
+### Managed Scan
+
+FitCV can fetch jobs from verified careers portals through Managed Scan. Track
+companies once in Company Catalog, create Scans with optional filters, review
+their outputs, then attach successful non-empty Scans to a Run alongside an
+uploaded file.
+
+Scans save canonical job data and provenance; they do not add pipeline stages.
+Empty Scans are valid and downloadable, but cannot start a Run.
+
 Single source of truth: [docs/job-data-input.md](docs/job-data-input.md).
 
 Stage order:

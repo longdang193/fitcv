@@ -19,25 +19,61 @@ FitCV uses layered configuration with clear ownership boundaries.
 
 ## Scan Provider Catalog
 
-`config/scan_catalog.yaml` is sole catalog SSOT. Python, API, React, and
-database code load typed records from it; none may add production company rows.
-The file stores stable IDs, canonical HTTPS ATS URLs, provider labels,
-trackability, discovery state, and verification evidence. Trusted provider
-configuration is derived by `fitcv.job_sources`; credentials and arbitrary
-endpoints are not catalog fields.
+`config/scan_catalog.yaml` is the sole catalog SSOT. Runtime code loads typed
+records from it; Python, API, React, and database code must not add production
+company rows.
+
+### Top-level fields
+
+| Field | Purpose |
+|---|---|
+| `schema_version` | Catalog schema version. |
+| `catalog_source` | Catalog origin, currently `bundled`. |
+| `catalog_revision` | Revision identifier. Bump when catalog identity, URL, provider, or capability changes. |
+| `companies` | Company catalog records. |
+
+### `companies[]` fields
+
+| Field | Purpose |
+|---|---|
+| `catalog_id` | Stable company identity. Keep unchanged after publication. |
+| `company_name` | Display name. |
+| `careers_url` | Canonical HTTPS ATS careers/job-board root. |
+| `provider_id` | Provider routing identity. |
+| `provider_label` | Display label. |
+| `trackable` | Whether users may track and scan the company. |
+| `discovery_only` | Whether the record is discovery-only and excluded from runtime scanning. |
+| `verification.status` | Verification state: `verified`, `quarantined`, or `discovery_only`. |
+| `verification.checked_at` | Date of latest verification. |
+| `verification.evidence_ref` | Redacted verification evidence path. |
+
+Credentials and arbitrary endpoints are not catalog fields.
+
+### ATS URL guidance
+
+Use the provider's canonical HTTPS job-board root, not an individual job URL or
+tracking link. Current catalog examples include:
+
+- Ashby: `https://jobs.ashbyhq.com/<organization>`
+- Greenhouse: `https://job-boards.greenhouse.io/<organization>`
+- Gem: `https://jobs.gem.com/<organization>`
+- Personio: `https://<organization>.jobs.personio.de`
+
+Keep provider-specific URL rules owned by `fitcv.job_sources`; this table
+documents catalog expectations, not a second provider-routing implementation.
 
 Maintenance flow:
 
-1. Edit only `config/scan_catalog.yaml`; keep IDs stable and bump
-   `catalog_revision` for identity, URL, provider, or capability changes.
-2. Run `python -m pytest tests/test_fitcv_cp/test_scan_contracts.py -q`.
-3. Run bounded, read-only provider probes and append redacted evidence under
-   `docs/superpowers/evidence/`; never record payloads, headers, cookies, or
+1. Edit only `config/scan_catalog.yaml`; keep IDs stable.
+2. Bump `catalog_revision` for identity, URL, provider, or capability changes.
+3. Run `python -m pytest tests/test_fitcv_cp/test_scan_contracts.py -q`.
+4. Run bounded, read-only provider probes and add redacted evidence under
+   `docs/superpowers/evidence/`. Never record payloads, headers, cookies, or
    secrets.
-4. Keep failed profiles `quarantined`; they remain visible but cannot Track or
-   Scan. Keep Wellfound `discovery_only`; it never enters `PROVIDERS`.
-5. Re-run Scan, persistence, worker, API, and frontend checks after catalog
-   changes. Automated tests stay network-free.
+5. Keep failed profiles `quarantined`; they remain visible but cannot be
+   tracked or scanned. Keep discovery-only records out of runtime providers.
+6. Re-run Scan, persistence, worker, API, and frontend checks after catalog
+   changes. Automated tests remain network-free.
 
 ## Primary Runtime Inputs
 
