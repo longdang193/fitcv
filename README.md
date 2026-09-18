@@ -32,16 +32,22 @@ recovery, troubleshooting, and developer setup live in
 [docs/fitcv-control-plane-setup.md](docs/fitcv-control-plane-setup.md) and
 [docs/setup.md](docs/setup.md).
 
-## Job Data Input (LinkedIn, Indeed, Stepstone)
+## Job Data Input
 
-FitCV accepts source-shaped JSON arrays from LinkedIn, Indeed, and Stepstone.
-LinkedIn remains supported through Apify actor `bebity/linkedin-jobs-scraper`.
+FitCV accepts JSON exports from Apify job-scraping actors:
 
-FitCV ingestion expects a JSON file containing a top-level array of job objects
-and loads it via `jobs_path` when triggering a run. Adapters detect source by
-record shape, preserve raw input, and emit one canonical downstream shape.
-Stepstone `textSnippet` records remain visible for review but do not produce a
-CV until complete description text exists.
+- LinkedIn: `bebity/linkedin-jobs-scraper`
+- Indeed: `indeed-jobs-scraper`
+- Stepstone: `stepstone-search-cheerio-ppr`
+
+Notes:
+
+- FitCV consumes actor output; it does not run Apify actors.
+- Input detection uses record shape, not filename.
+- LinkedIn, Indeed, and Stepstone records map into one canonical pipeline shape.
+- Raw source records remain preserved for traceability.
+- Stepstone relative URLs are normalized to `https://www.stepstone.de`; tracking parameter `rltr` is removed.
+- Stepstone `textSnippet` data remains visible for review but is not eligible for CV generation.
 
 Single source of truth: [docs/job-data-input.md](docs/job-data-input.md).
 
