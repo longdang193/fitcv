@@ -105,6 +105,47 @@ jobs:
         run: |
           python -m pytest tests/test_fitcv_cp/test_provider_registry.py tests/test_fitcv_cp/test_local_routes.py tests/test_fitcv_cp/test_app.py tests/test_prompts.py tests/test_llm_runtime.py tests/test_config.py tests/test_fitcv_pipeline_prototype.py -q
 
+  full-suite:
+    name: Full Suite
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.15.0"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build frontend
+        run: |
+          Push-Location frontend
+          try {
+            npm ci --ignore-scripts
+            if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
+            npm run build
+            if ($LASTEXITCODE -ne 0) { throw "npm run build failed with exit code $LASTEXITCODE" }
+          }
+          finally {
+            Pop-Location
+          }
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path requirements.txt) {
+            python -m pip install -r requirements.txt
+          }
+          python -m pip install -e ".[local,inverse-optimization]"
+
+      - name: Run full pytest suite
+        run: python -m pytest -q
+
   architecture-docs:
     name: Architecture Docs
     runs-on: windows-latest
