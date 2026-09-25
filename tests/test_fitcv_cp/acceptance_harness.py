@@ -90,8 +90,11 @@ def create_scan_fixture(
 ) -> dict[str, Any]:
     company = sqlite_store.create_tracked_company(
         company_name=f"Acceptance {scan_name} Company",
-        careers_url=f"https://acceptance.example/{hashlib.sha256(scan_name.encode()).hexdigest()[:12]}",
-        provider_id="fixture",
+        careers_url=(
+            "https://boards.greenhouse.io/acceptance-"
+            f"{hashlib.sha256(scan_name.encode()).hexdigest()[:12]}"
+        ),
+        provider_id="greenhouse",
         provider_label="Acceptance Fixture",
         database_path=database_path,
     )
