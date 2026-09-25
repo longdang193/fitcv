@@ -329,17 +329,23 @@ def build_required_skill_descriptors(
         pairs = [
             (
                 str(entity.get("raw_text") or entity.get("canonical") or "").strip(),
-                str(entity.get("canonical") or entity.get("raw_text") or "").strip(),
+                canonicalize_skill(
+                    str(entity.get("canonical") or entity.get("raw_text") or "").strip(),
+                    config,
+                ),
             )
             for entity in entities
+            if str(entity.get("raw_text") or entity.get("canonical") or "").strip()
+        ]
+    elif raw_skills:
+        pairs = [
+            (raw_skill, canonicalize_skill(raw_skill, config))
+            for raw_skill in raw_skills
         ]
     else:
         pairs = [
-            (
-                raw_skills[index] if index < len(raw_skills) else canonical,
-                canonical,
-            )
-            for index, canonical in enumerate(canonical_skills or raw_skills)
+            (canonical, canonicalize_skill(canonical, config))
+            for canonical in canonical_skills
         ]
 
     descriptors: dict[str, dict[str, Any]] = {}
@@ -468,8 +474,11 @@ def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
         "years_experience": profile.get("years_experience"),
         "preferences": dict(profile.get("preferences") or {}),
         "experiences": list(profile.get("experiences") or []),
+        "education": list(profile.get("education") or []),
         "projects": list(profile.get("projects") or []),
         "achievements": list(profile.get("achievements") or []),
+        "certifications": list(profile.get("certifications") or []),
+        "volunteering": list(profile.get("volunteering") or []),
     }
     return {
         key: value
@@ -499,6 +508,8 @@ def build_cv_analysis_input_fingerprint(
     profile: dict[str, Any],
     job_context: dict[str, Any] | list[str],
     config: dict[str, Any],
+    *,
+    evidence_projection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     semantic_policy = config.get("semantic_policy")
     if not isinstance(semantic_policy, dict):
@@ -557,6 +568,9 @@ def build_cv_analysis_input_fingerprint(
     }
     payload = {
         "profile": _cv_analysis_profile_payload(profile),
+        "evidence_projection_fingerprint": str(
+            (evidence_projection or build_evidence_projection(profile)).get("fingerprint") or ""
+        ),
         "semantic_alias_equivalence": semantic_alias_equivalence,
         "job": {
             key: value
@@ -977,6 +991,19 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                     }
                 )
     return projected
+
+
+def build_evidence_projection(profile: dict[str, Any]) -> dict[str, Any]:
+    items = project_candidate_evidence(profile)
+    return {
+        "items": items,
+        "fingerprint": _stable_json_fingerprint(
+            {
+                "schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
+                "items": items,
+            }
+        ),
+    }
 
 
 def select_ranking_evidence(
@@ -1993,6 +2020,7 @@ def _build_retrieve_evidence_bundle_payload(
     semantic_alignment: dict[str, Any],
     selection_policy: dict[str, Any],
     selected_evidence: list[dict[str, Any]],
+    canonical_items: list[dict[str, Any]],
     merged_pool: list[dict[str, Any]],
     unselected_top_candidates: list[dict[str, Any]],
     source_profile_schema_version: str,
@@ -2018,6 +2046,7 @@ def _build_retrieve_evidence_bundle_payload(
         lexical_weight_key="domain_lexical_weight",
         semantic_weight_key="domain_semantic_weight",
     )
+    canonical_requirement_support = _requirement_support_map(canonical_items)
     pool_requirement_support = _requirement_support_map(merged_pool)
     selected_requirement_support = _requirement_support_map(selected_evidence)
     return {
@@ -2036,6 +2065,7 @@ def _build_retrieve_evidence_bundle_payload(
         "selected_evidence_count": len(selected_evidence),
         "unselected_top_candidates": unselected_top_candidates,
         "requirement_support": {
+            "canonical": canonical_requirement_support,
             "pool": pool_requirement_support,
             "selected": selected_requirement_support,
         },
@@ -2068,6 +2098,7 @@ def retrieve_evidence_bundle(
     top_k: int,
     *,
     config: dict[str, Any] | None = None,
+    evidence_projection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Retrieve evidence via separate channels, then merge/dedupe/select."""
     coerced_job_context = _coerce_job_context(job_context)
@@ -2076,13 +2107,15 @@ def retrieve_evidence_bundle(
         dict(job_context) if isinstance(job_context, dict) else {"required_skills": list(job_context)},
         config,
     )
-    base_items = _collect_base_items(profile)
+    resolved_projection = evidence_projection or build_evidence_projection(profile)
+    base_items = copy.deepcopy(list(resolved_projection.get("items") or []))
     source_profile_schema_version = str(profile.get("schema_version") or "candidate-profile.v1")
-    projection_fingerprint = _stable_json_fingerprint(
-        {
-            "schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
-            "items": base_items,
-        }
+    projection_fingerprint = str(resolved_projection.get("fingerprint") or "")
+    canonical_items = copy.deepcopy(base_items)
+    _annotate_requirement_support(
+        canonical_items,
+        list(coerced_job_context.get("requirement_descriptors") or []),
+        config,
     )
     selection_policy = _cv_analysis_policy_settings(config)
     semantic_settings = _semantic_alignment_settings(config)
@@ -2121,6 +2154,7 @@ def retrieve_evidence_bundle(
         semantic_alignment=semantic_alignment,
         selection_policy=selection_policy,
         selected_evidence=selected_evidence,
+        canonical_items=canonical_items,
         merged_pool=merged_pool,
         unselected_top_candidates=list(selection_result["unselected_top_candidates"]),
         source_profile_schema_version=source_profile_schema_version,
@@ -2134,6 +2168,7 @@ def retrieve_evidence(
     top_k: int = 0,
     *,
     jd_skills: list[str] | None = None,
+    evidence_projection: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Compatibility wrapper that returns the selected evidence list only."""
     if jd_skills is not None or isinstance(job_context, list) or job_context is None:
@@ -2147,6 +2182,7 @@ def retrieve_evidence(
             profile,
             resolved_context,
             top_k,
+            evidence_projection=evidence_projection,
         ).get("selected_evidence")
         or []
     )
