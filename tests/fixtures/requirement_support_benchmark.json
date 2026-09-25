@@ -1,0 +1,116 @@
+{
+  "profile": {
+    "preferences": {
+      "target_role": "Analytics Engineer",
+      "role_families": ["data_engineering"],
+      "domains": ["fintech"]
+    },
+    "experiences": [
+      {
+        "id": "exp_sql_1",
+        "role": "Analytics Engineer",
+        "company": "Acme 1",
+        "role_family": "data_engineering",
+        "domain_tags": ["fintech"],
+        "responsibility_themes": ["reporting"],
+        "bullets": [{"id": "bullet_sql_1", "text": "Built SQL reporting pipeline 1 in Python for fintech stakeholders.", "skills": ["SQL", "Python"]}]
+      },
+      {
+        "id": "exp_sql_2",
+        "role": "Analytics Engineer",
+        "company": "Acme 2",
+        "role_family": "data_engineering",
+        "domain_tags": ["fintech"],
+        "responsibility_themes": ["reporting"],
+        "bullets": [{"id": "bullet_sql_2", "text": "Built SQL reporting pipeline 2 in Python for fintech stakeholders.", "skills": ["SQL"]}]
+      },
+      {
+        "id": "exp_sql_3",
+        "role": "Analytics Engineer",
+        "company": "Acme 3",
+        "role_family": "data_engineering",
+        "domain_tags": ["fintech"],
+        "responsibility_themes": ["reporting"],
+        "bullets": [{"id": "bullet_sql_3", "text": "Built SQL reporting pipeline 3 in Python for fintech stakeholders.", "skills": ["SQL"]}]
+      },
+      {
+        "id": "exp_sql_4",
+        "role": "Analytics Engineer",
+        "company": "Acme 4",
+        "role_family": "data_engineering",
+        "domain_tags": ["fintech"],
+        "responsibility_themes": ["reporting"],
+        "bullets": [{"id": "bullet_sql_4", "text": "Built SQL reporting pipeline 4 in Python for fintech stakeholders.", "skills": ["SQL"]}]
+      },
+      {
+        "id": "exp_sql_5",
+        "role": "Analytics Engineer",
+        "company": "Acme 5",
+        "role_family": "data_engineering",
+        "domain_tags": ["fintech"],
+        "responsibility_themes": ["reporting"],
+        "bullets": [{"id": "bullet_sql_5", "text": "Built SQL reporting pipeline 5 in Python for fintech stakeholders.", "skills": ["SQL"]}]
+      }
+    ],
+    "projects": [],
+    "achievements": []
+  },
+  "job_context": {
+    "job_url": "https://example.com/analytics-engineer",
+    "title": "Analytics Engineer",
+    "job_family": "data_engineering",
+    "domain": "fintech",
+    "required_skills": ["Structured Query Language", "Python", "K8s", "Power BI"],
+    "required_skills_canonical": ["sql", "python", "kubernetes", "power bi"],
+    "required_skill_entities": [
+      {"raw_text": "Structured Query Language", "canonical": "sql"},
+      {"raw_text": "Python", "canonical": "python"},
+      {"raw_text": "K8s", "canonical": "kubernetes"},
+      {"raw_text": "Power BI", "canonical": "power bi"}
+    ],
+    "responsibilities": ["Build reporting pipelines"]
+  },
+  "top_k": 2,
+  "expected_support": {
+    "required_skill:sql": [
+      "ev_exp_sql_1_b926f265e54f2690",
+      "ev_exp_sql_2_8c674703fcc6c932",
+      "ev_exp_sql_3_874d40f96eaacd7e",
+      "ev_exp_sql_4_b07355e27bfa0467",
+      "ev_exp_sql_5_f09462e6162adf48"
+    ],
+    "required_skill:python": ["ev_exp_sql_1_b926f265e54f2690"],
+    "required_skill:kubernetes": [],
+    "required_skill:power bi": []
+  },
+  "negative_cases": [
+    {
+      "name": "wrong_evidence_id",
+      "requirement_id": "required_skill:sql",
+      "evidence_ids": ["ev_missing"]
+    },
+    {
+      "name": "canonical_synonym",
+      "raw_requirement": "Structured Query Language",
+      "canonical_skill": "sql",
+      "expected_requirement_id": "required_skill:sql"
+    },
+    {
+      "name": "unsupported_structured_skill",
+      "requirement_id": "required_skill:power bi",
+      "expected_support": []
+    },
+    {
+      "name": "responsibility_only",
+      "text": "Stakeholder coordination",
+      "expected_requirement_id": null
+    }
+  ],
+  "validation": {
+    "cv_text": "# Candidate\n## Summary\nAnalytics Engineer\n## Skills\nSQL, Python\n## Experience\nAcme",
+    "config": {
+      "required_cv_sections": ["Summary", "Skills", "Experience"],
+      "cv_max_pages": 2
+    }
+  }
+}

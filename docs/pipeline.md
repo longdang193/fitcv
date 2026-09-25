@@ -52,6 +52,14 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - analysis metadata records `source_profile_schema_version`, `projection_schema_version`, and `projection_fingerprint`
 - traceability resolves `claim -> evidence_refs -> candidate-evidence.v1 item -> source_refs -> uploaded source document`
 
+### CV-analysis Retrieval Diagnostics
+
+- `cv_analysis.semantic_alignment.enabled` controls CV-analysis channel scoring only; it does not change shortlist embedding behavior
+- when enabled, diagnostics identify `sqlite_deterministic_local` as the actual embedding backend, report dimension and contract fingerprint, and preserve configured model name as metadata
+- the configured `cv_analysis.semantic_alignment.model` value does not prove provider execution; `generate_embedding()` remains deterministic local/hash output in this path
+- when disabled, diagnostics report no semantic backend and channel scoring is lexical-only
+- offline comparison uses `scripts/benchmark_requirement_support.py` with the fixed fixture at `tests/fixtures/requirement_support_benchmark.json`; it measures canonical, retrieved, selected, validation, timing, and context-cost boundaries without changing production defaults
+
 ## Location And Language Eligibility
 
 Phase 1 uses one path for both factors:

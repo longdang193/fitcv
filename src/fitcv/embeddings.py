@@ -134,6 +134,20 @@ def build_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, An
     }
 
 
+def build_embedding_backend_metadata(
+    config: dict[str, Any],
+    *,
+    configured_model: str | None = None,
+) -> dict[str, Any]:
+    contract = build_embedding_contract_fingerprint(config)
+    return {
+        "backend_id": str(contract["payload"]["embedding_backend"]),
+        "configured_model": str(configured_model or get_shortlist_embedding_model(config)),
+        "dimension": SQLITE_EMBED_DIM,
+        "contract_fingerprint": str(contract["fingerprint"]),
+    }
+
+
 
 
 # ── job summary text ──────────────────────────────────────────────────────────
