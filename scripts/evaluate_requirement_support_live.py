@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -49,7 +50,9 @@ def _review_output(text: str, review: dict[str, Any]) -> dict[str, Any]:
     for requirement in requirements:
         requirement_id = str(requirement.get("requirement_id") or "")
         terms = [str(term).casefold() for term in list(requirement.get("terms") or []) if str(term).strip()]
-        if requirement_id and terms and any(term in normalized for term in terms):
+        if requirement_id and terms and any(
+            _term_is_supported(normalized, term) for term in terms
+        ):
             covered.append(requirement_id)
     unsupported_markers = [
         str(marker).casefold()
@@ -68,6 +71,19 @@ def _review_output(text: str, review: dict[str, Any]) -> dict[str, Any]:
         else 0.0,
         "accepted": not unsupported_hits and (coverage == "not_applicable" or coverage == 1.0),
     }
+
+
+def _term_is_supported(normalized: str, term: str) -> bool:
+    start = normalized.find(term)
+    while start >= 0:
+        prefix = normalized[max(0, start - 64) : start]
+        if not re.search(
+            r"(?:\bno\b|\bnot\b|\bwithout\b|\black of\b|\bdoes not have\b|\bdoesn't have\b)[^.!?,;:]{0,48}$",
+            prefix,
+        ):
+            return True
+        start = normalized.find(term, start + 1)
+    return False
 
 
 def _call_provider(prompt: str, provider: dict[str, Any], environ: dict[str, str]) -> dict[str, Any]:
@@ -212,6 +228,9 @@ def evaluate(
                     provider_result["review"] = review
                     usage = dict(provider_result.get("usage") or {})
                     usage_available = usage_available or bool(usage.get("available"))
+                    cost = usage.get("cost")
+                    if not isinstance(cost, (int, float)) or isinstance(cost, bool):
+                        raise RuntimeError("live evaluation requires numeric cost telemetry")
                     for key in ("prompt_tokens", "completion_tokens", "total_tokens", "cost"):
                         value = usage.get(key)
                         if isinstance(value, (int, float)):

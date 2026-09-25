@@ -101,7 +101,7 @@ def test_live_mode_reports_paired_variant_metrics(monkeypatch: pytest.MonkeyPatc
             "latency_ms": 1,
             "attempt_count": 1,
             "response_id_present": True,
-            "usage": {"available": True, "total_tokens": 10},
+            "usage": {"available": True, "total_tokens": 10, "cost": 0.1},
         }
 
     monkeypatch.setattr(module, "_call_provider", fake_call)
@@ -114,3 +114,47 @@ def test_live_mode_reports_paired_variant_metrics(monkeypatch: pytest.MonkeyPatc
     assert result["provider_calls"] == 2
     assert result["metrics"]["by_variant"]["baseline"]["final_acceptance"] == 1.0
     assert result["metrics"]["fitcv_minus_baseline"]["final_acceptance"] == 0.0
+
+
+def test_live_mode_fails_closed_when_provider_cost_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _module()
+    payload = _payload()
+    for variant_name in ("baseline", "fitcv"):
+        payload["pairs"][0][variant_name].update(
+            {"prompt": variant_name, "review": {"requirements": []}}
+        )
+
+    def fake_call(prompt: str, provider: dict[str, Any], environ: dict[str, str]) -> dict[str, Any]:
+        return {
+            "status": "succeeded",
+            "text": "SQL",
+            "output_sha256": "hash",
+            "output_chars": 3,
+            "latency_ms": 1,
+            "attempt_count": 1,
+            "response_id_present": True,
+            "usage": {"available": True, "total_tokens": 10, "cost": None},
+        }
+
+    monkeypatch.setattr(module, "_call_provider", fake_call)
+
+    with pytest.raises(RuntimeError, match="cost telemetry"):
+        module.evaluate(
+            payload,
+            dry_run=False,
+            environ={"FITCV_TEST_PROVIDER_KEY": "configured"},
+        )
+
+
+def test_review_output_does_not_count_negated_requirement_term() -> None:
+    module = _module()
+
+    result = module._review_output(
+        "No SQL experience.",
+        {"requirements": [{"requirement_id": "r", "terms": ["SQL"]}]},
+    )
+
+    assert result["covered_requirements"] == []
+    assert result["requirement_coverage"] == 0.0
