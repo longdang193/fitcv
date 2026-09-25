@@ -41,17 +41,19 @@ def _text(value: Any) -> str:
 
 
 def sanitize_job(record: dict[str, Any]) -> dict[str, str]:
-    description = PII.sub("", _text(record.get("description")))
+    def clean(value: Any, default: str = "") -> str:
+        return re.sub(r"\s+", " ", PII.sub("", _text(value))).strip() or default
+
     return {
-        "job_id": _text(record.get("id")),
-        "title": _text(record.get("title")),
-        "description": re.sub(r"\s+", " ", description).strip(),
-        "location": _text(record.get("location")),
-        "company_name": _text(record.get("companyName")),
-        "work_mode": _text(record.get("workType")) or "unspecified",
-        "contract_type": _text(record.get("contractType")) or "unspecified",
-        "experience_level": _text(record.get("experienceLevel")) or "unspecified",
-        "job_function": _text(record.get("jobFunction")) or "unspecified",
+        "job_id": clean(record.get("id")),
+        "title": clean(record.get("title")),
+        "description": clean(record.get("description")),
+        "location": clean(record.get("location")),
+        "company_name": clean(record.get("companyName")),
+        "work_mode": clean(record.get("workType"), "unspecified"),
+        "contract_type": clean(record.get("contractType"), "unspecified"),
+        "experience_level": clean(record.get("experienceLevel"), "unspecified"),
+        "job_function": clean(record.get("jobFunction"), "unspecified"),
     }
 
 
@@ -121,7 +123,13 @@ def prepare_corpus(source_path: Path, base_fixture_path: Path, seed: int = SEED)
         raise ValueError("source jobs must have unique IDs")
     rng = random.Random(seed)
     rng.shuffle(jobs)
-    jobs.sort(key=lambda job: (job["experience_level"], _language(job["description"]), _length_bucket(len(job["description"])), job["job_id"]))
+    jobs.sort(key=lambda job: (
+        job["experience_level"],
+        _language(job["description"]),
+        _length_bucket(len(job["description"])),
+        rng.random(),
+        job["job_id"],
+    ))
     selected = jobs[:40]
     splits = {"development": selected[:10], "pilot": selected[10:20], "held_out": selected[20:40]}
     derived = dict(base)
