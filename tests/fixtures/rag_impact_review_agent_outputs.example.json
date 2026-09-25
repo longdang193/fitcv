@@ -1,0 +1,75 @@
+{
+  "schema_version": "rag-impact-review-agent-output-v1",
+  "agents": {
+    "grounding-reviewer": {
+      "agent_name": "grounding-reviewer",
+      "annotation": {
+        "pair_id": "pair-synthetic-001",
+        "evidence_references": [
+          {"claim_id": "claim-1", "evidence_ids": ["ev-synthetic-1"]}
+        ],
+        "unsupported_claims": [],
+        "confidence": "high",
+        "review_status": "reviewed"
+      },
+      "herdr_receipt": {
+        "run_id": "run-2026-09-25-synthetic-001",
+        "fixture_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "rubric_version": "rag-human-review-v1",
+        "evaluator_version": "rag-impact-evaluator-v1",
+        "input_artifact_path": "artifacts/review/run-2026-09-25-synthetic-001/blinded-pair.json",
+        "output_artifact_path": "artifacts/review/run-2026-09-25-synthetic-001/grounding-annotation.json",
+        "timeout_seconds": 120,
+        "delivery_status": "delivered"
+      }
+    },
+    "recruiter-quality-reviewer": {
+      "agent_name": "recruiter-quality-reviewer",
+      "annotation": {
+        "pair_id": "pair-synthetic-001",
+        "scores": {
+          "requirement_relevance": 4,
+          "factual_accuracy": 5,
+          "completeness": 4,
+          "readability": 4,
+          "recruiter_usefulness": 4
+        },
+        "pairwise_preference": "tie",
+        "issue_tags": ["formatting"],
+        "confidence": "high",
+        "reviewer_notes": "Synthetic output-review example."
+      },
+      "herdr_receipt": {
+        "run_id": "run-2026-09-25-synthetic-001",
+        "fixture_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "rubric_version": "rag-human-review-v1",
+        "evaluator_version": "rag-impact-evaluator-v1",
+        "input_artifact_path": "artifacts/review/run-2026-09-25-synthetic-001/blinded-pair.json",
+        "output_artifact_path": "artifacts/review/run-2026-09-25-synthetic-001/quality-annotation.json",
+        "timeout_seconds": 120,
+        "delivery_status": "delivered"
+      }
+    },
+    "review-adjudicator": {
+      "agent_name": "review-adjudicator",
+      "annotation": {
+        "pair_id": "pair-synthetic-002",
+        "disagreements": ["dimension:completeness", "preference"],
+        "decision": "unresolved",
+        "selected_score": null,
+        "rationale": "Synthetic disagreement remains unresolved without second review.",
+        "source_output_mutation": false
+      },
+      "herdr_receipt": {
+        "run_id": "run-2026-09-25-synthetic-001",
+        "fixture_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "rubric_version": "rag-human-review-v1",
+        "evaluator_version": "rag-impact-evaluator-v1",
+        "input_artifact_path": "artifacts/review/run-2026-09-25-synthetic-001/disagreements.json",
+        "output_artifact_path": "artifacts/review/run-2026-09-25-synthetic-001/adjudication.json",
+        "timeout_seconds": 120,
+        "delivery_status": "delivered"
+      }
+    }
+  }
+}
