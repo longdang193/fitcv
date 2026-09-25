@@ -497,6 +497,30 @@ def _extract_skill_section_tokens(cv_text: str) -> list[str]:
     return [token.strip() for token in raw_tokens if token.strip()]
 
 
+def _extract_structured_skill_items(structured_cv: dict[str, Any] | None) -> list[str]:
+    sections = (structured_cv or {}).get("sections")
+    skills_section = sections.get("skills") if isinstance(sections, dict) else None
+    groups = skills_section.get("groups") if isinstance(skills_section, dict) else None
+    if not isinstance(groups, list):
+        return []
+    items: list[str] = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        for item in list(group.get("items") or []):
+            value = str(item or "").strip()
+            if value:
+                items.append(value)
+    return list(dict.fromkeys(items))
+
+
+def _claimed_skill_items(
+    cv_text: str,
+    structured_cv: dict[str, Any] | None,
+) -> list[str]:
+    return _extract_structured_skill_items(structured_cv) or _extract_skill_section_tokens(cv_text)
+
+
 def _normalize_section_name(raw_heading: str) -> str:
     return re.sub(r"\s+", " ", raw_heading.strip().lower())
 
@@ -732,9 +756,24 @@ def _check_requirement_grounding(
     cv_text: str,
     requirement_coverage: list[dict[str, Any]],
     config: dict[str, Any],
+    structured_cv: dict[str, Any] | None = None,
+    evidence_payload: list[dict[str, Any]] | None = None,
+    selected_evidence_ids: list[str] | None = None,
 ) -> list[str]:
     violations: list[str] = []
-    claimed_skills = _extract_skill_section_tokens(cv_text)
+    claimed_skills = _claimed_skill_items(cv_text, structured_cv)
+    evidence_by_id = {
+        str(item.get("evidence_id") or ""): item
+        for item in list(evidence_payload or [])
+        if isinstance(item, dict) and str(item.get("evidence_id") or "")
+    }
+    selected_ids = set(str(item).strip() for item in list(selected_evidence_ids or []) if str(item).strip())
+    if selected_ids:
+        evidence_by_id = {
+            evidence_id: item
+            for evidence_id, item in evidence_by_id.items()
+            if evidence_id in selected_ids
+        }
     for claimed_skill in claimed_skills:
         claimed_canonical = canonicalize_skill(claimed_skill, config)
         for requirement in requirement_coverage:
@@ -744,10 +783,24 @@ def _check_requirement_grounding(
             )
             if not requirement_canonical or claimed_canonical != requirement_canonical:
                 continue
-            if (
-                str(requirement.get("selected_support") or "") != "verified"
-                or not list(requirement.get("supporting_evidence_ids") or [])
-            ):
+            supporting_ids = [
+                str(value).strip()
+                for value in list(requirement.get("supporting_evidence_ids") or [])
+                if str(value).strip()
+            ]
+            support_is_verified = str(requirement.get("selected_support") or "") == "verified" and bool(supporting_ids)
+            if support_is_verified:
+                support_is_verified = all(
+                    requirement_canonical
+                    in {
+                        canonicalize_skill(str(skill), config)
+                        for skill in list(evidence_by_id[evidence_id].get("skills") or [])
+                        if str(skill).strip()
+                    }
+                    for evidence_id in supporting_ids
+                    if evidence_id in evidence_by_id
+                ) and all(evidence_id in evidence_by_id for evidence_id in supporting_ids)
+            if not support_is_verified:
                 violations.append(
                     f"Required skill '{claimed_skill}' is claimed without selected verified support"
                 )
@@ -1117,6 +1170,14 @@ def run_all_validations(
             cv_text,
             list((analysis_grounding or {}).get("requirement_coverage") or []),
             config,
+            structured_cv=structured_cv,
+            evidence_payload=list((analysis_grounding or {}).get("evidence_payload") or []),
+            selected_evidence_ids=list(
+                ((analysis_grounding or {}).get("evidence_selection_summary") or {}).get(
+                    "selected_evidence_ids"
+                )
+                or []
+            ),
         )
     )
 

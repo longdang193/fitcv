@@ -339,6 +339,22 @@ def test_cv_analysis_fingerprint_uses_raw_identity_not_mutable_url() -> None:
     assert "job_url" not in fingerprint_a["payload"]["job"]
 
 
+def test_cv_analysis_fingerprint_changes_when_evidence_bearing_sections_change() -> None:
+    profile_a = _profile()
+    profile_b = _profile()
+    profile_a["education"] = [{"id": "edu-1", "degree": "MSc", "institution": "Example"}]
+    profile_b["education"] = [{"id": "edu-1", "degree": "PhD", "institution": "Example"}]
+    profile_a["certifications"] = [{"id": "cert-1", "name": "SQL", "issuer": "Example"}]
+    profile_b["certifications"] = [{"id": "cert-1", "name": "Python", "issuer": "Example"}]
+    profile_a["volunteering"] = [{"id": "vol-1", "organization": "Data Club", "role": "Mentor"}]
+    profile_b["volunteering"] = [{"id": "vol-1", "organization": "Open Data", "role": "Mentor"}]
+
+    fingerprint_a = build_cv_analysis_input_fingerprint(profile_a, _job(), _config())
+    fingerprint_b = build_cv_analysis_input_fingerprint(profile_b, _job(), _config())
+
+    assert fingerprint_a["fingerprint"] != fingerprint_b["fingerprint"]
+
+
 def test_real_canonical_profile_emits_requirement_coverage_without_mocks() -> None:
     profile = yaml.safe_load(
         Path("data/candidate_profile.v2.sample.yaml").read_text(encoding="utf-8")

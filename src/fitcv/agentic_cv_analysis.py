@@ -24,6 +24,7 @@ from typing import Any, Literal, TypedDict, cast
 from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
+    build_evidence_projection,
     build_required_skill_descriptors,
     build_cv_analysis_input_fingerprint,
     retrieve_evidence,
@@ -755,7 +756,13 @@ def analyze_ranked_job(
                 },
             )
 
-        fingerprint_record = build_cv_analysis_input_fingerprint(profile, job, config)
+        evidence_projection = build_evidence_projection(profile)
+        fingerprint_record = build_cv_analysis_input_fingerprint(
+            profile,
+            job,
+            config,
+            evidence_projection=evidence_projection,
+        )
         analysis_input_fingerprint = str(fingerprint_record["fingerprint"])
         analysis_input_components = _build_analysis_input_components(
             dict(fingerprint_record.get("payload") or {})
@@ -786,6 +793,7 @@ def analyze_ranked_job(
             job,
             top_k=evidence_top_k,
             config=config,
+            evidence_projection=evidence_projection,
         )
         evidence = list(evidence_bundle.get("selected_evidence") or [])
         evidence_selection_summary = _build_evidence_selection_summary(
@@ -795,7 +803,12 @@ def analyze_ranked_job(
         )
 
         if not evidence:
-            evidence = retrieve_evidence(profile, job, top_k=evidence_top_k)
+            evidence = retrieve_evidence(
+                profile,
+                job,
+                top_k=evidence_top_k,
+                evidence_projection=evidence_projection,
+            )
             if evidence:
                 evidence_selection_summary = _compact_mapping(
                     {

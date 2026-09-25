@@ -152,6 +152,85 @@ def test_run_all_validations_rejects_required_skill_without_verified_support() -
     assert any("required skill" in violation.lower() for violation in result["grounding_violations"])
 
 
+def test_run_all_validations_uses_structured_skills_for_requirement_grounding() -> None:
+    result = run_all_validations(
+        "## Skills\nSQL · Python\n",
+        {"skills": [{"name": "SQL"}, {"name": "Python"}], "experiences": [], "projects": []},
+        {
+            "required_cv_sections": ["Skills"],
+            "cv_max_pages": 2,
+            "cv": {"validation": {"allow_profile_skill_outside_selected_evidence": True}},
+        },
+        structured_cv={"sections": {"skills": {"groups": [{"items": ["SQL", "Python"]}]}}},
+        analysis_grounding={
+            "evidence_payload": [{"evidence_id": "ev-sql", "skills": ["SQL"]}],
+            "requirement_coverage": [
+                {
+                    "requirement": "Python",
+                    "canonical_skill": "python",
+                    "selected_support": "unsupported",
+                    "supporting_evidence_ids": [],
+                }
+            ],
+        },
+    )
+
+    assert any("Python" in violation for violation in result["grounding_violations"])
+
+
+def test_run_all_validations_accepts_matching_structured_requirement_support() -> None:
+    result = run_all_validations(
+        "## Skills\nPython\n",
+        {"skills": [{"name": "Python"}], "experiences": [], "projects": []},
+        {
+            "required_cv_sections": ["Skills"],
+            "cv_max_pages": 2,
+            "cv": {"validation": {"allow_profile_skill_outside_selected_evidence": True}},
+        },
+        structured_cv={"sections": {"skills": {"groups": [{"items": ["Python"]}]}}},
+        analysis_grounding={
+            "evidence_payload": [{"evidence_id": "ev-python", "skills": ["Python"]}],
+            "selected_evidence_ids": ["ev-python"],
+            "requirement_coverage": [
+                {
+                    "requirement": "Python",
+                    "canonical_skill": "python",
+                    "selected_support": "verified",
+                    "supporting_evidence_ids": ["ev-python"],
+                }
+            ],
+        },
+    )
+
+    assert result["grounding_violations"] == []
+
+
+def test_run_all_validations_rejects_requirement_support_id_with_wrong_skill() -> None:
+    result = run_all_validations(
+        "## Skills\nSQL\n",
+        {"skills": [{"name": "SQL"}], "experiences": [], "projects": []},
+        {
+            "required_cv_sections": ["Skills"],
+            "cv_max_pages": 2,
+            "cv": {"validation": {"allow_profile_skill_outside_selected_evidence": True}},
+        },
+        structured_cv={"sections": {"skills": {"groups": [{"items": ["SQL"]}]}}},
+        analysis_grounding={
+            "evidence_payload": [{"evidence_id": "ev-python", "skills": ["Python"]}],
+            "requirement_coverage": [
+                {
+                    "requirement": "SQL",
+                    "canonical_skill": "sql",
+                    "selected_support": "verified",
+                    "supporting_evidence_ids": ["ev-python"],
+                }
+            ],
+        },
+    )
+
+    assert any("SQL" in violation for violation in result["grounding_violations"])
+
+
 def test_check_employer_grounding_passes_known_employer() -> None:
     cv_text = "Engineer at ACME (2019–2022)"
     violations = check_employer_grounding(cv_text, known_employers=["ACME"])

@@ -23,6 +23,7 @@ from fitcv import evidence as evidence_module
 from fitcv.candidate import canonical_candidate_checksum
 from fitcv.config import apply_runtime_synonym_overlay
 from fitcv.evidence import (
+    build_required_skill_descriptors,
     build_profile_evidence_pool,
     project_candidate_evidence,
     retrieve_evidence,
@@ -193,6 +194,94 @@ def test_requirement_support_uses_explicit_canonical_skill_links() -> None:
         for evidence_ids in support["selected"].values()
         for evidence_id in evidence_ids
     )
+    assert set(support["canonical"]) == {"required_skill:sql", "required_skill:python"}
+
+
+def test_requirement_support_reports_canonical_retrieved_and_selected_layers() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"),
+        _cached_evidence_item("ev-python", ["Python"], "Built Python pipelines"),
+    )
+
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["SQL", "Python"]},
+        1,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": False}}},
+    )
+
+    support = bundle["requirement_support"]
+    assert support["canonical"] == support["pool"]
+    assert set(support["selected"]) <= set(support["pool"])
+
+
+def test_required_skill_descriptors_do_not_pair_reordered_arrays_by_position() -> None:
+    descriptors = build_required_skill_descriptors(
+        {
+            "required_skills": ["SQL", "Python"],
+            "required_skills_canonical": ["python", "sql"],
+        }
+    )
+
+    by_requirement = {item["requirement"]: item for item in descriptors}
+
+    assert by_requirement["SQL"]["canonical_skill"] == "sql"
+    assert by_requirement["Python"]["canonical_skill"] == "python"
+
+
+def test_required_skill_descriptors_collapse_raw_aliases_without_entities() -> None:
+    descriptors = build_required_skill_descriptors(
+        {"required_skills": ["SQL", "sql", "Python"]}
+    )
+
+    by_canonical = {item["canonical_skill"]: item for item in descriptors}
+
+    assert set(by_canonical) == {"sql", "python"}
+    assert by_canonical["sql"]["original_requirements"] == ["SQL", "sql"]
+
+
+def test_required_skill_descriptors_support_canonical_only_input() -> None:
+    descriptors = build_required_skill_descriptors(
+        {"required_skills_canonical": ["sql", "python"]}
+    )
+
+    assert [(item["requirement_id"], item["requirement"]) for item in descriptors] == [
+        ("required_skill:sql", "sql"),
+        ("required_skill:python", "python"),
+    ]
+
+
+def test_required_skill_descriptors_ignore_incomplete_entity_rows() -> None:
+    descriptors = build_required_skill_descriptors(
+        {
+            "required_skills": ["SQL", "Python"],
+            "required_skill_entities": [
+                {"raw_text": "SQL", "canonical": "sql"},
+                {"raw_text": "Python"},
+                {"canonical": ""},
+                "invalid",
+            ],
+        }
+    )
+
+    assert descriptors == [
+        {
+            "requirement_id": "required_skill:sql",
+            "requirement": "SQL",
+            "canonical_skill": "sql",
+            "original_requirements": ["SQL"],
+            "requirement_type": "required_skill",
+            "requirement_priority": "must_have",
+        },
+        {
+            "requirement_id": "required_skill:python",
+            "requirement": "Python",
+            "canonical_skill": "python",
+            "original_requirements": ["Python"],
+            "requirement_type": "required_skill",
+            "requirement_priority": "must_have",
+        },
+    ]
 
 
 def test_requirement_gain_preserves_global_budget_and_weight_zero_matches_baseline() -> None:
