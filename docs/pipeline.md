@@ -114,6 +114,52 @@ uv run python scripts/evaluate_requirement_support_live.py --input path/to/paire
 
 Live inputs must include one prompt and deterministic review rubric per baseline/FitCV variant. The evaluator makes exactly two calls per pair, records sanitized response metadata and provider usage, and reports baseline, FitCV, and `fitcv_minus_baseline` metrics separately. It does not repair or persist generated CV text.
 
+### RAG impact test-suite handoff — 2026-09-25
+
+Prepare the source-backed, sanitized corpus before any generation run:
+
+```powershell
+uv run python scripts/prepare_rag_impact_corpus.py --input data/linkedin-2026-09-25-22-54-17.json --base-fixture tests/fixtures/rag_impact_benchmark.json --output .tmp/rag-impact-derived-corpus.json --seed 20260925
+```
+
+Run offline contract and metric proof:
+
+```powershell
+uv run pytest -q tests/test_prepare_rag_impact_corpus.py tests/test_rag_impact_dataset.py tests/test_evaluate_requirement_support_live.py tests/test_compare_rag_impact.py tests/test_rag_impact_review_protocol.py tests/test_rag_impact_review_agents.py
+uv run python scripts/compare_rag_impact.py --help
+```
+
+Reviewer roles are `grounding-reviewer`, `recruiter-quality-reviewer`, and
+`review-adjudicator`. They receive blinded paired outputs, emit versioned JSON
+annotations, and never receive arm identity, raw CV text, or authority to alter
+outputs. See `docs/rag-impact-review-protocol.md` and
+`docs/rag-impact-review-agents.md`.
+
+Run existing deterministic benchmark arms separately from full-profile versus
+RAG generation impact. Use `scripts/compare_rag_impact.py` only when fixture,
+rubric, model/template, generation settings, and scenario fingerprints match.
+Failed calls, missing reviews, unresolved adjudication, and unavailable cost
+remain visible in reports and cannot improve gate decisions.
+
+Live execution requires explicit approval for provider/model, credential source,
+maximum spend, reviewer coverage, held-out lock, and raw-output handling. Keep
+the source and generated outputs outside Git; record hashes and sanitized
+metrics only. No live quality claim follows from offline or mocked output.
+
+Offline acceptance evidence from September 25, 2026: the focused suite passed
+35 tests. Corpus preparation produced source SHA-256
+`5f934050146069035b84ec186846de79056339892657dc2e615a4f84198f69c5`, exact
+splits of 10 development, 10 pilot, and 20 held-out cases, and corpus SHA-256
+`f293bba4979b35acf1f2215de0bd8f96c67a1d832d946eb2d0dd8725f37bec39`.
+Lexical ablation and requirement-aware arms each ran 50 measured runs with 5
+warmups, shared fixture SHA-256
+`d0ce5b4e52addfc1be2a107dd7900892e84733a34cc341ad003bdf6f102f7d40`, and
+`provider_calls: false`. Selected requirement recall was `0.933333` for
+ablation and `1.0` for requirement-aware; selected evidence-pair recall was
+`0.875` and `0.9375`. Existing validation cases passed `6/17` in both outputs;
+that fixture limitation is retained as a report caveat, not converted into a
+quality claim.
+
 ### Impact measurement result — 2026-09-25
 
 - Offline run used 16 independent scenarios, 50 measured runs, 5 warmups, and fixture SHA-256 `c35c1d9027809e8cad204e048e1c7d89c304013b22e98e91bc9404e9e6923c3c`.

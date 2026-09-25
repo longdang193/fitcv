@@ -132,16 +132,16 @@ review coverage is missing.
 - Branch: `codex/fitcv-rag-impact-test-suite`
 - Base commit: `d9c67ea03d4054e4fa06ae29adbf21fb715ae553`
 - Expected workspace: `new task-owned worktree from base; preserve current workspace changes outside this plan, including deleted legacy data files, untracked data/linkedin-2026-09-25-22-54-17.json, and existing untracked plans`
-- Next action: `dispatch Tasks 1–3 through scripts/herdr_main_launcher.py after branch, HEAD, worktree, and allowed-path preflight`
-- Blockers: `none for offline implementation; live provider execution remains gated`
+- Next action: `run Task 5 read-only acceptance review after Task 4 offline proof`
+- Blockers: `live provider execution remains gated; stale repository planning artifacts were bypassed by explicit user instruction on 2026-09-25`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 — Corpus contract | `pending` | task-owned Herdr worktree | `codex` | none | dataset contract tests | pending |
-| Task 2 — Paired evaluator | `pending` | task-owned Herdr worktree | `codex` | none | evaluator and metric tests | pending |
-| Task 3 — Blind review protocol | `pending` | task-owned Herdr worktree | `codex` | none | schema and documentation checks | pending |
-| Task 4 — Integration report | `pending` | lead controller worktree | `codex` | Tasks 1–3 | offline suite and report checks | pending |
-| Task 5 — Independent review and acceptance | `pending` | lead controller worktree | `codex` | Task 4 | review verdict and fresh final proof | pending |
+| Task 1 — Corpus contract | `completed` | task-owned Herdr worktree | `codex` | none | dataset contract tests | `ce72c448`; integrated as `66551285`; 25-test suite later passed |
+| Task 2 — Paired evaluator | `completed` | task-owned Herdr worktree | `codex` | none | evaluator and metric tests | `0b7ac288`; integrated as `43a9e65`; evaluator suite passed |
+| Task 3 — Blind review protocol | `completed` | task-owned Herdr worktree | `codex` | none | schema and documentation checks | `5dac8eb9`; integrated as `f267f6e0`; protocol suite passed |
+| Task 4 — Integration report | `completed` | lead controller worktree | `codex` | Tasks 1–3 | offline suite and report checks | `35 passed`; source SHA `5f934050146069035b84ec186846de79056339892657dc2e615a4f84198f69c5`; corpus SHA `f293bba4979b35acf1f2215de0bd8f96c67a1d832d946eb2d0dd8725f37bec39`; benchmark provider calls false; legacy validation 6/17 with limitation recorded |
+| Task 5 — Independent review and acceptance | `completed` | lead controller worktree | `codex` | Task 4 | review verdict and fresh final proof | `PASS`; 33 final tests passed; `git diff --check` passed; Herdr lanes done and workspaces closed; live provider gate remains explicit |
 
 Herdr dispatch rules:
 
@@ -201,38 +201,38 @@ Herdr dispatch rules:
 - Stop for: `candidate profile import, PII retention, credential use, provider calls, threshold changes outside the fixture, or edits outside owned paths`
 
 **Steps:**
-- [ ] Step 1: Compute and record the exact SHA-256 of
+- [x] Step 1: Compute and record the exact SHA-256 of
   `data/linkedin-2026-09-25-22-54-17.json`; fail closed when source hash changes
   without an explicit fixture refresh.
-- [ ] Step 2: Before lane edits, verify the source hash in the task-owned
+- [x] Step 2: Before lane edits, verify the source hash in the task-owned
   worktree. Keep the source file ignored and uncommitted; the derived fixture
   records only its hash and source job IDs.
-- [ ] Step 3: Normalize the 100 source records into an allowlisted job shape;
+- [x] Step 3: Normalize the 100 source records into an allowlisted job shape;
   redact URLs, emails, phone numbers, poster fields, scraper metadata, and
   application metadata before any record enters the derived fixture.
-- [ ] Step 4: Select exactly 40 jobs with deterministic seed `20260925`, split
+- [x] Step 4: Select exactly 40 jobs with deterministic seed `20260925`, split
   into 10 `development`, 10 `pilot`, and 20 `held_out` cases. Stratify on
   language signal, work mode, experience level, and description length; fail
   when any required stratum cannot be met.
-- [ ] Step 5: Preserve the existing fixture ID and schema lineage; add source
+- [x] Step 5: Preserve the existing fixture ID and schema lineage; add source
   hash, source job ID, corpus version, case difficulty, scenario rationale, and
   context-difference fields without changing approved evidence semantics.
-- [ ] Step 6: Add explicit labels for answerable requirements, approved
+- [x] Step 6: Add explicit labels for answerable requirements, approved
   evidence IDs, unsupported requirements, and expected context differences.
-- [ ] Step 7: Add thresholds: supported-qualification loss `<= 0.05`, reviewed
+- [x] Step 7: Add thresholds: supported-qualification loss `<= 0.05`, reviewed
   factual-precision loss `<= 0.02`, human quality loss `<= 0.25` points on a
   five-point scale, and generation-input reduction on at least `80%` of held-out
   pairs.
-- [ ] Step 8: Add validation for duplicate IDs, missing evidence links, split
+- [x] Step 8: Add validation for duplicate IDs, missing evidence links, split
   overlap, empty cases, source-hash drift, profile fingerprint drift,
   PII-like fields, required strata, exact split counts, and the minimum
   context-difference count.
-- [ ] Step 9: Add synthetic review-annotation examples covering accepted,
+- [x] Step 9: Add synthetic review-annotation examples covering accepted,
   rejected, disagreement, and unresolved-review states.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_prepare_rag_impact_corpus.py tests/test_rag_impact_dataset.py tests/test_evaluate_requirement_support_live.py`
-- [ ] `uv run python scripts/prepare_rag_impact_corpus.py --input data/linkedin-2026-09-25-22-54-17.json --base-fixture tests/fixtures/rag_impact_benchmark.json --output .tmp/rag-impact-derived-corpus.json --seed 20260925`
+- [x] `uv run pytest -q tests/test_prepare_rag_impact_corpus.py tests/test_rag_impact_dataset.py tests/test_evaluate_requirement_support_live.py`
+- [x] `uv run python scripts/prepare_rag_impact_corpus.py --input data/linkedin-2026-09-25-22-54-17.json --base-fixture tests/fixtures/rag_impact_benchmark.json --output .tmp/rag-impact-derived-corpus.json --seed 20260925`
 - Expected: fixture loads, fingerprints remain stable, splits do not overlap,
   source records are sanitized, exact split counts pass, context-difference
   minimum passes, and no provider code executes.
@@ -286,36 +286,36 @@ Herdr dispatch rules:
 - Stop for: `provider calls, credentials, production generation behavior changes, retrieval-default changes, raw output persistence, or edits outside owned paths`
 
 **Steps:**
-- [ ] Step 1: Preserve programmatic pairing through
+- [x] Step 1: Preserve programmatic pairing through
   `build_paired_inputs()`; reject hand-authored prompt pairs in fixture-driven
   mode and assert baseline/FitCV parity for model, template, settings, budget,
   fixture hash, and scenario ID.
-- [ ] Step 2: Keep every attempted call in denominators. Report attempted,
+- [x] Step 2: Keep every attempted call in denominators. Report attempted,
   succeeded, failed, first-pass accepted, final accepted, and unresolved review
   counts separately for each arm.
-- [ ] Step 3: Add human-review annotation loading by pair ID and variant,
+- [x] Step 3: Add human-review annotation loading by pair ID and variant,
   requiring rubric version, reviewer ID hash, score completeness, and explicit
   adjudication state. Do not expose reviewer identity or raw CV text in reports.
-- [ ] Step 4: Add paired quality metrics for requirement coverage, reviewed
+- [x] Step 4: Add paired quality metrics for requirement coverage, reviewed
   factual precision, human quality score, pairwise preference, and review
   agreement. Missing reviews remain visible and excluded from quality
   denominators.
-- [ ] Step 5: Add token scopes for generation input, generation total, and
+- [x] Step 5: Add token scopes for generation input, generation total, and
   workflow total. Keep actual cost, estimated cost, and unavailable cost as
   distinct fields.
-- [ ] Step 6: Add deterministic paired bootstrap intervals using seed
+- [x] Step 6: Add deterministic paired bootstrap intervals using seed
   `20260925`, `10_000` resamples, and scenario-level resampling. Report point
   deltas, interval bounds, sample counts, and zero-variance cases explicitly.
-- [ ] Step 7: Add `scripts/compare_rag_impact.py` to validate compatible
+- [x] Step 7: Add `scripts/compare_rag_impact.py` to validate compatible
   fixture/rubric/config fingerprints and emit one report with raw counts,
   arm-level metrics, FitCV-minus-baseline deltas, confidence intervals, gate
   decisions, and limitations.
-- [ ] Step 8: Ensure dry-run and all mocked tests make zero provider calls and
+- [x] Step 8: Ensure dry-run and all mocked tests make zero provider calls and
   never require credentials.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_evaluate_requirement_support_live.py tests/test_compare_rag_impact.py`
-- [ ] `uv run python scripts/evaluate_requirement_support_live.py --input .tmp/paired-evaluation.json --output .tmp/live-dry-run.json`
+- [x] `uv run pytest -q tests/test_evaluate_requirement_support_live.py tests/test_compare_rag_impact.py`
+- [x] `uv run python scripts/evaluate_requirement_support_live.py --input .tmp/paired-evaluation.json --output .tmp/live-dry-run.json`
 - Expected: deterministic and mocked live tests pass; failed calls remain in
   denominators; missing cost does not erase quality or token metrics; bootstrap
   output is reproducible; dry-run performs no provider call.
@@ -368,37 +368,37 @@ Herdr dispatch rules:
 - Stop for: `real candidate data, raw generated CV publication, reviewer identity data, provider calls, or edits to evaluator implementation`
 
 **Steps:**
-- [ ] Step 1: Define rubric version `rag-human-review-v1` with five-point
+- [x] Step 1: Define rubric version `rag-human-review-v1` with five-point
   scores for requirement relevance, factual accuracy, completeness, readability,
   and recruiter usefulness.
-- [ ] Step 2: Define pairwise preference, confidence, issue tags, reviewer
+- [x] Step 2: Define pairwise preference, confidence, issue tags, reviewer
   notes, and `adjudication_status` values `single_review`, `adjudicated`, and
   `unresolved`.
-- [ ] Step 3: Require blinded arm labels, stable pair IDs, fixture hash,
+- [x] Step 3: Require blinded arm labels, stable pair IDs, fixture hash,
   evaluator version, and rubric version in every annotation record.
-- [ ] Step 4: Define reviewer workflow: independent scoring first, disagreement
+- [x] Step 4: Define reviewer workflow: independent scoring first, disagreement
   detection second, adjudication third, unresolved retention fourth.
-- [ ] Step 5: Define privacy handling: raw CV text remains in an access-
+- [x] Step 5: Define privacy handling: raw CV text remains in an access-
   controlled untracked artifact; tracked examples use synthetic text only;
   reports contain hashes and scores, not names, email addresses, or raw output.
-- [ ] Step 6: Define `grounding-reviewer` input, output, and failure contract:
+- [x] Step 6: Define `grounding-reviewer` input, output, and failure contract:
   blinded pair artifact, approved evidence map, claim list, evidence IDs,
   unsupported-claim flags, confidence, and `review_status`.
-- [ ] Step 7: Define `recruiter-quality-reviewer` contract: blinded pair
+- [x] Step 7: Define `recruiter-quality-reviewer` contract: blinded pair
   artifact, job rubric, five-point dimension scores, pairwise preference,
   issue tags, confidence, and no arm-identifying fields.
-- [ ] Step 8: Define `review-adjudicator` contract: disagreement records only,
+- [x] Step 8: Define `review-adjudicator` contract: disagreement records only,
   reviewer annotations, decision rationale, selected score or `unresolved`,
   and no ability to alter source outputs.
-- [ ] Step 9: Define Herdr dispatch inputs and receipts for each reviewer agent:
+- [x] Step 9: Define Herdr dispatch inputs and receipts for each reviewer agent:
   exact run ID, fixture/rubric fingerprints, read-only artifact path, allowed
   output path, timeout, and delivery status. Runtime sessions remain
   disposable; annotations and receipts remain durable evidence.
 
 **Verification:**
-- [ ] `uv run python -c "import json; json.load(open('tests/fixtures/rag_impact_review_annotations.example.json', encoding='utf-8')); print('ok')"`
-- [ ] `uv run python -c "import json; json.load(open('tests/fixtures/rag_impact_review_agent_outputs.example.json', encoding='utf-8')); print('ok')"`
-- [ ] `uv run pytest -q tests/test_rag_impact_review_protocol.py tests/test_rag_impact_review_agents.py`
+- [x] `uv run python -c "import json; json.load(open('tests/fixtures/rag_impact_review_annotations.example.json', encoding='utf-8')); print('ok')"`
+- [x] `uv run python -c "import json; json.load(open('tests/fixtures/rag_impact_review_agent_outputs.example.json', encoding='utf-8')); print('ok')"`
+- [x] `uv run pytest -q tests/test_rag_impact_review_protocol.py tests/test_rag_impact_review_agents.py`
 - Expected: example annotation JSON is valid and contract assertions reject
   unblinded, incomplete, mismatched, or unresolved-as-accepted records;
   reviewer-agent outputs contain no raw CV text or arm identity.
@@ -449,25 +449,25 @@ Herdr dispatch rules:
 - Stop for: `provider calls, credential use, real-data import, push, merge, production retrieval changes, or unresolved lane conflicts`
 
 **Steps:**
-- [ ] Step 1: Reconcile lane commits against base and reject out-of-scope
+- [x] Step 1: Reconcile lane commits against base and reject out-of-scope
   changes, stale-head evidence, missing Herdr delivery evidence, and plan/Git
   mismatches.
-- [ ] Step 2: Document fixture preparation, dry-run, mocked live, review
+- [x] Step 2: Document fixture preparation, dry-run, mocked live, review
   annotation, reviewer-agent dispatch, statistical comparison, and final
   report commands in `docs/pipeline.md`.
-- [ ] Step 3: Document the live gate: provider/model, credential source,
+- [x] Step 3: Document the live gate: provider/model, credential source,
   maximum spend, reviewer approval, held-out lock, and no raw output commit.
-- [ ] Step 4: Run offline benchmark arms and the new suite with fixed fixture,
+- [x] Step 4: Run offline benchmark arms and the new suite with fixed fixture,
   rubric, and configuration fingerprints. Run reviewer agents against mocked
   paired outputs before any live provider call.
-- [ ] Step 5: Record actual results, limitations, and deferred decisions in the
+- [x] Step 5: Record actual results, limitations, and deferred decisions in the
   plan without claiming live quality evidence.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_prepare_rag_impact_corpus.py tests/test_rag_impact_dataset.py tests/test_evaluate_requirement_support_live.py tests/test_compare_rag_impact.py tests/test_benchmark_requirement_support.py`
-- [ ] `uv run python scripts/benchmark_requirement_support.py --arm lexical-ablation --runs 50 --warmups 5 --output .tmp/rag-impact-lexical-ablation.json`
-- [ ] `uv run python scripts/benchmark_requirement_support.py --arm lexical-requirement-aware --runs 50 --warmups 5 --output .tmp/rag-impact-lexical-requirement-aware.json`
-- [ ] `git diff --check`
+- [x] `uv run pytest -q tests/test_prepare_rag_impact_corpus.py tests/test_rag_impact_dataset.py tests/test_evaluate_requirement_support_live.py tests/test_compare_rag_impact.py tests/test_benchmark_requirement_support.py`
+- [x] `uv run python scripts/benchmark_requirement_support.py --arm lexical-ablation --runs 50 --warmups 5 --output .tmp/rag-impact-lexical-ablation.json`
+- [x] `uv run python scripts/benchmark_requirement_support.py --arm lexical-requirement-aware --runs 50 --warmups 5 --output .tmp/rag-impact-lexical-requirement-aware.json`
+- [x] `git diff --check`
 - Expected: all offline checks pass, reports share fingerprints, no provider
   call occurs, and only owned files change.
 
@@ -516,21 +516,21 @@ Herdr dispatch rules:
 - Stop for: `editing implementation files, changing thresholds, provider calls, credential use, push, merge, or cleanup before lane retirement proof`
 
 **Steps:**
-- [ ] Step 1: Check every outcome against source, tests, fixture, and report
+- [x] Step 1: Check every outcome against source, tests, fixture, and report
   evidence; treat unchecked boxes as unproven.
-- [ ] Step 2: Confirm deterministic and human metrics remain separate and that
+- [x] Step 2: Confirm deterministic and human metrics remain separate and that
   missing cost/review data cannot produce a false positive.
-- [ ] Step 3: Confirm no raw outputs, credentials, PII, or provider payloads
+- [x] Step 3: Confirm no raw outputs, credentials, PII, or provider payloads
   entered tracked files.
-- [ ] Step 4: Confirm Herdr delivery receipts, branch/base/head identity, lane
+- [x] Step 4: Confirm Herdr delivery receipts, branch/base/head identity, lane
   retirement, and worktree release evidence.
-- [ ] Step 5: Run final verification and return `PASS`, `FAIL`, or `BLOCKED`
+- [x] Step 5: Run final verification and return `PASS`, `FAIL`, or `BLOCKED`
   with path-and-line evidence.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_rag_impact_dataset.py tests/test_evaluate_requirement_support_live.py tests/test_compare_rag_impact.py tests/test_benchmark_requirement_support.py`
-- [ ] `git diff --check`
-- [ ] `git status --short --branch`
+- [x] `uv run pytest -q tests/test_rag_impact_dataset.py tests/test_evaluate_requirement_support_live.py tests/test_compare_rag_impact.py tests/test_benchmark_requirement_support.py`
+- [x] `git diff --check`
+- [x] `git status --short --branch`
 - Expected: fresh checks pass, review finds no unresolved required scope, and
   worktree contains only accepted changes plus declared ignored artifacts.
 
