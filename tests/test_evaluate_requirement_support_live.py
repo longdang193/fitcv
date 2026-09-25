@@ -72,4 +72,45 @@ def test_provider_usage_extracts_optional_metadata() -> None:
     module = _module()
 
     assert module.extract_provider_usage({"usage": {"total_tokens": 12}})["total_tokens"] == 12
+    assert module.extract_provider_usage({"usage": {"input_tokens": 7, "output_tokens": 5}}) == {
+        "prompt_tokens": 7,
+        "completion_tokens": 5,
+        "total_tokens": None,
+        "cost": None,
+        "available": True,
+    }
     assert module.extract_provider_usage({})["available"] is False
+
+
+def test_live_mode_reports_paired_variant_metrics(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _module()
+    payload = _payload()
+    payload["pairs"][0]["baseline"].update(
+        {"prompt": "baseline", "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"]}]}}
+    )
+    payload["pairs"][0]["fitcv"].update(
+        {"prompt": "fitcv", "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"]}]}}
+    )
+
+    def fake_call(prompt: str, provider: dict[str, Any], environ: dict[str, str]) -> dict[str, Any]:
+        return {
+            "status": "succeeded",
+            "text": "SQL",
+            "output_sha256": "hash",
+            "output_chars": 3,
+            "latency_ms": 1,
+            "attempt_count": 1,
+            "response_id_present": True,
+            "usage": {"available": True, "total_tokens": 10},
+        }
+
+    monkeypatch.setattr(module, "_call_provider", fake_call)
+    result = module.evaluate(
+        payload,
+        dry_run=False,
+        environ={"FITCV_TEST_PROVIDER_KEY": "configured"},
+    )
+
+    assert result["provider_calls"] == 2
+    assert result["metrics"]["by_variant"]["baseline"]["final_acceptance"] == 1.0
+    assert result["metrics"]["fitcv_minus_baseline"]["final_acceptance"] == 0.0

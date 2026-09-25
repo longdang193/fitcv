@@ -89,13 +89,23 @@ uv run python scripts/evaluate_requirement_support_live.py --input path/to/paire
 
 Dry-run validates fixture, scenario, model, template, generation settings, and output-budget parity without provider calls. Do not report final generated-CV quality, provider token usage, or retrieval optimization gains from offline benchmark output alone.
 
+Authorized live paired evaluation:
+
+```powershell
+$env:FITCV_LLM_API_KEY = '<load from local .env without printing it>'
+uv run python scripts/evaluate_requirement_support_live.py --input path/to/paired-evaluation.json --output .tmp/live-result.json --live
+```
+
+Live inputs must include one prompt and deterministic review rubric per baseline/FitCV variant. The evaluator makes exactly two calls per pair, records sanitized response metadata and provider usage, and reports baseline, FitCV, and `fitcv_minus_baseline` metrics separately. It does not repair or persist generated CV text.
+
 ### Impact measurement result — 2026-09-25
 
 - Offline run used 16 independent scenarios, 50 measured runs, 5 warmups, and fixture SHA-256 `c35c1d9027809e8cad204e048e1c7d89c304013b22e98e91bc9404e9e6923c3c`.
 - FitCV selected requirement recall `1.0` and evidence-pair recall `0.9375`; conventional baseline and ablation reached `0.933333` and `0.875`. A/C and B/C deltas were `+0.066667` and `+0.0625`; C/D deltas were `0.0`.
 - Explicit-link arms reported assignment precision `1.0`; conventional baseline precision is `not_applicable`. No incorrect pairs appeared.
-- Offline gate passed. Live generation remains deferred because this harness has no provider adapter and no approved credential, cost ceiling, or independent reviewer run. No final-CV quality claim is made.
-- Next action: obtain explicit live-evaluation approval and provider configuration; leave production retrieval and selection defaults unchanged until live evidence is measured.
+- Offline gate passed. Authorized live run used 6 paired scenarios, 12 provider calls, model `cx/gpt-5.6-luna`, and fixture SHA-256 `c35c1d9027809e8cad204e048e1c7d89c304013b22e98e91bc9404e9e6923c3c`.
+- Live result: baseline and FitCV both reached requirement coverage `1.0`, unsupported factual claim rate `0.0`, first-pass acceptance `1.0`, and final acceptance `1.0`; FitCV minus baseline was `0.0` for each metric. Provider usage reported `34,965` total tokens; cost was unavailable.
+- Live review uses `deterministic_fixture_rubric_v1`, so results measure fixture-term coverage and marked unsupported claims, not human stylistic quality. Keep production retrieval and selection defaults unchanged; next optimization requires a live workload where offline selection differs.
 
 ## Location And Language Eligibility
 

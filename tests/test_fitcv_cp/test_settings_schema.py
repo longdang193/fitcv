@@ -1408,7 +1408,7 @@ def test_cv_settings_have_correct_group():
 def test_cv_settings_defaults():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["cv_preset"]["default"] == "europass"
-    assert schema_by_key["cv_generation_model"]["default"] == "cx/gpt-5.4-mini"
+    assert schema_by_key["cv_generation_model"]["default"] == "cx/gpt-5.6-luna"
     assert schema_by_key["cv_max_pages"]["default"] == 2
 
 
@@ -1733,9 +1733,9 @@ def test_apply_settings_to_config_cv_generation_nested():
     """@proves settings_system.cv-generation-settings"""
     config: dict = {}
     apply_settings_to_config(config, {
-        "cv_generation_model": "cx/gpt-5.4-mini",
+        "cv_generation_model": "cx/gpt-5.6-luna",
     })
-    assert config["cv"]["generation"]["model"] == "cx/gpt-5.4-mini"
+    assert config["cv"]["generation"]["model"] == "cx/gpt-5.6-luna"
 
 
 def test_apply_settings_to_config_cv_preset_with_existing_cv_structure():
@@ -1750,7 +1750,7 @@ def test_valid_cv_preset_group_payload_passes():
     """All cv-preset group fields pass validation together."""
     validate_settings({
         "cv_preset": "europass",
-        "cv_generation_model": "cx/gpt-5.4-mini",
+        "cv_generation_model": "cx/gpt-5.6-luna",
     })  # must not raise
 
 
@@ -1777,14 +1777,14 @@ def test_cv_preset_defaults_match_cv_yaml():
 
 def test_cv_generation_model_default_uses_25_flash():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_generation_model"]["default"] == "cx/gpt-5.4-mini"
+    assert schema_by_key["cv_generation_model"]["default"] == "cx/gpt-5.6-luna"
 
 
 def test_cv_generation_model_options_are_constrained() -> None:
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["cv_generation_model"]["options"] == [
         "cx/gpt-5.2",
-        "cx/gpt-5.4-mini",
+        "cx/gpt-5.6-luna",
         "cx/gpt-5.5",
     ]
 
