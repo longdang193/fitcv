@@ -64,6 +64,8 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 
 - `evaluation_schema_version: 1` fixtures keep approved requirement–evidence pairs, unsupported requirements, validation cases, and scenario IDs in one source of truth
 - requirement recall counts requirements with at least one valid approved supporter; evidence-pair recall counts approved requirement–evidence pairs; alternative-pair loss does not trigger pool expansion when requirement recall remains complete
+- four offline arms answer separate questions: `lexical-baseline` is conventional lexical top-k, `lexical-ablation` disables requirement gain while retaining FitCV selection terms, `lexical-requirement-aware` is FitCV lexical selection, and `current-hash` enables current hash-based channels
+- per-scenario reports include micro and macro coverage, retrieval-to-selection loss, explicit-link precision, selected item count, prompt cost estimates, and validation case results; zero-support scenarios use `not_applicable`
 - benchmark validation consumes `analyze_ranked_job()` `requirement_coverage` and passes it unchanged to `run_all_validations()`; simplified support rows are not valid benchmark evidence
 - CI smoke runs use `--runs 5 --warmups 1`; local comparisons use `--runs 50 --warmups 5`
 - `generation_prompt_build_ms` measures `build_generation_prompt()`; `benchmark_payload_serialization_ms` is reported separately; prompt bytes and estimated tokens are local estimates, not provider usage
@@ -72,12 +74,28 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 Example local probes:
 
 ```powershell
-uv run python scripts/benchmark_requirement_support.py --arm current-hash --pool-size 4 --runs 50 --warmups 5 --output "$env:TEMP/fitcv-current-hash.json"
-uv run python scripts/benchmark_requirement_support.py --arm lexical --pool-size 4 --runs 50 --warmups 5 --output "$env:TEMP/fitcv-lexical-4.json"
-uv run python scripts/benchmark_requirement_support.py --arm lexical --pool-size 8 --runs 50 --warmups 5 --output "$env:TEMP/fitcv-lexical-8.json"
+uv run python scripts/benchmark_requirement_support.py --arm lexical-baseline --runs 50 --warmups 5 --output .tmp/impact-lexical-baseline.json
+uv run python scripts/benchmark_requirement_support.py --arm lexical-ablation --runs 50 --warmups 5 --output .tmp/impact-lexical-ablation.json
+uv run python scripts/benchmark_requirement_support.py --arm lexical-requirement-aware --runs 50 --warmups 5 --output .tmp/impact-fitcv.json
+uv run python scripts/benchmark_requirement_support.py --arm current-hash --runs 50 --warmups 5 --output .tmp/impact-current-hash.json
+uv run python scripts/compare_requirement_support.py --inputs .tmp/impact-lexical-baseline.json,.tmp/impact-lexical-ablation.json,.tmp/impact-fitcv.json,.tmp/impact-current-hash.json --output .tmp/fitcv-impact-report.json
 ```
 
-Do not report final generated-CV quality, provider token usage, or retrieval optimization gains from this offline benchmark alone.
+Dry-run paired live evaluation after offline acceptance:
+
+```powershell
+uv run python scripts/evaluate_requirement_support_live.py --input path/to/paired-evaluation.json --output .tmp/live-dry-run.json
+```
+
+Dry-run validates fixture, scenario, model, template, generation settings, and output-budget parity without provider calls. Do not report final generated-CV quality, provider token usage, or retrieval optimization gains from offline benchmark output alone.
+
+### Impact measurement result — 2026-09-25
+
+- Offline run used 16 independent scenarios, 50 measured runs, 5 warmups, and fixture SHA-256 `c35c1d9027809e8cad204e048e1c7d89c304013b22e98e91bc9404e9e6923c3c`.
+- FitCV selected requirement recall `1.0` and evidence-pair recall `0.9375`; conventional baseline and ablation reached `0.933333` and `0.875`. A/C and B/C deltas were `+0.066667` and `+0.0625`; C/D deltas were `0.0`.
+- Explicit-link arms reported assignment precision `1.0`; conventional baseline precision is `not_applicable`. No incorrect pairs appeared.
+- Offline gate passed. Live generation remains deferred because this harness has no provider adapter and no approved credential, cost ceiling, or independent reviewer run. No final-CV quality claim is made.
+- Next action: obtain explicit live-evaluation approval and provider configuration; leave production retrieval and selection defaults unchanged until live evidence is measured.
 
 ## Location And Language Eligibility
 
