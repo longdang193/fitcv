@@ -375,7 +375,7 @@ def test_merge_scraped_and_enriched_uses_config_model() -> None:
     enriched = {}
     config = {"ai_score_model": "cx/gpt-5.4-mini", "enrichment_version": "v1"}
     merged = merge_scraped_and_enriched(scraped, enriched, config=config)
-    assert merged["enrichment_model"] == "cx/gpt-5.4-mini"
+    assert merged["enrichment_model"] == "cx/gpt-5.6-luna"
     assert merged["enrichment_version"] == "v1"
 
 

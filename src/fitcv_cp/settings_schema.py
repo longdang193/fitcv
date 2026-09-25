@@ -29,7 +29,7 @@ class ValidationError(ValueError):
 
 _CV_GENERATION_MODELS = [
     "cx/gpt-5.2",
-    "cx/gpt-5.4-mini",
+    "cx/gpt-5.6-luna",
     "cx/gpt-5.5",
 ]
 _CV_PRESET_OPTIONS = sorted(SUPPORTED_PRESETS)
@@ -501,7 +501,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "cv_generation_model",
         "type": "str",
-        "default": "cx/gpt-5.4-mini",
+        "default": "cx/gpt-5.6-luna",
         "label": "CV Generation Model",
         "description": "Choose the model that writes final CV content for future runs.",
         "options": _CV_GENERATION_MODELS,

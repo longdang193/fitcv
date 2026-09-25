@@ -23,25 +23,25 @@ control_plane:
     parts:
       candidate_profile_base_mapping:
         provider: openai_compatible
-        model: cx/gpt-5.4-mini
+        model: cx/gpt-5.6-luna
       candidate_profile_derived_claims:
         provider: openai_compatible
-        model: cx/gpt-5.4-mini
+        model: cx/gpt-5.6-luna
       enrich_extraction:
         provider: openai_compatible
         # model: ds/deepseek-v4-flash
-        model: cx/gpt-5.4-mini
+        model: cx/gpt-5.6-luna
       ranking_ai_score:
         provider: openai_compatible
         # model: ds/deepseek-v4-flash
-        model: cx/gpt-5.4-mini
+        model: cx/gpt-5.6-luna
       cv_generation_structured_write:
         provider: openai_compatible
         # model: ds/deepseek-v4-flash
-        model: cx/gpt-5.4-mini
+        model: cx/gpt-5.6-luna
       synonym_triage_recommendation:
         provider: openai_compatible
-        model: cx/gpt-5.4-mini
+        model: cx/gpt-5.6-luna
     task_overrides: {}
 
   observability:

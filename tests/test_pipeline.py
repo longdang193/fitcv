@@ -1311,7 +1311,7 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
     ranking_summary = artifacts["stages"]["ranking"]["decision_summary"]
     assert ranking_summary["ranking_prompt_id"] == "ranking.ai_score.v1"
     assert ranking_summary["ranking_prompt_template_path"] == "ranking_ai_score_v1.md"
-    assert ranking_summary["ai_score_model"] == "cx/gpt-5.4-mini"
+    assert ranking_summary["ai_score_model"] == "cx/gpt-5.6-luna"
     assert ranking_summary["ranking_prompt_customized"] is True
     assert ranking_summary["ranking_prompt_replacement_sha256"] == expected_hash
     assert ranking_summary["ranking_prompt_replacement_char_count"] == len(prompt_replacement)
@@ -5977,7 +5977,7 @@ def test_build_stage_transition_artifacts_enrich_decision_summary_includes_promp
     enrich_summary = artifacts["stages"]["enrich"]["decision_summary"]
     assert enrich_summary["enrich_prompt_id"] == "enrich.extraction.v1"
     assert enrich_summary["enrich_prompt_version"] == "v1"
-    assert enrich_summary["enrich_prompt_model"] == "cx/gpt-5.4-mini"
+    assert enrich_summary["enrich_prompt_model"] == "cx/gpt-5.6-luna"
 
 
 def test_build_stage_transition_artifacts_rule_filter_includes_marks_and_selected_filters() -> None:
