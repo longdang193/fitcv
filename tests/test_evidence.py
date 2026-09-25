@@ -215,6 +215,42 @@ def test_requirement_support_reports_canonical_retrieved_and_selected_layers() -
     assert set(support["selected"]) <= set(support["pool"])
 
 
+def test_semantic_alignment_reports_actual_embedding_backend() -> None:
+    profile = _cached_evidence_profile(_cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"))
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["SQL"]},
+        1,
+        config={
+            "cv_analysis": {
+                "semantic_alignment": {
+                    "enabled": True,
+                    "model": "text-embedding-005",
+                }
+            }
+        },
+    )
+
+    backend = bundle["semantic_alignment"]["embedding_backend"]
+    assert backend["backend_id"] == "sqlite_deterministic_local"
+    assert backend["configured_model"] == "text-embedding-005"
+    assert backend["dimension"] > 0
+    assert backend["contract_fingerprint"]
+
+
+def test_disabled_semantic_alignment_reports_no_embedding_backend() -> None:
+    profile = _cached_evidence_profile(_cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"))
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["SQL"]},
+        1,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": False}}},
+    )
+
+    assert bundle["semantic_alignment"]["embedding_backend"]["backend_id"] == "disabled"
+    assert bundle["semantic_alignment"]["embedding_backend"]["dimension"] is None
+
+
 def test_required_skill_descriptors_do_not_pair_reordered_arrays_by_position() -> None:
     descriptors = build_required_skill_descriptors(
         {

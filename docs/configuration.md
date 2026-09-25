@@ -223,6 +223,16 @@ This matrix defines current SSOT ownership for migration execution.
 
 Canonical policy owner in this lane: `config/policy/cv.yaml` key `cv_acceptance_policy`.
 
+### CV-analysis Semantic Alignment
+
+Canonical owner: `config/policy/cv_analysis.yaml`.
+
+- `cv_analysis.semantic_alignment.enabled` enables semantic channel scoring for CV analysis only
+- `cv_analysis.semantic_alignment.model` records configured model intent; current runtime diagnostics identify the actual backend as deterministic local/hash output from `src/fitcv/embeddings.py:generate_embedding`
+- `cv_analysis.semantic_alignment.channel_pool_size` bounds each retrieval channel before merge and global selection
+- disabling semantic alignment forces lexical-only channel scoring without changing shortlist embeddings or persisted shortlist contracts
+- compare retrieval arms offline with `uv run python scripts/benchmark_requirement_support.py`; fixture truth lives in `tests/fixtures/requirement_support_benchmark.json`
+
 Policy meaning:
 
 - `required_match.min_ratio_by_fit.<fit>`: minimum `matched_required / matchable_required_count` ratio to remain eligible for auto-accept.

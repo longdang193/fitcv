@@ -21,6 +21,8 @@ from fitcv.embeddings import (
     EMBEDDING_FAILURE_POLICY_RAISE,
     FRESH_EMBEDDING_STATUS,
     REUSED_CACHED_EMBEDDING_STATUS,
+    SQLITE_EMBED_DIM,
+    build_embedding_backend_metadata,
     build_embedding_contract_fingerprint,
     build_candidate_chunks,
     build_job_summary_chunk,
@@ -160,6 +162,16 @@ class TestBuildEmbeddingContractFingerprint:
         second = build_embedding_contract_fingerprint({"shortlist_embedding_model": "text-embedding-004"})
 
         assert first["fingerprint"] != second["fingerprint"]
+
+    def test_backend_metadata_reports_local_backend_and_contract(self) -> None:
+        metadata = build_embedding_backend_metadata({}, configured_model="text-embedding-005")
+
+        assert metadata == {
+            "backend_id": "sqlite_deterministic_local",
+            "configured_model": "text-embedding-005",
+            "dimension": SQLITE_EMBED_DIM,
+            "contract_fingerprint": build_embedding_contract_fingerprint({})["fingerprint"],
+        }
 
 
 

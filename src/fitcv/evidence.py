@@ -53,7 +53,7 @@ from fitcv.contracts import (
     RESPONSIBILITY_ALIGNMENT_CHANNEL,
     ROLE_ALIGNMENT_CHANNEL,
 )
-from fitcv.embeddings import generate_embedding
+from fitcv.embeddings import build_embedding_backend_metadata, generate_embedding
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
@@ -2145,6 +2145,19 @@ def retrieve_evidence_bundle(
         "semantic_methods": _semantic_methods(bool(semantic_settings["enabled"])),
         "reuse_state": _semantic_reuse_state(runtime_state),
         "embedding_counts": _semantic_embedding_counts(runtime_state),
+        "embedding_backend": (
+            build_embedding_backend_metadata(
+                config or {},
+                configured_model=str(semantic_settings["model"]),
+            )
+            if bool(semantic_settings["enabled"])
+            else {
+                "backend_id": "disabled",
+                "configured_model": str(semantic_settings["model"]),
+                "dimension": None,
+                "contract_fingerprint": None,
+            }
+        ),
     }
     for item in selected_evidence:
         item["semantic_alignment"] = dict(semantic_alignment)
