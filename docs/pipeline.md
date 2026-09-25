@@ -71,6 +71,22 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - `generation_prompt_build_ms` measures `build_generation_prompt()`; `benchmark_payload_serialization_ms` is reported separately; prompt bytes and estimated tokens are local estimates, not provider usage
 - historical comparison uses `scripts/benchmark_requirement_support_legacy.py` at `7263fba` and `scripts/compare_requirement_support.py`; historical validation semantics are reported as not comparable rather than inferred
 
+Full-profile versus RAG impact measurement uses `tests/fixtures/rag_impact_benchmark.json`.
+The fixture freezes one approved profile, development/pilot/held-out job splits,
+requirement-to-evidence labels, claim-review policy, thresholds, and a profile
+fingerprint. `scripts/evaluate_requirement_support_live.py:build_paired_inputs`
+calls `analyze_ranked_job()` for the FitCV arm, projects selected evidence into
+arm-authorized profile context, and builds both prompts from the same job. It
+does not accept manually authored prompts when fixture-driven pairing is used.
+
+Requirement coverage counts only answerable requirements with approved evidence
+IDs. Factual precision counts reviewed factual claims; unreviewed claim
+candidates remain in the review queue and stay out of the precision denominator.
+Provider failures remain in attempted-call and accepted-CV denominators. Missing
+cost telemetry reports unavailable cost without discarding quality or token
+metrics. Generation-input tokens, total generation tokens, and total workflow
+tokens remain separate scopes.
+
 Example local probes:
 
 ```powershell

@@ -143,6 +143,7 @@ class LlmTaskRequest:
     schema_name: str | None = None
     schema: dict[str, Any] | None = None
     schema_strict: bool = True
+    max_output_tokens: int | None = None
 
 
 @dataclass(frozen=True)
@@ -384,6 +385,8 @@ def _validate_request(request: LlmTaskRequest) -> None:
             raise ValueError("schema is required for json_schema")
     elif request.schema_name is not None or request.schema is not None:
         raise ValueError("schema fields are only valid for json_schema")
+    if request.max_output_tokens is not None and request.max_output_tokens <= 0:
+        raise ValueError("max_output_tokens must be positive")
 
 
 def _provenance(
@@ -642,6 +645,8 @@ def _openai_compatible_adapter(
             if route.wire_api == "responses":
                 attempts += 1
                 payload: dict[str, Any] = {"model": route.model, "input": request.prompt}
+                if request.max_output_tokens is not None:
+                    payload["max_output_tokens"] = request.max_output_tokens
                 if request.instructions:
                     payload["instructions"] = request.instructions
                 response_format = _response_format(request, responses_api=True)
@@ -741,6 +746,8 @@ def _chat_payload(request: LlmTaskRequest, route: LlmRouting) -> dict[str, Any]:
         "messages": messages,
         "temperature": route.temperature,
     }
+    if request.max_output_tokens is not None:
+        payload["max_tokens"] = request.max_output_tokens
     response_format = _response_format(request, responses_api=False)
     if response_format is not None:
         payload["response_format"] = response_format
@@ -761,7 +768,7 @@ def _anthropic_messages_adapter(
     }
     payload: dict[str, Any] = {
         "model": route.model,
-        "max_tokens": 4096,
+        "max_tokens": request.max_output_tokens or 4096,
         "temperature": route.temperature,
         "messages": [{"role": "user", "content": request.prompt}],
     }

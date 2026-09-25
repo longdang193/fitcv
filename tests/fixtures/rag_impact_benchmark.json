@@ -1,0 +1,65 @@
+{
+  "evaluation_schema_version": 2,
+  "fixture_id": "fitcv-rag-impact-2026-09-25",
+  "candidate_profile": {
+    "schema_version": "candidate-profile.v2",
+    "name": "Alex Morgan",
+    "contact": {"email": "alex@example.test", "location": "Berlin, DE"},
+    "summary": "Data engineer focused on reliable analytics systems.",
+    "experiences": [
+      {"id": "exp-platform", "role": "Data Engineer", "company": "Northstar", "evidence": [{"id": "ev-platform-sql", "kind": "experience", "title": "SQL platform", "text": "Built SQL data pipelines in Python and maintained production reporting."}]},
+      {"id": "exp-cloud", "role": "Analytics Engineer", "company": "Contoso", "evidence": [{"id": "ev-cloud", "kind": "experience", "title": "Cloud analytics", "text": "Automated cloud data quality checks and stakeholder dashboards."}]}
+    ],
+    "education": [{"id": "edu-1", "degree": "BSc Computer Science", "institution": "Example University", "field": "Computer Science", "start": "2015", "end": "2019", "evidence": [{"id": "ev-education", "kind": "education", "title": "BSc Computer Science", "text": "BSc Computer Science, Example University."}]}],
+    "certifications": [{"id": "cert-1", "name": "AWS Certified Cloud Practitioner", "issuer": "AWS", "year": "2022", "evidence": [{"id": "ev-cert", "kind": "certification", "title": "AWS certification", "text": "AWS Certified Cloud Practitioner, 2022."}]}],
+    "languages": [{"id": "lang-1", "name": "English", "level": "C1", "evidence": [{"id": "ev-language", "kind": "language", "title": "English", "text": "English C1."}]}],
+    "projects": [{"id": "project-1", "name": "Demand Forecasting", "evidence": [{"id": "ev-forecast", "kind": "project", "title": "Demand Forecasting", "text": "Created Python forecasting workflow for inventory planning."}]}]
+  },
+  "profile_sha256": "6b1effc52b1f2ef8bbf0a89005b27256e63ca232f8dc1d443fc95b2fd8c52503",
+  "requirement_labels": {
+    "required_skill:sql": {"canonical_requirement": "SQL", "answerable": true, "approved_evidence_ids": ["ev-platform-sql"]},
+    "required_skill:python": {"canonical_requirement": "Python", "answerable": true, "approved_evidence_ids": ["ev-platform-sql", "ev-forecast"]},
+    "required_skill:aws": {"canonical_requirement": "AWS", "answerable": true, "approved_evidence_ids": ["ev-cert"]},
+    "required_skill:kubernetes": {"canonical_requirement": "Kubernetes", "answerable": false, "approved_evidence_ids": []}
+  },
+  "claim_review_policy": {
+    "version": "claim-review-v1",
+    "reviewed_claims_only": true,
+    "unreviewed_claims_excluded_from_precision": true,
+    "queue_unreviewed_claims": true
+  },
+  "thresholds": {
+    "rag_generation_input_tokens_lower_in_fraction": 0.8,
+    "max_mean_qualification_coverage_loss": 0.05,
+    "max_mean_reviewed_factual_precision_loss": 0.02
+  },
+  "jobs": {
+    "development": [
+      {"job_id": "dev-1", "title": "Data Engineer", "required_skills": ["SQL", "Python"], "responsibilities": ["Build data pipelines"]},
+      {"job_id": "dev-2", "title": "Analytics Engineer", "required_skills": ["SQL", "AWS"], "responsibilities": ["Improve reporting systems"]},
+      {"job_id": "dev-3", "title": "Cloud Data Engineer", "required_skills": ["Python", "AWS"], "responsibilities": ["Automate data quality"]},
+      {"job_id": "dev-4", "title": "Data Platform Engineer", "required_skills": ["SQL", "Kubernetes"], "responsibilities": ["Operate data platforms"]},
+      {"job_id": "dev-5", "title": "Forecasting Engineer", "required_skills": ["Python"], "responsibilities": ["Build forecasting systems"]}
+    ],
+    "pilot": [
+      {"job_id": "pilot-1", "title": "Senior Data Engineer", "required_skills": ["SQL", "Python"]},
+      {"job_id": "pilot-2", "title": "Analytics Engineer", "required_skills": ["SQL", "AWS"]},
+      {"job_id": "pilot-3", "title": "Cloud Data Engineer", "required_skills": ["Python", "AWS"]},
+      {"job_id": "pilot-4", "title": "Data Quality Engineer", "required_skills": ["Python"]},
+      {"job_id": "pilot-5", "title": "Reporting Engineer", "required_skills": ["SQL"]},
+      {"job_id": "pilot-6", "title": "Data Platform Engineer", "required_skills": ["SQL", "Kubernetes"]},
+      {"job_id": "pilot-7", "title": "Forecasting Engineer", "required_skills": ["Python"]},
+      {"job_id": "pilot-8", "title": "Cloud Analytics Engineer", "required_skills": ["AWS", "SQL"]}
+    ],
+    "held_out": [
+      {"job_id": "heldout-1", "title": "Data Engineer", "required_skills": ["SQL", "Python"]},
+      {"job_id": "heldout-2", "title": "Analytics Engineer", "required_skills": ["SQL", "AWS"]},
+      {"job_id": "heldout-3", "title": "Cloud Data Engineer", "required_skills": ["Python", "AWS"]},
+      {"job_id": "heldout-4", "title": "Data Quality Engineer", "required_skills": ["Python"]},
+      {"job_id": "heldout-5", "title": "Reporting Engineer", "required_skills": ["SQL"]},
+      {"job_id": "heldout-6", "title": "Data Platform Engineer", "required_skills": ["SQL", "Kubernetes"]},
+      {"job_id": "heldout-7", "title": "Forecasting Engineer", "required_skills": ["Python"]},
+      {"job_id": "heldout-8", "title": "Cloud Analytics Engineer", "required_skills": ["AWS", "SQL"]}
+    ]
+  }
+}

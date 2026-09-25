@@ -494,6 +494,75 @@ def _profile_contact_value(profile: dict[str, Any] | None, key: str) -> str | No
     return None
 
 
+def project_authorized_profile(
+    profile: dict[str, Any],
+    evidence: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Keep identity and only profile records represented by authorized evidence."""
+    if evidence is None:
+        return deepcopy(profile)
+    selected_ids = {
+        str(value)
+        for item in evidence
+        for value in (item.get("evidence_id"), item.get("parent_id"), item.get("id"))
+        if str(value or "").strip()
+    }
+    projected: dict[str, Any] = {}
+    for key, value in profile.items():
+        if key in {"name", "contact", "email", "phone", "linkedin", "location"}:
+            projected[key] = deepcopy(value)
+            continue
+        if not isinstance(value, list):
+            continue
+        selected_items = []
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            item_ids = {
+                str(candidate)
+                for candidate in (item.get("id"), item.get("evidence_id"), item.get("parent_id"))
+                if str(candidate or "").strip()
+            }
+            item_ids.update(
+                str(child.get("id") or child.get("evidence_id"))
+                for child in list(item.get("evidence") or item.get("bullets") or [])
+                if isinstance(child, dict) and str(child.get("id") or child.get("evidence_id") or "").strip()
+            )
+            if item_ids & selected_ids:
+                selected_items.append(deepcopy(item))
+        projected[key] = selected_items
+    return projected
+
+
+def _project_authorized_gap(
+    gap: dict[str, Any],
+    evidence: list[dict[str, Any]],
+) -> dict[str, Any]:
+    projected = deepcopy(gap)
+    allowed_skills = {
+        canonicalize_skill(str(skill))
+        for item in evidence
+        for skill in list(item.get("skills") or [])
+        if str(skill).strip()
+    }
+    projected["matched"] = [
+        skill
+        for skill in list(gap.get("matched") or [])
+        if canonicalize_skill(str(skill)) in allowed_skills
+    ]
+    coverage = []
+    for item in list(gap.get("requirement_coverage") or []):
+        if not isinstance(item, dict):
+            continue
+        selected_support = str(item.get("selected_support") or "").strip().lower()
+        requirement = canonicalize_skill(str(item.get("requirement") or ""))
+        if selected_support in {"selected_supported", "supported"} or requirement in allowed_skills:
+            coverage.append(deepcopy(item))
+    if "requirement_coverage" in gap:
+        projected["requirement_coverage"] = coverage
+    return projected
+
+
 def _coerce_string_list(values: Any) -> list[str]:
     if not isinstance(values, list):
         return []
@@ -1739,12 +1808,20 @@ def _execute_cv_generation_runtime(
     fit_classification: str,
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
+    authorized_profile: dict[str, Any] | None = None,
+    max_output_tokens: int | None = None,
     adapter: LlmAdapter | None = None,
     validator: Any | None = None,
 ) -> LlmRuntimeResult:
+    generation_profile = authorized_profile if authorized_profile is not None else profile
+    generation_gap = (
+        _project_authorized_gap(gap, evidence)
+        if authorized_profile is not None
+        else gap
+    )
     provider_profile = {
         key: value
-        for key, value in profile.items()
+        for key, value in generation_profile.items()
         if key not in {"candidate_profile_id", "revision"}
     }
     template_path = _resolve_template_path(config)
@@ -1752,7 +1829,7 @@ def _execute_cv_generation_runtime(
     prompt = build_structured_generation_prompt(
         jd=jd,
         evidence=evidence,
-        gap=gap,
+        gap=generation_gap,
         template=template_str,
         profile=provider_profile,
         config=config,
@@ -1769,6 +1846,7 @@ def _execute_cv_generation_runtime(
         ),
         schema_name="fitcv_structured_cv_document",
         schema=build_live_structured_cv_response_schema(config=config),
+        max_output_tokens=max_output_tokens,
     )
 
     def _parser(response: LlmAdapterResponse) -> dict[str, Any]:
@@ -1825,6 +1903,8 @@ def generate_structured_cv(
     fit_classification: str,
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
+    authorized_profile: dict[str, Any] | None = None,
+    max_output_tokens: int | None = None,
 ) -> dict[str, Any]:
     """Call the LLM to generate a structured CV document."""
     value = _runtime_value_or_raise(
@@ -1837,6 +1917,8 @@ def generate_structured_cv(
             fit_classification=fit_classification,
             evidence_selection_summary=evidence_selection_summary,
             repair_missing_sections=repair_missing_sections,
+            authorized_profile=authorized_profile,
+            max_output_tokens=max_output_tokens,
         )
     )
     return dict(value["structured_cv"])
@@ -1852,6 +1934,8 @@ def generate_cv(
     fit_classification: str = "unclassified",
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
+    authorized_profile: dict[str, Any] | None = None,
+    max_output_tokens: int | None = None,
 ) -> dict[str, Any]:
     """Generate structured CV content and render markdown from it."""
     return _runtime_value_or_raise(
@@ -1864,6 +1948,8 @@ def generate_cv(
             fit_classification=fit_classification,
             evidence_selection_summary=evidence_selection_summary,
             repair_missing_sections=repair_missing_sections,
+            authorized_profile=authorized_profile,
+            max_output_tokens=max_output_tokens,
         )
     )
 
