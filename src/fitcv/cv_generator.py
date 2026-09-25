@@ -681,13 +681,32 @@ def _build_generation_prompt_context(
         supported = [
             str(item.get("requirement") or "").strip()
             for item in requirement_coverage
-            if str(item.get("support_strength") or "").strip().lower() == "supported"
+            if (
+                str(item.get("selected_support") or "").strip().lower() == "verified"
+                or (
+                    not str(item.get("selected_support") or "").strip()
+                    and str(item.get("support_strength") or "").strip().lower() == "supported"
+                )
+            )
             and str(item.get("requirement") or "").strip()
         ]
         unsupported = [
             str(item.get("requirement") or "").strip()
             for item in requirement_coverage
-            if str(item.get("support_strength") or "").strip().lower() == "unsupported"
+            if (
+                str(item.get("selected_support") or "").strip().lower() == "unsupported"
+                or (
+                    not str(item.get("selected_support") or "").strip()
+                    and str(item.get("support_strength") or "").strip().lower() == "unsupported"
+                )
+            )
+            and str(item.get("requirement") or "").strip()
+        ]
+        non_authoritative = [
+            str(item.get("requirement") or "").strip()
+            for item in requirement_coverage
+            if str(item.get("selected_support") or "").strip().lower()
+            in {"relevant_unverified", "not_selected"}
             and str(item.get("requirement") or "").strip()
         ]
         if supported:
@@ -698,6 +717,11 @@ def _build_generation_prompt_context(
             constraint_lines.append(
                 "Treat these requirements as unsupported unless explicit evidence is present: "
                 + ", ".join(unsupported)
+            )
+        if non_authoritative:
+            constraint_lines.append(
+                "Treat these requirements as non-authoritative for generation: "
+                + ", ".join(non_authoritative)
             )
     section_confidence_hints = dict(gap.get("section_confidence_hints") or {})
     if section_confidence_hints:

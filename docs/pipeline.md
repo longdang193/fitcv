@@ -46,6 +46,9 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - each nested evidence statement emits one item; section and kind remain provenance metadata, never score bonuses or reserved quotas
 - derived claims link by `evidence_refs`; runtime reverses those links into evidence-item skills without duplicating ownership
 - one global selection budget applies after channel retrieval and deterministic evidence-ID tie breaking
+- required-skill support is derived separately from profile fit: `profile_match` comes from `compute_gap()`, `pool_support` comes from canonical skill links in the merged evidence pool, and `selected_support` comes only from final selected evidence
+- only selected `verified` support can produce `support_strength: supported`; `relevant_unverified`, `not_selected`, and `unsupported` stay non-authoritative
+- `requirement_coverage` is the sole requirement-support authority; `supporting_evidence_ids` and `source_refs` point to selected `candidate-evidence.v1` items only
 - analysis metadata records `source_profile_schema_version`, `projection_schema_version`, and `projection_fingerprint`
 - traceability resolves `claim -> evidence_refs -> candidate-evidence.v1 item -> source_refs -> uploaded source document`
 

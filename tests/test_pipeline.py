@@ -9926,3 +9926,18 @@ def test_ranking_score_failures_remain_visible_and_unranked() -> None:
     assert zero["baseline_fit_label"] == "skip"
     assert all(row["baseline_fit"] is None for row in rows if row["score_status"] != "valid")
     assert [row["job_url"] for row in rank_jobs(rows, top_n=10)] == ["https://example.com/zero"]
+
+
+def test_pipeline_validation_payload_carries_requirement_coverage() -> None:
+    from fitcv.pipeline import _build_validation_grounding_payload
+
+    coverage = [{"requirement": "sql", "selected_support": "verified"}]
+    payload = _build_validation_grounding_payload(
+        evidence_payload=[],
+        evidence_used=[],
+        evidence_selection_summary={},
+        analysis_input_summary={},
+        requirement_coverage=coverage,
+    )
+
+    assert payload["requirement_coverage"] == coverage

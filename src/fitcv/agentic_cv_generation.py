@@ -433,6 +433,7 @@ def _build_validation_grounding_payload(
         "evidence_used": list(evidence_used),
         "evidence_selection_summary": dict(analysis_record.get("evidence_selection_summary") or {}),
         "analysis_input_summary": build_analysis_input_summary(job),
+        "requirement_coverage": list(analysis_record.get("requirement_coverage") or []),
     }
 
 

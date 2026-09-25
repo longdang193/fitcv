@@ -1507,6 +1507,24 @@ def test_build_generation_prompt_consumes_extended_analysis_hints() -> None:
     assert "Section confidence hints: experience=high, projects=medium" in prompt
 
 
+def test_build_generation_prompt_keeps_pool_only_support_non_authoritative() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Analyst", "required_skills": ["SQL", "Python"]},
+        evidence=[],
+        gap={
+            "requirement_coverage": [
+                {"requirement": "SQL", "selected_support": "verified"},
+                {"requirement": "Python", "selected_support": "not_selected"},
+                {"requirement": "R", "selected_support": "relevant_unverified"},
+            ]
+        },
+        template="## Summary\n...",
+    )
+
+    assert "Prioritize these strongly supported requirements: SQL" in prompt
+    assert "Treat these requirements as non-authoritative for generation: Python, R" in prompt
+
+
 def test_europass_template_includes_publications_section() -> None:
     template = Path("templates/cv_template.md").read_text(encoding="utf-8")
     assert "## Publications" in template

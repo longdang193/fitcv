@@ -34,6 +34,7 @@ cv_analysis:
     residual_score_factor: 0.05
     new_type_bonus: 0.03
     same_type_penalty: 0.02
+    requirement_gain_weight: 0.10
     quotas:
       experience_entry_top_k: 2
       project_entry_top_k: 2

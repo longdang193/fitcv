@@ -1721,12 +1721,14 @@ def _build_validation_grounding_payload(
     evidence_used: list[dict[str, Any]],
     evidence_selection_summary: dict[str, Any] | None,
     analysis_input_summary: dict[str, Any] | None,
+    requirement_coverage: list[dict[str, Any]] | None = None,
 ) -> AnalysisGroundingPayload:
     return {
         "evidence_payload": list(evidence_payload),
         "evidence_used": list(evidence_used),
         "evidence_selection_summary": dict(evidence_selection_summary or {}),
         "analysis_input_summary": dict(analysis_input_summary or {}),
+        "requirement_coverage": list(requirement_coverage or []),
     }
 
 
@@ -4203,6 +4205,7 @@ def run_pipeline(
                     evidence_used=evidence_used,
                     evidence_selection_summary=evidence_selection_summary,
                     analysis_input_summary=analysis_input_summary,
+                    requirement_coverage=list(analysis_record.get("requirement_coverage") or []),
                 ),
                 "gap": analysis_record.get("gap_summary"),
                 "fit": str(analysis_record.get("fit_classification") or "skip"),

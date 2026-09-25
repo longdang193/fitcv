@@ -44,6 +44,33 @@ def _stable_contract_view(value: object) -> object:
 def _v2_profile() -> dict:
     return yaml.safe_load(Path("data/candidate_profile.v2.sample.yaml").read_text(encoding="utf-8"))
 
+
+def _cached_evidence_profile(*items: dict) -> dict:
+    return {
+        "schema_version": "candidate-profile.v2",
+        "_projected_evidence_pool": [dict(item) for item in items],
+    }
+
+
+def _cached_evidence_item(evidence_id: str, skills: list[str], scoring_context: str) -> dict:
+    return {
+        "schema_version": "candidate-evidence.v1",
+        "evidence_id": evidence_id,
+        "kind": "project",
+        "title": evidence_id,
+        "text": scoring_context,
+        "source_section": "projects",
+        "parent_id": evidence_id,
+        "source_refs": [{"document_id": f"doc-{evidence_id}"}],
+        "evidence_type": "candidate_evidence",
+        "name": evidence_id,
+        "skills": list(skills),
+        "scoring_context": scoring_context,
+        "business_value": scoring_context,
+        "role": "Data Engineer",
+        "company": "Example",
+    }
+
 def test_uniform_projection_walks_every_evidence_section_once() -> None:
     profile = _v2_profile()
     document_id = profile["source_documents"][0]["id"]
@@ -131,6 +158,91 @@ def test_uniform_projection_supports_education_only_and_is_deterministic() -> No
     assert {item["source_section"] for item in first["selected_evidence"]} == {"education"}
     assert profile == before
     assert canonical_candidate_checksum(profile) == checksum
+
+
+def test_requirement_support_uses_explicit_canonical_skill_links() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"),
+        _cached_evidence_item("ev-python", ["Python"], "Built Python pipelines"),
+    )
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {
+            "required_skills": ["SQL", "Python"],
+            "required_skill_entities": [
+                {"raw_text": "SQL", "canonical": "sql"},
+                {"raw_text": "Python", "canonical": "python"},
+            ],
+        },
+        1,
+        config={
+            "cv_analysis": {
+                "semantic_alignment": {"enabled": False},
+                "selection_policy": {"requirement_gain_weight": 0.0},
+            }
+        },
+    )
+
+    support = bundle["requirement_support"]
+    assert set(support["pool"]) == {"required_skill:sql", "required_skill:python"}
+    assert len(bundle["selected_evidence"]) == 1
+    selected_ids = set(bundle["selected_evidence_ids"])
+    assert sum(len(ids) for ids in support["selected"].values()) == 1
+    assert all(
+        evidence_id in selected_ids
+        for evidence_ids in support["selected"].values()
+        for evidence_id in evidence_ids
+    )
+
+
+def test_requirement_gain_preserves_global_budget_and_weight_zero_matches_baseline() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-broad", ["SQL"], "SQL Python"),
+        _cached_evidence_item("ev-a-sql", ["SQL"], "SQL"),
+        _cached_evidence_item("ev-b-python", ["Python"], "Python"),
+    )
+    job = {
+        "required_skills": ["SQL", "Python"],
+        "required_skill_entities": [
+            {"raw_text": "SQL", "canonical": "sql"},
+            {"raw_text": "Python", "canonical": "python"},
+        ],
+    }
+    baseline_config = {
+        "cv_analysis": {
+            "semantic_alignment": {"enabled": False},
+            "selection_policy": {"requirement_gain_weight": 0.0},
+        }
+    }
+    baseline = retrieve_evidence_bundle(profile, job, 2, config=baseline_config)
+    explicit_zero = retrieve_evidence_bundle(
+        profile,
+        job,
+        2,
+        config={
+            "cv_analysis": {
+                "semantic_alignment": {"enabled": False},
+                "selection_policy": {"requirement_gain_weight": 0.0},
+            }
+        },
+    )
+    treatment = retrieve_evidence_bundle(
+        profile,
+        job,
+        2,
+        config={
+            "cv_analysis": {
+                "semantic_alignment": {"enabled": False},
+                "selection_policy": {"requirement_gain_weight": 0.10},
+            }
+        },
+    )
+
+    assert baseline["selected_evidence_ids"] == explicit_zero["selected_evidence_ids"]
+    assert len(treatment["selected_evidence_ids"]) == 2
+    assert baseline["selected_evidence_ids"] != treatment["selected_evidence_ids"]
+    assert "ev-b-python" in treatment["selected_evidence_ids"]
+    assert treatment["selection_policy"]["requirement_gain_weight"] == 0.10
 
 def test_uniform_projection_keeps_equal_cross_section_evidence_tied_by_id() -> None:
     profile = _v2_profile()
