@@ -60,6 +60,25 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - when disabled, diagnostics report no semantic backend and channel scoring is lexical-only
 - offline comparison uses `scripts/benchmark_requirement_support.py` with the fixed fixture at `tests/fixtures/requirement_support_benchmark.json`; it measures canonical, retrieved, selected, validation, timing, and context-cost boundaries without changing production defaults
 
+### Requirement-support impact benchmark
+
+- `evaluation_schema_version: 1` fixtures keep approved requirement–evidence pairs, unsupported requirements, validation cases, and scenario IDs in one source of truth
+- requirement recall counts requirements with at least one valid approved supporter; evidence-pair recall counts approved requirement–evidence pairs; alternative-pair loss does not trigger pool expansion when requirement recall remains complete
+- benchmark validation consumes `analyze_ranked_job()` `requirement_coverage` and passes it unchanged to `run_all_validations()`; simplified support rows are not valid benchmark evidence
+- CI smoke runs use `--runs 5 --warmups 1`; local comparisons use `--runs 50 --warmups 5`
+- `generation_prompt_build_ms` measures `build_generation_prompt()`; `benchmark_payload_serialization_ms` is reported separately; prompt bytes and estimated tokens are local estimates, not provider usage
+- historical comparison uses `scripts/benchmark_requirement_support_legacy.py` at `7263fba` and `scripts/compare_requirement_support.py`; historical validation semantics are reported as not comparable rather than inferred
+
+Example local probes:
+
+```powershell
+uv run python scripts/benchmark_requirement_support.py --arm current-hash --pool-size 4 --runs 50 --warmups 5 --output "$env:TEMP/fitcv-current-hash.json"
+uv run python scripts/benchmark_requirement_support.py --arm lexical --pool-size 4 --runs 50 --warmups 5 --output "$env:TEMP/fitcv-lexical-4.json"
+uv run python scripts/benchmark_requirement_support.py --arm lexical --pool-size 8 --runs 50 --warmups 5 --output "$env:TEMP/fitcv-lexical-8.json"
+```
+
+Do not report final generated-CV quality, provider token usage, or retrieval optimization gains from this offline benchmark alone.
+
 ## Location And Language Eligibility
 
 Phase 1 uses one path for both factors:
