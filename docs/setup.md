@@ -114,6 +114,18 @@ npm ci
 Pop-Location
 ```
 
+Full backend test suite requires the local credential and inverse-optimization
+extras, plus built frontend assets:
+
+```powershell
+python -m pip install -e ".[local,inverse-optimization]"
+Push-Location frontend
+npm ci --ignore-scripts
+npm run build
+Pop-Location
+python -m pytest -q
+```
+
 Docker mode:
 
 ```powershell

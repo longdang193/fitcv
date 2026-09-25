@@ -561,6 +561,30 @@ def test_default_adapter_preserves_json_schema_on_responses_404_fallback() -> No
     assert result.adapter_response.telemetry["usage"] == {"total_tokens": 9}
 
 
+def test_default_adapters_receive_output_token_budget() -> None:
+    calls: list[dict[str, Any]] = []
+    responses = [_HttpResponse(200, {"id": "resp-budget", "output_text": '{"value": 7}'})]
+    request = LlmTaskRequest(
+        routing_part="enrich_extraction",
+        prompt="Extract one job.",
+        response_mode="json_object",
+        max_output_tokens=123,
+    )
+    with (
+        patch("fitcv.llm_runtime.resolve_llm_routing", return_value=_route()),
+        patch("fitcv.llm_runtime.resolve_llm_api_key", return_value="secret"),
+        patch("httpx.Client", return_value=_HttpClient(responses, calls)),
+    ):
+        result = execute_llm_task(
+            request,
+            parser=lambda response: json.loads(response.raw_text),
+            validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+        )
+
+    assert result.status == "succeeded"
+    assert calls[0]["json"]["max_output_tokens"] == 123
+
+
 def test_default_adapter_preserves_safe_http_400_diagnostics_without_secrets() -> None:
     calls: list[dict[str, Any]] = []
     responses = [

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,17 @@ def test_dry_run_validates_pairs_without_provider_calls() -> None:
     assert result["pair_count"] == 1
 
 
+def test_rag_impact_fixture_has_stable_profile_and_non_overlapping_splits() -> None:
+    module = _module()
+    fixture = json.loads(
+        (REPO_ROOT / "tests" / "fixtures" / "rag_impact_benchmark.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert module.validate_benchmark_fixture(fixture) == []
+
+
 def test_dry_run_rejects_mismatched_model() -> None:
     module = _module()
     payload = _payload()
@@ -86,13 +98,20 @@ def test_live_mode_reports_paired_variant_metrics(monkeypatch: pytest.MonkeyPatc
     module = _module()
     payload = _payload()
     payload["pairs"][0]["baseline"].update(
-        {"prompt": "baseline", "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"]}]}}
+        {"prompt": "baseline", "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}]}}
     )
     payload["pairs"][0]["fitcv"].update(
-        {"prompt": "fitcv", "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"]}]}}
+        {"prompt": "fitcv", "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}]}}
     )
 
-    def fake_call(prompt: str, provider: dict[str, Any], environ: dict[str, str]) -> dict[str, Any]:
+    def fake_call(
+        prompt: str,
+        provider: dict[str, Any],
+        environ: dict[str, str],
+        *,
+        output_budget: int | None = None,
+    ) -> dict[str, Any]:
+        assert output_budget == 1000
         return {
             "status": "succeeded",
             "text": "SQL",
@@ -126,7 +145,13 @@ def test_live_mode_fails_closed_when_provider_cost_is_missing(
             {"prompt": variant_name, "review": {"requirements": []}}
         )
 
-    def fake_call(prompt: str, provider: dict[str, Any], environ: dict[str, str]) -> dict[str, Any]:
+    def fake_call(
+        prompt: str,
+        provider: dict[str, Any],
+        environ: dict[str, str],
+        *,
+        output_budget: int | None = None,
+    ) -> dict[str, Any]:
         return {
             "status": "succeeded",
             "text": "SQL",
@@ -140,12 +165,47 @@ def test_live_mode_fails_closed_when_provider_cost_is_missing(
 
     monkeypatch.setattr(module, "_call_provider", fake_call)
 
-    with pytest.raises(RuntimeError, match="cost telemetry"):
-        module.evaluate(
-            payload,
-            dry_run=False,
-            environ={"FITCV_TEST_PROVIDER_KEY": "configured"},
+    result = module.evaluate(
+        payload,
+        dry_run=False,
+        environ={"FITCV_TEST_PROVIDER_KEY": "configured"},
+    )
+    assert result["metrics"]["provider_usage"]["cost_available"] is False
+
+
+def test_live_metrics_keep_failed_calls_in_attempted_denominator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _module()
+    payload = _payload()
+    for variant_name in ("baseline", "fitcv"):
+        payload["pairs"][0][variant_name].update(
+            {
+                "prompt": variant_name,
+                "review": {
+                    "requirements": [
+                        {"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}
+                    ]
+                },
+            }
         )
+
+    def fake_call(prompt: str, provider: dict[str, Any], environ: dict[str, str], *, output_budget: int | None = None) -> dict[str, Any]:
+        if prompt == "fitcv":
+            return {"status": "failed", "failure": {"code": "timeout"}}
+        return {
+            "status": "succeeded",
+            "text": "SQL",
+            "usage": {"available": True, "prompt_tokens": 10, "completion_tokens": 4, "total_tokens": 14, "cost": None},
+        }
+
+    monkeypatch.setattr(module, "_call_provider", fake_call)
+    result = module.evaluate(payload, dry_run=False, environ={"FITCV_TEST_PROVIDER_KEY": "configured"})
+
+    fitcv = result["metrics"]["by_variant"]["fitcv"]
+    assert fitcv["attempted_calls"] == 1
+    assert fitcv["failed_calls"] == 1
+    assert fitcv["accepted_cv_rate_over_attempts"] == 0.0
 
 
 def test_review_output_does_not_count_negated_requirement_term() -> None:
@@ -153,7 +213,11 @@ def test_review_output_does_not_count_negated_requirement_term() -> None:
 
     result = module._review_output(
         "No SQL experience.",
-        {"requirements": [{"requirement_id": "r", "terms": ["SQL"]}]},
+        {
+            "requirements": [
+                {"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}
+            ]
+        },
     )
 
     assert result["covered_requirements"] == []

@@ -29,12 +29,32 @@ from fitcv.cv_generator import (
     build_live_structured_cv_response_schema,
     build_structured_generation_prompt,
     generate_cv,
+    project_authorized_profile,
     render_cv_markdown,
     _normalize_structured_cv,
     render_cv_template,
     select_template_variant,
     validate_structured_cv,
 )
+
+
+def test_project_authorized_profile_keeps_identity_and_selected_records() -> None:
+    profile = {
+        "name": "Jane Doe",
+        "contact": {"email": "jane@example.test"},
+        "experiences": [
+            {"id": "exp-1", "company": "Selected", "evidence": [{"id": "ev-1"}]},
+            {"id": "exp-2", "company": "Unselected", "evidence": [{"id": "ev-2"}]},
+        ],
+        "education": [{"id": "edu-1", "institution": "Selected University"}],
+    }
+
+    projected = project_authorized_profile(profile, [{"evidence_id": "ev-1"}])
+
+    assert projected["name"] == "Jane Doe"
+    assert projected["contact"] == profile["contact"]
+    assert [item["company"] for item in projected["experiences"]] == ["Selected"]
+    assert projected["education"] == []
 
 
 # ── build_generation_prompt ───────────────────────────────────────────────────
