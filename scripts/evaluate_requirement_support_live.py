@@ -15,8 +15,8 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from fitcv.llm_runtime import LlmTaskRequest, LlmValidationResult, execute_llm_task
-from fitcv.runtime_routing import resolve_llm_routing
+from fitcv.llm_runtime import LlmTaskRequest, LlmValidationResult, execute_llm_task  # noqa: E402
+from fitcv.runtime_routing import resolve_llm_routing  # noqa: E402
 
 
 def _load_json(path: Path) -> dict[str, Any]:
