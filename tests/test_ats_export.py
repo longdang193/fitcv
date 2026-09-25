@@ -89,9 +89,13 @@ def test_https_opener_adds_certifi_to_default_trust(monkeypatch) -> None:
 
     monkeypatch.setattr(ats_export.ssl, "create_default_context", FakeContext)
     monkeypatch.setattr(ats_export.certifi, "where", lambda: "current-ca.pem")
-    monkeypatch.setattr(ats_export, "HTTPSHandler", lambda *, context: context)
+    monkeypatch.setattr(
+        ats_export,
+        "_PinnedHTTPSHandler",
+        lambda context, pinned_address: context,
+    )
     monkeypatch.setattr(ats_export, "build_opener", lambda *handlers: handlers)
 
-    ats_export._build_https_opener()
+    ats_export._build_https_opener("203.0.113.10")
 
     assert loaded == ["current-ca.pem"]
