@@ -1,0 +1,60 @@
+{
+  "schema_version": "rag-human-review-annotation-v1",
+  "records": [
+    {
+      "annotation_schema_version": "rag-human-review-annotation-v1",
+      "pair_id": "pair-synthetic-001",
+      "blinded_arm_labels": {
+        "arm_a": "Output A",
+        "arm_b": "Output B"
+      },
+      "fixture_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "evaluator_version": "rag-impact-evaluator-v1",
+      "rubric_version": "rag-human-review-v1",
+      "reviewer_id": "synthetic-reviewer-001",
+      "reviewer_role": "human-reviewer",
+      "scores": {
+        "requirement_relevance": 4,
+        "factual_accuracy": 5,
+        "completeness": 4,
+        "readability": 4,
+        "recruiter_usefulness": 4
+      },
+      "pairwise_preference": "tie",
+      "confidence": "high",
+      "issue_tags": ["formatting"],
+      "reviewer_notes": "Synthetic example; both neutral outputs satisfy core requirements.",
+      "adjudication_status": "single_review",
+      "adjudication": null
+    },
+    {
+      "annotation_schema_version": "rag-human-review-annotation-v1",
+      "pair_id": "pair-synthetic-002",
+      "blinded_arm_labels": {
+        "arm_a": "Output A",
+        "arm_b": "Output B"
+      },
+      "fixture_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "evaluator_version": "rag-impact-evaluator-v1",
+      "rubric_version": "rag-human-review-v1",
+      "reviewer_id": "synthetic-reviewer-002",
+      "reviewer_role": "human-reviewer",
+      "scores": {
+        "requirement_relevance": 3,
+        "factual_accuracy": 3,
+        "completeness": 2,
+        "readability": 4,
+        "recruiter_usefulness": 3
+      },
+      "pairwise_preference": "no_preference",
+      "confidence": "low",
+      "issue_tags": ["missing_requirement", "unclear_evidence"],
+      "reviewer_notes": "Synthetic unresolved disagreement retained for adjudication.",
+      "adjudication_status": "unresolved",
+      "adjudication": {
+        "decision": "unresolved",
+        "rationale": "Synthetic example requires second review."
+      }
+    }
+  ]
+}

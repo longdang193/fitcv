@@ -222,3 +222,102 @@ def test_review_output_does_not_count_negated_requirement_term() -> None:
 
     assert result["covered_requirements"] == []
     assert result["requirement_coverage"] == 0.0
+
+
+def test_live_metrics_report_attempts_reviews_tokens_and_bootstrap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _module()
+    payload = _payload()
+    payload["pairs"] = []
+    for index in range(2):
+        shared = {
+            "fixture_sha256": "fixture",
+            "scenario_id": f"scenario-{index}",
+            "model": "model",
+            "template": "template-v1",
+            "generation_settings": {"temperature": 0},
+            "output_budget": 1000,
+        }
+        payload["pairs"].append(
+            {
+                "pair_id": f"pair-{index}",
+                "baseline": {**shared, "prompt": "baseline", "review": {"requirements": []}},
+                "fitcv": {**shared, "prompt": "fitcv", "review": {"requirements": []}},
+            }
+        )
+
+    def fake_call(prompt: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        if prompt == "fitcv" and len(fake_call.calls) == 3:
+            result = {"status": "failed", "failure": {"code": "timeout"}}
+        else:
+            result = {
+                "status": "succeeded",
+                "text": "SQL",
+                "attempt_count": 1,
+                "latency_ms": 2,
+                "usage": {
+                    "available": True,
+                    "prompt_tokens": 10 if prompt == "baseline" else 6,
+                    "completion_tokens": 4,
+                    "total_tokens": 14 if prompt == "baseline" else 10,
+                    "cost": None,
+                },
+            }
+        fake_call.calls.append(prompt)
+        return result
+
+    fake_call.calls = []
+    monkeypatch.setattr(module, "_call_provider", fake_call)
+    result = module.evaluate(payload, dry_run=False, environ={"FITCV_TEST_PROVIDER_KEY": "configured"})
+
+    baseline = result["metrics"]["by_variant"]["baseline"]
+    fitcv = result["metrics"]["by_variant"]["fitcv"]
+    assert baseline["attempted_calls"] == 2
+    assert baseline["succeeded_calls"] == 2
+    assert baseline["failed_calls"] == 0
+    assert fitcv["attempted_calls"] == 2
+    assert fitcv["succeeded_calls"] == 1
+    assert fitcv["failed_calls"] == 1
+    assert fitcv["accepted_cv_rate_over_attempts"] == 0.5
+    assert result["metrics"]["confidence_intervals"]["generation_input_tokens"]["sample_count"] == 1
+
+
+def test_fixture_driven_pairs_cannot_supply_hand_authored_prompts() -> None:
+    module = _module()
+    payload = _payload()
+    payload["fixture"] = {"candidate_profile": {"name": "x"}}
+
+    with pytest.raises(ValueError, match="programmatic pairing"):
+        module.evaluate(payload)
+
+
+def test_human_review_annotations_are_joined_without_identity_leak() -> None:
+    module = _module()
+    payload = _payload()
+    payload["human_review_annotations"] = [
+        {
+            "pair_id": "pair-1",
+            "variant": "baseline",
+            "rubric_version": "rubric-v1",
+            "reviewer_id_hash": "hash-a",
+            "scores": {"relevance": 4, "completeness": 4, "readability": 5, "usefulness": 4},
+            "adjudication_state": "accepted",
+        },
+        {
+            "pair_id": "pair-1",
+            "variant": "fitcv",
+            "rubric_version": "rubric-v1",
+            "reviewer_id_hash": "hash-b",
+            "scores": {"relevance": 5, "completeness": 4, "readability": 4, "usefulness": 5},
+            "adjudication_state": "accepted",
+            "pairwise_preference": "fitcv",
+        },
+    ]
+    result = module.evaluate(payload)
+
+    human = result["metrics"]["human_review"]
+    assert human["by_variant"]["baseline"]["score_count"] == 1
+    assert human["by_variant"]["fitcv"]["quality_score"] == 4.5
+    assert human["pairwise_preference"]["fitcv"] == 1
+    assert "reviewer_id_hash" not in json.dumps(result)

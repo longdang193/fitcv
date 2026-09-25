@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -37,6 +38,10 @@ def _fingerprint(value: Any) -> str:
 
 def validate_benchmark_fixture(fixture: dict[str, Any]) -> list[str]:
     errors: list[str] = []
+    if not str(fixture.get("fixture_id") or ""):
+        errors.append("fixture_id is required")
+    if not isinstance(fixture.get("evaluation_schema_version"), int):
+        errors.append("evaluation_schema_version must be an integer")
     profile = fixture.get("candidate_profile")
     if not isinstance(profile, dict) or not profile:
         errors.append("candidate_profile must be a non-empty object")
@@ -60,6 +65,10 @@ def validate_benchmark_fixture(fixture: dict[str, Any]) -> list[str]:
         if not isinstance(label, dict):
             errors.append(f"requirement_labels.{requirement_id} must be an object")
             continue
+        if not str(label.get("canonical_requirement") or "").strip():
+            errors.append(f"requirement_labels.{requirement_id}.canonical_requirement is required")
+        if not isinstance(label.get("answerable"), bool):
+            errors.append(f"requirement_labels.{requirement_id}.answerable must be boolean")
         for evidence_id in list(label.get("approved_evidence_ids") or []):
             if str(evidence_id) not in evidence_ids:
                 errors.append(f"{requirement_id}: unknown approved evidence id {evidence_id}")
@@ -74,6 +83,9 @@ def validate_benchmark_fixture(fixture: dict[str, Any]) -> list[str]:
             errors.append(f"jobs.{split_name} must be non-empty")
             continue
         for job in jobs:
+            if not isinstance(job, dict):
+                errors.append(f"jobs.{split_name} contains non-object job")
+                continue
             job_id = str(job.get("job_id") or "") if isinstance(job, dict) else ""
             if not job_id:
                 errors.append(f"jobs.{split_name} contains job without job_id")
@@ -86,12 +98,167 @@ def validate_benchmark_fixture(fixture: dict[str, Any]) -> list[str]:
 
 def extract_provider_usage(response: dict[str, Any]) -> dict[str, Any]:
     usage = dict(response.get("usage") or response.get("metadata", {}).get("usage") or {})
-    return {
+    result = {
         "prompt_tokens": usage.get("prompt_tokens", usage.get("input_tokens")),
         "completion_tokens": usage.get("completion_tokens", usage.get("output_tokens")),
         "total_tokens": usage.get("total_tokens"),
         "cost": usage.get("cost"),
         "available": bool(usage),
+    }
+    if "estimated_cost" in usage or "estimated_cost_usd" in usage:
+        result["estimated_cost"] = usage.get("estimated_cost", usage.get("estimated_cost_usd"))
+    if "actual_cost" in usage or "actual_cost_usd" in usage:
+        result["actual_cost"] = usage.get("actual_cost", usage.get("actual_cost_usd"))
+    return result
+
+
+def _mean(values: list[float]) -> float | str:
+    return round(sum(values) / len(values), 6) if values else "not_available"
+
+
+def _numeric_values(values: list[Any]) -> list[float]:
+    return [float(value) for value in values if isinstance(value, (int, float))]
+
+
+def paired_bootstrap_delta(
+    pairs: list[tuple[float, float]],
+    *,
+    seed: int = 20260925,
+    resamples: int = 10_000,
+) -> dict[str, Any]:
+    deltas = [fitcv - baseline for baseline, fitcv in pairs]
+    if not deltas:
+        return {
+            "point": "not_available",
+            "lower": "not_available",
+            "upper": "not_available",
+            "sample_count": 0,
+            "resamples": resamples,
+            "seed": seed,
+            "zero_variance": False,
+        }
+    point = sum(deltas) / len(deltas)
+    if len(set(deltas)) == 1:
+        value = round(point, 6)
+        return {
+            "point": value,
+            "lower": value,
+            "upper": value,
+            "sample_count": len(deltas),
+            "resamples": resamples,
+            "seed": seed,
+            "zero_variance": True,
+        }
+    rng = random.Random(seed)
+    samples = []
+    for _ in range(resamples):
+        samples.append(sum(rng.choice(deltas) for _ in deltas) / len(deltas))
+    samples.sort()
+
+    def percentile(value: float) -> float:
+        position = (len(samples) - 1) * value
+        lower = int(position)
+        upper = min(lower + 1, len(samples) - 1)
+        fraction = position - lower
+        return samples[lower] + (samples[upper] - samples[lower]) * fraction
+
+    return {
+        "point": round(point, 6),
+        "lower": round(percentile(0.025), 6),
+        "upper": round(percentile(0.975), 6),
+        "sample_count": len(deltas),
+        "resamples": resamples,
+        "seed": seed,
+        "zero_variance": False,
+    }
+
+
+def _annotation_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = payload.get("human_review_annotations", payload.get("review_annotations", []))
+    if isinstance(rows, dict):
+        rows = [dict(value, pair_id=key) for key, value in rows.items() if isinstance(value, dict)]
+    return [dict(row) for row in rows if isinstance(row, dict)]
+
+
+def _annotation_score(annotation: dict[str, Any]) -> float | None:
+    score = annotation.get("quality_score", annotation.get("score"))
+    if isinstance(score, (int, float)):
+        return float(score)
+    scores = annotation.get("scores")
+    if not isinstance(scores, dict):
+        return None
+    values = _numeric_values(list(scores.values()))
+    return sum(values) / len(values) if values and len(values) == len(scores) else None
+
+
+def validate_human_review_annotations(
+    payload: dict[str, Any],
+    pair_ids: set[str],
+) -> list[str]:
+    errors: list[str] = []
+    seen: set[tuple[str, str, str]] = set()
+    for annotation in _annotation_rows(payload):
+        pair_id = str(annotation.get("pair_id") or "")
+        variant = str(annotation.get("variant") or "")
+        reviewer_hash = str(annotation.get("reviewer_id_hash") or "")
+        if pair_id not in pair_ids:
+            errors.append(f"unknown human review pair_id: {pair_id}")
+        if variant not in {"baseline", "fitcv"}:
+            errors.append(f"{pair_id}: human review variant must be baseline or fitcv")
+        if not str(annotation.get("rubric_version") or ""):
+            errors.append(f"{pair_id}: human review rubric_version is required")
+        if not reviewer_hash:
+            errors.append(f"{pair_id}: human review reviewer_id_hash is required")
+        if _annotation_score(annotation) is None:
+            errors.append(f"{pair_id}: human review score is incomplete")
+        if not str(annotation.get("adjudication_state") or ""):
+            errors.append(f"{pair_id}: human review adjudication_state is required")
+        key = (pair_id, variant, reviewer_hash)
+        if key in seen:
+            errors.append(f"duplicate human review annotation: {pair_id}/{variant}")
+        seen.add(key)
+    return errors
+
+
+def _human_review_metrics(payload: dict[str, Any], pair_ids: list[str]) -> dict[str, Any]:
+    rows = _annotation_rows(payload)
+    by_variant: dict[str, dict[str, Any]] = {}
+    for variant in ("baseline", "fitcv"):
+        variant_rows = [row for row in rows if str(row.get("variant") or "") == variant]
+        scores = [score for score in (_annotation_score(row) for row in variant_rows) if score is not None]
+        unresolved = sum(
+            str(row.get("adjudication_state") or "").casefold() in {"unresolved", "disagreement"}
+            for row in variant_rows
+        )
+        by_variant[variant] = {
+            "expected_reviews": len(pair_ids),
+            "score_count": len(scores),
+            "missing_count": max(0, len(pair_ids) - len(scores)),
+            "unresolved_count": unresolved,
+            "quality_score": round(sum(scores) / len(scores), 6) if scores else "not_available",
+        }
+    preference = {key: 0 for key in ("baseline", "fitcv", "tie", "unresolved")}
+    for row in rows:
+        value = str(row.get("pairwise_preference", row.get("preference", ""))).casefold()
+        if value in preference:
+            preference[value] += 1
+    grouped: dict[tuple[str, str], list[float]] = {}
+    for row in rows:
+        score = _annotation_score(row)
+        if score is not None:
+            key = (str(row.get("pair_id") or ""), str(row.get("variant") or ""))
+            grouped.setdefault(key, []).append(score)
+    agreement_groups = [scores for scores in grouped.values() if len(scores) > 1]
+    return {
+        "by_variant": by_variant,
+        "pairwise_preference": preference,
+        "review_count": len(rows),
+        "agreement": (
+            round(sum(len(set(scores)) == 1 for scores in agreement_groups) / len(agreement_groups), 6)
+            if agreement_groups
+            else "not_available"
+        ),
+        "agreement_group_count": len(agreement_groups),
     }
 
 
@@ -276,6 +443,9 @@ def validate_paired_inputs(payload: dict[str, Any]) -> list[str]:
         errors.append("pairs must not be empty")
     pair_ids: set[str] = set()
     for pair in pairs:
+        if not isinstance(pair, dict):
+            errors.append("pairs must contain objects")
+            continue
         pair_id = str(pair.get("pair_id") or "")
         if pair_id in pair_ids:
             errors.append(f"duplicate pair_id: {pair_id}")
@@ -295,6 +465,7 @@ def validate_paired_inputs(payload: dict[str, Any]) -> list[str]:
         for field in ("model", "template", "generation_settings", "output_budget"):
             if baseline.get(field) != provider.get(field):
                 errors.append(f"{pair_id}: baseline {field} differs from provider configuration")
+    errors.extend(validate_human_review_annotations(payload, pair_ids))
     return errors
 
 
@@ -380,6 +551,8 @@ def evaluate(
     environ: dict[str, str] | None = None,
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if isinstance(payload.get("fixture"), dict) and payload.get("pairs"):
+        raise ValueError("fixture-driven evaluation requires programmatic pairing")
     if isinstance(payload.get("fixture"), dict) and not payload.get("pairs"):
         payload = {
             **payload,
@@ -419,7 +592,14 @@ def evaluate(
             raise RuntimeError("max_provider_calls is lower than paired evaluation calls")
         pair_results = []
         calls = 0
-        usage_totals = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost": None}
+        usage_totals = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cost": None,
+            "estimated_cost": None,
+            "actual_cost": None,
+        }
         usage_available = False
         for pair in payload["pairs"]:
             variants = {}
@@ -441,12 +621,12 @@ def evaluate(
                     usage = dict(provider_result.get("usage") or {})
                     usage_available = usage_available or bool(usage.get("available"))
                     cost = usage.get("cost")
-                    for key in ("prompt_tokens", "completion_tokens", "total_tokens", "cost"):
+                    for key in ("prompt_tokens", "completion_tokens", "total_tokens", "cost", "estimated_cost", "actual_cost"):
                         value = usage.get(key)
                         if isinstance(value, (int, float)):
                             usage_totals[key] = (
                                 (usage_totals[key] or 0) + value
-                                if key == "cost"
+                                if key in {"cost", "estimated_cost", "actual_cost"}
                                 else usage_totals[key] + value
                             )
                     if (
@@ -456,16 +636,9 @@ def evaluate(
                         raise RuntimeError("live evaluation exceeded cost_ceiling_usd")
                 variants[variant_name] = provider_result
             pair_results.append({"pair_id": pair["pair_id"], "variants": variants})
-        successful_by_variant = {
-            variant_name: [
-                pair["variants"][variant_name]
-                for pair in pair_results
-                if pair["variants"][variant_name]["status"] == "succeeded"
-            ]
-            for variant_name in ("baseline", "fitcv")
-        }
-
-        def summarize(variants: list[dict[str, Any]]) -> dict[str, Any]:
+        def summarize(variant_name: str) -> dict[str, Any]:
+            attempts = [pair["variants"][variant_name] for pair in pair_results]
+            variants = [variant for variant in attempts if variant.get("status") == "succeeded"]
             reviews = [variant["review"] for variant in variants]
             coverage_values = [
                 review["requirement_coverage"]
@@ -487,99 +660,177 @@ def evaluate(
                 for variant in variants
                 if isinstance(variant.get("usage", {}).get("total_tokens"), (int, float))
             ]
+            unsupported_rate = _mean([float(value) for value in unsupported_rates])
+            precision = (
+                round(1 - float(unsupported_rate), 6)
+                if isinstance(unsupported_rate, (int, float))
+                else "not_applicable"
+            )
+            latency_values = _numeric_values(
+                [variant.get("wall_latency_ms", variant.get("latency_ms")) for variant in attempts]
+            )
             return {
                 "final_cv_supported_requirement_coverage": round(sum(coverage_values) / len(coverage_values), 6)
                 if coverage_values
                 else "not_applicable",
-                "unsupported_factual_claim_rate": round(sum(unsupported_rates) / len(unsupported_rates), 6)
-                if unsupported_rates
+                "requirement_coverage": round(sum(coverage_values) / len(coverage_values), 6)
+                if coverage_values
                 else "not_applicable",
+                "unsupported_factual_claim_rate": unsupported_rate,
+                "reviewed_factual_precision": precision,
+                "human_quality_score": "not_available",
                 "first_pass_acceptance": round(
-                    sum(variant["review"]["accepted"] for variant in variants) / len(variants), 6
-                )
-                if variants
-                else 0.0,
+                    sum(variant["review"]["accepted"] and int(variant.get("attempt_count", 1)) == 1 for variant in variants)
+                    / len(attempts),
+                    6,
+                ) if attempts else 0.0,
                 "final_acceptance": round(
-                    sum(variant["review"]["accepted"] for variant in variants) / len(variants), 6
-                )
-                if variants
-                else 0.0,
-                "repair_attempts": 0,
+                    sum(variant["review"]["accepted"] for variant in variants) / len(attempts), 6
+                ) if attempts else 0.0,
+                "first_pass_accepted": sum(
+                    variant["review"]["accepted"] and int(variant.get("attempt_count", 1)) == 1
+                    for variant in variants
+                ),
+                "final_accepted": sum(variant["review"]["accepted"] for variant in variants),
+                "unresolved_review_count": sum(
+                    bool(variant.get("review", {}).get("claim_review_queue")) for variant in variants
+                ),
+                "repair_attempts": sum(max(0, int(variant.get("attempt_count", 1)) - 1) for variant in variants),
                 "successful_calls": len(variants),
-                "attempted_calls": len(payload["pairs"]),
-                "failed_calls": len(payload["pairs"]) - len(variants),
+                "succeeded_calls": len(variants),
+                "attempted_calls": len(attempts),
+                "failed_calls": len(attempts) - len(variants),
                 "accepted_cv_rate_over_attempts": round(
-                    sum(variant["review"]["accepted"] for variant in variants) / len(payload["pairs"]), 6
-                )
-                if payload["pairs"]
-                else 0.0,
+                    sum(variant["review"]["accepted"] for variant in variants) / len(attempts), 6
+                ) if attempts else 0.0,
                 "generation_input_tokens": sum(generation_input_tokens)
                 if generation_input_tokens
                 else "not_available",
                 "total_generation_tokens": sum(total_generation_tokens)
                 if total_generation_tokens
                 else "not_available",
+                "latency_ms": _mean(latency_values),
             }
 
-        by_variant = {name: summarize(values) for name, values in successful_by_variant.items()}
-        paired_input_tokens = [
-            (pair["variants"]["baseline"].get("usage", {}).get("prompt_tokens"),
-             pair["variants"]["fitcv"].get("usage", {}).get("prompt_tokens"))
-            for pair in pair_results
-            if pair["variants"]["baseline"].get("status") == "succeeded"
-            and pair["variants"]["fitcv"].get("status") == "succeeded"
-            and isinstance(pair["variants"]["baseline"].get("usage", {}).get("prompt_tokens"), (int, float))
-            and isinstance(pair["variants"]["fitcv"].get("usage", {}).get("prompt_tokens"), (int, float))
-        ]
+        by_variant = {name: summarize(name) for name in ("baseline", "fitcv")}
+        paired_metrics = {
+            "requirement_coverage": [],
+            "reviewed_factual_precision": [],
+            "first_pass_acceptance": [],
+            "final_acceptance": [],
+            "generation_input_tokens": [],
+            "total_generation_tokens": [],
+            "human_quality_score": [],
+        }
+        for pair in pair_results:
+            baseline = pair["variants"]["baseline"]
+            fitcv = pair["variants"]["fitcv"]
+            if baseline.get("status") != "succeeded" or fitcv.get("status") != "succeeded":
+                continue
+            baseline_review = baseline["review"]
+            fitcv_review = fitcv["review"]
+            values = {
+                "requirement_coverage": (baseline_review.get("requirement_coverage"), fitcv_review.get("requirement_coverage")),
+                "reviewed_factual_precision": (
+                    1 - baseline_review["unsupported_factual_claim_rate"]
+                    if isinstance(baseline_review.get("unsupported_factual_claim_rate"), (int, float))
+                    else None,
+                    1 - fitcv_review["unsupported_factual_claim_rate"]
+                    if isinstance(fitcv_review.get("unsupported_factual_claim_rate"), (int, float))
+                    else None,
+                ),
+                "first_pass_acceptance": (
+                    float(baseline_review["accepted"] and int(baseline.get("attempt_count", 1)) == 1),
+                    float(fitcv_review["accepted"] and int(fitcv.get("attempt_count", 1)) == 1),
+                ),
+                "final_acceptance": (float(baseline_review["accepted"]), float(fitcv_review["accepted"])),
+                "generation_input_tokens": (
+                    baseline.get("usage", {}).get("prompt_tokens"),
+                    fitcv.get("usage", {}).get("prompt_tokens"),
+                ),
+                "total_generation_tokens": (
+                    baseline.get("usage", {}).get("total_tokens"),
+                    fitcv.get("usage", {}).get("total_tokens"),
+                ),
+            }
+            for metric, pair_values in values.items():
+                if all(isinstance(value, (int, float)) for value in pair_values):
+                    paired_metrics[metric].append((float(pair_values[0]), float(pair_values[1])))
+        confidence_intervals = {
+            metric: paired_bootstrap_delta(values)
+            for metric, values in paired_metrics.items()
+        }
+        human_review = _human_review_metrics(payload, [str(pair["pair_id"]) for pair in payload["pairs"]])
+        human_scores = {
+            (str(row.get("pair_id") or ""), str(row.get("variant") or "")): _annotation_score(row)
+            for row in _annotation_rows(payload)
+        }
+        for pair in pair_results:
+            baseline_score = human_scores.get((str(pair["pair_id"]), "baseline"))
+            fitcv_score = human_scores.get((str(pair["pair_id"]), "fitcv"))
+            if isinstance(baseline_score, (int, float)) and isinstance(fitcv_score, (int, float)):
+                paired_metrics["human_quality_score"].append((float(baseline_score), float(fitcv_score)))
+        confidence_intervals["human_quality_score"] = paired_bootstrap_delta(paired_metrics["human_quality_score"])
+        for variant_name in ("baseline", "fitcv"):
+            by_variant[variant_name]["human_quality_score"] = human_review["by_variant"][variant_name]["quality_score"]
+        paired_input_tokens = paired_metrics["generation_input_tokens"]
+        usage_totals["available"] = usage_available
+        usage_totals["cost_available"] = isinstance(usage_totals["cost"], (int, float))
+        if usage_totals["actual_cost"] is None and usage_totals["cost_available"]:
+            usage_totals["actual_cost"] = usage_totals["cost"]
+        usage_totals["cost_status"] = "actual" if usage_totals["cost_available"] else (
+            "estimated" if isinstance(usage_totals["estimated_cost"], (int, float)) else "unavailable"
+        )
+        usage_totals["token_scopes"] = {
+            "generation_input_tokens": usage_totals["prompt_tokens"] or "not_available",
+            "generation_total_tokens": usage_totals["total_tokens"] or "not_available",
+            "workflow_total_tokens": "not_measured_without retrieval, validation, and repair telemetry",
+        }
         return {
-            "evaluation_schema_version": 1,
+            "evaluation_schema_version": 2,
             "mode": "live",
             "provider_calls": calls,
             "fixture_sha256": payload["offline_gate"]["fixture_sha256"],
             "pair_count": len(payload["pairs"]),
             "pair_fingerprint": _fingerprint(payload["pairs"]),
+            "rubric_fingerprint": _fingerprint([pair["baseline"].get("review") for pair in payload["pairs"]]),
+            "config_fingerprint": _fingerprint({key: provider.get(key) for key in ("model", "template", "generation_settings", "output_budget")}),
+            "thresholds": dict(dict(payload.get("fixture") or {}).get("thresholds") or payload.get("thresholds") or {}),
             "metrics": {
                 "by_variant": by_variant,
                 "fitcv_minus_baseline": {
                     key: (
                         by_variant["fitcv"][key] - by_variant["baseline"][key]
-                        if isinstance(by_variant["fitcv"][key], (int, float))
-                        and isinstance(by_variant["baseline"][key], (int, float))
+                        if isinstance(by_variant["fitcv"].get(key), (int, float))
+                        and isinstance(by_variant["baseline"].get(key), (int, float))
                         else "not_comparable"
                     )
                     for key in (
                         "final_cv_supported_requirement_coverage",
+                        "reviewed_factual_precision",
                         "unsupported_factual_claim_rate",
                         "first_pass_acceptance",
                         "final_acceptance",
                         "accepted_cv_rate_over_attempts",
                         "generation_input_tokens",
                         "total_generation_tokens",
+                        "latency_ms",
                     )
                 },
-                "provider_usage": {
-                    **usage_totals,
-                    "available": usage_available,
-                    "cost_available": isinstance(usage_totals["cost"], (int, float)),
-                    "token_scopes": {
-                        "generation_input_tokens": "provider prompt_tokens",
-                        "total_generation_tokens": "provider total_tokens",
-                        "total_workflow_tokens": "not_measured_without retrieval, validation, and repair telemetry",
-                    },
+                "provider_usage": usage_totals,
+                "confidence_intervals": confidence_intervals,
+                "human_review": human_review,
+                "context": {
+                    "fitcv_input_tokens_lower_fraction": round(
+                        sum(fitcv < baseline for baseline, fitcv in paired_input_tokens) / len(paired_input_tokens), 6
+                    ) if paired_input_tokens else "not_available",
                 },
-                "fitcv_input_tokens_lower_fraction": round(
-                    sum(fitcv < baseline for baseline, fitcv in paired_input_tokens)
-                    / len(paired_input_tokens),
-                    6,
-                )
-                if paired_input_tokens
-                else "not_available",
             },
             "reviewer": "deterministic_fixture_rubric_v1",
             "pair_results": pair_results,
         }
     return {
-        "evaluation_schema_version": 1,
+        "evaluation_schema_version": 2,
         "mode": "dry-run",
         "provider_calls": False,
         "fixture_sha256": payload["offline_gate"]["fixture_sha256"],
@@ -592,7 +843,14 @@ def evaluate(
             "final_acceptance": "not_measured",
             "repair_attempts": "not_measured",
             "provider_usage": "not_measured",
+            "human_review": _human_review_metrics(payload, [str(pair["pair_id"]) for pair in payload["pairs"]]),
         },
+        "rubric_fingerprint": _fingerprint([pair["baseline"].get("review") for pair in payload["pairs"]]),
+        "config_fingerprint": _fingerprint({
+            key: payload["provider"].get(key)
+            for key in ("model", "template", "generation_settings", "output_budget")
+        }),
+        "thresholds": dict(dict(payload.get("fixture") or {}).get("thresholds") or payload.get("thresholds") or {}),
         "limitations": [
             "Dry-run validates pair comparability only; it does not generate or review CVs.",
             "Provider usage and cost require a separately approved live adapter.",
