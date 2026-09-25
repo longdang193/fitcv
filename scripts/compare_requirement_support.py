@@ -18,11 +18,24 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _validate_compatibility(payloads: list[dict[str, Any]]) -> None:
     fixture_hashes = {str(payload.get("fixture_sha256") or "") for payload in payloads}
-    top_ks = {int(payload.get("top_k") or 0) for payload in payloads}
+    top_ks = {json.dumps(payload.get("top_k"), sort_keys=True) for payload in payloads}
     if len(fixture_hashes) != 1:
         raise ValueError("Benchmark outputs use different fixture SHA-256 values")
     if len(top_ks) != 1:
         raise ValueError("Benchmark outputs use different top_k values")
+
+
+def _validate_impact_compatibility(payloads: list[dict[str, Any]]) -> None:
+    _validate_compatibility(payloads)
+    schema_versions = {int(payload.get("evaluation_schema_version") or 0) for payload in payloads}
+    scenario_sets = {tuple(payload.get("scenario_set") or []) for payload in payloads}
+    evidence_budgets = {tuple(payload.get("evidence_budgets") or []) for payload in payloads}
+    if len(schema_versions) != 1:
+        raise ValueError("Benchmark outputs use different evaluation schema versions")
+    if len(scenario_sets) != 1:
+        raise ValueError("Benchmark outputs use different scenario sets")
+    if len(evidence_budgets) != 1:
+        raise ValueError("Benchmark outputs use different evidence budgets")
 
 
 def _current_metrics(payload: dict[str, Any]) -> dict[str, Any]:
@@ -36,6 +49,83 @@ def _current_metrics(payload: dict[str, Any]) -> dict[str, Any]:
         "timing_ms": dict(payload.get("timing_ms") or {}),
         "context": dict(payload.get("context") or {}),
         "validation": dict(payload.get("validation") or {}),
+        "micro_coverage": dict(support.get("micro_coverage") or {}),
+        "macro_coverage": dict(support.get("macro_coverage") or {}),
+        "assignment_precision": support.get("assignment_precision"),
+    }
+
+
+def _impact_delta(left: dict[str, Any], right: dict[str, Any], metric: str, stage: str) -> float | str:
+    left_value = left.get(metric, {}).get(stage)
+    right_value = right.get(metric, {}).get(stage)
+    if isinstance(left_value, dict):
+        left_value = left_value.get("selected")
+    if isinstance(right_value, dict):
+        right_value = right_value.get("selected")
+    if not isinstance(left_value, (int, float)) or not isinstance(right_value, (int, float)):
+        return "not_applicable"
+    return round(float(right_value) - float(left_value), 6)
+
+
+def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
+    if len(input_paths) < 2:
+        raise ValueError("at least two benchmark inputs are required")
+    payloads = [_load_json(path) for path in input_paths]
+    _validate_impact_compatibility(payloads)
+    by_arm = {str(payload.get("arm") or ""): payload for payload in payloads}
+    required_arms = {
+        "lexical-baseline",
+        "lexical-ablation",
+        "lexical-requirement-aware",
+        "current-hash",
+    }
+    missing = sorted(required_arms - set(by_arm))
+    if missing:
+        raise ValueError(f"Benchmark inputs missing arms: {', '.join(missing)}")
+    metrics = {arm: _current_metrics(by_arm[arm]) for arm in sorted(required_arms)}
+    comparisons = {
+        "baseline_vs_fitcv": {
+            "from": "lexical-baseline",
+            "to": "lexical-requirement-aware",
+            "selected_requirement_recall_delta": _impact_delta(
+                metrics["lexical-baseline"], metrics["lexical-requirement-aware"], "micro_coverage", "requirement_recall"
+            ),
+            "selected_evidence_pair_recall_delta": _impact_delta(
+                metrics["lexical-baseline"], metrics["lexical-requirement-aware"], "micro_coverage", "evidence_pair_recall"
+            ),
+        },
+        "ablation_vs_fitcv": {
+            "from": "lexical-ablation",
+            "to": "lexical-requirement-aware",
+            "selected_requirement_recall_delta": _impact_delta(
+                metrics["lexical-ablation"], metrics["lexical-requirement-aware"], "micro_coverage", "requirement_recall"
+            ),
+            "selected_evidence_pair_recall_delta": _impact_delta(
+                metrics["lexical-ablation"], metrics["lexical-requirement-aware"], "micro_coverage", "evidence_pair_recall"
+            ),
+        },
+        "fitcv_vs_current_hash": {
+            "from": "lexical-requirement-aware",
+            "to": "current-hash",
+            "selected_requirement_recall_delta": _impact_delta(
+                metrics["lexical-requirement-aware"], metrics["current-hash"], "micro_coverage", "requirement_recall"
+            ),
+            "selected_evidence_pair_recall_delta": _impact_delta(
+                metrics["lexical-requirement-aware"], metrics["current-hash"], "micro_coverage", "evidence_pair_recall"
+            ),
+        },
+    }
+    return {
+        "evaluation_schema_version": 1,
+        "fixture_sha256": payloads[0].get("fixture_sha256"),
+        "scenario_set": payloads[0].get("scenario_set"),
+        "evidence_budgets": payloads[0].get("evidence_budgets"),
+        "arms": metrics,
+        "comparisons": comparisons,
+        "limitations": [
+            "Offline prompt token estimates do not support provider cost claims.",
+            "Selected-evidence metrics do not measure final provider-generated CV quality.",
+        ],
     }
 
 
@@ -100,13 +190,19 @@ def run(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--baseline", type=Path, required=True)
-    parser.add_argument("--current", type=Path, required=True)
-    parser.add_argument("--retrieval", type=str, required=True)
+    parser.add_argument("--baseline", type=Path)
+    parser.add_argument("--current", type=Path)
+    parser.add_argument("--retrieval", type=str)
+    parser.add_argument("--inputs", type=str)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    retrieval_paths = [Path(value) for value in args.retrieval.split(",") if value]
-    result = run(args.baseline, args.current, retrieval_paths)
+    if args.inputs:
+        result = run_inputs([Path(value) for value in args.inputs.split(",") if value])
+    elif args.baseline and args.current and args.retrieval:
+        retrieval_paths = [Path(value) for value in args.retrieval.split(",") if value]
+        result = run(args.baseline, args.current, retrieval_paths)
+    else:
+        parser.error("provide --inputs or --baseline, --current, and --retrieval")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2, sort_keys=True))

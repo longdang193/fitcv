@@ -262,6 +262,28 @@ def _validate_fixture(fixture: dict[str, Any]) -> None:
             raise ValueError(
                 f"Scenario {scenario.get('scenario_id')!r} missing fields: {', '.join(missing)}"
             )
+    profiles = fixture.get("profiles")
+    job_contexts = fixture.get("job_contexts")
+    expected_support_maps = fixture.get("expected_support_maps")
+    if not isinstance(profiles, dict) or not isinstance(job_contexts, dict) or not isinstance(expected_support_maps, dict):
+        raise ValueError("Fixture needs profiles, job_contexts, and expected_support_maps registries")
+    for scenario in scenarios:
+        scenario_id = str(scenario.get("scenario_id") or "")
+        for field, registry in (
+            ("profile_ref", profiles),
+            ("job_context_ref", job_contexts),
+            ("expected_support_ref", expected_support_maps),
+        ):
+            reference = str(scenario.get(field) or "")
+            if not reference or reference not in registry:
+                raise ValueError(f"Scenario {scenario_id!r} has missing {field}: {reference!r}")
+        validation_ids = list(scenario.get("validation_case_ids") or [])
+        if not validation_ids:
+            raise ValueError(f"Scenario {scenario_id!r} needs validation_case_ids")
+    for field in ("profile_ref", "job_context_ref", "expected_support_ref"):
+        references = [str(scenario.get(field) or "") for scenario in scenarios]
+        if len(set(references)) != len(references):
+            raise ValueError(f"Scenario {field} values must be unique")
     validation_cases = list(fixture.get("validation_cases") or [])
     case_ids = {str(case.get("case_id") or "") for case in validation_cases}
     if any(not case_id for case_id in case_ids) or len(case_ids) != len(validation_cases):
@@ -269,6 +291,46 @@ def _validate_fixture(fixture: dict[str, Any]) -> None:
     for case in validation_cases:
         if "expected_valid" not in case or "expected_violation_class" not in case:
             raise ValueError(f"Validation case {case.get('case_id')!r} lacks expected outcome")
+    missing_case_refs = sorted(
+        {
+            str(case_id)
+            for scenario in scenarios
+            for case_id in list(scenario.get("validation_case_ids") or [])
+            if str(case_id) not in case_ids
+        }
+    )
+    if missing_case_refs:
+        raise ValueError(f"Fixture scenarios reference missing validation cases: {', '.join(missing_case_refs)}")
+
+
+def _resolve_scenarios(fixture: dict[str, Any]) -> list[dict[str, Any]]:
+    _validate_fixture(fixture)
+    profiles = dict(fixture["profiles"])
+    job_contexts = dict(fixture["job_contexts"])
+    expected_support_maps = dict(fixture["expected_support_maps"])
+    validation_cases = {
+        str(case["case_id"]): case
+        for case in list(fixture.get("validation_cases") or [])
+    }
+    resolved: list[dict[str, Any]] = []
+    for scenario in list(fixture.get("scenarios") or []):
+        validation_case_ids = [str(value) for value in list(scenario.get("validation_case_ids") or [])]
+        resolved.append(
+            {
+                "scenario_id": str(scenario["scenario_id"]),
+                "purpose": str(scenario.get("purpose") or ""),
+                "profile": copy.deepcopy(profiles[str(scenario["profile_ref"])]),
+                "job_context": copy.deepcopy(job_contexts[str(scenario["job_context_ref"])]),
+                "expected_support": {
+                    str(key): [str(value) for value in list(values or [])]
+                    for key, values in dict(expected_support_maps[str(scenario["expected_support_ref"])]).items()
+                },
+                "evidence_budget": int(scenario.get("evidence_budget") or fixture.get("top_k") or 0),
+                "top_k": int(scenario.get("top_k") or fixture.get("top_k") or 0),
+                "validation_cases": [copy.deepcopy(validation_cases[case_id]) for case_id in validation_case_ids],
+            }
+        )
+    return resolved
 
 
 def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
@@ -280,14 +342,36 @@ def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
 
 
 def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> dict[str, Any]:
+    normalized_arm = "lexical-requirement-aware" if arm == "lexical" else arm
+    if normalized_arm not in {
+        "lexical-baseline",
+        "lexical-ablation",
+        "lexical-requirement-aware",
+        "current-hash",
+    }:
+        raise ValueError(f"Unsupported arm: {arm}")
     config = copy.deepcopy(base_config)
     config.setdefault("pipeline", {}).setdefault("evidence_top_k", 2)
     config.setdefault("ranking_policy", {}).setdefault(
         "fit_label_thresholds", {"strong": 0.7, "stretch": 0.4}
     )
     semantic_alignment = config.setdefault("cv_analysis", {}).setdefault("semantic_alignment", {})
-    semantic_alignment["enabled"] = arm == "current-hash"
+    semantic_alignment["enabled"] = normalized_arm == "current-hash"
     semantic_alignment["channel_pool_size"] = int(pool_size)
+    selection_policy = config["cv_analysis"].setdefault("selection_policy", {})
+    if normalized_arm == "lexical-baseline":
+        selection_policy.update(
+            {
+                "multi_channel_bonus": 0.0,
+                "type_weight_factor": 0.0,
+                "residual_score_factor": 0.0,
+                "new_type_bonus": 0.0,
+                "same_type_penalty": 0.0,
+                "requirement_gain_weight": 0.0,
+            }
+        )
+    elif normalized_arm == "lexical-ablation":
+        selection_policy["requirement_gain_weight"] = 0.0
     return config
 
 
@@ -381,6 +465,8 @@ def _timed_analyze(
 def _support_metrics(
     bundle: dict[str, Any],
     expected_support: dict[str, list[str]],
+    *,
+    explicit_requirement_links: bool = True,
 ) -> dict[str, Any]:
     support = dict(bundle.get("requirement_support") or {})
     canonical = {key: set(value or []) for key, value in dict(support.get("canonical") or {}).items()}
@@ -416,7 +502,7 @@ def _support_metrics(
 
     def requirement_recall(stage: str) -> float:
         if not positive_requirements:
-            return 1.0
+            return "not_applicable"
         valid_pairs = stage_pairs[stage] & expected_pairs
         covered = {
             requirement_id
@@ -427,7 +513,7 @@ def _support_metrics(
 
     def pair_recall(stage: str) -> float:
         if not expected_pairs:
-            return 1.0
+            return "not_applicable"
         return round(len(stage_pairs[stage] & expected_pairs) / len(expected_pairs), 6)
 
     incorrect_pairs = sorted(stage_pairs["selected"] - expected_pairs)
@@ -450,8 +536,26 @@ def _support_metrics(
             stage: requirement_recall(stage)
             for stage in ("canonical", "retrieved", "selected")
         },
+        "requirement_counts": {
+            stage: {
+                "covered": sum(
+                    1
+                    for requirement_id, evidence_id in stage_pairs[stage] & expected_pairs
+                    if requirement_id in positive_requirements and evidence_id
+                ),
+                "denominator": len(positive_requirements),
+            }
+            for stage in ("canonical", "retrieved", "selected")
+        },
         "evidence_pair_recall": {
             stage: pair_recall(stage)
+            for stage in ("canonical", "retrieved", "selected")
+        },
+        "evidence_pair_counts": {
+            stage: {
+                "covered": len(stage_pairs[stage] & expected_pairs),
+                "denominator": len(expected_pairs),
+            }
             for stage in ("canonical", "retrieved", "selected")
         },
         "canonical_to_retrieved_loss": canonical_to_retrieved,
@@ -460,12 +564,15 @@ def _support_metrics(
         "expected_pair_errors": expected_pair_errors,
         "unexpected_selected": unexpected_selected,
         "incorrect_pairs": [list(pair) for pair in incorrect_pairs],
+        "correct_pairs": [list(pair) for pair in sorted(stage_pairs["selected"] & expected_pairs)],
         "missed_pairs": [list(pair) for pair in missed_pairs],
-        "assignment_precision": round(
-            len(stage_pairs["selected"] & expected_pairs) / len(stage_pairs["selected"]), 6
-        )
-        if stage_pairs["selected"]
-        else 1.0,
+        "assignment_precision": (
+            round(len(stage_pairs["selected"] & expected_pairs) / len(stage_pairs["selected"]), 6)
+            if stage_pairs["selected"]
+            else 1.0
+        ) if explicit_requirement_links else "not_applicable",
+        "explicit_requirement_links": explicit_requirement_links,
+        "selected_link_count": len(stage_pairs["selected"]),
         "selected_ids": selected_ids,
         "duplicate_ids": duplicate_ids,
     }
@@ -519,30 +626,97 @@ def _validation_class(result: dict[str, Any]) -> str:
     return "unrelated_validation" if not result.get("valid") else "none"
 
 
-def run_benchmark(
+def _timing_summary(samples: list[dict[str, float]], key: str) -> dict[str, float]:
+    values = [float(sample[key]) for sample in samples]
+    return {
+        "median": statistics.median(values),
+        "p95": _percentile(values, 0.95),
+    }
+
+
+def _scenario_profile_for_analysis(profile: dict[str, Any], scenario_id: str) -> dict[str, Any]:
+    prepared = copy.deepcopy(profile)
+    projected_pool = list(prepared.pop("_projected_evidence_pool", []) or [])
+    prepared.setdefault("name", f"Benchmark Candidate {scenario_id}")
+    document_id = f"benchmark-{scenario_id}"
+    prepared.setdefault(
+        "source_documents",
+        [{
+            "id": document_id,
+            "filename": f"{scenario_id}.json",
+            "media_type": "application/json",
+            "sha256": "0" * 64,
+            "origin": "uploaded",
+        }],
+    )
+    for field in (
+        "experiences",
+        "education",
+        "projects",
+        "achievements",
+        "certifications",
+        "volunteering",
+        "languages",
+        "skills",
+        "role_families",
+        "domain_tags",
+        "responsibility_themes",
+    ):
+        prepared.setdefault(field, [])
+    if projected_pool:
+        evidence_ids_by_skill: dict[str, list[str]] = {}
+        for item in projected_pool:
+            evidence_id = str(item.get("evidence_id") or "")
+            for skill in list(item.get("skills") or []):
+                skill_name = str(skill)
+                evidence_ids_by_skill.setdefault(skill_name, []).append(evidence_id)
+        prepared["skills"] = [
+            {
+                "id": f"{scenario_id}-{skill.casefold().replace(' ', '-')}",
+                "name": skill,
+                "origin": "extracted_explicit",
+                "confidence": 1.0,
+                "support_status": "supported",
+                "evidence_refs": sorted(set(evidence_ids)),
+            }
+            for skill, evidence_ids in sorted(evidence_ids_by_skill.items())
+        ]
+        prepared["experiences"] = [
+            {
+                "id": f"{scenario_id}-experience",
+                "role": "Benchmark Engineer",
+                "company": "Benchmark Fixture",
+                "source_refs": [{"document_id": document_id}],
+                "evidence": [
+                    {
+                        "id": str(item.get("evidence_id") or ""),
+                        "kind": "work_achievement",
+                        "text": str(item.get("text") or item.get("business_value") or ""),
+                        "source_refs": [{"document_id": document_id}],
+                    }
+                    for item in projected_pool
+                ],
+            }
+        ]
+    return prepared
+
+
+def _run_benchmark_scenario(
     *,
+    fixture: dict[str, Any],
+    scenario: dict[str, Any],
     arm: str,
     pool_size: int,
-    fixture_path: Path = DEFAULT_FIXTURE,
-    policy_path: Path = DEFAULT_POLICY,
-    runs: int = MEASURED_RUNS,
-    warmups: int = WARMUP_RUNS,
+    base_config: dict[str, Any],
+    runs: int,
+    warmups: int,
 ) -> dict[str, Any]:
-    if arm not in {"current-hash", "lexical"}:
-        raise ValueError(f"Unsupported arm: {arm}")
-    if runs <= 0 or warmups < 0:
-        raise ValueError("runs must be positive and warmups cannot be negative")
-    fixture = _load_json(fixture_path)
-    _validate_fixture(fixture)
-    base_config = _load_policy(policy_path)
-    profile = dict(fixture.get("profile") or {})
-    job_context = dict(fixture.get("job_context") or {})
-    expected_support = {
-        str(key): [str(value) for value in list(values or [])]
-        for key, values in dict(fixture.get("expected_support") or {}).items()
-    }
+    profile = _scenario_profile_for_analysis(scenario["profile"], str(scenario["scenario_id"]))
+    job_context = dict(scenario["job_context"])
+    job_context.setdefault("baseline_fit", 0.8)
+    job_context.setdefault("baseline_fit_label", "strong")
     config = _runtime_config(base_config, arm, pool_size)
-    top_k = int(fixture.get("top_k") or 0)
+    top_k = int(scenario["top_k"])
     for _ in range(warmups):
         _timed_analyze(profile, job_context, config, top_k)
 
@@ -550,9 +724,6 @@ def run_benchmark(
     final_bundle: dict[str, Any] | None = None
     final_analysis: dict[str, Any] | None = None
     final_validation_cases: list[dict[str, Any]] = []
-    validation_cases = list(fixture.get("validation_cases") or [])
-    if not validation_cases:
-        validation_cases = [{"case_id": "default"}]
     for _ in range(runs):
         bundle, analysis_record, timings = _timed_analyze(profile, job_context, config, top_k)
         final_bundle = bundle
@@ -576,7 +747,7 @@ def run_benchmark(
         serialization_ms = (time.perf_counter() - serialization_started) * 1000
         case_results: list[dict[str, Any]] = []
         validation_ms = 0.0
-        for case in validation_cases:
+        for case in list(scenario["validation_cases"]):
             validation, case_validation_ms = _run_validation(
                 fixture,
                 profile,
@@ -607,45 +778,25 @@ def run_benchmark(
                 "prompt_bytes": len(prompt.encode("utf-8")),
                 "estimated_prompt_tokens": math.ceil(len(prompt.encode("utf-8")) / 4),
                 "payload_bytes": len(prompt_payload.encode("utf-8")),
+                "selected_item_count": len(list(bundle.get("selected_evidence") or [])),
             }
         )
 
     assert final_bundle is not None and final_analysis is not None
-    metric = _support_metrics(final_bundle, expected_support)
-    pool_12_trigger_ids = sorted(
-        key
-        for key, values in metric["direct_support_opportunities"].items()
-        if values
+    explicit_links = arm != "lexical-baseline"
+    metric = _support_metrics(
+        final_bundle,
+        scenario["expected_support"],
+        explicit_requirement_links=explicit_links,
     )
     return {
-        "arm": arm,
-        "evaluation_schema_version": 1,
-        "implementation_ref": subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
-        ).strip(),
-        "fixture_sha256": _fixture_sha256(fixture_path),
-        "semantic_alignment_enabled": arm == "current-hash",
-        "pool_size": pool_size,
+        "scenario_id": scenario["scenario_id"],
+        "purpose": scenario["purpose"],
+        "evidence_budget": scenario["evidence_budget"],
         "top_k": top_k,
-        "backend": final_bundle.get("semantic_alignment", {}).get("embedding_backend"),
-        "requirement_support": metric,
-        "pool_12_decision": {
-            "status": "run_required" if pool_12_trigger_ids else "skipped",
-            "trigger_requirement_ids": pool_12_trigger_ids,
-            "reason": (
-                "pool 8 or smaller arm has approved support absent from retrieved pool"
-                if pool_12_trigger_ids
-                else "no approved-support requirement is missing from retrieved pool"
-            ),
-        },
-        "channel_counts": final_bundle.get("channel_counts"),
-        "merged_pool_size": final_bundle.get("merged_pool_size"),
-        "deduped_pool_size": final_bundle.get("deduped_pool_size"),
+        "metrics": metric,
         "timing_ms": {
-            key: {
-                "median": statistics.median(sample[key] for sample in samples),
-                "p95": _percentile([sample[key] for sample in samples], 0.95),
-            }
+            key: _timing_summary(samples, key)
             for key in (
                 "retrieval_ms",
                 "selection_ms",
@@ -656,6 +807,7 @@ def run_benchmark(
             )
         },
         "context": {
+            "selected_item_count": max(sample["selected_item_count"] for sample in samples),
             "prompt_bytes": max(sample["prompt_bytes"] for sample in samples),
             "estimated_prompt_tokens": max(sample["estimated_prompt_tokens"] for sample in samples),
             "payload_bytes": max(sample["payload_bytes"] for sample in samples),
@@ -664,6 +816,186 @@ def run_benchmark(
             "case_results": final_validation_cases,
             "passed_cases": sum(bool(case["pass"]) for case in final_validation_cases),
             "case_count": len(final_validation_cases),
+        },
+        "backend": final_bundle.get("semantic_alignment", {}).get("embedding_backend"),
+        "selection_policy": dict(final_bundle.get("evidence_selection_summary", {}).get("selection_policy") or {}),
+    }
+
+
+def _aggregate_scenario_metrics(scenario_results: list[dict[str, Any]]) -> dict[str, Any]:
+    stages = ("canonical", "retrieved", "selected")
+    requirement_counts = {
+        stage: {
+            "covered": sum(int(result["metrics"]["requirement_counts"][stage]["covered"]) for result in scenario_results),
+            "denominator": sum(int(result["metrics"]["requirement_counts"][stage]["denominator"]) for result in scenario_results),
+        }
+        for stage in stages
+    }
+    pair_counts = {
+        stage: {
+            "covered": sum(int(result["metrics"]["evidence_pair_counts"][stage]["covered"]) for result in scenario_results),
+            "denominator": sum(int(result["metrics"]["evidence_pair_counts"][stage]["denominator"]) for result in scenario_results),
+        }
+        for stage in stages
+    }
+
+    def ratio(counts: dict[str, int]) -> float | str:
+        return round(counts["covered"] / counts["denominator"], 6) if counts["denominator"] else "not_applicable"
+
+    def macro(metric_key: str, stage: str) -> float | str:
+        values = [
+            result["metrics"][metric_key][stage]
+            for result in scenario_results
+            if isinstance(result["metrics"][metric_key][stage], (int, float))
+        ]
+        return round(statistics.mean(values), 6) if values else "not_applicable"
+
+    return {
+        "requirement_recall": {stage: ratio(requirement_counts[stage]) for stage in stages},
+        "evidence_pair_recall": {stage: ratio(pair_counts[stage]) for stage in stages},
+        "micro_coverage": {
+            "requirement_recall": {stage: ratio(requirement_counts[stage]) for stage in stages},
+            "evidence_pair_recall": {stage: ratio(pair_counts[stage]) for stage in stages},
+        },
+        "macro_coverage": {
+            "requirement_recall": {stage: macro("requirement_recall", stage) for stage in stages},
+            "evidence_pair_recall": {stage: macro("evidence_pair_recall", stage) for stage in stages},
+        },
+        "requirement_counts": requirement_counts,
+        "evidence_pair_counts": pair_counts,
+        "canonical_coverage": sum(result["metrics"]["canonical_coverage"] for result in scenario_results),
+        "retrieved_coverage": sum(result["metrics"]["retrieved_coverage"] for result in scenario_results),
+        "selected_coverage": sum(result["metrics"]["selected_coverage"] for result in scenario_results),
+        "incorrect_pairs": [
+            [result["scenario_id"], *pair]
+            for result in scenario_results
+            for pair in result["metrics"].get("incorrect_pairs", [])
+        ],
+        "missed_pairs": [
+            [result["scenario_id"], *pair]
+            for result in scenario_results
+            for pair in result["metrics"].get("missed_pairs", [])
+        ],
+        "assignment_precision": (
+            "not_applicable"
+            if not all(result["metrics"].get("explicit_requirement_links") for result in scenario_results)
+            else round(
+                sum(
+                    len(set(map(tuple, result["metrics"].get("correct_pairs", []))))
+                    for result in scenario_results
+                )
+                / max(
+                    sum(int(result["metrics"].get("selected_link_count") or 0) for result in scenario_results),
+                    1,
+                ),
+                6,
+            )
+        ),
+        "explicit_requirement_links": all(
+            bool(result["metrics"].get("explicit_requirement_links")) for result in scenario_results
+        ),
+        "direct_support_opportunities": {
+            requirement_id: sorted(
+                {
+                    evidence_id
+                    for result in scenario_results
+                    for evidence_id in result["metrics"].get("direct_support_opportunities", {}).get(requirement_id, [])
+                }
+            )
+            for requirement_id in sorted(
+                {
+                    requirement_id
+                    for result in scenario_results
+                    for requirement_id in result["metrics"].get("direct_support_opportunities", {})
+                }
+            )
+        },
+        "selected_ids": sorted(
+            {
+                evidence_id
+                for result in scenario_results
+                for evidence_id in result["metrics"].get("selected_ids", [])
+            }
+        ),
+    }
+
+
+def run_benchmark(
+    *,
+    arm: str,
+    pool_size: int = 4,
+    fixture_path: Path = DEFAULT_FIXTURE,
+    policy_path: Path = DEFAULT_POLICY,
+    runs: int = MEASURED_RUNS,
+    warmups: int = WARMUP_RUNS,
+) -> dict[str, Any]:
+    if arm not in {"current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"}:
+        raise ValueError(f"Unsupported arm: {arm}")
+    if runs <= 0 or warmups < 0:
+        raise ValueError("runs must be positive and warmups cannot be negative")
+    fixture = _load_json(fixture_path)
+    scenarios = _resolve_scenarios(fixture)
+    base_config = _load_policy(policy_path)
+    scenario_results = [
+        _run_benchmark_scenario(
+            fixture=fixture,
+            scenario=scenario,
+            arm=arm,
+            pool_size=pool_size,
+            base_config=base_config,
+            runs=runs,
+            warmups=warmups,
+        )
+        for scenario in scenarios
+    ]
+    aggregate = _aggregate_scenario_metrics(scenario_results)
+    timing_keys = tuple(scenario_results[0]["timing_ms"])
+    return {
+        "arm": "lexical-requirement-aware" if arm == "lexical" else arm,
+        "evaluation_schema_version": int(fixture["evaluation_schema_version"]),
+        "implementation_ref": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
+        ).strip(),
+        "fixture_sha256": _fixture_sha256(fixture_path),
+        "scenario_set": [result["scenario_id"] for result in scenario_results],
+        "scenario_count": len(scenario_results),
+        "workload_count": len(scenario_results),
+        "semantic_alignment_enabled": arm == "current-hash",
+        "pool_size": pool_size,
+        "top_k": sorted({result["top_k"] for result in scenario_results}),
+        "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
+        "backend": scenario_results[-1]["backend"],
+        "requirement_support": aggregate,
+        "scenarios": scenario_results,
+        "timing_ms": {
+            key: {
+                "median": statistics.median(result["timing_ms"][key]["median"] for result in scenario_results),
+                "p95": max(result["timing_ms"][key]["p95"] for result in scenario_results),
+            }
+            for key in timing_keys
+        },
+        "context": {
+            "selected_item_count": max(result["context"]["selected_item_count"] for result in scenario_results),
+            "prompt_bytes": max(result["context"]["prompt_bytes"] for result in scenario_results),
+            "estimated_prompt_tokens": max(result["context"]["estimated_prompt_tokens"] for result in scenario_results),
+            "payload_bytes": max(result["context"]["payload_bytes"] for result in scenario_results),
+        },
+        "validation": {
+            "passed_cases": sum(result["validation"]["passed_cases"] for result in scenario_results),
+            "case_count": sum(result["validation"]["case_count"] for result in scenario_results),
+            "scenario_results": [
+                {
+                    "scenario_id": result["scenario_id"],
+                    "passed_cases": result["validation"]["passed_cases"],
+                    "case_count": result["validation"]["case_count"],
+                }
+                for result in scenario_results
+            ],
+        },
+        "arm_configuration": {
+            "retrieval": "hash" if arm == "current-hash" else "lexical",
+            "selection": arm,
+            "provider_calls": False,
         },
         "fixture": str(fixture_path.relative_to(REPO_ROOT)),
         "warmup_runs": warmups,
@@ -674,15 +1006,18 @@ def run_benchmark(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--weight", type=float)
-    parser.add_argument("--arm", choices=("current-hash", "lexical"))
-    parser.add_argument("--pool-size", type=int)
+    parser.add_argument(
+        "--arm",
+        choices=("current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
+    )
+    parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)
     parser.add_argument("--warmups", type=int, default=WARMUP_RUNS)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.weight is not None:
         result = run(args.weight)
-    elif args.arm is not None and args.pool_size is not None:
+    elif args.arm is not None:
         result = run_benchmark(
             arm=args.arm,
             pool_size=args.pool_size,
@@ -690,7 +1025,7 @@ def main() -> int:
             warmups=args.warmups,
         )
     else:
-        parser.error("provide --weight or both --arm and --pool-size")
+        parser.error("provide --weight or --arm")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2, sort_keys=True))
