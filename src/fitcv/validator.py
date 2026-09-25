@@ -150,6 +150,7 @@ class AnalysisGroundingPayload(TypedDict, total=False):
     evidence_used: list[dict[str, Any]]
     evidence_selection_summary: dict[str, Any]
     analysis_input_summary: dict[str, Any]
+    requirement_coverage: list[dict[str, Any]]
 
 
 class SelectedEvidenceSupport(TypedDict):
@@ -727,6 +728,32 @@ def _check_selected_skill_grounding(
     return violations
 
 
+def _check_requirement_grounding(
+    cv_text: str,
+    requirement_coverage: list[dict[str, Any]],
+    config: dict[str, Any],
+) -> list[str]:
+    violations: list[str] = []
+    claimed_skills = _extract_skill_section_tokens(cv_text)
+    for claimed_skill in claimed_skills:
+        claimed_canonical = canonicalize_skill(claimed_skill, config)
+        for requirement in requirement_coverage:
+            requirement_canonical = canonicalize_skill(
+                str(requirement.get("canonical_skill") or requirement.get("requirement") or ""),
+                config,
+            )
+            if not requirement_canonical or claimed_canonical != requirement_canonical:
+                continue
+            if (
+                str(requirement.get("selected_support") or "") != "verified"
+                or not list(requirement.get("supporting_evidence_ids") or [])
+            ):
+                violations.append(
+                    f"Required skill '{claimed_skill}' is claimed without selected verified support"
+                )
+    return list(dict.fromkeys(violations))
+
+
 def _deterministic_soft_support(
     claim_text: str,
     support_surface: SelectedEvidenceSupport,
@@ -1085,6 +1112,13 @@ def run_all_validations(
     skill_violations: list[str] = check_skill_provenance(cv_text, candidate_skills, config=config)
     deterministic_grounding_violations: list[str] = []
     semantic_grounding_violations: list[str] = []
+    deterministic_grounding_violations.extend(
+        _check_requirement_grounding(
+            cv_text,
+            list((analysis_grounding or {}).get("requirement_coverage") or []),
+            config,
+        )
+    )
 
     support_surface = _normalize_analysis_grounding(analysis_grounding, config)
     support_source_summary = {
@@ -1137,11 +1171,11 @@ def run_all_validations(
             "soft_claim_mode": "hybrid_selected_evidence",
             **soft_support_summary,
         })
-        grounding_violations = list(dict.fromkeys(
-            grounding_violations
-            + deterministic_grounding_violations
-            + semantic_grounding_violations
-        ))
+    grounding_violations = list(dict.fromkeys(
+        grounding_violations
+        + deterministic_grounding_violations
+        + semantic_grounding_violations
+    ))
 
     missing_skills_relaxed = False
     if "Skills" in missing_sections and not support_surface["skills_lower"] and support_surface["has_selected_support"]:

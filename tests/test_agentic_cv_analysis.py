@@ -14,6 +14,9 @@ tags:
 """
 
 from unittest.mock import patch
+from pathlib import Path
+
+import yaml
 
 from fitcv.agentic_cv_analysis import (
     analyze_ranked_job,
@@ -330,10 +333,178 @@ def test_cv_analysis_fingerprint_uses_raw_identity_not_mutable_url() -> None:
     fingerprint_a = build_cv_analysis_input_fingerprint(_profile(), job_a, _config())
     fingerprint_b = build_cv_analysis_input_fingerprint(_profile(), job_b, _config())
 
-    assert CV_ANALYSIS_REUSE_SCHEMA_VERSION == "cv_analysis_reuse_v2"
+    assert CV_ANALYSIS_REUSE_SCHEMA_VERSION == "cv_analysis_reuse_v3"
     assert fingerprint_a["fingerprint"] == fingerprint_b["fingerprint"]
     assert fingerprint_a["payload"]["job"]["raw_job_fingerprint"] == "raw-job-1"
     assert "job_url" not in fingerprint_a["payload"]["job"]
+
+
+def test_real_canonical_profile_emits_requirement_coverage_without_mocks() -> None:
+    profile = yaml.safe_load(
+        Path("data/candidate_profile.v2.sample.yaml").read_text(encoding="utf-8")
+    )
+    job = {
+        "job_url": "https://example.com/job/live-probe",
+        "title": "Data Analyst",
+        "baseline_fit": 0.8,
+        "baseline_fit_label": "strong",
+        "required_skills": ["SQL", "Python"],
+        "required_skill_entities": [
+            {"raw_text": "SQL", "canonical": "sql"},
+            {"raw_text": "Python", "canonical": "python"},
+        ],
+        "preferred_skills": [],
+        "responsibilities": ["Build dashboards"],
+    }
+    result = analyze_ranked_job(
+        job,
+        profile,
+        {
+            "pipeline": {"evidence_top_k": 2},
+            "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
+            "cv_analysis": {
+                "semantic_alignment": {"enabled": False},
+                "selection_policy": {"requirement_gain_weight": 0.10},
+            },
+        },
+    )
+
+    assert result["status"] == "ready_for_generation"
+    assert {
+        str(row["canonical_skill"]): row["selected_support"]
+        for row in result["requirement_coverage"]
+    } == {"sql": "verified", "python": "verified"}
+
+
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_requirement_coverage_does_not_infer_support_from_profile_match(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::support"}
+    mock_bundle.return_value = {
+        "selected_evidence": [{
+            "evidence_id": "ev-java",
+            "skills": ["Java"],
+            "channel_scores": {"required_skill_support": 0.8},
+        }],
+        "requirement_support": {"pool": {}, "selected": {}},
+    }
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    result = analyze_ranked_job(
+        {**_job(), "required_skills": ["SQL"], "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}]},
+        _profile(),
+        _config(),
+    )
+
+    row = result["requirement_coverage"][0]
+    assert row["profile_match"] == "matched"
+    assert row["selected_support"] == "unsupported"
+    assert row["support_strength"] == "unsupported"
+    assert row["evidence_support_count"] == 0
+
+
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_requirement_coverage_preserves_partial_and_collapses_canonical_duplicates(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::partial"}
+    mock_bundle.return_value = {
+        "selected_evidence": [],
+        "requirement_support": {"pool": {}, "selected": {}},
+    }
+    mock_gap.return_value = {
+        "matched": [],
+        "partial": [{"required": "Python programming", "candidate": "Python", "canonical": "python"}],
+        "missing": [],
+    }
+
+    result = analyze_ranked_job(
+        {
+            **_job(),
+            "required_skills": ["Python programming", "Python"],
+            "required_skills_canonical": ["python", "python"],
+            "required_skill_entities": [
+                {"raw_text": "Python programming", "canonical": "python"},
+                {"raw_text": "Python", "canonical": "python"},
+            ],
+        },
+        _profile(),
+        _config(),
+    )
+
+    assert len(result["requirement_coverage"]) == 1
+    row = result["requirement_coverage"][0]
+    assert row["profile_match"] == "partial"
+    assert row["original_requirements"] == ["Python programming", "Python"]
+
+
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_requirement_coverage_marks_relevant_without_canonical_link_as_unverified(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::relevant"}
+    mock_bundle.return_value = {
+        "deduped_pool_size": 1,
+        "selected_evidence": [{
+            "evidence_id": "ev-relevant",
+            "skills": ["Java"],
+            "channel_scores": {"required_skill_support": 0.8},
+            "scoring_context": "SQL dashboard reporting",
+        }],
+        "requirement_support": {"pool": {}, "selected": {}},
+    }
+    mock_gap.return_value = {"matched": [], "partial": [], "missing": ["SQL"]}
+
+    result = analyze_ranked_job(
+        {**_job(), "required_skills": ["SQL"], "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}]},
+        _profile(),
+        _config(),
+    )
+
+    assert result["requirement_coverage"][0]["selected_support"] == "relevant_unverified"
+
+
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_requirement_coverage_drops_support_ids_not_present_after_selection(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::trim"}
+    mock_bundle.return_value = {
+        "deduped_pool_size": 2,
+        "selected_evidence": [{"evidence_id": "ev-selected", "skills": ["Java"]}],
+        "requirement_support": {
+            "pool": {"required_skill:sql": ["ev-trimmed"]},
+            "selected": {"required_skill:sql": ["ev-trimmed"]},
+        },
+    }
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    result = analyze_ranked_job(
+        {**_job(), "required_skills": ["SQL"], "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}]},
+        _profile(),
+        _config(),
+    )
+
+    row = result["requirement_coverage"][0]
+    assert row["selected_support"] == "not_selected"
+    assert row["supporting_evidence_ids"] == []
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")

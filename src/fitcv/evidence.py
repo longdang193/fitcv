@@ -55,6 +55,7 @@ from fitcv.contracts import (
 )
 from fitcv.embeddings import generate_embedding
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
+from fitcv.rule_filter import canonicalize_skill
 
 
 SKILL_OVERLAP_WEIGHT: float = 0.70
@@ -141,6 +142,7 @@ class SelectionPolicy:
     residual_score_factor: float
     new_type_bonus: float
     same_type_penalty: float
+    requirement_gain_weight: float
     quotas: SelectionQuotas
     trimming: SelectionTrimming
 
@@ -152,6 +154,7 @@ class SelectionPolicy:
             "residual_score_factor": float(self.residual_score_factor),
             "new_type_bonus": float(self.new_type_bonus),
             "same_type_penalty": float(self.same_type_penalty),
+            "requirement_gain_weight": float(self.requirement_gain_weight),
             "quotas": self.quotas.as_dict(),
             "trimming": self.trimming.as_dict(),
         }
@@ -206,6 +209,7 @@ def _selection_policy_model(config: dict[str, Any] | None) -> SelectionPolicy:
         residual_score_factor=float(selection_policy.get("residual_score_factor", 0.05)),
         new_type_bonus=float(selection_policy.get("new_type_bonus", 0.03)),
         same_type_penalty=float(selection_policy.get("same_type_penalty", 0.02)),
+        requirement_gain_weight=float(selection_policy.get("requirement_gain_weight", 0.10)),
         quotas=SelectionQuotas(
             experience_entry_top_k=int(quotas.get("experience_entry_top_k", DEFAULT_EXPERIENCE_ENTRY_TOP_K)),
             project_entry_top_k=int(quotas.get("project_entry_top_k", DEFAULT_PROJECT_ENTRY_TOP_K)),
@@ -304,6 +308,62 @@ def _extract_canonical_entities(values: Any) -> list[str]:
         if canonical:
             extracted.append(canonical)
     return extracted
+
+
+def build_required_skill_descriptors(
+    job_context: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    entities = [
+        entity for entity in list(job_context.get("required_skill_entities") or [])
+        if isinstance(entity, dict)
+    ]
+    raw_skills = [str(value).strip() for value in list(job_context.get("required_skills") or []) if str(value).strip()]
+    canonical_skills = [
+        str(value).strip()
+        for value in list(job_context.get("required_skills_canonical") or [])
+        if str(value).strip()
+    ]
+    pairs: list[tuple[str, str]] = []
+    if entities:
+        pairs = [
+            (
+                str(entity.get("raw_text") or entity.get("canonical") or "").strip(),
+                str(entity.get("canonical") or entity.get("raw_text") or "").strip(),
+            )
+            for entity in entities
+        ]
+    else:
+        pairs = [
+            (
+                raw_skills[index] if index < len(raw_skills) else canonical,
+                canonical,
+            )
+            for index, canonical in enumerate(canonical_skills or raw_skills)
+        ]
+
+    descriptors: dict[str, dict[str, Any]] = {}
+    for original, canonical in pairs:
+        canonical_skill = canonicalize_skill(canonical or original, config)
+        if not canonical_skill:
+            continue
+        requirement_id = f"required_skill:{canonical_skill}"
+        descriptor = descriptors.setdefault(
+            requirement_id,
+            {
+                "requirement_id": requirement_id,
+                "requirement": original or canonical_skill,
+                "canonical_skill": canonical_skill,
+                "original_requirements": [],
+                "requirement_type": "required_skill",
+                "requirement_priority": "must_have",
+            },
+        )
+        if not descriptor["original_requirements"] and original:
+            descriptor["requirement"] = original
+        if original and original not in descriptor["original_requirements"]:
+            descriptor["original_requirements"].append(original)
+    return list(descriptors.values())
 
 
 def _tokenize(value: str) -> set[str]:
@@ -659,6 +719,8 @@ def _coerce_job_context(job_context: dict[str, Any] | list[str]) -> dict[str, An
         "job_family": _normalize_optional_text(job_context.get("job_family")),
         "domain": _normalize_optional_text(job_context.get("domain")),
         "required_skills": required_skills,
+        "required_skills_canonical": required_skills,
+        "required_skill_entities": list(job_context.get("required_skill_entities") or []),
         "preferred_skills": preferred_skills,
         "responsibilities": responsibilities,
     }
@@ -1699,6 +1761,35 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
     )
 
 
+def _annotate_requirement_support(
+    items: list[dict[str, Any]],
+    descriptors: list[dict[str, Any]],
+    config: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    for item in items:
+        item["supported_requirement_ids"] = [
+            str(descriptor["requirement_id"])
+            for descriptor in descriptors
+            if any(
+                canonicalize_skill(str(skill), config) == descriptor["canonical_skill"]
+                for skill in list(item.get("skills") or [])
+                if str(skill).strip()
+            )
+        ]
+    return items
+
+
+def _requirement_support_map(items: list[dict[str, Any]]) -> dict[str, list[str]]:
+    support: dict[str, list[str]] = {}
+    for item in items:
+        evidence_id = str(item.get("evidence_id") or "")
+        if not evidence_id:
+            continue
+        for requirement_id in list(item.get("supported_requirement_ids") or []):
+            support.setdefault(str(requirement_id), []).append(evidence_id)
+    return {key: list(dict.fromkeys(value)) for key, value in support.items()}
+
+
 def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> float:
     channel_weights = dict(policy.get("channel_weights") or {})
     channel_scores = dict(item.get("channel_scores") or {})
@@ -1714,16 +1805,22 @@ def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> fl
 def _coverage_gain(
     item: dict[str, Any],
     covered_channel_scores: dict[str, float],
+    covered_requirement_ids: set[str],
     *,
     policy: dict[str, Any],
 ) -> float:
     channel_weights = dict(policy.get("channel_weights") or {})
     channel_scores = dict(item.get("channel_scores") or {})
-    return sum(
+    channel_gain = sum(
         max(float(channel_scores.get(channel) or 0.0) - covered_channel_scores.get(channel, 0.0), 0.0)
         * float(channel_weights.get(channel, 0.0))
         for channel in RETRIEVAL_CHANNELS
     )
+    requirement_gain = len(
+        set(str(value) for value in list(item.get("supported_requirement_ids") or []))
+        - covered_requirement_ids
+    ) * float(policy.get("requirement_gain_weight", 0.0))
+    return channel_gain + requirement_gain
 
 
 def _selection_reasons(item: dict[str, Any]) -> list[str]:
@@ -1771,6 +1868,7 @@ def _debug_candidate_sample(item: dict[str, Any]) -> dict[str, Any]:
         "matched_channels": list(item.get("matched_channels") or []),
         "selection_reasons": list(item.get("selection_reasons") or []),
         "selection_score": round(float(item.get("selection_score") or 0.0), 6),
+        "supported_requirement_ids": list(item.get("supported_requirement_ids") or []),
     }
     channel_subscores = dict(item.get("channel_subscores") or {})
     if channel_subscores:
@@ -1794,12 +1892,18 @@ def _select_final_evidence(
 
     selected: list[dict[str, Any]] = []
     covered_channel_scores = {channel: 0.0 for channel in RETRIEVAL_CHANNELS}
+    covered_requirement_ids: set[str] = set()
     remaining = list(merged_pool)
     while remaining and len(selected) < top_k:
         ranked: list[tuple[float, str, int]] = []
         for index, item in enumerate(remaining):
             dynamic_score = (
-                _coverage_gain(item, covered_channel_scores, policy=policy)
+                _coverage_gain(
+                    item,
+                    covered_channel_scores,
+                    covered_requirement_ids,
+                    policy=policy,
+                )
                 + (_base_selection_score(item, policy=policy) * float(policy.get("residual_score_factor", 0.0)))
             )
             ranked.append((dynamic_score, str(item.get("evidence_id") or ""), index))
@@ -1813,6 +1917,9 @@ def _select_final_evidence(
                 covered_channel_scores[channel],
                 float(channel_scores.get(channel) or 0.0),
             )
+        covered_requirement_ids.update(
+            str(value) for value in list(chosen.get("supported_requirement_ids") or [])
+        )
         chosen["selection_score"] = round(best_score, 6)
         chosen["selection_reasons"] = _selection_reasons(chosen)
         selected.append(_finalize_selected_item(chosen, job_context, policy=policy))
@@ -1856,6 +1963,11 @@ class _EvidenceSelectionEngine:
 
     def run(self, channel_pools: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
         merged_pool = _merge_channel_pools(channel_pools)
+        _annotate_requirement_support(
+            merged_pool,
+            list(self.job_context.get("requirement_descriptors") or []),
+            self.job_context.get("config"),
+        )
         selected_evidence = _select_final_evidence(
             merged_pool,
             top_k=self.top_k,
@@ -1906,6 +2018,8 @@ def _build_retrieve_evidence_bundle_payload(
         lexical_weight_key="domain_lexical_weight",
         semantic_weight_key="domain_semantic_weight",
     )
+    pool_requirement_support = _requirement_support_map(merged_pool)
+    selected_requirement_support = _requirement_support_map(selected_evidence)
     return {
         "source_profile_schema_version": source_profile_schema_version,
         "projection_schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
@@ -1921,6 +2035,10 @@ def _build_retrieve_evidence_bundle_payload(
         "deduped_pool_size": len(merged_pool),
         "selected_evidence_count": len(selected_evidence),
         "unselected_top_candidates": unselected_top_candidates,
+        "requirement_support": {
+            "pool": pool_requirement_support,
+            "selected": selected_requirement_support,
+        },
         "hybrid_alignment": {
             "required_skill_support": {
                 "lexical_weight": round(required_skill_lexical_weight, 6),
@@ -1953,6 +2071,11 @@ def retrieve_evidence_bundle(
 ) -> dict[str, Any]:
     """Retrieve evidence via separate channels, then merge/dedupe/select."""
     coerced_job_context = _coerce_job_context(job_context)
+    coerced_job_context["config"] = config
+    coerced_job_context["requirement_descriptors"] = build_required_skill_descriptors(
+        dict(job_context) if isinstance(job_context, dict) else {"required_skills": list(job_context)},
+        config,
+    )
     base_items = _collect_base_items(profile)
     source_profile_schema_version = str(profile.get("schema_version") or "candidate-profile.v1")
     projection_fingerprint = _stable_json_fingerprint(

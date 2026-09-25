@@ -129,6 +129,29 @@ def test_check_employer_grounding_catches_invented_employer() -> None:
     assert any("InventedCorp" in v for v in violations)
 
 
+def test_run_all_validations_rejects_required_skill_without_verified_support() -> None:
+    result = run_all_validations(
+        "## Skills\nSQL\n",
+        {"skills": [{"name": "SQL"}], "experiences": [], "projects": []},
+        {
+            "required_cv_sections": ["Skills"],
+            "cv_max_pages": 2,
+            "cv": {"validation": {"allow_profile_skill_outside_selected_evidence": True}},
+        },
+        analysis_grounding={
+            "evidence_payload": [],
+            "requirement_coverage": [{
+                "requirement": "sql",
+                "canonical_skill": "sql",
+                "selected_support": "unsupported",
+                "supporting_evidence_ids": [],
+            }],
+        },
+    )
+
+    assert any("required skill" in violation.lower() for violation in result["grounding_violations"])
+
+
 def test_check_employer_grounding_passes_known_employer() -> None:
     cv_text = "Engineer at ACME (2019–2022)"
     violations = check_employer_grounding(cv_text, known_employers=["ACME"])

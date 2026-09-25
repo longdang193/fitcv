@@ -24,11 +24,13 @@ from typing import Any, Literal, TypedDict, cast
 from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
+    build_required_skill_descriptors,
     build_cv_analysis_input_fingerprint,
     retrieve_evidence,
     retrieve_evidence_bundle,
 )
 from fitcv.gap_analysis import compute_gap
+from fitcv.rule_filter import canonicalize_skill
 from fitcv.pipeline_stages.common import extract_job_url, job_identity_keys
 from fitcv.reuse import build_reuse_decision
 from fitcv.late_stage_contract import (
@@ -188,6 +190,21 @@ def _build_cv_analysis_trace_record(
     trace_preferred_skills = list(job.get("preferred_skills_canonical") or [])
     if not trace_preferred_skills:
         trace_preferred_skills = list(job.get("preferred_skills") or [])
+    coverage_rows = [
+        dict(item)
+        for item in list(requirement_coverage or [])
+        if isinstance(item, dict)
+    ]
+    selected_support_ids = list(dict.fromkeys(
+        str(evidence_id)
+        for item in coverage_rows
+        for evidence_id in list(item.get("supporting_evidence_ids") or [])
+        if str(evidence_id)
+    ))
+    verified_count = sum(
+        str(item.get("selected_support") or "") == "verified"
+        for item in coverage_rows
+    )
     return {
         "trace_schema_version": "stage_execution_trace_record_v1",
         "trace_family": "stage_execution_trace",
@@ -208,6 +225,7 @@ def _build_cv_analysis_trace_record(
         "input_summary": {
             "analysis_input_fingerprint": analysis_input_fingerprint,
             "required_skills_count": len(trace_required_skills),
+            "requirement_count": len(coverage_rows),
             "preferred_skills_count": len(trace_preferred_skills),
             "responsibilities_count": len(list(job.get("responsibilities") or [])),
         },
@@ -215,6 +233,14 @@ def _build_cv_analysis_trace_record(
             "selected_evidence_count": selected_evidence_count,
             "fallback_used": fallback_used,
             "requirement_coverage_count": len(list(requirement_coverage or [])),
+            "verified_requirement_count": verified_count,
+            "unresolved_requirement_count": max(len(coverage_rows) - verified_count, 0),
+            "selected_supporting_evidence_ids": selected_support_ids,
+            "requirement_gain_weight": float(
+                dict(normalized_summary.get("selection_policy") or {}).get(
+                    "requirement_gain_weight", 0.0
+                )
+            ),
             "section_confidence_present": bool(section_confidence_hints),
         },
         "validation_summary": {
@@ -330,25 +356,143 @@ def build_cv_analysis_record(
         "cv_analysis_trace": trace_record,
     }
 
+def _requirement_profile_match(
+    descriptor: dict[str, Any],
+    gap_summary: dict[str, Any],
+    config: dict[str, Any],
+) -> str:
+    originals = list(descriptor.get("original_requirements") or [])
+    original_keys = {str(value).strip().casefold() for value in originals if str(value).strip()}
+    matched = {str(value).strip().casefold() for value in list(gap_summary.get("matched") or []) if str(value).strip()}
+    missing = {str(value).strip().casefold() for value in list(gap_summary.get("missing") or []) if str(value).strip()}
+    partial = list(gap_summary.get("partial") or [])
+    canonical_skill = str(descriptor.get("canonical_skill") or "")
+    if original_keys & matched:
+        return "matched"
+    if any(
+        str(item.get("required") or "").strip().casefold() in original_keys
+        or canonicalize_skill(str(item.get("canonical") or ""), config) == canonical_skill
+        for item in partial
+        if isinstance(item, dict)
+    ):
+        return "partial"
+    if original_keys & missing:
+        return "missing"
+    return "missing"
+
+
+def _support_ids_by_requirement(
+    evidence: list[dict[str, Any]],
+    requirement_support: dict[str, Any],
+    key: str,
+    *,
+    restrict_to_evidence: bool = False,
+) -> dict[str, list[str]]:
+    selected_ids = {
+        str(item.get("evidence_id") or "")
+        for item in evidence
+        if str(item.get("evidence_id") or "")
+    }
+    mapped = requirement_support.get(key)
+    if isinstance(mapped, dict):
+        return {
+            str(requirement_id): list(dict.fromkeys(
+                str(value)
+                for value in list(evidence_ids or [])
+                if not restrict_to_evidence or str(value) in selected_ids
+            ))
+            for requirement_id, evidence_ids in mapped.items()
+        }
+    derived: dict[str, list[str]] = {}
+    for item in evidence:
+        evidence_id = str(item.get("evidence_id") or "")
+        if not evidence_id:
+            continue
+        for requirement_id in list(item.get("supported_requirement_ids") or []):
+            derived.setdefault(str(requirement_id), []).append(evidence_id)
+    return {key_: list(dict.fromkeys(value)) for key_, value in derived.items()}
+
+
+def _has_relevant_unverified_support(
+    descriptor: dict[str, Any],
+    evidence: list[dict[str, Any]],
+) -> bool:
+    requirement_tokens = {
+        token
+        for token in str(descriptor.get("canonical_skill") or "").casefold().split()
+        if token
+    }
+    for item in evidence:
+        evidence_text = " ".join(
+            str(value or "")
+            for value in (
+                item.get("text"),
+                item.get("name"),
+                item.get("scoring_context"),
+            )
+        ).casefold()
+        if requirement_tokens and requirement_tokens <= set(evidence_text.split()):
+            return True
+    return False
+
+
 def _build_requirement_coverage(
-    required_skills: list[str],
+    job: dict[str, Any],
     evidence: list[dict[str, Any]],
     *,
-    missing_skills: list[str],
+    gap_summary: dict[str, Any],
+    evidence_selection_summary: dict[str, Any] | None,
+    config: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    normalized_missing = {str(skill).strip().lower() for skill in missing_skills if str(skill).strip()}
+    descriptors = build_required_skill_descriptors(job, config)
+    requirement_support = dict((evidence_selection_summary or {}).get("requirement_support") or {})
+    pool_support = _support_ids_by_requirement([], requirement_support, "pool")
+    selected_support = _support_ids_by_requirement(
+        evidence,
+        requirement_support,
+        "selected",
+        restrict_to_evidence=True,
+    )
     coverage: list[dict[str, Any]] = []
-    for skill in required_skills:
-        normalized_skill = str(skill).strip()
-        lowered = normalized_skill.lower()
-        if not normalized_skill:
-            continue
-        support_strength = "unsupported" if lowered in normalized_missing else "supported"
+    for descriptor in descriptors:
+        requirement_id = str(descriptor["requirement_id"])
+        selected_ids = list(selected_support.get(requirement_id) or [])
+        pool_ids = list(pool_support.get(requirement_id) or [])
+        if selected_ids:
+            selected_status = "verified"
+        elif pool_ids:
+            selected_status = "not_selected"
+        elif _has_relevant_unverified_support(descriptor, evidence):
+            selected_status = "relevant_unverified"
+        else:
+            selected_status = "unsupported"
         coverage.append(
             {
-                "requirement": normalized_skill,
-                "support_strength": support_strength,
-                "evidence_support_count": 0 if support_strength == "unsupported" else max(1, len(evidence)),
+                **descriptor,
+                "profile_match": _requirement_profile_match(descriptor, gap_summary, config),
+                "retrieval_status": (
+                    "completed"
+                    if int((evidence_selection_summary or {}).get("deduped_pool_size") or 0) > 0
+                    or bool(pool_support)
+                    else "no_candidates"
+                ),
+                "pool_support": "verified" if pool_ids else "unsupported",
+                "selected_support": selected_status,
+                "pool_supporting_evidence_ids": pool_ids,
+                "supporting_evidence_ids": selected_ids,
+                "source_refs": [
+                    source_ref
+                    for source_ref in list(dict.fromkeys(
+                        json.dumps(source_ref, sort_keys=True, ensure_ascii=False)
+                        for item in evidence
+                        if str(item.get("evidence_id") or "") in selected_ids
+                        for source_ref in list(item.get("source_refs") or [])
+                    ))
+                    for source_ref in [json.loads(source_ref)]
+                ],
+                "support_method": "canonical_skill_link" if selected_ids or pool_ids else "none",
+                "support_strength": "supported" if selected_status == "verified" else "unsupported",
+                "evidence_support_count": len(selected_ids),
             }
         )
     return coverage
@@ -417,6 +561,8 @@ def _build_evidence_selection_summary(
             "selected_evidence_count": len(evidence),
             "selected_evidence_ids": list(evidence_bundle.get("selected_evidence_ids") or []),
             "unselected_top_candidates": list(evidence_bundle.get("unselected_top_candidates") or []),
+            "requirement_support": dict(evidence_bundle.get("requirement_support") or {}),
+            "selection_policy": dict(evidence_bundle.get("selection_policy") or {}),
             "hybrid_alignment": normalize_analysis_channel_mapping(
                 evidence_bundle.get("hybrid_alignment") or {}
             ),
@@ -675,6 +821,12 @@ def analyze_ranked_job(
                         "unselected_top_candidates": list(
                             evidence_selection_summary.get("unselected_top_candidates") or []
                         ),
+                        "requirement_support": dict(
+                            evidence_selection_summary.get("requirement_support") or {}
+                        ),
+                        "selection_policy": dict(
+                            evidence_selection_summary.get("selection_policy") or {}
+                        ),
                         "hybrid_alignment": normalize_analysis_channel_mapping(
                             evidence_selection_summary.get("hybrid_alignment") or {}
                         ),
@@ -712,9 +864,11 @@ def analyze_ranked_job(
                 evidence_selection_summary=evidence_selection_summary,
                 gap_summary=gap_summary,
                 requirement_coverage=_build_requirement_coverage(
-                    required_skills,
+                    job,
                     evidence,
-                    missing_skills=missing_skills,
+                    gap_summary=gap_summary,
+                    evidence_selection_summary=evidence_selection_summary,
+                    config=config,
                 ),
                 section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
                 do_not_claim=missing_skills,
@@ -736,9 +890,11 @@ def analyze_ranked_job(
             evidence_selection_summary=evidence_selection_summary,
             gap_summary=gap_summary,
             requirement_coverage=_build_requirement_coverage(
-                required_skills,
+                job,
                 evidence,
-                missing_skills=missing_skills,
+                gap_summary=gap_summary,
+                evidence_selection_summary=evidence_selection_summary,
+                config=config,
             ),
             section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
             do_not_claim=missing_skills,
