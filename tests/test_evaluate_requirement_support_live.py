@@ -135,10 +135,18 @@ def test_live_mode_reports_paired_variant_metrics(monkeypatch: pytest.MonkeyPatc
     module = _module()
     payload = _payload()
     payload["pairs"][0]["baseline"].update(
-        {"prompt": "baseline", "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}]}}
+        {
+            "prompt": "baseline",
+            "authorized_evidence_ids": ["ev-1"],
+            "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}]},
+        }
     )
     payload["pairs"][0]["fitcv"].update(
-        {"prompt": "fitcv", "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}]}}
+        {
+            "prompt": "fitcv",
+            "authorized_evidence_ids": ["ev-1"],
+            "review": {"requirements": [{"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}]},
+        }
     )
 
     def fake_call(
@@ -259,6 +267,89 @@ def test_review_output_does_not_count_negated_requirement_term() -> None:
 
     assert result["covered_requirements"] == []
     assert result["requirement_coverage"] == 0.0
+
+
+def test_review_output_requires_authorized_evidence_for_requirement_coverage() -> None:
+    module = _module()
+    review = {
+        "requirements": [
+            {"requirement_id": "r", "terms": ["SQL"], "approved_evidence_ids": ["ev-1"]}
+        ]
+    }
+
+    result = module._review_output("SQL", review, authorized_evidence_ids=[])
+
+    assert result["requirement_coverage"] == 0.0
+    assert result["covered_requirements"] == []
+
+
+def test_review_output_rejects_unauthorized_claim_evidence() -> None:
+    module = _module()
+    result = module._review_output(
+        "Built SQL systems.",
+        {
+            "requirements": [],
+            "claim_reviews": [
+                {
+                    "claim_id": "claim-1",
+                    "patterns": ["SQL"],
+                    "review_status": "reviewed",
+                    "supported": True,
+                    "evidence_ids": ["ev-unknown"],
+                }
+            ],
+        },
+        authorized_evidence_ids=["ev-authorized"],
+    )
+
+    assert result["accepted"] is False
+    assert result["claim_review_queue"][0]["review_status"] == "needs_review"
+
+
+def test_unresolved_human_reviews_do_not_enter_quality_metrics() -> None:
+    module = _module()
+    payload = _payload()
+    payload["human_review_annotations"] = [
+        {
+            "pair_id": "pair-1",
+            "variant": "baseline",
+            "rubric_version": "rubric-v1",
+            "reviewer_id_hash": "hash-a",
+            "scores": {"relevance": 1},
+            "adjudication_state": "unresolved",
+        },
+        {
+            "pair_id": "pair-1",
+            "variant": "fitcv",
+            "rubric_version": "rubric-v1",
+            "reviewer_id_hash": "hash-b",
+            "scores": {"relevance": 5},
+            "adjudication_state": "accepted",
+        },
+    ]
+
+    result = module.evaluate(payload)
+
+    human = result["metrics"]["human_review"]
+    assert human["by_variant"]["baseline"]["score_count"] == 0
+    assert human["by_variant"]["baseline"]["quality_score"] == "not_available"
+
+
+def test_blinded_annotations_fail_closed_before_scoring() -> None:
+    module = _module()
+    payload = _payload()
+    payload["human_review_annotations"] = [
+        {
+            "pair_id": "pair-1",
+            "blinded_arm_labels": {"arm_a": "Output A", "arm_b": "Output B"},
+            "reviewer_id": "reviewer-1",
+            "scores": {"relevance": 4},
+            "adjudication_status": "single_review",
+        }
+    ]
+
+    with pytest.raises(ValueError, match="human review variant must be baseline or fitcv"):
+        module.evaluate(payload)
 
 
 def test_live_metrics_report_attempts_reviews_tokens_and_bootstrap(

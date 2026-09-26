@@ -211,6 +211,13 @@ def _annotation_score(annotation: dict[str, Any]) -> float | None:
     return sum(values) / len(values) if values and len(values) == len(scores) else None
 
 
+def _is_unresolved_review(annotation: dict[str, Any]) -> bool:
+    state = str(
+        annotation.get("adjudication_state", annotation.get("adjudication_status", ""))
+    ).casefold()
+    return state in {"unresolved", "disagreement"}
+
+
 def validate_human_review_annotations(
     payload: dict[str, Any],
     pair_ids: set[str],
@@ -245,11 +252,12 @@ def _human_review_metrics(payload: dict[str, Any], pair_ids: list[str]) -> dict[
     by_variant: dict[str, dict[str, Any]] = {}
     for variant in ("baseline", "fitcv"):
         variant_rows = [row for row in rows if str(row.get("variant") or "") == variant]
-        scores = [score for score in (_annotation_score(row) for row in variant_rows) if score is not None]
-        unresolved = sum(
-            str(row.get("adjudication_state") or "").casefold() in {"unresolved", "disagreement"}
-            for row in variant_rows
-        )
+        scores = [
+            score
+            for score in (_annotation_score(row) for row in variant_rows if not _is_unresolved_review(row))
+            if score is not None
+        ]
+        unresolved = sum(_is_unresolved_review(row) for row in variant_rows)
         by_variant[variant] = {
             "expected_reviews": len(pair_ids),
             "score_count": len(scores),
@@ -264,7 +272,7 @@ def _human_review_metrics(payload: dict[str, Any], pair_ids: list[str]) -> dict[
             preference[value] += 1
     grouped: dict[tuple[str, str], list[float]] = {}
     for row in rows:
-        score = _annotation_score(row)
+        score = None if _is_unresolved_review(row) else _annotation_score(row)
         if score is not None:
             key = (str(row.get("pair_id") or ""), str(row.get("variant") or ""))
             grouped.setdefault(key, []).append(score)
@@ -282,9 +290,25 @@ def _human_review_metrics(payload: dict[str, Any], pair_ids: list[str]) -> dict[
     }
 
 
-def _review_output(text: str, review: dict[str, Any]) -> dict[str, Any]:
+def _review_output(
+    text: str,
+    review: dict[str, Any],
+    *,
+    authorized_evidence_ids: list[str] | None = None,
+) -> dict[str, Any]:
     normalized = str(text or "").casefold()
     requirements = list(review.get("requirements") or [])
+    approved_evidence_ids = {
+        str(value).strip()
+        for requirement in requirements
+        for value in list(requirement.get("approved_evidence_ids") or [])
+        if str(value).strip()
+    }
+    authorized_ids = (
+        {str(value).strip() for value in authorized_evidence_ids if str(value).strip()}
+        if authorized_evidence_ids is not None
+        else set(approved_evidence_ids)
+    )
     covered = []
     eligible_requirements = []
     for requirement in requirements:
@@ -310,7 +334,7 @@ def _review_output(text: str, review: dict[str, Any]) -> dict[str, Any]:
             if str(term).strip()
         ]
         matched_terms = terms + claim_terms
-        if requirement_id and matched_terms and any(
+        if requirement_id and approved_evidence_ids & authorized_ids and matched_terms and any(
             _term_is_supported(normalized, term) for term in matched_terms
         ):
             covered.append(requirement_id)
@@ -327,12 +351,30 @@ def _review_output(text: str, review: dict[str, Any]) -> dict[str, Any]:
             _term_is_supported(normalized, pattern) for pattern in patterns
         ):
             continue
+        evidence_ids = {
+            str(value).strip()
+            for value in list(claim.get("evidence_ids") or [])
+            if str(value).strip()
+        }
+        authorization_errors = []
+        if not evidence_ids:
+            authorization_errors.append("evidence_ids_required")
+        unauthorized = evidence_ids - authorized_ids
+        if unauthorized:
+            authorization_errors.append("evidence_not_authorized")
+        if approved_evidence_ids and evidence_ids - approved_evidence_ids:
+            authorization_errors.append("evidence_not_approved")
         entry = {
             "claim_id": claim_id,
             "matched_patterns": [pattern for pattern in patterns if pattern in normalized],
-            "review_status": str(claim.get("review_status") or "needs_review"),
-            "supported": claim.get("supported"),
-            "evidence_ids": list(claim.get("evidence_ids") or []),
+            "review_status": (
+                "needs_review"
+                if authorization_errors
+                else str(claim.get("review_status") or "needs_review")
+            ),
+            "supported": None if authorization_errors else claim.get("supported"),
+            "evidence_ids": sorted(evidence_ids & authorized_ids),
+            "authorization_errors": authorization_errors,
         }
         claim_queue.append(entry)
         if entry["review_status"] == "reviewed" and isinstance(entry["supported"], bool):
@@ -650,7 +692,11 @@ def evaluate(
                 calls += 1
                 provider_result["wall_latency_ms"] = round((time.perf_counter() - started) * 1000, 3)
                 if provider_result["status"] == "succeeded":
-                    review = _review_output(provider_result.pop("text", ""), dict(pair[variant_name]["review"]))
+                    review = _review_output(
+                        provider_result.pop("text", ""),
+                        dict(pair[variant_name]["review"]),
+                        authorized_evidence_ids=list(pair[variant_name].get("authorized_evidence_ids") or []),
+                    )
                     provider_result["review"] = review
                     usage = dict(provider_result.get("usage") or {})
                     usage_available = usage_available or bool(usage.get("available"))
@@ -693,6 +739,11 @@ def evaluate(
                 variant.get("usage", {}).get("total_tokens")
                 for variant in variants
                 if isinstance(variant.get("usage", {}).get("total_tokens"), (int, float))
+            ]
+            cost_values = [
+                variant.get("usage", {}).get("cost")
+                for variant in variants
+                if isinstance(variant.get("usage", {}).get("cost"), (int, float))
             ]
             unsupported_rate = _mean([float(value) for value in unsupported_rates])
             precision = (
@@ -743,6 +794,7 @@ def evaluate(
                 "total_generation_tokens": sum(total_generation_tokens)
                 if total_generation_tokens
                 else "not_available",
+                "cost": sum(cost_values) if cost_values else "not_available",
                 "latency_ms": _mean(latency_values),
             }
 
@@ -798,6 +850,7 @@ def evaluate(
         human_scores = {
             (str(row.get("pair_id") or ""), str(row.get("variant") or "")): _annotation_score(row)
             for row in _annotation_rows(payload)
+            if not _is_unresolved_review(row)
         }
         for pair in pair_results:
             baseline_score = human_scores.get((str(pair["pair_id"]), "baseline"))
@@ -848,6 +901,7 @@ def evaluate(
                         "accepted_cv_rate_over_attempts",
                         "generation_input_tokens",
                         "total_generation_tokens",
+                        "cost",
                         "latency_ms",
                     )
                 },

@@ -8,6 +8,13 @@
         "evidence_references": [
           {"claim_id": "claim-1", "evidence_ids": ["ev-synthetic-1"]}
         ],
+        "profile_fact_references": [
+          {"claim_id": "claim-2", "fact_ids": ["fact-synthetic-1"]}
+        ],
+        "ignored_structural_fields": [
+          "sections.header.contact.email",
+          "sections.skills.groups[0].label"
+        ],
         "unsupported_claims": [],
         "confidence": "high",
         "review_status": "reviewed"

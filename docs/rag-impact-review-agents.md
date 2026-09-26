@@ -13,10 +13,15 @@ path, allowed output path, timeout, and `delivery_status`.
 ## `grounding-reviewer`
 
 **Input:** one blinded pair artifact, requirement labels, approved evidence map,
-and claim list.  
-**Output:** `pair_id`, per-claim `evidence_references`, `unsupported_claims`,
+authorized profile facts, and claim list. Authorized profile facts are the
+identity and natural parent-record fields preserved by the authorized profile
+projection; they are not an unrestricted profile dump.
+**Output:** `pair_id`, per-claim `evidence_references`, optional
+`profile_fact_references`, `ignored_structural_fields`, `unsupported_claims`,
 `confidence`, and `review_status` (`reviewed`, `needs_review`, or `failed`).
-Evidence references contain IDs only. Unsupported claims include claim IDs and
+Evidence and profile-fact references contain IDs only. structural fields such
+as contact fields, skills-group labels, null/default values, and a job-targeted
+header title are ignored, not flagged. Unsupported claims include claim IDs and
 reason tags, not copied CV text.
 
 **Failure:** malformed or incomplete input returns `review_status: failed` and
