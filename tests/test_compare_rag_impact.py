@@ -33,6 +33,7 @@ def _report() -> dict[str, Any]:
                     "reviewed_factual_precision": 0.95,
                     "human_quality_score": 4.0,
                     "generation_input_tokens": 100,
+                    "cost": 0.10,
                     "latency_ms": 20,
                 },
                 "fitcv": {
@@ -40,6 +41,7 @@ def _report() -> dict[str, Any]:
                     "reviewed_factual_precision": 0.96,
                     "human_quality_score": 4.1,
                     "generation_input_tokens": 70,
+                    "cost": 0.05,
                     "latency_ms": 18,
                 },
             },
@@ -48,6 +50,7 @@ def _report() -> dict[str, Any]:
                 "reviewed_factual_precision": 0.01,
                 "human_quality_score": 0.1,
                 "generation_input_tokens": -30,
+                "cost": -0.05,
                 "latency_ms": -2,
             },
             "confidence_intervals": {
@@ -80,6 +83,7 @@ def test_compare_emits_gates_deltas_intervals_and_limitations() -> None:
     assert result["confidence_intervals"]["requirement_coverage"]["sample_count"] == 2
     assert result["gates"]["quality_parity"]["status"] == "pass"
     assert result["gates"]["context_reduction"]["status"] == "pass"
+    assert result["gates"]["cost"]["status"] == "pass"
     assert result["limitations"]
 
 
@@ -90,3 +94,18 @@ def test_compare_rejects_incompatible_fingerprints() -> None:
 
     with pytest.raises(ValueError, match="fixture"):
         module.compare_reports([_report(), report])
+
+
+def test_compare_uses_prepared_threshold_and_requires_cost_for_rollout() -> None:
+    module = _module()
+    report = _report()
+    report["metrics"]["context"]["fitcv_input_tokens_lower_fraction"] = 0.85
+    report["thresholds"] = {"held_out_generation_input_reduction_fraction": 0.9}
+    report["metrics"]["by_variant"]["baseline"]["cost"] = None
+    report["metrics"]["by_variant"]["fitcv"]["cost"] = None
+
+    result = module.compare_report(report)
+
+    assert result["gates"]["context_reduction"]["status"] == "fail"
+    assert result["gates"]["cost"]["status"] == "not_applicable"
+    assert result["gates"]["production_rollout"]["status"] == "not_applicable"

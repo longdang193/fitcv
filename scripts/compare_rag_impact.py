@@ -49,6 +49,7 @@ def compare_report(report: dict[str, Any]) -> dict[str, Any]:
         "human_quality_score",
         "generation_input_tokens",
         "total_generation_tokens",
+        "cost",
         "latency_ms",
     )
     arm_metrics = {
@@ -63,7 +64,10 @@ def compare_report(report: dict[str, Any]) -> dict[str, Any]:
     thresholds.setdefault("human_quality_loss_points", 0.25)
     thresholds.setdefault("max_mean_qualification_coverage_loss", 0.05)
     thresholds.setdefault("max_mean_reviewed_factual_precision_loss", 0.02)
-    thresholds.setdefault("rag_generation_input_tokens_lower_in_fraction", 0.8)
+    reduction_threshold = thresholds.get(
+        "held_out_generation_input_reduction_fraction",
+        thresholds.get("rag_generation_input_tokens_lower_in_fraction", 0.8),
+    )
     context = dict(metrics.get("context") or {})
     lower_fraction = context.get(
         "fitcv_input_tokens_lower_fraction",
@@ -87,17 +91,17 @@ def compare_report(report: dict[str, Any]) -> dict[str, Any]:
     lower_value = _number(lower_fraction)
     reduction_gate = (
         _gate(
-            "pass" if lower_value >= float(thresholds["rag_generation_input_tokens_lower_in_fraction"]) else "fail",
+            "pass" if lower_value >= float(reduction_threshold) else "fail",
             f"FitCV input-token reduction fraction: {lower_value}",
         )
         if lower_value is not None
         else _gate("not_applicable", "generation-input token telemetry is unavailable")
     )
-    cost = dict(metrics.get("provider_usage") or {})
-    cost_available = cost.get("cost_available") is True or _number(cost.get("cost")) is not None
-    cost_gate = _gate(
-        "not_applicable",
-        "actual provider cost is unavailable" if not cost_available else "cost comparison requires paired cost telemetry",
+    cost_delta = _number(deltas["cost"])
+    cost_gate = (
+        _gate("pass" if cost_delta <= 0 else "fail", f"FitCV-minus-baseline cost: {cost_delta}")
+        if cost_delta is not None
+        else _gate("not_applicable", "paired provider cost telemetry is unavailable")
     )
     latency_value = _number(deltas["latency_ms"])
     latency_gate = (
@@ -114,9 +118,9 @@ def compare_report(report: dict[str, Any]) -> dict[str, Any]:
         else _gate("pass", "quality loss stays within thresholds")
     )
     rollout_status = "pass" if all(
-        gate["status"] == "pass" for gate in (quality_gate, reduction_gate, latency_gate)
+        gate["status"] == "pass" for gate in (quality_gate, reduction_gate, cost_gate, latency_gate)
     ) else "not_applicable" if any(
-        gate["status"] == "not_applicable" for gate in (quality_gate, reduction_gate, latency_gate)
+        gate["status"] == "not_applicable" for gate in (quality_gate, reduction_gate, cost_gate, latency_gate)
     ) else "fail"
     return {
         "evaluation_schema_version": 1,
