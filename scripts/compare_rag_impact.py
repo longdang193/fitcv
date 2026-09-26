@@ -69,9 +69,12 @@ def compare_report(report: dict[str, Any]) -> dict[str, Any]:
         thresholds.get("rag_generation_input_tokens_lower_in_fraction", 0.8),
     )
     context = dict(metrics.get("context") or {})
-    lower_fraction = context.get(
-        "fitcv_input_tokens_lower_fraction",
-        metrics.get("fitcv_input_tokens_lower_fraction"),
+    lower_pair_fraction = context.get(
+        "fitcv_input_tokens_lower_pair_fraction",
+        context.get(
+            "fitcv_input_tokens_lower_fraction",
+            metrics.get("fitcv_input_tokens_lower_pair_fraction", metrics.get("fitcv_input_tokens_lower_fraction")),
+        ),
     )
     coverage_gate = _quality_gate(
         deltas["requirement_coverage"],
@@ -88,11 +91,11 @@ def compare_report(report: dict[str, Any]) -> dict[str, Any]:
         thresholds.get("human_quality_loss_points"),
         "human quality",
     )
-    lower_value = _number(lower_fraction)
+    lower_value = _number(lower_pair_fraction)
     reduction_gate = (
         _gate(
             "pass" if lower_value >= float(reduction_threshold) else "fail",
-            f"FitCV input-token reduction fraction: {lower_value}",
+            f"FitCV input-token lower-pair fraction: {lower_value}",
         )
         if lower_value is not None
         else _gate("not_applicable", "generation-input token telemetry is unavailable")

@@ -909,7 +909,7 @@ def evaluate(
                 "confidence_intervals": confidence_intervals,
                 "human_review": human_review,
                 "context": {
-                    "fitcv_input_tokens_lower_fraction": round(
+                    "fitcv_input_tokens_lower_pair_fraction": round(
                         sum(fitcv < baseline for baseline, fitcv in paired_input_tokens) / len(paired_input_tokens), 6
                     ) if paired_input_tokens else "not_available",
                 },
