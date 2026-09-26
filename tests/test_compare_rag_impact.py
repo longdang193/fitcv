@@ -61,7 +61,7 @@ def _report() -> dict[str, Any]:
                     "sample_count": 2,
                 }
             },
-            "context": {"fitcv_input_tokens_lower_fraction": 1.0},
+            "context": {"fitcv_input_tokens_lower_pair_fraction": 1.0},
         },
         "thresholds": {
             "max_mean_qualification_coverage_loss": 0.05,
@@ -99,7 +99,7 @@ def test_compare_rejects_incompatible_fingerprints() -> None:
 def test_compare_uses_prepared_threshold_and_requires_cost_for_rollout() -> None:
     module = _module()
     report = _report()
-    report["metrics"]["context"]["fitcv_input_tokens_lower_fraction"] = 0.85
+    report["metrics"]["context"]["fitcv_input_tokens_lower_pair_fraction"] = 0.85
     report["thresholds"] = {"held_out_generation_input_reduction_fraction": 0.9}
     report["metrics"]["by_variant"]["baseline"]["cost"] = None
     report["metrics"]["by_variant"]["fitcv"]["cost"] = None
@@ -109,3 +109,12 @@ def test_compare_uses_prepared_threshold_and_requires_cost_for_rollout() -> None
     assert result["gates"]["context_reduction"]["status"] == "fail"
     assert result["gates"]["cost"]["status"] == "not_applicable"
     assert result["gates"]["production_rollout"]["status"] == "not_applicable"
+
+
+def test_context_gate_names_pair_fraction_not_token_reduction() -> None:
+    module = _module()
+
+    result = module.compare_report(_report())
+
+    assert "lower-pair fraction: 1.0" in result["gates"]["context_reduction"]["reason"]
+    assert "reduction fraction" not in result["gates"]["context_reduction"]["reason"]
