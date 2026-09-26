@@ -62,10 +62,22 @@ such as `unsupported_claim`, `missing_requirement`, `unclear_evidence`,
 
 ## Grounding checks
 
-Grounding review uses the approved evidence map and requirement labels, not an
-unrestricted candidate profile. Each claim gets an evidence reference or an
-`unsupported_claim` flag. `review_status` is `reviewed`, `needs_review`, or
-`failed`. `_review_output` remains deterministic support logic; human and agent
+Grounding review uses the approved evidence map, authorized profile facts, and
+requirement labels. It does not receive an unrestricted candidate profile.
+Authorized profile facts cover identity and natural parent-record fields that
+`project_authorized_profile()` intentionally preserves when linked evidence is
+selected, such as an experience role, company, date, or education institution.
+The reviewer may return `profile_fact_references`, but only stable fact IDs may
+enter annotations.
+
+Structural fields are not factual claims and must not become unsupported
+claims: null/default fields, `sections.header.contact.*`,
+`sections.skills.groups[*].label`, and a job-targeted `sections.header.title`.
+Any non-null candidate fact or accomplishment outside those fields requires an
+approved evidence reference or authorized profile-fact reference. Each
+remaining claim gets a reference or an `unsupported_claim` flag.
+`review_status` is `reviewed`, `needs_review`, or `failed`.
+`_review_output` remains deterministic support logic; human and agent
 annotations add review evidence and do not replace controller acceptance.
 
 ## Herdr handoff and receipt

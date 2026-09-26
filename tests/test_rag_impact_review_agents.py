@@ -54,6 +54,8 @@ def test_agent_examples_have_bounded_contracts_and_receipts() -> None:
         assert "arm_identity" not in serialized
     grounding = payload["agents"]["grounding-reviewer"]["annotation"]
     assert grounding["evidence_references"]
+    assert grounding["profile_fact_references"]
+    assert grounding["ignored_structural_fields"]
     assert isinstance(grounding["unsupported_claims"], list)
     assert grounding["review_status"] in {"reviewed", "needs_review", "failed"}
     quality = payload["agents"]["recruiter-quality-reviewer"]["annotation"]
@@ -81,6 +83,8 @@ def test_agent_docs_define_dispatch_and_failure_boundaries() -> None:
         "delivery_status",
         "unresolved",
         "raw CV text",
+        "profile facts",
+        "structural fields",
     ):
         assert marker in text
 

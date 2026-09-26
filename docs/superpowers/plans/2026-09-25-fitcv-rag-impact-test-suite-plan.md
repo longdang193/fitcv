@@ -88,8 +88,9 @@ silently average missing reviews.
 Create three run-scoped reviewer agents, dispatched by the controller through
 Herdr against blinded output artifacts:
 
-- `grounding-reviewer`: checks claims against approved profile evidence and
-  requirement labels; returns evidence references and unsupported-claim flags;
+- `grounding-reviewer`: checks claims against approved profile evidence,
+  authorized profile facts, and requirement labels; ignores structural fields;
+  returns evidence/profile-fact references and unsupported-claim flags;
 - `recruiter-quality-reviewer`: scores relevance, completeness, readability,
   and usefulness without seeing arm identity;
 - `review-adjudicator`: sees only reviewer disagreements and unresolved cases,
@@ -382,7 +383,8 @@ Herdr dispatch rules:
   controlled untracked artifact; tracked examples use synthetic text only;
   reports contain hashes and scores, not names, email addresses, or raw output.
 - [x] Step 6: Define `grounding-reviewer` input, output, and failure contract:
-  blinded pair artifact, approved evidence map, claim list, evidence IDs,
+  blinded pair artifact, approved evidence map, authorized profile facts,
+  structural-field exclusions, claim list, evidence/profile-fact IDs,
   unsupported-claim flags, confidence, and `review_status`.
 - [x] Step 7: Define `recruiter-quality-reviewer` contract: blinded pair
   artifact, job rubric, five-point dimension scores, pairwise preference,
