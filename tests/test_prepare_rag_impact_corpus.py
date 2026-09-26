@@ -54,5 +54,7 @@ def test_prepare_corpus_has_exact_splits_and_pair_metadata() -> None:
     assert len({case["source_job_id"] for case in cases}) == 40
     assert sum(case["context_difference"]["fitcv_uses_less_evidence"] for case in cases) >= 10
     assert all(case["requirements"] for case in cases)
+    assert all(case["required_skills_canonical"] for case in cases)
+    assert all(case["required_skill_entities"] for case in cases)
     assert all(case["difficulty"] in {"easy", "medium", "hard"} for case in cases)
 
