@@ -120,6 +120,26 @@ def _numeric_values(values: list[Any]) -> list[float]:
     return [float(value) for value in values if isinstance(value, (int, float))]
 
 
+def _normalize_job_for_retrieval(job: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(job)
+    requirements = [
+        dict(item)
+        for item in list(normalized.get("requirements") or [])
+        if isinstance(item, dict) and str(item.get("canonical_requirement") or "").strip()
+    ]
+    if requirements and not any(
+        normalized.get(field)
+        for field in ("required_skills", "required_skills_canonical", "required_skill_entities")
+    ):
+        skills = [str(item["canonical_requirement"]).strip() for item in requirements]
+        normalized["required_skills"] = skills
+        normalized["required_skills_canonical"] = skills
+        normalized["required_skill_entities"] = [
+            {"raw_text": skill, "canonical": skill} for skill in skills
+        ]
+    return normalized
+
+
 def paired_bootstrap_delta(
     pairs: list[tuple[float, float]],
     *,
@@ -489,7 +509,7 @@ def build_paired_inputs(
         template = (REPO_ROOT / "templates" / "cv_template.md").read_text(encoding="utf-8")
     pairs: list[dict[str, Any]] = []
     for source_job in jobs:
-        job = dict(source_job)
+        job = _normalize_job_for_retrieval(dict(source_job))
         job.setdefault("baseline_fit", 0.8)
         job.setdefault("baseline_fit_label", "strong")
         analysis = dict(analyze_ranked_job(job, profile, config, top_k=top_k))
@@ -497,18 +517,32 @@ def build_paired_inputs(
         gap = dict(analysis.get("gap_summary") or {})
         selection_summary = dict(analysis.get("evidence_selection_summary") or {})
         requirements = []
-        for skill in list(job.get("required_skills") or []):
-            canonical = str(skill).strip().casefold()
-            requirement_id = f"required_skill:{canonical}"
-            label = dict(fixture.get("requirement_labels", {}).get(requirement_id) or {})
-            requirements.append(
-                {
-                    "requirement_id": requirement_id,
-                    "terms": [str(skill), str(label.get("canonical_requirement") or skill)],
-                    "answerable": bool(label.get("answerable", True)),
-                    "approved_evidence_ids": list(label.get("approved_evidence_ids") or []),
-                }
-            )
+        for requirement in list(job.get("requirements") or []):
+            requirement = dict(requirement)
+            canonical_requirement = str(requirement.get("canonical_requirement") or "").strip()
+            requirement_id = str(requirement.get("requirement_id") or "").strip()
+            if requirement_id and canonical_requirement:
+                requirements.append(
+                    {
+                        "requirement_id": requirement_id,
+                        "terms": [canonical_requirement],
+                        "answerable": bool(requirement.get("answerable", True)),
+                        "approved_evidence_ids": list(requirement.get("approved_evidence_ids") or []),
+                    }
+                )
+        if not requirements:
+            for skill in list(job.get("required_skills") or []):
+                canonical = str(skill).strip().casefold()
+                requirement_id = f"required_skill:{canonical}"
+                label = dict(fixture.get("requirement_labels", {}).get(requirement_id) or {})
+                requirements.append(
+                    {
+                        "requirement_id": requirement_id,
+                        "terms": [str(skill), str(label.get("canonical_requirement") or skill)],
+                        "answerable": bool(label.get("answerable", True)),
+                        "approved_evidence_ids": list(label.get("approved_evidence_ids") or []),
+                    }
+                )
         review = {"requirements": requirements, "claim_reviews": []}
         variants = {}
         for variant_name, evidence, authorized_profile, summary in (

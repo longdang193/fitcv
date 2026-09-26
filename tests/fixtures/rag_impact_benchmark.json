@@ -3,6 +3,16 @@
   "fixture_id": "fitcv-rag-impact-2026-09-25",
   "candidate_profile": {
     "schema_version": "candidate-profile.v2",
+    "source_documents": [
+      {
+        "id": "doc_fixture",
+        "origin": "uploaded",
+        "filename": "rag-impact-fixture.md",
+        "media_type": "text/markdown",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "parser": {"name": "fitcv-fixture", "version": "v1"}
+      }
+    ],
     "name": "Alex Morgan",
     "contact": {
       "email": "alex@example.test",
@@ -14,12 +24,16 @@
         "id": "exp-platform",
         "role": "Data Engineer",
         "company": "Northstar",
+        "start": "2020-01",
+        "end": "2022-12",
+        "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 1, "end": 10}}],
         "evidence": [
           {
             "id": "ev-platform-sql",
-            "kind": "experience",
+            "kind": "work_achievement",
             "title": "SQL platform",
-            "text": "Built SQL data pipelines in Python and maintained production reporting."
+            "text": "Built SQL data pipelines in Python and maintained production reporting.",
+            "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 5, "end": 6}}]
           }
         ]
       },
@@ -27,12 +41,16 @@
         "id": "exp-cloud",
         "role": "Analytics Engineer",
         "company": "Contoso",
+        "start": "2023-01",
+        "end": "2024-12",
+        "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 11, "end": 20}}],
         "evidence": [
           {
             "id": "ev-cloud",
-            "kind": "experience",
+            "kind": "work_responsibility",
             "title": "Cloud analytics",
-            "text": "Automated cloud data quality checks and stakeholder dashboards."
+            "text": "Automated cloud data quality checks and stakeholder dashboards.",
+            "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 15, "end": 16}}]
           }
         ]
       }
@@ -43,14 +61,16 @@
         "degree": "BSc Computer Science",
         "institution": "Example University",
         "field": "Computer Science",
-        "start": "2015",
-        "end": "2019",
+        "start": "2015-01",
+        "end": "2019-12",
+        "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 22, "end": 23}}],
         "evidence": [
           {
             "id": "ev-education",
-            "kind": "education",
+            "kind": "course",
             "title": "BSc Computer Science",
-            "text": "BSc Computer Science, Example University."
+            "text": "BSc Computer Science, Example University.",
+            "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 22, "end": 23}}]
           }
         ]
       }
@@ -60,13 +80,15 @@
         "id": "cert-1",
         "name": "AWS Certified Cloud Practitioner",
         "issuer": "AWS",
-        "year": "2022",
+        "date": "2022-01",
+        "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 26, "end": 28}}],
         "evidence": [
           {
             "id": "ev-cert",
-            "kind": "certification",
+            "kind": "certification_proof",
             "title": "AWS certification",
-            "text": "AWS Certified Cloud Practitioner, 2022."
+            "text": "AWS Certified Cloud Practitioner, 2022.",
+            "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 27, "end": 27}}]
           }
         ]
       }
@@ -76,32 +98,38 @@
         "id": "lang-1",
         "name": "English",
         "level": "C1",
-        "evidence": [
-          {
-            "id": "ev-language",
-            "kind": "language",
-            "title": "English",
-            "text": "English C1."
-          }
-        ]
+        "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 29, "end": 29}}]
       }
     ],
     "projects": [
       {
         "id": "project-1",
         "name": "Demand Forecasting",
+        "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 30, "end": 35}}],
         "evidence": [
           {
             "id": "ev-forecast",
-            "kind": "project",
+            "kind": "project_highlight",
             "title": "Demand Forecasting",
-            "text": "Created Python forecasting workflow for inventory planning."
+            "text": "Created Python forecasting workflow for inventory planning.",
+            "source_refs": [{"document_id": "doc_fixture", "locator": {"kind": "markdown_lines", "start": 31, "end": 32}}]
           }
         ]
       }
-    ]
+    ],
+    "achievements": [],
+    "volunteering": [],
+    "interests": [],
+    "skills": [
+      {"id": "skill-sql", "name": "SQL", "origin": "extracted_explicit", "confidence": 0.99, "support_status": "supported", "evidence_refs": ["ev-platform-sql"]},
+      {"id": "skill-python", "name": "Python", "origin": "extracted_explicit", "confidence": 0.99, "support_status": "supported", "evidence_refs": ["ev-platform-sql", "ev-forecast"]},
+      {"id": "skill-aws", "name": "AWS", "origin": "extracted_explicit", "confidence": 0.99, "support_status": "supported", "evidence_refs": ["ev-cert"]}
+    ],
+    "role_families": [],
+    "domain_tags": [],
+    "responsibility_themes": []
   },
-  "profile_sha256": "6b1effc52b1f2ef8bbf0a89005b27256e63ca232f8dc1d443fc95b2fd8c52503",
+  "profile_sha256": "3539ebeb63d39a841b991a1edfbb19f674c135cf28c5ee3cef182d69b73c52c6",
   "requirement_labels": {
     "required_skill:sql": {
       "canonical_requirement": "SQL",

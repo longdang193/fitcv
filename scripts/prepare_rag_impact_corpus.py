@@ -90,9 +90,15 @@ def _requirements(job: dict[str, str], labels: dict[str, Any]) -> list[dict[str,
 def _case(job: dict[str, str], split: str, index: int, labels: dict[str, Any]) -> dict[str, Any]:
     text = f"{job['title']} {job['description']}"
     requirements = _requirements(job, labels)
+    required_skills = [str(item["canonical_requirement"]) for item in requirements]
     difficulty = "easy" if len(requirements) == 1 else "hard" if len(requirements) == 3 else "medium"
     return {
         **job,
+        "required_skills": required_skills,
+        "required_skills_canonical": required_skills,
+        "required_skill_entities": [
+            {"raw_text": skill, "canonical": skill} for skill in required_skills
+        ],
         "scenario_id": f"{split}-{index:02d}",
         "source_job_id": job["job_id"],
         "difficulty": difficulty,

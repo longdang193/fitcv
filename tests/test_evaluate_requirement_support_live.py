@@ -64,6 +64,43 @@ def test_rag_impact_fixture_has_stable_profile_and_non_overlapping_splits() -> N
     assert module.validate_benchmark_fixture(fixture) == []
 
 
+def test_rag_impact_fixture_builds_runtime_authorized_pairs() -> None:
+    module = _module()
+    fixture = json.loads(
+        (REPO_ROOT / "tests" / "fixtures" / "rag_impact_benchmark.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    payload = module.build_paired_inputs(
+        fixture,
+        config={
+            "pipeline": {"evidence_top_k": 3},
+            "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
+        },
+        provider={
+            "model": "cx/gpt-5.6-luna",
+            "template": "cv_generation_structured_write_v1",
+            "generation_settings": {"temperature": 0},
+            "output_budget": 1500,
+        },
+        split="pilot",
+    )
+
+    assert len(payload["pairs"]) == len(fixture["jobs"]["pilot"])
+    assert all(pair["baseline"]["prompt"] and pair["fitcv"]["prompt"] for pair in payload["pairs"])
+    assert any(pair["baseline"]["review"]["requirements"] for pair in payload["pairs"])
+    assert any(
+        set(pair["fitcv"]["authorized_evidence_ids"])
+        & {
+            evidence_id
+            for requirement in pair["fitcv"]["review"]["requirements"]
+            for evidence_id in requirement["approved_evidence_ids"]
+        }
+        for pair in payload["pairs"]
+    )
+
+
 def test_dry_run_rejects_mismatched_model() -> None:
     module = _module()
     payload = _payload()
