@@ -1,0 +1,41 @@
+{
+  "schema_version": "p0b.reviewed_requirement_evidence_manifest.v1",
+  "status": "admitted_for_benchmark_only",
+  "path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tmp\\p0\\corpus\\reviewed_requirement_evidence.jsonl",
+  "sha256": "461436faee360621b929805c0173da1dfd101d6d7d833d872046f806b6d96f23",
+  "records": 10,
+  "requirement_instances": 7,
+  "evidence_ids": 9,
+  "requirement_evidence_pairs": 10,
+  "source_jobs": [
+    "4053398457",
+    "4470066191",
+    "4471051929"
+  ],
+  "languages": {
+    "de": 6,
+    "en": 4
+  },
+  "splits": {
+    "calibration": 8,
+    "held_out": 2
+  },
+  "support_verdicts": {
+    "supported": 6,
+    "unknown": 4
+  },
+  "review_statuses": {
+    "reviewed": 10
+  },
+  "translation_pairing": "unasserted",
+  "promotion_blocked": true,
+  "blockers": [
+    "Coverage contains two postings and one small held-out slice, not full P0-B production recall evidence.",
+    "No canonical evidence taxonomy is admitted beyond source-backed reviewed text.",
+    "P0-B benchmark promotion requires broader reviewed requirement/evidence coverage."
+  ],
+  "input_reviews": [
+    "tmp\\p0\\agents\\p0b\\review_2_adjudication.jsonl",
+    "tmp\\p0\\agents\\p0b\\review_1_final.jsonl"
+  ]
+}
