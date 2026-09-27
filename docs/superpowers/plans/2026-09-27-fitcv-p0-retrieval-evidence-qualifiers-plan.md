@@ -203,7 +203,7 @@ Benchmarks report qualified-support recall for evidence selection and source-bac
 
 **Steps:**
 - [x] Keep isolated qualifier semantics cases in the existing fixture; do not treat them as source-backed promotion evidence.
-- [x] Admit only reviewed, source-backed requirement/evidence cases from `tmp/p0/corpus/reviewed_requirement_evidence.jsonl`; keep raw input ignored and write only sanitized stable-ID cases to the fixture. Admit current 10-row sample for benchmark-only diagnostics; keep promotion blocked for coverage.
+- [x] Admit only reviewed, source-backed requirement/evidence cases from `tmp/p0/corpus/reviewed_requirement_evidence.jsonl`; keep raw input ignored and write only sanitized stable-ID cases to the ignored corpus. Current 10-row sample is admitted for diagnostics only; fixture admission and promotion stay blocked for coverage.
 - [x] Expand the benchmark tooling to compare current channel-pool and `full_pool` arms under identical assessment, selector, `top_k`, validation, and prompt paths.
 - [x] Report qualified requirement recall, qualified evidence-pair recall, false qualified pairs, retrieval-to-selection loss, pool size, selected context size, p50/p95 latency, duplicates, and validation status.
 - [x] Compare arms under identical warmup and measured-run settings.
