@@ -580,6 +580,13 @@ def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any
     return _semantic_alignment_settings_model(config).as_dict()
 
 
+def _selection_pool_mode(config: dict[str, Any] | None) -> str:
+    mode = str(((config or {}).get("cv_analysis") or {}).get("selection_pool_mode") or "channel").strip().lower()
+    if mode not in {"channel", "full"}:
+        raise ValueError(f"Unsupported selection_pool_mode: {mode}")
+    return mode
+
+
 def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
     payload = {
         "skills": list(profile.get("skills") or []),
@@ -2495,6 +2502,7 @@ def _build_retrieve_evidence_bundle_payload(
     source_profile_schema_version: str,
     projection_fingerprint: str,
     direct_support_recovery: dict[str, Any],
+    selection_pool_mode: str,
 ) -> dict[str, Any]:
     required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
         semantic_settings,
@@ -2540,6 +2548,7 @@ def _build_retrieve_evidence_bundle_payload(
             for channel in RETRIEVAL_CHANNELS
         },
         "effective_channel_pool_size": int(semantic_settings["channel_pool_size"]),
+        "selection_pool_mode": selection_pool_mode,
         "merged_pool_size": sum(len(pool) for pool in channel_pools.values()),
         "deduped_pool_size": len(merged_pool),
         "selected_evidence_count": len(selected_evidence),
@@ -2615,13 +2624,15 @@ def retrieve_evidence_bundle(
     )
     selection_policy = _cv_analysis_policy_settings(config)
     semantic_settings = _semantic_alignment_settings(config)
+    selection_pool_mode = _selection_pool_mode(config)
     runtime_state = _semantic_runtime_state()
+    channel_pool_size = len(base_items) if selection_pool_mode == "full" else int(semantic_settings["channel_pool_size"])
     channel_pools = {
         channel: _select_channel_candidates(
             items=base_items,
             channel=channel,
             job_context=coerced_job_context,
-            pool_size=int(semantic_settings["channel_pool_size"]),
+            pool_size=channel_pool_size,
             config=config,
             semantic_settings=semantic_settings,
             runtime_state=runtime_state,
@@ -2677,6 +2688,7 @@ def retrieve_evidence_bundle(
         source_profile_schema_version=source_profile_schema_version,
         projection_fingerprint=projection_fingerprint,
         direct_support_recovery=direct_support_recovery,
+        selection_pool_mode=selection_pool_mode,
     )
 
 

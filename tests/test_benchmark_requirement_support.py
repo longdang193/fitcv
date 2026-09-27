@@ -142,6 +142,20 @@ def test_benchmark_executes_each_scenario_once_per_run() -> None:
     assert result["workload_count"] == result["scenario_count"]
 
 
+def test_full_pool_arm_keeps_same_budget_and_reports_mode() -> None:
+    module = _benchmark_module()
+    result = module.run_benchmark(
+        arm="full-pool",
+        fixture_path=FIXTURE_PATH,
+        runs=1,
+        warmups=0,
+    )
+
+    assert result["arm"] == "full-pool"
+    assert result["arm_configuration"]["selection"] == "full-pool"
+    assert all(scenario["selection_pool_mode"] == "full" for scenario in result["scenarios"])
+
+
 def test_tight_top_k_exposes_requirement_gain_ranking_conflict() -> None:
     module = _benchmark_module()
     results = {
