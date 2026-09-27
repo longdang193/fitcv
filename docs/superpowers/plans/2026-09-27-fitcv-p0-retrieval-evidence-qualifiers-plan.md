@@ -139,8 +139,8 @@ Herdr status is observation only.
 
 | Task | State | Lane | Depends on | Required proof | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Task 0 — Admission and baseline | `pending` | Codex controller | none | fresh base, clean isolated worktree, baseline tests and benchmark outputs | pending |
-| Task 1 — Requirement-scoped qualifier semantics | `pending` | `fitcv-p0-qualifiers` | Task 0 | adversarial EN/DE, negation, duration, identity, fingerprint, validator compatibility tests | pending |
+| Task 0 — Admission and baseline | `accepted` | Codex controller | none | fresh base, clean isolated worktree, baseline tests and benchmark outputs | base `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`; worktree `1b44da2771f1ba392db6bdebacc65bab49fa5ffe`; 213 passed, 2 skipped; baseline outputs in ignored `tmp/` |
+| Task 1 — Requirement-scoped qualifier semantics | `ready` | `fitcv-p0-qualifiers` | Task 0 accepted | adversarial EN/DE, negation, duration, identity, fingerprint, validator compatibility tests | Herdr dispatch next |
 | Task 2 — Explicit retrieval strategy and P0-A benchmark | `pending` | `fitcv-p0-retrieval` | Task 1 | stale fallback, strategy contract, source-backed DE/EN held-out metrics, truthful backend diagnostics | pending |
 | Task 3 — P0-B full-pool comparison | `pending` | `fitcv-p0-support-selection` | Task 1 | corrected support-pair recall, selection loss, latency/context budget, validation outcome comparison | pending |
 | Task 4 — Convergence and simplification | `pending` | Codex controller | Tasks 2–3 | winner/loser decision, loser deletion, rollback path, docs reconciliation | pending |
