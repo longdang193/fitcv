@@ -410,12 +410,16 @@ def test_run_vector_search_rejects_stale_vectors_and_falls_back(tmp_path: Path, 
             "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_contract_fingerprint) VALUES (?, 'job_summary', '', ?, ?, ?)",
             ("job-1", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z", "stale-contract"),
         )
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_contract_fingerprint) VALUES (?, 'job_summary', '', ?, ?, ?)",
+            ("job-2", json.dumps([0.0, 1.0]), "2026-01-01T00:00:00Z", "current-contract"),
+        )
     monkeypatch.setattr("fitcv.vector_search.resolve_candidate_query_embedding", lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]))
     result = run_vector_search(
         {"preferences": {"target_role": "Data Engineer"}},
-        ["job-1"],
+        ["job-1", "job-2"],
         {
-            "pipeline": {"vector_search_top_n": 1},
+            "pipeline": {"vector_search_top_n": 2},
             "retrieval_strategy": "vector_cosine_v1",
             "ranking_policy": {
                 "declared_preference_component_weights": {
@@ -425,12 +429,15 @@ def test_run_vector_search_rejects_stale_vectors_and_falls_back(tmp_path: Path, 
                 }
             },
         },
-        structured_jobs=[{"job_url": "job-1", "title": "Data Engineer", "required_skills": []}],
+        structured_jobs=[
+            {"job_url": "job-1", "title": "Data Engineer", "required_skills": []},
+            {"job_url": "job-2", "title": "Data Engineer", "required_skills": []},
+        ],
     )
 
     assert result["diagnostics"]["stale_state_fallback"] is True
     assert result["diagnostics"]["stale_job_embedding_total"] == 1
-    assert result["production_rows"][0]["job_url"] == "job-1"
+    assert {row["job_url"] for row in result["production_rows"]} == {"job-1", "job-2"}
     assert result["production_rows"][0]["retrieval_strategy"] == "lexical_v1"
 
 

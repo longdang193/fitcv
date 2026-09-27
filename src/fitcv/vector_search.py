@@ -636,7 +636,7 @@ def run_vector_search(
                 "embedding_contract_fingerprint": embedding_contract_fingerprint,
             }
         )
-    if not scored and stale_urls and structured_jobs is not None:
+    if stale_urls and structured_jobs is not None:
         fallback_config = {**config, "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY}
         fallback = run_vector_search(profile, eligible_job_urls, fallback_config, top_n=effective_top_n, structured_jobs=structured_jobs)
         fallback["diagnostics"]["stale_job_embedding_total"] = len(stale_urls)
