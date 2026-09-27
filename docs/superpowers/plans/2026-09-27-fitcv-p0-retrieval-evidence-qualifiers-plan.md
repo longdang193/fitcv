@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 contract_version: 1
 template_id: implementation-plan
 name: fitcv-p0-completion-simplification-cycle
@@ -625,4 +625,16 @@ Skipped: P1 content compiler, actionable uncertainty, GraphRAG, retrieval
 agents, ANN, late interaction, LLM reranking, learned routing, dynamic skill
 graph, preference learning, new telemetry, and speculative immutable evidence
 architecture. Add only through a new approved plan with measured justification.
+
+## Post-Merge Acceptance
+
+- PR `#60` merged through the normal pull-request path on September 27, 2026.
+- Reviewed head: `0a877ad048ca0bc9850abb9d3ff8fd4b31313776`.
+- Merge commit: `bef2978be07ce34e0fe87beff407eb58ab858658`.
+- Post-merge `origin/main` resolves to `bef2978be07ce34e0fe87beff407eb58ab858658`.
+- CI run `36341343565` passed `Focused Smoke Tests`, `Full Suite`, `Adapter Integrity`, and `Architecture Docs`.
+- Local accepted focused suite: `359 passed, 2 skipped`.
+- Ranking evidence: DE/EN source-backed fixture contains `100` rows, `50` DE and `50` EN, reviewed, with `80/20` splits; lexical arm recall and nDCG are `1.0`; p50/p95 are `5.1614/5.7194 ms`.
+- Support evidence: current-hash requirement recall is `1.0`, pair recall is `0.9375`, and context size is `671` tokens.
+- P0 lanes accepted; review lanes and implementation worktree are retired after evidence capture. Primary checkout remains untouched.
 
