@@ -556,6 +556,7 @@ def test_run_vector_search_reports_missing_and_invalid_embedding_coverage(
 
 def test_run_vector_search_lexical_v1_uses_canonical_signals_and_url_tie_breaking() -> None:
     config = {
+        "retrieval_strategy": "lexical_v1",
         "ranking_policy": {
             "declared_preference_component_weights": {
                 "domain": 1.0,

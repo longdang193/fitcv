@@ -476,7 +476,8 @@ def run_vector_search(
     eligible_job_urls = sorted({str(job_url).strip() for job_url in passed_job_urls if str(job_url).strip()})
     if not eligible_job_urls:
         return _empty_vector_search_result()
-    if structured_jobs is not None and str(config.get("retrieval_strategy") or LEXICAL_RETRIEVAL_STRATEGY) != VECTOR_RETRIEVAL_STRATEGY:
+    retrieval_strategy = str(config.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY).strip()
+    if retrieval_strategy == LEXICAL_RETRIEVAL_STRATEGY and structured_jobs is not None:
         components = build_candidate_query_components(profile, config)
         prefs = dict(profile.get("preferences") or {})
         candidate_skills = flatten_skills(profile)
@@ -637,12 +638,31 @@ def run_vector_search(
                 "embedding_contract_fingerprint": embedding_contract_fingerprint,
             }
         )
-    if stale_urls and structured_jobs is not None:
+    unavailable_urls = sorted(set(missing_urls) | set(invalid_urls) | set(stale_urls))
+    if structured_jobs is not None and (unavailable_urls or candidate_embedding is None):
         fallback_config = {**config, "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY}
         fallback = run_vector_search(profile, eligible_job_urls, fallback_config, top_n=effective_top_n, structured_jobs=structured_jobs)
-        fallback["diagnostics"]["stale_job_embedding_total"] = len(stale_urls)
-        fallback["diagnostics"]["stale_job_embedding_sample"] = stale_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT]
-        fallback["diagnostics"]["stale_state_fallback"] = True
+        fallback_diagnostics = fallback.setdefault("diagnostics", {})
+        fallback_diagnostics.update(
+            {
+                "vector_retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
+                "vector_fallback_reason": (
+                    "candidate_embedding_unavailable"
+                    if candidate_embedding is None
+                    else "job_embedding_unavailable"
+                ),
+                "missing_job_embedding_total": len(missing_urls),
+                "invalid_job_embedding_total": len(invalid_urls),
+                "stale_job_embedding_total": len(stale_urls),
+                "missing_job_embedding_sample": missing_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+                "invalid_job_embedding_sample": invalid_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+                "stale_job_embedding_sample": stale_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+                "candidate_embedding_available": candidate_embedding is not None,
+                "embedding_coverage_rate": len(scored) / len(eligible_job_urls) if eligible_job_urls else 0.0,
+                "stale_state_fallback": bool(stale_urls),
+                "deterministic_fallback": True,
+            }
+        )
         return fallback
 
     scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))
@@ -691,6 +711,7 @@ def run_vector_search(
         "production_rows": production_rows,
         "audit_rows": audit_rows,
         "diagnostics": {
+            "retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
             "eligible_jobs_total": eligible_total,
             "scored_jobs_total": len(ranked_rows),
             "missing_job_embedding_total": len(missing_urls),

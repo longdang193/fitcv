@@ -1,0 +1,468 @@
+{
+  "schema_version": "ranking_production_like_v1",
+  "source": "reviewed production-like DE/EN slice",
+  "evaluation": {
+    "calibration": "source-reviewed",
+    "held_out": "source-reviewed",
+    "languages": [
+      "de",
+      "en"
+    ]
+  },
+  "profiles": {
+    "de": {
+      "profile_id": "de",
+      "language": "de",
+      "source": "reviewed_production_like",
+      "retrieval_top_n": 5,
+      "ranking_top_n": 5,
+      "ndcg_top_n": 5,
+      "profile": null,
+      "candidates": [
+        {
+          "candidate_id": "backend-candidate-01",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "direct_match",
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.99,
+          "ai_score": 0.99,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "de",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:backend-candidate-01"
+          },
+          "job": {
+            "job_url": "backend-candidate-01",
+            "title": "de backend role",
+            "job_family": "backend",
+            "required_skills_canonical": [
+              "de",
+              "backend"
+            ],
+            "domain": "backend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "backend-candidate-02",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "direct_match",
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.98,
+          "ai_score": 0.98,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "de",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:backend-candidate-02"
+          },
+          "job": {
+            "job_url": "backend-candidate-02",
+            "title": "de backend role",
+            "job_family": "backend",
+            "required_skills_canonical": [
+              "de",
+              "backend"
+            ],
+            "domain": "backend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "backend-candidate-03",
+          "split": "held_out",
+          "reviewed": true,
+          "description": "paraphrase",
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.97,
+          "ai_score": 0.97,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "de",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:backend-candidate-03"
+          },
+          "job": {
+            "job_url": "backend-candidate-03",
+            "title": "de backend role",
+            "job_family": "backend",
+            "required_skills_canonical": [
+              "de",
+              "backend"
+            ],
+            "domain": "backend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "backend-candidate-04",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "paraphrase",
+          "label": "relevant",
+          "relevance_grade": 2,
+          "baseline_fit": 0.96,
+          "ai_score": 0.96,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "de",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:backend-candidate-04"
+          },
+          "job": {
+            "job_url": "backend-candidate-04",
+            "title": "de backend role",
+            "job_family": "backend",
+            "required_skills_canonical": [
+              "de",
+              "backend"
+            ],
+            "domain": "backend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "backend-candidate-05",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "missing_requirement",
+          "label": "relevant",
+          "relevance_grade": 2,
+          "baseline_fit": 0.95,
+          "ai_score": 0.95,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "de",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:backend-candidate-05"
+          },
+          "job": {
+            "job_url": "backend-candidate-05",
+            "title": "de backend role",
+            "job_family": "backend",
+            "required_skills_canonical": [
+              "de",
+              "backend"
+            ],
+            "domain": "backend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "backend-candidate-06",
+          "split": "held_out",
+          "reviewed": true,
+          "description": "missing_requirement",
+          "label": "relevant",
+          "relevance_grade": 2,
+          "baseline_fit": 0.94,
+          "ai_score": 0.94,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "de",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:backend-candidate-06"
+          },
+          "job": {
+            "job_url": "backend-candidate-06",
+            "title": "de backend role",
+            "job_family": "backend",
+            "required_skills_canonical": [
+              "de",
+              "backend"
+            ],
+            "domain": "backend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "backend-candidate-07",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "language_conflict",
+          "label": "borderline",
+          "relevance_grade": 1,
+          "baseline_fit": 0.93,
+          "ai_score": 0.93,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "de",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:backend-candidate-07"
+          },
+          "job": {
+            "job_url": "backend-candidate-07",
+            "title": "de backend role",
+            "job_family": "backend",
+            "required_skills_canonical": [
+              "de",
+              "backend"
+            ],
+            "domain": "backend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "backend-candidate-08",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "location_conflict",
+          "label": "borderline",
+          "relevance_grade": 1,
+          "baseline_fit": 0.92,
+          "ai_score": 0.92,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "de",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:backend-candidate-08"
+          },
+          "job": {
+            "job_url": "backend-candidate-08",
+            "title": "de backend role",
+            "job_family": "backend",
+            "required_skills_canonical": [
+              "de",
+              "backend"
+            ],
+            "domain": "backend",
+            "location_type": "remote"
+          }
+        }
+      ]
+    },
+    "en": {
+      "profile_id": "en",
+      "language": "en",
+      "source": "reviewed_production_like",
+      "retrieval_top_n": 5,
+      "ranking_top_n": 5,
+      "ndcg_top_n": 5,
+      "profile": null,
+      "candidates": [
+        {
+          "candidate_id": "frontend-candidate-01",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "direct_match",
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.99,
+          "ai_score": 0.99,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "en",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:frontend-candidate-01"
+          },
+          "job": {
+            "job_url": "frontend-candidate-01",
+            "title": "en frontend role",
+            "job_family": "frontend",
+            "required_skills_canonical": [
+              "en",
+              "frontend"
+            ],
+            "domain": "frontend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "frontend-candidate-02",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "direct_match",
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.98,
+          "ai_score": 0.98,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "en",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:frontend-candidate-02"
+          },
+          "job": {
+            "job_url": "frontend-candidate-02",
+            "title": "en frontend role",
+            "job_family": "frontend",
+            "required_skills_canonical": [
+              "en",
+              "frontend"
+            ],
+            "domain": "frontend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "frontend-candidate-03",
+          "split": "held_out",
+          "reviewed": true,
+          "description": "paraphrase",
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.97,
+          "ai_score": 0.97,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "en",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:frontend-candidate-03"
+          },
+          "job": {
+            "job_url": "frontend-candidate-03",
+            "title": "en frontend role",
+            "job_family": "frontend",
+            "required_skills_canonical": [
+              "en",
+              "frontend"
+            ],
+            "domain": "frontend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "frontend-candidate-04",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "paraphrase",
+          "label": "relevant",
+          "relevance_grade": 2,
+          "baseline_fit": 0.96,
+          "ai_score": 0.96,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "en",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:frontend-candidate-04"
+          },
+          "job": {
+            "job_url": "frontend-candidate-04",
+            "title": "en frontend role",
+            "job_family": "frontend",
+            "required_skills_canonical": [
+              "en",
+              "frontend"
+            ],
+            "domain": "frontend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "frontend-candidate-05",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "missing_requirement",
+          "label": "relevant",
+          "relevance_grade": 2,
+          "baseline_fit": 0.95,
+          "ai_score": 0.95,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "en",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:frontend-candidate-05"
+          },
+          "job": {
+            "job_url": "frontend-candidate-05",
+            "title": "en frontend role",
+            "job_family": "frontend",
+            "required_skills_canonical": [
+              "en",
+              "frontend"
+            ],
+            "domain": "frontend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "frontend-candidate-06",
+          "split": "held_out",
+          "reviewed": true,
+          "description": "missing_requirement",
+          "label": "relevant",
+          "relevance_grade": 2,
+          "baseline_fit": 0.94,
+          "ai_score": 0.94,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "en",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:frontend-candidate-06"
+          },
+          "job": {
+            "job_url": "frontend-candidate-06",
+            "title": "en frontend role",
+            "job_family": "frontend",
+            "required_skills_canonical": [
+              "en",
+              "frontend"
+            ],
+            "domain": "frontend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "frontend-candidate-07",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "language_conflict",
+          "label": "borderline",
+          "relevance_grade": 1,
+          "baseline_fit": 0.93,
+          "ai_score": 0.93,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "en",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:frontend-candidate-07"
+          },
+          "job": {
+            "job_url": "frontend-candidate-07",
+            "title": "en frontend role",
+            "job_family": "frontend",
+            "required_skills_canonical": [
+              "en",
+              "frontend"
+            ],
+            "domain": "frontend",
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "frontend-candidate-08",
+          "split": "calibration",
+          "reviewed": true,
+          "description": "location_conflict",
+          "label": "borderline",
+          "relevance_grade": 1,
+          "baseline_fit": 0.92,
+          "ai_score": 0.92,
+          "ai_score_status": "valid",
+          "source": {
+            "language": "en",
+            "dataset": "reviewed_production_like",
+            "source_ref": "ranking_gold:frontend-candidate-08"
+          },
+          "job": {
+            "job_url": "frontend-candidate-08",
+            "title": "en frontend role",
+            "job_family": "frontend",
+            "required_skills_canonical": [
+              "en",
+              "frontend"
+            ],
+            "domain": "frontend",
+            "location_type": "remote"
+          }
+        }
+      ]
+    }
+  }
+}
