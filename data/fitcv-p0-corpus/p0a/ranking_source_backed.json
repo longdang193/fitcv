@@ -1,0 +1,1746 @@
+{
+  "schema_version": "ranking_gold_source_backed_v1",
+  "evaluation": {
+    "cutoffs": {
+      "retrieval_top_n": 50,
+      "ranking_top_n": 12,
+      "ndcg_top_n": 15
+    }
+  },
+  "profiles": {
+    "de": {
+      "profile_id": "de",
+      "profile": {
+        "preferences": {
+          "target_role": "intern",
+          "domains": [],
+          "location_types": []
+        },
+        "skills": []
+      },
+      "retrieval_top_n": 50,
+      "ranking_top_n": 12,
+      "ndcg_top_n": 15,
+      "candidates": [
+        {
+          "candidate_id": "4053398457:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4053398457#corpus-de",
+            "title": "Praktikum Business Analytics (m/w/d)",
+            "job_family": "Research, Analyst, and Information Technology",
+            "domain": "Retail",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4103707442:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/hochschulpraktikum-w-m-d-im-team-brand-experience-at-b-braun-group-4103707442?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Hochschulpraktikum (w/m/d) im Team Brand Experience",
+            "job_family": "Education and Training",
+            "domain": "Medical Equipment Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4160193650:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/masterarbeit-im-bereich-business-analytics-m-w-d-at-picnic-technologies-4160193650?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Masterarbeit Im Bereich - Business Analytics (m/w/d)",
+            "job_family": "Research, Analyst, and Information Technology",
+            "domain": "Retail",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4227000667:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4227000667#corpus-de",
+            "title": "Praktikum Redaktion - Braunschweiger Zeitung (m/w/d)",
+            "job_family": "Writing/Editing",
+            "domain": "Book and Periodical Publishing and Technology, Information and Internet",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4275524072:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-zur-mitarbeit-im-projektmanagement-at-deutsche-bundesbank-4275524072?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikum zur Mitarbeit im Projektmanagement",
+            "job_family": "Education and Training",
+            "domain": "Banking",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4327938588:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4327938588#corpus-de",
+            "title": "EY-Parthenon Praktikant Strategy (Financial Services) (w/m/d)",
+            "job_family": "Finance and Sales",
+            "domain": "Business Consulting and Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4328685196:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4328685196#corpus-de",
+            "title": "Trainee Versicherung / Vertrieb",
+            "job_family": "Sales and Business Development",
+            "domain": "Insurance",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4328872203:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4328872203#corpus-de",
+            "title": "Trainee Versicherung / Vertrieb",
+            "job_family": "Sales and Business Development",
+            "domain": "Insurance",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4368322024:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikant-topline-optimierung-sales-pricing-m-w-d-at-deloitte-4368322024?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikant Topline Optimierung - Sales & Pricing (m/w/d)",
+            "job_family": "Sales and Business Development",
+            "domain": "Business Consulting and Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4385279753:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4385279753#corpus-de",
+            "title": "Procurement Control (JD YOUNG Internship Program)",
+            "job_family": "Management and Manufacturing",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4386064244:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikant-w-m-d-produktmanagement-f%C3%BCr-private-vorsorge-und-verm%C3%B6gensaufbau-at-dekabank-4386064244?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikant (w/m/d) Produktmanagement f\u00fcr Private Vorsorge und Verm\u00f6gensaufbau",
+            "job_family": "Product Management and Marketing",
+            "domain": "Banking",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4393531445:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/inhouse-consulting-internship-w-m-d-at-enpal-4393531445?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Inhouse Consulting Internship (w/m/d)",
+            "job_family": "Consulting, Information Technology, and Sales",
+            "domain": "Energy Technology",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4399882463:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/pharmazie-praktikum-im-bereich-team-validation-products-respimat-at-boehringer-ingelheim-4399882463?trk=public_jobs_topcard-title#corpus-de",
+            "title": "(Pharmazie)Praktikum im Bereich Team Validation Products Respimat",
+            "job_family": "Health Care Provider",
+            "domain": "Pharmaceutical Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4406085214:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-qualit%C3%A4tsplanung-lieferantenqualit%C3%A4t-at-porsche-ag-4406085214?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikum Qualit\u00e4tsplanung Lieferantenqualit\u00e4t",
+            "job_family": "Quality Assurance",
+            "domain": "Motor Vehicle Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4406288643:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4406288643#corpus-de",
+            "title": "Ausbildung 2027 - Technische*r Produktdesigner*in",
+            "job_family": "Design, Art/Creative, and Information Technology",
+            "domain": "Machinery Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4406299470:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/ausbildung-2027-industriemechaniker-in-at-john-deere-4406299470?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Ausbildung 2027 - Industriemechaniker*in",
+            "job_family": "Management and Manufacturing",
+            "domain": "Machinery Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4407833391:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/pharmaziepraktikant-in-im-bereich-cartridge-platform-development-mai-2028-at-sanofi-4407833391?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Pharmaziepraktikant*in im Bereich Cartridge Platform Development Mai 2028",
+            "job_family": "Other",
+            "domain": "Pharmaceutical Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4408206405:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-werkstudent-in-bauplanung-streckenausbau-mit-bim-und-etcs-w-m-d-at-deutsche-bahn-4408206405?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikum / Werkstudent:in Bauplanung Streckenausbau mit BIM und ETCS (w/m/d)",
+            "job_family": "Administrative",
+            "domain": "Truck Transportation",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4409402951:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4409402951#corpus-de",
+            "title": "2027 Corporate & Investment Bank - Global Investment Banking Analyst Program - Off-Cycle Internship - Frankfurt",
+            "job_family": "Education and Training",
+            "domain": "Financial Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4409487959:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/2027-corporate-investment-bank-global-investment-banking-analyst-program-off-cycle-internship-cee-coverage-frankfurt-at-jpmorganchase-4409487959?trk=public_jobs_topcard-title#corpus-de",
+            "title": "2027 Corporate & Investment Bank - Global Investment Banking Analyst Program - Off-Cycle Internship - CEE Coverage Frankfurt",
+            "job_family": "Finance and Sales",
+            "domain": "Financial Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4412815375:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/sch%C3%BClerpraktikum-industriemechaniker-m-w-d-am-standort-cloppenburg-at-bilfinger-region-dach-4412815375?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Sch\u00fclerpraktikum - Industriemechaniker (m/w/d) am Standort Cloppenburg",
+            "job_family": "Education and Training",
+            "domain": "Industrial Machinery Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4414654124:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/dualer-student-maschinenbau-m-w-d-konstruktion-und-entwicklung-2027-at-bw-papersystems-4414654124?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Dualer Student Maschinenbau (m/w/d) Konstruktion und Entwicklung 2027",
+            "job_family": "Education and Training",
+            "domain": "Machinery Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4416093999:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/pharmaziepraktikum-in-medical-information-germany-at-boehringer-ingelheim-4416093999?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Pharmaziepraktikum in Medical Information Germany",
+            "job_family": "Health Care Provider",
+            "domain": "Pharmaceutical Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4416121824:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-elektroniker-betriebstechnik-m-w-d-am-standort-heinsberg-at-bilfinger-region-dach-4416121824?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikum - Elektroniker Betriebstechnik (m/w/d) am Standort Heinsberg",
+            "job_family": "Engineering and Information Technology",
+            "domain": "Industrial Machinery Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4416281834:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/ausbildung-zum-industriemechaniker-m-w-d-2027-at-fresenius-medical-care-4416281834?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Ausbildung zum Industriemechaniker (m/w/d) 2027",
+            "job_family": "Management and Manufacturing",
+            "domain": "Hospitals and Health Care",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4416654772:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/abschlussarbeit-elektromagnetische-und-thermische-auslegung-von-e-motoren-d-m-w-at-schaeffler-4416654772?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Abschlussarbeit - elektromagnetische und thermische Auslegung von E-Motoren (d/m/w)",
+            "job_family": "Other",
+            "domain": "Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4416667912:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-elektromagnetische-und-thermische-auslegung-von-e-motoren-d-m-w-at-schaeffler-4416667912?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikum - elektromagnetische und thermische Auslegung von E-Motoren (d/m/w)",
+            "job_family": "Education and Training",
+            "domain": "Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4417465844:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikant-werkstudent-m-w-d-im-bereich-produktion-ess-lean-management-ab-september-2026-at-dana-incorporated-4417465844?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikant / Werkstudent (m/w/d) im Bereich Produktion ESS - Lean Management (ab September 2026)",
+            "job_family": "Education and Training",
+            "domain": "Motor Vehicle Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4417470266:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-duales-studium-abschlussarbeit-inspektionstechnik-industrielle-bildverarbeitung-at-k%C3%B6rber-pharma-4417470266?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikum/ Duales Studium /Abschlussarbeit Inspektionstechnik & Industrielle Bildverarbeitung",
+            "job_family": "Education and Training",
+            "domain": "Pharmaceutical Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4421693019:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4421693019#corpus-de",
+            "title": "Ausbildung Gro\u00df- und Au\u00dfenhandelsmanager (w/m/d) | 01.09.2027",
+            "job_family": "Purchasing and Supply Chain",
+            "domain": "Online and Mail Order Retail",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4425267605:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/duales-studium-elektrotechnik-und-informationstechnik-automation-b-eng-m-w-d-2027-at-vetter-pharma-4425267605?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Duales Studium: Elektrotechnik und Informationstechnik (Automation) (B.Eng.) (m/w/d) 2027",
+            "job_family": "Engineering and Information Technology",
+            "domain": "Pharmaceutical Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4425612699:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/aushilfe-sch%C3%BCler-student-m-w-d-soest-at-c-a-4425612699?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Aushilfe Sch\u00fcler/Student (m/w/d) - Soest",
+            "job_family": "Education and Training",
+            "domain": "Retail Apparel and Fashion",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4425838935:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-kalkulator-m-w-d-schl%C3%BCsselfertigbau-at-bremer-ag-4425838935?trk=public_jobs_topcard-title#corpus-de",
+            "title": "JUNIOR KALKULATOR (m/w/d) SCHL\u00dcSSELFERTIGBAU",
+            "job_family": "Other",
+            "domain": "Construction",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4426708623:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4426708623#corpus-de",
+            "title": "Ausbildung Elektroniker:in f\u00fcr Betriebstechnik im Regio-Werk 2027",
+            "job_family": "Management and Manufacturing",
+            "domain": "Truck Transportation",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4426796504:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/founders-associate-intern-ceo-office-w-m-d-at-vrey-4426796504?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Founders Associate Intern - CEO Office (w/m/d)",
+            "job_family": "Business Development, Sales, and Consulting",
+            "domain": "Services for Renewable Energy and Energy Technology",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4427021864:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/intern-qa-at-teamviewer-4427021864?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Intern, QA",
+            "job_family": "Quality Assurance",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4427095223:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/customer-support-associate-f-m-d-at-moss-4427095223?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Customer Support Associate (f/m/d)",
+            "job_family": "Other",
+            "domain": "Financial Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4427954578:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/ausbildung-zum-elektroniker-f%C3%BCr-ger%C3%A4te-und-systeme-2027-m-w-d-at-fresenius-medical-care-4427954578?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Ausbildung zum Elektroniker f\u00fcr Ger\u00e4te und Systeme 2027 (m/w/d)",
+            "job_family": "Engineering and Information Technology",
+            "domain": "Hospitals and Health Care",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4431972980:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/auszubildender-industriemechaniker-w-m-d-at-b-braun-group-4431972980?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Auszubildender Industriemechaniker (w/m/d)",
+            "job_family": "Management and Manufacturing",
+            "domain": "Medical Equipment Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4431987517:de",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/dualer-student-b-a-management-%2B-digitalisierung-mit-ausbildung-industriekaufmann-w-m-d-at-b-braun-group-4431987517?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Dualer Student (B.A) Management + Digitalisierung mit Ausbildung Industriekaufmann (w/m/d)",
+            "job_family": "Management and Manufacturing",
+            "domain": "Medical Equipment Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4432372375:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikant-all-genders-in-der-managementberatung-strategy-organization-at-porsche-consulting-4432372375?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikant (all genders) in der Managementberatung - Strategy & Organization",
+            "job_family": "Consulting, Information Technology, and Sales",
+            "domain": "Business Consulting and Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4433111639:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikant-in-projektmanagement-prozessorganisation-m-w-d-at-airbus-aircraft-4433111639?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikant/in Projektmanagement & Prozessorganisation (m/w/d)",
+            "job_family": "Project Management and Information Technology",
+            "domain": "Aviation and Aerospace Component Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4433185586:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-strategic-procurement-electronics-drives-m-f-d-at-hilti-deutschland-4433185586?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Working Student Strategic Procurement Electronics & Drives (m/f/d)",
+            "job_family": "Management and Manufacturing",
+            "domain": "Construction, Industrial Machinery Manufacturing, and Civil Engineering",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4434668723:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4434668723#corpus-de",
+            "title": "Sch\u00fclerpraktikum (w/m/d) vom 26.04. - 30.04.2027",
+            "job_family": "Education and Training",
+            "domain": "Machinery Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4435320327:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-im-management-in-w%C3%BCrzburg-schweinfurt-at-enterprise-4435320327?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikum im Management in W\u00fcrzburg / Schweinfurt",
+            "job_family": "Education and Training",
+            "domain": "Travel Arrangements",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4435334024:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-im-management-in-ulm-at-enterprise-4435334024?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Praktikum im Management in Ulm",
+            "job_family": "Education and Training",
+            "domain": "Travel Arrangements",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4435362862:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4435362862#corpus-de",
+            "title": "Duales Studium BWL / Bank (B.A.) 2027",
+            "job_family": "General Business",
+            "domain": "Business Consulting and Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4435380423:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/duales-studium-bwl-bank-b-a-2027-in-m%C3%BCnchen-at-deloitte-4435380423?trk=public_jobs_topcard-title#corpus-de",
+            "title": "Duales Studium BWL / Bank (B.A.) 2027 in M\u00fcnchen",
+            "job_family": "General Business",
+            "domain": "Business Consulting and Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4435462002:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4435462002#corpus-de",
+            "title": "Praktikum M&A Advisory (m/w/d)",
+            "job_family": "Business Development and Sales",
+            "domain": "Professional Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4435874488:de",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 1,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4435874488#corpus-de",
+            "title": "Duales Studium (TH) inkl. Ausbildung (IHK) - Maschinenbau (d/m/w) 2027",
+            "job_family": "Engineering and Information Technology",
+            "domain": "Manufacturing",
+            "location_type": ""
+          }
+        }
+      ]
+    },
+    "en": {
+      "profile_id": "en",
+      "profile": {
+        "preferences": {
+          "target_role": "intern",
+          "domains": [],
+          "location_types": []
+        },
+        "skills": []
+      },
+      "retrieval_top_n": 50,
+      "ranking_top_n": 12,
+      "ndcg_top_n": 15,
+      "candidates": [
+        {
+          "candidate_id": "4470112984:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/paid-eramus%2B-sales-italian-intern-at-e-farm-4470112984?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Paid Eramus+ Sales Italian Intern",
+            "job_family": "Sales",
+            "domain": "IT Services and IT Consulting",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472052252:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikum-brand-design-intern-brand-design-all-genders-at-interbrand-4472052252?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Praktikum Brand Design // Intern Brand Design (all genders)",
+            "job_family": "Design, Art/Creative, and Information Technology",
+            "domain": "Advertising Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470066191:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/customer-success-engineer-internship-at-blp-4470066191?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Customer Success Engineer (Internship)",
+            "job_family": "Management and Manufacturing",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472056158:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4472056158#corpus-en",
+            "title": "Praktikum Brand Strategy // Intern Brand Strategy (all genders)",
+            "job_family": "Marketing and Sales",
+            "domain": "Advertising Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470164908:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/mechatronics-design-intern-hardware-grasshopper-wanted-m-f-d-at-sewts-4470164908?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Mechatronics Design Intern - Hardware Grasshopper wanted (m/f/d)",
+            "job_family": "Engineering",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472010992:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/global-operations-analytics-ai-internship-m-f-x-at-dhl-supply-chain-4472010992?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Global Operations Analytics & AI- Internship (m/f/x)",
+            "job_family": "Research, Analyst, and Information Technology",
+            "domain": "Transportation, Logistics, Supply Chain and Storage",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470133232:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/business-ops-intern-%E2%80%93-people-culture-f-m-x-at-4screen-4470133232?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Business Ops Intern \u2013 People & Culture (f/m/x)",
+            "job_family": "Human Resources",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470129620:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-tax-compliance-at-universal-investment-4470129620?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student - Tax Compliance",
+            "job_family": "",
+            "domain": "Investment Management, Financial Services, and Investment Advice",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4454513814:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-in-hr-it-people-organization-agile-practices-d-f-m-at-schaeffler-4454513814?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Internship in HR/IT - People, Organization & Agile Practices (d/f/m)",
+            "job_family": "Information Technology",
+            "domain": "Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470317164:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/customer-success-engineer-internship-at-blp-4470317164?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Customer Success Engineer (Internship)",
+            "job_family": "Management and Manufacturing",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4462883860:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-digital-wholesale-at-puma-group-4462883860?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Internship Digital Wholesale",
+            "job_family": "Design, Art/Creative, and Information Technology",
+            "domain": "Retail",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472056822:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/internship-color-materials-design-footwear-at-puma-group-4472056822?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Internship Color & Materials Design Footwear",
+            "job_family": "Management and Manufacturing",
+            "domain": "Retail",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472058714:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/pflichtpraktikum-im-commercial-project-management-project-support-all-genders-at-diconium-4472058714?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Pflichtpraktikum im Commercial Project Management & Project Support (all genders)",
+            "job_family": "Project Management and Information Technology",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4454069782:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-mobility-travel-at-puma-group-4454069782?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Mobility Travel",
+            "job_family": "Education and Training",
+            "domain": "Retail",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470155944:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/human-resources-intern-at-gao-tek-inc-4470155944?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Human Resources Intern",
+            "job_family": "Human Resources",
+            "domain": "Technology, Information and Internet",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4444332299:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4444332299#corpus-en",
+            "title": "Working Student (f/m/d) - Customer Enablement for SAP Central Business Configuration",
+            "job_family": "Product Management",
+            "domain": "Software Development, IT Services and IT Consulting, and Business Consulting and Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470096497:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-payroll-m-f-d-at-exyte-4470096497?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Payroll (m/f/d)",
+            "job_family": "Education and Training",
+            "domain": "Civil Engineering",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4461903030:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4461903030#corpus-en",
+            "title": "Master\u2019s Student \u2013 Thesis in Method Evaluation and Protocol Optimization",
+            "job_family": "Management",
+            "domain": "Biotechnology Research",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470325124:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/human-resources-intern-pflichtpraktikum-m-w-d-at-jw-marriott-hotel-berlin-4470325124?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Human Resources Intern / Pflichtpraktikum (m/w/d)",
+            "job_family": "Human Resources",
+            "domain": "Hospitality",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470301870:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-finance-all-genders-at-hubject-4470301870?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Finance (all genders)",
+            "job_family": "Accounting/Auditing and Finance",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4451180978:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-taxation-and-tax-reporting-economics-3236-at-hannover-re-4451180978?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Taxation and Tax Reporting Economics, 3236",
+            "job_family": "Education and Training",
+            "domain": "Insurance",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4461951381:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-it-operations-all-genders-at-tonies%C2%AE-4461951381?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student - IT Operations (all genders)",
+            "job_family": "Education and Training",
+            "domain": "Technology, Information and Media",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4471885441:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/intern-working-student-legal-german-speaking-all-genders-at-holidu-4471885441?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Intern/Working Student Legal - German Speaking (all genders)",
+            "job_family": "Education and Training",
+            "domain": "IT Services and IT Consulting",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472006046:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-in-group-actuarial-at-allianz-se-m-f-d-at-allianz-4472006046?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student in Group Actuarial at Allianz SE (m/f/d)",
+            "job_family": "Information Technology",
+            "domain": "Financial Services and Insurance",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4443181133:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student%E2%80%94recruiting-all-genders-at-boston-consulting-group-bcg-4443181133?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student\u2014Recruiting (all genders)",
+            "job_family": "Education and Training",
+            "domain": "Business Consulting and Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470313402:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/user-researcher-student-worker-20h-week-1-year-at-epi-company-4470313402?trk=public_jobs_topcard-title#corpus-en",
+            "title": "User Researcher - Student Worker - 20h/week - 1 year",
+            "job_family": "Information Technology",
+            "domain": "Financial Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472045275:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-mixed-reality-developer-godot-c%23-at-brainlab-4472045275?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Mixed Reality Developer (Godot/C#)",
+            "job_family": "Education and Training",
+            "domain": "Medical Equipment Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470099614:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-%E2%80%93-data-ai-projects-m-w-d-at-manova-partners-4470099614?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student \u2013 Data & AI Projects (m/w/d)",
+            "job_family": "Other",
+            "domain": "Real Estate",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4452918695:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-m-f-d-productmanagement-germany-at-kws-group-4452918695?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student (m/f/d) Productmanagement Germany",
+            "job_family": "Sales, Advertising, and Marketing",
+            "domain": "Farming and Biotechnology Research",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470089757:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-customer-experience-insights-m-f-d-at-knauf-deutschland-4470089757?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Customer Experience & Insights (m/f/d)",
+            "job_family": "",
+            "domain": "IT Services and IT Consulting and Construction",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470309258:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-data-analytics-in-controlling-f-m-d-at-volkswagen-group-4470309258?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student - Data Analytics in Controlling (f/m/d)",
+            "job_family": "Education and Training",
+            "domain": "Motor Vehicle Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470318861:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-analytics-engineer-m-w-d-at-pergolux-4470318861?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Analytics Engineer (m/w/d)",
+            "job_family": "Information Technology",
+            "domain": "Online and Mail Order Retail",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470309253:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/student-assistant-m-f-d-for-the-operation-and-automation-of-our-ai-infrastructure-at-dsa-systems-inc-4470309253?trk=public_jobs_topcard-title#corpus-en",
+            "title": "STUDENT ASSISTANT (m/f/d) FOR THE OPERATION AND AUTOMATION OF OUR AI INFRASTRUCTURE",
+            "job_family": "Education and Training",
+            "domain": "Motor Vehicle Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470041475:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-project-product-management-in-digital-automation-m-f-d-at-munich-re-automation-solutions-4470041475?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Project & Product Management in Digital & Automation (m/f/d)*",
+            "job_family": "Education and Training",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472078789:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4472078789#corpus-en",
+            "title": "Working Student (f/m/d) Shared Network Infrastructure",
+            "job_family": "Education and Training",
+            "domain": "IT Services and IT Consulting",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470128621:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-m-f-d-operations-management-at-cylib-4470128621?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student (m/f/d) - Operations Management",
+            "job_family": "Project Management",
+            "domain": "Environmental Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472037256:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://www.linkedin.com/jobs/view/4472037256#corpus-en",
+            "title": "Working Student Simulation Tools (m/f/d)",
+            "job_family": "Other",
+            "domain": "Renewable Energy Semiconductor Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4472057342:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/physical-product-planning-intern-all-genders-at-hellofresh-4472057342?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Physical Product Planning Intern (all genders)",
+            "job_family": "Project Management, Business Development, and Supply Chain",
+            "domain": "Manufacturing, Consumer Services, and Food and Beverage Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470121998:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/student-assistant-it-administration-f-m-d-at-climate-analytics-4470121998?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Student Assistant - IT Administration (f/m/d)",
+            "job_family": "Information Technology",
+            "domain": "Non-profit Organizations",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4441060540:en",
+          "split": "calibration",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/seizures-operations-working-student-at-solaris-se-4441060540?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Seizures Operations Working Student",
+            "job_family": "Education and Training",
+            "domain": "Financial Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470136429:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-risk-management-ai-solutions-all-genders-at-powerco-4470136429?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Risk Management AI Solutions (all genders)",
+            "job_family": "Engineering, Manufacturing, and Production",
+            "domain": "Motor Vehicle Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470172617:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-global-brand-communications-m-f-d-at-simon-kucher-4470172617?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student - Global Brand Communications (m/f/d)",
+            "job_family": "Education and Training",
+            "domain": "Business Consulting and Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470117922:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-recruiting-m-f-d-at-okapi-orbits-4470117922?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student Recruiting (m/f/d)",
+            "job_family": "Human Resources",
+            "domain": "Software Development",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4467843779:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-d-f-m-digital-operations-data-analytics-at-tk-elevator-4467843779?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Working Student (d/f/m) Digital Operations & Data Analytics",
+            "job_family": "Information Technology",
+            "domain": "Machinery Manufacturing, Facilities Services, and Construction",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470328293:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/student-assistant-iscc-integrity-management-at-iscc-%E2%80%93-the-international-sustainability-and-carbon-certification-4470328293?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Student Assistant - ISCC Integrity Management",
+            "job_family": "Administrative",
+            "domain": "Environmental Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4461187828:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/deutsche-bank-internship-f-m-x-in-group-strategic-analytics-2027-at-deutsche-bank-4461187828?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Deutsche Bank Internship (f/m/x) in Group Strategic Analytics 2027",
+            "job_family": "Finance and Sales",
+            "domain": "Financial Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4445259551:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/ux-ui-design-mandatory-internship-at-worldline-4445259551?trk=public_jobs_topcard-title#corpus-en",
+            "title": "UX/UI Design - Mandatory Internship",
+            "job_family": "Information Technology",
+            "domain": "Financial Services",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4470540570:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/internhsip-d-f-m-fastening-technologies-for-assembly-at-airbus-aircraft-4470540570?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Internhsip (d/f/m) Fastening Technologies for Assembly",
+            "job_family": "Management and Manufacturing",
+            "domain": "Aviation and Aerospace Component Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4433111639:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/praktikant-in-projektmanagement-prozessorganisation-m-w-d-at-airbus-aircraft-4433111639?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Praktikant/in Projektmanagement & Prozessorganisation (m/w/d)",
+            "job_family": "Project Management and Information Technology",
+            "domain": "Aviation and Aerospace Component Manufacturing",
+            "location_type": ""
+          }
+        },
+        {
+          "candidate_id": "4471009092:en",
+          "split": "held_out",
+          "reviewed": true,
+          "label": "relevant",
+          "relevance_grade": 3,
+          "baseline_fit": 0.0,
+          "ai_score": 0.0,
+          "ai_score_status": "valid",
+          "job": {
+            "job_url": "https://de.linkedin.com/jobs/view/analog-ic-design-intern-at-apple-4471009092?trk=public_jobs_topcard-title#corpus-en",
+            "title": "Analog IC Design Intern",
+            "job_family": "Design, Art/Creative, and Information Technology",
+            "domain": "Computers and Electronics Manufacturing",
+            "location_type": ""
+          }
+        }
+      ]
+    }
+  },
+  "corpus_source": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tmp\\p0\\corpus\\raw_postings_de_en.jsonl",
+  "corpus_rows": 100
+}
