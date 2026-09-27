@@ -177,6 +177,7 @@ def _empty_vector_search_result() -> dict[str, Any]:
             "duplicate_job_embedding_sample": [],
             "raw_hit_anomaly_total": 0,
             "raw_hit_anomaly_sample": [],
+            "stale_state_fallback": False,
         },
         "candidate_query": {},
     }
