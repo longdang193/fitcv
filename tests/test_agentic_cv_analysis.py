@@ -427,7 +427,7 @@ def test_requirement_coverage_does_not_infer_support_from_profile_match(
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-def test_requirement_coverage_preserves_partial_and_collapses_canonical_duplicates(
+def test_requirement_coverage_preserves_distinct_requirement_instances(
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -457,10 +457,10 @@ def test_requirement_coverage_preserves_partial_and_collapses_canonical_duplicat
         _config(),
     )
 
-    assert len(result["requirement_coverage"]) == 1
-    row = result["requirement_coverage"][0]
-    assert row["profile_match"] == "partial"
-    assert row["original_requirements"] == ["Python programming", "Python"]
+    rows = result["requirement_coverage"]
+    assert len(rows) == 2
+    assert len({row["requirement_instance_id"] for row in rows}) == 2
+    assert all(row["profile_match"] == "partial" for row in rows)
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")

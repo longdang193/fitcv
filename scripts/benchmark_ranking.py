@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from fitcv.ranking import rank_jobs
+from fitcv.shortlist_runtime import sqlite_path
 from fitcv.vector_search import run_vector_search
 
 _EVALUATOR_FIELDS = {
@@ -103,7 +104,7 @@ def _profile_request(profile_id: str, pool: dict[str, Any]) -> tuple[dict[str, A
     return profile, jobs
 
 
-def build_retrieval_request(profile_id: str, pool: dict[str, Any]) -> dict[str, Any]:
+def build_retrieval_request(profile_id: str, pool: dict[str, Any], strategy: str = "lexical_v1") -> dict[str, Any]:
     """Build retrieval input without evaluator-only fields."""
     profile, jobs = _profile_request(profile_id, pool)
     return {
@@ -111,7 +112,7 @@ def build_retrieval_request(profile_id: str, pool: dict[str, Any]) -> dict[str, 
         "job_urls": [job["job_url"] for job in jobs],
         "structured_jobs": jobs,
         "config": {
-            "retrieval_strategy": "lexical_v1",
+            "retrieval_strategy": strategy,
             "pipeline": {"vector_search_top_n": pool.get("retrieval_top_n", 50)},
             "ranking_policy": {
                 "declared_preference_component_weights": {
@@ -128,6 +129,7 @@ def build_retrieval_request(profile_id: str, pool: dict[str, Any]) -> dict[str, 
 def _run_once(
     profiles: dict[str, dict[str, Any]],
     cache: set[str],
+    strategy: str = "lexical_v1",
 ) -> tuple[dict[str, float], dict[str, int], dict[str, Any]]:
     shortlist_recalls: list[float] = []
     ranking_recalls: list[float] = []
@@ -142,14 +144,15 @@ def _run_once(
     shortlist_top_n = 0
     ranking_top_n = 0
     split_counts = {"calibration": 0, "held_out": 0}
+    fallback_count = 0
     for profile_id, pool in profiles.items():
         source_rows = list(pool["candidates"])
         eligible_count += len(source_rows)
         for source in source_rows:
-            split = str(source.get("split") or "")
+            split = str(source.get("split") or "").replace("-", "_")
             if split in split_counts:
                 split_counts[split] += 1
-        request = build_retrieval_request(profile_id, pool)
+        request = build_retrieval_request(profile_id, pool, strategy)
         retrieval = run_vector_search(
             request["profile"],
             request["job_urls"],
@@ -158,6 +161,7 @@ def _run_once(
             structured_jobs=request["structured_jobs"],
         )
         retrieval_metadata = dict(retrieval.get("diagnostics", {}).get("backend_metadata") or {})
+        fallback_count += int(bool(retrieval.get("diagnostics", {}).get("deterministic_fallback")))
         retrieved_ids = {str(row["job_url"]) for row in retrieval["production_rows"]}
         retrieval_returned_count += len(retrieved_ids)
         shortlist_top_n = request["top_n"]
@@ -166,7 +170,7 @@ def _run_once(
         rows: list[dict[str, Any]] = []
         for source in source_rows:
             candidate_id = str(source["candidate_id"])
-            cache_key = f"lexical_v1:{profile_id}:{candidate_id}"
+            cache_key = f"{strategy}:{profile_id}:{candidate_id}"
             if cache_key in cache:
                 cache_hits += 1
             else:
@@ -218,13 +222,31 @@ def _run_once(
             "shortlist_top_n": shortlist_top_n,
             "ranking_top_n": ranking_top_n,
             "retrieval_metadata": retrieval_metadata,
+            "fallback_count": fallback_count,
         },
     )
 
 
+def _vector_capability_available() -> bool:
+    import sqlite3
+
+    with sqlite3.connect(sqlite_path()) as conn:
+        return conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'job_embeddings'"
+        ).fetchone() is not None
+
+
+def _arm_not_run(reason: str, strategy: str | None = None) -> dict[str, Any]:
+    result: dict[str, Any] = {"status": "not_run", "reason": reason}
+    if strategy is not None:
+        result["strategy"] = strategy
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fixture", default="tests/fixtures/ranking_gold.json")
+    parser.add_argument("--fixture", default="tests/fixtures/ranking_production_like.json")
+    parser.add_argument("--arm", required=True, choices=("incumbent", "lexical", "multilingual"))
     parser.add_argument("--mode", default="replayed")
     parser.add_argument("--warmup-iterations", type=int, default=1)
     parser.add_argument("--measured-iterations", type=int, default=5)
@@ -237,30 +259,76 @@ def main() -> None:
 
     data = json.loads(Path(args.fixture).read_text(encoding="utf-8"))
     profiles = data["profiles"]
-    cache: set[str] = set()
-    for _ in range(args.warmup_iterations):
-        _run_once(profiles, cache)
-    durations: list[float] = []
-    quality: dict[str, float] = {}
-    cache_metrics: dict[str, int] = {}
-    observation: dict[str, Any] = {}
-    for _ in range(args.measured_iterations):
-        started = time.perf_counter()
-        quality, cache_metrics, observation = _run_once(profiles, cache)
-        durations.append((time.perf_counter() - started) * 1000)
-
+    strategies = {"incumbent": "vector_cosine_v1", "lexical": "lexical_v1"}
+    strategy = strategies.get(args.arm)
+    capability_available = args.arm == "lexical" or (
+        args.arm == "incumbent" and _vector_capability_available()
+    )
+    arms: dict[str, dict[str, Any]] = {
+        name: _arm_not_run("not_selected" if name != args.arm else "capability_unavailable", arm_strategy)
+        for name, arm_strategy in strategies.items()
+    }
+    arms["multilingual"] = _arm_not_run("not_selected" if args.arm != "multilingual" else "capability_unavailable")
+    if not capability_available:
+        selected = arms[args.arm]
+        selected["status"] = "not_run"
+    else:
+        arm_cache: set[str] = set()
+        for _ in range(args.warmup_iterations):
+            _run_once(profiles, arm_cache, strategy or "lexical_v1")
+        arm_durations: list[float] = []
+        quality: dict[str, float] = {}
+        cache_metrics: dict[str, int] = {}
+        observation: dict[str, Any] = {}
+        for _ in range(args.measured_iterations):
+            started = time.perf_counter()
+            quality, cache_metrics, observation = _run_once(profiles, arm_cache, strategy or "lexical_v1")
+            arm_durations.append((time.perf_counter() - started) * 1000)
+        cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
+        arms[args.arm] = {
+            "status": "completed",
+            "strategy": strategy,
+            "latency_ms": {"p50": statistics.median(arm_durations), "p95": _percentile(arm_durations, 0.95)},
+            "metrics": {
+                "shortlist_recall": quality["shortlist_recall"],
+                "ranking_recall": quality["ranking_recall"],
+                "ndcg": quality["ndcg"],
+                "coverage": observation["retrieval_returned_count"] / observation["eligible_count"] if observation["eligible_count"] else 0.0,
+                "calibration": {"count": observation["split_counts"]["calibration"]},
+                "held_out": {"count": observation["split_counts"]["held_out"]},
+                "fallback_count": observation["fallback_count"],
+            },
+            "backend_identity": observation["retrieval_metadata"],
+        }
+    if not capability_available:
+        quality = {"shortlist_recall": 0.0, "ranking_recall": 0.0, "ndcg": 0.0}
+        cache_metrics = {"cache_hits": 0, "cache_misses": 0, "scoring_failure_count": 0}
+        observation = {
+            "retrieval_metadata": {}, "shortlist_top_n": 0, "retrieval_returned_count": 0,
+            "eligible_count": sum(len(pool["candidates"]) for pool in profiles.values()),
+            "ranking_top_n": 0, "ranking_returned_count": 0, "split_counts": {"calibration": 0, "held_out": 0},
+            "fallback_count": 0,
+        }
+        durations = []
+    else:
+        durations = arm_durations
     cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
     result = {
         "schema_version": "ranking_benchmark_v2",
         "fixture": str(args.fixture),
-        "fixture_role": "smoke",
+        "fixture_role": "production_like",
+        "arm": args.arm,
+        "arm_status": arms[args.arm]["status"],
         "mode": args.mode,
         "warmup_iterations": args.warmup_iterations,
         "measured_iterations": args.measured_iterations,
-        "latency_ms": {"p50": statistics.median(durations), "p95": _percentile(durations, 0.95)},
+        "latency_ms": {
+            "p50": statistics.median(durations) if durations else None,
+            "p95": _percentile(durations, 0.95) if durations else None,
+        },
         "metrics": {
             "retrieval": {
-                "strategy": "lexical_v1",
+                "strategy": strategy,
                 "backend_metadata": observation["retrieval_metadata"],
                 "top_n": observation["shortlist_top_n"],
                 "returned_count": observation["retrieval_returned_count"],
@@ -287,6 +355,7 @@ def main() -> None:
             },
             "llm": {"calls": 0, "retries": 0, "scoring_failure_count": cache_metrics["scoring_failure_count"]},
         },
+        "arms": arms,
     }
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

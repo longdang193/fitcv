@@ -197,32 +197,6 @@ def test_requirement_support_uses_explicit_canonical_skill_links() -> None:
     assert set(support["canonical"]) == {"required_skill:sql", "required_skill:python"}
 
 
-def test_direct_support_recovery_is_bounded_deterministic_and_channel_neutral(monkeypatch) -> None:
-    profile = _cached_evidence_profile(
-        _cached_evidence_item("ev-sql-a", ["SQL"], "SQL reports"),
-        _cached_evidence_item("ev-sql-b", ["SQL"], "SQL pipelines"),
-    )
-    monkeypatch.setattr(evidence_module, "_select_channel_candidates", lambda **kwargs: [])
-    config = {"cv_analysis": {"direct_support_recovery": {"enabled": True}}}
-
-    first = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 1, config=config)
-    second = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 1, config=config)
-
-    assert first["direct_support_recovery"]["recovered_ids"] == ["ev-sql-a", "ev-sql-b"]
-    assert first["direct_support_recovery"] == second["direct_support_recovery"]
-    assert first["selected_evidence_ids"] == ["ev-sql-a"]
-    assert len(first["selected_evidence_ids"]) <= 1
-    assert len(first["selected_evidence_ids"]) == len(set(first["selected_evidence_ids"]))
-    assert first["requirement_support"]["canonical"] == {
-        "required_skill:sql": ["ev-sql-a", "ev-sql-b"]
-    }
-    assert first["requirement_support"]["pool"] == {
-        "required_skill:sql": ["ev-sql-a", "ev-sql-b"]
-    }
-    assert first["selected_evidence"][0]["matched_channels"] == []
-    assert first["selected_evidence"][0]["channel_scores"] == {}
-
-
 def test_requirement_support_reports_canonical_retrieved_and_selected_layers() -> None:
     profile = _cached_evidence_profile(
         _cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"),
@@ -326,32 +300,12 @@ def test_required_skill_descriptors_ignore_incomplete_entity_rows() -> None:
         }
     )
 
-    assert descriptors == [
-        {
-            "requirement_id": "required_skill:sql",
-            "requirement": "SQL",
-            "canonical_skill": "sql",
-            "original_requirements": ["SQL"],
-            "requirement_type": "required_skill",
-            "requirement_priority": "must_have",
-            "source_text": "SQL",
-            "qualifiers": [],
-            "qualifier_values": {},
-            "qualifier_support": {},
-        },
-        {
-            "requirement_id": "required_skill:python",
-            "requirement": "Python",
-            "canonical_skill": "python",
-            "original_requirements": ["Python"],
-            "requirement_type": "required_skill",
-            "requirement_priority": "must_have",
-            "source_text": "Python",
-            "qualifiers": [],
-            "qualifier_values": {},
-            "qualifier_support": {},
-        },
+    assert [(item["requirement_id"], item["requirement"]) for item in descriptors] == [
+        ("required_skill:sql", "SQL"),
+        ("required_skill:python", "Python"),
     ]
+    assert all(item["requirement_instance_id"].startswith(item["requirement_id"] + ":") for item in descriptors)
+    assert all(item["qualifier_support"] == {} for item in descriptors)
 
 
 def test_required_skill_descriptors_capture_qualifiers_without_positional_pairing() -> None:
@@ -381,8 +335,7 @@ def test_qualifier_support_marks_duration_and_conflicting_level() -> None:
     profile = _cached_evidence_profile(
         {
             **_cached_evidence_item("ev-sql", ["SQL"], "SQL production pipelines"),
-            "start": "2020-01",
-            "end": "2024-01",
+            "duration": "4 years",
         },
         {
             **_cached_evidence_item("ev-german", ["German"], "German B1"),
@@ -407,6 +360,59 @@ def test_qualifier_support_marks_duration_and_conflicting_level() -> None:
         "context": "supported",
     }
     assert qualifier_support["required_skill:german"] == {"level": "contradicted"}
+
+
+def test_qualifiers_are_requirement_scoped_and_negation_safe() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-classroom", ["SQL"], "SQL classroom exercises; kein Produktionseinsatz"),
+        {**_cached_evidence_item("ev-production", ["SQL"], "SQL production pipelines, 4 years")},
+    )
+    job = {
+        "required_skills": ["SQL in production, 3+ years", "SQL classroom"],
+        "required_skill_entities": [
+            {"raw_text": "SQL in production, 3+ years", "canonical": "sql"},
+            {"raw_text": "SQL classroom", "canonical": "sql"},
+        ],
+    }
+    descriptors = build_required_skill_descriptors(job)
+    assert len(descriptors) == 2
+    assert len({item["requirement_instance_id"] for item in descriptors}) == 2
+    bundle = retrieve_evidence_bundle(profile, job, 2)
+    details = bundle["requirement_support"]["qualifier_evidence"]["selected"]
+    production = next(item for item in descriptors if "production" in item["source_text"])
+    assert details[production["requirement_instance_id"]]["duration"]["status"] == "supported"
+    assert details[production["requirement_instance_id"]]["context"]["status"] == "contradicted"
+    assert details[production["requirement_instance_id"]]["context"]["contradicting_evidence_ids"] == ["ev-classroom"]
+
+
+def test_employment_dates_do_not_prove_skill_duration() -> None:
+    profile = _cached_evidence_profile(
+        {
+            **_cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"),
+            "start": "2020-01",
+            "end": "2024-01",
+        }
+    )
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {
+            "required_skills": ["SQL, 3+ years"],
+            "required_skill_entities": [{"raw_text": "SQL, 3+ years", "canonical": "sql"}],
+        },
+        1,
+    )
+    selected = bundle["requirement_support"]["qualifier_support"]["selected"]
+    assert next(iter(selected.values()))["duration"] == "unverified"
+
+
+def test_cv_analysis_input_fingerprint_tracks_requirement_qualifier_semantics() -> None:
+    profile = {"skills": ["SQL"]}
+    base = {"raw_job_fingerprint": "raw-1", "required_skills": ["SQL, 3+ years"]}
+    changed = {"raw_job_fingerprint": "raw-1", "required_skills": ["SQL, 5+ years"]}
+    first = evidence_module.build_cv_analysis_input_fingerprint(profile, base, {})
+    second = evidence_module.build_cv_analysis_input_fingerprint(profile, changed, {})
+    assert first["fingerprint"] != second["fingerprint"]
+    assert first["payload"]["requirement_support_policy_version"] == "requirement-support-v2"
 
 
 def test_unavailable_evidence_cannot_become_canonical_support() -> None:

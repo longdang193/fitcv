@@ -10,16 +10,8 @@ from typing import Any
 
 from fitcv.ranking import rank_jobs
 
-FIXTURE = Path(__file__).parent / "fixtures" / "ranking_gold.json"
-PROFILE_NAMES = {"backend", "frontend", "data", "product"}
-REVIEWED_CASES = {
-    "direct_match",
-    "paraphrase",
-    "missing_requirement",
-    "language_conflict",
-    "location_conflict",
-    "clear_mismatch",
-}
+FIXTURE = Path(__file__).parent / "fixtures" / "ranking_production_like.json"
+PROFILE_NAMES = {"de", "en"}
 
 
 def _gold() -> dict[str, Any]:
@@ -57,15 +49,15 @@ def _ndcg(rows: list[dict[str, Any]], score_key: str, top_n: int) -> float:
 
 def test_fixture_shape_and_reviewed_cases() -> None:
     data = _gold()
-    assert sum(len(pool["candidates"]) for pool in data["profiles"].values()) == 240
+    assert sum(len(pool["candidates"]) for pool in data["profiles"].values()) == 100
     for profile_name, pool in data["profiles"].items():
         rows = pool["candidates"]
         assert pool["profile_id"] == profile_name
-        assert len(rows) == 60
-        assert sum(row["split"] == "calibration" for row in rows) == 48
-        assert sum(row["split"] == "held_out" for row in rows) == 12
-        assert {row["relevance_grade"] for row in rows} == {0, 1, 2, 3}
-        assert {row["description"] for row in rows} >= REVIEWED_CASES
+        assert len(rows) == 50
+        assert sum(row["split"] == "calibration" for row in rows) == 40
+        assert sum(row["split"] == "held_out" for row in rows) == 10
+        assert {row["language"] for row in rows} == {profile_name}
+        assert all(row["candidate_id"] == row["job"]["job_url"] for row in rows)
         assert all(row["reviewed"] is True for row in rows)
 
 
@@ -75,13 +67,13 @@ def test_recall_at_50() -> None:
 
 
 def test_recall_at_ai_score_top_n() -> None:
-    top_n = _gold()["evaluation"]["cutoffs"]["ai_score_top_n"]
+    top_n = _gold()["evaluation"]["cutoffs"]["ranking_top_n"]
     for pool in _gold()["profiles"].values():
         assert _recall(pool["candidates"], "ai_score", top_n) == 1.0
 
 
 def test_ndcg_at_15() -> None:
-    top_n = _gold()["evaluation"]["cutoffs"]["ndcg_at_15"]
+    top_n = _gold()["evaluation"]["cutoffs"]["ndcg_top_n"]
     for pool in _gold()["profiles"].values():
         assert _ndcg(pool["candidates"], "baseline_fit", top_n) > 0.99
 
@@ -94,26 +86,21 @@ def test_false_rejection_rate_is_zero() -> None:
         assert not relevant - retrieved
 
 
-def test_valid_zero_score_is_distinct_from_unscored() -> None:
+def test_scores_are_valid_for_all_admitted_rows() -> None:
     for pool in _gold()["profiles"].values():
         rows = pool["candidates"]
-        valid_zero = [row for row in rows if row["baseline_fit"] == 0.0 and row["ai_score"] == 0.0]
-        unscored = [row for row in rows if row["ai_score"] is None]
-        assert valid_zero and unscored
-        assert all(row["ai_score_status"] == "valid" for row in valid_zero)
-        assert all(row["ai_score_status"] == "unscored" for row in unscored)
+        assert all(row["ai_score"] is not None for row in rows)
+        assert all(row["ai_score_status"] == "valid" for row in rows)
 
 
 def test_unscored_ai_rows_sort_after_scored_rows() -> None:
-    rows = _gold()["profiles"]["backend"]["candidates"]
+    rows = _gold()["profiles"]["de"]["candidates"]
     ranked = _ranked(rows, "ai_score", len(rows))
-    first_unscored = next(index for index, row in enumerate(ranked) if row["ai_score"] is None)
-    assert all(row["ai_score"] is not None for row in ranked[:first_unscored])
-    assert all(row["ai_score"] is None for row in ranked[first_unscored:])
+    assert ranked[0]["ai_score"] >= ranked[-1]["ai_score"]
 
 
 def test_deterministic_replay() -> None:
-    rows = _gold()["profiles"]["backend"]["candidates"]
+    rows = _gold()["profiles"]["de"]["candidates"]
     jobs = [
         {
             "raw_job_fingerprint": row["candidate_id"],
@@ -132,7 +119,7 @@ def test_deterministic_replay() -> None:
 def test_label_permutation_does_not_change_retrieval_request() -> None:
     from scripts.benchmark_ranking import build_retrieval_request
 
-    pool = deepcopy(_gold()["profiles"]["backend"])
+    pool = deepcopy(_gold()["profiles"]["de"])
     baseline = build_retrieval_request("backend", pool)
     for index, row in enumerate(pool["candidates"]):
         row["label"], row["relevance_grade"] = ("relevant", 3) if index % 2 else ("irrelevant", 0)

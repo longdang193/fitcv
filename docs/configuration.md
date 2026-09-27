@@ -231,8 +231,8 @@ Canonical owner: `config/policy/cv_analysis.yaml`.
 - `cv_analysis.semantic_alignment.model` records configured model intent; current runtime diagnostics identify the actual backend as deterministic local/hash output from `src/fitcv/embeddings.py:generate_embedding`
 - `cv_analysis.semantic_alignment.channel_pool_size` bounds each retrieval channel before merge and global selection
 - disabling semantic alignment forces lexical-only channel scoring without changing shortlist embeddings or persisted shortlist contracts
-- `cv_analysis.direct_support_recovery.enabled` enables bounded canonical-support recovery; default is `false`
-- direct-support recovery preserves canonical, pool, and selected support separately, deduplicates by evidence ID, and never expands the global context budget
+- `structured_jobs` is input data only; explicit `retrieval_strategy` selects lexical or vector retrieval
+- current-hash is retained after benchmark comparison; full-pool selection was measured and removed because it did not improve qualified recall or context size and increased p95 latency
 - qualifier audit fields are additive; `supported` is required for qualifier-aware verification, while `unverified` and `contradicted` remain non-authoritative
 - compare retrieval arms offline with `uv run python scripts/benchmark_requirement_support.py`; fixture truth lives in `tests/fixtures/requirement_support_benchmark.json`
 

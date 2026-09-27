@@ -808,6 +808,7 @@ def _run_benchmark_scenario(
         scenario["expected_support"],
         explicit_requirement_links=explicit_links,
     )
+    selected_ids = [str(value) for value in list(final_bundle.get("selected_evidence_ids") or [])]
     return {
         "scenario_id": scenario["scenario_id"],
         "purpose": scenario["purpose"],
@@ -830,7 +831,13 @@ def _run_benchmark_scenario(
             "prompt_bytes": max(sample["prompt_bytes"] for sample in samples),
             "estimated_prompt_tokens": max(sample["estimated_prompt_tokens"] for sample in samples),
             "payload_bytes": max(sample["payload_bytes"] for sample in samples),
+            "selected_context_chars": max(
+                sum(len(str(item.get("text") or "")) for item in list(final_bundle.get("selected_evidence") or [])),
+                0,
+            ),
         },
+        "candidate_pool_size": int(final_bundle.get("deduped_pool_size") or 0),
+        "duplicate_count": len({value for value in selected_ids if selected_ids.count(value) > 1}),
         "validation": {
             "case_results": final_validation_cases,
             "passed_cases": sum(bool(case["pass"]) for case in final_validation_cases),
@@ -936,6 +943,16 @@ def _aggregate_scenario_metrics(scenario_results: list[dict[str, Any]]) -> dict[
                 for evidence_id in result["metrics"].get("selected_ids", [])
             }
         ),
+        "candidate_pool_size": max(int(result.get("candidate_pool_size") or 0) for result in scenario_results),
+        "duplicate_count": sum(int(result.get("duplicate_count") or 0) for result in scenario_results),
+        "selection_loss": {
+            "retrieved_to_selected": [
+                [result["scenario_id"], requirement_id, evidence_id]
+                for result in scenario_results
+                for requirement_id, evidence_ids in result["metrics"].get("retrieved_to_selected_loss", {}).items()
+                for evidence_id in evidence_ids
+            ]
+        },
     }
 
 
@@ -1008,7 +1025,10 @@ def run_benchmark(
             "prompt_bytes": max(result["context"]["prompt_bytes"] for result in scenario_results),
             "estimated_prompt_tokens": max(result["context"]["estimated_prompt_tokens"] for result in scenario_results),
             "payload_bytes": max(result["context"]["payload_bytes"] for result in scenario_results),
+            "selected_context_chars": max(result["context"]["selected_context_chars"] for result in scenario_results),
         },
+        "candidate_pool_size": max(result["candidate_pool_size"] for result in scenario_results),
+        "duplicate_count": sum(result["duplicate_count"] for result in scenario_results),
         "validation": {
             "passed_cases": sum(result["validation"]["passed_cases"] for result in scenario_results),
             "case_count": sum(result["validation"]["case_count"] for result in scenario_results),

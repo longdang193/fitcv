@@ -32,3 +32,42 @@ def test_not_run_arm_keeps_reason() -> None:
     assert module._current_metrics(
         {"arm": "unsupported", "status": "not_run", "reason": "provider unavailable"}
     ) == {"status": "not_run", "reason": "provider unavailable"}
+
+
+def test_pairwise_inputs_return_recommendation() -> None:
+    module = _module()
+    common = {
+        "evaluation_schema_version": 1,
+        "fixture_sha256": "fixture",
+        "scenario_set": ["one"],
+        "evidence_budgets": [1],
+        "top_k": [1],
+        "requirement_support": {
+            "micro_coverage": {
+                "requirement_recall": {"selected": 0.5},
+                "evidence_pair_recall": {"selected": 0.5},
+            }
+        },
+        "timing_ms": {"total_ms": {"p95": 10}},
+        "context": {"estimated_prompt_tokens": 10},
+        "validation": {"passed_cases": 1, "case_count": 1},
+    }
+    paths = []
+    for arm, pair_recall in (("lexical-requirement-aware", 0.5), ("current-hash", 0.5)):
+        payload = dict(common)
+        payload["arm"] = arm
+        payload["requirement_support"] = {"micro_coverage": {
+            "requirement_recall": {"selected": 0.5},
+            "evidence_pair_recall": {"selected": pair_recall},
+        }}
+        path = Path(__file__).parent / f"{arm}-comparison-test.json"
+        path.write_text(__import__("json").dumps(payload), encoding="utf-8")
+        paths.append(path)
+    try:
+        result = module.run_inputs(paths)
+    finally:
+        for path in paths:
+            path.unlink()
+    comparison = result["comparisons"]["pairwise"]["current-hash_vs_lexical-requirement-aware"]
+    assert comparison["qualified"] is False
+    assert comparison["recommendation"] == "retain current-hash"

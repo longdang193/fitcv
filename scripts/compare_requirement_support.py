@@ -80,18 +80,60 @@ def _impact_delta(left: dict[str, Any], right: dict[str, Any], metric: str, stag
     return round(float(right_value) - float(left_value), 6)
 
 
+def _pair_comparison(left_name: str, right_name: str, left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
+    left_recall = _impact_delta(left, right, "micro_coverage", "requirement_recall")
+    pair_delta = _impact_delta(left, right, "micro_coverage", "evidence_pair_recall")
+    left_p95 = float(dict(left.get("timing_ms") or {}).get("total_ms", {}).get("p95") or 0.0)
+    right_p95 = float(dict(right.get("timing_ms") or {}).get("total_ms", {}).get("p95") or 0.0)
+    left_tokens = float(dict(left.get("context") or {}).get("estimated_prompt_tokens") or 0.0)
+    right_tokens = float(dict(right.get("context") or {}).get("estimated_prompt_tokens") or 0.0)
+    left_validation = dict(left.get("validation") or {})
+    right_validation = dict(right.get("validation") or {})
+    validation_compatible = (
+        int(right_validation.get("passed_cases") or 0) >= int(left_validation.get("passed_cases") or 0)
+        and int(right_validation.get("case_count") or 0) == int(left_validation.get("case_count") or 0)
+    )
+    qualified = (
+        isinstance(left_recall, (int, float))
+        and isinstance(pair_delta, (int, float))
+        and pair_delta >= 0.05
+        and float(_impact_delta(left, right, "micro_coverage", "requirement_recall")) >= 0
+        and (not left_p95 or right_p95 <= left_p95 * 1.2)
+        and (not left_tokens or right_tokens <= left_tokens * 1.2)
+        and validation_compatible
+    )
+    return {
+        "from": left_name,
+        "to": right_name,
+        "selected_requirement_recall_delta": left_recall,
+        "selected_evidence_pair_recall_delta": pair_delta,
+        "p95_latency_ratio": round(right_p95 / left_p95, 6) if left_p95 else "not_applicable",
+        "context_token_ratio": round(right_tokens / left_tokens, 6) if left_tokens else "not_applicable",
+        "validation_compatible": validation_compatible,
+        "recommendation": f"retain {right_name}" if qualified else f"retain {left_name}",
+        "qualified": qualified,
+    }
+
+
 def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
     if len(input_paths) < 2:
         raise ValueError("at least two benchmark inputs are required")
     payloads = [_load_json(path) for path in input_paths]
     _validate_impact_compatibility(payloads)
     by_arm = {str(payload.get("arm") or ""): payload for payload in payloads}
-    required_arms = set(ARM_REGISTRY)
-    missing = sorted(required_arms - set(by_arm))
-    if missing:
-        raise ValueError(f"Benchmark inputs missing arms: {', '.join(missing)}")
-    metrics = {arm: _current_metrics(by_arm[arm]) for arm in sorted(required_arms)}
+    unknown = sorted(set(by_arm) - set(ARM_REGISTRY))
+    if unknown:
+        raise ValueError(f"Benchmark inputs use unknown arms: {', '.join(unknown)}")
+    metrics = {arm: _current_metrics(payload) for arm, payload in sorted(by_arm.items())}
+    names = list(metrics)
     comparisons = {
+        "pairwise": {
+            f"{left}_vs_{right}": _pair_comparison(left, right, metrics[left], metrics[right])
+            for left, right in zip(names, names[1:])
+        },
+    }
+    if {"lexical-baseline", "lexical-requirement-aware", "current-hash"}.issubset(metrics):
+        comparisons.update({
         "baseline_vs_fitcv": {
             "from": "lexical-baseline",
             "to": "lexical-requirement-aware",
@@ -122,7 +164,7 @@ def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
                 metrics["lexical-requirement-aware"], metrics["current-hash"], "micro_coverage", "evidence_pair_recall"
             ),
         },
-    }
+        })
     return {
         "evaluation_schema_version": 1,
         "fixture_sha256": payloads[0].get("fixture_sha256"),
