@@ -170,6 +170,8 @@ class TestBuildEmbeddingContractFingerprint:
             "backend_id": "sqlite_deterministic_local",
             "configured_model": "text-embedding-005",
             "dimension": SQLITE_EMBED_DIM,
+            "summary_schema_version": "shortlist_job_summary_v2",
+            "retrieval_strategy": "vector_cosine_v1",
             "contract_fingerprint": build_embedding_contract_fingerprint({})["fingerprint"],
         }
 

@@ -157,6 +157,7 @@ def _run_once(
             top_n=request["top_n"],
             structured_jobs=request["structured_jobs"],
         )
+        retrieval_metadata = dict(retrieval.get("diagnostics", {}).get("backend_metadata") or {})
         retrieved_ids = {str(row["job_url"]) for row in retrieval["production_rows"]}
         retrieval_returned_count += len(retrieved_ids)
         shortlist_top_n = request["top_n"]
@@ -216,6 +217,7 @@ def _run_once(
             "split_counts": split_counts,
             "shortlist_top_n": shortlist_top_n,
             "ranking_top_n": ranking_top_n,
+            "retrieval_metadata": retrieval_metadata,
         },
     )
 
@@ -259,6 +261,7 @@ def main() -> None:
         "metrics": {
             "retrieval": {
                 "strategy": "lexical_v1",
+                "backend_metadata": observation["retrieval_metadata"],
                 "top_n": observation["shortlist_top_n"],
                 "returned_count": observation["retrieval_returned_count"],
                 "eligible_count": observation["eligible_count"],

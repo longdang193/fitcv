@@ -126,6 +126,7 @@ def build_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, An
         "embedding_dimension": SQLITE_EMBED_DIM,
         "embedding_model": get_shortlist_embedding_model(config),
         "summary_schema_version": SHORTLIST_SUMMARY_SCHEMA_VERSION,
+        "retrieval_strategy": str(config.get("retrieval_strategy") or "vector_cosine_v1"),
     }
     fingerprint = build_contract_fingerprint(payload)
     return {
@@ -144,6 +145,8 @@ def build_embedding_backend_metadata(
         "backend_id": str(contract["payload"]["embedding_backend"]),
         "configured_model": str(configured_model or get_shortlist_embedding_model(config)),
         "dimension": SQLITE_EMBED_DIM,
+        "summary_schema_version": SHORTLIST_SUMMARY_SCHEMA_VERSION,
+        "retrieval_strategy": str(contract["payload"]["retrieval_strategy"]),
         "contract_fingerprint": str(contract["fingerprint"]),
     }
 

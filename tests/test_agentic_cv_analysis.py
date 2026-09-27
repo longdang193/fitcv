@@ -496,6 +496,46 @@ def test_requirement_coverage_marks_relevant_without_canonical_link_as_unverifie
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_requirement_coverage_keeps_qualifier_gap_non_authoritative(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::qualifier"}
+    mock_bundle.return_value = {
+        "deduped_pool_size": 1,
+        "selected_evidence": [{"evidence_id": "ev-sql", "skills": ["SQL"]}],
+        "selected_evidence_ids": ["ev-sql"],
+        "requirement_support": {
+            "pool": {"required_skill:sql": ["ev-sql"]},
+            "selected": {"required_skill:sql": ["ev-sql"]},
+            "qualifier_support": {
+                "pool": {"required_skill:sql": {"duration": "unverified"}},
+                "selected": {"required_skill:sql": {"duration": "unverified"}},
+            },
+        },
+    }
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    result = analyze_ranked_job(
+        {
+            **_job(),
+            "required_skills": ["SQL, 3+ years"],
+            "required_skill_entities": [{"raw_text": "SQL, 3+ years", "canonical": "sql"}],
+        },
+        _profile(),
+        _config(),
+    )
+
+    row = result["requirement_coverage"][0]
+    assert row["selected_support"] == "relevant_unverified"
+    assert row["qualifier_support"] == {"duration": "unverified"}
+    assert row["qualifier_gaps"] == ["duration"]
+
+
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
 def test_requirement_coverage_drops_support_ids_not_present_after_selection(
     mock_fingerprint,
     mock_bundle,
