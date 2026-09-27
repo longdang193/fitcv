@@ -13,7 +13,6 @@ ARM_REGISTRY = {
     "lexical-ablation": {"status": "supported"},
     "lexical-requirement-aware": {"status": "supported"},
     "current-hash": {"status": "supported"},
-    "full-pool": {"status": "supported"},
 }
 
 def _load_json(path: Path) -> dict[str, Any]:

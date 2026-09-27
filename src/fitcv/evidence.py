@@ -81,7 +81,6 @@ DEFAULT_RESPONSIBILITY_LEXICAL_WEIGHT = 0.25
 DEFAULT_RESPONSIBILITY_SEMANTIC_WEIGHT = 0.75
 DEFAULT_DOMAIN_LEXICAL_WEIGHT = 0.40
 DEFAULT_DOMAIN_SEMANTIC_WEIGHT = 0.60
-DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED = False
 SEMANTIC_METHOD_DISABLED = "disabled"
 SEMANTIC_METHOD_EMBEDDING = "embedding_similarity"
 ROLE_ALIGNMENT_NEIGHBOR_SCORE = 0.75
@@ -578,13 +577,6 @@ def _semantic_alignment_settings_model(config: dict[str, Any] | None) -> Semanti
 
 def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any]:
     return _semantic_alignment_settings_model(config).as_dict()
-
-
-def _selection_pool_mode(config: dict[str, Any] | None) -> str:
-    mode = str(((config or {}).get("cv_analysis") or {}).get("selection_pool_mode") or "channel").strip().lower()
-    if mode not in {"channel", "full"}:
-        raise ValueError(f"Unsupported selection_pool_mode: {mode}")
-    return mode
 
 
 def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
@@ -2140,77 +2132,6 @@ def _annotate_requirement_support(
     return items
 
 
-def _direct_support_recovery_enabled(config: dict[str, Any] | None) -> bool:
-    if not config:
-        return DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED
-    settings = dict((config.get("cv_analysis") or {}).get("direct_support_recovery") or {})
-    return bool(settings.get("enabled", DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED))
-
-
-def _recover_direct_support_candidates(
-    merged_pool: list[dict[str, Any]],
-    canonical_items: list[dict[str, Any]],
-    descriptors: list[dict[str, Any]],
-    *,
-    top_k: int,
-    config: dict[str, Any] | None,
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    if not _direct_support_recovery_enabled(config):
-        return merged_pool, {"enabled": False, "recovered_count": 0, "recovered_ids": []}
-
-    existing_ids = {str(item.get("evidence_id") or "") for item in merged_pool}
-    canonical_by_id = {
-        str(item.get("evidence_id") or ""): item
-        for item in canonical_items
-        if str(item.get("evidence_id") or "")
-    }
-    support_by_requirement: dict[str, list[str]] = {}
-    for item in canonical_items:
-        evidence_id = str(item.get("evidence_id") or "")
-        if not evidence_id:
-            continue
-        for requirement_id in list(item.get("supported_requirement_ids") or []):
-            support_by_requirement.setdefault(str(requirement_id), []).append(evidence_id)
-
-    representatives: list[str] = []
-    for descriptor in descriptors:
-        requirement_id = str(descriptor.get("requirement_id") or "")
-        candidates = sorted(set(support_by_requirement.get(requirement_id, [])))
-        if candidates:
-            representatives.append(candidates[0])
-    recovered_ids = [
-        evidence_id for evidence_id in dict.fromkeys(representatives)
-        if evidence_id not in existing_ids
-    ]
-    overflow_limit = max(0, int(top_k))
-    all_supported_ids = set().union(*(set(ids) for ids in support_by_requirement.values()))
-    remaining_ids = sorted(
-        evidence_id
-        for evidence_id in all_supported_ids
-        if evidence_id not in existing_ids and evidence_id not in recovered_ids
-    )
-    recovered_ids.extend(remaining_ids[:overflow_limit])
-
-    recovered: list[dict[str, Any]] = []
-    for evidence_id in recovered_ids:
-        item = copy.deepcopy(canonical_by_id[evidence_id])
-        item["direct_support_recovery"] = True
-        item["direct_support_requirement_ids"] = sorted(
-            str(value) for value in list(item.get("supported_requirement_ids") or [])
-        )
-        item["matched_channels"] = []
-        item["channel_scores"] = {}
-        item["channel_subscores"] = {}
-        item["channel_rationales"] = {}
-        recovered.append(item)
-    return [*merged_pool, *recovered], {
-        "enabled": True,
-        "recovered_count": len(recovered),
-        "recovered_ids": [str(item["evidence_id"]) for item in recovered],
-        "overflow_limit": overflow_limit,
-    }
-
-
 def _requirement_support_map(items: list[dict[str, Any]]) -> dict[str, list[str]]:
     support: dict[str, list[str]] = {}
     for item in items:
@@ -2501,8 +2422,6 @@ def _build_retrieve_evidence_bundle_payload(
     unselected_top_candidates: list[dict[str, Any]],
     source_profile_schema_version: str,
     projection_fingerprint: str,
-    direct_support_recovery: dict[str, Any],
-    selection_pool_mode: str,
 ) -> dict[str, Any]:
     required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
         semantic_settings,
@@ -2548,7 +2467,6 @@ def _build_retrieve_evidence_bundle_payload(
             for channel in RETRIEVAL_CHANNELS
         },
         "effective_channel_pool_size": int(semantic_settings["channel_pool_size"]),
-        "selection_pool_mode": selection_pool_mode,
         "merged_pool_size": sum(len(pool) for pool in channel_pools.values()),
         "deduped_pool_size": len(merged_pool),
         "selected_evidence_count": len(selected_evidence),
@@ -2593,7 +2511,6 @@ def _build_retrieve_evidence_bundle_payload(
         },
         "semantic_alignment": semantic_alignment,
         "selection_policy": selection_policy,
-        "direct_support_recovery": direct_support_recovery,
     }
 
 
@@ -2624,15 +2541,13 @@ def retrieve_evidence_bundle(
     )
     selection_policy = _cv_analysis_policy_settings(config)
     semantic_settings = _semantic_alignment_settings(config)
-    selection_pool_mode = _selection_pool_mode(config)
     runtime_state = _semantic_runtime_state()
-    channel_pool_size = len(base_items) if selection_pool_mode == "full" else int(semantic_settings["channel_pool_size"])
     channel_pools = {
         channel: _select_channel_candidates(
             items=base_items,
             channel=channel,
             job_context=coerced_job_context,
-            pool_size=channel_pool_size,
+            pool_size=int(semantic_settings["channel_pool_size"]),
             config=config,
             semantic_settings=semantic_settings,
             runtime_state=runtime_state,
@@ -2640,13 +2555,6 @@ def retrieve_evidence_bundle(
         for channel in RETRIEVAL_CHANNELS
     }
     merged_pool = _merge_channel_pools(channel_pools)
-    merged_pool, direct_support_recovery = _recover_direct_support_candidates(
-        merged_pool,
-        canonical_items,
-        list(coerced_job_context.get("requirement_descriptors") or []),
-        top_k=top_k,
-        config=config,
-    )
     selection_engine = _EvidenceSelectionEngine(
         job_context=coerced_job_context,
         policy=selection_policy,
@@ -2687,8 +2595,6 @@ def retrieve_evidence_bundle(
         unselected_top_candidates=list(selection_result["unselected_top_candidates"]),
         source_profile_schema_version=source_profile_schema_version,
         projection_fingerprint=projection_fingerprint,
-        direct_support_recovery=direct_support_recovery,
-        selection_pool_mode=selection_pool_mode,
     )
 
 

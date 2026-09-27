@@ -60,11 +60,6 @@ ARM_REGISTRY = {
         "retrieval": "hash",
         "selection": "requirement-aware",
     },
-    "full-pool": {
-        "status": "supported",
-        "retrieval": "hash",
-        "selection": "full-pool",
-    },
 }
 ARM_ALIASES = {"lexical": "lexical-requirement-aware"}
 
@@ -380,9 +375,8 @@ def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> di
         "fit_label_thresholds", {"strong": 0.7, "stretch": 0.4}
     )
     semantic_alignment = config.setdefault("cv_analysis", {}).setdefault("semantic_alignment", {})
-    semantic_alignment["enabled"] = normalized_arm in {"current-hash", "full-pool"}
+    semantic_alignment["enabled"] = normalized_arm == "current-hash"
     semantic_alignment["channel_pool_size"] = int(pool_size)
-    config["cv_analysis"]["selection_pool_mode"] = "full" if normalized_arm == "full-pool" else "channel"
     selection_policy = config["cv_analysis"].setdefault("selection_policy", {})
     if normalized_arm == "lexical-baseline":
         selection_policy.update(
@@ -412,7 +406,6 @@ def _analysis_bundle(analysis_record: dict[str, Any]) -> dict[str, Any]:
         "channel_counts": dict(summary.get("channel_counts") or {}),
         "merged_pool_size": int(summary.get("merged_pool_size") or 0),
         "deduped_pool_size": int(summary.get("deduped_pool_size") or 0),
-        "selection_pool_mode": str(summary.get("selection_pool_mode") or "channel"),
     }
 
 
@@ -852,7 +845,6 @@ def _run_benchmark_scenario(
         },
         "backend": final_bundle.get("semantic_alignment", {}).get("embedding_backend"),
         "selection_policy": dict(final_bundle.get("evidence_selection_summary", {}).get("selection_policy") or {}),
-        "selection_pool_mode": "full" if arm == "full-pool" else "channel",
     }
 
 
@@ -1014,7 +1006,7 @@ def run_benchmark(
         "scenario_set": [result["scenario_id"] for result in scenario_results],
         "scenario_count": len(scenario_results),
         "workload_count": len(scenario_results),
-        "semantic_alignment_enabled": normalized_arm in {"current-hash", "full-pool"},
+        "semantic_alignment_enabled": normalized_arm == "current-hash",
         "pool_size": pool_size,
         "top_k": sorted({result["top_k"] for result in scenario_results}),
         "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
@@ -1066,7 +1058,7 @@ def main() -> int:
     parser.add_argument("--weight", type=float)
     parser.add_argument(
         "--arm",
-        choices=("current-hash", "full-pool", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
+        choices=("current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
     )
     parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)

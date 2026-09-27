@@ -197,32 +197,6 @@ def test_requirement_support_uses_explicit_canonical_skill_links() -> None:
     assert set(support["canonical"]) == {"required_skill:sql", "required_skill:python"}
 
 
-def test_direct_support_recovery_is_bounded_deterministic_and_channel_neutral(monkeypatch) -> None:
-    profile = _cached_evidence_profile(
-        _cached_evidence_item("ev-sql-a", ["SQL"], "SQL reports"),
-        _cached_evidence_item("ev-sql-b", ["SQL"], "SQL pipelines"),
-    )
-    monkeypatch.setattr(evidence_module, "_select_channel_candidates", lambda **kwargs: [])
-    config = {"cv_analysis": {"direct_support_recovery": {"enabled": True}}}
-
-    first = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 1, config=config)
-    second = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 1, config=config)
-
-    assert first["direct_support_recovery"]["recovered_ids"] == ["ev-sql-a", "ev-sql-b"]
-    assert first["direct_support_recovery"] == second["direct_support_recovery"]
-    assert first["selected_evidence_ids"] == ["ev-sql-a"]
-    assert len(first["selected_evidence_ids"]) <= 1
-    assert len(first["selected_evidence_ids"]) == len(set(first["selected_evidence_ids"]))
-    assert first["requirement_support"]["canonical"] == {
-        "required_skill:sql": ["ev-sql-a", "ev-sql-b"]
-    }
-    assert first["requirement_support"]["pool"] == {
-        "required_skill:sql": ["ev-sql-a", "ev-sql-b"]
-    }
-    assert first["selected_evidence"][0]["matched_channels"] == []
-    assert first["selected_evidence"][0]["channel_scores"] == {}
-
-
 def test_requirement_support_reports_canonical_retrieved_and_selected_layers() -> None:
     profile = _cached_evidence_profile(
         _cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"),

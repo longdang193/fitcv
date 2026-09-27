@@ -24,7 +24,6 @@ def test_arm_registry_preserves_normalized_names() -> None:
         "lexical-ablation",
         "lexical-requirement-aware",
         "current-hash",
-        "full-pool",
     }
 
 
@@ -54,7 +53,7 @@ def test_pairwise_inputs_return_recommendation() -> None:
         "validation": {"passed_cases": 1, "case_count": 1},
     }
     paths = []
-    for arm, pair_recall in (("current-hash", 0.5), ("full-pool", 0.6)):
+    for arm, pair_recall in (("lexical-requirement-aware", 0.5), ("current-hash", 0.5)):
         payload = dict(common)
         payload["arm"] = arm
         payload["requirement_support"] = {"micro_coverage": {
@@ -69,6 +68,6 @@ def test_pairwise_inputs_return_recommendation() -> None:
     finally:
         for path in paths:
             path.unlink()
-    comparison = result["comparisons"]["pairwise"]["current-hash_vs_full-pool"]
-    assert comparison["qualified"] is True
-    assert comparison["recommendation"] == "retain full-pool"
+    comparison = result["comparisons"]["pairwise"]["current-hash_vs_lexical-requirement-aware"]
+    assert comparison["qualified"] is False
+    assert comparison["recommendation"] == "retain current-hash"
