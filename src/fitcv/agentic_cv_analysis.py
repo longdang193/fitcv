@@ -457,8 +457,11 @@ def _build_requirement_coverage(
     coverage: list[dict[str, Any]] = []
     for descriptor in descriptors:
         requirement_id = str(descriptor["requirement_id"])
-        selected_ids = list(selected_support.get(requirement_id) or [])
-        pool_ids = list(pool_support.get(requirement_id) or [])
+        requirement_ref = str(
+            descriptor.get("requirement_instance_id") or requirement_id
+        )
+        selected_ids = list(selected_support.get(requirement_ref) or [])
+        pool_ids = list(pool_support.get(requirement_ref) or [])
         if selected_ids:
             selected_status = "verified"
         elif pool_ids:

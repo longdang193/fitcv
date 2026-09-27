@@ -320,6 +320,82 @@ def test_required_skill_descriptors_ignore_incomplete_entity_rows() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("requirement", "expected_skill", "expected_qualifiers"),
+    [
+        (
+            "more than 3 years production SQL",
+            "sql",
+            {"duration": {"comparator": "gt", "months": 36}, "context": {"all_of": ["production"]}},
+        ),
+        (
+            "mindestens 3 Jahre SQL",
+            "sql",
+            {"duration": {"comparator": "gte", "months": 36}},
+        ),
+        (
+            "SQL in enterprise production",
+            "sql",
+            {"context": {"all_of": ["enterprise", "production"]}},
+        ),
+    ],
+)
+def test_required_skill_descriptors_strip_qualifiers_before_canonicalizing(
+    requirement: str,
+    expected_skill: str,
+    expected_qualifiers: dict,
+) -> None:
+    descriptor = build_required_skill_descriptors({"required_skills": [requirement]})[0]
+
+    assert descriptor["canonical_skill"] == expected_skill
+    assert descriptor["qualifiers"] == expected_qualifiers
+
+
+def test_qualified_requirement_support_requires_one_evidence_item_to_meet_all_qualifiers() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item(
+            "ev-qualified",
+            ["SQL"],
+            "4 years production SQL in enterprise systems",
+        ),
+        _cached_evidence_item("ev-duration", ["SQL"], "4 years SQL in classroom training"),
+        _cached_evidence_item("ev-context", ["SQL"], "production SQL with no duration stated"),
+    )
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["more than 3 years production SQL"]},
+        3,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": False}}},
+    )
+
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+    requirement_ref = descriptor["requirement_instance_id"]
+    assert descriptor["canonical_skill"] == "sql"
+    assert bundle["requirement_support"]["qualified"]["canonical"] == {
+        requirement_ref: ["ev-qualified"]
+    }
+
+
+def test_qualified_requirement_does_not_combine_duration_and_context_across_evidence_items() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-duration", ["SQL"], "4 years SQL"),
+        _cached_evidence_item("ev-context", ["SQL"], "production SQL"),
+    )
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["more than 3 years production SQL"]},
+        2,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": False}}},
+    )
+
+    requirement_ref = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]["requirement_instance_id"]
+    assert bundle["requirement_support"]["qualified"]["canonical"] == {}
+
+
 def test_requirement_gain_preserves_global_budget_and_weight_zero_matches_baseline() -> None:
     profile = _cached_evidence_profile(
         _cached_evidence_item("ev-broad", ["SQL"], "SQL Python"),

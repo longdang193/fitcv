@@ -342,7 +342,11 @@ def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
 
 
 def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> dict[str, Any]:
-    normalized_arm = "lexical-requirement-aware" if arm == "lexical" else arm
+    normalized_arm = {
+        "lexical": "lexical-requirement-aware",
+        "current": "lexical-requirement-aware",
+        "full-pool": "lexical-requirement-aware",
+    }.get(arm, arm)
     if normalized_arm not in {
         "lexical-baseline",
         "lexical-ablation",
@@ -929,19 +933,20 @@ def run_benchmark(
     runs: int = MEASURED_RUNS,
     warmups: int = WARMUP_RUNS,
 ) -> dict[str, Any]:
-    if arm not in {"current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"}:
+    if arm not in {"current", "full-pool", "current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"}:
         raise ValueError(f"Unsupported arm: {arm}")
     if runs <= 0 or warmups < 0:
         raise ValueError("runs must be positive and warmups cannot be negative")
     fixture = _load_json(fixture_path)
     scenarios = _resolve_scenarios(fixture)
     base_config = _load_policy(policy_path)
+    effective_pool_size = 12 if arm == "full-pool" and pool_size == 4 else pool_size
     scenario_results = [
         _run_benchmark_scenario(
             fixture=fixture,
             scenario=scenario,
             arm=arm,
-            pool_size=pool_size,
+            pool_size=effective_pool_size,
             base_config=base_config,
             runs=runs,
             warmups=warmups,
@@ -961,7 +966,7 @@ def run_benchmark(
         "scenario_count": len(scenario_results),
         "workload_count": len(scenario_results),
         "semantic_alignment_enabled": arm == "current-hash",
-        "pool_size": pool_size,
+        "pool_size": effective_pool_size,
         "top_k": sorted({result["top_k"] for result in scenario_results}),
         "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
         "backend": scenario_results[-1]["backend"],
@@ -1008,7 +1013,7 @@ def main() -> int:
     parser.add_argument("--weight", type=float)
     parser.add_argument(
         "--arm",
-        choices=("current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
+        choices=("current", "full-pool", "current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
     )
     parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)

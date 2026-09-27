@@ -266,6 +266,8 @@ def execute_shortlist_stage(
             [str(job.get("job_url") or "") for job in passed_jobs],
             config,
             top_n=vector_top_n,
+            structured_jobs=passed_jobs,
+            requested_strategy="vector_cosine_v1",
         )
         raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
         audit_rows = list(raw_shortlist_result.get("audit_rows") or [])

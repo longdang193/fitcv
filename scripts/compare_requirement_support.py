@@ -73,6 +73,35 @@ def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
     payloads = [_load_json(path) for path in input_paths]
     _validate_impact_compatibility(payloads)
     by_arm = {str(payload.get("arm") or ""): payload for payload in payloads}
+    if {"current", "full-pool"}.issubset(by_arm):
+        metrics = {arm: _current_metrics(by_arm[arm]) for arm in ("current", "full-pool")}
+        current_metrics = metrics["current"]
+        full_pool_metrics = metrics["full-pool"]
+        return {
+            "evaluation_schema_version": 1,
+            "fixture_sha256": payloads[0].get("fixture_sha256"),
+            "scenario_set": payloads[0].get("scenario_set"),
+            "evidence_budgets": payloads[0].get("evidence_budgets"),
+            "arms": metrics,
+            "comparisons": {
+                "current_vs_full_pool": {
+                    "from": "current",
+                    "to": "full-pool",
+                    "qualified_requirement_recall_non_decreasing": (
+                        float(full_pool_metrics["micro_coverage"].get("requirement_recall", {}).get("selected") or 0.0)
+                        >= float(current_metrics["micro_coverage"].get("requirement_recall", {}).get("selected") or 0.0)
+                    ),
+                    "qualified_evidence_pair_recall_non_decreasing": (
+                        float(full_pool_metrics["micro_coverage"].get("evidence_pair_recall", {}).get("selected") or 0.0)
+                        >= float(current_metrics["micro_coverage"].get("evidence_pair_recall", {}).get("selected") or 0.0)
+                    ),
+                    "false_qualified_pairs": len(full_pool_metrics.get("incorrect_pairs") or []),
+                }
+            },
+            "limitations": [
+                "Latency and context gates require measured benchmark timing and prompt-size fields.",
+            ],
+        }
     required_arms = {
         "lexical-baseline",
         "lexical-ablation",

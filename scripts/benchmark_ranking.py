@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from fitcv.ranking import rank_jobs
-from fitcv.vector_search import run_vector_search
+from fitcv.vector_search import LEXICAL_RETRIEVAL_STRATEGY, VECTOR_RETRIEVAL_STRATEGY, run_vector_search
 
 _EVALUATOR_FIELDS = {
     "label",
@@ -103,7 +103,12 @@ def _profile_request(profile_id: str, pool: dict[str, Any]) -> tuple[dict[str, A
     return profile, jobs
 
 
-def build_retrieval_request(profile_id: str, pool: dict[str, Any]) -> dict[str, Any]:
+def build_retrieval_request(
+    profile_id: str,
+    pool: dict[str, Any],
+    *,
+    requested_strategy: str = LEXICAL_RETRIEVAL_STRATEGY,
+) -> dict[str, Any]:
     """Build retrieval input without evaluator-only fields."""
     profile, jobs = _profile_request(profile_id, pool)
     return {
@@ -111,7 +116,6 @@ def build_retrieval_request(profile_id: str, pool: dict[str, Any]) -> dict[str, 
         "job_urls": [job["job_url"] for job in jobs],
         "structured_jobs": jobs,
         "config": {
-            "retrieval_strategy": "lexical_v1",
             "pipeline": {"vector_search_top_n": pool.get("retrieval_top_n", 50)},
             "ranking_policy": {
                 "declared_preference_component_weights": {
@@ -122,12 +126,15 @@ def build_retrieval_request(profile_id: str, pool: dict[str, Any]) -> dict[str, 
             },
         },
         "top_n": int(pool.get("retrieval_top_n", 50)),
+        "requested_strategy": requested_strategy,
     }
 
 
 def _run_once(
     profiles: dict[str, dict[str, Any]],
     cache: set[str],
+    *,
+    arm: str = "lexical",
 ) -> tuple[dict[str, float], dict[str, int], dict[str, Any]]:
     shortlist_recalls: list[float] = []
     ranking_recalls: list[float] = []
@@ -142,6 +149,11 @@ def _run_once(
     shortlist_top_n = 0
     ranking_top_n = 0
     split_counts = {"calibration": 0, "held_out": 0}
+    language_split_counts: dict[str, dict[str, int]] = {}
+    fallback_count = 0
+    effective_strategies: set[str] = set()
+    backend_ids: set[str] = set()
+    requested_strategy = VECTOR_RETRIEVAL_STRATEGY if arm == "incumbent" else LEXICAL_RETRIEVAL_STRATEGY
     for profile_id, pool in profiles.items():
         source_rows = list(pool["candidates"])
         eligible_count += len(source_rows)
@@ -149,15 +161,35 @@ def _run_once(
             split = str(source.get("split") or "")
             if split in split_counts:
                 split_counts[split] += 1
-        request = build_retrieval_request(profile_id, pool)
+            language = str(source.get("language") or profile_id)
+            language_counts = language_split_counts.setdefault(language, {"calibration": 0, "held_out": 0})
+            if split in language_counts:
+                language_counts[split] += 1
+        request = build_retrieval_request(
+            profile_id,
+            pool,
+            requested_strategy=requested_strategy,
+        )
         retrieval = run_vector_search(
             request["profile"],
             request["job_urls"],
             request["config"],
             top_n=request["top_n"],
             structured_jobs=request["structured_jobs"],
+            requested_strategy=request["requested_strategy"],
         )
-        retrieved_ids = {str(row["job_url"]) for row in retrieval["production_rows"]}
+        diagnostics = dict(retrieval.get("diagnostics") or {})
+        fallback_count += int(bool(diagnostics.get("fallback_used")))
+        effective_strategies.add(str(diagnostics.get("effective_strategy") or ""))
+        backend_ids.add(str(diagnostics.get("backend_id") or ""))
+        source_ids_by_url = {
+            str(dict(source.get("job") or {}).get("job_url") or source["candidate_id"]): str(source["candidate_id"])
+            for source in source_rows
+        }
+        retrieved_ids = {
+            source_ids_by_url.get(str(row["job_url"]), str(row["job_url"]))
+            for row in retrieval["production_rows"]
+        }
         retrieval_returned_count += len(retrieved_ids)
         shortlist_top_n = request["top_n"]
         shortlist_recalls.append(_recall(retrieved_ids, source_rows))
@@ -214,8 +246,13 @@ def _run_once(
             "ranking_returned_count": ranking_returned_count,
             "eligible_count": eligible_count,
             "split_counts": split_counts,
+            "language_split_counts": language_split_counts,
             "shortlist_top_n": shortlist_top_n,
             "ranking_top_n": ranking_top_n,
+            "fallback_count": fallback_count,
+            "requested_strategy": requested_strategy,
+            "effective_strategies": sorted(effective_strategies),
+            "backend_ids": sorted(backend_ids),
         },
     )
 
@@ -224,6 +261,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fixture", default="tests/fixtures/ranking_gold.json")
     parser.add_argument("--mode", default="replayed")
+    parser.add_argument("--arm", choices=("incumbent", "lexical", "multilingual"), default="incumbent")
     parser.add_argument("--warmup-iterations", type=int, default=1)
     parser.add_argument("--measured-iterations", type=int, default=5)
     parser.add_argument("--output", required=True)
@@ -233,32 +271,51 @@ def main() -> None:
     if args.warmup_iterations < 0 or args.measured_iterations < 1:
         parser.error("iterations must be warmup >= 0 and measured >= 1")
 
+    if args.arm == "multilingual":
+        result = {
+            "schema_version": "ranking_benchmark_v2",
+            "arm": "multilingual",
+            "status": "not_run",
+            "reason": "approved multilingual retrieval backend unavailable",
+            "fixture": str(args.fixture),
+        }
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(result, separators=(",", ":")))
+        return
+
     data = json.loads(Path(args.fixture).read_text(encoding="utf-8"))
     profiles = data["profiles"]
     cache: set[str] = set()
     for _ in range(args.warmup_iterations):
-        _run_once(profiles, cache)
+        _run_once(profiles, cache, arm=args.arm)
     durations: list[float] = []
     quality: dict[str, float] = {}
     cache_metrics: dict[str, int] = {}
     observation: dict[str, Any] = {}
     for _ in range(args.measured_iterations):
         started = time.perf_counter()
-        quality, cache_metrics, observation = _run_once(profiles, cache)
+        quality, cache_metrics, observation = _run_once(profiles, cache, arm=args.arm)
         durations.append((time.perf_counter() - started) * 1000)
 
     cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
     result = {
         "schema_version": "ranking_benchmark_v2",
         "fixture": str(args.fixture),
-        "fixture_role": "smoke",
+        "arm": args.arm,
+        "status": "measured",
+        "fixture_role": "source_backed" if "tmp/p0/corpus" in str(args.fixture).replace("\\", "/") else "smoke",
         "mode": args.mode,
         "warmup_iterations": args.warmup_iterations,
         "measured_iterations": args.measured_iterations,
         "latency_ms": {"p50": statistics.median(durations), "p95": _percentile(durations, 0.95)},
         "metrics": {
             "retrieval": {
-                "strategy": "lexical_v1",
+                "requested_strategy": observation["requested_strategy"],
+                "effective_strategies": observation["effective_strategies"],
+                "backend_ids": observation["backend_ids"],
+                "fallback_count": observation["fallback_count"],
                 "top_n": observation["shortlist_top_n"],
                 "returned_count": observation["retrieval_returned_count"],
                 "eligible_count": observation["eligible_count"],
@@ -274,6 +331,7 @@ def main() -> None:
                 "ranking_recall": quality["ranking_recall"],
                 "ndcg": quality["ndcg"],
                 "split_counts": observation["split_counts"],
+                "language_split_counts": observation["language_split_counts"],
             },
             "calibration": {"count": observation["split_counts"]["calibration"]},
             "held_out": {"count": observation["split_counts"]["held_out"]},

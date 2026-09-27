@@ -237,7 +237,7 @@ def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> 
         ),
         observe_span=lambda *args, **kwargs: nullcontext(),
         set_span_attributes=lambda attributes: None,
-        run_vector_search=lambda profile, urls, config, *, top_n: {
+        run_vector_search=lambda profile, urls, config, *, top_n, structured_jobs, requested_strategy: {
             "production_rows": [production_row],
             "audit_rows": [audit_row],
             "diagnostics": diagnostics,

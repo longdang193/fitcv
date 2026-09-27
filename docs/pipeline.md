@@ -184,15 +184,18 @@ Phase 1 uses one path for both factors:
 - only confirmed `gate_required` failures reject; unknown evidence stays eligible
 - Phase 3 consumes these factor values without changing their absolute normalization or eligibility truth
 
-## Vector-Only Shortlist
+## Vector Shortlist And Fallback
 
-Phase 2 uses one path:
+Phase 2 requests vector retrieval and preserves that requested strategy in diagnostics. Compatible vectors use one path:
 
 `eligible jobs -> valid cosine evidence -> total vector order -> production Top N`
 
 - ordering is `vector_similarity` descending, then `job_url` ascending
 - one latest embedding row per job URL is selected by `created_at DESC, id DESC`
-- no synthetic shortlist backfill exists; production can contain fewer than configured Top N
+- missing, invalid, stale, or contract-incompatible vectors use deterministic lexical ranking only when the caller supplies the eligible structured job batch
+- vector and lexical rows never mix in one shortlist
+- diagnostics record `requested_strategy`, `effective_strategy`, `fallback_reason`, backend identity, model, dimension, contract fingerprint, and result counts
+- absent fallback data produces `effective_strategy: unavailable`; retrieval never changes silently
 - `raw_shortlist` remains checkpoint compatibility name for production retrieval rows
 - `shortlist_diagnostics` preserves coverage and cutoff metrics in checkpoint state
 - deterministic below-cutoff audit rows exist only in `stage_transition_artifacts.stages.shortlist.audit_sample`

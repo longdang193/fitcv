@@ -25,7 +25,12 @@ from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_skills, infer_role_family
 from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
-from fitcv.embeddings import generate_embedding, get_shortlist_embedding_model
+from fitcv.embeddings import (
+    build_embedding_backend_metadata,
+    build_embedding_contract_fingerprint,
+    generate_embedding,
+    get_shortlist_embedding_model,
+)
 from fitcv.shortlist_runtime import (
     build_contract_fingerprint,
     configure_sqlite_connection,
@@ -456,6 +461,123 @@ def resolve_candidate_query_embedding(
 
 # ── integration: run full retrieval pipeline ──────────────────────────────────
 
+def _lexical_search_result(
+    profile: dict[str, Any],
+    eligible_job_urls: list[str],
+    config: dict[str, Any],
+    top_n: int,
+    structured_jobs: list[dict[str, Any]],
+    *,
+    requested_strategy: str,
+    fallback_reason: str | None = None,
+) -> dict[str, Any]:
+    components = build_candidate_query_components(profile, config)
+    prefs = dict(profile.get("preferences") or {})
+    candidate_skills = flatten_skills(profile)
+    jobs_by_url = {str(job.get("job_url") or ""): job for job in structured_jobs}
+    scored: list[dict[str, Any]] = []
+    for job_url in eligible_job_urls:
+        job = jobs_by_url.get(job_url)
+        if job is None:
+            continue
+        required = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
+        skill_score = compute_must_have_match(required, candidate_skills, config)
+        title_score = compute_title_relevance(
+            str(job.get("title") or job.get("job_title") or "") or None,
+            str(prefs.get("target_role") or "") or None,
+            job_family=str(job.get("job_family") or "") or None,
+            config=config,
+        )
+        preference = compute_declared_preference_fit_details(job, prefs, config)
+        parts = preference["components"]
+        retrieval_score = (skill_score + title_score + float(parts["domain"]) + float(parts["work_mode"])) / 4.0
+        scored.append({
+            **job,
+            "job_url": job_url,
+            "retrieval_score": retrieval_score,
+            "retrieval_components": {
+                "skill_overlap": skill_score,
+                "title_relevance": title_score,
+                "domain": parts["domain"],
+                "location": parts["work_mode"],
+            },
+        })
+    scored.sort(key=lambda item: (-float(item["retrieval_score"]), str(item["job_url"])))
+    ranked_rows = [
+        {
+            **row,
+            "vector_rank": index + 1,
+            "shortlist_origin": "lexical_search",
+            "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+        }
+        for index, row in enumerate(scored)
+    ]
+    production_rows = ranked_rows[:top_n]
+    audit_sample_n = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
+    audit_rows = [{**row, "shortlist_origin": "audit"} for row in ranked_rows[top_n:top_n + audit_sample_n]]
+    cutoff = production_rows[-1] if production_rows else None
+    embedding_metadata = build_embedding_backend_metadata(config)
+    return {
+        "production_rows": production_rows,
+        "audit_rows": audit_rows,
+        "diagnostics": {
+            "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+            "requested_strategy": requested_strategy,
+            "effective_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+            "fallback_used": fallback_reason is not None,
+            "fallback_reason": fallback_reason,
+            "backend_id": "structured_jobs_lexical",
+            "configured_model": embedding_metadata["configured_model"],
+            "dimension": embedding_metadata["dimension"],
+            "contract_fingerprint": embedding_metadata["contract_fingerprint"],
+            "eligible_jobs_total": len(eligible_job_urls),
+            "scored_jobs_total": len(ranked_rows),
+            "production_shortlist_total": len(production_rows),
+            "production_cutoff_rank": cutoff.get("vector_rank") if cutoff else None,
+            "production_cutoff_retrieval_score": cutoff.get("retrieval_score") if cutoff else None,
+            "embedding_generation_skipped": True,
+            "personalization_unavailable_reason": "embedding_strategy_incompatible",
+        },
+        "candidate_query": {
+            "text": build_candidate_query_text(profile, config),
+            "components": components,
+            "candidate_query_signature": build_candidate_query_signature_record(components)["signature"],
+            "candidate_query_contract_fingerprint": build_contract_fingerprint({"retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY, "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION}),
+            "candidate_query_reuse_status": "not_applicable_lexical",
+        },
+    }
+
+
+def _unavailable_search_result(
+    eligible_job_urls: list[str],
+    *,
+    requested_strategy: str,
+    reason: str,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    embedding_metadata = build_embedding_backend_metadata(config)
+    return {
+        "production_rows": [],
+        "audit_rows": [],
+        "diagnostics": {
+            "retrieval_strategy": requested_strategy,
+            "requested_strategy": requested_strategy,
+            "effective_strategy": "unavailable",
+            "fallback_used": False,
+            "fallback_reason": reason,
+            "backend_id": "unavailable",
+            "configured_model": embedding_metadata["configured_model"],
+            "dimension": embedding_metadata["dimension"],
+            "contract_fingerprint": embedding_metadata["contract_fingerprint"],
+            "eligible_jobs_total": len(eligible_job_urls),
+            "scored_jobs_total": 0,
+            "production_shortlist_total": 0,
+            "result_counts": {"eligible": len(eligible_job_urls), "scored": 0, "production": 0},
+        },
+        "candidate_query": {},
+    }
+
+
 def run_vector_search(
     profile: dict[str, Any],
     passed_job_urls: list[str],
@@ -463,74 +585,29 @@ def run_vector_search(
     top_n: int | None = None,
     *,
     structured_jobs: list[dict[str, Any]] | None = None,
+    requested_strategy: str = VECTOR_RETRIEVAL_STRATEGY,
 ) -> dict[str, Any]:
     """Retrieve passed jobs with lexical signals or compatible vectors."""
     eligible_job_urls = sorted({str(job_url).strip() for job_url in passed_job_urls if str(job_url).strip()})
     if not eligible_job_urls:
         return _empty_vector_search_result()
-    if structured_jobs is not None:
-        components = build_candidate_query_components(profile, config)
-        prefs = dict(profile.get("preferences") or {})
-        candidate_skills = flatten_skills(profile)
-        jobs_by_url = {str(job.get("job_url") or ""): job for job in structured_jobs}
-        scored: list[dict[str, Any]] = []
-        for job_url in eligible_job_urls:
-            job = jobs_by_url.get(job_url)
-            if job is None:
-                continue
-            required = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
-            skill_score = compute_must_have_match(required, candidate_skills, config)
-            title_score = compute_title_relevance(
-                str(job.get("title") or job.get("job_title") or "") or None,
-                str(prefs.get("target_role") or "") or None,
-                job_family=str(job.get("job_family") or "") or None,
+    requested_strategy = str(requested_strategy or VECTOR_RETRIEVAL_STRATEGY).strip()
+    if requested_strategy == LEXICAL_RETRIEVAL_STRATEGY:
+        if structured_jobs is None:
+            return _unavailable_search_result(
+                eligible_job_urls,
+                requested_strategy=requested_strategy,
+                reason="fallback_data_unavailable",
                 config=config,
             )
-            preference = compute_declared_preference_fit_details(job, prefs, config)
-            parts = preference["components"]
-            retrieval_score = (skill_score + title_score + float(parts["domain"]) + float(parts["work_mode"])) / 4.0
-            scored.append({
-                **job,
-                "job_url": job_url,
-                "retrieval_score": retrieval_score,
-                "retrieval_components": {
-                    "skill_overlap": skill_score,
-                    "title_relevance": title_score,
-                    "domain": parts["domain"],
-                    "location": parts["work_mode"],
-                },
-            })
-        scored.sort(key=lambda item: (-float(item["retrieval_score"]), str(item["job_url"])))
-        ranked_rows = [
-            {**row, "vector_rank": index + 1, "shortlist_origin": "lexical_search", "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY}
-            for index, row in enumerate(scored)
-        ]
-        effective_top_n = int(top_n if top_n is not None else (config.get("pipeline") or {}).get("vector_search_top_n", 50))
-        production_rows = ranked_rows[:effective_top_n]
-        audit_sample_n = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
-        audit_rows = [{**row, "shortlist_origin": "audit"} for row in ranked_rows[effective_top_n:effective_top_n + audit_sample_n]]
-        cutoff = production_rows[-1] if production_rows else None
-        return {
-            "production_rows": production_rows,
-            "audit_rows": audit_rows,
-            "diagnostics": {
-                "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
-                "eligible_jobs_total": len(eligible_job_urls),
-                "scored_jobs_total": len(ranked_rows),
-                "production_shortlist_total": len(production_rows),
-                "production_cutoff_rank": cutoff.get("vector_rank") if cutoff else None,
-                "production_cutoff_retrieval_score": cutoff.get("retrieval_score") if cutoff else None,
-                "embedding_generation_skipped": True,
-                "personalization_unavailable_reason": "embedding_strategy_incompatible",
-            },
-            "candidate_query": {
-                "text": build_candidate_query_text(profile, config),
-                "components": components,
-                "candidate_query_signature": build_candidate_query_signature_record(components)["signature"],
-                "candidate_query_contract_fingerprint": build_contract_fingerprint({"retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY, "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION}),
-                "candidate_query_reuse_status": "not_applicable_lexical",
-            },
-        }
+        return _lexical_search_result(
+            profile,
+            eligible_job_urls,
+            config,
+            int(top_n if top_n is not None else (config.get("pipeline") or {}).get("vector_search_top_n", 50)),
+            structured_jobs,
+            requested_strategy=requested_strategy,
+        )
     effective_top_n = (
         top_n
         if top_n is not None
@@ -550,6 +627,7 @@ def run_vector_search(
         embedding_columns = {
             str(row[1]) for row in conn.execute("PRAGMA table_info(job_embeddings)").fetchall()
         }
+        embedding_table_available = bool(embedding_columns)
         contract_select = (
             "embedding_contract_fingerprint"
             if "embedding_contract_fingerprint" in embedding_columns
@@ -573,7 +651,13 @@ def run_vector_search(
         FROM ranked_embeddings
         WHERE row_number = 1
         """
-        rows = list(conn.execute(query, tuple(eligible_job_urls)).fetchall())
+        try:
+            rows = list(conn.execute(query, tuple(eligible_job_urls)).fetchall())
+        except sqlite3.OperationalError as exc:
+            if "no such table" not in str(exc).lower():
+                raise
+            rows = []
+            embedding_table_available = False
 
     latest_by_url = {
         str(job_url): (embedding_json, str(contract_fingerprint or ""), int(row_count))
@@ -581,13 +665,18 @@ def run_vector_search(
     }
     missing_urls = sorted(set(eligible_job_urls) - set(latest_by_url))
     invalid_urls: list[str] = []
+    incompatible_contract_urls: list[str] = []
     duplicate_urls = sorted(job_url for job_url, (_, _, count) in latest_by_url.items() if count > 1)
+    expected_contract = str(build_embedding_contract_fingerprint(config)["fingerprint"])
     scored: list[dict[str, Any]] = []
     for job_url in eligible_job_urls:
         latest = latest_by_url.get(job_url)
         if latest is None:
             continue
         embedding_json, embedding_contract_fingerprint, _ = latest
+        if embedding_table_available and "embedding_contract_fingerprint" in embedding_columns and embedding_contract_fingerprint != expected_contract:
+            incompatible_contract_urls.append(job_url)
+            continue
         try:
             raw_job_embedding = json.loads(str(embedding_json))
         except (TypeError, ValueError, json.JSONDecodeError):
@@ -612,6 +701,27 @@ def run_vector_search(
                 ),
                 "embedding_contract_fingerprint": embedding_contract_fingerprint,
             }
+        )
+    fallback_reason = None
+    if candidate_embedding is None:
+        fallback_reason = "candidate_embedding_unavailable"
+    elif missing_urls:
+        fallback_reason = "missing_job_embeddings"
+    elif invalid_urls:
+        fallback_reason = "invalid_job_embeddings"
+    elif incompatible_contract_urls:
+        fallback_reason = "incompatible_embedding_contract"
+    elif eligible_job_urls and not scored:
+        fallback_reason = "no_compatible_vectors"
+    if fallback_reason and structured_jobs is not None:
+        return _lexical_search_result(
+            profile,
+            eligible_job_urls,
+            config,
+            effective_top_n,
+            structured_jobs,
+            requested_strategy=requested_strategy,
+            fallback_reason=fallback_reason,
         )
     scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))
     ranked_rows = [
@@ -659,6 +769,15 @@ def run_vector_search(
         "production_rows": production_rows,
         "audit_rows": audit_rows,
         "diagnostics": {
+            "retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
+            "requested_strategy": requested_strategy,
+            "effective_strategy": VECTOR_RETRIEVAL_STRATEGY,
+            "fallback_used": False,
+            "fallback_reason": None,
+            "backend_id": "sqlite_deterministic_local",
+            "configured_model": get_shortlist_embedding_model(config),
+            "dimension": len(candidate_embedding) if candidate_embedding is not None else None,
+            "contract_fingerprint": expected_contract,
             "eligible_jobs_total": eligible_total,
             "scored_jobs_total": len(ranked_rows),
             "missing_job_embedding_total": len(missing_urls),
@@ -673,10 +792,18 @@ def run_vector_search(
             "audit_sample_fingerprint": audit_sample_fingerprint,
             "missing_job_embedding_sample": missing_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
             "invalid_job_embedding_sample": invalid_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+            "incompatible_embedding_contract_total": len(incompatible_contract_urls),
+            "incompatible_embedding_contract_sample": incompatible_contract_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
             "duplicate_job_embedding_total": len(duplicate_urls),
             "duplicate_job_embedding_sample": duplicate_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
             "raw_hit_anomaly_total": 0,
             "raw_hit_anomaly_sample": [],
+            "result_counts": {
+                "eligible": eligible_total,
+                "scored": len(ranked_rows),
+                "production": len(production_rows),
+                "audit": len(audit_rows),
+            },
         },
         "candidate_query": candidate_query,
     }
