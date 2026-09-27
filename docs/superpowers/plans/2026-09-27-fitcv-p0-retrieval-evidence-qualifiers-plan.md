@@ -2,6 +2,7 @@
 layer: change
 artifact_type: plan
 status: active
+contract_version: 1
 template_id: implementation-plan
 name: fitcv-p0-completion-simplification-cycle
 targets:
@@ -99,8 +100,8 @@ production behavior as the rollback path until each promotion gate passes.
 
 ## Execution Approach
 
-- **Mode:** `parallel-capable`
-- **Coordination:** `git-tracked`
+- Mode: `parallel-capable`
+- Coordination: `git-tracked`
 - **Execution binding:** CoS uses `plan-bound-execution` when activating each
   dependency-ready task.
 - **Execution owner:** Chief of Staff (CoS), using repository launcher
@@ -136,6 +137,13 @@ production behavior as the rollback path until each promotion gate passes.
 The plan is the durable workflow record. CoS records lane identity, launch
 evidence, task result, accepted proof, blockers, and retirement evidence here.
 Herdr status is observation only.
+
+- Coordination owner: `Codex controller`
+- Branch: `detached HEAD` on isolated execution worktree
+- Base commit: `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`
+- Expected workspace: `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-execution\JOB-PROJECT`
+- Next action: dispatch Task 1 through Herdr with explicit session, pane, and runtime grant
+- Blockers: none for Task 1 admission; corpus relevance remains conditionally admitted
 ### Task 0 Admission Record
 
 - Mode: `plan-bound-execution`; plan status: `active`; base: `origin/main` at `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`.
@@ -146,14 +154,14 @@ Herdr status is observation only.
 - Admission is conditional: relevance grade follows declared grade-1 convention; no target-profile semantic rubric exists. Raw corpus and baseline outputs remain local-only through `.git/info/exclude`; never commit raw postings.
 - Baseline: `213 passed, 2 skipped`; ranking smoke and support smoke completed at `tmp/p0-baseline-ranking.json` and `tmp/p0-baseline-support.json`.
 
-| Task | State | Lane | Depends on | Required proof | Evidence |
-| --- | --- | --- | --- | --- | --- |
-| Task 0 — Admission and baseline | `accepted` | Codex controller | none | fresh base, clean isolated worktree, baseline tests and benchmark outputs | base `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`; worktree `1b44da2771f1ba392db6bdebacc65bab49fa5ffe`; 213 passed, 2 skipped; baseline outputs in ignored `tmp/` |
-| Task 1 — Requirement-scoped qualifier semantics | `ready` | `fitcv-p0-qualifiers` | Task 0 accepted | adversarial EN/DE, negation, duration, identity, fingerprint, validator compatibility tests | Herdr dispatch next |
-| Task 2 — Explicit retrieval strategy and P0-A benchmark | `pending` | `fitcv-p0-retrieval` | Task 1 | stale fallback, strategy contract, source-backed DE/EN held-out metrics, truthful backend diagnostics | pending |
-| Task 3 — P0-B full-pool comparison | `pending` | `fitcv-p0-support-selection` | Task 1 | corrected support-pair recall, selection loss, latency/context budget, validation outcome comparison | pending |
-| Task 4 — Convergence and simplification | `pending` | Codex controller | Tasks 2–3 | winner/loser decision, loser deletion, rollback path, docs reconciliation | pending |
-| Task 5 — Independent review, integration, and acceptance | `pending` | `fitcv-p0-integration` | Task 4 | exact-head reviews, fresh full verification, remote merge proof, retirement proof | pending |
+| Task | State | Workspace | Executor | Dependencies | Required Proof | Evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| Task 0 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-execution\JOB-PROJECT` | codex | none | fresh base, clean isolated worktree, baseline tests and benchmark outputs | base `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`; HEAD `1b44da2771f1ba392db6bdebacc65bab49fa5ffe`; 213 passed, 2 skipped; baseline outputs in ignored `tmp/` |
+| Task 1 | `active` | Herdr-managed isolated worktree; explicit pane assigned at dispatch | codex | Task 0 completed | adversarial EN/DE, negation, duration, identity, fingerprint, validator compatibility tests | Herdr dispatch next |
+| Task 2 | `pending` | Fresh isolated worktree after Task 1 acceptance | codex | Task 1 | stale fallback, strategy contract, source-backed DE/EN held-out metrics, truthful backend diagnostics | pending |
+| Task 3 | `pending` | Fresh isolated worktree after Task 1 acceptance | codex | Task 1 | corrected support-pair recall, selection loss, latency/context budget, validation outcome comparison | pending |
+| Task 4 | `pending` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-execution\JOB-PROJECT` | codex | Tasks 2–3 | winner/loser decision, loser deletion, rollback path, docs reconciliation | pending |
+| Task 5 | `pending` | Fresh integration worktree after Task 4 | codex | Task 4 | exact-head reviews, fresh full verification, remote merge proof, retirement proof | pending |
 
 ## CoS MAIN AGENT Lane Contracts
 
@@ -173,8 +181,8 @@ dirty primary checkout.
 
 **Task Function:** CoS admission, baseline verification, and lane dispatch.
 
-**Template Profile:** `unresolved`; controller resolves runtime profile from
-`agents/*.toml` and launcher evidence.
+**Template Profile:**
+- Controller-selected: `none (lead controller)`
 
 **Specification Coverage:** Execution binding, rollback baseline, and clean
 workspace requirement.
@@ -192,7 +200,7 @@ workspace requirement.
 
 **Authority:**
 
-- Allowed: fetch, inspect, create isolated worktree, run baseline commands,
+- Preauthorized local actions: fetch, inspect, create isolated worktree, run baseline commands,
   record evidence, and dispatch dependency-ready lanes.
 - Stop for: ambiguous plan binding, dirty isolated worktree, missing launcher
   capability, missing source-backed corpus, unknown files, or base mismatch.
@@ -225,7 +233,8 @@ admission returns `BLOCKED` before any write-capable lane starts.
 
 **Task Function:** Requirement descriptor contract and support-matrix behavior.
 
-**Template Profile:** `high`.
+**Template Profile:**
+- Controller-selected: `high`
 
 **Specification Coverage:** P0-C requirement scoping, negation, German parsing,
 duration attribution, overall-versus-skill duration, requirement identity, and
@@ -253,7 +262,7 @@ reuse invalidation.
 
 **Authority:**
 
-- Allowed: additive fields, deterministic parsing, compatibility-preserving
+- Preauthorized local actions: additive fields, deterministic parsing, compatibility-preserving
   support-map changes, focused tests, and ignored local reports.
 - Stop for: new persistent graph, LLM qualifier inference, validator/generator
   contract replacement, or schema migration not explicitly approved.
@@ -315,7 +324,8 @@ source-backed DE/EN data.
 **Task Function:** Retrieval contract, pipeline wiring, benchmark arm registry,
 and held-out evaluation.
 
-**Template Profile:** `high`.
+**Template Profile:**
+- Controller-selected: `high`
 
 **Specification Coverage:** P0-A strategy comparison, stale-state fallback,
 truthful backend identity, and production promotion gate.
@@ -341,7 +351,7 @@ baseline.
 
 **Authority:**
 
-- Allowed: local deterministic/lexical benchmark arms, fallback wiring, test
+- Preauthorized local actions: local deterministic/lexical benchmark arms, fallback wiring, test
   fixtures, and ignored reports.
 - Stop for: provider access, credentials, new dependency, lockfile change, or
   production strategy promotion without user approval and gate evidence.
@@ -399,7 +409,8 @@ mechanism.
 
 **Task Function:** Support-preservation experiment and comparison recommendation.
 
-**Template Profile:** `normal`.
+**Template Profile:**
+- Controller-selected: `normal`
 
 **Specification Coverage:** P0-B canonical/pool/selected support, retrieval-to-
 selection loss, context budget, and simplification.
@@ -422,7 +433,7 @@ selection loss, context budget, and simplification.
 
 **Authority:**
 
-- Allowed: deterministic local experiments, bounded selector changes, ignored
+- Preauthorized local actions: deterministic local experiments, bounded selector changes, ignored
   benchmark reports, and comparison-tool/test changes.
 - Stop for: adding `direct_support_recovery` solely because a plan mentions it,
   unbounded candidate expansion, LLM/reranker use, or production rollout before
@@ -469,7 +480,8 @@ performance, then reconcile documentation and plan state.
 
 **Task Function:** Codex-controlled fan-in and simplification decision.
 
-**Template Profile:** `high`.
+**Template Profile:**
+- Controller-selected: `high`
 
 **Specification Coverage:** P0 promotion, deletion decision, rollback, and
 operational simplicity.
@@ -484,7 +496,7 @@ operational simplicity.
 
 **Authority:**
 
-- Allowed: delete losing arms, obsolete flags, duplicate paths, unsupported
+- Preauthorized local actions: delete losing arms, obsolete flags, duplicate paths, unsupported
   benchmark claims, and stale docs; update rollback and decision records.
 - Stop for: unrelated cleanup, private-data publication, threshold changes after
   measurement, or code removal without consumer and test proof.
@@ -519,8 +531,8 @@ complexity is deleted; docs, tests, diagnostics, and plan ledger agree.
 **Task Function:** Independent review, PR integration, post-merge verification,
 and lane retirement.
 
-**Template Profile:** `high` for integration; `review-1` and `review-2` for
-independent read-only review lanes.
+**Template Profile:**
+- Controller-selected: `high`
 
 **Specification Coverage:** Review, verification, merge, and cleanup gates.
 
@@ -537,10 +549,8 @@ re-reviewed.
 
 **Authority:**
 
-- Review lanes are read-only and must not modify Git state.
-- Integration may push the approved branch and merge only the exact reviewed
-  SHA after CI and required approvals pass.
-- Stop for review FAIL/BLOCKED, unexpected post-review changes, missing CI,
+- Preauthorized local actions: review lanes are read-only; integration may push the approved branch and merge only the exact reviewed SHA after CI and required approvals pass.
+- Stop for: review FAIL/BLOCKED, unexpected post-review changes, missing CI,
   stale remote head, missing eligible review identity, or dirty integration
   worktree.
 
