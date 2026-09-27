@@ -203,21 +203,21 @@ Benchmarks report qualified-support recall for evidence selection and source-bac
 
 **Steps:**
 - [x] Keep isolated qualifier semantics cases in the existing fixture; do not treat them as source-backed promotion evidence.
-- [ ] Admit only reviewed, source-backed requirement/evidence cases from `tmp/p0/corpus/reviewed_requirement_evidence.jsonl`; keep raw input ignored and write only sanitized stable-ID cases to the fixture. Mark P0-B blocked when the corpus is absent.
+- [x] Admit only reviewed, source-backed requirement/evidence cases from `tmp/p0/corpus/reviewed_requirement_evidence.jsonl`; keep raw input ignored and write only sanitized stable-ID cases to the fixture. Admit current 10-row sample for benchmark-only diagnostics; keep promotion blocked for coverage.
 - [x] Expand the benchmark tooling to compare current channel-pool and `full_pool` arms under identical assessment, selector, `top_k`, validation, and prompt paths.
 - [x] Report qualified requirement recall, qualified evidence-pair recall, false qualified pairs, retrieval-to-selection loss, pool size, selected context size, p50/p95 latency, duplicates, and validation status.
 - [x] Compare arms under identical warmup and measured-run settings.
 - [ ] Apply fixed gates before comparison: zero false qualified pairs; qualified requirement recall non-decreasing; qualified evidence-pair recall non-decreasing; p95 latency and selected context characters no more than `1.20x` incumbent. A tie retains the lower-cost arm; no promotion occurs without admitted labels.
 - [x] Retain current arm when full-pool lacks admissible evidence or fails a gate; delete losing code only during convergence.
 
-**Current blocker:** `C:\Users\HOANG PHI LONG DANG\repos\career-ops\data.private\fitcv-p0-corpus` contains no `reviewed_requirement_evidence.jsonl`. P0-B implementation tests and tooling may run; P0-B promotion and fixture admission stay blocked. Do not fabricate labels.
+**Current blocker:** `tmp/p0/corpus/reviewed_requirement_evidence.jsonl` now contains 10 two-agent-adjudicated labels across 3 postings, 7 requirement instances, and 2 held-out rows. Coverage is insufficient for production recall claims; P0-B promotion remains blocked. Do not fabricate labels.
 
 **Verification:**
 - [x] `uv run pytest -q tests/test_benchmark_requirement_support.py tests/test_compare_requirement_support.py`
 - [x] `uv run python scripts/benchmark_requirement_support.py --arm current --output tmp/p0/support-current.json`
 - [x] `uv run python scripts/benchmark_requirement_support.py --arm full-pool --output tmp/p0/support-full-pool.json`
 - [x] `uv run python scripts/compare_requirement_support.py --inputs tmp/p0/support-current.json,tmp/p0/support-full-pool.json --output tmp/p0/support-comparison.json`
-- Expected: comparison uses qualified metrics and reports a reproducible recommendation; no arm creates false verified support. Fresh result: `18 passed`; both arms report zero incorrect pairs and equal qualified recall, but P0-B promotion remains blocked by missing reviewed labels and fixture validation `6/17`.
+- Expected: comparison uses qualified metrics and reports a reproducible recommendation; no arm creates false verified support. Fresh result: `18 passed`; both arms report zero incorrect pairs and equal qualified recall, while source-backed promotion remains blocked by limited reviewed-label coverage and fixture validation `6/17`.
 
 **Exit Criteria:** P0-B comparison tooling is verified; current arm is retained and promotion stays blocked until reviewed source-backed labels make qualified-support gates admissible. No unmeasured recovery mechanism is added.
 
@@ -317,7 +317,7 @@ Benchmarks report qualified-support recall for evidence selection and source-bac
 - [x] `uv run python scripts/benchmark_ranking.py --fixture tmp/p0/corpus/ranking_source_backed.json --arm incumbent --output tmp/p0/ranking-incumbent.json`
 - [x] `uv run python scripts/benchmark_ranking.py --fixture tmp/p0/corpus/ranking_source_backed.json --arm lexical --output tmp/p0/ranking-lexical.json`
 - [x] `uv run python scripts/benchmark_ranking.py --fixture tmp/p0/corpus/ranking_source_backed.json --arm multilingual --output tmp/p0/ranking-multilingual.json`
-- Expected: outputs distinguish measured, unavailable, and `not_run`; held-out metrics are not derived from synthetic fallback jobs. Fresh result: `60 passed, 2 skipped`; incumbent retained because lexical does not improve nDCG and multilingual is `not_run`.
+- Expected: outputs distinguish measured, unavailable, and `not_run`; held-out metrics are not derived from synthetic fallback jobs. Fresh source-backed result: incumbent and lexical both report held-out ranking recall `0.15` and nDCG `0.2345000466603374`; incumbent p95 `32.8112 ms`, lexical p95 `3.9035 ms`, and multilingual is `not_run`. Incumbent retained because lexical does not improve quality and current production strategy remains incumbent.
 
 **Exit Criteria:** P0-A promotion or incumbent retention has source-backed held-out evidence and rollback choice.
 

@@ -69,6 +69,31 @@ def _ndcg(returned: list[dict[str, Any]], eligible_rows: list[dict[str, Any]], t
     return dcg / idcg if idcg else 1.0
 
 
+def _split_metric_rows(
+    returned_ids: set[str],
+    returned_rows: list[dict[str, Any]],
+    source_rows: list[dict[str, Any]],
+    top_n: int,
+) -> dict[str, dict[str, float | int]]:
+    metrics: dict[str, dict[str, float | int]] = {}
+    for split in ("calibration", "held_out"):
+        eligible = [row for row in source_rows if row.get("split") == split]
+        ranked = [row for row in returned_rows if row.get("split") == split]
+        metrics[split] = {
+            "count": len(eligible),
+            "shortlist_recall": _recall(returned_ids, eligible),
+            "ranking_recall": _recall(
+                {
+                    str(row.get("candidate_id"))
+                    for row in ranked[:top_n]
+                },
+                eligible,
+            ),
+            "ndcg": _ndcg(ranked, eligible, top_n),
+        }
+    return metrics
+
+
 def _profile_request(profile_id: str, pool: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     profile = dict(pool.get("profile") or {})
     if not profile:
@@ -150,6 +175,7 @@ def _run_once(
     ranking_top_n = 0
     split_counts = {"calibration": 0, "held_out": 0}
     language_split_counts: dict[str, dict[str, int]] = {}
+    split_metrics: dict[str, list[dict[str, float | int]]] = {}
     fallback_count = 0
     effective_strategies: set[str] = set()
     backend_ids: set[str] = set()
@@ -182,10 +208,19 @@ def _run_once(
         fallback_count += int(bool(diagnostics.get("fallback_used")))
         effective_strategies.add(str(diagnostics.get("effective_strategy") or ""))
         backend_ids.add(str(diagnostics.get("backend_id") or ""))
-        source_ids_by_url = {
-            str(dict(source.get("job") or {}).get("job_url") or source["candidate_id"]): str(source["candidate_id"])
-            for source in source_rows
-        }
+        source_ids_by_url: dict[str, str] = {}
+        for source in source_rows:
+            candidate_id = str(source["candidate_id"])
+            job = dict(source.get("job") or {})
+            for value in (
+                candidate_id,
+                job.get("job_url"),
+                job.get("source_job_url"),
+                source.get("job_url"),
+                source.get("source_job_url"),
+            ):
+                if value:
+                    source_ids_by_url[str(value)] = candidate_id
         retrieved_ids = {
             source_ids_by_url.get(str(row["job_url"]), str(row["job_url"]))
             for row in retrieval["production_rows"]
@@ -210,7 +245,9 @@ def _run_once(
                 {
                     "candidate_id": candidate_id,
                     "raw_job_fingerprint": candidate_id,
-                    "job_url": candidate_id,
+                    "job_url": str(
+                        dict(source.get("job") or {}).get("job_url") or candidate_id
+                    ),
                     "baseline_fit": source.get("baseline_fit"),
                     "ai_score": ai_score,
                     "relevance_grade": source.get("relevance_grade", 0),
@@ -226,13 +263,30 @@ def _run_once(
             for candidate_id, row in ranked_by_id.items()
             if candidate_id in source_by_id
         ]
+        pool_split_metrics = _split_metric_rows(
+            set(ranked_by_id),
+            ranked_eval,
+            source_rows,
+            int(pool.get("ndcg_top_n", 15)),
+        )
         ranking_recalls.append(_recall(set(ranked_by_id), source_rows))
         ndcgs.append(_ndcg(ranked_eval, source_rows, int(pool.get("ndcg_top_n", 15))))
+        split_metrics.setdefault("calibration", []).append(pool_split_metrics["calibration"])
+        split_metrics.setdefault("held_out", []).append(pool_split_metrics["held_out"])
     return (
         {
             "shortlist_recall": statistics.mean(shortlist_recalls),
             "ranking_recall": statistics.mean(ranking_recalls),
             "ndcg": statistics.mean(ndcgs),
+            "split_metrics": {
+                split: {
+                    "count": int(statistics.mean(item["count"] for item in values)),
+                    "shortlist_recall": statistics.mean(item["shortlist_recall"] for item in values),
+                    "ranking_recall": statistics.mean(item["ranking_recall"] for item in values),
+                    "ndcg": statistics.mean(item["ndcg"] for item in values),
+                }
+                for split, values in split_metrics.items()
+            },
         },
         {
             "cache_hits": cache_hits,
@@ -320,16 +374,18 @@ def main() -> None:
                 "returned_count": observation["retrieval_returned_count"],
                 "eligible_count": observation["eligible_count"],
                 "coverage": observation["retrieval_returned_count"] / observation["eligible_count"] if observation["eligible_count"] else 0.0,
-                "shortlist_recall": quality["shortlist_recall"],
+                "shortlist_recall": quality["split_metrics"]["held_out"]["shortlist_recall"],
             },
             "ranking": {
+                "evaluation_scope": "held_out",
                 "profiles": len(profiles),
                 "top_n": observation["ranking_top_n"],
                 "returned_count": observation["ranking_returned_count"],
                 "eligible_count": observation["eligible_count"],
                 "coverage": observation["ranking_returned_count"] / observation["eligible_count"] if observation["eligible_count"] else 0.0,
-                "ranking_recall": quality["ranking_recall"],
-                "ndcg": quality["ndcg"],
+                "ranking_recall": quality["split_metrics"]["held_out"]["ranking_recall"],
+                "ndcg": quality["split_metrics"]["held_out"]["ndcg"],
+                "split_metrics": quality["split_metrics"],
                 "split_counts": observation["split_counts"],
                 "language_split_counts": observation["language_split_counts"],
             },
