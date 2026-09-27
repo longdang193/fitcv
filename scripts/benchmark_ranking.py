@@ -149,7 +149,7 @@ def _run_once(
         source_rows = list(pool["candidates"])
         eligible_count += len(source_rows)
         for source in source_rows:
-            split = str(source.get("split") or "")
+            split = str(source.get("split") or "").replace("-", "_")
             if split in split_counts:
                 split_counts[split] += 1
         request = build_retrieval_request(profile_id, pool, strategy)
@@ -236,9 +236,17 @@ def _vector_capability_available() -> bool:
         ).fetchone() is not None
 
 
+def _arm_not_run(reason: str, strategy: str | None = None) -> dict[str, Any]:
+    result: dict[str, Any] = {"status": "not_run", "reason": reason}
+    if strategy is not None:
+        result["strategy"] = strategy
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fixture", default="tests/fixtures/ranking_gold.json")
+    parser.add_argument("--fixture", default="tests/fixtures/ranking_production_like.json")
+    parser.add_argument("--arm", required=True, choices=("incumbent", "lexical", "multilingual"))
     parser.add_argument("--mode", default="replayed")
     parser.add_argument("--warmup-iterations", type=int, default=1)
     parser.add_argument("--measured-iterations", type=int, default=5)
@@ -251,59 +259,76 @@ def main() -> None:
 
     data = json.loads(Path(args.fixture).read_text(encoding="utf-8"))
     profiles = data["profiles"]
-    cache: set[str] = set()
-    for _ in range(args.warmup_iterations):
-        _run_once(profiles, cache)
-    durations: list[float] = []
-    quality: dict[str, float] = {}
-    cache_metrics: dict[str, int] = {}
-    observation: dict[str, Any] = {}
-    for _ in range(args.measured_iterations):
-        started = time.perf_counter()
-        quality, cache_metrics, observation = _run_once(profiles, cache)
-        durations.append((time.perf_counter() - started) * 1000)
-
-    cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
-    arms: dict[str, dict[str, Any]] = {}
-    for arm, strategy in (("incumbent", "vector_cosine_v1"), ("lexical", "lexical_v1")):
-        if arm == "incumbent" and not _vector_capability_available():
-            arms[arm] = {"status": "not_run", "strategy": strategy, "reason": "capability_unavailable"}
-            continue
+    strategies = {"incumbent": "vector_cosine_v1", "lexical": "lexical_v1"}
+    strategy = strategies.get(args.arm)
+    capability_available = args.arm == "lexical" or (
+        args.arm == "incumbent" and _vector_capability_available()
+    )
+    arms: dict[str, dict[str, Any]] = {
+        name: _arm_not_run("not_selected" if name != args.arm else "capability_unavailable", arm_strategy)
+        for name, arm_strategy in strategies.items()
+    }
+    arms["multilingual"] = _arm_not_run("not_selected" if args.arm != "multilingual" else "capability_unavailable")
+    if not capability_available:
+        selected = arms[args.arm]
+        selected["status"] = "not_run"
+    else:
         arm_cache: set[str] = set()
         for _ in range(args.warmup_iterations):
-            _run_once(profiles, arm_cache, strategy)
+            _run_once(profiles, arm_cache, strategy or "lexical_v1")
         arm_durations: list[float] = []
+        quality: dict[str, float] = {}
+        cache_metrics: dict[str, int] = {}
+        observation: dict[str, Any] = {}
         for _ in range(args.measured_iterations):
             started = time.perf_counter()
-            arm_quality, arm_cache_metrics, arm_observation = _run_once(profiles, arm_cache, strategy)
+            quality, cache_metrics, observation = _run_once(profiles, arm_cache, strategy or "lexical_v1")
             arm_durations.append((time.perf_counter() - started) * 1000)
-        arms[arm] = {
+        cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
+        arms[args.arm] = {
             "status": "completed",
             "strategy": strategy,
             "latency_ms": {"p50": statistics.median(arm_durations), "p95": _percentile(arm_durations, 0.95)},
             "metrics": {
-                "shortlist_recall": arm_quality["shortlist_recall"],
-                "ranking_recall": arm_quality["ranking_recall"],
-                "ndcg": arm_quality["ndcg"],
-                "coverage": arm_observation["retrieval_returned_count"] / arm_observation["eligible_count"] if arm_observation["eligible_count"] else 0.0,
-                "calibration": {"count": arm_observation["split_counts"]["calibration"]},
-                "held_out": {"count": arm_observation["split_counts"]["held_out"]},
-                "fallback_count": arm_observation["fallback_count"],
+                "shortlist_recall": quality["shortlist_recall"],
+                "ranking_recall": quality["ranking_recall"],
+                "ndcg": quality["ndcg"],
+                "coverage": observation["retrieval_returned_count"] / observation["eligible_count"] if observation["eligible_count"] else 0.0,
+                "calibration": {"count": observation["split_counts"]["calibration"]},
+                "held_out": {"count": observation["split_counts"]["held_out"]},
+                "fallback_count": observation["fallback_count"],
             },
-            "backend_identity": arm_observation["retrieval_metadata"],
+            "backend_identity": observation["retrieval_metadata"],
         }
-    arms["multilingual"] = {"status": "not_run", "reason": "capability_unavailable"}
+    if not capability_available:
+        quality = {"shortlist_recall": 0.0, "ranking_recall": 0.0, "ndcg": 0.0}
+        cache_metrics = {"cache_hits": 0, "cache_misses": 0, "scoring_failure_count": 0}
+        observation = {
+            "retrieval_metadata": {}, "shortlist_top_n": 0, "retrieval_returned_count": 0,
+            "eligible_count": sum(len(pool["candidates"]) for pool in profiles.values()),
+            "ranking_top_n": 0, "ranking_returned_count": 0, "split_counts": {"calibration": 0, "held_out": 0},
+            "fallback_count": 0,
+        }
+        durations = []
+    else:
+        durations = arm_durations
+    cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
     result = {
         "schema_version": "ranking_benchmark_v2",
         "fixture": str(args.fixture),
-        "fixture_role": "smoke",
+        "fixture_role": "production_like",
+        "arm": args.arm,
+        "arm_status": arms[args.arm]["status"],
         "mode": args.mode,
         "warmup_iterations": args.warmup_iterations,
         "measured_iterations": args.measured_iterations,
-        "latency_ms": {"p50": statistics.median(durations), "p95": _percentile(durations, 0.95)},
+        "latency_ms": {
+            "p50": statistics.median(durations) if durations else None,
+            "p95": _percentile(durations, 0.95) if durations else None,
+        },
         "metrics": {
             "retrieval": {
-                "strategy": "lexical_v1",
+                "strategy": strategy,
                 "backend_metadata": observation["retrieval_metadata"],
                 "top_n": observation["shortlist_top_n"],
                 "returned_count": observation["retrieval_returned_count"],
