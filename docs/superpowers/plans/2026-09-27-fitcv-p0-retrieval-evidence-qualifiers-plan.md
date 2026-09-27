@@ -79,6 +79,12 @@ Close P0-A, P0-B, and P0-C with fresh correctness and performance evidence,
 then delete mechanisms that do not earn their complexity. Keep current
 production behavior as the rollback path until each promotion gate passes.
 
+Current repository baseline: `71e6260d` on `main`, with unrelated dirty and
+untracked files preserved. P0-B production-recall promotion is explicitly
+deferred; current selection remains benchmark-only until reviewed
+requirement/evidence coverage expands. No fabricated labels or production
+claims.
+
 ## Non-Goals
 
 - No P1 content compiler or actionable-uncertainty work.
@@ -590,6 +596,18 @@ re-reviewed.
 post-merge base proof and retirement evidence are recorded; primary checkout
 remains untouched.
 
+## Decision Table
+
+| Scope | Incumbent | Decision | Evidence | Rollback |
+|---|---|---|---|---|
+| P0-A retrieval | `incumbent` | Retain incumbent; multilingual arm `not_run`; defer production-recall promotion | Held-out DE/EN recall and nDCG recorded in accepted benchmark artifacts | Restore prior benchmark arm selection |
+| P0-B evidence | `current` | Retain current; defer production-recall promotion | `18 passed`; zero incorrect pairs; reviewed labels remain benchmark-only | Re-run comparison after broader reviewed labels |
+| P0-C qualifiers | Existing support contract | Keep requirement-instance-scoped implementation | Focused suite passes; no cross-evidence assembly | Revert qualifier change if compatibility proof fails |
+
+**Deferral:** Production recall stays deferred until reviewed source-backed
+requirement/evidence labels expand beyond current benchmark-only coverage.
+Retain current arms and do not add unmeasured recovery paths.
+
 ## Final Verification Contract
 
 Required evidence:
@@ -609,10 +627,10 @@ Required evidence:
 ## Completion Criteria
 
 1. P0-C conclusions are requirement-scoped and evidence-backed.
-2. P0-B has one retained selection path; unmeasured recovery code does not
-   exist.
-3. P0-A has one promoted or incumbent retrieval strategy backed by source-based
-   held-out DE/EN evidence.
+2. P0-B has one retained selection path; production recall remains explicitly
+   deferred; unmeasured recovery code does not exist.
+3. P0-A has one retained incumbent retrieval strategy backed by source-based
+   held-out DE/EN evidence; production-recall promotion remains deferred.
 4. Reuse fingerprints invalidate changed semantics without manual cache clearing.
 5. Existing `selected_support`, `support_strength`, validator, and generator
    contracts remain compatible.
