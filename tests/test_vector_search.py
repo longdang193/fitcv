@@ -14,6 +14,7 @@ from fitcv.vector_search import (
     resolve_candidate_query_embedding,
     run_vector_search,
 )
+from fitcv.embeddings import build_embedding_contract_fingerprint
 
 
 _CANDIDATE_QUERY_RECORD_KEYS = {
@@ -405,6 +406,7 @@ def test_run_vector_search_rejects_stale_vectors_and_falls_back(tmp_path: Path, 
     db_path = tmp_path / "fitcv.sqlite3"
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
     _create_job_embedding_table(db_path)
+    current_contract = build_embedding_contract_fingerprint({})["fingerprint"]
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_contract_fingerprint) VALUES (?, 'job_summary', '', ?, ?, ?)",
@@ -412,7 +414,7 @@ def test_run_vector_search_rejects_stale_vectors_and_falls_back(tmp_path: Path, 
         )
         conn.execute(
             "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_contract_fingerprint) VALUES (?, 'job_summary', '', ?, ?, ?)",
-            ("job-2", json.dumps([0.0, 1.0]), "2026-01-01T00:00:00Z", "current-contract"),
+            ("job-2", json.dumps([0.0, 1.0]), "2026-01-01T00:00:00Z", current_contract),
         )
     monkeypatch.setattr("fitcv.vector_search.resolve_candidate_query_embedding", lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]))
     result = run_vector_search(
