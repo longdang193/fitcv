@@ -95,7 +95,8 @@ current deterministic behavior.
 
 ## Execution Approach
 
-- Mode: `plan-bound-execution`
+- Mode: `parallel-capable`
+- Coordination mode: `plan-bound-execution`
 - Coordination: `git-tracked`
 - Required skills: `skill-chief-of-staff`, `skill-performance-optimization`, `skill-backend-verification`, `skill-systematic-debugging`, `skill-test-driven-development`, `skill-verification-before-completion`, `skill-plan-document-reviewer`
 - Isolation: `new clean worktree; preserve current dirty primary checkout`
@@ -112,16 +113,25 @@ current deterministic behavior.
 - Branch: `codex/fitcv-p0-retrieval-evidence-qualifiers`
 - Base commit: `71e6260dbaa507a2ffe3640c179e60a569551e2b` (`HEAD` and `origin/main`; requested review commit `a40416a46f8f25f76329ff38131230d574043ddf` is an ancestor)
 - Expected workspace: `clean task-owned worktree; preserve current primary checkout deletions, untracked files, and untracked plans`
-- Next action: `create clean task-owned worktree, verify branch/HEAD/base/plan identity, then dispatch Task 1 through Herdr`
-- Blockers: `provider-backed P0-A arm remains approval-gated; provider execution and promotion stay disabled`
+- Next action: `preserve integration worktree for user disposition; no push, merge, or publication`
+- Blockers: `provider-backed P0-A arm remains approval-gated; P0-B direct-support recovery remains default-off; no push or merge authority`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 — Reconcile benchmark contracts and arm registry | `pending` | task-owned worktree | `unresolved` | target commit confirmation | benchmark contract tests and existing arms pass | pending |
-| Task 2 — P0-A shortlist retrieval seam and safe migration | `pending` | task-owned worktree | `unresolved` | Task 1 | retrieval comparison, fingerprint, stale-state, and fallback tests | pending |
-| Task 3 — P0-B bounded direct-support recovery | `pending` | task-owned worktree | `unresolved` | Task 1 | support-pair recall, bounded pool, duplicate, and selection tests | pending |
-| Task 4 — P0-C additive qualifier audit | `pending` | task-owned worktree | `unresolved` | Task 3 | qualifier parsing, conservative status mapping, validator compatibility tests | pending |
-| Task 5 — Promotion decision and final verification | `pending` | lead controller worktree | `unresolved` | Tasks 2–4 | full focused suite, benchmark report, docs reconciliation, rollback proof | pending |
+| Task 1 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-task1\JOB-PROJECT` | `codex` | none | `28 passed`; unsupported arms report `not_run`; fixture `d0ce5b4e52addfc1be2a107dd7900892e84733a34cc341ad003bdf6f102f7d40` | complete |
+| Task 2 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-task2\JOB-PROJECT` | `codex` | Task 1 | `58 passed, 2 skipped`; ranking recall `1.0`; nDCG `1.0`; p50 `27.73 ms`; p95 `29.07 ms`; provider calls `0` | complete |
+| Task 3 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-task3\JOB-PROJECT` | `codex` | Task 1 | `91 passed`; canonical/pool/selected separation; bounded recovery; default `false` | complete |
+| Task 4 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-task4\JOB-PROJECT` | `codex` | Task 3 | `193 passed`; qualifier parsing, unsupported/unavailable filtering, legacy compatibility | complete |
+| Task 5 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-integration\JOB-PROJECT` | `codex` | Tasks 2, 3, 4 | `270 passed, 2 skipped`; benchmark reports in `C:\tmp\fitcv-p0-integration-evidence`; docs reconciled; rollback recorded | complete |
+
+### Final evidence
+
+- Integration worktree: `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-integration\JOB-PROJECT`
+- Focused suite: `270 passed, 2 skipped in 3.32s`
+- Ranking benchmark: shortlist recall `1.0`, ranking recall `1.0`, nDCG `1.0`, p50 `27.2455 ms`, p95 `28.6723 ms`, LLM calls `0`
+- Support benchmark: fixture SHA-256 `d0ce5b4e52addfc1be2a107dd7900892e84733a34cc341ad003bdf6f102f7d40`; provider calls `false`; direct-support recovery remains opt-in
+- Promotion: promote deterministic retrieval diagnostics, stale-state fallback, and additive qualifier audit; do not promote provider-backed retrieval or enable direct-support recovery by default
+- Rollback: disable `cv_analysis.direct_support_recovery.enabled`; restore incumbent retrieval strategy; invalidate only state carrying incompatible embedding contract fingerprints
 
 ### CoS MAIN AGENT lane contracts
 
@@ -142,7 +152,8 @@ explicit instead of adding unsupported provider claims.
 
 **Task Function:** Benchmark-contract maintenance and baseline reconciliation.
 
-**Template Profile:** `unresolved`; resolve lowest reliable profile before activation.
+**Template Profile:**
+- Controller-selected: `normal`
 
 **Specification Coverage:** Phase 0, existing retrieval baseline, active RAG-impact suite.
 
@@ -190,7 +201,10 @@ safe without replacing the current deterministic backend prematurely.
 **Task Function:** Retrieval backend contract, benchmark integration, and
 runtime-state compatibility.
 
-**Template Profile:** `unresolved`; provider-backed work requires separate approval.
+**Template Profile:**
+- Controller-selected: `normal`
+
+Provider-backed work requires separate approval.
 
 **Specification Coverage:** P0-A job retrieval, embedding contract fingerprint,
 cache and preference compatibility.
@@ -255,7 +269,8 @@ channel truncation while preserving one global evidence budget.
 
 **Task Function:** Evidence candidate-union and selection correctness.
 
-**Template Profile:** `unresolved`; resolve lowest reliable profile before activation.
+**Template Profile:**
+- Controller-selected: `normal`
 
 **Specification Coverage:** P0-B direct support, retrieval-to-selection loss,
 canonical/pool/selected support separation.
@@ -309,7 +324,8 @@ generation and validation contracts.
 
 **Task Function:** Conservative requirement parsing and additive coverage audit.
 
-**Template Profile:** `unresolved`; resolve lowest reliable profile before activation.
+**Template Profile:**
+- Controller-selected: `normal`
 
 **Specification Coverage:** P0-C qualifier-aware requirements.
 
@@ -370,7 +386,10 @@ rollback path.
 
 **Task Function:** Integration verification and decision record.
 
-**Template Profile:** `unresolved`; controller selects validator independently.
+**Template Profile:**
+- Controller-selected: `normal`
+
+Controller selects validator independently.
 
 **Specification Coverage:** All implementation outcomes and promotion gates.
 

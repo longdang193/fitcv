@@ -25,7 +25,13 @@ from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_skills, infer_role_family
 from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
-from fitcv.embeddings import generate_embedding, get_shortlist_embedding_model
+from fitcv.embeddings import (
+    SQLITE_EMBED_DIM,
+    build_embedding_backend_metadata,
+    build_embedding_contract_fingerprint,
+    generate_embedding,
+    get_shortlist_embedding_model,
+)
 from fitcv.shortlist_runtime import (
     build_contract_fingerprint,
     configure_sqlite_connection,
@@ -350,8 +356,9 @@ def build_candidate_query_signature_record(components: dict[str, Any]) -> dict[s
 def build_candidate_query_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
     """Fingerprint shortlist candidate-query embedding behavior to invalidate reuse."""
     payload = {
+        **build_embedding_contract_fingerprint(config)["payload"],
         "embedding_model": get_shortlist_embedding_model(config),
-        "retrieval_strategy": str(config.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY),
+        "embedding_dimension": SQLITE_EMBED_DIM,
         "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
     }
     fingerprint = build_contract_fingerprint(payload)
@@ -468,7 +475,7 @@ def run_vector_search(
     eligible_job_urls = sorted({str(job_url).strip() for job_url in passed_job_urls if str(job_url).strip()})
     if not eligible_job_urls:
         return _empty_vector_search_result()
-    if structured_jobs is not None:
+    if structured_jobs is not None and str(config.get("retrieval_strategy") or LEXICAL_RETRIEVAL_STRATEGY) != VECTOR_RETRIEVAL_STRATEGY:
         components = build_candidate_query_components(profile, config)
         prefs = dict(profile.get("preferences") or {})
         candidate_skills = flatten_skills(profile)
@@ -515,6 +522,15 @@ def run_vector_search(
             "audit_rows": audit_rows,
             "diagnostics": {
                 "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+                "backend_metadata": {
+                    "backend_id": "lexical_deterministic_local",
+                    "configured_model": None,
+                    "dimension": None,
+                    "summary_schema_version": None,
+                    "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+                    "contract_fingerprint": build_contract_fingerprint({"retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY}),
+                },
+                "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
                 "eligible_jobs_total": len(eligible_job_urls),
                 "scored_jobs_total": len(ranked_rows),
                 "production_shortlist_total": len(production_rows),
@@ -522,6 +538,7 @@ def run_vector_search(
                 "production_cutoff_retrieval_score": cutoff.get("retrieval_score") if cutoff else None,
                 "embedding_generation_skipped": True,
                 "personalization_unavailable_reason": "embedding_strategy_incompatible",
+                "stale_state_fallback": False,
             },
             "candidate_query": {
                 "text": build_candidate_query_text(profile, config),
@@ -539,6 +556,7 @@ def run_vector_search(
     audit_sample_n = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
     candidate_query_record = resolve_candidate_query_embedding(profile, config)
     candidate_embedding = _validated_vector(candidate_query_record.get("embedding"))
+    embedding_contract_fingerprint = str(build_embedding_contract_fingerprint(config)["fingerprint"])
     candidate_query = {
         key: value
         for key, value in candidate_query_record.items()
@@ -580,12 +598,17 @@ def run_vector_search(
         for job_url, embedding_json, contract_fingerprint, row_count in rows
     }
     missing_urls = sorted(set(eligible_job_urls) - set(latest_by_url))
+    stale_urls = sorted(
+        job_url
+        for job_url, (_, contract_fingerprint, _) in latest_by_url.items()
+        if contract_fingerprint and contract_fingerprint != embedding_contract_fingerprint
+    )
     invalid_urls: list[str] = []
     duplicate_urls = sorted(job_url for job_url, (_, _, count) in latest_by_url.items() if count > 1)
     scored: list[dict[str, Any]] = []
     for job_url in eligible_job_urls:
         latest = latest_by_url.get(job_url)
-        if latest is None:
+        if latest is None or job_url in stale_urls:
             continue
         embedding_json, embedding_contract_fingerprint, _ = latest
         try:
@@ -613,6 +636,14 @@ def run_vector_search(
                 "embedding_contract_fingerprint": embedding_contract_fingerprint,
             }
         )
+    if not scored and stale_urls and structured_jobs is not None:
+        fallback_config = {**config, "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY}
+        fallback = run_vector_search(profile, eligible_job_urls, fallback_config, top_n=effective_top_n, structured_jobs=structured_jobs)
+        fallback["diagnostics"]["stale_job_embedding_total"] = len(stale_urls)
+        fallback["diagnostics"]["stale_job_embedding_sample"] = stale_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT]
+        fallback["diagnostics"]["stale_state_fallback"] = True
+        return fallback
+
     scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))
     ranked_rows = [
         {
@@ -663,6 +694,9 @@ def run_vector_search(
             "scored_jobs_total": len(ranked_rows),
             "missing_job_embedding_total": len(missing_urls),
             "invalid_job_embedding_total": len(invalid_urls),
+            "stale_job_embedding_total": len(stale_urls),
+            "stale_job_embedding_sample": stale_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+            "backend_metadata": build_embedding_backend_metadata(config),
             "candidate_embedding_available": candidate_embedding is not None,
             "embedding_coverage_rate": len(ranked_rows) / eligible_total if eligible_total else 0.0,
             "production_shortlist_total": len(production_rows),
@@ -677,6 +711,7 @@ def run_vector_search(
             "duplicate_job_embedding_sample": duplicate_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
             "raw_hit_anomaly_total": 0,
             "raw_hit_anomaly_sample": [],
+            "stale_state_fallback": False,
         },
         "candidate_query": candidate_query,
     }

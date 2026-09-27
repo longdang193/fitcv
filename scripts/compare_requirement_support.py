@@ -8,6 +8,13 @@ from pathlib import Path
 from typing import Any
 
 
+ARM_REGISTRY = {
+    "lexical-baseline": {"status": "supported"},
+    "lexical-ablation": {"status": "supported"},
+    "lexical-requirement-aware": {"status": "supported"},
+    "current-hash": {"status": "supported"},
+}
+
 def _load_json(path: Path) -> dict[str, Any]:
     with path.open(encoding="utf-8") as handle:
         payload = json.load(handle)
@@ -19,7 +26,7 @@ def _load_json(path: Path) -> dict[str, Any]:
 def _validate_compatibility(payloads: list[dict[str, Any]]) -> None:
     fixture_hashes = {str(payload.get("fixture_sha256") or "") for payload in payloads}
     top_ks = {json.dumps(payload.get("top_k"), sort_keys=True) for payload in payloads}
-    if len(fixture_hashes) != 1:
+    if len(fixture_hashes) != 1 or "" in fixture_hashes:
         raise ValueError("Benchmark outputs use different fixture SHA-256 values")
     if len(top_ks) != 1:
         raise ValueError("Benchmark outputs use different top_k values")
@@ -39,8 +46,14 @@ def _validate_impact_compatibility(payloads: list[dict[str, Any]]) -> None:
 
 
 def _current_metrics(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("status") == "not_run":
+        return {
+            "status": "not_run",
+            "reason": str(payload.get("reason") or "unspecified"),
+        }
     support = dict(payload.get("requirement_support") or {})
     return {
+        "status": str(payload.get("status") or "completed"),
         "implementation_ref": payload.get("implementation_ref"),
         "requirement_recall": dict(support.get("requirement_recall") or {}),
         "evidence_pair_recall": dict(support.get("evidence_pair_recall") or {}),
@@ -73,12 +86,7 @@ def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
     payloads = [_load_json(path) for path in input_paths]
     _validate_impact_compatibility(payloads)
     by_arm = {str(payload.get("arm") or ""): payload for payload in payloads}
-    required_arms = {
-        "lexical-baseline",
-        "lexical-ablation",
-        "lexical-requirement-aware",
-        "current-hash",
-    }
+    required_arms = set(ARM_REGISTRY)
     missing = sorted(required_arms - set(by_arm))
     if missing:
         raise ValueError(f"Benchmark inputs missing arms: {', '.join(missing)}")

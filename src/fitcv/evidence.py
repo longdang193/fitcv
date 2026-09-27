@@ -31,6 +31,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import sqlite3
 import uuid
 from dataclasses import dataclass
@@ -80,6 +81,7 @@ DEFAULT_RESPONSIBILITY_LEXICAL_WEIGHT = 0.25
 DEFAULT_RESPONSIBILITY_SEMANTIC_WEIGHT = 0.75
 DEFAULT_DOMAIN_LEXICAL_WEIGHT = 0.40
 DEFAULT_DOMAIN_SEMANTIC_WEIGHT = 0.60
+DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED = False
 SEMANTIC_METHOD_DISABLED = "disabled"
 SEMANTIC_METHOD_EMBEDDING = "embedding_similarity"
 ROLE_ALIGNMENT_NEIGHBOR_SCORE = 0.75
@@ -310,6 +312,64 @@ def _extract_canonical_entities(values: Any) -> list[str]:
     return extracted
 
 
+_QUALIFIER_NAMES = ("duration", "context", "action", "level")
+_DURATION_RE = re.compile(
+    r"(?P<amount>\d+(?:[.,]\d+)?)\s*(?:\+|plus|or more)?\s*(?P<unit>years?|yrs?|months?)",
+    re.IGNORECASE,
+)
+_LEVEL_RE = re.compile(
+    r"\b(?:a1|a2|b1|b2|c1|c2|beginner|basic|junior|entry(?:[- ]level)?|intermediate|mid(?:[- ]level)?|advanced|senior|expert|fluent|native)\b",
+    re.IGNORECASE,
+)
+_ACTION_RE = re.compile(
+    r"\b(?:analy[sz]e|build|create|develop|deploy|design|maintain|manage|operate|optimi[sz]e|present|support|transform|validate)\w*\b",
+    re.IGNORECASE,
+)
+_CONTEXT_RE = re.compile(
+    r"\b(?:production|enterprise|cloud|on[- ]prem(?:ises)?|real[- ]time|batch|customer[- ]facing|regulated|banking|finance|healthcare|retail|web|mobile)\b",
+    re.IGNORECASE,
+)
+
+
+def _qualifier_values_from_text(source_text: str) -> dict[str, list[str]]:
+    values: dict[str, list[str]] = {name: [] for name in _QUALIFIER_NAMES}
+    for match in _DURATION_RE.finditer(source_text):
+        values["duration"].append(match.group(0).strip())
+    values["level"].extend(match.group(0).strip() for match in _LEVEL_RE.finditer(source_text))
+    values["action"].extend(match.group(0).strip().lower() for match in _ACTION_RE.finditer(source_text))
+    values["context"].extend(match.group(0).strip().lower() for match in _CONTEXT_RE.finditer(source_text))
+    return {key: list(dict.fromkeys(value)) for key, value in values.items() if value}
+
+
+def _requirement_qualifiers(
+    source_text: str,
+    job_context: dict[str, Any],
+    canonical_skill: str,
+) -> tuple[list[str], dict[str, list[str]]]:
+    values = _qualifier_values_from_text(source_text)
+    if job_context.get("years_experience_min") is not None:
+        values.setdefault("duration", []).append(f"{job_context['years_experience_min']} years")
+    for key in ("required_skill_qualifiers", "skill_qualifiers"):
+        configured = job_context.get(key)
+        if not isinstance(configured, dict):
+            continue
+        raw_values = configured.get(canonical_skill) or configured.get(source_text)
+        if isinstance(raw_values, dict):
+            for qualifier, qualifier_values in raw_values.items():
+                if qualifier not in _QUALIFIER_NAMES:
+                    continue
+                if isinstance(qualifier_values, list):
+                    values.setdefault(qualifier, []).extend(str(value).strip() for value in qualifier_values if str(value).strip())
+                elif str(qualifier_values).strip():
+                    values.setdefault(qualifier, []).append(str(qualifier_values).strip())
+    normalized_values = {
+        key: list(dict.fromkeys(value))
+        for key, value in values.items()
+        if value
+    }
+    return list(normalized_values), normalized_values
+
+
 def build_required_skill_descriptors(
     job_context: dict[str, Any],
     config: dict[str, Any] | None = None,
@@ -349,11 +409,17 @@ def build_required_skill_descriptors(
         ]
 
     descriptors: dict[str, dict[str, Any]] = {}
+    job_context = dict(job_context)
     for original, canonical in pairs:
         canonical_skill = canonicalize_skill(canonical or original, config)
         if not canonical_skill:
             continue
         requirement_id = f"required_skill:{canonical_skill}"
+        qualifier_names, qualifier_values = _requirement_qualifiers(
+            original or canonical_skill,
+            job_context,
+            canonical_skill,
+        )
         descriptor = descriptors.setdefault(
             requirement_id,
             {
@@ -363,12 +429,24 @@ def build_required_skill_descriptors(
                 "original_requirements": [],
                 "requirement_type": "required_skill",
                 "requirement_priority": "must_have",
+                "source_text": original or canonical_skill,
+                "qualifiers": qualifier_names,
+                "qualifier_values": qualifier_values,
+                "qualifier_support": {name: "unverified" for name in qualifier_names},
             },
         )
         if not descriptor["original_requirements"] and original:
             descriptor["requirement"] = original
         if original and original not in descriptor["original_requirements"]:
             descriptor["original_requirements"].append(original)
+        for qualifier in qualifier_names:
+            if qualifier not in descriptor["qualifiers"]:
+                descriptor["qualifiers"].append(qualifier)
+            descriptor.setdefault("qualifier_values", {}).setdefault(qualifier, [])
+            descriptor["qualifier_values"][qualifier] = list(dict.fromkeys(
+                [*descriptor["qualifier_values"][qualifier], *qualifier_values.get(qualifier, [])]
+            ))
+            descriptor.setdefault("qualifier_support", {})[qualifier] = "unverified"
     return list(descriptors.values())
 
 
@@ -1788,22 +1866,248 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
     )
 
 
+def _evidence_availability(item: dict[str, Any]) -> str | None:
+    for key in ("evidence_availability", "evidence_status", "availability", "support_status"):
+        value = str(item.get(key) or "").strip().lower()
+        if value in {"unsupported", "unavailable"}:
+            return value
+    return None
+
+
+def _evidence_text(item: dict[str, Any]) -> str:
+    values = [
+        item.get("text"),
+        item.get("name"),
+        item.get("title"),
+        item.get("scoring_context"),
+        item.get("context"),
+        item.get("action"),
+        item.get("proficiency"),
+        item.get("level"),
+        *list(item.get("domain_tags") or []),
+        *list(item.get("responsibility_themes") or []),
+    ]
+    return " ".join(str(value or "") for value in values if str(value or "").strip())
+
+
+def _duration_months(value: Any) -> float | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = _DURATION_RE.search(text)
+    if match:
+        amount = float(match.group("amount").replace(",", "."))
+        unit = match.group("unit").lower()
+        return amount * (12.0 if unit.startswith("year") or unit.startswith("yr") else 1.0)
+    date_match = re.search(r"(?P<start>\d{4}(?:-\d{1,2})?)[^\d]+(?P<end>\d{4}(?:-\d{1,2})?)", text)
+    if not date_match:
+        return None
+    start_parts = [int(part) for part in date_match.group("start").split("-")]
+    end_parts = [int(part) for part in date_match.group("end").split("-")]
+    start_month = start_parts[0] * 12 + (start_parts[1] if len(start_parts) > 1 else 1)
+    end_month = end_parts[0] * 12 + (end_parts[1] if len(end_parts) > 1 else 12)
+    return max(float(end_month - start_month + 1), 0.0)
+
+
+def _item_duration_months(item: dict[str, Any]) -> float | None:
+    explicit = _duration_months(item.get("duration"))
+    if explicit is not None:
+        return explicit
+    start = str(item.get("start") or "").strip()
+    end = str(item.get("end") or "").strip()
+    if start and end and end.lower() not in {"present", "current", "now"}:
+        return _duration_months(f"{start} — {end}")
+    return None
+
+
+def _qualifier_duration_status(item: dict[str, Any], descriptor: dict[str, Any]) -> str:
+    requested = next(
+        (
+            months
+            for months in (
+                _duration_months(value)
+                for value in list(dict(descriptor.get("qualifier_values") or {}).get("duration") or [])
+            )
+            if months is not None
+        ),
+        None,
+    )
+    observed = _item_duration_months(item) or _duration_months(_evidence_text(item))
+    if observed is None:
+        return "unverified"
+    if requested is not None and observed < requested:
+        return "contradicted"
+    return "supported"
+
+
+def _qualifier_text_status(item: dict[str, Any], descriptor: dict[str, Any], qualifier: str) -> str:
+    values = list(dict(descriptor.get("qualifier_values") or {}).get(qualifier) or [])
+    if not values:
+        return "unverified"
+    evidence_text = _normalize_text(_evidence_text(item))
+    evidence_tokens = _tokenize(evidence_text)
+    for value in values:
+        normalized = _normalize_text(value)
+        if normalized and (normalized in evidence_text or _tokenize(normalized) <= evidence_tokens):
+            return "supported"
+    return "unverified"
+
+
+def _level_rank(value: str) -> int | None:
+    normalized = _normalize_text(value)
+    ranks = {
+        "beginner": 1,
+        "basic": 1,
+        "junior": 1,
+        "entry level": 1,
+        "intermediate": 2,
+        "mid level": 2,
+        "advanced": 3,
+        "senior": 3,
+        "expert": 4,
+        "fluent": 4,
+        "native": 5,
+    }
+    if normalized in ranks:
+        return ranks[normalized]
+    cefr = re.fullmatch(r"[abc][1-2]", normalized)
+    if cefr:
+        return {"a1": 1, "a2": 2, "b1": 3, "b2": 4, "c1": 5, "c2": 6}[normalized]
+    return None
+
+
+def _qualifier_level_status(item: dict[str, Any], descriptor: dict[str, Any]) -> str:
+    required_values = list(dict(descriptor.get("qualifier_values") or {}).get("level") or [])
+    required_ranks = [rank for rank in (_level_rank(value) for value in required_values) if rank is not None]
+    observed_values = [
+        str(item.get(key) or "")
+        for key in ("level", "proficiency", "language_level")
+        if str(item.get(key) or "").strip()
+    ]
+    observed_values.extend(match.group(0) for match in _LEVEL_RE.finditer(_evidence_text(item)))
+    observed_ranks = [rank for rank in (_level_rank(value) for value in observed_values) if rank is not None]
+    if not observed_ranks:
+        return "unverified"
+    if required_ranks and max(observed_ranks) < max(required_ranks):
+        return "contradicted"
+    if required_ranks or any(
+        _normalize_text(value) == _normalize_text(required)
+        for value in observed_values
+        for required in required_values
+    ):
+        return "supported"
+    return "unverified"
+
+
+def _qualifier_status(item: dict[str, Any], descriptor: dict[str, Any], qualifier: str) -> str:
+    availability = _evidence_availability(item)
+    if availability:
+        return availability
+    if qualifier == "duration":
+        return _qualifier_duration_status(item, descriptor)
+    if qualifier == "level":
+        return _qualifier_level_status(item, descriptor)
+    return _qualifier_text_status(item, descriptor, qualifier)
+
+
 def _annotate_requirement_support(
     items: list[dict[str, Any]],
     descriptors: list[dict[str, Any]],
     config: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
     for item in items:
+        availability = _evidence_availability(item)
+        if availability:
+            item["evidence_availability"] = availability
         item["supported_requirement_ids"] = [
             str(descriptor["requirement_id"])
             for descriptor in descriptors
-            if any(
+            if not availability and any(
                 canonicalize_skill(str(skill), config) == descriptor["canonical_skill"]
                 for skill in list(item.get("skills") or [])
                 if str(skill).strip()
             )
         ]
+        item["qualifier_support"] = {
+            str(descriptor["requirement_id"]): {
+                qualifier: _qualifier_status(item, descriptor, qualifier)
+                for qualifier in list(descriptor.get("qualifiers") or [])
+            }
+            for descriptor in descriptors
+            if descriptor.get("qualifiers")
+        }
     return items
+
+
+def _direct_support_recovery_enabled(config: dict[str, Any] | None) -> bool:
+    if not config:
+        return DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED
+    settings = dict((config.get("cv_analysis") or {}).get("direct_support_recovery") or {})
+    return bool(settings.get("enabled", DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED))
+
+
+def _recover_direct_support_candidates(
+    merged_pool: list[dict[str, Any]],
+    canonical_items: list[dict[str, Any]],
+    descriptors: list[dict[str, Any]],
+    *,
+    top_k: int,
+    config: dict[str, Any] | None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if not _direct_support_recovery_enabled(config):
+        return merged_pool, {"enabled": False, "recovered_count": 0, "recovered_ids": []}
+
+    existing_ids = {str(item.get("evidence_id") or "") for item in merged_pool}
+    canonical_by_id = {
+        str(item.get("evidence_id") or ""): item
+        for item in canonical_items
+        if str(item.get("evidence_id") or "")
+    }
+    support_by_requirement: dict[str, list[str]] = {}
+    for item in canonical_items:
+        evidence_id = str(item.get("evidence_id") or "")
+        if not evidence_id:
+            continue
+        for requirement_id in list(item.get("supported_requirement_ids") or []):
+            support_by_requirement.setdefault(str(requirement_id), []).append(evidence_id)
+
+    representatives: list[str] = []
+    for descriptor in descriptors:
+        requirement_id = str(descriptor.get("requirement_id") or "")
+        candidates = sorted(set(support_by_requirement.get(requirement_id, [])))
+        if candidates:
+            representatives.append(candidates[0])
+    recovered_ids = [
+        evidence_id for evidence_id in dict.fromkeys(representatives)
+        if evidence_id not in existing_ids
+    ]
+    overflow_limit = max(0, int(top_k))
+    all_supported_ids = set().union(*(set(ids) for ids in support_by_requirement.values()))
+    remaining_ids = sorted(
+        evidence_id
+        for evidence_id in all_supported_ids
+        if evidence_id not in existing_ids and evidence_id not in recovered_ids
+    )
+    recovered_ids.extend(remaining_ids[:overflow_limit])
+
+    recovered: list[dict[str, Any]] = []
+    for evidence_id in recovered_ids:
+        item = copy.deepcopy(canonical_by_id[evidence_id])
+        item["direct_support_recovery"] = True
+        item["direct_support_requirement_ids"] = sorted(
+            str(value) for value in list(item.get("supported_requirement_ids") or [])
+        )
+        item["matched_channels"] = []
+        item["channel_scores"] = {}
+        item["channel_subscores"] = {}
+        item["channel_rationales"] = {}
+        recovered.append(item)
+    return [*merged_pool, *recovered], {
+        "enabled": True,
+        "recovered_count": len(recovered),
+        "recovered_ids": [str(item["evidence_id"]) for item in recovered],
+        "overflow_limit": overflow_limit,
+    }
 
 
 def _requirement_support_map(items: list[dict[str, Any]]) -> dict[str, list[str]]:
@@ -1815,6 +2119,28 @@ def _requirement_support_map(items: list[dict[str, Any]]) -> dict[str, list[str]
         for requirement_id in list(item.get("supported_requirement_ids") or []):
             support.setdefault(str(requirement_id), []).append(evidence_id)
     return {key: list(dict.fromkeys(value)) for key, value in support.items()}
+
+
+def _qualifier_support_map(items: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    priority = {
+        "unavailable": 5,
+        "unsupported": 4,
+        "contradicted": 3,
+        "supported": 2,
+        "unverified": 1,
+    }
+    support: dict[str, dict[str, str]] = {}
+    for item in items:
+        for requirement_id, qualifiers in dict(item.get("qualifier_support") or {}).items():
+            if not isinstance(qualifiers, dict):
+                continue
+            requirement_support = support.setdefault(str(requirement_id), {})
+            for qualifier, status in qualifiers.items():
+                normalized_status = str(status or "unverified")
+                current_status = requirement_support.get(str(qualifier), "unverified")
+                if priority.get(normalized_status, 0) >= priority.get(current_status, 0):
+                    requirement_support[str(qualifier)] = normalized_status
+    return support
 
 
 def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> float:
@@ -1988,8 +2314,13 @@ class _EvidenceSelectionEngine:
     policy: dict[str, Any]
     top_k: int
 
-    def run(self, channel_pools: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
-        merged_pool = _merge_channel_pools(channel_pools)
+    def run(
+        self,
+        channel_pools: dict[str, list[dict[str, Any]]],
+        *,
+        merged_pool: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        merged_pool = list(merged_pool) if merged_pool is not None else _merge_channel_pools(channel_pools)
         _annotate_requirement_support(
             merged_pool,
             list(self.job_context.get("requirement_descriptors") or []),
@@ -2025,6 +2356,7 @@ def _build_retrieve_evidence_bundle_payload(
     unselected_top_candidates: list[dict[str, Any]],
     source_profile_schema_version: str,
     projection_fingerprint: str,
+    direct_support_recovery: dict[str, Any],
 ) -> dict[str, Any]:
     required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
         semantic_settings,
@@ -2049,6 +2381,9 @@ def _build_retrieve_evidence_bundle_payload(
     canonical_requirement_support = _requirement_support_map(canonical_items)
     pool_requirement_support = _requirement_support_map(merged_pool)
     selected_requirement_support = _requirement_support_map(selected_evidence)
+    canonical_qualifier_support = _qualifier_support_map(canonical_items)
+    pool_qualifier_support = _qualifier_support_map(merged_pool)
+    selected_qualifier_support = _qualifier_support_map(selected_evidence)
     return {
         "source_profile_schema_version": source_profile_schema_version,
         "projection_schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
@@ -2068,6 +2403,11 @@ def _build_retrieve_evidence_bundle_payload(
             "canonical": canonical_requirement_support,
             "pool": pool_requirement_support,
             "selected": selected_requirement_support,
+            "qualifier_support": {
+                "canonical": canonical_qualifier_support,
+                "pool": pool_qualifier_support,
+                "selected": selected_qualifier_support,
+            },
         },
         "hybrid_alignment": {
             "required_skill_support": {
@@ -2089,6 +2429,7 @@ def _build_retrieve_evidence_bundle_payload(
         },
         "semantic_alignment": semantic_alignment,
         "selection_policy": selection_policy,
+        "direct_support_recovery": direct_support_recovery,
     }
 
 
@@ -2132,12 +2473,20 @@ def retrieve_evidence_bundle(
         )
         for channel in RETRIEVAL_CHANNELS
     }
+    merged_pool = _merge_channel_pools(channel_pools)
+    merged_pool, direct_support_recovery = _recover_direct_support_candidates(
+        merged_pool,
+        canonical_items,
+        list(coerced_job_context.get("requirement_descriptors") or []),
+        top_k=top_k,
+        config=config,
+    )
     selection_engine = _EvidenceSelectionEngine(
         job_context=coerced_job_context,
         policy=selection_policy,
         top_k=top_k,
     )
-    selection_result = selection_engine.run(channel_pools)
+    selection_result = selection_engine.run(channel_pools, merged_pool=merged_pool)
     merged_pool = list(selection_result["merged_pool"])
     selected_evidence = list(selection_result["selected_evidence"])
     semantic_alignment = {
@@ -2172,6 +2521,7 @@ def retrieve_evidence_bundle(
         unselected_top_candidates=list(selection_result["unselected_top_candidates"]),
         source_profile_schema_version=source_profile_schema_version,
         projection_fingerprint=projection_fingerprint,
+        direct_support_recovery=direct_support_recovery,
     )
 
 

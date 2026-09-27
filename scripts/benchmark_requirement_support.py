@@ -39,6 +39,30 @@ EXPECTED_SUPPORT_PAIRS = {
     ("required_skill:python", "ev-b-python"),
 }
 
+ARM_REGISTRY = {
+    "lexical-baseline": {
+        "status": "supported",
+        "retrieval": "lexical",
+        "selection": "baseline",
+    },
+    "lexical-ablation": {
+        "status": "supported",
+        "retrieval": "lexical",
+        "selection": "ablation",
+    },
+    "lexical-requirement-aware": {
+        "status": "supported",
+        "retrieval": "lexical",
+        "selection": "requirement-aware",
+    },
+    "current-hash": {
+        "status": "supported",
+        "retrieval": "hash",
+        "selection": "requirement-aware",
+    },
+}
+ARM_ALIASES = {"lexical": "lexical-requirement-aware"}
+
 
 def _item(evidence_id: str, skills: list[str], text: str) -> dict[str, object]:
     return {
@@ -342,13 +366,8 @@ def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
 
 
 def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> dict[str, Any]:
-    normalized_arm = "lexical-requirement-aware" if arm == "lexical" else arm
-    if normalized_arm not in {
-        "lexical-baseline",
-        "lexical-ablation",
-        "lexical-requirement-aware",
-        "current-hash",
-    }:
+    normalized_arm = ARM_ALIASES.get(arm, arm)
+    if normalized_arm not in ARM_REGISTRY:
         raise ValueError(f"Unsupported arm: {arm}")
     config = copy.deepcopy(base_config)
     config.setdefault("pipeline", {}).setdefault("evidence_top_k", 2)
@@ -929,8 +948,18 @@ def run_benchmark(
     runs: int = MEASURED_RUNS,
     warmups: int = WARMUP_RUNS,
 ) -> dict[str, Any]:
-    if arm not in {"current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"}:
-        raise ValueError(f"Unsupported arm: {arm}")
+    normalized_arm = ARM_ALIASES.get(arm, arm)
+    if normalized_arm not in ARM_REGISTRY:
+        return {
+            "arm": arm,
+            "status": "not_run",
+            "reason": f"unsupported arm: {arm}",
+            "evaluation_schema_version": 1,
+            "fixture": str(fixture_path.relative_to(REPO_ROOT)),
+            "pool_size": pool_size,
+            "warmup_runs": warmups,
+            "measured_runs": runs,
+        }
     if runs <= 0 or warmups < 0:
         raise ValueError("runs must be positive and warmups cannot be negative")
     fixture = _load_json(fixture_path)
@@ -940,7 +969,7 @@ def run_benchmark(
         _run_benchmark_scenario(
             fixture=fixture,
             scenario=scenario,
-            arm=arm,
+            arm=normalized_arm,
             pool_size=pool_size,
             base_config=base_config,
             runs=runs,
@@ -951,7 +980,7 @@ def run_benchmark(
     aggregate = _aggregate_scenario_metrics(scenario_results)
     timing_keys = tuple(scenario_results[0]["timing_ms"])
     return {
-        "arm": "lexical-requirement-aware" if arm == "lexical" else arm,
+        "arm": normalized_arm,
         "evaluation_schema_version": int(fixture["evaluation_schema_version"]),
         "implementation_ref": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
@@ -960,7 +989,7 @@ def run_benchmark(
         "scenario_set": [result["scenario_id"] for result in scenario_results],
         "scenario_count": len(scenario_results),
         "workload_count": len(scenario_results),
-        "semantic_alignment_enabled": arm == "current-hash",
+        "semantic_alignment_enabled": normalized_arm == "current-hash",
         "pool_size": pool_size,
         "top_k": sorted({result["top_k"] for result in scenario_results}),
         "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
@@ -993,8 +1022,9 @@ def run_benchmark(
             ],
         },
         "arm_configuration": {
-            "retrieval": "hash" if arm == "current-hash" else "lexical",
-            "selection": arm,
+            "retrieval": ARM_REGISTRY[normalized_arm]["retrieval"],
+            "selection": normalized_arm,
+            "selection_policy": ARM_REGISTRY[normalized_arm]["selection"],
             "provider_calls": False,
         },
         "fixture": str(fixture_path.relative_to(REPO_ROOT)),

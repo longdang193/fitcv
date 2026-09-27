@@ -285,6 +285,22 @@ Fail-fast guarantees:
 - [usage.md](usage.md)
 - [FitCV-pipeline.md](FitCV-pipeline.md)
 
+## Retrieval and Evidence Qualifiers
+
+- Retrieval diagnostics include backend identity, configured model, dimension,
+  retrieval strategy, and contract fingerprint. Rows with stale embedding
+  contracts are excluded; when no valid vector rows remain, retrieval falls
+  back to deterministic lexical ranking and records the stale-state fallback.
+- CV evidence keeps canonical support, bounded candidate pool support, and
+  selected support as separate maps. Direct-support recovery is bounded by
+  existing `top_k` and remains disabled by default at
+  `config/policy/cv_analysis.yaml:direct_support_recovery.enabled`.
+- Requirement coverage adds `source_text`, `qualifiers`,
+  `qualifier_values`, `qualifier_support`, and `qualifier_gaps`. Qualifier
+  statuses are `supported`, `unverified`, or `contradicted`; evidence marked
+  `unsupported` or `unavailable` cannot create verified support. Existing
+  `selected_support` and `support_strength` contracts remain authoritative.
+
 
 ## Phase 4 Decision Feedback
 

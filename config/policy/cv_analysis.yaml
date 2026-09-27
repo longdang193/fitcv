@@ -23,6 +23,8 @@ cv_analysis:
     domain_lexical_weight: 0.40
     domain_semantic_weight: 0.60
     channel_pool_size: 4
+  direct_support_recovery:
+    enabled: false
   selection_policy:
     channel_weights:
       required_skill_support: 0.40
