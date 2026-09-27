@@ -136,6 +136,15 @@ production behavior as the rollback path until each promotion gate passes.
 The plan is the durable workflow record. CoS records lane identity, launch
 evidence, task result, accepted proof, blockers, and retirement evidence here.
 Herdr status is observation only.
+### Task 0 Admission Record
+
+- Mode: `plan-bound-execution`; plan status: `active`; base: `origin/main` at `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`.
+- Worktree: `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-execution\JOB-PROJECT`; HEAD `1b44da2771f1ba392db6bdebacc65bab49fa5ffe`; clean before dispatch.
+- Corpus: `tmp/p0/corpus/raw_postings_de_en.jsonl`; 100 rows, 100 unique IDs, 50 DE/50 EN, 40 calibration + 10 held-out per language.
+- Corpus SHA-256: `05C48EB8C0B5E1E61695E02EB1334B87D1BEC88B7B09FDEEE8047D8C534E872B`.
+- Independent receipts: `C:\tmp\fitcv-p0-corpus\de_review_report.json`, `C:\tmp\fitcv-p0-corpus\en_review_report.json`, `C:\tmp\fitcv-p0-corpus\combined_review_report.json`; all `PASS`.
+- Admission is conditional: relevance grade follows declared grade-1 convention; no target-profile semantic rubric exists. Raw corpus and baseline outputs remain local-only through `.git/info/exclude`; never commit raw postings.
+- Baseline: `213 passed, 2 skipped`; ranking smoke and support smoke completed at `tmp/p0-baseline-ranking.json` and `tmp/p0-baseline-support.json`.
 
 | Task | State | Lane | Depends on | Required proof | Evidence |
 | --- | --- | --- | --- | --- | --- |
