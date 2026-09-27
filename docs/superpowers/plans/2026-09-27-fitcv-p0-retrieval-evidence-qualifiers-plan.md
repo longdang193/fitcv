@@ -69,7 +69,7 @@ strong groundwork, not P0 closure. Review against `origin/main` confirms:
 This plan derives implementation scope from the user-provided P0 completion and
 simplification verdict, reconciled against `origin/main` at
 `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`. No repository specification owns
-this cycle. The plan remains `proposed` until the user approves execution.
+this cycle. User approval and conditional corpus admission activated execution.
 Missing source-backed corpus, missing launcher capability, or unresolved
 behavior at admission blocks dispatch; no lane invents a replacement decision.
 
@@ -142,7 +142,7 @@ Herdr status is observation only.
 - Branch: `detached HEAD` on isolated execution worktree
 - Base commit: `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`
 - Expected workspace: `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-execution\JOB-PROJECT`
-- Next action: dispatch Task 1 through Herdr with explicit session, pane, and runtime grant
+- Next action: dispatch Tasks 2 and 3 through Herdr with explicit sessions, panes, worktrees, and runtime grants
 - Blockers: none for Task 1 admission; corpus relevance remains conditionally admitted
 ### Task 0 Admission Record
 
@@ -157,7 +157,7 @@ Herdr status is observation only.
 | Task | State | Workspace | Executor | Dependencies | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 0 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-execution\JOB-PROJECT` | codex | none | fresh base, clean isolated worktree, baseline tests and benchmark outputs | base `4015a0e37b0ad797d98a9d21b6e353a79e67ca54`; HEAD `1b44da2771f1ba392db6bdebacc65bab49fa5ffe`; 213 passed, 2 skipped; baseline outputs in ignored `tmp/` |
-| Task 1 | `active` | Herdr-managed isolated worktree; explicit pane assigned at dispatch | codex | Task 0 completed | adversarial EN/DE, negation, duration, identity, fingerprint, validator compatibility tests | Herdr dispatch next |
+| Task 1 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-execution\JOB-PROJECT` | codex | Task 0 completed | adversarial EN/DE, negation, duration, identity, fingerprint, validator compatibility tests | lane `fitcv-p0-qualifiers-20260927`; session `default`; workspace/pane `w4V:p1`; agent `01a0e3d3-e83d-7471-8177-1e59e02e188f`; attempt `8c41c07eaed84b5992c9f189ec7805f6`; commit `7d2d32ed7a9ed120f13166fa168f6167d113fd5b`; `216 passed, 2 skipped`; `git diff --check` passed; pane released and closed |
 | Task 2 | `pending` | Fresh isolated worktree after Task 1 acceptance | codex | Task 1 | stale fallback, strategy contract, source-backed DE/EN held-out metrics, truthful backend diagnostics | pending |
 | Task 3 | `pending` | Fresh isolated worktree after Task 1 acceptance | codex | Task 1 | corrected support-pair recall, selection loss, latency/context budget, validation outcome comparison | pending |
 | Task 4 | `pending` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-execution\JOB-PROJECT` | codex | Tasks 2–3 | winner/loser decision, loser deletion, rollback path, docs reconciliation | pending |
