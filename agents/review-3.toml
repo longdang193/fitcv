@@ -1,9 +1,8 @@
-name = "review"
+name = "review-3"
 model_provider = "9router"
-model = "combo-review-1"
+model = "combo-review-3"
 description = """
-Compatibility alias for independent code review; use review-1, review-2, or
-review-3 for random reviewer selection.
+Specialized unranked profile for independent code review and verification.
 """
 
 developer_instructions = """

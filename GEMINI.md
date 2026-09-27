@@ -112,6 +112,21 @@ workspace and repository state; the active plan owns workflow state; one lead
 controller updates coordination state; runtime thread or session state is never
 the recovery source.
 
+Context Cleaner is optional session-local maintenance, not a project-task
+transition. Within a reliably bound Host session, the active agent may request
+removal of exclusively owned completed internal work when reusable findings and
+required evidence are durable and no active or dependent work requires the
+removed content. Project OS owns standing permission and retention; the active
+agent decides whether cleaning is worthwhile; the Host adapter owns session and
+history interpretation plus supported mutation; the Cleaner implementation owns
+selection, scheduling, recovery, and receipts. Current instructions, user
+constraints, unresolved work, shared dependencies, and evidence awaiting review
+remain protected. Cleaning never expands authority, budgets, delegation rights,
+or external-action permissions. Missing capability, reliable binding, trusted
+attribution, retention proof, or supported mutation preserves context and
+ordinary work. Follow the personal-local procedure for execution and do not
+create project records solely for cleaning.
+
 ## Project Design Rules
 
 ### Use SSOT
