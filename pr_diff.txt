@@ -1,0 +1,1717 @@
+[1;38mdiff --git a/config/policy/cv_analysis.yaml b/config/policy/cv_analysis.yaml[m
+[1;38mindex 2333ad60..a33cdbb6 100644[m
+[1;38m--- a/config/policy/cv_analysis.yaml[m
+[1;38m+++ b/config/policy/cv_analysis.yaml[m
+@@ -23,6 +23,8 @@ cv_analysis:
+     domain_lexical_weight: 0.40
+     domain_semantic_weight: 0.60
+     channel_pool_size: 4
+[32m+  direct_support_recovery:[m
+[32m+    enabled: false[m
+   selection_policy:
+     channel_weights:
+       required_skill_support: 0.40
+[1;38mdiff --git a/docs/configuration.md b/docs/configuration.md[m
+[1;38mindex 2f4e84bb..c91e41ee 100644[m
+[1;38m--- a/docs/configuration.md[m
+[1;38m+++ b/docs/configuration.md[m
+@@ -231,6 +231,9 @@ Canonical owner: `config/policy/cv_analysis.yaml`.
+ - `cv_analysis.semantic_alignment.model` records configured model intent; current runtime diagnostics identify the actual backend as deterministic local/hash output from `src/fitcv/embeddings.py:generate_embedding`
+ - `cv_analysis.semantic_alignment.channel_pool_size` bounds each retrieval channel before merge and global selection
+ - disabling semantic alignment forces lexical-only channel scoring without changing shortlist embeddings or persisted shortlist contracts
+[32m+- `cv_analysis.direct_support_recovery.enabled` enables bounded canonical-support recovery; default is `false`[m
+[32m+- direct-support recovery preserves canonical, pool, and selected support separately, deduplicates by evidence ID, and never expands the global context budget[m
+[32m+- qualifier audit fields are additive; `supported` is required for qualifier-aware verification, while `unverified` and `contradicted` remain non-authoritative[m
+ - compare retrieval arms offline with `uv run python scripts/benchmark_requirement_support.py`; fixture truth lives in `tests/fixtures/requirement_support_benchmark.json`
+ 
+ Policy meaning:
+[1;38mdiff --git a/docs/pipeline.md b/docs/pipeline.md[m
+[1;38mindex bf1c0b7b..8aa9e25f 100644[m
+[1;38m--- a/docs/pipeline.md[m
+[1;38m+++ b/docs/pipeline.md[m
+@@ -285,6 +285,22 @@ Fail-fast guarantees:
+ - [usage.md](usage.md)
+ - [FitCV-pipeline.md](FitCV-pipeline.md)
+ 
+[32m+## Retrieval and Evidence Qualifiers[m
+[32m+[m
+[32m+- Retrieval diagnostics include backend identity, configured model, dimension,[m
+[32m+  retrieval strategy, and contract fingerprint. Rows with stale embedding[m
+[32m+  contracts are excluded; when no valid vector rows remain, retrieval falls[m
+[32m+  back to deterministic lexical ranking and records the stale-state fallback.[m
+[32m+- CV evidence keeps canonical support, bounded candidate pool support, and[m
+[32m+  selected support as separate maps. Direct-support recovery is bounded by[m
+[32m+  existing `top_k` and remains disabled by default at[m
+[32m+  `config/policy/cv_analysis.yaml:direct_support_recovery.enabled`.[m
+[32m+- Requirement coverage adds `source_text`, `qualifiers`,[m
+[32m+  `qualifier_values`, `qualifier_support`, and `qualifier_gaps`. Qualifier[m
+[32m+  statuses are `supported`, `unverified`, or `contradicted`; evidence marked[m
+[32m+  `unsupported` or `unavailable` cannot create verified support. Existing[m
+[32m+  `selected_support` and `support_strength` contracts remain authoritative.[m
+[32m+[m
+ 
+ ## Phase 4 Decision Feedback
+ 
+[1;38mdiff --git a/docs/superpowers/plans/2026-09-27-fitcv-p0-retrieval-evidence-qualifiers-plan.md b/docs/superpowers/plans/2026-09-27-fitcv-p0-retrieval-evidence-qualifiers-plan.md[m
+new file mode 100644
+[1;38mindex 00000000..9bcc06c5[m
+[1;38m--- /dev/null[m
+[1;38m+++ b/docs/superpowers/plans/2026-09-27-fitcv-p0-retrieval-evidence-qualifiers-plan.md[m
+@@ -0,0 +1,463 @@
+[32m+---[m
+[32m+layer: change[m
+[32m+artifact_type: plan[m
+[32m+status: active[m
+[32m+template_id: implementation-plan[m
+[32m+contract_version: "1"[m
+[32m+name: fitcv-p0-retrieval-evidence-qualifiers[m
+[32m+date: 2026-09-27[m
+[32m+targets:[m
+[32m+  - scripts/benchmark_requirement_support.py[m
+[32m+  - scripts/compare_requirement_support.py[m
+[32m+  - scripts/benchmark_ranking.py[m
+[32m+  - src/fitcv/embeddings.py[m
+[32m+  - src/fitcv/vector_search.py[m
+[32m+  - src/fitcv/evidence.py[m
+[32m+  - src/fitcv/agentic_cv_analysis.py[m
+[32m+  - src/fitcv/preference_policy.py[m
+[32m+  - tests/test_benchmark_requirement_support.py[m
+[32m+  - tests/test_compare_requirement_support.py[m
+[32m+  - tests/test_ranking_evaluation.py[m
+[32m+  - tests/test_embeddings.py[m
+[32m+  - tests/test_vector_search.py[m
+[32m+  - tests/test_evidence.py[m
+[32m+  - tests/test_agentic_cv_analysis.py[m
+[32m+  - docs/pipeline.md[m
+[32m+  - docs/configuration.md[m
+[32m+---[m
+[32m+[m
+[32m+# FitCV — P0 Retrieval, Evidence, and Qualifier Optimization Plan[m
+[32m+[m
+[32m+## Goal[m
+[32m+[m
+[32m+Improve FitCV job retrieval, evidence preservation, and requirement accuracy[m
+[32m+without changing the top-level pipeline or creating a second source of truth.[m
+[32m+[m
+[32m+P0-A, P0-B, and P0-C remain independently measurable. Production defaults stay[m
+[32m+unchanged until each change passes its contract, correctness, and performance[m
+[32m+gate.[m
+[32m+[m
+[32m+## Review Reconciliation[m
+[32m+[m
+[32m+Three independent reviews found these justified corrections:[m
+[32m+[m
+[32m+- Existing completed retrieval and impact plans already own baseline metrics.[m
+[32m+  Reuse their fixtures and results; do not recreate competing benchmarks.[m
+[32m+- Existing benchmark runners hardcode four arms. Add an explicit arm registry[m
+[32m+  before introducing any future arm; never claim a provider arm ran when no[m
+[32m+  provider, model, or dependency exists.[m
+[32m+- Real multilingual embeddings require separate approval for provider access or[m
+[32m+  dependency changes. This plan defines the seam and gate, not an automatic[m
+[32m+  provider rollout.[m
+[32m+- Direct-support recovery remains a gated production change. Benchmark first,[m
+[32m+  then promote only after bounded-candidate and context-cost proof.[m
+[32m+- Existing `selected_support` and `support_strength` fields are compatibility[m
+[32m+  contracts. Qualifier detail must be additive; replacing `verified` with new[m
+[32m+  status values would break validation and generation consumers.[m
+[32m+- Embedding contract changes already invalidate dependent runtime state in some[m
+[32m+  paths but can raise on mismatch. Any new backend must define stale-state[m
+[32m+  fallback before promotion.[m
+[32m+[m
+[32m+## Implementation Outcomes[m
+[32m+[m
+[32m+### Canonical experiment contract[m
+[32m+[m
+[32m+Existing retrieval, support, and RAG-impact fixtures remain SSOT. Benchmark arms[m
+[32m+are registry-driven, report `not_run` with a reason when capability or approval[m
+[32m+is absent, and preserve current baseline results.[m
+[32m+[m
+[32m+### Job retrieval experiment[m
+[32m+[m
+[32m+FitCV can compare current deterministic shortlist vectors, lexical/taxonomy[m
+[32m+ranking, and a separately approved multilingual backend under identical eligible[m
+[32m+jobs and Top-N limits. Backend identity, model, dimension, summary schema, and[m
+[32m+contract fingerprint are explicit. Existing production behavior remains the[m
+[32m+fallback until promotion.[m
+[32m+[m
+[32m+### Support-preserving evidence retrieval[m
+[32m+[m
+[32m+Known canonical requirement support enters selection before channel truncation,[m
+[32m+with deterministic bounds and provenance. Pool support and selected support[m
+[32m+remain separate. No candidate receives fabricated semantic similarity.[m
+[32m+[m
+[32m+### Qualifier-aware requirement audit[m
+[32m+[m
+[32m+`requirement_coverage` gains additive qualifier evidence such as source wording,[m
+[32m+context, duration, and proficiency resolution. Existing `selected_support` and[m
+[32m+`support_strength` values remain unchanged and continue to drive current[m
+[32m+validator and generator behavior.[m
+[32m+[m
+[32m+### Safe promotion evidence[m
+[32m+[m
+[32m+Each promoted arm has held-out recall/support evidence, latency and context-cost[m
+[32m+comparison, failure-path proof, compatibility proof, and a rollback path to the[m
+[32m+current deterministic behavior.[m
+[32m+[m
+[32m+## Execution Approach[m
+[32m+[m
+[32m+- Mode: `parallel-capable`[m
+[32m+- Coordination mode: `plan-bound-execution`[m
+[32m+- Coordination: `git-tracked`[m
+[32m+- Required skills: `skill-chief-of-staff`, `skill-performance-optimization`, `skill-backend-verification`, `skill-systematic-debugging`, `skill-test-driven-development`, `skill-verification-before-completion`, `skill-plan-document-reviewer`[m
+[32m+- Isolation: `new clean worktree; preserve current dirty primary checkout`[m
+[32m+- Commit policy: `no commits during execution`[m
+[32m+- Preauthorized local actions: `inspect source, edit listed files, run offline tests and benchmarks, write ignored benchmark reports`[m
+[32m+- User-approval actions: `provider calls, credentials, dependency or lockfile changes, production default changes, persisted schema migration, push, merge, publication, destructive cleanup`[m
+[32m+- Parallel ownership: `Task 2 owns P0-A retrieval files; Task 3 owns P0-B evidence files. Task 1 is the shared prerequisite; Task 4 follows Task 3 because both touch evidence contracts; Task 5 is Codex-only fan-in.`[m
+[32m+- Sequential fallback: `reconcile existing evidence → Task 1 → dispatch Tasks 2–3 in parallel → Task 4 → Task 5 final verification`[m
+[32m+[m
+[32m+## Coordination State[m
+[32m+[m
+[32m+- Coordination owner: `single lead controller`[m
+[32m+- Coordination schema: `2`[m
+[32m+- Branch: `codex/fitcv-p0-retrieval-evidence-qualifiers`[m
+[32m+- Base commit: `71e6260dbaa507a2ffe3640c179e60a569551e2b` (`HEAD` and `origin/main`; requested review commit `a40416a46f8f25f76329ff38131230d574043ddf` is an ancestor)[m
+[32m+- Expected workspace: `clean task-owned worktree; preserve current primary checkout deletions, untracked files, and untracked plans`[m
+[32m+- Next action: `preserve integration worktree for user disposition; no push, merge, or publication`[m
+[32m+- Blockers: `provider-backed P0-A arm remains approval-gated; P0-B direct-support recovery remains default-off; no push or merge authority`[m
+[32m+[m
+[32m+| Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |[m
+[32m+| --- | --- | --- | --- | --- | --- | --- |[m
+[32m+| Task 1 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-task1\JOB-PROJECT` | `codex` | none | `28 passed`; unsupported arms report `not_run`; fixture `d0ce5b4e52addfc1be2a107dd7900892e84733a34cc341ad003bdf6f102f7d40` | complete |[m
+[32m+| Task 2 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-task2\JOB-PROJECT` | `codex` | Task 1 | `58 passed, 2 skipped`; ranking recall `1.0`; nDCG `1.0`; p50 `27.73 ms`; p95 `29.07 ms`; provider calls `0` | complete |[m
+[32m+| Task 3 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-task3\JOB-PROJECT` | `codex` | Task 1 | `91 passed`; canonical/pool/selected separation; bounded recovery; default `false` | complete |[m
+[32m+| Task 4 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-task4\JOB-PROJECT` | `codex` | Task 3 | `193 passed`; qualifier parsing, unsupported/unavailable filtering, legacy compatibility | complete |[m
+[32m+| Task 5 | `completed` | `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-integration\JOB-PROJECT` | `codex` | Tasks 2, 3, 4 | `270 passed, 2 skipped`; benchmark reports in `C:\tmp\fitcv-p0-integration-evidence`; docs reconciled; rollback recorded | complete |[m
+[32m+[m
+[32m+### Final evidence[m
+[32m+[m
+[32m+- Integration worktree: `C:\Users\HOANG PHI LONG DANG\.codex\worktrees\fitcv-p0-integration\JOB-PROJECT`[m
+[32m+- Focused suite: `270 passed, 2 skipped in 3.32s`[m
+[32m+- Ranking benchmark: shortlist recall `1.0`, ranking recall `1.0`, nDCG `1.0`, p50 `27.2455 ms`, p95 `28.6723 ms`, LLM calls `0`[m
+[32m+- Support benchmark: fixture SHA-256 `d0ce5b4e52addfc1be2a107dd7900892e84733a34cc341ad003bdf6f102f7d40`; provider calls `false`; direct-support recovery remains opt-in[m
+[32m+- Promotion: promote deterministic retrieval diagnostics, stale-state fallback, and additive qualifier audit; do not promote provider-backed retrieval or enable direct-support recovery by default[m
+[32m+- Rollback: disable `cv_analysis.direct_support_recovery.enabled`; restore incumbent retrieval strategy; invalidate only state carrying incompatible embedding contract fingerprints[m
+[32m+[m
+[32m+### CoS MAIN AGENT lane contracts[m
+[32m+[m
+[32m+| Lane | Task | Ownership and allowed paths | Depends on | Proof obligation | Runtime grant |[m
+[32m+| --- | --- | --- | --- | --- | --- |[m
+[32m+| `fitcv-p0-task1` | Task 1 | Benchmark registry: `scripts/benchmark_requirement_support.py`, `scripts/compare_requirement_support.py`, `tests/test_benchmark_requirement_support.py`, `tests/test_compare_requirement_support.py`; inspect ranking artifacts only | target/base and fixture reconciliation | Existing arms and compatibility tests pass; unsupported arms report `not_run` | `codex`; native turns and wall clock; child agents denied; filesystem, Git, shell only; no provider, credentials, push, merge, or production defaults |[m
+[32m+| `fitcv-p0-task2` | Task 2 | P0-A only: `src/fitcv/embeddings.py`, `src/fitcv/vector_search.py`, `scripts/benchmark_ranking.py`, `tests/test_embeddings.py`, `tests/test_vector_search.py`, `tests/test_ranking_evaluation.py` | Task 1 | Retrieval comparison, truthful fingerprint, stale-state fallback, and compatibility tests | `codex`; native turns and wall clock; child agents denied; filesystem, Git, shell only; no provider, credentials, push, merge, or production defaults |[m
+[32m+| `fitcv-p0-task3` | Task 3 | P0-B only: `src/fitcv/evidence.py`, `tests/test_evidence.py`, `tests/test_benchmark_requirement_support.py`, optional `config/policy/cv_analysis.yaml` rollout flag | Task 1 | Bounded support-pair recall, dedupe, selection-loss, and budget tests | `codex`; native turns and wall clock; child agents denied; filesystem, Git, shell only; no provider, credentials, push, merge, or production defaults |[m
+[32m+| `fitcv-p0-task4` | Task 4 | P0-C only: `src/fitcv/evidence.py`, `src/fitcv/agentic_cv_analysis.py`, `tests/test_evidence.py`, `tests/test_agentic_cv_analysis.py`, optional `tests/test_enrich.py` | Task 3 | Qualifier audit and legacy `verified` compatibility tests | `codex`; native turns and wall clock; child agents denied; filesystem, Git, shell only; no provider, credentials, push, merge, or production defaults |[m
+[32m+| `fitcv-p0-task5` | Task 5 | Codex controller only: `docs/pipeline.md`, `docs/configuration.md`, this plan ledger, all changed files for inspection | Tasks 2–4 | Full declared suite, benchmark comparison, promotion decision, rollback proof | Controller-owned; no MAIN AGENT dispatch; no provider, credentials, push, merge, or publication |[m
+[32m+[m
+[32m+## Task Breakdown[m
+[32m+[m
+[32m+### Task 1: Reconcile benchmark contracts and arm registry[m
+[32m+[m
+[32m+**Purpose:** Use existing benchmark work as SSOT and make future experiment arms[m
+[32m+explicit instead of adding unsupported provider claims.[m
+[32m+[m
+[32m+**Task Function:** Benchmark-contract maintenance and baseline reconciliation.[m
+[32m+[m
+[32m+**Template Profile:**[m
+[32m+- Controller-selected: `normal`[m
+[32m+[m
+[32m+**Specification Coverage:** Phase 0, existing retrieval baseline, active RAG-impact suite.[m
+[32m+[m
+[32m+**Required Skills:** `skill-test-driven-development`, `skill-backend-verification`.[m
+[32m+[m
+[32m+**Files And Symbols:**[m
+[32m+[m
+[32m+- Inspect: `scripts/benchmark_requirement_support.py`, `scripts/compare_requirement_support.py`, `scripts/benchmark_ranking.py`[m
+[32m+- Modify: benchmark arm registry and comparison handling only where current hardcoded arms block explicit future arms[m
+[32m+- Modify: `tests/test_benchmark_requirement_support.py`, `tests/test_compare_requirement_support.py`[m
+[32m+- Inspect only: `tests/test_ranking_evaluation.py`[m
+[32m+- Inspect: `docs/superpowers/plans/2026-09-25-fitcv-retrieval-baseline-and-recall-measurement-plan.md`, `docs/superpowers/plans/2026-09-25-fitcv-rag-impact-test-suite-plan.md`[m
+[32m+[m
+[32m+**Dependencies:** Confirm target commit and active fixture versions.[m
+[32m+[m
+[32m+**Authority:**[m
+[32m+[m
+[32m+- Preauthorized local actions: `edit benchmark registry/comparison code and tests; run existing offline arms; write ignored reports`[m
+[32m+- Stop for: `provider execution, fixture replacement, threshold changes, production retrieval changes, or edits outside listed benchmark files`[m
+[32m+[m
+[32m+**Steps:**[m
+[32m+[m
+[32m+1. Confirm existing four arms and their recorded outputs.[m
+[32m+2. Replace duplicated arm lists with one local registry or equivalent SSOT.[m
+[32m+3. Allow future arms to report `not_run` plus reason without contaminating[m
+[32m+   baseline comparisons.[m
+[32m+4. Keep current baseline names and metric meanings backward-compatible.[m
+[32m+5. Make active RAG-impact fixtures and completed retrieval results canonical;[m
+[32m+   do not create another corpus.[m
+[32m+[m
+[32m+**Verification:**[m
+[32m+[m
+[32m+```text[m
+[32m+uv run pytest -q tests/test_benchmark_requirement_support.py tests/test_compare_requirement_support.py tests/test_ranking_evaluation.py[m
+[32m+```[m
+[32m+[m
+[32m+**Exit Criteria:** Existing arms produce unchanged metrics; unsupported arms[m
+[32m+fail clearly or report `not_run`, never silently fall back to another arm.[m
+[32m+[m
+[32m+### Task 2: P0-A shortlist retrieval seam and safe migration[m
+[32m+[m
+[32m+**Purpose:** Make job-retrieval experiments truthful and make backend changes[m
+[32m+safe without replacing the current deterministic backend prematurely.[m
+[32m+[m
+[32m+**Task Function:** Retrieval backend contract, benchmark integration, and[m
+[32m+runtime-state compatibility.[m
+[32m+[m
+[32m+**Template Profile:**[m
+[32m+- Controller-selected: `normal`[m
+[32m+[m
+[32m+Provider-backed work requires separate approval.[m
+[32m+[m
+[32m+**Specification Coverage:** P0-A job retrieval, embedding contract fingerprint,[m
+[32m+cache and preference compatibility.[m
+[32m+[m
+[32m+**Required Skills:** `skill-performance-optimization`, `skill-backend-verification`, `skill-systematic-debugging`.[m
+[32m+[m
+[32m+**Files And Symbols:**[m
+[32m+[m
+[32m+- Inspect: `src/fitcv/embeddings.py:generate_embedding`, `build_embedding_contract_fingerprint`, `embed_and_store_jobs`[m
+[32m+- Inspect: `src/fitcv/vector_search.py:run_vector_search`, `build_candidate_query_embedding_contract_fingerprint`[m
+[32m+- Inspect: `src/fitcv/preference_policy.py` runtime-contract and vector-dimension mismatch handling[m
+[32m+- Modify: `src/fitcv/embeddings.py`, `src/fitcv/vector_search.py` only for explicit backend metadata, experiment seam, and compatibility behavior[m
+[32m+- Modify: `scripts/benchmark_ranking.py` and `tests/test_ranking_evaluation.py` for current deterministic and lexical arms[m
+[32m+- Modify: `tests/test_embeddings.py`, `tests/test_vector_search.py`[m
+[32m+[m
+[32m+**Dependencies:** Task 1. Real multilingual backend also requires explicit[m
+[32m+provider/dependency approval and a declared model/runtime owner.[m
+[32m+[m
+[32m+**Authority:**[m
+[32m+[m
+[32m+- Preauthorized local actions: `add offline retrieval-arm plumbing, backend metadata, fingerprint tests, and stale-state fallback tests without provider calls or default changes`[m
+[32m+- Stop for: `provider calls, credentials, new dependency or lockfile edits, persisted vector migration, preference schema migration, or production default promotion`[m
+[32m+[m
+[32m+**Steps:**[m
+[32m+[m
+[32m+1. Prove current production path uses persisted deterministic vectors and record[m
+[32m+   actual backend identity separately from configured model name.[m
+[32m+2. Keep current deterministic output and dimension unchanged for default runs.[m
+[32m+3. Add experiment metadata for backend, model, dimension, summary schema, and[m
+[32m+   retrieval strategy; include all in the experiment fingerprint.[m
+[32m+4. Ensure candidate-query and job-vector fingerprints cannot reuse vectors or[m
+[32m+   preference state across incompatible representations.[m
+[32m+5. Change stale preference/runtime mismatch handling from an unhandled crash to[m
+[32m+   explicit stale-state rejection and deterministic fallback, preserving current[m
+[32m+   behavior when contracts match.[m
+[32m+6. Extend benchmark registry only after the arm can provide actual backend[m
+[32m+   evidence. A provider-backed multilingual arm remains `not_run` until approved.[m
+[32m+7. Compare identical eligible jobs and Top-N values using relevant-job recall@N;[m
+[32m+   report latency, missing/invalid vectors, cost, and provider calls where[m
+[32m+   applicable.[m
+[32m+[m
+[32m+**Verification:**[m
+[32m+[m
+[32m+```text[m
+[32m+uv run pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_ranking_evaluation.py[m
+[32m+```[m
+[32m+[m
+[32m+Run existing offline ranking/retrieval benchmark with current deterministic and[m
+[32m+lexical arms. Provider-backed results are required only for a later approved[m
+[32m+activation.[m
+[32m+[m
+[32m+**Exit Criteria:** Default retrieval behavior stays unchanged; fingerprints are[m
+[32m+truthful; stale state falls back safely; no provider arm is labeled successful[m
+[32m+without backend evidence. Promotion requires held-out recall@N strictly above[m
+[32m+incumbent and p95 latency/cost within an owner-approved budget. Without an[m
+[32m+approved budget, results remain exploratory.[m
+[32m+[m
+[32m+### Task 3: P0-B bounded direct-support recovery[m
+[32m+[m
+[32m+**Purpose:** Prevent approved requirement support from disappearing during[m
+[32m+channel truncation while preserving one global evidence budget.[m
+[32m+[m
+[32m+**Task Function:** Evidence candidate-union and selection correctness.[m
+[32m+[m
+[32m+**Template Profile:**[m
+[32m+- Controller-selected: `normal`[m
+[32m+[m
+[32m+**Specification Coverage:** P0-B direct support, retrieval-to-selection loss,[m
+[32m+canonical/pool/selected support separation.[m
+[32m+[m
+[32m+**Required Skills:** `skill-test-driven-development`, `skill-backend-verification`, `skill-performance-optimization`.[m
+[32m+[m
+[32m+**Files And Symbols:**[m
+[32m+[m
+[32m+- Inspect: `src/fitcv/evidence.py:_select_channel_candidates`, `_merge_channel_pools`, `_annotate_requirement_support`, `_select_final_evidence`, `retrieve_evidence_bundle`[m
+[32m+- Modify: `src/fitcv/evidence.py`[m
+[32m+- Modify: `tests/test_evidence.py`, `tests/test_benchmark_requirement_support.py`[m
+[32m+- Update: `config/policy/cv_analysis.yaml` only if an explicit rollout flag is required[m
+[32m+[m
+[32m+**Dependencies:** Task 1. Production promotion requires a separate review of[m
+[32m+benchmark evidence; default remains off until then.[m
+[32m+[m
+[32m+**Authority:**[m
+[32m+[m
+[32m+- Preauthorized local actions: `implement bounded direct-support candidate recovery, preserve provenance, add focused tests, and run offline support benchmarks`[m
+[32m+- Stop for: `unbounded candidate union, global top_k or context-budget changes, ANN/index work, provider calls, or production-default promotion without gate evidence`[m
+[32m+[m
+[32m+**Steps:**[m
+[32m+[m
+[32m+1. Build deterministic direct-support candidates from canonical approved links.[m
+[32m+2. Union them with lexical and semantic candidates before final selection.[m
+[32m+3. Preserve direct-support provenance without fabricating channel scores.[m
+[32m+4. Bound recovery: retain at least one deterministic representative per[m
+[32m+   requirement, then allow only a bounded overflow tied to `top_k`; dedupe by[m
+[32m+   `evidence_id`.[m
+[32m+5. Keep `canonical`, `pool`, and `selected` support maps distinct.[m
+[32m+6. Verify selection can intentionally omit support under budget, but reports[m
+[32m+   omission as selection loss rather than unsupported candidate evidence.[m
+[32m+7. Benchmark current truncation, bounded recovery, and full-pool scoring. Do not[m
+[32m+   add ANN unless measured pool size makes full-pool scoring materially costly.[m
+[32m+[m
+[32m+**Verification:**[m
+[32m+[m
+[32m+```text[m
+[32m+uv run pytest -q tests/test_evidence.py tests/test_benchmark_requirement_support.py tests/test_agentic_cv_analysis.py[m
+[32m+```[m
+[32m+[m
+[32m+**Exit Criteria:** Approved support-pair recall improves or remains equal,[m
+[32m+duplicate IDs stay zero, recovered candidates remain bounded, selected context[m
+[32m+stays within existing budget, and unsupported-claim rate does not increase.[m
+[32m+[m
+[32m+### Task 4: P0-C additive qualifier audit[m
+[32m+[m
+[32m+**Purpose:** Distinguish canonical skill support from support for duration,[m
+[32m+context, action, and proficiency requirements without breaking existing[m
+[32m+generation and validation contracts.[m
+[32m+[m
+[32m+**Task Function:** Conservative requirement parsing and additive coverage audit.[m
+[32m+[m
+[32m+**Template Profile:**[m
+[32m+- Controller-selected: `normal`[m
+[32m+[m
+[32m+**Specification Coverage:** P0-C qualifier-aware requirements.[m
+[32m+[m
+[32m+**Required Skills:** `skill-test-driven-development`, `skill-backend-verification`.[m
+[32m+[m
+[32m+**Files And Symbols:**[m
+[32m+[m
+[32m+- Inspect: `src/fitcv/evidence.py:build_required_skill_descriptors`[m
+[32m+- Modify: `src/fitcv/evidence.py` descriptor derivation and qualifier-support helpers[m
+[32m+- Modify: `src/fitcv/agentic_cv_analysis.py:_build_requirement_coverage`[m
+[32m+- Inspect and preserve: `src/fitcv/validator.py`, `src/fitcv/cv_generator.py`, `src/fitcv/agentic_cv_analysis.py` existing `verified` consumers[m
+[32m+- Modify: `tests/test_evidence.py`, `tests/test_agentic_cv_analysis.py`[m
+[32m+- Modify: `tests/test_enrich.py` only if raw requirement wording is lost upstream[m
+[32m+[m
+[32m+**Dependencies:** Task 1. Existing `selected_support` and `support_strength`[m
+[32m+remain authoritative compatibility fields.[m
+[32m+[m
+[32m+**Authority:**[m
+[32m+[m
+[32m+- Preauthorized local actions: `add derived qualifier parsing, additive audit fields, conservative support mapping, and focused regression tests`[m
+[32m+- Stop for: `new requirement graph, LLM qualifier inference, replacement of legacy support values, unapproved schema migration, or unsupported threshold invention`[m
+[32m+[m
+[32m+**Steps:**[m
+[32m+[m
+[32m+1. Derive qualifiers from retained raw requirement wording and existing job[m
+[32m+   fields; do not add a second canonical requirement store.[m
+[32m+2. Support additive fields such as `source_text`, `qualifiers`, and[m
+[32m+   `qualifier_support` with unresolved qualifier names.[m
+[32m+3. Use conservative deterministic rules:[m
+[32m+   - explicit date ranges may support duration;[m
+[32m+   - explicit normalized context/tags may support context;[m
+[32m+   - explicit proficiency or language-level evidence may support level;[m
+[32m+   - absence means `unverified`, not `contradicted`;[m
+[32m+   - contradiction requires explicit conflicting evidence.[m
+[32m+4. Keep `selected_support: "verified"` only when existing canonical support and[m
+[32m+   all decisive qualifiers are supported. Otherwise preserve existing values[m
+[32m+   such as `relevant_unverified`, `not_selected`, or `unsupported`.[m
+[32m+5. Expose richer qualifier detail as audit data; do not make validator or[m
+[32m+   generator consumers switch to new status names in this task.[m
+[32m+6. Add cases for plain skill, duration, production context, proficiency,[m
+[32m+   contradictory language level, missing qualifier, alias collapse, and no[m
+[32m+   positional pairing of independent raw/canonical arrays.[m
+[32m+[m
+[32m+**Verification:**[m
+[32m+[m
+[32m+```text[m
+[32m+uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_validator.py tests/test_cv_generator.py[m
+[32m+```[m
+[32m+[m
+[32m+**Exit Criteria:** Qualifier gaps are visible and conservative; existing[m
+[32m+`verified`-based validation and generation behavior remains compatible; no[m
+[32m+unsupported claim becomes verified through similarity alone.[m
+[32m+[m
+[32m+### Task 5: Promotion decision and final verification[m
+[32m+[m
+[32m+**Purpose:** Reconcile results, promote only proven changes, and leave a clear[m
+[32m+rollback path.[m
+[32m+[m
+[32m+**Task Function:** Integration verification and decision record.[m
+[32m+[m
+[32m+**Template Profile:**[m
+[32m+- Controller-selected: `normal`[m
+[32m+[m
+[32m+Controller selects validator independently.[m
+[32m+[m
+[32m+**Specification Coverage:** All implementation outcomes and promotion gates.[m
+[32m+[m
+[32m+**Required Skills:** `skill-plan-document-reviewer`, `skill-verification-before-completion`, `skill-backend-verification`, `skill-performance-optimization`.[m
+[32m+[m
+[32m+**Files And Symbols:**[m
+[32m+[m
+[32m+- Update: `docs/pipeline.md`, `docs/configuration.md`[m
+[32m+- Update: this plan's task ledger and evidence links[m
+[32m+- Inspect: all changed files and benchmark reports[m
+[32m+[m
+[32m+**Dependencies:** Tasks 2–4 complete with fresh proof.[m
+[32m+[m
+[32m+**Authority:**[m
+[32m+[m
+[32m+- Preauthorized local actions: `run focused and declared full verification, reconcile documentation, record promotion or no-promotion decisions, and preserve ignored reports`[m
+[32m+- Stop for: `promotion without gate evidence, threshold changes after measurement, provider/dependency approval gaps, unrelated cleanup, push, merge, or publication`[m
+[32m+[m
+[32m+**Steps:**[m
+[32m+[m
+[32m+1. Run focused tests for all changed owners.[m
+[32m+2. Run canonical benchmark commands from existing plans and compare against[m
+[32m+   recorded baseline under identical workload and environment.[m
+[32m+3. Verify backend success, fallback, stale-state, bounded-recovery, and[m
+[32m+   compatibility failure paths.[m
+[32m+4. Promote only arms with owner-approved metric and safety gates; otherwise keep[m
+[32m+   experiment output and leave current defaults active.[m
+[32m+5. Update docs only from canonical implementation/configuration behavior.[m
+[32m+6. Record rollback: disable experiment flag or restore incumbent backend and[m
+[32m+   invalidate only incompatible derived state.[m
+[32m+[m
+[32m+**Verification:**[m
+[32m+[m
+[32m+```text[m
+[32m+uv run pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_validator.py tests/test_cv_generator.py tests/test_benchmark_requirement_support.py tests/test_compare_requirement_support.py tests/test_ranking_evaluation.py[m
+[32m+```[m
+[32m+[m
+[32m+**Exit Criteria:** Fresh tests pass; benchmark outputs are reproducible; all[m
+[32m+promotion decisions are explicit; production defaults remain unchanged for any[m
+[32m+arm lacking approval or evidence; plan ledger records final proof.[m
+[32m+[m
+[32m+## Verification[m
+[32m+[m
+[32m+Required evidence:[m
+[32m+[m
+[32m+- Existing benchmark fixtures remain unchanged unless contract tests justify a[m
+[32m+  versioned additive change.[m
+[32m+- Current deterministic and lexical arms reproduce prior baseline results.[m
+[32m+- P0-A reports actual backend identity and safe stale-state behavior.[m
+[32m+- P0-B reports canonical, pool, selected, and validation support separately.[m
+[32m+- P0-C preserves legacy `verified` consumers and reports qualifier gaps without[m
+[32m+  inventing support.[m
+[32m+- Performance comparisons use identical workload, warm/cold condition, and[m
+[32m+  environment; report p50/p95 latency, context tokens, and provider calls when[m
+[32m+  applicable.[m
+[32m+- No provider, credentials, dependency, persisted schema, or production-default[m
+[32m+  change occurs without explicit approval.[m
+[32m+[m
+[32m+## Completion Criteria[m
+[32m+[m
+[32m+1. Plan tasks have terminal states and linked evidence.[m
+[32m+2. Existing retrieval and RAG-impact work remains the benchmark SSOT.[m
+[32m+3. No unsupported multilingual-provider result is presented as measured.[m
+[32m+4. Direct support recovery is bounded and separately promoted.[m
+[32m+5. Qualifier audit is additive and legacy support contracts remain valid.[m
+[32m+6. Current production behavior remains a tested rollback path.[m
+[32m+7. Documentation matches canonical code and configuration ownership.[m
+[32m+[m
+[32m+Skipped: GraphRAG, retrieval agents, ANN, late-interaction retrieval, LLM[m
+[32m+reranking, learned routing, dynamic skill graph, and preference-learning[m
+[32m+changes. Add only after P0 residual errors and cost are measured.[m
+[1;38mdiff --git a/scripts/benchmark_ranking.py b/scripts/benchmark_ranking.py[m
+[1;38mindex 968548d0..71ff79cb 100644[m
+[1;38m--- a/scripts/benchmark_ranking.py[m
+[1;38m+++ b/scripts/benchmark_ranking.py[m
+@@ -157,6 +157,7 @@ def _run_once(
+             top_n=request["top_n"],
+             structured_jobs=request["structured_jobs"],
+         )
+[32m+        retrieval_metadata = dict(retrieval.get("diagnostics", {}).get("backend_metadata") or {})[m
+         retrieved_ids = {str(row["job_url"]) for row in retrieval["production_rows"]}
+         retrieval_returned_count += len(retrieved_ids)
+         shortlist_top_n = request["top_n"]
+@@ -216,6 +217,7 @@ def _run_once(
+             "split_counts": split_counts,
+             "shortlist_top_n": shortlist_top_n,
+             "ranking_top_n": ranking_top_n,
+[32m+            "retrieval_metadata": retrieval_metadata,[m
+         },
+     )
+ 
+@@ -259,6 +261,7 @@ def main() -> None:
+         "metrics": {
+             "retrieval": {
+                 "strategy": "lexical_v1",
+[32m+                "backend_metadata": observation["retrieval_metadata"],[m
+                 "top_n": observation["shortlist_top_n"],
+                 "returned_count": observation["retrieval_returned_count"],
+                 "eligible_count": observation["eligible_count"],
+[1;38mdiff --git a/scripts/benchmark_requirement_support.py b/scripts/benchmark_requirement_support.py[m
+[1;38mindex 2b29e325..b8a479e0 100644[m
+[1;38m--- a/scripts/benchmark_requirement_support.py[m
+[1;38m+++ b/scripts/benchmark_requirement_support.py[m
+@@ -39,6 +39,30 @@
+     ("required_skill:python", "ev-b-python"),
+ }
+ 
+[32m+ARM_REGISTRY = {[m
+[32m+    "lexical-baseline": {[m
+[32m+        "status": "supported",[m
+[32m+        "retrieval": "lexical",[m
+[32m+        "selection": "baseline",[m
+[32m+    },[m
+[32m+    "lexical-ablation": {[m
+[32m+        "status": "supported",[m
+[32m+        "retrieval": "lexical",[m
+[32m+        "selection": "ablation",[m
+[32m+    },[m
+[32m+    "lexical-requirement-aware": {[m
+[32m+        "status": "supported",[m
+[32m+        "retrieval": "lexical",[m
+[32m+        "selection": "requirement-aware",[m
+[32m+    },[m
+[32m+    "current-hash": {[m
+[32m+        "status": "supported",[m
+[32m+        "retrieval": "hash",[m
+[32m+        "selection": "requirement-aware",[m
+[32m+    },[m
+[32m+}[m
+[32m+ARM_ALIASES = {"lexical": "lexical-requirement-aware"}[m
+[32m+[m
+ 
+ def _item(evidence_id: str, skills: list[str], text: str) -> dict[str, object]:
+     return {
+@@ -342,13 +366,8 @@ def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
+ 
+ 
+ def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> dict[str, Any]:
+[31m-    normalized_arm = "lexical-requirement-aware" if arm == "lexical" else arm[m
+[31m-    if normalized_arm not in {[m
+[31m-        "lexical-baseline",[m
+[31m-        "lexical-ablation",[m
+[31m-        "lexical-requirement-aware",[m
+[31m-        "current-hash",[m
+[31m-    }:[m
+[32m+    normalized_arm = ARM_ALIASES.get(arm, arm)[m
+[32m+    if normalized_arm not in ARM_REGISTRY:[m
+         raise ValueError(f"Unsupported arm: {arm}")
+     config = copy.deepcopy(base_config)
+     config.setdefault("pipeline", {}).setdefault("evidence_top_k", 2)
+@@ -929,8 +948,18 @@ def run_benchmark(
+     runs: int = MEASURED_RUNS,
+     warmups: int = WARMUP_RUNS,
+ ) -> dict[str, Any]:
+[31m-    if arm not in {"current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"}:[m
+[31m-        raise ValueError(f"Unsupported arm: {arm}")[m
+[32m+    normalized_arm = ARM_ALIASES.get(arm, arm)[m
+[32m+    if normalized_arm not in ARM_REGISTRY:[m
+[32m+        return {[m
+[32m+            "arm": arm,[m
+[32m+            "status": "not_run",[m
+[32m+            "reason": f"unsupported arm: {arm}",[m
+[32m+            "evaluation_schema_version": 1,[m
+[32m+            "fixture": str(fixture_path.relative_to(REPO_ROOT)),[m
+[32m+            "pool_size": pool_size,[m
+[32m+            "warmup_runs": warmups,[m
+[32m+            "measured_runs": runs,[m
+[32m+        }[m
+     if runs <= 0 or warmups < 0:
+         raise ValueError("runs must be positive and warmups cannot be negative")
+     fixture = _load_json(fixture_path)
+@@ -940,7 +969,7 @@ def run_benchmark(
+         _run_benchmark_scenario(
+             fixture=fixture,
+             scenario=scenario,
+[31m-            arm=arm,[m
+[32m+            arm=normalized_arm,[m
+             pool_size=pool_size,
+             base_config=base_config,
+             runs=runs,
+@@ -951,7 +980,7 @@ def run_benchmark(
+     aggregate = _aggregate_scenario_metrics(scenario_results)
+     timing_keys = tuple(scenario_results[0]["timing_ms"])
+     return {
+[31m-        "arm": "lexical-requirement-aware" if arm == "lexical" else arm,[m
+[32m+        "arm": normalized_arm,[m
+         "evaluation_schema_version": int(fixture["evaluation_schema_version"]),
+         "implementation_ref": subprocess.check_output(
+             ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
+@@ -960,7 +989,7 @@ def run_benchmark(
+         "scenario_set": [result["scenario_id"] for result in scenario_results],
+         "scenario_count": len(scenario_results),
+         "workload_count": len(scenario_results),
+[31m-        "semantic_alignment_enabled": arm == "current-hash",[m
+[32m+        "semantic_alignment_enabled": normalized_arm == "current-hash",[m
+         "pool_size": pool_size,
+         "top_k": sorted({result["top_k"] for result in scenario_results}),
+         "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
+@@ -993,8 +1022,9 @@ def run_benchmark(
+             ],
+         },
+         "arm_configuration": {
+[31m-            "retrieval": "hash" if arm == "current-hash" else "lexical",[m
+[31m-            "selection": arm,[m
+[32m+            "retrieval": ARM_REGISTRY[normalized_arm]["retrieval"],[m
+[32m+            "selection": normalized_arm,[m
+[32m+            "selection_policy": ARM_REGISTRY[normalized_arm]["selection"],[m
+             "provider_calls": False,
+         },
+         "fixture": str(fixture_path.relative_to(REPO_ROOT)),
+[1;38mdiff --git a/scripts/compare_requirement_support.py b/scripts/compare_requirement_support.py[m
+[1;38mindex 63d90889..bead1ef5 100644[m
+[1;38m--- a/scripts/compare_requirement_support.py[m
+[1;38m+++ b/scripts/compare_requirement_support.py[m
+@@ -8,6 +8,13 @@
+ from typing import Any
+ 
+ 
+[32m+ARM_REGISTRY = {[m
+[32m+    "lexical-baseline": {"status": "supported"},[m
+[32m+    "lexical-ablation": {"status": "supported"},[m
+[32m+    "lexical-requirement-aware": {"status": "supported"},[m
+[32m+    "current-hash": {"status": "supported"},[m
+[32m+}[m
+[32m+[m
+ def _load_json(path: Path) -> dict[str, Any]:
+     with path.open(encoding="utf-8") as handle:
+         payload = json.load(handle)
+@@ -19,7 +26,7 @@ def _load_json(path: Path) -> dict[str, Any]:
+ def _validate_compatibility(payloads: list[dict[str, Any]]) -> None:
+     fixture_hashes = {str(payload.get("fixture_sha256") or "") for payload in payloads}
+     top_ks = {json.dumps(payload.get("top_k"), sort_keys=True) for payload in payloads}
+[31m-    if len(fixture_hashes) != 1:[m
+[32m+    if len(fixture_hashes) != 1 or "" in fixture_hashes:[m
+         raise ValueError("Benchmark outputs use different fixture SHA-256 values")
+     if len(top_ks) != 1:
+         raise ValueError("Benchmark outputs use different top_k values")
+@@ -39,8 +46,14 @@ def _validate_impact_compatibility(payloads: list[dict[str, Any]]) -> None:
+ 
+ 
+ def _current_metrics(payload: dict[str, Any]) -> dict[str, Any]:
+[32m+    if payload.get("status") == "not_run":[m
+[32m+        return {[m
+[32m+            "status": "not_run",[m
+[32m+            "reason": str(payload.get("reason") or "unspecified"),[m
+[32m+        }[m
+     support = dict(payload.get("requirement_support") or {})
+     return {
+[32m+        "status": str(payload.get("status") or "completed"),[m
+         "implementation_ref": payload.get("implementation_ref"),
+         "requirement_recall": dict(support.get("requirement_recall") or {}),
+         "evidence_pair_recall": dict(support.get("evidence_pair_recall") or {}),
+@@ -73,12 +86,7 @@ def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
+     payloads = [_load_json(path) for path in input_paths]
+     _validate_impact_compatibility(payloads)
+     by_arm = {str(payload.get("arm") or ""): payload for payload in payloads}
+[31m-    required_arms = {[m
+[31m-        "lexical-baseline",[m
+[31m-        "lexical-ablation",[m
+[31m-        "lexical-requirement-aware",[m
+[31m-        "current-hash",[m
+[31m-    }[m
+[32m+    required_arms = set(ARM_REGISTRY)[m
+     missing = sorted(required_arms - set(by_arm))
+     if missing:
+         raise ValueError(f"Benchmark inputs missing arms: {', '.join(missing)}")
+[1;38mdiff --git a/src/fitcv/agentic_cv_analysis.py b/src/fitcv/agentic_cv_analysis.py[m
+[1;38mindex 1863f6a4..e4f930a0 100644[m
+[1;38m--- a/src/fitcv/agentic_cv_analysis.py[m
+[1;38m+++ b/src/fitcv/agentic_cv_analysis.py[m
+@@ -424,6 +424,8 @@ def _has_relevant_unverified_support(
+         if token
+     }
+     for item in evidence:
+[32m+        if str(item.get("evidence_availability") or "").strip().lower() in {"unsupported", "unavailable"}:[m
+[32m+            continue[m
+         evidence_text = " ".join(
+             str(value or "")
+             for value in (
+@@ -437,6 +439,21 @@ def _has_relevant_unverified_support(
+     return False
+ 
+ 
+[32m+def _qualifier_statuses([m
+[32m+    descriptor: dict[str, Any],[m
+[32m+    requirement_support: dict[str, Any],[m
+[32m+    key: str,[m
+[32m+) -> dict[str, str]:[m
+[32m+    mapped = dict(requirement_support.get("qualifier_support") or {}).get(key)[m
+[32m+    if not isinstance(mapped, dict):[m
+[32m+        return {str(name): "unverified" for name in list(descriptor.get("qualifiers") or [])}[m
+[32m+    statuses = dict(mapped.get(str(descriptor.get("requirement_id") or "")) or {})[m
+[32m+    return {[m
+[32m+        str(name): str(statuses.get(str(name)) or "unverified")[m
+[32m+        for name in list(descriptor.get("qualifiers") or [])[m
+[32m+    }[m
+[32m+[m
+[32m+[m
+ def _build_requirement_coverage(
+     job: dict[str, Any],
+     evidence: list[dict[str, Any]],
+@@ -459,8 +476,18 @@ def _build_requirement_coverage(
+         requirement_id = str(descriptor["requirement_id"])
+         selected_ids = list(selected_support.get(requirement_id) or [])
+         pool_ids = list(pool_support.get(requirement_id) or [])
+[31m-        if selected_ids:[m
+[32m+        qualifier_support = _qualifier_statuses(descriptor, requirement_support, "selected")[m
+[32m+        pool_qualifier_support = _qualifier_statuses(descriptor, requirement_support, "pool")[m
+[32m+        qualifier_gaps = [[m
+[32m+            qualifier[m
+[32m+            for qualifier, status in qualifier_support.items()[m
+[32m+            if status != "supported"[m
+[32m+        ][m
+[32m+        qualifiers_verified = not qualifier_support or not qualifier_gaps[m
+[32m+        if selected_ids and qualifiers_verified:[m
+             selected_status = "verified"
+[32m+        elif selected_ids and qualifier_support:[m
+[32m+            selected_status = "relevant_unverified"[m
+         elif pool_ids:
+             selected_status = "not_selected"
+         elif _has_relevant_unverified_support(descriptor, evidence):
+@@ -470,6 +497,9 @@ def _build_requirement_coverage(
+         coverage.append(
+             {
+                 **descriptor,
+[32m+                "qualifier_support": qualifier_support,[m
+[32m+                "pool_qualifier_support": pool_qualifier_support,[m
+[32m+                "qualifier_gaps": qualifier_gaps,[m
+                 "profile_match": _requirement_profile_match(descriptor, gap_summary, config),
+                 "retrieval_status": (
+                     "completed"
+[1;38mdiff --git a/src/fitcv/embeddings.py b/src/fitcv/embeddings.py[m
+[1;38mindex 7c8b2650..36507267 100644[m
+[1;38m--- a/src/fitcv/embeddings.py[m
+[1;38m+++ b/src/fitcv/embeddings.py[m
+@@ -126,6 +126,7 @@ def build_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, An
+         "embedding_dimension": SQLITE_EMBED_DIM,
+         "embedding_model": get_shortlist_embedding_model(config),
+         "summary_schema_version": SHORTLIST_SUMMARY_SCHEMA_VERSION,
+[32m+        "retrieval_strategy": str(config.get("retrieval_strategy") or "vector_cosine_v1"),[m
+     }
+     fingerprint = build_contract_fingerprint(payload)
+     return {
+@@ -144,6 +145,8 @@ def build_embedding_backend_metadata(
+         "backend_id": str(contract["payload"]["embedding_backend"]),
+         "configured_model": str(configured_model or get_shortlist_embedding_model(config)),
+         "dimension": SQLITE_EMBED_DIM,
+[32m+        "summary_schema_version": SHORTLIST_SUMMARY_SCHEMA_VERSION,[m
+[32m+        "retrieval_strategy": str(contract["payload"]["retrieval_strategy"]),[m
+         "contract_fingerprint": str(contract["fingerprint"]),
+     }
+ 
+[1;38mdiff --git a/src/fitcv/evidence.py b/src/fitcv/evidence.py[m
+[1;38mindex 0fa09f20..245d27ca 100644[m
+[1;38m--- a/src/fitcv/evidence.py[m
+[1;38m+++ b/src/fitcv/evidence.py[m
+@@ -31,6 +31,7 @@
+ import json
+ import math
+ import os
+[32m+import re[m
+ import sqlite3
+ import uuid
+ from dataclasses import dataclass
+@@ -80,6 +81,7 @@
+ DEFAULT_RESPONSIBILITY_SEMANTIC_WEIGHT = 0.75
+ DEFAULT_DOMAIN_LEXICAL_WEIGHT = 0.40
+ DEFAULT_DOMAIN_SEMANTIC_WEIGHT = 0.60
+[32m+DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED = False[m
+ SEMANTIC_METHOD_DISABLED = "disabled"
+ SEMANTIC_METHOD_EMBEDDING = "embedding_similarity"
+ ROLE_ALIGNMENT_NEIGHBOR_SCORE = 0.75
+@@ -310,6 +312,64 @@ def _extract_canonical_entities(values: Any) -> list[str]:
+     return extracted
+ 
+ 
+[32m+_QUALIFIER_NAMES = ("duration", "context", "action", "level")[m
+[32m+_DURATION_RE = re.compile([m
+[32m+    r"(?P<amount>\d+(?:[.,]\d+)?)\s*(?:\+|plus|or more)?\s*(?P<unit>years?|yrs?|months?)",[m
+[32m+    re.IGNORECASE,[m
+[32m+)[m
+[32m+_LEVEL_RE = re.compile([m
+[32m+    r"\b(?:a1|a2|b1|b2|c1|c2|beginner|basic|junior|entry(?:[- ]level)?|intermediate|mid(?:[- ]level)?|advanced|senior|expert|fluent|native)\b",[m
+[32m+    re.IGNORECASE,[m
+[32m+)[m
+[32m+_ACTION_RE = re.compile([m
+[32m+    r"\b(?:analy[sz]e|build|create|develop|deploy|design|maintain|manage|operate|optimi[sz]e|present|support|transform|validate)\w*\b",[m
+[32m+    re.IGNORECASE,[m
+[32m+)[m
+[32m+_CONTEXT_RE = re.compile([m
+[32m+    r"\b(?:production|enterprise|cloud|on[- ]prem(?:ises)?|real[- ]time|batch|customer[- ]facing|regulated|banking|finance|healthcare|retail|web|mobile)\b",[m
+[32m+    re.IGNORECASE,[m
+[32m+)[m
+[32m+[m
+[32m+[m
+[32m+def _qualifier_values_from_text(source_text: str) -> dict[str, list[str]]:[m
+[32m+    values: dict[str, list[str]] = {name: [] for name in _QUALIFIER_NAMES}[m
+[32m+    for match in _DURATION_RE.finditer(source_text):[m
+[32m+        values["duration"].append(match.group(0).strip())[m
+[32m+    values["level"].extend(match.group(0).strip() for match in _LEVEL_RE.finditer(source_text))[m
+[32m+    values["action"].extend(match.group(0).strip().lower() for match in _ACTION_RE.finditer(source_text))[m
+[32m+    values["context"].extend(match.group(0).strip().lower() for match in _CONTEXT_RE.finditer(source_text))[m
+[32m+    return {key: list(dict.fromkeys(value)) for key, value in values.items() if value}[m
+[32m+[m
+[32m+[m
+[32m+def _requirement_qualifiers([m
+[32m+    source_text: str,[m
+[32m+    job_context: dict[str, Any],[m
+[32m+    canonical_skill: str,[m
+[32m+) -> tuple[list[str], dict[str, list[str]]]:[m
+[32m+    values = _qualifier_values_from_text(source_text)[m
+[32m+    if job_context.get("years_experience_min") is not None:[m
+[32m+        values.setdefault("duration", []).append(f"{job_context['years_experience_min']} years")[m
+[32m+    for key in ("required_skill_qualifiers", "skill_qualifiers"):[m
+[32m+        configured = job_context.get(key)[m
+[32m+        if not isinstance(configured, dict):[m
+[32m+            continue[m
+[32m+        raw_values = configured.get(canonical_skill) or configured.get(source_text)[m
+[32m+        if isinstance(raw_values, dict):[m
+[32m+            for qualifier, qualifier_values in raw_values.items():[m
+[32m+                if qualifier not in _QUALIFIER_NAMES:[m
+[32m+                    continue[m
+[32m+                if isinstance(qualifier_values, list):[m
+[32m+                    values.setdefault(qualifier, []).extend(str(value).strip() for value in qualifier_values if str(value).strip())[m
+[32m+                elif str(qualifier_values).strip():[m
+[32m+                    values.setdefault(qualifier, []).append(str(qualifier_values).strip())[m
+[32m+    normalized_values = {[m
+[32m+        key: list(dict.fromkeys(value))[m
+[32m+        for key, value in values.items()[m
+[32m+        if value[m
+[32m+    }[m
+[32m+    return list(normalized_values), normalized_values[m
+[32m+[m
+[32m+[m
+ def build_required_skill_descriptors(
+     job_context: dict[str, Any],
+     config: dict[str, Any] | None = None,
+@@ -349,11 +409,17 @@ def build_required_skill_descriptors(
+         ]
+ 
+     descriptors: dict[str, dict[str, Any]] = {}
+[32m+    job_context = dict(job_context)[m
+     for original, canonical in pairs:
+         canonical_skill = canonicalize_skill(canonical or original, config)
+         if not canonical_skill:
+             continue
+         requirement_id = f"required_skill:{canonical_skill}"
+[32m+        qualifier_names, qualifier_values = _requirement_qualifiers([m
+[32m+            original or canonical_skill,[m
+[32m+            job_context,[m
+[32m+            canonical_skill,[m
+[32m+        )[m
+         descriptor = descriptors.setdefault(
+             requirement_id,
+             {
+@@ -363,12 +429,24 @@ def build_required_skill_descriptors(
+                 "original_requirements": [],
+                 "requirement_type": "required_skill",
+                 "requirement_priority": "must_have",
+[32m+                "source_text": original or canonical_skill,[m
+[32m+                "qualifiers": qualifier_names,[m
+[32m+                "qualifier_values": qualifier_values,[m
+[32m+                "qualifier_support": {name: "unverified" for name in qualifier_names},[m
+             },
+         )
+         if not descriptor["original_requirements"] and original:
+             descriptor["requirement"] = original
+         if original and original not in descriptor["original_requirements"]:
+             descriptor["original_requirements"].append(original)
+[32m+        for qualifier in qualifier_names:[m
+[32m+            if qualifier not in descriptor["qualifiers"]:[m
+[32m+                descriptor["qualifiers"].append(qualifier)[m
+[32m+            descriptor.setdefault("qualifier_values", {}).setdefault(qualifier, [])[m
+[32m+            descriptor["qualifier_values"][qualifier] = list(dict.fromkeys([m
+[32m+                [*descriptor["qualifier_values"][qualifier], *qualifier_values.get(qualifier, [])][m
+[32m+            ))[m
+[32m+            descriptor.setdefault("qualifier_support", {})[qualifier] = "unverified"[m
+     return list(descriptors.values())
+ 
+ 
+@@ -1788,24 +1866,250 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
+     )
+ 
+ 
+[32m+def _evidence_availability(item: dict[str, Any]) -> str | None:[m
+[32m+    for key in ("evidence_availability", "evidence_status", "availability", "support_status"):[m
+[32m+        value = str(item.get(key) or "").strip().lower()[m
+[32m+        if value in {"unsupported", "unavailable"}:[m
+[32m+            return value[m
+[32m+    return None[m
+[32m+[m
+[32m+[m
+[32m+def _evidence_text(item: dict[str, Any]) -> str:[m
+[32m+    values = [[m
+[32m+        item.get("text"),[m
+[32m+        item.get("name"),[m
+[32m+        item.get("title"),[m
+[32m+        item.get("scoring_context"),[m
+[32m+        item.get("context"),[m
+[32m+        item.get("action"),[m
+[32m+        item.get("proficiency"),[m
+[32m+        item.get("level"),[m
+[32m+        *list(item.get("domain_tags") or []),[m
+[32m+        *list(item.get("responsibility_themes") or []),[m
+[32m+    ][m
+[32m+    return " ".join(str(value or "") for value in values if str(value or "").strip())[m
+[32m+[m
+[32m+[m
+[32m+def _duration_months(value: Any) -> float | None:[m
+[32m+    text = str(value or "").strip()[m
+[32m+    if not text:[m
+[32m+        return None[m
+[32m+    match = _DURATION_RE.search(text)[m
+[32m+    if match:[m
+[32m+        amount = float(match.group("amount").replace(",", "."))[m
+[32m+        unit = match.group("unit").lower()[m
+[32m+        return amount * (12.0 if unit.startswith("year") or unit.startswith("yr") else 1.0)[m
+[32m+    date_match = re.search(r"(?P<start>\d{4}(?:-\d{1,2})?)[^\d]+(?P<end>\d{4}(?:-\d{1,2})?)", text)[m
+[32m+    if not date_match:[m
+[32m+        return None[m
+[32m+    start_parts = [int(part) for part in date_match.group("start").split("-")][m
+[32m+    end_parts = [int(part) for part in date_match.group("end").split("-")][m
+[32m+    start_month = start_parts[0] * 12 + (start_parts[1] if len(start_parts) > 1 else 1)[m
+[32m+    end_month = end_parts[0] * 12 + (end_parts[1] if len(end_parts) > 1 else 12)[m
+[32m+    return max(float(end_month - start_month + 1), 0.0)[m
+[32m+[m
+[32m+[m
+[32m+def _item_duration_months(item: dict[str, Any]) -> float | None:[m
+[32m+    explicit = _duration_months(item.get("duration"))[m
+[32m+    if explicit is not None:[m
+[32m+        return explicit[m
+[32m+    start = str(item.get("start") or "").strip()[m
+[32m+    end = str(item.get("end") or "").strip()[m
+[32m+    if start and end and end.lower() not in {"present", "current", "now"}:[m
+[32m+        return _duration_months(f"{start} — {end}")[m
+[32m+    return None[m
+[32m+[m
+[32m+[m
+[32m+def _qualifier_duration_status(item: dict[str, Any], descriptor: dict[str, Any]) -> str:[m
+[32m+    requested = next([m
+[32m+        ([m
+[32m+            months[m
+[32m+            for months in ([m
+[32m+                _duration_months(value)[m
+[32m+                for value in list(dict(descriptor.get("qualifier_values") or {}).get("duration") or [])[m
+[32m+            )[m
+[32m+            if months is not None[m
+[32m+        ),[m
+[32m+        None,[m
+[32m+    )[m
+[32m+    observed = _item_duration_months(item) or _duration_months(_evidence_text(item))[m
+[32m+    if observed is None:[m
+[32m+        return "unverified"[m
+[32m+    if requested is not None and observed < requested:[m
+[32m+        return "contradicted"[m
+[32m+    return "supported"[m
+[32m+[m
+[32m+[m
+[32m+def _qualifier_text_status(item: dict[str, Any], descriptor: dict[str, Any], qualifier: str) -> str:[m
+[32m+    values = list(dict(descriptor.get("qualifier_values") or {}).get(qualifier) or [])[m
+[32m+    if not values:[m
+[32m+        return "unverified"[m
+[32m+    evidence_text = _normalize_text(_evidence_text(item))[m
+[32m+    evidence_tokens = _tokenize(evidence_text)[m
+[32m+    for value in values:[m
+[32m+        normalized = _normalize_text(value)[m
+[32m+        if normalized and (normalized in evidence_text or _tokenize(normalized) <= evidence_tokens):[m
+[32m+            return "supported"[m
+[32m+    return "unverified"[m
+[32m+[m
+[32m+[m
+[32m+def _level_rank(value: str) -> int | None:[m
+[32m+    normalized = _normalize_text(value)[m
+[32m+    ranks = {[m
+[32m+        "beginner": 1,[m
+[32m+        "basic": 1,[m
+[32m+        "junior": 1,[m
+[32m+        "entry level": 1,[m
+[32m+        "intermediate": 2,[m
+[32m+        "mid level": 2,[m
+[32m+        "advanced": 3,[m
+[32m+        "senior": 3,[m
+[32m+        "expert": 4,[m
+[32m+        "fluent": 4,[m
+[32m+        "native": 5,[m
+[32m+    }[m
+[32m+    if normalized in ranks:[m
+[32m+        return ranks[normalized][m
+[32m+    cefr = re.fullmatch(r"[abc][1-2]", normalized)[m
+[32m+    if cefr:[m
+[32m+        return {"a1": 1, "a2": 2, "b1": 3, "b2": 4, "c1": 5, "c2": 6}[normalized][m
+[32m+    return None[m
+[32m+[m
+[32m+[m
+[32m+def _qualifier_level_status(item: dict[str, Any], descriptor: dict[str, Any]) -> str:[m
+[32m+    required_values = list(dict(descriptor.get("qualifier_values") or {}).get("level") or [])[m
+[32m+    required_ranks = [rank for rank in (_level_rank(value) for value in required_values) if rank is not None][m
+[32m+    observed_values = [[m
+[32m+        str(item.get(key) or "")[m
+[32m+        for key in ("level", "proficiency", "language_level")[m
+[32m+        if str(item.get(key) or "").strip()[m
+[32m+    ][m
+[32m+    observed_values.extend(match.group(0) for match in _LEVEL_RE.finditer(_evidence_text(item)))[m
+[32m+    observed_ranks = [rank for rank in (_level_rank(value) for value in observed_values) if rank is not None][m
+[32m+    if not observed_ranks:[m
+[32m+        return "unverified"[m
+[32m+    if required_ranks and max(observed_ranks) < max(required_ranks):[m
+[32m+        return "contradicted"[m
+[32m+    if required_ranks or any([m
+[32m+        _normalize_text(value) == _normalize_text(required)[m
+[32m+        for value in observed_values[m
+[32m+        for required in required_values[m
+[32m+    ):[m
+[32m+        return "supported"[m
+[32m+    return "unverified"[m
+[32m+[m
+[32m+[m
+[32m+def _qualifier_status(item: dict[str, Any], descriptor: dict[str, Any], qualifier: str) -> str:[m
+[32m+    availability = _evidence_availability(item)[m
+[32m+    if availability:[m
+[32m+        return availability[m
+[32m+    if qualifier == "duration":[m
+[32m+        return _qualifier_duration_status(item, descriptor)[m
+[32m+    if qualifier == "level":[m
+[32m+        return _qualifier_level_status(item, descriptor)[m
+[32m+    return _qualifier_text_status(item, descriptor, qualifier)[m
+[32m+[m
+[32m+[m
+ def _annotate_requirement_support(
+     items: list[dict[str, Any]],
+     descriptors: list[dict[str, Any]],
+     config: dict[str, Any] | None,
+ ) -> list[dict[str, Any]]:
+     for item in items:
+[32m+        availability = _evidence_availability(item)[m
+[32m+        if availability:[m
+[32m+            item["evidence_availability"] = availability[m
+         item["supported_requirement_ids"] = [
+             str(descriptor["requirement_id"])
+             for descriptor in descriptors
+[31m-            if any([m
+[32m+            if not availability and any([m
+                 canonicalize_skill(str(skill), config) == descriptor["canonical_skill"]
+                 for skill in list(item.get("skills") or [])
+                 if str(skill).strip()
+             )
+         ]
+[32m+        item["qualifier_support"] = {[m
+[32m+            str(descriptor["requirement_id"]): {[m
+[32m+                qualifier: _qualifier_status(item, descriptor, qualifier)[m
+[32m+                for qualifier in list(descriptor.get("qualifiers") or [])[m
+[32m+            }[m
+[32m+            for descriptor in descriptors[m
+[32m+            if descriptor.get("qualifiers")[m
+[32m+        }[m
+     return items
+ 
+ 
+[32m+def _direct_support_recovery_enabled(config: dict[str, Any] | None) -> bool:[m
+[32m+    if not config:[m
+[32m+        return DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED[m
+[32m+    settings = dict((config.get("cv_analysis") or {}).get("direct_support_recovery") or {})[m
+[32m+    return bool(settings.get("enabled", DEFAULT_DIRECT_SUPPORT_RECOVERY_ENABLED))[m
+[32m+[m
+[32m+[m
+[32m+def _recover_direct_support_candidates([m
+[32m+    merged_pool: list[dict[str, Any]],[m
+[32m+    canonical_items: list[dict[str, Any]],[m
+[32m+    descriptors: list[dict[str, Any]],[m
+[32m+    *,[m
+[32m+    top_k: int,[m
+[32m+    config: dict[str, Any] | None,[m
+[32m+) -> tuple[list[dict[str, Any]], dict[str, Any]]:[m
+[32m+    if not _direct_support_recovery_enabled(config):[m
+[32m+        return merged_pool, {"enabled": False, "recovered_count": 0, "recovered_ids": []}[m
+[32m+[m
+[32m+    existing_ids = {str(item.get("evidence_id") or "") for item in merged_pool}[m
+[32m+    canonical_by_id = {[m
+[32m+        str(item.get("evidence_id") or ""): item[m
+[32m+        for item in canonical_items[m
+[32m+        if str(item.get("evidence_id") or "")[m
+[32m+    }[m
+[32m+    support_by_requirement: dict[str, list[str]] = {}[m
+[32m+    for item in canonical_items:[m
+[32m+        evidence_id = str(item.get("evidence_id") or "")[m
+[32m+        if not evidence_id:[m
+[32m+            continue[m
+[32m+        for requirement_id in list(item.get("supported_requirement_ids") or []):[m
+[32m+            support_by_requirement.setdefault(str(requirement_id), []).append(evidence_id)[m
+[32m+[m
+[32m+    representatives: list[str] = [][m
+[32m+    for descriptor in descriptors:[m
+[32m+        requirement_id = str(descriptor.get("requirement_id") or "")[m
+[32m+        candidates = sorted(set(support_by_requirement.get(requirement_id, [])))[m
+[32m+        if candidates:[m
+[32m+            representatives.append(candidates[0])[m
+[32m+    recovered_ids = [[m
+[32m+        evidence_id for evidence_id in dict.fromkeys(representatives)[m
+[32m+        if evidence_id not in existing_ids[m
+[32m+    ][m
+[32m+    overflow_limit = max(0, int(top_k))[m
+[32m+    all_supported_ids = set().union(*(set(ids) for ids in support_by_requirement.values()))[m
+[32m+    remaining_ids = sorted([m
+[32m+        evidence_id[m
+[32m+        for evidence_id in all_supported_ids[m
+[32m+        if evidence_id not in existing_ids and evidence_id not in recovered_ids[m
+[32m+    )[m
+[32m+    recovered_ids.extend(remaining_ids[:overflow_limit])[m
+[32m+[m
+[32m+    recovered: list[dict[str, Any]] = [][m
+[32m+    for evidence_id in recovered_ids:[m
+[32m+        item = copy.deepcopy(canonical_by_id[evidence_id])[m
+[32m+        item["direct_support_recovery"] = True[m
+[32m+        item["direct_support_requirement_ids"] = sorted([m
+[32m+            str(value) for value in list(item.get("supported_requirement_ids") or [])[m
+[32m+        )[m
+[32m+        item["matched_channels"] = [][m
+[32m+        item["channel_scores"] = {}[m
+[32m+        item["channel_subscores"] = {}[m
+[32m+        item["channel_rationales"] = {}[m
+[32m+        recovered.append(item)[m
+[32m+    return [*merged_pool, *recovered], {[m
+[32m+        "enabled": True,[m
+[32m+        "recovered_count": len(recovered),[m
+[32m+        "recovered_ids": [str(item["evidence_id"]) for item in recovered],[m
+[32m+        "overflow_limit": overflow_limit,[m
+[32m+    }[m
+[32m+[m
+[32m+[m
+ def _requirement_support_map(items: list[dict[str, Any]]) -> dict[str, list[str]]:
+     support: dict[str, list[str]] = {}
+     for item in items:
+@@ -1817,6 +2121,28 @@ def _requirement_support_map(items: list[dict[str, Any]]) -> dict[str, list[str]
+     return {key: list(dict.fromkeys(value)) for key, value in support.items()}
+ 
+ 
+[32m+def _qualifier_support_map(items: list[dict[str, Any]]) -> dict[str, dict[str, str]]:[m
+[32m+    priority = {[m
+[32m+        "unavailable": 5,[m
+[32m+        "unsupported": 4,[m
+[32m+        "contradicted": 3,[m
+[32m+        "supported": 2,[m
+[32m+        "unverified": 1,[m
+[32m+    }[m
+[32m+    support: dict[str, dict[str, str]] = {}[m
+[32m+    for item in items:[m
+[32m+        for requirement_id, qualifiers in dict(item.get("qualifier_support") or {}).items():[m
+[32m+            if not isinstance(qualifiers, dict):[m
+[32m+                continue[m
+[32m+            requirement_support = support.setdefault(str(requirement_id), {})[m
+[32m+            for qualifier, status in qualifiers.items():[m
+[32m+                normalized_status = str(status or "unverified")[m
+[32m+                current_status = requirement_support.get(str(qualifier), "unverified")[m
+[32m+                if priority.get(normalized_status, 0) >= priority.get(current_status, 0):[m
+[32m+                    requirement_support[str(qualifier)] = normalized_status[m
+[32m+    return support[m
+[32m+[m
+[32m+[m
+ def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> float:
+     channel_weights = dict(policy.get("channel_weights") or {})
+     channel_scores = dict(item.get("channel_scores") or {})
+@@ -1988,8 +2314,13 @@ class _EvidenceSelectionEngine:
+     policy: dict[str, Any]
+     top_k: int
+ 
+[31m-    def run(self, channel_pools: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:[m
+[31m-        merged_pool = _merge_channel_pools(channel_pools)[m
+[32m+    def run([m
+[32m+        self,[m
+[32m+        channel_pools: dict[str, list[dict[str, Any]]],[m
+[32m+        *,[m
+[32m+        merged_pool: list[dict[str, Any]] | None = None,[m
+[32m+    ) -> dict[str, Any]:[m
+[32m+        merged_pool = list(merged_pool) if merged_pool is not None else _merge_channel_pools(channel_pools)[m
+         _annotate_requirement_support(
+             merged_pool,
+             list(self.job_context.get("requirement_descriptors") or []),
+@@ -2025,6 +2356,7 @@ def _build_retrieve_evidence_bundle_payload(
+     unselected_top_candidates: list[dict[str, Any]],
+     source_profile_schema_version: str,
+     projection_fingerprint: str,
+[32m+    direct_support_recovery: dict[str, Any],[m
+ ) -> dict[str, Any]:
+     required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
+         semantic_settings,
+@@ -2049,6 +2381,9 @@ def _build_retrieve_evidence_bundle_payload(
+     canonical_requirement_support = _requirement_support_map(canonical_items)
+     pool_requirement_support = _requirement_support_map(merged_pool)
+     selected_requirement_support = _requirement_support_map(selected_evidence)
+[32m+    canonical_qualifier_support = _qualifier_support_map(canonical_items)[m
+[32m+    pool_qualifier_support = _qualifier_support_map(merged_pool)[m
+[32m+    selected_qualifier_support = _qualifier_support_map(selected_evidence)[m
+     return {
+         "source_profile_schema_version": source_profile_schema_version,
+         "projection_schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
+@@ -2068,6 +2403,11 @@ def _build_retrieve_evidence_bundle_payload(
+             "canonical": canonical_requirement_support,
+             "pool": pool_requirement_support,
+             "selected": selected_requirement_support,
+[32m+            "qualifier_support": {[m
+[32m+                "canonical": canonical_qualifier_support,[m
+[32m+                "pool": pool_qualifier_support,[m
+[32m+                "selected": selected_qualifier_support,[m
+[32m+            },[m
+         },
+         "hybrid_alignment": {
+             "required_skill_support": {
+@@ -2089,6 +2429,7 @@ def _build_retrieve_evidence_bundle_payload(
+         },
+         "semantic_alignment": semantic_alignment,
+         "selection_policy": selection_policy,
+[32m+        "direct_support_recovery": direct_support_recovery,[m
+     }
+ 
+ 
+@@ -2132,12 +2473,20 @@ def retrieve_evidence_bundle(
+         )
+         for channel in RETRIEVAL_CHANNELS
+     }
+[32m+    merged_pool = _merge_channel_pools(channel_pools)[m
+[32m+    merged_pool, direct_support_recovery = _recover_direct_support_candidates([m
+[32m+        merged_pool,[m
+[32m+        canonical_items,[m
+[32m+        list(coerced_job_context.get("requirement_descriptors") or []),[m
+[32m+        top_k=top_k,[m
+[32m+        config=config,[m
+[32m+    )[m
+     selection_engine = _EvidenceSelectionEngine(
+         job_context=coerced_job_context,
+         policy=selection_policy,
+         top_k=top_k,
+     )
+[31m-    selection_result = selection_engine.run(channel_pools)[m
+[32m+    selection_result = selection_engine.run(channel_pools, merged_pool=merged_pool)[m
+     merged_pool = list(selection_result["merged_pool"])
+     selected_evidence = list(selection_result["selected_evidence"])
+     semantic_alignment = {
+@@ -2172,6 +2521,7 @@ def retrieve_evidence_bundle(
+         unselected_top_candidates=list(selection_result["unselected_top_candidates"]),
+         source_profile_schema_version=source_profile_schema_version,
+         projection_fingerprint=projection_fingerprint,
+[32m+        direct_support_recovery=direct_support_recovery,[m
+     )
+ 
+ 
+[1;38mdiff --git a/src/fitcv/vector_search.py b/src/fitcv/vector_search.py[m
+[1;38mindex 98f1c2bf..ce157927 100644[m
+[1;38m--- a/src/fitcv/vector_search.py[m
+[1;38m+++ b/src/fitcv/vector_search.py[m
+@@ -25,7 +25,13 @@
+ 
+ from fitcv.candidate import flatten_skills, infer_role_family
+ from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
+[31m-from fitcv.embeddings import generate_embedding, get_shortlist_embedding_model[m
+[32m+from fitcv.embeddings import ([m
+[32m+    SQLITE_EMBED_DIM,[m
+[32m+    build_embedding_backend_metadata,[m
+[32m+    build_embedding_contract_fingerprint,[m
+[32m+    generate_embedding,[m
+[32m+    get_shortlist_embedding_model,[m
+[32m+)[m
+ from fitcv.shortlist_runtime import (
+     build_contract_fingerprint,
+     configure_sqlite_connection,
+@@ -350,8 +356,9 @@ def build_candidate_query_signature_record(components: dict[str, Any]) -> dict[s
+ def build_candidate_query_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+     """Fingerprint shortlist candidate-query embedding behavior to invalidate reuse."""
+     payload = {
+[32m+        **build_embedding_contract_fingerprint(config)["payload"],[m
+         "embedding_model": get_shortlist_embedding_model(config),
+[31m-        "retrieval_strategy": str(config.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY),[m
+[32m+        "embedding_dimension": SQLITE_EMBED_DIM,[m
+         "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
+     }
+     fingerprint = build_contract_fingerprint(payload)
+@@ -468,7 +475,7 @@ def run_vector_search(
+     eligible_job_urls = sorted({str(job_url).strip() for job_url in passed_job_urls if str(job_url).strip()})
+     if not eligible_job_urls:
+         return _empty_vector_search_result()
+[31m-    if structured_jobs is not None:[m
+[32m+    if structured_jobs is not None and str(config.get("retrieval_strategy") or LEXICAL_RETRIEVAL_STRATEGY) != VECTOR_RETRIEVAL_STRATEGY:[m
+         components = build_candidate_query_components(profile, config)
+         prefs = dict(profile.get("preferences") or {})
+         candidate_skills = flatten_skills(profile)
+@@ -514,6 +521,15 @@ def run_vector_search(
+             "production_rows": production_rows,
+             "audit_rows": audit_rows,
+             "diagnostics": {
+[32m+                "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,[m
+[32m+                "backend_metadata": {[m
+[32m+                    "backend_id": "lexical_deterministic_local",[m
+[32m+                    "configured_model": None,[m
+[32m+                    "dimension": None,[m
+[32m+                    "summary_schema_version": None,[m
+[32m+                    "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,[m
+[32m+                    "contract_fingerprint": build_contract_fingerprint({"retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY}),[m
+[32m+                },[m
+                 "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+                 "eligible_jobs_total": len(eligible_job_urls),
+                 "scored_jobs_total": len(ranked_rows),
+@@ -522,6 +538,7 @@ def run_vector_search(
+                 "production_cutoff_retrieval_score": cutoff.get("retrieval_score") if cutoff else None,
+                 "embedding_generation_skipped": True,
+                 "personalization_unavailable_reason": "embedding_strategy_incompatible",
+[32m+                "stale_state_fallback": False,[m
+             },
+             "candidate_query": {
+                 "text": build_candidate_query_text(profile, config),
+@@ -539,6 +556,7 @@ def run_vector_search(
+     audit_sample_n = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
+     candidate_query_record = resolve_candidate_query_embedding(profile, config)
+     candidate_embedding = _validated_vector(candidate_query_record.get("embedding"))
+[32m+    embedding_contract_fingerprint = str(build_embedding_contract_fingerprint(config)["fingerprint"])[m
+     candidate_query = {
+         key: value
+         for key, value in candidate_query_record.items()
+@@ -580,12 +598,17 @@ def run_vector_search(
+         for job_url, embedding_json, contract_fingerprint, row_count in rows
+     }
+     missing_urls = sorted(set(eligible_job_urls) - set(latest_by_url))
+[32m+    stale_urls = sorted([m
+[32m+        job_url[m
+[32m+        for job_url, (_, contract_fingerprint, _) in latest_by_url.items()[m
+[32m+        if contract_fingerprint and contract_fingerprint != embedding_contract_fingerprint[m
+[32m+    )[m
+     invalid_urls: list[str] = []
+     duplicate_urls = sorted(job_url for job_url, (_, _, count) in latest_by_url.items() if count > 1)
+     scored: list[dict[str, Any]] = []
+     for job_url in eligible_job_urls:
+         latest = latest_by_url.get(job_url)
+[31m-        if latest is None:[m
+[32m+        if latest is None or job_url in stale_urls:[m
+             continue
+         embedding_json, embedding_contract_fingerprint, _ = latest
+         try:
+@@ -613,6 +636,14 @@ def run_vector_search(
+                 "embedding_contract_fingerprint": embedding_contract_fingerprint,
+             }
+         )
+[32m+    if not scored and stale_urls and structured_jobs is not None:[m
+[32m+        fallback_config = {**config, "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY}[m
+[32m+        fallback = run_vector_search(profile, eligible_job_urls, fallback_config, top_n=effective_top_n, structured_jobs=structured_jobs)[m
+[32m+        fallback["diagnostics"]["stale_job_embedding_total"] = len(stale_urls)[m
+[32m+        fallback["diagnostics"]["stale_job_embedding_sample"] = stale_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT][m
+[32m+        fallback["diagnostics"]["stale_state_fallback"] = True[m
+[32m+        return fallback[m
+[32m+[m
+     scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))
+     ranked_rows = [
+         {
+@@ -663,6 +694,9 @@ def run_vector_search(
+             "scored_jobs_total": len(ranked_rows),
+             "missing_job_embedding_total": len(missing_urls),
+             "invalid_job_embedding_total": len(invalid_urls),
+[32m+            "stale_job_embedding_total": len(stale_urls),[m
+[32m+            "stale_job_embedding_sample": stale_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],[m
+[32m+            "backend_metadata": build_embedding_backend_metadata(config),[m
+             "candidate_embedding_available": candidate_embedding is not None,
+             "embedding_coverage_rate": len(ranked_rows) / eligible_total if eligible_total else 0.0,
+             "production_shortlist_total": len(production_rows),
+@@ -677,6 +711,7 @@ def run_vector_search(
+             "duplicate_job_embedding_sample": duplicate_urls[:VECTOR_DIAGNOSTIC_SAMPLE_LIMIT],
+             "raw_hit_anomaly_total": 0,
+             "raw_hit_anomaly_sample": [],
+[32m+            "stale_state_fallback": False,[m
+         },
+         "candidate_query": candidate_query,
+     }
+[1;38mdiff --git a/tests/test_agentic_cv_analysis.py b/tests/test_agentic_cv_analysis.py[m
+[1;38mindex a1ec9729..081b79b2 100644[m
+[1;38m--- a/tests/test_agentic_cv_analysis.py[m
+[1;38m+++ b/tests/test_agentic_cv_analysis.py[m
+@@ -493,6 +493,46 @@ def test_requirement_coverage_marks_relevant_without_canonical_link_as_unverifie
+     assert result["requirement_coverage"][0]["selected_support"] == "relevant_unverified"
+ 
+ 
+[32m+@patch("fitcv.agentic_cv_analysis.compute_gap")[m
+[32m+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")[m
+[32m+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")[m
+[32m+def test_requirement_coverage_keeps_qualifier_gap_non_authoritative([m
+[32m+    mock_fingerprint,[m
+[32m+    mock_bundle,[m
+[32m+    mock_gap,[m
+[32m+) -> None:[m
+[32m+    mock_fingerprint.return_value = {"fingerprint": "analysis::qualifier"}[m
+[32m+    mock_bundle.return_value = {[m
+[32m+        "deduped_pool_size": 1,[m
+[32m+        "selected_evidence": [{"evidence_id": "ev-sql", "skills": ["SQL"]}],[m
+[32m+        "selected_evidence_ids": ["ev-sql"],[m
+[32m+        "requirement_support": {[m
+[32m+            "pool": {"required_skill:sql": ["ev-sql"]},[m
+[32m+            "selected": {"required_skill:sql": ["ev-sql"]},[m
+[32m+            "qualifier_support": {[m
+[32m+                "pool": {"required_skill:sql": {"duration": "unverified"}},[m
+[32m+                "selected": {"required_skill:sql": {"duration": "unverified"}},[m
+[32m+            },[m
+[32m+        },[m
+[32m+    }[m
+[32m+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}[m
+[32m+[m
+[32m+    result = analyze_ranked_job([m
+[32m+        {[m
+[32m+            **_job(),[m
+[32m+            "required_skills": ["SQL, 3+ years"],[m
+[32m+            "required_skill_entities": [{"raw_text": "SQL, 3+ years", "canonical": "sql"}],[m
+[32m+        },[m
+[32m+        _profile(),[m
+[32m+        _config(),[m
+[32m+    )[m
+[32m+[m
+[32m+    row = result["requirement_coverage"][0][m
+[32m+    assert row["selected_support"] == "relevant_unverified"[m
+[32m+    assert row["qualifier_support"] == {"duration": "unverified"}[m
+[32m+    assert row["qualifier_gaps"] == ["duration"][m
+[32m+[m
+[32m+[m
+ @patch("fitcv.agentic_cv_analysis.compute_gap")
+ @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+ @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+[1;38mdiff --git a/tests/test_compare_requirement_support.py b/tests/test_compare_requirement_support.py[m
+new file mode 100644
+[1;38mindex 00000000..e822af5e[m
+[1;38m--- /dev/null[m
+[1;38m+++ b/tests/test_compare_requirement_support.py[m
+@@ -0,0 +1,34 @@
+[32m+from __future__ import annotations[m
+[32m+[m
+[32m+import importlib.util[m
+[32m+from pathlib import Path[m
+[32m+from typing import Any[m
+[32m+[m
+[32m+[m
+[32m+REPO_ROOT = Path(__file__).resolve().parents[1][m
+[32m+SCRIPT_PATH = REPO_ROOT / "scripts" / "compare_requirement_support.py"[m
+[32m+[m
+[32m+[m
+[32m+def _module() -> Any:[m
+[32m+    spec = importlib.util.spec_from_file_location("compare_requirement_support", SCRIPT_PATH)[m
+[32m+    assert spec is not None and spec.loader is not None[m
+[32m+    module = importlib.util.module_from_spec(spec)[m
+[32m+    spec.loader.exec_module(module)[m
+[32m+    return module[m
+[32m+[m
+[32m+[m
+[32m+def test_arm_registry_preserves_normalized_names() -> None:[m
+[32m+    module = _module()[m
+[32m+    assert set(module.ARM_REGISTRY) == {[m
+[32m+        "lexical-baseline",[m
+[32m+        "lexical-ablation",[m
+[32m+        "lexical-requirement-aware",[m
+[32m+        "current-hash",[m
+[32m+    }[m
+[32m+[m
+[32m+[m
+[32m+def test_not_run_arm_keeps_reason() -> None:[m
+[32m+    module = _module()[m
+[32m+    assert module._current_metrics([m
+[32m+        {"arm": "unsupported", "status": "not_run", "reason": "provider unavailable"}[m
+[32m+    ) == {"status": "not_run", "reason": "provider unavailable"}[m
+[1;38mdiff --git a/tests/test_embeddings.py b/tests/test_embeddings.py[m
+[1;38mindex 69a0c63c..a6ef692c 100644[m
+[1;38m--- a/tests/test_embeddings.py[m
+[1;38m+++ b/tests/test_embeddings.py[m
+@@ -170,6 +170,8 @@ def test_backend_metadata_reports_local_backend_and_contract(self) -> None:
+             "backend_id": "sqlite_deterministic_local",
+             "configured_model": "text-embedding-005",
+             "dimension": SQLITE_EMBED_DIM,
+[32m+            "summary_schema_version": "shortlist_job_summary_v2",[m
+[32m+            "retrieval_strategy": "vector_cosine_v1",[m
+             "contract_fingerprint": build_embedding_contract_fingerprint({})["fingerprint"],
+         }
+ 
+[1;38mdiff --git a/tests/test_evidence.py b/tests/test_evidence.py[m
+[1;38mindex 368b8f5e..fd45823b 100644[m
+[1;38m--- a/tests/test_evidence.py[m
+[1;38m+++ b/tests/test_evidence.py[m
+@@ -197,6 +197,32 @@ def test_requirement_support_uses_explicit_canonical_skill_links() -> None:
+     assert set(support["canonical"]) == {"required_skill:sql", "required_skill:python"}
+ 
+ 
+[32m+def test_direct_support_recovery_is_bounded_deterministic_and_channel_neutral(monkeypatch) -> None:[m
+[32m+    profile = _cached_evidence_profile([m
+[32m+        _cached_evidence_item("ev-sql-a", ["SQL"], "SQL reports"),[m
+[32m+        _cached_evidence_item("ev-sql-b", ["SQL"], "SQL pipelines"),[m
+[32m+    )[m
+[32m+    monkeypatch.setattr(evidence_module, "_select_channel_candidates", lambda **kwargs: [])[m
+[32m+    config = {"cv_analysis": {"direct_support_recovery": {"enabled": True}}}[m
+[32m+[m
+[32m+    first = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 1, config=config)[m
+[32m+    second = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 1, config=config)[m
+[32m+[m
+[32m+    assert first["direct_support_recovery"]["recovered_ids"] == ["ev-sql-a", "ev-sql-b"][m
+[32m+    assert first["direct_support_recovery"] == second["direct_support_recovery"][m
+[32m+    assert first["selected_evidence_ids"] == ["ev-sql-a"][m
+[32m+    assert len(first["selected_evidence_ids"]) <= 1[m
+[32m+    assert len(first["selected_evidence_ids"]) == len(set(first["selected_evidence_ids"]))[m
+[32m+    assert first["requirement_support"]["canonical"] == {[m
+[32m+        "required_skill:sql": ["ev-sql-a", "ev-sql-b"][m
+[32m+    }[m
+[32m+    assert first["requirement_support"]["pool"] == {[m
+[32m+        "required_skill:sql": ["ev-sql-a", "ev-sql-b"][m
+[32m+    }[m
+[32m+    assert first["selected_evidence"][0]["matched_channels"] == [][m
+[32m+    assert first["selected_evidence"][0]["channel_scores"] == {}[m
+[32m+[m
+[32m+[m
+ def test_requirement_support_reports_canonical_retrieved_and_selected_layers() -> None:
+     profile = _cached_evidence_profile(
+         _cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"),
+@@ -308,6 +334,10 @@ def test_required_skill_descriptors_ignore_incomplete_entity_rows() -> None:
+             "original_requirements": ["SQL"],
+             "requirement_type": "required_skill",
+             "requirement_priority": "must_have",
+[32m+            "source_text": "SQL",[m
+[32m+            "qualifiers": [],[m
+[32m+            "qualifier_values": {},[m
+[32m+            "qualifier_support": {},[m
+         },
+         {
+             "requirement_id": "required_skill:python",
+@@ -316,10 +346,82 @@ def test_required_skill_descriptors_ignore_incomplete_entity_rows() -> None:
+             "original_requirements": ["Python"],
+             "requirement_type": "required_skill",
+             "requirement_priority": "must_have",
+[32m+            "source_text": "Python",[m
+[32m+            "qualifiers": [],[m
+[32m+            "qualifier_values": {},[m
+[32m+            "qualifier_support": {},[m
+         },
+     ]
+ 
+ 
+[32m+def test_required_skill_descriptors_capture_qualifiers_without_positional_pairing() -> None:[m
+[32m+    descriptors = build_required_skill_descriptors([m
+[32m+        {[m
+[32m+            "required_skills": ["SQL in production, 3+ years", "German C1"],[m
+[32m+            "required_skill_entities": [[m
+[32m+                {"raw_text": "SQL in production, 3+ years", "canonical": "sql"},[m
+[32m+                {"raw_text": "German C1", "canonical": "german"},[m
+[32m+            ],[m
+[32m+            "required_skills_canonical": ["german", "sql"],[m
+[32m+        }[m
+[32m+    )[m
+[32m+[m
+[32m+    by_canonical = {item["canonical_skill"]: item for item in descriptors}[m
+[32m+    assert by_canonical["sql"]["source_text"] == "SQL in production, 3+ years"[m
+[32m+    assert by_canonical["sql"]["qualifiers"] == ["duration", "context"][m
+[32m+    assert by_canonical["sql"]["qualifier_support"] == {[m
+[32m+        "duration": "unverified",[m
+[32m+        "context": "unverified",[m
+[32m+    }[m
+[32m+    assert by_canonical["german"]["qualifiers"] == ["level"][m
+[32m+    assert by_canonical["german"]["qualifier_values"] == {"level": ["C1"]}[m
+[32m+[m
+[32m+[m
+[32m+def test_qualifier_support_marks_duration_and_conflicting_level() -> None:[m
+[32m+    profile = _cached_evidence_profile([m
+[32m+        {[m
+[32m+            **_cached_evidence_item("ev-sql", ["SQL"], "SQL production pipelines"),[m
+[32m+            "start": "2020-01",[m
+[32m+            "end": "2024-01",[m
+[32m+        },[m
+[32m+        {[m
+[32m+            **_cached_evidence_item("ev-german", ["German"], "German B1"),[m
+[32m+            "level": "B1",[m
+[32m+        },[m
+[32m+    )[m
+[32m+    bundle = retrieve_evidence_bundle([m
+[32m+        profile,[m
+[32m+        {[m
+[32m+            "required_skills": ["SQL in production, 3+ years", "German C1"],[m
+[32m+            "required_skill_entities": [[m
+[32m+                {"raw_text": "SQL in production, 3+ years", "canonical": "sql"},[m
+[32m+                {"raw_text": "German C1", "canonical": "german"},[m
+[32m+            ],[m
+[32m+        },[m
+[32m+        2,[m
+[32m+    )[m
+[32m+[m
+[32m+    qualifier_support = bundle["requirement_support"]["qualifier_support"]["selected"][m
+[32m+    assert qualifier_support["required_skill:sql"] == {[m
+[32m+        "duration": "supported",[m
+[32m+        "context": "supported",[m
+[32m+    }[m
+[32m+    assert qualifier_support["required_skill:german"] == {"level": "contradicted"}[m
+[32m+[m
+[32m+[m
+[32m+def test_unavailable_evidence_cannot_become_canonical_support() -> None:[m
+[32m+    profile = _cached_evidence_profile([m
+[32m+        {[m
+[32m+            **_cached_evidence_item("ev-sql", ["SQL"], "SQL reports"),[m
+[32m+            "evidence_status": "unavailable",[m
+[32m+        }[m
+[32m+    )[m
+[32m+    bundle = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 1)[m
+[32m+[m
+[32m+    assert bundle["requirement_support"]["canonical"] == {}[m
+[32m+    assert bundle["selected_evidence"][0]["evidence_availability"] == "unavailable"[m
+[32m+[m
+[32m+[m
+ def test_requirement_gain_preserves_global_budget_and_weight_zero_matches_baseline() -> None:
+     profile = _cached_evidence_profile(
+         _cached_evidence_item("ev-broad", ["SQL"], "SQL Python"),
+[1;38mdiff --git a/tests/test_vector_search.py b/tests/test_vector_search.py[m
+[1;38mindex aa6edfd0..a7f29c59 100644[m
+[1;38m--- a/tests/test_vector_search.py[m
+[1;38m+++ b/tests/test_vector_search.py[m
+@@ -367,6 +367,7 @@ def test_run_vector_search_returns_shortlist(config: dict, sample_profile_path)
+             "duplicate_job_embedding_sample": [],
+             "raw_hit_anomaly_total": 0,
+             "raw_hit_anomaly_sample": [],
+[32m+            "stale_state_fallback": False,[m
+         },
+         "candidate_query": {},
+     }
+@@ -382,7 +383,8 @@ def _create_job_embedding_table(path: Path) -> None:
+               chunk_type TEXT NOT NULL,
+               chunk_text TEXT NOT NULL,
+               embedding_json TEXT NOT NULL,
+[31m-              created_at TEXT NOT NULL[m
+[32m+              created_at TEXT NOT NULL,[m
+[32m+              embedding_contract_fingerprint TEXT[m
+             )
+             """
+         )
+@@ -399,6 +401,39 @@ def _candidate_query_record(embedding: list[float]) -> dict:
+     }
+ 
+ 
+[32m+def test_run_vector_search_rejects_stale_vectors_and_falls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:[m
+[32m+    db_path = tmp_path / "fitcv.sqlite3"[m
+[32m+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))[m
+[32m+    _create_job_embedding_table(db_path)[m
+[32m+    with sqlite3.connect(db_path) as conn:[m
+[32m+        conn.execute([m
+[32m+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_contract_fingerprint) VALUES (?, 'job_summary', '', ?, ?, ?)",[m
+[32m+            ("job-1", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z", "stale-contract"),[m
+[32m+        )[m
+[32m+    monkeypatch.setattr("fitcv.vector_search.resolve_candidate_query_embedding", lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]))[m
+[32m+    result = run_vector_search([m
+[32m+        {"preferences": {"target_role": "Data Engineer"}},[m
+[32m+        ["job-1"],[m
+[32m+        {[m
+[32m+            "pipeline": {"vector_search_top_n": 1},[m
+[32m+            "retrieval_strategy": "vector_cosine_v1",[m
+[32m+            "ranking_policy": {[m
+[32m+                "declared_preference_component_weights": {[m
+[32m+                    "domain": 0.5,[m
+[32m+                    "role_family": 0.3,[m
+[32m+                    "work_mode": 0.2,[m
+[32m+                }[m
+[32m+            },[m
+[32m+        },[m
+[32m+        structured_jobs=[{"job_url": "job-1", "title": "Data Engineer", "required_skills": []}],[m
+[32m+    )[m
+[32m+[m
+[32m+    assert result["diagnostics"]["stale_state_fallback"] is True[m
+[32m+    assert result["diagnostics"]["stale_job_embedding_total"] == 1[m
+[32m+    assert result["production_rows"][0]["job_url"] == "job-1"[m
+[32m+    assert result["production_rows"][0]["retrieval_strategy"] == "lexical_v1"[m
+[32m+[m
+[32m+[m
+ def test_run_vector_search_uses_total_order_and_bounded_audit(
+     tmp_path: Path,
+     monkeypatch: pytest.MonkeyPatch,
