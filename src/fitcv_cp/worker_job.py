@@ -162,6 +162,26 @@ def _load_requirement_resolutions(run: Any, profile: dict[str, Any]) -> list[dic
     candidate_profile_revision = str(profile.get("revision") or "").strip()
     if not candidate_profile_id or not candidate_profile_revision:
         return []
+    source_profile_fingerprint = str(
+        build_evidence_projection(profile).get("fingerprint") or ""
+    ).strip()
+    if not source_profile_fingerprint:
+        return []
+    try:
+        return list(
+            list_requirement_resolutions(
+                candidate_profile_id=candidate_profile_id,
+                candidate_profile_revision=candidate_profile_revision,
+                source_profile_fingerprint=source_profile_fingerprint,
+            )
+        )
+    except Exception as exc:
+        logger.warning(
+            "[run_id=%s] Failed to load requirement resolutions: %s",
+            getattr(run, "run_id", None),
+            exc,
+        )
+        return []
 
 
 def _persist_resolution_reanalysis(
@@ -222,24 +242,6 @@ def _persist_resolution_reanalysis(
             run_id,
             json.dumps(payload, ensure_ascii=False),
         )
-    source_profile_fingerprint = str(
-        build_evidence_projection(profile).get("fingerprint") or ""
-    ).strip()
-    if not source_profile_fingerprint:
-        return []
-    try:
-        return list_requirement_resolutions(
-            candidate_profile_id=candidate_profile_id,
-            candidate_profile_revision=candidate_profile_revision,
-            source_profile_fingerprint=source_profile_fingerprint,
-        )
-    except Exception as exc:
-        logger.warning(
-            "[run_id=%s] Failed to load requirement resolutions: %s",
-            getattr(run, "run_id", None),
-            exc,
-        )
-        return []
 
 
 def _cv_review_state(
@@ -2948,7 +2950,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import statistics
@@ -30,6 +31,10 @@ _EVALUATOR_FIELDS = {
 
 def _percentile(values: list[float], percentile: float) -> float:
     return sorted(values)[max(0, math.ceil(percentile * len(values)) - 1)]
+
+
+def _fixture_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _ranked(rows: list[dict[str, Any]], key: str, top_n: int) -> list[dict[str, Any]]:
@@ -337,6 +342,9 @@ def main() -> None:
     if args.warmup_iterations < 0 or args.measured_iterations < 1:
         parser.error("iterations must be warmup >= 0 and measured >= 1")
 
+    fixture_path = Path(args.fixture)
+    fixture_sha256 = _fixture_sha256(fixture_path)
+
     if args.arm == "multilingual":
         result = {
             "schema_version": "ranking_benchmark_v3",
@@ -344,6 +352,7 @@ def main() -> None:
             "status": "not_run",
             "reason": "approved multilingual retrieval backend unavailable",
             "fixture": str(args.fixture),
+            "fixture_sha256": fixture_sha256,
         }
         output = Path(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -351,7 +360,7 @@ def main() -> None:
         print(json.dumps(result, separators=(",", ":")))
         return
 
-    data = json.loads(Path(args.fixture).read_text(encoding="utf-8"))
+    data = json.loads(fixture_path.read_text(encoding="utf-8"))
     profiles = data["profiles"]
     cache: set[str] = set()
     for _ in range(args.warmup_iterations):
@@ -372,6 +381,7 @@ def main() -> None:
         "arm": args.arm,
         "status": "measured",
         "fixture_role": "source_backed" if "data/fitcv-p0-corpus" in str(args.fixture).replace("\\", "/") else "smoke",
+        "fixture_sha256": fixture_sha256,
         "mode": args.mode,
         "warmup_iterations": args.warmup_iterations,
         "measured_iterations": args.measured_iterations,

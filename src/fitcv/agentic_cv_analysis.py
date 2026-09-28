@@ -24,6 +24,7 @@ from typing import Any, Literal, TypedDict, cast
 from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
+    _assess_requirement_support,
     build_evidence_projection,
     build_required_skill_descriptors,
     build_cv_analysis_input_fingerprint,
@@ -345,10 +346,14 @@ def build_cv_analysis_record(
         list(requirement_coverage or []),
         evidence_selection_summary,
         requirement_resolutions,
+        candidate_profile_id=candidate_profile_id,
+        candidate_profile_revision=candidate_profile_revision,
     ))
     for uncertainty in resolved_uncertainties:
-        uncertainty.setdefault("candidate_profile_id", candidate_profile_id)
-        uncertainty.setdefault("candidate_profile_revision", candidate_profile_revision)
+        if candidate_profile_id and not str(uncertainty.get("candidate_profile_id") or "").strip():
+            uncertainty["candidate_profile_id"] = candidate_profile_id
+        if candidate_profile_revision and not str(uncertainty.get("candidate_profile_revision") or "").strip():
+            uncertainty["candidate_profile_revision"] = candidate_profile_revision
     return {
         "raw_job_fingerprint": str(job.get("raw_job_fingerprint") or ""),
         "job_url": extract_job_url(job),
@@ -385,17 +390,16 @@ def _build_requirement_uncertainties(
     requirement_coverage: list[dict[str, Any]],
     evidence_selection_summary: dict[str, Any] | None,
     requirement_resolutions: list[dict[str, Any]] | None = None,
+    *,
+    candidate_profile_id: str = "",
+    candidate_profile_revision: str = "",
 ) -> list[dict[str, Any]]:
     source_fingerprint = str((evidence_selection_summary or {}).get("projection_fingerprint") or "")
     rows: list[dict[str, Any]] = []
     for item in requirement_coverage:
         status = str(item.get("selected_support") or "unsupported").strip().lower()
         resolution_action = str(item.get("resolution_action") or "").strip()
-        if status == "verified" or resolution_action in {
-            "RESOLVE_WITH_ANSWER",
-            "CONFIRM_OMIT",
-            "OVERRIDE_BLOCK",
-        }:
+        if status == "verified" or resolution_action == "CONFIRM_OMIT":
             continue
         requirement_ref = str(item.get("requirement_instance_id") or item.get("requirement_id") or "").strip()
         if not requirement_ref:
@@ -413,6 +417,8 @@ def _build_requirement_uncertainties(
                 question=f"Can you confirm experience with {item.get('requirement') or item.get('canonical_skill') or requirement_ref}?",
                 recommended_disposition=disposition,
                 evidence_ids=list(item.get("supporting_evidence_ids") or item.get("pool_supporting_evidence_ids") or []),
+                candidate_profile_id=candidate_profile_id,
+                candidate_profile_revision=candidate_profile_revision,
                 source_profile_fingerprint=source_fingerprint,
                 resolution_key=requirement_ref,
             )
@@ -443,10 +449,7 @@ def _append_resolution_evidence(
     resolved = [dict(item) for item in list(evidence_payload or []) if isinstance(item, dict)]
     existing_ids = {str(item.get("evidence_id") or "").strip() for item in resolved}
     for item in list(requirement_coverage or []):
-        if not isinstance(item, dict) or str(item.get("resolution_action") or "").strip() not in {
-            "RESOLVE_WITH_ANSWER",
-            "OVERRIDE_BLOCK",
-        }:
+        if not isinstance(item, dict) or str(item.get("resolution_action") or "").strip() != "RESOLVE_WITH_ANSWER":
             continue
         resolution_id = str(item.get("resolution_id") or "").strip()
         claim = str(item.get("resolved_fact") or "").strip()
@@ -596,9 +599,29 @@ def _build_requirement_coverage(
         resolution_payload = dict((resolution or {}).get("resolution_payload") or {})
         resolution_id = str((resolution or {}).get("resolution_id") or "").strip()
         resolved_fact = str(resolution_payload.get("answer_text") or "").strip()
-        if resolution_action in {"RESOLVE_WITH_ANSWER", "OVERRIDE_BLOCK"} and resolution_id and resolved_fact:
-            selected_status = "verified"
-            selected_ids = list(dict.fromkeys([*selected_ids, resolution_id]))
+        if resolution_action == "RESOLVE_WITH_ANSWER" and resolution_id:
+            if resolved_fact:
+                assessment = _assess_requirement_support(
+                    {
+                        "text": resolved_fact,
+                        "skills": [str(descriptor.get("canonical_skill") or "")],
+                        "support_fragments": [{
+                            "text": resolved_fact,
+                            "skills": [str(descriptor.get("canonical_skill") or "")],
+                        }],
+                    },
+                    descriptor,
+                    config,
+                )
+                if assessment["qualified_support"]:
+                    selected_status = "verified"
+                    selected_ids = list(dict.fromkeys([*selected_ids, resolution_id]))
+                elif assessment["qualifier_status"] == "contradicted":
+                    selected_status = "contradicted"
+                else:
+                    selected_status = "relevant_unverified"
+            else:
+                selected_status = "pending"
         elif resolution_action == "CONFIRM_OMIT":
             selected_status = "confirmed_omit"
         coverage.append(
@@ -800,7 +823,7 @@ def _reuse_rejection_reason(
         return "contract_fingerprint_changed"
     if (
         "requirement_support_policy_version" in prior_components
-        and str(prior_components.get("requirement_support_policy_version") or "") != "requirement-support-v4"
+        and str(prior_components.get("requirement_support_policy_version") or "") != "requirement-support-v5"
     ):
         return "requirement_support_policy_version_changed"
     return None

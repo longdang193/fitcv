@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
+import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 from fitcv.ranking import rank_jobs
 from scripts import benchmark_ranking
@@ -193,3 +197,34 @@ def test_run_once_uses_retrieval_ids_for_shortlist_metrics(monkeypatch: Any) -> 
     held_out = metrics["split_metrics"]["held_out"]
     assert held_out["retrieval_recall_at_n"] == 1.0
     assert held_out["ranking_recall_at_n"] == 0.25
+
+
+@pytest.mark.parametrize("arm", ["lexical", "multilingual"])
+def test_benchmark_report_binds_results_to_fixture_bytes(
+    arm: str,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    output = tmp_path / f"{arm}.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "benchmark_ranking.py",
+            "--fixture",
+            str(FIXTURE),
+            "--arm",
+            arm,
+            "--warmup-iterations",
+            "0",
+            "--measured-iterations",
+            "1",
+            "--output",
+            str(output),
+        ],
+    )
+
+    benchmark_ranking.main()
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["fixture_sha256"] == hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
