@@ -26,6 +26,7 @@ from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skil
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
     _assess_requirement_support,
+    _build_support_fragments,
     build_evidence_projection,
     build_required_skill_descriptors,
     build_cv_analysis_input_fingerprint,
@@ -635,10 +636,10 @@ def _build_requirement_coverage(
                     {
                         "text": resolved_fact,
                         "skills": answer_skills,
-                        "support_fragments": [{
-                            "text": resolved_fact,
-                            "skills": answer_skills,
-                        }],
+                        "support_fragments": _build_support_fragments(
+                            resolved_fact,
+                            answer_skills,
+                        ),
                     },
                     descriptor,
                     config,

@@ -20,9 +20,11 @@ from copy import deepcopy
 import datetime
 import hashlib
 import json
+import math
 from pathlib import Path
 import os
 import re
+import time
 from typing import Any, Callable, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
@@ -64,8 +66,25 @@ from fitcv.reuse import build_reuse_decision
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 DEFAULT_MAX_SUMMARY_LINES = 3
 CV_CONTENT_PLAN_VERSION = "cv_content_plan_v1"
+DEFAULT_SECTION_CLAIM_LIMITS = {
+    "summary": 3,
+    "experience": 6,
+    "projects": 4,
+    "education": 2,
+    "certifications": 2,
+}
 
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
+
+
+def _evidence_score_for_sort(value: Any) -> float:
+    if isinstance(value, bool):
+        return 0.0
+    try:
+        score = float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    return score if math.isfinite(score) else 0.0
 
 
 class RepairAttempt(TypedDict, total=False):
@@ -147,7 +166,7 @@ def build_cv_content_plan(
             if evidence_key and requirement_ref:
                 support_by_evidence.setdefault(evidence_key, []).append(requirement_ref)
 
-    approved_claims: list[dict[str, Any]] = []
+    approved_candidates: list[tuple[dict[str, Any], list[str], str]] = []
     omitted_evidence: list[dict[str, Any]] = []
     for item in evidence:
         evidence_id = str(item.get("evidence_id") or item.get("claim_id") or "").strip()
@@ -163,18 +182,36 @@ def build_cv_content_plan(
                 "certifications": "certifications",
                 "volunteering": "experience",
             }.get(source_section, "summary")
-            approved_claims.append(
-                {
-                    "claim_id": evidence_id,
-                    "evidence_id": evidence_id,
-                    "claim": str(item.get("text") or item.get("name") or "").strip(),
-                    "supports_requirements": requirement_ids,
-                    "target_section": target_section,
-                    "protected_numbers_dates": _protected_numbers_dates(item),
-                }
-            )
+            approved_candidates.append((dict(item), requirement_ids, target_section))
         else:
             omitted_evidence.append({"evidence_id": evidence_id, "reason": "no_verified_requirement_support"})
+    approved_claims: list[dict[str, Any]] = []
+    section_counts: dict[str, int] = {}
+    for item, requirement_ids, target_section in sorted(
+        approved_candidates,
+        key=lambda candidate: (
+            -len(candidate[1]),
+            -_evidence_score_for_sort(candidate[0].get("score")),
+            -len({str(skill).strip().casefold() for skill in list(candidate[0].get("skills") or []) if str(skill).strip()}),
+            str(candidate[0].get("evidence_id") or candidate[0].get("claim_id") or ""),
+        ),
+    ):
+        evidence_id = str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+        limit = DEFAULT_SECTION_CLAIM_LIMITS.get(target_section, 2)
+        if section_counts.get(target_section, 0) >= limit:
+            omitted_evidence.append({"evidence_id": evidence_id, "reason": "space_budget_exceeded"})
+            continue
+        section_counts[target_section] = section_counts.get(target_section, 0) + 1
+        approved_claims.append(
+            {
+                "claim_id": evidence_id,
+                "evidence_id": evidence_id,
+                "claim": str(item.get("text") or item.get("name") or "").strip(),
+                "supports_requirements": requirement_ids,
+                "target_section": target_section,
+                "protected_numbers_dates": _protected_numbers_dates(item),
+            }
+        )
     plan = {
         "schema_version": CV_CONTENT_PLAN_VERSION,
         "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
@@ -184,6 +221,8 @@ def build_cv_content_plan(
         "target_section": "full_document",
         "space_budget": {
             "max_summary_lines": DEFAULT_MAX_SUMMARY_LINES,
+            "section_claim_limits": dict(DEFAULT_SECTION_CLAIM_LIMITS),
+            "page_count": 1,
             "enabled_sections": sorted(_get_enabled_section_names(config or {})),
         },
         "omitted_evidence": omitted_evidence,
@@ -377,8 +416,60 @@ def _empty_cv_generation_trace(
             "repair_targets": [],
             "repair_reason": "",
         },
+        "efficiency_summary": {
+            "schema_version": "accepted_cv_efficiency_v1",
+            "status": "not_run",
+            "elapsed_ms": None,
+            "provider_call_count": 0,
+            "token_usage": None,
+            "token_usage_status": "not_run",
+            "input_token_estimate": 0,
+            "approved_input_token_estimate": 0,
+            "regeneration_count": 0,
+            "review_question_count": "not_applicable",
+            "human_action_count": "not_applicable",
+        },
         "error_summary": None,
     }
+
+
+def _update_efficiency_summary(
+    trace_payload: dict[str, Any],
+    *,
+    input_metrics: dict[str, Any],
+    started_at: float,
+    status: str,
+    review_question_count: int,
+) -> None:
+    attempts = [
+        dict(item)
+        for item in list(trace_payload.get("attempts") or [])
+        if isinstance(item, dict)
+    ]
+    usage_blocks = []
+    for attempt in attempts:
+        evidence = attempt.get("llm_runtime_evidence")
+        telemetry = evidence.get("telemetry") if isinstance(evidence, dict) else None
+        usage = telemetry.get("usage") if isinstance(telemetry, dict) else None
+        if isinstance(usage, dict) and usage:
+            usage_blocks.append(dict(usage))
+    summary = dict(trace_payload.get("efficiency_summary") or {})
+    summary.update(
+        {
+            "schema_version": "accepted_cv_efficiency_v1",
+            "status": "accepted" if status == ACCEPTED_STATUS else "not_accepted",
+            "elapsed_ms": max(0, int((time.monotonic() - started_at) * 1000)),
+            "provider_call_count": len(attempts),
+            "token_usage": usage_blocks or None,
+            "token_usage_status": "available" if usage_blocks else "not_run",
+            "input_token_estimate": int(input_metrics.get("full_input_token_estimate") or 0),
+            "approved_input_token_estimate": int(input_metrics.get("approved_input_token_estimate") or 0),
+            "regeneration_count": max(len(attempts) - 1, 0),
+            "review_question_count": int(review_question_count),
+            "human_action_count": "not_applicable",
+        }
+    )
+    trace_payload["efficiency_summary"] = summary
 
 def _error_code_from_message(message: str) -> str | None:
     normalized = str(message or "")
@@ -1382,6 +1473,7 @@ def _generate_fresh_from_analysis(
     profile: dict[str, Any],
     config: dict[str, Any],
 ) -> CvGenerationResult:
+    started_at = time.monotonic()
     analysis_record = dict(analysis_record)
     job = dict(analysis_record.get("job_snapshot") or {})
     if not job:
@@ -1554,6 +1646,13 @@ def _generate_fresh_from_analysis(
                 "accepted_output_present": result_status == ACCEPTED_STATUS,
                 "final_status": result_status,
             }
+            _update_efficiency_summary(
+                trace_payload,
+                input_metrics=input_metrics,
+                started_at=started_at,
+                status=result_status,
+                review_question_count=len(list(analysis_record.get("uncertainties") or [])),
+            )
             trace_payload["error_summary"] = error
         return _build_result(
             analysis_record=analysis_record,
@@ -1604,6 +1703,13 @@ def _generate_fresh_from_analysis(
                 "accepted_output_present": False,
                 "final_status": GENERATION_FAILED_STATUS,
             }
+            _update_efficiency_summary(
+                trace_payload,
+                input_metrics=input_metrics,
+                started_at=started_at,
+                status=GENERATION_FAILED_STATUS,
+                review_question_count=len(list(analysis_record.get("uncertainties") or [])),
+            )
             trace_payload["error_summary"] = {
                 "error_stage": failure_stage,
                 "error_code": _error_code_from_message(str(exc)),
