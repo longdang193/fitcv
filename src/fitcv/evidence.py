@@ -58,7 +58,7 @@ from fitcv.embeddings import build_embedding_backend_metadata, generate_embeddin
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
-REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v2"
+REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v4"
 _QUALIFIER_CONTEXT_TERMS = (
     "enterprise",
     "production",
@@ -753,7 +753,31 @@ def build_cv_analysis_input_fingerprint(
         ],
     }
     payload = {
+        "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
         "profile": _cv_analysis_profile_payload(profile),
+        "requirement_resolutions": [
+            {
+                key: value
+                for key, value in dict(item).items()
+                if key in {
+                    "candidate_profile_id",
+                    "candidate_profile_revision",
+                    "source_profile_fingerprint",
+                    "resolution_key",
+                    "requirement_instance_id",
+                    "resolution_action",
+                    "resolution_payload",
+                }
+            }
+            for item in sorted(
+                list(config.get("_requirement_resolutions") or []),
+                key=lambda value: (
+                    str(value.get("resolution_key") or ""),
+                    str(value.get("requirement_instance_id") or ""),
+                ),
+            )
+            if isinstance(item, dict)
+        ],
         "evidence_projection_fingerprint": str(
             (evidence_projection or build_evidence_projection(profile)).get("fingerprint") or ""
         ),
@@ -1154,6 +1178,7 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                         "kind": str(evidence["kind"]),
                         "title": title or None,
                         "text": text,
+                        "support_fragments": _build_support_fragments(text, skills),
                         "source_section": section,
                         "parent_id": parent_id,
                         "parent_title": parent_title or None,
@@ -1986,11 +2011,40 @@ def _is_negated_term(text: str, term: str) -> bool:
     )
 
 
+def _build_support_fragments(text: str, skills: list[str]) -> list[dict[str, Any]]:
+    fragments = [
+        fragment.strip(" ,;:-")
+        for fragment in re.split(r"(?<=[.!?;])\s+|[\r\n]+", _normalize_optional_text(text))
+        if fragment.strip(" ,;:-")
+    ]
+    result: list[dict[str, Any]] = []
+    for fragment in fragments:
+        matched_skills = {
+            canonicalize_skill(skill)
+            for skill in skills
+            if re.search(rf"(?<!\w){re.escape(_normalize_optional_text(skill))}(?!\w)", fragment, re.IGNORECASE)
+        }
+        result.append({"text": fragment, "skills": sorted(matched_skills)})
+    return result
+
+
+def _support_fragments(item: dict[str, Any], config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    stored = item.get("support_fragments")
+    if isinstance(stored, list) and all(isinstance(fragment, dict) for fragment in stored):
+        return copy.deepcopy(stored)
+    source_text = _normalize_optional_text(item.get("text"))
+    skills = [str(skill) for skill in list(item.get("skills") or []) if str(skill).strip()]
+    fragments = _build_support_fragments(source_text, skills)
+    if config:
+        for fragment in fragments:
+            fragment["skills"] = sorted(
+                {canonicalize_skill(skill, config) for skill in fragment.get("skills") or []}
+            )
+    return fragments
+
+
 def _evidence_text(item: dict[str, Any]) -> str:
-    return " ".join(
-        str(item.get(key) or "")
-        for key in ("text", "name", "title", "scoring_context", "business_value")
-    ).strip()
+    return _normalize_optional_text(item.get("text"))
 
 
 def _duration_satisfies(required: dict[str, Any], evidence: dict[str, Any]) -> bool | None:
@@ -2029,47 +2083,68 @@ def _assess_requirement_support(
     if not canonical_match:
         return assessment
 
-    text = _evidence_text(item)
     qualifiers = dict(descriptor.get("qualifiers") or {})
-    supporting: list[str] = []
-    contradicting: list[str] = []
-    duration = qualifiers.get("duration")
-    if isinstance(duration, dict):
-        evidence_duration = _parse_duration_qualifier(text)
-        result = _duration_satisfies(duration, evidence_duration or {})
-        if result is True:
-            supporting.append("duration")
-        elif result is False:
-            contradicting.append("duration")
-    context = qualifiers.get("context")
-    if isinstance(context, dict):
-        for term in list(context.get("all_of") or []):
-            term = str(term).casefold()
-            if _is_negated_term(text, term):
-                contradicting.append(f"context:{term}")
-            elif re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text.casefold()):
-                supporting.append(f"context:{term}")
-    level = qualifiers.get("level")
-    if isinstance(level, dict):
-        value = str(level.get("value") or "").casefold()
-        if value and _is_negated_term(text, value):
-            contradicting.append("level")
-        elif value and re.search(rf"(?<!\w){re.escape(value)}(?!\w)", text.casefold()):
-            supporting.append("level")
-    required_qualifier_count = sum(
-        len(list(value.get("all_of") or [])) if isinstance(value, dict) and "all_of" in value else 1
-        for value in qualifiers.values()
-    )
-    if contradicting:
-        status = "contradicted"
-    elif len(supporting) == required_qualifier_count:
-        status = "supported"
-        assessment["qualified_support"] = True
+    fragments = _support_fragments(item, config)
+    if qualifiers:
+        fragments = [
+            fragment
+            for fragment in fragments
+            if canonical_skill in {
+                canonicalize_skill(str(skill), config)
+                for skill in list(fragment.get("skills") or [])
+            }
+            and len(set(str(skill) for skill in list(fragment.get("skills") or []))) == 1
+        ]
+        if not fragments:
+            return assessment
     else:
-        status = "unverified"
-    assessment["qualifier_status"] = status
-    assessment["supporting_qualifiers"] = list(dict.fromkeys(supporting))
-    assessment["contradicting_qualifiers"] = list(dict.fromkeys(contradicting))
+        fragments = [{"text": _evidence_text(item), "skills": [canonical_skill]}]
+
+    for fragment in fragments:
+        text = _normalize_optional_text(fragment.get("text"))
+        supporting: list[str] = []
+        contradicting: list[str] = []
+        duration = qualifiers.get("duration")
+        if isinstance(duration, dict):
+            evidence_duration = _parse_duration_qualifier(text)
+            result = _duration_satisfies(duration, evidence_duration or {})
+            if result is True:
+                supporting.append("duration")
+            elif result is False:
+                contradicting.append("duration")
+        context = qualifiers.get("context")
+        if isinstance(context, dict):
+            for term in list(context.get("all_of") or []):
+                term = str(term).casefold()
+                if _is_negated_term(text, term):
+                    contradicting.append(f"context:{term}")
+                elif re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text.casefold()):
+                    supporting.append(f"context:{term}")
+        level = qualifiers.get("level")
+        if isinstance(level, dict):
+            value = str(level.get("value") or "").casefold()
+            if value and _is_negated_term(text, value):
+                contradicting.append("level")
+            elif value and re.search(rf"(?<!\w){re.escape(value)}(?!\w)", text.casefold()):
+                supporting.append("level")
+        required_qualifier_count = sum(
+            len(list(value.get("all_of") or [])) if isinstance(value, dict) and "all_of" in value else 1
+            for value in qualifiers.values()
+        )
+        if contradicting:
+            status = "contradicted"
+        elif len(supporting) == required_qualifier_count:
+            assessment["qualified_support"] = True
+            status = "supported"
+        else:
+            status = "unverified"
+        if status == "supported":
+            assessment["qualifier_status"] = status
+            assessment["supporting_qualifiers"] = list(dict.fromkeys(supporting))
+            return assessment
+        if contradicting:
+            assessment["qualifier_status"] = status
+            assessment["contradicting_qualifiers"] = list(dict.fromkeys(contradicting))
     return assessment
 
 

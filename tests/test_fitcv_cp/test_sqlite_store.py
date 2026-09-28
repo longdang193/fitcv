@@ -76,6 +76,52 @@ def test_local_cancel_terminalizes_unclaimed_and_awaiting_runs() -> None:
     assert sqlite_store.get_run_detail(awaiting.run_id)["capabilities"]["cancel"] is False
 
 
+def test_requirement_resolution_is_profile_and_source_scoped(tmp_path: Path) -> None:
+    database_path = tmp_path / "resolution.sqlite3"
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+
+    saved = sqlite_store.save_requirement_resolution(
+        {
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "source_profile_fingerprint": "source-a",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "yes"},
+            "actor": "admin",
+        },
+        database_path=database_path,
+    )
+
+    assert saved["resolution_payload"] == {"answer_text": "yes"}
+    assert sqlite_store.get_requirement_resolution(
+        candidate_profile_id="candidate-1",
+        candidate_profile_revision="7",
+        source_profile_fingerprint="source-a",
+        resolution_key="required_skill:sql",
+        requirement_instance_id="required_skill:sql",
+        database_path=database_path,
+    ) is not None
+    assert sqlite_store.get_requirement_resolution(
+        candidate_profile_id="candidate-1",
+        candidate_profile_revision="8",
+        source_profile_fingerprint="source-a",
+        resolution_key="required_skill:sql",
+        requirement_instance_id="required_skill:sql",
+        database_path=database_path,
+    ) is None
+    listed = sqlite_store.list_requirement_resolutions(
+        candidate_profile_id="candidate-1",
+        candidate_profile_revision="7",
+        source_profile_fingerprint="source-a",
+        database_path=database_path,
+    )
+    assert [item["resolution_id"] for item in listed] == [saved["resolution_id"]]
+
+
 def test_run_exists_checks_identity_without_reconstructing_pipeline_run() -> None:
     run = _make_run("run-exists")
     sqlite_store.insert_run(run)

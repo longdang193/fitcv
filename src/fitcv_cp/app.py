@@ -1809,6 +1809,11 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "last_regenerated_at": _format_compact_utc_timestamp(record.get("last_regenerated_at")),
                 "regenerated_draft_fingerprint": str(record.get("regenerated_draft_fingerprint") or "").strip() or None,
                 "regeneration_job_id": str((action or {}).get("regeneration_job_id") or "").strip() or None,
+                "uncertainties": [item for item in list(record.get("uncertainties") or []) if isinstance(item, dict)],
+                "resolution_actions": [
+                    item for item in list(record.get("uncertainties") or [])
+                    if isinstance(item, dict) and item.get("resolution_action")
+                ],
             }
         )
     queue_items.sort(key=lambda item: (not item["pending"], item["job_title"].lower(), item["job_url"]))
@@ -6796,6 +6801,10 @@ class CvReviewActionRequest(BaseModel):
     action: str
     actor: str = "admin"
     note: str | None = None
+    uncertainty_id: str | None = None
+    resolution_key: str | None = None
+    answer_text: str | None = None
+    resolution_action: str | None = None
 
 class SynonymBatchDecision(BaseModel):
     proposal_id: str
@@ -14440,9 +14449,16 @@ def create_app(
             action=str(form.get("action") or ""),
             actor=str(form.get("actor") or "admin"),
             note=str(form.get("note") or "").strip() or None,
+            uncertainty_id=str(form.get("uncertainty_id") or "").strip() or None,
+            resolution_key=str(form.get("resolution_key") or "").strip() or None,
+            answer_text=str(form.get("answer_text") or "").strip() or None,
+            resolution_action=str(form.get("resolution_action") or form.get("action") or "").strip() or None,
         )
         allow_no_accepted_closure = str(form.get("confirm_no_accepted_cv_closure") or "").strip().lower() in {"1", "true", "yes", "on"}
-        allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject", "reconcile_historical"}
+        allowed_actions = {
+            "approve", "approve_as_is", "regenerate_once", "reject", "reconcile_historical",
+            "RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK",
+        }
         if payload.action not in allowed_actions:
             raise HTTPException(status_code=422, detail="Invalid review action")
 
@@ -14537,6 +14553,44 @@ def create_app(
         accepted_increment = 0
         finalized_version_id: str | None = None
         regeneration_job_id: str | None = None
+        resolution_regeneration_job_id: str | None = None
+        if payload.action in {"RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"}:
+            uncertainties = [item for item in list(target_record.get("uncertainties") or []) if isinstance(item, dict)]
+            target_uncertainty = next(
+                (
+                    item for item in uncertainties
+                    if (not payload.uncertainty_id or str(item.get("uncertainty_id") or "") == payload.uncertainty_id)
+                    and (not payload.resolution_key or str(item.get("resolution_key") or "") == payload.resolution_key)
+                ),
+                None,
+            )
+            if target_uncertainty is None:
+                raise HTTPException(status_code=422, detail="Uncertainty not found for resolution")
+            resolution_key = str(payload.resolution_key or target_uncertainty.get("resolution_key") or "").strip()
+            resolution_row = client.save_requirement_resolution(
+                {
+                    "candidate_profile_id": str(target_record.get("candidate_profile_id") or target_uncertainty.get("candidate_profile_id") or ""),
+                    "candidate_profile_revision": str(target_record.get("candidate_profile_revision") or target_uncertainty.get("candidate_profile_revision") or ""),
+                    "source_profile_fingerprint": str(target_record.get("source_profile_fingerprint") or target_uncertainty.get("source_profile_fingerprint") or ""),
+                    "resolution_key": resolution_key,
+                    "requirement_instance_id": str(target_uncertainty.get("requirement_instance_id") or ""),
+                    "resolution_action": payload.action,
+                    "resolution_payload": {"answer_text": payload.answer_text or ""},
+                    "actor": payload.actor or "admin",
+                }
+            )
+            target_uncertainty["resolution_action"] = payload.action
+            target_uncertainty["resolution_payload"] = {"answer_text": payload.answer_text or ""}
+            target_uncertainty["resolution_id"] = str(resolution_row.get("resolution_id") or "")
+            resolution_regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
+                run_id=run_id,
+                job_url=target_job_url,
+                actor=payload.actor or "admin",
+                note=payload.note,
+                idempotency_key=f"requirement-resolution:{resolution_row.get('resolution_id')}",
+                action_id=f"requirement-resolution:{resolution_row.get('resolution_id')}",
+                redis_url=redis_url,
+            )
         if not closure_recovery and payload.action == "approve_as_is":
             finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
                 run=run,
@@ -14568,6 +14622,11 @@ def create_app(
                 "artifact_version_id": finalized_version_id,
                 "actor": payload.actor or "admin",
                 "note": payload.note,
+                "uncertainty_id": payload.uncertainty_id,
+                "resolution_key": payload.resolution_key,
+                "answer_text": payload.answer_text,
+                "resolution_action": payload.resolution_action,
+                "regeneration_job_id": resolution_regeneration_job_id or regeneration_job_id,
                 "created_at": now.isoformat(),
             }
             if payload.action == "regenerate_once":
@@ -14581,6 +14640,8 @@ def create_app(
                 _json.dumps(debug_payload, ensure_ascii=False),
                 client=client,
             )
+            if resolution_regeneration_job_id:
+                return RedirectResponse(f"/admin/runs/{run_id}/review-queue", status_code=303)
             append_event(
                 RunEvent(
                     run_id=run_id,

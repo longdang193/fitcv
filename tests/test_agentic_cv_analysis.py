@@ -98,6 +98,54 @@ def test_analyze_ranked_job_emits_extended_analysis_fields(
     assert result["section_confidence_hints"]["experience"] in {"medium", "high"}
 
 
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.build_evidence_projection")
+def test_analyze_ranked_job_applies_profile_scoped_resolution(
+    mock_projection,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_retrieve,
+) -> None:
+    mock_projection.return_value = {"fingerprint": "projection::resolution"}
+    mock_fingerprint.return_value = {"fingerprint": "analysis::resolution"}
+    mock_bundle.return_value = {
+        "projection_fingerprint": "projection::resolution",
+        "selected_evidence": [],
+        "selected_evidence_ids": [],
+    }
+    mock_retrieve.return_value = []
+    mock_gap.return_value = {"matched": ["SQL"], "missing": ["Python"]}
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": "7"}
+    config = {
+        **_config(),
+        "_requirement_resolutions": [
+            {
+                "resolution_id": "resolution-1",
+                "candidate_profile_id": "candidate-1",
+                "candidate_profile_revision": "7",
+                "source_profile_fingerprint": "projection::resolution",
+                "resolution_key": "required_skill:python",
+                "requirement_instance_id": "required_skill:python",
+                "resolution_action": "RESOLVE_WITH_ANSWER",
+                "resolution_payload": {"answer_text": "Used Python for four years."},
+            }
+        ],
+    }
+
+    result = analyze_ranked_job(_job(), profile, config)
+
+    python_row = next(item for item in result["requirement_coverage"] if item["requirement"] == "Python")
+    assert python_row["selected_support"] == "verified"
+    assert python_row["resolution_id"] == "resolution-1"
+    assert python_row["supporting_evidence_ids"] == ["resolution-1"]
+    assert any(item["evidence_id"] == "resolution-1" for item in result["evidence_payload"])
+    assert all(item["affected_fact"] != "Python" for item in result["uncertainties"])
+
+
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
@@ -865,4 +913,3 @@ def test_analyze_ranked_job_emits_fresh_skipped_fit_gate_record(
     assert result["outcome_reason"]["stage"] == "fit_gate"
     assert result["error"] is None
     assert mock_resolve_fit.call_count == 2
-

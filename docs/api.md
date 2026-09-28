@@ -97,6 +97,23 @@ Responses expose server-owned `display_status`, `status_detail`, counts,
 capabilities, `result_bucket`, and review state. Frontends format timestamps but
 do not infer lifecycle or totals.
 
+## CV Review Uncertainty Contract
+
+Review-required payloads may include actionable uncertainty rows with
+`uncertainty_id`, `resolution_key`, `requirement_instance_id`, `affected_fact`,
+`question`, `recommended_disposition`, `reason`, `evidence_ids`, and profile/source
+fingerprints. Machine dispositions are `AUTO_OMIT`, `ASK_CANDIDATE`,
+`BLOCK_CLAIM`, and `REVIEW_CONFLICT`. Resolution actions are
+`RESOLVE_WITH_ANSWER`, `CONFIRM_OMIT`, and `OVERRIDE_BLOCK`.
+Resolution actions persist a profile/source-scoped record and enqueue one
+bounded impacted-job re-analysis; the refreshed debug record replaces the old
+uncertainty state before review closure.
+
+Stored resolutions are reusable only when candidate profile identity/revision,
+source fingerprint, resolution key, and requirement instance all match. Any
+source or profile change returns pending uncertainty instead of promoting a
+stale claim.
+
 ## Health
 
 ### `GET /healthz`

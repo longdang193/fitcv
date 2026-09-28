@@ -30,6 +30,7 @@ import yaml
 from fitcv.decision_feedback import build_decision_feedback_source
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.agentic_cv_generation import generate_from_analysis
+from fitcv.evidence import build_evidence_projection
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
     get_stage_runtime_concurrency,
@@ -67,6 +68,7 @@ from fitcv_cp.sqlite_store import (
     get_run,
     get_synonym_automation_checkpoint,
     ingest_synonym_suggestions,
+    list_requirement_resolutions,
     insert_cv_evaluation_row,
     insert_cv_review_event,
     list_runs,
@@ -153,6 +155,91 @@ _SETTINGS_COMPATIBILITY_KEYS = {
     "cv_max_pages",
     "required_cv_sections",
 }
+
+
+def _load_requirement_resolutions(run: Any, profile: dict[str, Any]) -> list[dict[str, Any]]:
+    candidate_profile_id = str(profile.get("candidate_profile_id") or "").strip()
+    candidate_profile_revision = str(profile.get("revision") or "").strip()
+    if not candidate_profile_id or not candidate_profile_revision:
+        return []
+
+
+def _persist_resolution_reanalysis(
+    *,
+    run_id: str,
+    job_url: str,
+    analysis: dict[str, Any],
+    generation: dict[str, Any],
+    resolution_job_id: str,
+) -> None:
+    run = get_run(run_id)
+    if run is None:
+        return
+    raw_payload = str(getattr(run, "cv_generation_debug_json", "") or "").strip()
+    if not raw_payload:
+        return
+    try:
+        payload = json.loads(raw_payload)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return
+    if not isinstance(payload, dict):
+        return
+    records_key = "debug_records" if isinstance(payload.get("debug_records"), list) else "cv_generation_debug_records"
+    records = [dict(item) for item in list(payload.get(records_key) or []) if isinstance(item, dict)]
+    normalized_job_url = str(job_url or "").strip()
+    changed = False
+    for record in records:
+        if str(record.get("job_url") or "").strip() != normalized_job_url:
+            continue
+        preserved_review_item_id = record.get("review_item_id")
+        record.update({
+            "status": str(generation.get("status") or "generation_failed"),
+            "analysis_input_fingerprint": analysis.get("analysis_input_fingerprint"),
+            "analysis_input_components": dict(analysis.get("analysis_input_components") or {}),
+            "requirement_coverage": list(analysis.get("requirement_coverage") or []),
+            "uncertainties": list(analysis.get("uncertainties") or []),
+            "evidence_payload": list(analysis.get("evidence_payload") or []),
+            "evidence_used": list(analysis.get("evidence_used") or []),
+            "content_plan": dict(generation.get("content_plan") or analysis.get("content_plan") or {}),
+            "cv_generation_input_fingerprint": generation.get("cv_generation_input_fingerprint"),
+            "cv_generation_input_components": dict(generation.get("cv_generation_input_components") or {}),
+            "cv_generation_reuse_status": generation.get("cv_generation_reuse_status"),
+            "markdown_full": generation.get("markdown_final"),
+            "markdown_final": generation.get("markdown_final"),
+            "structured_cv_final": generation.get("structured_cv_final"),
+            "validation": generation.get("validation"),
+            "review_required_reason_code": generation.get("review_required_reason_code"),
+            "resolution_reanalysis_job_id": resolution_job_id,
+            "resolution_reanalysis_completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        })
+        if preserved_review_item_id:
+            record["review_item_id"] = preserved_review_item_id
+        changed = True
+        break
+    if changed:
+        payload[records_key] = records
+        update_run_cv_generation_debug(
+            run_id,
+            json.dumps(payload, ensure_ascii=False),
+        )
+    source_profile_fingerprint = str(
+        build_evidence_projection(profile).get("fingerprint") or ""
+    ).strip()
+    if not source_profile_fingerprint:
+        return []
+    try:
+        return list_requirement_resolutions(
+            candidate_profile_id=candidate_profile_id,
+            candidate_profile_revision=candidate_profile_revision,
+            source_profile_fingerprint=source_profile_fingerprint,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[run_id=%s] Failed to load requirement resolutions: %s",
+            getattr(run, "run_id", None),
+            exc,
+        )
+        return []
 
 
 def _cv_review_state(
@@ -379,6 +466,10 @@ def execute_cv_regenerate_once(
             raise ValueError("run_job_id_missing")
         profile = decode_json_object_or_raise(str(getattr(run, "candidate_profile_json", "") or "{}"))
         config = decode_json_object_or_raise(str(getattr(run, "effective_settings_json", "") or "{}"))
+        config = dict(config)
+        resolutions = _load_requirement_resolutions(run, profile)
+        if resolutions:
+            config["_requirement_resolutions"] = resolutions
         input_snapshot = {"job": job, "profile": profile, "settings": config}
         normalized_key = str(idempotency_key or "").strip() or f"legacy:{run_id}:{normalized_job_url}"
         normalized_action_id = str(action_id or "").strip() or str(uuid.uuid4())
@@ -474,6 +565,14 @@ def execute_cv_regenerate_once(
                     "idempotency_key": normalized_key,
                     "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 }
+            )
+        if normalized_key.startswith("requirement-resolution:"):
+            _persist_resolution_reanalysis(
+                run_id=run_id,
+                job_url=job_url,
+                analysis=analysis,
+                generation=generation,
+                resolution_job_id=normalized_action_id,
             )
         append_event(
             RunEvent(
@@ -1878,6 +1977,18 @@ def execute_pipeline_run(
                         effective_config = json.loads(run_record.effective_settings_json)
                     except Exception as exc:
                         logger.warning("[run_id=%s] Failed to parse effective_settings_json: %s", run_id, exc)
+                if effective_config is not None:
+                    effective_config = dict(effective_config)
+                profile_for_resolutions = decode_json_object_or_none(
+                    str(getattr(run_record, "candidate_profile_json", "") or "{}")
+                ) if run_record is not None else None
+                if effective_config is not None:
+                    resolutions = _load_requirement_resolutions(
+                        run_record,
+                        profile_for_resolutions if isinstance(profile_for_resolutions, dict) else {},
+                    )
+                    if resolutions:
+                        effective_config["_requirement_resolutions"] = resolutions
                 replay_context = _resolve_run_replay_context(
                     effective_config=effective_config,
                     run_id=run_id,

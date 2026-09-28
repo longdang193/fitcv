@@ -289,6 +289,57 @@ class ReviewRequiredReasonCode(str, Enum):
     MANUAL_REVIEW_OTHER = "manual_review_other"
 
 
+class UncertaintyDisposition(str, Enum):
+    AUTO_OMIT = "AUTO_OMIT"
+    ASK_CANDIDATE = "ASK_CANDIDATE"
+    BLOCK_CLAIM = "BLOCK_CLAIM"
+    REVIEW_CONFLICT = "REVIEW_CONFLICT"
+
+
+class UncertaintyResolutionAction(str, Enum):
+    RESOLVE_WITH_ANSWER = "RESOLVE_WITH_ANSWER"
+    CONFIRM_OMIT = "CONFIRM_OMIT"
+    OVERRIDE_BLOCK = "OVERRIDE_BLOCK"
+
+
+UNCERTAINTY_SCHEMA_VERSION: Final[str] = "requirement_uncertainty_v1"
+
+
+def build_requirement_uncertainty(
+    *,
+    reason: str,
+    requirement_instance_id: str,
+    affected_fact: str,
+    question: str,
+    recommended_disposition: UncertaintyDisposition | str,
+    evidence_ids: list[str] | None = None,
+    candidate_profile_id: str = "",
+    candidate_profile_revision: str = "",
+    source_profile_fingerprint: str = "",
+    resolution_key: str = "",
+) -> dict[str, Any]:
+    disposition = (
+        recommended_disposition
+        if isinstance(recommended_disposition, UncertaintyDisposition)
+        else UncertaintyDisposition(str(recommended_disposition))
+    )
+    stable_key = resolution_key.strip() or f"{requirement_instance_id}:{affected_fact.strip()}"
+    return {
+        "schema_version": UNCERTAINTY_SCHEMA_VERSION,
+        "uncertainty_id": f"uncertainty:{stable_key}",
+        "resolution_key": stable_key,
+        "reason": reason.strip(),
+        "requirement_instance_id": requirement_instance_id.strip(),
+        "affected_fact": affected_fact.strip(),
+        "question": question.strip(),
+        "recommended_disposition": disposition.value,
+        "evidence_ids": list(dict.fromkeys(str(item).strip() for item in (evidence_ids or []) if str(item).strip())),
+        "candidate_profile_id": candidate_profile_id.strip(),
+        "candidate_profile_revision": candidate_profile_revision.strip(),
+        "source_profile_fingerprint": source_profile_fingerprint.strip(),
+    }
+
+
 def is_review_required_reason_code(value: object) -> bool:
     if not isinstance(value, str):
         return False

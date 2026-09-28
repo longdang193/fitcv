@@ -52,6 +52,23 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - analysis metadata records `source_profile_schema_version`, `projection_schema_version`, and `projection_fingerprint`
 - traceability resolves `claim -> evidence_refs -> candidate-evidence.v1 item -> source_refs -> uploaded source document`
 
+### Proof Boundary and Review Uncertainty
+
+- `candidate-evidence.v1` keeps original retrieval text, while `support_fragments` are deterministic source-only sentence/clause fragments used for requirement proof.
+- `requirement-support-v4` requires target skill and every qualifier in one unambiguous fragment; sibling fragments, titles, roles, organizations, scoring metadata, and domains cannot donate proof.
+- pre-v4 analysis records are not reusable; policy version participates in the analysis contract fingerprint.
+- non-verified requirement rows expose `uncertainty_id`, `resolution_key`, affected fact, question, disposition, evidence IDs, and source fingerprint. Human actions are `RESOLVE_WITH_ANSWER`, `CONFIRM_OMIT`, and `OVERRIDE_BLOCK`.
+- profile-scoped resolutions reuse only when candidate identity/revision, source fingerprint, resolution key, and requirement instance match; otherwise pipeline asks again.
+- resolution actions enqueue one bounded re-analysis through the existing CV regeneration entrypoint; refreshed analysis/generation replaces the prior debug record before closure.
+
+P0-A and P0-B retrieval experiments remain deferred. No experiment changes production selection defaults.
+
+### CV Content Plan and Repair
+
+- generation builds `cv_content_plan_v1` from verified requirement coverage and selected evidence; unsupported requirements remain omitted rather than receiving Cartesian evidence assignments.
+- plan fingerprints participate in CV-generation reuse. Writer prompts receive approved claim IDs, protected numbers/dates, section targets, and space limits.
+- targeted repair replaces only requested structured section keys, then renders and validates the complete merged CV once; unknown section keys fail closed.
+
 ### CV-analysis Retrieval Diagnostics
 
 - `cv_analysis.semantic_alignment.enabled` controls CV-analysis channel scoring only; it does not change shortlist embedding behavior
