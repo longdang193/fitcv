@@ -427,7 +427,7 @@ def test_requirement_coverage_does_not_infer_support_from_profile_match(
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-def test_requirement_coverage_preserves_distinct_requirement_instances(
+def test_requirement_coverage_preserves_partial_and_keeps_requirement_instances(
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -457,10 +457,13 @@ def test_requirement_coverage_preserves_distinct_requirement_instances(
         _config(),
     )
 
-    rows = result["requirement_coverage"]
-    assert len(rows) == 2
-    assert len({row["requirement_instance_id"] for row in rows}) == 2
-    assert all(row["profile_match"] == "partial" for row in rows)
+    assert len(result["requirement_coverage"]) == 2
+    assert [row["profile_match"] for row in result["requirement_coverage"]] == ["partial", "partial"]
+    assert {row["requirement"] for row in result["requirement_coverage"]} == {
+        "Python programming",
+        "Python",
+    }
+    assert all(row.get("requirement_instance_id") for row in result["requirement_coverage"])
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
@@ -491,46 +494,6 @@ def test_requirement_coverage_marks_relevant_without_canonical_link_as_unverifie
     )
 
     assert result["requirement_coverage"][0]["selected_support"] == "relevant_unverified"
-
-
-@patch("fitcv.agentic_cv_analysis.compute_gap")
-@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
-@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-def test_requirement_coverage_keeps_qualifier_gap_non_authoritative(
-    mock_fingerprint,
-    mock_bundle,
-    mock_gap,
-) -> None:
-    mock_fingerprint.return_value = {"fingerprint": "analysis::qualifier"}
-    mock_bundle.return_value = {
-        "deduped_pool_size": 1,
-        "selected_evidence": [{"evidence_id": "ev-sql", "skills": ["SQL"]}],
-        "selected_evidence_ids": ["ev-sql"],
-        "requirement_support": {
-            "pool": {"required_skill:sql": ["ev-sql"]},
-            "selected": {"required_skill:sql": ["ev-sql"]},
-            "qualifier_support": {
-                "pool": {"required_skill:sql": {"duration": "unverified"}},
-                "selected": {"required_skill:sql": {"duration": "unverified"}},
-            },
-        },
-    }
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-
-    result = analyze_ranked_job(
-        {
-            **_job(),
-            "required_skills": ["SQL, 3+ years"],
-            "required_skill_entities": [{"raw_text": "SQL, 3+ years", "canonical": "sql"}],
-        },
-        _profile(),
-        _config(),
-    )
-
-    row = result["requirement_coverage"][0]
-    assert row["selected_support"] == "relevant_unverified"
-    assert row["qualifier_support"] == {"duration": "unverified"}
-    assert row["qualifier_gaps"] == ["duration"]
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")

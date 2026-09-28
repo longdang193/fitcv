@@ -55,7 +55,6 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 ### CV-analysis Retrieval Diagnostics
 
 - `cv_analysis.semantic_alignment.enabled` controls CV-analysis channel scoring only; it does not change shortlist embedding behavior
-- `retrieval_strategy` is explicit; passing `structured_jobs` supplies retrieval data and does not select lexical retrieval
 - when enabled, diagnostics identify `sqlite_deterministic_local` as the actual embedding backend, report dimension and contract fingerprint, and preserve configured model name as metadata
 - the configured `cv_analysis.semantic_alignment.model` value does not prove provider execution; `generate_embedding()` remains deterministic local/hash output in this path
 - when disabled, diagnostics report no semantic backend and channel scoring is lexical-only
@@ -66,7 +65,6 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - `evaluation_schema_version: 1` fixtures keep approved requirement–evidence pairs, unsupported requirements, validation cases, and scenario IDs in one source of truth
 - requirement recall counts requirements with at least one valid approved supporter; evidence-pair recall counts approved requirement–evidence pairs; alternative-pair loss does not trigger pool expansion when requirement recall remains complete
 - four offline arms answer separate questions: `lexical-baseline` is conventional lexical top-k, `lexical-ablation` disables requirement gain while retaining FitCV selection terms, `lexical-requirement-aware` is FitCV lexical selection, and `current-hash` enables current hash-based channels
-- `current-hash` remains selected: it ties lexical requirement-aware selected requirement recall at `1.0` and evidence-pair recall at `0.9375`; the measured `full-pool` arm added no recall and was deleted
 - per-scenario reports include micro and macro coverage, retrieval-to-selection loss, explicit-link precision, selected item count, prompt cost estimates, and validation case results; zero-support scenarios use `not_applicable`
 - benchmark validation consumes `analyze_ranked_job()` `requirement_coverage` and passes it unchanged to `run_all_validations()`; simplified support rows are not valid benchmark evidence
 - CI smoke runs use `--runs 5 --warmups 1`; local comparisons use `--runs 50 --warmups 5`
@@ -186,15 +184,18 @@ Phase 1 uses one path for both factors:
 - only confirmed `gate_required` failures reject; unknown evidence stays eligible
 - Phase 3 consumes these factor values without changing their absolute normalization or eligibility truth
 
-## Vector-Only Shortlist
+## Vector Shortlist And Fallback
 
-Phase 2 uses one path:
+Phase 2 requests vector retrieval and preserves that requested strategy in diagnostics. Compatible vectors use one path:
 
 `eligible jobs -> valid cosine evidence -> total vector order -> production Top N`
 
 - ordering is `vector_similarity` descending, then `job_url` ascending
 - one latest embedding row per job URL is selected by `created_at DESC, id DESC`
-- no synthetic shortlist backfill exists; production can contain fewer than configured Top N
+- missing, invalid, stale, or contract-incompatible vectors use deterministic lexical ranking only when the caller supplies the eligible structured job batch
+- vector and lexical rows never mix in one shortlist
+- diagnostics record `requested_strategy`, `effective_strategy`, `fallback_reason`, backend identity, model, dimension, contract fingerprint, and result counts
+- absent fallback data produces `effective_strategy: unavailable`; retrieval never changes silently
 - `raw_shortlist` remains checkpoint compatibility name for production retrieval rows
 - `shortlist_diagnostics` preserves coverage and cutoff metrics in checkpoint state
 - deterministic below-cutoff audit rows exist only in `stage_transition_artifacts.stages.shortlist.audit_sample`
@@ -286,22 +287,6 @@ Fail-fast guarantees:
 - [architecture.md](architecture.md)
 - [usage.md](usage.md)
 - [FitCV-pipeline.md](FitCV-pipeline.md)
-
-## Retrieval and Evidence Qualifiers
-
-- Retrieval diagnostics include backend identity, configured model, dimension,
-  retrieval strategy, and contract fingerprint. Rows with stale embedding
-  contracts are excluded; when no valid vector rows remain, retrieval falls
-  back to deterministic lexical ranking and records the stale-state fallback.
-- CV evidence keeps canonical support, bounded candidate pool support, and
-  selected support as separate maps. Channel-pool retrieval is the sole
-  production selection path; the measured full-pool alternative had equal
-  qualified recall with no context reduction and `1.188989x` p95 latency.
-- Requirement coverage adds `source_text`, `qualifiers`,
-  `qualifier_values`, `qualifier_support`, and `qualifier_gaps`. Qualifier
-  statuses are `supported`, `unverified`, or `contradicted`; evidence marked
-  `unsupported` or `unavailable` cannot create verified support. Existing
-  `selected_support` and `support_strength` contracts remain authoritative.
 
 
 ## Phase 4 Decision Feedback

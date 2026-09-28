@@ -833,7 +833,10 @@ def test_execute_llm_task_zero_interval_and_routing_failure_do_not_reserve_slots
     assert result.status == "succeeded"
     assert clock.sleeps == []
 
-    with patch("fitcv.llm_runtime.resolve_llm_api_key", side_effect=RuntimeError("API key missing")):
+    with patch(
+        "fitcv.llm_runtime.resolve_llm_api_key",
+        side_effect=RuntimeError("OpenAI-compatible LLM routing requires FITCV_LLM_API_KEY in env."),
+    ):
         failed = execute_llm_task(
             _request(),
             parser=lambda response: json.loads(response.raw_text),
@@ -843,4 +846,5 @@ def test_execute_llm_task_zero_interval_and_routing_failure_do_not_reserve_slots
         )
     assert failed.failure is not None
     assert failed.failure.stage == "routing"
+    assert failed.failure.code == "credentials_missing"
     assert getattr(runtime_module, "_NEXT_REQUEST_START_BY_PROVIDER", {}) == {}

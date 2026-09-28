@@ -33,6 +33,7 @@ from fitcv.preference_policy import (
     resolved_preference_policy_to_dict,
 )
 from fitcv.runtime_routing import resolve_llm_routing
+from fitcv.vector_search import VECTOR_RETRIEVAL_STRATEGY
 
 def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
     reuse_block = dict(config.get("reuse") or {})
@@ -266,6 +267,8 @@ def execute_shortlist_stage(
             [str(job.get("job_url") or "") for job in passed_jobs],
             config,
             top_n=vector_top_n,
+            structured_jobs=passed_jobs,
+            requested_strategy=VECTOR_RETRIEVAL_STRATEGY,
         )
         raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
         audit_rows = list(raw_shortlist_result.get("audit_rows") or [])

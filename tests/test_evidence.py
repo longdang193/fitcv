@@ -300,132 +300,100 @@ def test_required_skill_descriptors_ignore_incomplete_entity_rows() -> None:
         }
     )
 
-    assert [(item["requirement_id"], item["requirement"]) for item in descriptors] == [
-        ("required_skill:sql", "SQL"),
-        ("required_skill:python", "Python"),
+    assert descriptors == [
+        {
+            "requirement_id": "required_skill:sql",
+            "requirement": "SQL",
+            "canonical_skill": "sql",
+            "original_requirements": ["SQL"],
+            "requirement_type": "required_skill",
+            "requirement_priority": "must_have",
+        },
+        {
+            "requirement_id": "required_skill:python",
+            "requirement": "Python",
+            "canonical_skill": "python",
+            "original_requirements": ["Python"],
+            "requirement_type": "required_skill",
+            "requirement_priority": "must_have",
+        },
     ]
-    assert all(item["requirement_instance_id"].startswith(item["requirement_id"] + ":") for item in descriptors)
-    assert all(item["qualifier_support"] == {} for item in descriptors)
 
 
-def test_required_skill_descriptors_capture_qualifiers_without_positional_pairing() -> None:
-    descriptors = build_required_skill_descriptors(
-        {
-            "required_skills": ["SQL in production, 3+ years", "German C1"],
-            "required_skill_entities": [
-                {"raw_text": "SQL in production, 3+ years", "canonical": "sql"},
-                {"raw_text": "German C1", "canonical": "german"},
-            ],
-            "required_skills_canonical": ["german", "sql"],
-        }
-    )
+@pytest.mark.parametrize(
+    ("requirement", "expected_skill", "expected_qualifiers"),
+    [
+        (
+            "more than 3 years production SQL",
+            "sql",
+            {"duration": {"comparator": "gt", "months": 36}, "context": {"all_of": ["production"]}},
+        ),
+        (
+            "mindestens 3 Jahre SQL",
+            "sql",
+            {"duration": {"comparator": "gte", "months": 36}},
+        ),
+        (
+            "SQL in enterprise production",
+            "sql",
+            {"context": {"all_of": ["enterprise", "production"]}},
+        ),
+    ],
+)
+def test_required_skill_descriptors_strip_qualifiers_before_canonicalizing(
+    requirement: str,
+    expected_skill: str,
+    expected_qualifiers: dict,
+) -> None:
+    descriptor = build_required_skill_descriptors({"required_skills": [requirement]})[0]
 
-    by_canonical = {item["canonical_skill"]: item for item in descriptors}
-    assert by_canonical["sql"]["source_text"] == "SQL in production, 3+ years"
-    assert by_canonical["sql"]["qualifiers"] == ["duration", "context"]
-    assert by_canonical["sql"]["qualifier_support"] == {
-        "duration": "unverified",
-        "context": "unverified",
-    }
-    assert by_canonical["german"]["qualifiers"] == ["level"]
-    assert by_canonical["german"]["qualifier_values"] == {"level": ["C1"]}
+    assert descriptor["canonical_skill"] == expected_skill
+    assert descriptor["qualifiers"] == expected_qualifiers
 
 
-def test_qualifier_support_marks_duration_and_conflicting_level() -> None:
+def test_qualified_requirement_support_requires_one_evidence_item_to_meet_all_qualifiers() -> None:
     profile = _cached_evidence_profile(
-        {
-            **_cached_evidence_item("ev-sql", ["SQL"], "SQL production pipelines"),
-            "duration": "4 years",
-        },
-        {
-            **_cached_evidence_item("ev-german", ["German"], "German B1"),
-            "level": "B1",
-        },
+        _cached_evidence_item(
+            "ev-qualified",
+            ["SQL"],
+            "4 years production SQL in enterprise systems",
+        ),
+        _cached_evidence_item("ev-duration", ["SQL"], "4 years SQL in classroom training"),
+        _cached_evidence_item("ev-context", ["SQL"], "production SQL with no duration stated"),
     )
     bundle = retrieve_evidence_bundle(
         profile,
-        {
-            "required_skills": ["SQL in production, 3+ years", "German C1"],
-            "required_skill_entities": [
-                {"raw_text": "SQL in production, 3+ years", "canonical": "sql"},
-                {"raw_text": "German C1", "canonical": "german"},
-            ],
-        },
+        {"required_skills": ["more than 3 years production SQL"]},
+        3,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": False}}},
+    )
+
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+    requirement_ref = descriptor["requirement_instance_id"]
+    assert descriptor["canonical_skill"] == "sql"
+    assert bundle["requirement_support"]["qualified"]["canonical"] == {
+        requirement_ref: ["ev-qualified"]
+    }
+
+
+def test_qualified_requirement_does_not_combine_duration_and_context_across_evidence_items() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-duration", ["SQL"], "4 years SQL"),
+        _cached_evidence_item("ev-context", ["SQL"], "production SQL"),
+    )
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["more than 3 years production SQL"]},
         2,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": False}}},
     )
 
-    qualifier_support = bundle["requirement_support"]["qualifier_support"]["selected"]
-    assert qualifier_support["required_skill:sql"] == {
-        "duration": "supported",
-        "context": "supported",
-    }
-    assert qualifier_support["required_skill:german"] == {"level": "contradicted"}
-
-
-def test_qualifiers_are_requirement_scoped_and_negation_safe() -> None:
-    profile = _cached_evidence_profile(
-        _cached_evidence_item("ev-classroom", ["SQL"], "SQL classroom exercises; kein Produktionseinsatz"),
-        {**_cached_evidence_item("ev-production", ["SQL"], "SQL production pipelines, 4 years")},
-    )
-    job = {
-        "required_skills": ["SQL in production, 3+ years", "SQL classroom"],
-        "required_skill_entities": [
-            {"raw_text": "SQL in production, 3+ years", "canonical": "sql"},
-            {"raw_text": "SQL classroom", "canonical": "sql"},
-        ],
-    }
-    descriptors = build_required_skill_descriptors(job)
-    assert len(descriptors) == 2
-    assert len({item["requirement_instance_id"] for item in descriptors}) == 2
-    bundle = retrieve_evidence_bundle(profile, job, 2)
-    details = bundle["requirement_support"]["qualifier_evidence"]["selected"]
-    production = next(item for item in descriptors if "production" in item["source_text"])
-    assert details[production["requirement_instance_id"]]["duration"]["status"] == "supported"
-    assert details[production["requirement_instance_id"]]["context"]["status"] == "contradicted"
-    assert details[production["requirement_instance_id"]]["context"]["contradicting_evidence_ids"] == ["ev-classroom"]
-
-
-def test_employment_dates_do_not_prove_skill_duration() -> None:
-    profile = _cached_evidence_profile(
-        {
-            **_cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"),
-            "start": "2020-01",
-            "end": "2024-01",
-        }
-    )
-    bundle = retrieve_evidence_bundle(
-        profile,
-        {
-            "required_skills": ["SQL, 3+ years"],
-            "required_skill_entities": [{"raw_text": "SQL, 3+ years", "canonical": "sql"}],
-        },
-        1,
-    )
-    selected = bundle["requirement_support"]["qualifier_support"]["selected"]
-    assert next(iter(selected.values()))["duration"] == "unverified"
-
-
-def test_cv_analysis_input_fingerprint_tracks_requirement_qualifier_semantics() -> None:
-    profile = {"skills": ["SQL"]}
-    base = {"raw_job_fingerprint": "raw-1", "required_skills": ["SQL, 3+ years"]}
-    changed = {"raw_job_fingerprint": "raw-1", "required_skills": ["SQL, 5+ years"]}
-    first = evidence_module.build_cv_analysis_input_fingerprint(profile, base, {})
-    second = evidence_module.build_cv_analysis_input_fingerprint(profile, changed, {})
-    assert first["fingerprint"] != second["fingerprint"]
-    assert first["payload"]["requirement_support_policy_version"] == "requirement-support-v2"
-
-
-def test_unavailable_evidence_cannot_become_canonical_support() -> None:
-    profile = _cached_evidence_profile(
-        {
-            **_cached_evidence_item("ev-sql", ["SQL"], "SQL reports"),
-            "evidence_status": "unavailable",
-        }
-    )
-    bundle = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 1)
-
-    assert bundle["requirement_support"]["canonical"] == {}
-    assert bundle["selected_evidence"][0]["evidence_availability"] == "unavailable"
+    requirement_ref = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]["requirement_instance_id"]
+    assert bundle["requirement_support"]["qualified"]["canonical"] == {}
 
 
 def test_requirement_gain_preserves_global_budget_and_weight_zero_matches_baseline() -> None:

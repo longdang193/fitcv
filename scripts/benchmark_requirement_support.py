@@ -39,30 +39,6 @@ EXPECTED_SUPPORT_PAIRS = {
     ("required_skill:python", "ev-b-python"),
 }
 
-ARM_REGISTRY = {
-    "lexical-baseline": {
-        "status": "supported",
-        "retrieval": "lexical",
-        "selection": "baseline",
-    },
-    "lexical-ablation": {
-        "status": "supported",
-        "retrieval": "lexical",
-        "selection": "ablation",
-    },
-    "lexical-requirement-aware": {
-        "status": "supported",
-        "retrieval": "lexical",
-        "selection": "requirement-aware",
-    },
-    "current-hash": {
-        "status": "supported",
-        "retrieval": "hash",
-        "selection": "requirement-aware",
-    },
-}
-ARM_ALIASES = {"lexical": "lexical-requirement-aware"}
-
 
 def _item(evidence_id: str, skills: list[str], text: str) -> dict[str, object]:
     return {
@@ -366,8 +342,17 @@ def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
 
 
 def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> dict[str, Any]:
-    normalized_arm = ARM_ALIASES.get(arm, arm)
-    if normalized_arm not in ARM_REGISTRY:
+    normalized_arm = {
+        "lexical": "lexical-requirement-aware",
+        "current": "lexical-requirement-aware",
+        "full-pool": "lexical-requirement-aware",
+    }.get(arm, arm)
+    if normalized_arm not in {
+        "lexical-baseline",
+        "lexical-ablation",
+        "lexical-requirement-aware",
+        "current-hash",
+    }:
         raise ValueError(f"Unsupported arm: {arm}")
     config = copy.deepcopy(base_config)
     config.setdefault("pipeline", {}).setdefault("evidence_top_k", 2)
@@ -808,7 +793,6 @@ def _run_benchmark_scenario(
         scenario["expected_support"],
         explicit_requirement_links=explicit_links,
     )
-    selected_ids = [str(value) for value in list(final_bundle.get("selected_evidence_ids") or [])]
     return {
         "scenario_id": scenario["scenario_id"],
         "purpose": scenario["purpose"],
@@ -831,13 +815,7 @@ def _run_benchmark_scenario(
             "prompt_bytes": max(sample["prompt_bytes"] for sample in samples),
             "estimated_prompt_tokens": max(sample["estimated_prompt_tokens"] for sample in samples),
             "payload_bytes": max(sample["payload_bytes"] for sample in samples),
-            "selected_context_chars": max(
-                sum(len(str(item.get("text") or "")) for item in list(final_bundle.get("selected_evidence") or [])),
-                0,
-            ),
         },
-        "candidate_pool_size": int(final_bundle.get("deduped_pool_size") or 0),
-        "duplicate_count": len({value for value in selected_ids if selected_ids.count(value) > 1}),
         "validation": {
             "case_results": final_validation_cases,
             "passed_cases": sum(bool(case["pass"]) for case in final_validation_cases),
@@ -943,16 +921,6 @@ def _aggregate_scenario_metrics(scenario_results: list[dict[str, Any]]) -> dict[
                 for evidence_id in result["metrics"].get("selected_ids", [])
             }
         ),
-        "candidate_pool_size": max(int(result.get("candidate_pool_size") or 0) for result in scenario_results),
-        "duplicate_count": sum(int(result.get("duplicate_count") or 0) for result in scenario_results),
-        "selection_loss": {
-            "retrieved_to_selected": [
-                [result["scenario_id"], requirement_id, evidence_id]
-                for result in scenario_results
-                for requirement_id, evidence_ids in result["metrics"].get("retrieved_to_selected_loss", {}).items()
-                for evidence_id in evidence_ids
-            ]
-        },
     }
 
 
@@ -965,29 +933,20 @@ def run_benchmark(
     runs: int = MEASURED_RUNS,
     warmups: int = WARMUP_RUNS,
 ) -> dict[str, Any]:
-    normalized_arm = ARM_ALIASES.get(arm, arm)
-    if normalized_arm not in ARM_REGISTRY:
-        return {
-            "arm": arm,
-            "status": "not_run",
-            "reason": f"unsupported arm: {arm}",
-            "evaluation_schema_version": 1,
-            "fixture": str(fixture_path.relative_to(REPO_ROOT)),
-            "pool_size": pool_size,
-            "warmup_runs": warmups,
-            "measured_runs": runs,
-        }
+    if arm not in {"current", "full-pool", "current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"}:
+        raise ValueError(f"Unsupported arm: {arm}")
     if runs <= 0 or warmups < 0:
         raise ValueError("runs must be positive and warmups cannot be negative")
     fixture = _load_json(fixture_path)
     scenarios = _resolve_scenarios(fixture)
     base_config = _load_policy(policy_path)
+    effective_pool_size = 12 if arm == "full-pool" and pool_size == 4 else pool_size
     scenario_results = [
         _run_benchmark_scenario(
             fixture=fixture,
             scenario=scenario,
-            arm=normalized_arm,
-            pool_size=pool_size,
+            arm=arm,
+            pool_size=effective_pool_size,
             base_config=base_config,
             runs=runs,
             warmups=warmups,
@@ -997,7 +956,7 @@ def run_benchmark(
     aggregate = _aggregate_scenario_metrics(scenario_results)
     timing_keys = tuple(scenario_results[0]["timing_ms"])
     return {
-        "arm": normalized_arm,
+        "arm": "lexical-requirement-aware" if arm == "lexical" else arm,
         "evaluation_schema_version": int(fixture["evaluation_schema_version"]),
         "implementation_ref": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
@@ -1006,8 +965,8 @@ def run_benchmark(
         "scenario_set": [result["scenario_id"] for result in scenario_results],
         "scenario_count": len(scenario_results),
         "workload_count": len(scenario_results),
-        "semantic_alignment_enabled": normalized_arm == "current-hash",
-        "pool_size": pool_size,
+        "semantic_alignment_enabled": arm == "current-hash",
+        "pool_size": effective_pool_size,
         "top_k": sorted({result["top_k"] for result in scenario_results}),
         "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
         "backend": scenario_results[-1]["backend"],
@@ -1025,10 +984,7 @@ def run_benchmark(
             "prompt_bytes": max(result["context"]["prompt_bytes"] for result in scenario_results),
             "estimated_prompt_tokens": max(result["context"]["estimated_prompt_tokens"] for result in scenario_results),
             "payload_bytes": max(result["context"]["payload_bytes"] for result in scenario_results),
-            "selected_context_chars": max(result["context"]["selected_context_chars"] for result in scenario_results),
         },
-        "candidate_pool_size": max(result["candidate_pool_size"] for result in scenario_results),
-        "duplicate_count": sum(result["duplicate_count"] for result in scenario_results),
         "validation": {
             "passed_cases": sum(result["validation"]["passed_cases"] for result in scenario_results),
             "case_count": sum(result["validation"]["case_count"] for result in scenario_results),
@@ -1042,9 +998,8 @@ def run_benchmark(
             ],
         },
         "arm_configuration": {
-            "retrieval": ARM_REGISTRY[normalized_arm]["retrieval"],
-            "selection": normalized_arm,
-            "selection_policy": ARM_REGISTRY[normalized_arm]["selection"],
+            "retrieval": "hash" if arm == "current-hash" else "lexical",
+            "selection": arm,
             "provider_calls": False,
         },
         "fixture": str(fixture_path.relative_to(REPO_ROOT)),
@@ -1058,7 +1013,7 @@ def main() -> int:
     parser.add_argument("--weight", type=float)
     parser.add_argument(
         "--arm",
-        choices=("current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
+        choices=("current", "full-pool", "current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
     )
     parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)

@@ -388,8 +388,6 @@ def _support_ids_by_requirement(
     key: str,
     *,
     restrict_to_evidence: bool = False,
-    requirement_instance_id: str | None = None,
-    legacy_requirement_id: str | None = None,
 ) -> dict[str, list[str]]:
     selected_ids = {
         str(item.get("evidence_id") or "")
@@ -397,28 +395,6 @@ def _support_ids_by_requirement(
         if str(item.get("evidence_id") or "")
     }
     mapped = requirement_support.get(key)
-    if requirement_instance_id:
-        instance_layers = dict(requirement_support.get("instances") or {})
-        mapped = dict(instance_layers.get(key) or {}).get(requirement_instance_id)
-        if mapped is None:
-            mapped = requirement_support.get(key)
-        if isinstance(mapped, list):
-            values = [
-                str(value)
-                for value in mapped
-                if not restrict_to_evidence or str(value) in selected_ids
-            ]
-            return {requirement_instance_id: list(dict.fromkeys(values))}
-        if isinstance(mapped, dict) and requirement_instance_id:
-            legacy_values = mapped.get(str(legacy_requirement_id or ""))
-            if legacy_values is None:
-                legacy_values = next(iter(mapped.values()), []) if len(mapped) == 1 else []
-            values = [
-                str(value)
-                for value in legacy_values
-                if not restrict_to_evidence or str(value) in selected_ids
-            ]
-            return {requirement_instance_id: list(dict.fromkeys(values))}
     if isinstance(mapped, dict):
         return {
             str(requirement_id): list(dict.fromkeys(
@@ -448,8 +424,6 @@ def _has_relevant_unverified_support(
         if token
     }
     for item in evidence:
-        if str(item.get("evidence_availability") or "").strip().lower() in {"unsupported", "unavailable"}:
-            continue
         evidence_text = " ".join(
             str(value or "")
             for value in (
@@ -461,39 +435,6 @@ def _has_relevant_unverified_support(
         if requirement_tokens and requirement_tokens <= set(evidence_text.split()):
             return True
     return False
-
-
-def _qualifier_statuses(
-    descriptor: dict[str, Any],
-    requirement_support: dict[str, Any],
-    key: str,
-) -> dict[str, str]:
-    mapped = dict(requirement_support.get("qualifier_support") or {}).get(key)
-    instance_id = str(descriptor.get("requirement_instance_id") or "")
-    instance_layers = dict(requirement_support.get("qualifier_support") or {}).get("instances")
-    if isinstance(instance_layers, dict) and instance_id:
-        mapped = dict(instance_layers.get(key) or {}).get(instance_id)
-    if not isinstance(mapped, dict):
-        return {str(name): "unverified" for name in list(descriptor.get("qualifiers") or [])}
-    statuses = dict(
-        mapped.get(str(descriptor.get("requirement_instance_id") or ""))
-        or mapped.get(str(descriptor.get("requirement_id") or ""))
-        or {}
-    )
-    return {
-        str(name): str(statuses.get(str(name)) or "unverified")
-        for name in list(descriptor.get("qualifiers") or [])
-    }
-
-
-def _qualifier_evidence(
-    descriptor: dict[str, Any],
-    requirement_support: dict[str, Any],
-    key: str,
-) -> dict[str, dict[str, Any]]:
-    layers = dict(requirement_support.get("qualifier_evidence") or {})
-    mapped = dict(layers.get(key) or {}).get(str(descriptor.get("requirement_instance_id") or ""))
-    return mapped if isinstance(mapped, dict) else {}
 
 
 def _build_requirement_coverage(
@@ -516,34 +457,13 @@ def _build_requirement_coverage(
     coverage: list[dict[str, Any]] = []
     for descriptor in descriptors:
         requirement_id = str(descriptor["requirement_id"])
-        selected_ids = _support_ids_by_requirement(
-            evidence,
-            requirement_support,
-            "selected",
-            restrict_to_evidence=True,
-            requirement_instance_id=str(descriptor.get("requirement_instance_id") or ""),
-            legacy_requirement_id=requirement_id,
-        ).get(str(descriptor.get("requirement_instance_id") or ""), [])
-        pool_ids = _support_ids_by_requirement(
-            [],
-            requirement_support,
-            "pool",
-            requirement_instance_id=str(descriptor.get("requirement_instance_id") or ""),
-            legacy_requirement_id=requirement_id,
-        ).get(str(descriptor.get("requirement_instance_id") or ""), [])
-        qualifier_support = _qualifier_statuses(descriptor, requirement_support, "selected")
-        pool_qualifier_support = _qualifier_statuses(descriptor, requirement_support, "pool")
-        qualifier_evidence = _qualifier_evidence(descriptor, requirement_support, "selected")
-        qualifier_gaps = [
-            qualifier
-            for qualifier, status in qualifier_support.items()
-            if status != "supported"
-        ]
-        qualifiers_verified = not qualifier_support or not qualifier_gaps
-        if selected_ids and qualifiers_verified:
+        requirement_ref = str(
+            descriptor.get("requirement_instance_id") or requirement_id
+        )
+        selected_ids = list(selected_support.get(requirement_ref) or [])
+        pool_ids = list(pool_support.get(requirement_ref) or [])
+        if selected_ids:
             selected_status = "verified"
-        elif selected_ids and qualifier_support:
-            selected_status = "relevant_unverified"
         elif pool_ids:
             selected_status = "not_selected"
         elif _has_relevant_unverified_support(descriptor, evidence):
@@ -553,29 +473,6 @@ def _build_requirement_coverage(
         coverage.append(
             {
                 **descriptor,
-                "qualifier_support": qualifier_support,
-                "pool_qualifier_support": pool_qualifier_support,
-                "qualifier_gaps": qualifier_gaps,
-                "qualifier_supporting_evidence_ids": {
-                    qualifier: list(dict(detail).get("supporting_evidence_ids") or [])
-                    for qualifier, detail in qualifier_evidence.items()
-                },
-                "qualifier_contradicting_evidence_ids": {
-                    qualifier: list(dict(detail).get("contradicting_evidence_ids") or [])
-                    for qualifier, detail in qualifier_evidence.items()
-                },
-                "qualifier_audit": {
-                    qualifier: {
-                        "status": qualifier_support.get(qualifier, "unverified"),
-                        "supporting_evidence_ids": list(
-                            dict(detail).get("supporting_evidence_ids") or []
-                        ),
-                        "contradicting_evidence_ids": list(
-                            dict(detail).get("contradicting_evidence_ids") or []
-                        ),
-                    }
-                    for qualifier, detail in qualifier_evidence.items()
-                },
                 "profile_match": _requirement_profile_match(descriptor, gap_summary, config),
                 "retrieval_status": (
                     "completed"

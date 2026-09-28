@@ -6736,7 +6736,7 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
 
     run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
-    assert "structured_jobs" not in mock_vec.call_args.kwargs
+    assert [row["job_url"] for row in mock_vec.call_args.kwargs["structured_jobs"]] == [job["job_url"]]
     assert mock_config.return_value.get("retrieval_strategy") != "lexical_v1"
     shortlist_arg = mock_ai.call_args.args[0]
     assert len(shortlist_arg) == 1

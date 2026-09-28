@@ -189,20 +189,21 @@ def test_pipeline_state_restores_legacy_checkpoint_adaptation_count() -> None:
 
 def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> None:
     from fitcv.pipeline_stage_runner import execute_shortlist_stage
+    from fitcv.vector_search import VECTOR_RETRIEVAL_STRATEGY
 
     production_row = {
         "job_url": "https://example.com/production",
         "vector_rank": 1,
         "vector_similarity": 0.9,
         "shortlist_origin": "vector_search",
-        "retrieval_strategy": "vector_cosine_v1",
+        "retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
     }
     audit_row = {
         "job_url": "https://example.com/audit",
         "vector_rank": 2,
         "vector_similarity": 0.8,
         "shortlist_origin": "audit",
-        "retrieval_strategy": "vector_cosine_v1",
+        "retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
         "audit_selection_hash": "hash",
     }
     diagnostics = {
@@ -219,6 +220,22 @@ def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> 
     }
     stored: list[list[dict]] = []
     state: dict = {}
+    captured_request: dict = {}
+
+    def fake_run_vector_search(profile, urls, config, *, top_n, structured_jobs, requested_strategy):
+        captured_request.update(
+            {
+                "urls": urls,
+                "structured_jobs": structured_jobs,
+                "requested_strategy": requested_strategy,
+            }
+        )
+        return {
+            "production_rows": [production_row],
+            "audit_rows": [audit_row],
+            "diagnostics": diagnostics,
+            "candidate_query": candidate_query,
+        }
 
     execute_shortlist_stage(
         run_id="run-1",
@@ -237,12 +254,7 @@ def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> 
         ),
         observe_span=lambda *args, **kwargs: nullcontext(),
         set_span_attributes=lambda attributes: None,
-        run_vector_search=lambda profile, urls, config, *, top_n: {
-            "production_rows": [production_row],
-            "audit_rows": [audit_row],
-            "diagnostics": diagnostics,
-            "candidate_query": candidate_query,
-        },
+        run_vector_search=fake_run_vector_search,
         materialize_scoring_shortlist=lambda rows, jobs: [
             {**jobs[0], **rows[0]}
         ],
@@ -255,6 +267,12 @@ def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> 
     assert state["shortlist_diagnostics"] == diagnostics
     assert state["_shortlist_audit_rows"] == [audit_row]
     assert all(row["job_url"] != audit_row["job_url"] for row in stored[0])
+    assert captured_request["urls"] == [production_row["job_url"], audit_row["job_url"]]
+    assert captured_request["structured_jobs"] == [
+        {"job_url": production_row["job_url"], "title": "Production"},
+        {"job_url": audit_row["job_url"], "title": "Audit"},
+    ]
+    assert captured_request["requested_strategy"] == VECTOR_RETRIEVAL_STRATEGY
 
 
 def test_rule_filter_stage_builds_context_once_and_preserves_full_payload() -> None:

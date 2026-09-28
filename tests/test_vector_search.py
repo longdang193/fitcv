@@ -14,7 +14,6 @@ from fitcv.vector_search import (
     resolve_candidate_query_embedding,
     run_vector_search,
 )
-from fitcv.embeddings import build_embedding_contract_fingerprint
 
 
 _CANDIDATE_QUERY_RECORD_KEYS = {
@@ -368,7 +367,6 @@ def test_run_vector_search_returns_shortlist(config: dict, sample_profile_path) 
             "duplicate_job_embedding_sample": [],
             "raw_hit_anomaly_total": 0,
             "raw_hit_anomaly_sample": [],
-            "stale_state_fallback": False,
         },
         "candidate_query": {},
     }
@@ -384,8 +382,7 @@ def _create_job_embedding_table(path: Path) -> None:
               chunk_type TEXT NOT NULL,
               chunk_text TEXT NOT NULL,
               embedding_json TEXT NOT NULL,
-              created_at TEXT NOT NULL,
-              embedding_contract_fingerprint TEXT
+              created_at TEXT NOT NULL
             )
             """
         )
@@ -400,47 +397,6 @@ def _candidate_query_record(embedding: list[float]) -> dict:
         "candidate_query_contract_fingerprint": "embedding-contract",
         "candidate_query_reuse_status": "fresh_compute",
     }
-
-
-def test_run_vector_search_rejects_stale_vectors_and_falls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    db_path = tmp_path / "fitcv.sqlite3"
-    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
-    _create_job_embedding_table(db_path)
-    current_contract = build_embedding_contract_fingerprint({})["fingerprint"]
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_contract_fingerprint) VALUES (?, 'job_summary', '', ?, ?, ?)",
-            ("job-1", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z", "stale-contract"),
-        )
-        conn.execute(
-            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_contract_fingerprint) VALUES (?, 'job_summary', '', ?, ?, ?)",
-            ("job-2", json.dumps([0.0, 1.0]), "2026-01-01T00:00:00Z", current_contract),
-        )
-    monkeypatch.setattr("fitcv.vector_search.resolve_candidate_query_embedding", lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]))
-    result = run_vector_search(
-        {"preferences": {"target_role": "Data Engineer"}},
-        ["job-1", "job-2"],
-        {
-            "pipeline": {"vector_search_top_n": 2},
-            "retrieval_strategy": "vector_cosine_v1",
-            "ranking_policy": {
-                "declared_preference_component_weights": {
-                    "domain": 0.5,
-                    "role_family": 0.3,
-                    "work_mode": 0.2,
-                }
-            },
-        },
-        structured_jobs=[
-            {"job_url": "job-1", "title": "Data Engineer", "required_skills": []},
-            {"job_url": "job-2", "title": "Data Engineer", "required_skills": []},
-        ],
-    )
-
-    assert result["diagnostics"]["stale_state_fallback"] is True
-    assert result["diagnostics"]["stale_job_embedding_total"] == 1
-    assert {row["job_url"] for row in result["production_rows"]} == {"job-1", "job-2"}
-    assert result["production_rows"][0]["retrieval_strategy"] == "lexical_v1"
 
 
 def test_run_vector_search_uses_total_order_and_bounded_audit(
@@ -556,7 +512,6 @@ def test_run_vector_search_reports_missing_and_invalid_embedding_coverage(
 
 def test_run_vector_search_lexical_v1_uses_canonical_signals_and_url_tie_breaking() -> None:
     config = {
-        "retrieval_strategy": "lexical_v1",
         "ranking_policy": {
             "declared_preference_component_weights": {
                 "domain": 1.0,
@@ -601,3 +556,171 @@ def test_run_vector_search_lexical_v1_uses_canonical_signals_and_url_tie_breakin
     assert result["production_rows"][0]["retrieval_score"] > 0
     assert "vector_similarity" not in result["production_rows"][0]
     assert result["diagnostics"]["embedding_generation_skipped"] is True
+
+
+def test_run_vector_search_reports_vector_request_and_lexical_fallback_reason(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "empty.sqlite3"))
+    job = {
+        "job_url": "https://example.com/a",
+        "title": "Data Engineer",
+        "required_skills_canonical": ["python"],
+        "job_family": "data_engineering",
+    }
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}], "preferences": {"target_role": "Data Engineer"}},
+        [job["job_url"]],
+        {
+            "pipeline": {"vector_search_top_n": 1},
+            "ranking_policy": {
+                "declared_preference_component_weights": {
+                    "domain": 1.0,
+                    "role_family": 1.0,
+                    "work_mode": 1.0,
+                }
+            },
+        },
+        structured_jobs=[job],
+    )
+
+    assert result["diagnostics"]["requested_strategy"] == "vector_cosine_v1"
+    assert result["diagnostics"]["effective_strategy"] == "lexical_v1"
+    assert result["diagnostics"]["fallback_used"] is True
+    assert result["diagnostics"]["fallback_reason"] == "missing_job_embeddings"
+    assert result["diagnostics"]["backend_id"] == "structured_jobs_lexical"
+
+
+def test_run_vector_search_falls_back_when_candidate_embedding_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "empty.sqlite3"))
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([]),
+    )
+    job = {
+        "job_url": "https://example.com/a",
+        "title": "Data Engineer",
+        "required_skills_canonical": ["python"],
+    }
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}], "preferences": {"target_role": "Data Engineer"}},
+        [job["job_url"]],
+        {"ranking_policy": {"declared_preference_component_weights": {"domain": 1.0, "role_family": 1.0, "work_mode": 1.0}}},
+        structured_jobs=[job],
+    )
+
+    assert result["production_rows"][0]["job_url"] == job["job_url"]
+    assert result["diagnostics"]["fallback_reason"] == "candidate_embedding_unavailable"
+    assert result["diagnostics"]["effective_strategy"] == "lexical_v1"
+
+
+def test_run_vector_search_falls_back_for_invalid_job_embeddings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            ("https://example.com/a", "not-json", "2026-01-01T00:00:00Z"),
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    job = {
+        "job_url": "https://example.com/a",
+        "title": "Data Engineer",
+        "required_skills_canonical": ["python"],
+    }
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}], "preferences": {"target_role": "Data Engineer"}},
+        [job["job_url"]],
+        {"ranking_policy": {"declared_preference_component_weights": {"domain": 1.0, "role_family": 1.0, "work_mode": 1.0}}},
+        structured_jobs=[job],
+    )
+
+    assert result["production_rows"][0]["job_url"] == job["job_url"]
+    assert result["diagnostics"]["fallback_reason"] == "invalid_job_embeddings"
+    assert result["diagnostics"]["effective_strategy"] == "lexical_v1"
+
+
+def test_run_vector_search_falls_back_for_stale_embedding_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE job_embeddings (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              job_url TEXT NOT NULL,
+              chunk_type TEXT NOT NULL,
+              chunk_text TEXT NOT NULL,
+              embedding_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              embedding_contract_fingerprint TEXT
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_contract_fingerprint) VALUES (?, 'job_summary', '', ?, ?, ?)",
+            ("https://example.com/a", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z", "stale"),
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    job = {
+        "job_url": "https://example.com/a",
+        "title": "Data Engineer",
+        "required_skills_canonical": ["python"],
+        "job_family": "data_engineering",
+    }
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        [job["job_url"]],
+        {
+            "ranking_policy": {
+                "declared_preference_component_weights": {
+                    "domain": 1.0,
+                    "role_family": 1.0,
+                    "work_mode": 1.0,
+                }
+            }
+        },
+        structured_jobs=[job],
+    )
+
+    assert result["diagnostics"]["fallback_reason"] == "incompatible_embedding_contract"
+    assert result["diagnostics"]["effective_strategy"] == "lexical_v1"
+
+
+def test_run_vector_search_reports_unavailable_without_fallback_data(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "empty.sqlite3"))
+
+    result = run_vector_search(
+        {},
+        ["https://example.com/a"],
+        {},
+        requested_strategy="lexical_v1",
+    )
+
+    assert result["production_rows"] == []
+    assert result["diagnostics"]["effective_strategy"] == "unavailable"
+    assert result["diagnostics"]["fallback_reason"] == "fallback_data_unavailable"

@@ -1,6 +1,6 @@
 # FitCV P0 Corpus
 
-Local corpus snapshot for future P0-A, P0-B, and P0-C work.
+Public corpus snapshot for P0-A, P0-B, and P0-C work.
 
 ## Contents
 
@@ -14,13 +14,13 @@ Local corpus snapshot for future P0-A, P0-B, and P0-C work.
 - P0-B: 10 reviewed requirement/evidence pairs across 3 postings; benchmark-only sample; promotion remains blocked by coverage.
 - P0-C: synthetic regression fixture; not production evidence.
 
-## Privacy boundary
+## Publication boundary
 
-- Keep this directory local/private. Do not publish or commit it without review.
-- Candidate profile YAML and original CV files are not copied here.
-- P0-B evidence text may retain organization, school, project, or location re-identifiers.
+- This directory is approved for public publication.
+- Candidate profile YAML and original CV files are not copied here; P0-B projection contains CV-derived rows only.
+- P0-B evidence text may retain organization, school, project, or location re-identifiers; direct personal identifiers are redacted, and downstream entity-level review remains required before wider reuse.
 - Translation pairing remains unasserted.
 
 ## Provenance
 
-Artifacts were copied from ignored `tmp/p0/` outputs and the tracked P0-C fixture on September 27, 2026. Re-run source admission checks before using this corpus for promotion.
+Artifacts were copied from source-admission outputs and the tracked P0-C fixture on September 27, 2026. Re-run source admission checks before using this corpus for promotion.

@@ -1,7 +1,7 @@
 {
   "status": "admitted_for_p0_a",
   "created_utc": "2026-09-27T00:00:00Z",
-  "source_root": "C:\\Users\\HOANG PHI LONG DANG\\repos\\career-ops\\data.private\\fitcv-p0-corpus",
+  "source_root": "data/fitcv-p0-corpus/p0a",
   "source_files": {
     "de_review.jsonl": {
       "sha256": "68e672ee9e7f8989fdeab56bbca92e64d6533228e51eb0cdf8e26d7587a1c94a",
@@ -17,7 +17,7 @@
     }
   },
   "target": {
-    "path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tmp\\p0\\corpus\\raw_postings_de_en.jsonl",
+    "path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
     "sha256": "a50f69d745c0d5d1b6944a320c8c93c248577c99ac0058ee1ce3e507c24a3547",
     "rows": 100,
     "unique_job_ids": 100
@@ -34,9 +34,9 @@
   },
   "reviewed": true,
   "evidence_corpus": {
-    "path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tmp\\p0\\corpus\\reviewed_requirement_evidence.jsonl",
+    "path": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl",
     "status": "admitted_for_benchmark_only",
-    "sha256": "461436faee360621b929805c0173da1dfd101d6d7d833d872046f806b6d96f23",
+    "sha256": "b46c25d571d43b9bbbdd150b23c5a522bd66eb25087609a01f1daf40014bf570",
     "records": 10,
     "requirement_instances": 7,
     "promotion_blocked": true,
@@ -47,7 +47,7 @@
     "Selected review projection contains 100 qualified job IDs: 50 DE and 50 EN.",
     "One source job ID is reviewed in both language arms; language-qualified job IDs prevent collision.",
     "Review split labels normalize held-out to held_out.",
-    "No raw corpus was added to tracked files.",
+    "Public corpus copy is tracked under data/fitcv-p0-corpus.",
     "P0-B reviewed sample admitted for benchmark-only diagnostics; promotion remains blocked by coverage."
   ],
   "source_manifest": {

@@ -462,7 +462,8 @@ def execute_llm_task(
         api_key = resolve_llm_api_key(route)
         validate_llm_routing_ready(route, api_key=api_key)
     except Exception as exc:
-        code = "credentials_missing" if "API key" in str(exc) else "routing_invalid"
+        message = str(exc)
+        code = "credentials_missing" if "API key" in message or "FITCV_LLM_API_KEY" in message else "routing_invalid"
         return _failed(
             request,
             route=route,

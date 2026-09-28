@@ -205,7 +205,7 @@ This matrix defines current SSOT ownership for migration execution.
 - compatibility-only (to be drained from `.env.yaml`): `seniority_ladder`, `application_statuses`, `cv_analysis_min_score`, overlap with runtime knobs that already live in `config/runtime/pipeline.yaml`
 - removable private surface: `config/env.private.yaml` (no active tracked consumer in this worktree baseline)
 - removable smoke surface: `config/live_smoke.yaml` (duplicates infra/model ownership outside canonical runtime files)
-- retired shortlist surfaces: `config/shortlist_lexical.yaml`, top-level `shortlist_lexical`, and top-level `retrieval_strategy`; config loading rejects them rather than silently preserving dormant BM25/BM25F behavior
+- retired shortlist config surfaces: `config/shortlist_lexical.yaml`, top-level `shortlist_lexical`, and top-level `retrieval_strategy`; config loading rejects them rather than silently preserving dormant BM25/BM25F behavior. Runtime retrieval requests strategy through the internal `run_vector_search(..., requested_strategy=...)` contract.
 
 ### Task 1 Ownership And Disposition Decisions
 
@@ -231,9 +231,6 @@ Canonical owner: `config/policy/cv_analysis.yaml`.
 - `cv_analysis.semantic_alignment.model` records configured model intent; current runtime diagnostics identify the actual backend as deterministic local/hash output from `src/fitcv/embeddings.py:generate_embedding`
 - `cv_analysis.semantic_alignment.channel_pool_size` bounds each retrieval channel before merge and global selection
 - disabling semantic alignment forces lexical-only channel scoring without changing shortlist embeddings or persisted shortlist contracts
-- `structured_jobs` is input data only; explicit `retrieval_strategy` selects lexical or vector retrieval
-- current-hash is retained after benchmark comparison; full-pool selection was measured and removed because it did not improve qualified recall or context size and increased p95 latency
-- qualifier audit fields are additive; `supported` is required for qualifier-aware verification, while `unverified` and `contradicted` remain non-authoritative
 - compare retrieval arms offline with `uv run python scripts/benchmark_requirement_support.py`; fixture truth lives in `tests/fixtures/requirement_support_benchmark.json`
 
 Policy meaning:
