@@ -7,7 +7,7 @@
     {"scenario_id": "unsupported_skill", "purpose": "unsupported skill", "profile_ref": "unsupported_skill", "job_context_ref": "unsupported_skill", "expected_support_ref": "unsupported_skill", "evidence_budget": 1, "validation_case_ids": ["unsupported_structured_skill"]},
     {"scenario_id": "wrong_evidence_id", "purpose": "wrong evidence ID", "profile_ref": "wrong_evidence_id", "job_context_ref": "wrong_evidence_id", "expected_support_ref": "wrong_evidence_id", "evidence_budget": 1, "validation_case_ids": ["wrong_evidence_id"]},
     {"scenario_id": "canonical_synonym", "purpose": "canonical synonym", "profile_ref": "canonical_synonym", "job_context_ref": "canonical_synonym", "expected_support_ref": "canonical_synonym", "evidence_budget": 1, "validation_case_ids": ["canonical_synonym"]},
-    {"scenario_id": "responsibility_only", "purpose": "responsibility-only text", "profile_ref": "responsibility_only", "job_context_ref": "responsibility_only", "expected_support_ref": "responsibility_only", "evidence_budget": 1, "validation_case_ids": ["responsibility_only"]},
+    {"scenario_id": "responsibility_only", "purpose": "responsibility-only text", "profile_ref": "responsibility_only", "job_context_ref": "responsibility_only", "expected_support_ref": "responsibility_only", "evidence_budget": 1, "validation_case_ids": ["responsibility_required_skill"]},
     {"scenario_id": "multi_requirement_item", "purpose": "one item supports multiple requirements", "profile_ref": "multi_requirement_item", "job_context_ref": "multi_requirement_item", "expected_support_ref": "multi_requirement_item", "evidence_budget": 1, "validation_case_ids": ["supported_sql"]},
     {"scenario_id": "redundant_support", "purpose": "several items support one requirement", "profile_ref": "redundant_support", "job_context_ref": "redundant_support", "expected_support_ref": "redundant_support", "evidence_budget": 2, "validation_case_ids": ["supported_sql"]},
     {"scenario_id": "below_cutoff", "purpose": "support below channel cutoff", "profile_ref": "below_cutoff", "job_context_ref": "below_cutoff", "expected_support_ref": "below_cutoff", "evidence_budget": 1, "validation_case_ids": ["supported_sql"]},
@@ -184,7 +184,7 @@
   "validation_cases": [
     {
       "case_id": "supported_sql",
-      "cv_text": "# Candidate\n## Summary\nAnalytics Engineer\n## Skills\nSQL, Python\n## Experience\nAcme",
+      "cv_text": "# Candidate\n## Summary\nAnalytics Engineer\n## Skills\nSQL\n## Experience\nAcme",
       "expected_valid": true,
       "expected_violation_class": "none"
     },
@@ -204,7 +204,7 @@
     },
     {
       "case_id": "unsupported_structured_skill",
-      "cv_text": "# Candidate\n## Skills\nPower BI\n",
+      "cv_text": "# Candidate\n## Skills\nKubernetes\n",
       "expected_valid": false,
       "config": {"required_cv_sections": ["Skills"]},
       "expected_violation_class": "missing_verified_support"
@@ -215,6 +215,13 @@
       "config": {"required_cv_sections": ["Skills"]},
       "expected_valid": false,
       "expected_violation_class": "unrelated_validation"
+    },
+    {
+      "case_id": "responsibility_required_skill",
+      "cv_text": "# Candidate\n## Skills\nStakeholder coordination\n",
+      "config": {"required_cv_sections": ["Skills"]},
+      "expected_valid": false,
+      "expected_violation_class": "missing_verified_support"
     }
   ],
   "validation": {

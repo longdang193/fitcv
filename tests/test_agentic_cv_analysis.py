@@ -19,6 +19,7 @@ from pathlib import Path
 import yaml
 
 from fitcv.agentic_cv_analysis import (
+    _answer_mentions_requirement,
     _build_requirement_uncertainties,
     analyze_ranked_job,
     build_analysis_input_summary,
@@ -205,6 +206,66 @@ def test_candidate_resolution_answer_uses_requirement_qualifiers(
 
         python_row = result["requirement_coverage"][0]
         assert python_row["selected_support"] == expected_status
+
+
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.build_evidence_projection")
+def test_candidate_resolution_answer_must_name_required_skill(
+    mock_projection,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_retrieve,
+) -> None:
+    mock_projection.return_value = {"fingerprint": "projection::resolution-skill"}
+    mock_fingerprint.return_value = {"fingerprint": "analysis::resolution-skill"}
+    mock_bundle.return_value = {
+        "projection_fingerprint": "projection::resolution-skill",
+        "selected_evidence": [],
+        "selected_evidence_ids": [],
+    }
+    mock_retrieve.return_value = []
+    mock_gap.return_value = {"matched": [], "missing": ["SQL"]}
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": "7"}
+    job = {
+        **_job(),
+        "required_skills": ["SQL"],
+        "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}],
+    }
+    requirement_id = build_required_skill_descriptors(job, _config())[0]["requirement_id"]
+
+    def analyze(answer_text: str) -> dict:
+        return analyze_ranked_job(
+            job,
+            profile,
+            {
+                **_config(),
+                "_requirement_resolutions": [{
+                    "resolution_id": "resolution-skill",
+                    "candidate_profile_id": "candidate-1",
+                    "candidate_profile_revision": "7",
+                    "source_profile_fingerprint": "projection::resolution-skill",
+                    "resolution_key": requirement_id,
+                    "requirement_instance_id": requirement_id,
+                    "resolution_action": "RESOLVE_WITH_ANSWER",
+                    "resolution_payload": {"answer_text": answer_text},
+                }],
+            },
+        )
+
+    assert analyze("Used SQL for four years.")["requirement_coverage"][0]["selected_support"] == "verified"
+    assert analyze("Python experience.")["requirement_coverage"][0]["selected_support"] == "relevant_unverified"
+    assert analyze("I do not have SQL experience.")["requirement_coverage"][0]["selected_support"] == "contradicted"
+
+def test_candidate_resolution_answer_matches_literal_requirement_text() -> None:
+    assert _answer_mentions_requirement(
+        "Golang experience.",
+        {"canonical_skill": "go", "original_requirements": ["Golang"]},
+        _config(),
+    ) is True
 
 
 def test_requirement_uncertainty_carries_profile_identity_at_creation() -> None:

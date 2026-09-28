@@ -7,6 +7,8 @@ from typing import Any
 
 import pytest
 
+from fitcv.candidate import validate_candidate_profile_v2
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "benchmark_requirement_support.py"
@@ -62,6 +64,21 @@ def test_scenarios_resolve_independent_inputs_without_shared_fallback() -> None:
     assert len({scenario["expected_support_ref"] for scenario in fixture["scenarios"]}) == len(resolved)
     resolved[0]["job_context"]["title"] = "mutated"
     assert resolved[1]["job_context"]["title"] != "mutated"
+
+
+def test_scenario_profile_namespaces_derived_skill_ids() -> None:
+    module = _benchmark_module()
+    fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    scenario = next(
+        item for item in module._resolve_scenarios(fixture)
+        if item["scenario_id"] == "paraphrase"
+    )
+
+    profile = module._scenario_profile_for_analysis(
+        scenario["profile"], scenario["scenario_id"]
+    )
+
+    assert validate_candidate_profile_v2(profile) == []
 
 
 def test_fixture_validation_rejects_missing_scenario_reference() -> None:
@@ -197,6 +214,23 @@ def test_support_metrics_separate_retrieval_and_selection_loss() -> None:
     assert metrics["requirement_recall"]["retrieved"] == 1.0
     assert metrics["requirement_recall"]["selected"] == 0.0
     assert metrics["evidence_pair_recall"]["retrieved"] == 0.5
+
+
+def test_support_metrics_count_each_requirement_once_with_redundant_evidence() -> None:
+    module = _benchmark_module()
+    metrics = module._support_metrics(
+        {
+            "requirement_support": {
+                "canonical": {"required_skill:sql": ["ev-1", "ev-2"]},
+                "pool": {"required_skill:sql": ["ev-1", "ev-2"]},
+                "selected": {"required_skill:sql": ["ev-1", "ev-2"]},
+            },
+            "selected_evidence_ids": ["ev-1", "ev-2"],
+        },
+        {"required_skill:sql": ["ev-1", "ev-2"]},
+    )
+
+    assert metrics["requirement_counts"]["selected"] == {"covered": 1, "denominator": 1}
 
 
 def test_support_metrics_include_unexpected_requirement_ids() -> None:
@@ -403,6 +437,105 @@ def test_benchmark_validation_matrix_records_declared_outcomes() -> None:
         for scenario in result["scenarios"]
         for case in scenario["validation"]["case_results"]
     )
+
+
+def test_benchmark_does_not_score_validation_when_analysis_is_not_generation_ready(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _benchmark_module()
+    fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    scenario = next(
+        item for item in module._resolve_scenarios(fixture)
+        if item["scenario_id"] == "unsupported_skill"
+    )
+
+    monkeypatch.setattr(
+        module,
+        "_timed_analyze",
+        lambda *_args, **_kwargs: (
+            {
+                "selected_evidence": [],
+                "selected_evidence_ids": [],
+                "evidence_selection_summary": {},
+            },
+            {
+                "status": "blocked_by_reranker_fit",
+                "gap_summary": {},
+                "requirement_coverage": [],
+            },
+            {"retrieval_ms": 0.0, "selection_ms": 0.0, "total_ms": 0.0},
+        ),
+    )
+
+    result = module._run_benchmark_scenario(
+        fixture=fixture,
+        scenario=scenario,
+        arm="production",
+        pool_size=4,
+        base_config={},
+        runs=1,
+        warmups=0,
+    )
+
+    case = result["validation"]["case_results"][0]
+    assert case["status"] == "not_applicable"
+    assert case["actual_violation_class"] == "not_applicable"
+    assert result["validation"]["passed_cases"] == 0
+    assert result["validation"]["not_applicable_cases"] == 1
+
+
+def test_benchmark_aggregate_excludes_not_applicable_validation_cases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _benchmark_module()
+    scenarios = [{"scenario_id": "blocked"}]
+
+    monkeypatch.setattr(module, "_load_json", lambda path: {"evaluation_schema_version": 1})
+    monkeypatch.setattr(module, "_resolve_scenarios", lambda fixture: scenarios)
+    monkeypatch.setattr(module, "_load_policy", lambda path: {})
+    monkeypatch.setattr(module, "_aggregate_scenario_metrics", lambda results: {})
+    monkeypatch.setattr(
+        module,
+        "_run_benchmark_scenario",
+        lambda **kwargs: {
+            "scenario_id": "blocked",
+            "evidence_budget": 1,
+            "top_k": 1,
+            "timing_ms": {"total_ms": {"median": 0.0, "p95": 0.0}},
+            "context": {
+                "selected_item_count": 0,
+                "prompt_bytes": 0,
+                "estimated_prompt_tokens": 0,
+                "payload_bytes": 0,
+            },
+            "validation": {
+                "passed_cases": 0,
+                "case_count": 1,
+                "not_applicable_cases": 1,
+            },
+            "backend": {},
+        },
+    )
+
+    result = module.run_benchmark(
+        arm="production",
+        pool_size=4,
+        fixture_path=FIXTURE_PATH,
+        runs=1,
+        warmups=0,
+    )
+
+    assert result["validation"] == {
+        "passed_cases": 0,
+        "case_count": 0,
+        "not_applicable_cases": 1,
+        "scenario_results": [{
+            "scenario_id": "blocked",
+            "passed_cases": 0,
+            "case_count": 0,
+            "not_applicable_cases": 1,
+        }],
+    }
 
 
 def test_comparison_rejects_mismatched_fixture_fingerprints(tmp_path: Path) -> None:
