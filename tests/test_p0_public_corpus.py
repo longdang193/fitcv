@@ -108,6 +108,26 @@ def test_public_p0b_reviewed_rows_join_to_admitted_p0a_jobs() -> None:
     assert manifest["records"] == len(rows)
 
 
+def test_public_p0b_adjudicated_relevance_labels_cover_mixed_cases() -> None:
+    root = Path(__file__).parents[1]
+    reviewed = root / "data" / "fitcv-p0-corpus" / "p0b" / "reviewed_requirement_evidence.jsonl"
+    manifest = json.loads(
+        (root / "data" / "fitcv-p0-corpus" / "p0b" / "reviewed_requirement_evidence_manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    rows = [json.loads(line) for line in reviewed.read_text(encoding="utf-8").splitlines() if line.strip()]
+    row_by_evidence_id = {row["evidence_id"]: row for row in rows}
+    labeled = manifest["relevance_labels"]
+
+    assert {label["relevance_label"] for label in labeled} == {"relevant", "borderline", "irrelevant"}
+    assert all(label["review_status"] == "approved" for label in labeled)
+    assert all(label["evidence_id"] in row_by_evidence_id for label in labeled)
+    assert all(row_by_evidence_id[label["evidence_id"]]["support_verdict"] in {"supported", "unknown"} for label in labeled)
+    assert row_by_evidence_id[next(label for label in labeled if label["relevance_label"] == "borderline")["evidence_id"]]["support_verdict"] == "unknown"
+    assert row_by_evidence_id[next(label for label in labeled if label["relevance_label"] == "irrelevant")["evidence_id"]]["support_verdict"] == "unknown"
+
+
 def test_public_p0_corpus_uses_lf_and_manifest_hashes_match_bytes() -> None:
     root = Path(__file__).parents[1]
     corpus = root / "data" / "fitcv-p0-corpus"

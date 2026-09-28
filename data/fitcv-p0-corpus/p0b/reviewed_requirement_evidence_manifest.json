@@ -1,5 +1,5 @@
 {
-  "schema_version": "p0b.reviewed_requirement_evidence_manifest.v1",
+  "schema_version": "p0b.reviewed_requirement_evidence_manifest.v2",
   "status": "admitted_for_benchmark_only",
   "path": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl",
   "sha256": "e4ffc9ade4fa8834b8f7052d0577fbc9d3fb04e02be28d250ad34ae8a1efbdcb",
@@ -26,11 +26,41 @@
   "review_statuses": {
     "reviewed": 8
   },
+  "relevance_label_schema": "p0b.relevance_labels.v1",
+  "relevance_label_counts": {
+    "relevant": 1,
+    "borderline": 1,
+    "irrelevant": 1
+  },
+  "relevance_labels": [
+    {
+      "requirement_instance_id": "req_4053398457_01",
+      "evidence_id": "ev_profile_001_de_cv_0021",
+      "relevance_label": "relevant",
+      "review_status": "approved",
+      "basis": "Listed quantitative modules directly relate to the quantitative-field requirement."
+    },
+    {
+      "requirement_instance_id": "req_4053398457_02",
+      "evidence_id": "ev_profile_001_de_cv_0028",
+      "relevance_label": "borderline",
+      "review_status": "approved",
+      "basis": "English C1 is related to fluent English, but equivalence is not asserted."
+    },
+    {
+      "requirement_instance_id": "req_4053398457_03",
+      "evidence_id": "ev_profile_001_de_cv_0002",
+      "relevance_label": "irrelevant",
+      "review_status": "approved",
+      "basis": "German location text does not establish EU citizenship."
+    }
+  ],
   "translation_pairing": "unasserted",
   "promotion_blocked": true,
   "blockers": [
     "Coverage contains two postings and one small held-out slice, not full P0-B production recall evidence.",
-    "No canonical evidence taxonomy is admitted beyond source-backed reviewed text.",
+    "Relevance labels cover only three approved seed pairs; broader boundary coverage remains required.",
+    "Support verdict taxonomy remains separate and has no approved unsupported class.",
     "P0-B benchmark promotion requires broader reviewed requirement/evidence coverage."
   ],
   "input_reviews": [
