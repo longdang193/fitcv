@@ -1,0 +1,76 @@
+{
+  "schema_version": "p0b.reviewer_b_manifest.v1",
+  "status": "admitted_for_benchmark_only",
+  "reviewer": "reviewer_b",
+  "generated_at": "2026-09-27",
+  "label_path": "data/fitcv-p0-corpus/p0b/reviewer_b_labels.jsonl",
+  "source_labels_path": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl",
+  "records": 10,
+  "requirement_instances": 7,
+  "evidence_ids": 9,
+  "requirement_evidence_pairs": 10,
+  "languages": {
+    "de": 6,
+    "en": 4
+  },
+  "splits": {
+    "calibration": 8,
+    "held_out": 2
+  },
+  "support_verdicts": {
+    "supported": 4,
+    "unknown": 6
+  },
+  "review_statuses": {
+    "reviewed": 10
+  },
+  "disagreements": [
+    {
+      "requirement_instance_id": "req_4053398457_01",
+      "evidence_id": "ev_profile_001_de_cv_0021",
+      "fields": [
+        "support_verdict",
+        "qualifier_verdicts.education_level"
+      ],
+      "existing": {
+        "support_verdict": "supported",
+        "education_level": "not_recorded"
+      },
+      "reviewer_b": {
+        "support_verdict": "unknown",
+        "education_level": "unknown"
+      },
+      "note": "Listed modules support a quantitative field, but this evidence row does not establish current enrollment in a Master's program."
+    },
+    {
+      "requirement_instance_id": "req_4471051929_05",
+      "evidence_id": "ev_profile_001_en_cv_0001",
+      "fields": [
+        "support_verdict",
+        "qualifier_verdicts.currently_pursuing_degree"
+      ],
+      "existing": {
+        "support_verdict": "supported",
+        "currently_pursuing_degree": "supported"
+      },
+      "reviewer_b": {
+        "support_verdict": "unknown",
+        "currently_pursuing_degree": "unknown"
+      },
+      "note": "Evidence supports current study, but requirement source record 4471051929 is absent from the admitted posting snapshot; requirement provenance cannot be independently verified."
+    }
+  ],
+  "provenance_notes": [
+    "Requirement source_file values point to private files absent from this checkout; source IDs and requirement text were checked against data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl.",
+    "Evidence source files are absent from this checkout; raw evidence and source metadata were checked against data/fitcv-p0-corpus/p0b/candidate_evidence_projection.jsonl.",
+    "Requirement source record 4471051929 is absent from the admitted P0-A posting snapshot; labels tied to it remain unknown.",
+    "No translation pairing is asserted; all copied evidence retains unpaired_uncertain provenance."
+  ],
+  "promotion_blocked": true,
+  "privacy_boundary": {
+    "source_file_aliases": true,
+    "direct_contact_scan": "passed",
+    "reidentifiers_disclosed": true
+  },
+  "label_sha256": "2dfdeeddbebc11811f26f8eb88a7b4fe2654fe7d4f1e0b8b6711210151c61156"
+}

@@ -1,0 +1,59 @@
+{
+  "schema_version": "p0b.reviewer_a_expanded_manifest.v1",
+  "status": "admitted_for_benchmark_only",
+  "reviewer": "reviewer_a",
+  "generated_at": "2026-09-27",
+  "label_path": "data/fitcv-p0-corpus/p0b/reviewer_a_expanded_labels.jsonl",
+  "source_requirement_path": "data/fitcv-p0-corpus/p0b/requirement_instances.jsonl",
+  "source_projection_path": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection.jsonl",
+  "source_raw_postings_path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
+  "records": 50,
+  "requirement_instances": 50,
+  "evidence_ids": 10,
+  "requirement_evidence_pairs": 37,
+  "languages": {
+    "de": 25,
+    "en": 25
+  },
+  "splits": {
+    "calibration": 40,
+    "held_out": 10
+  },
+  "support_verdicts": {
+    "supported": 7,
+    "unknown": 43
+  },
+  "review_statuses": {
+    "reviewed": 50
+  },
+  "selection_policy": "For each language, sort requirement_instance_id within each source split; take first 20 calibration and first 5 held_out rows. Preserve source split.",
+  "stratification": {
+    "requested": {
+      "records": 50,
+      "de": 25,
+      "en": 25,
+      "calibration": 40,
+      "held_out": 10
+    },
+    "actual": {
+      "records": 50,
+      "de": 25,
+      "en": 25,
+      "calibration": 40,
+      "held_out": 10
+    }
+  },
+  "direct_evidence_rule": "support_verdict=supported only when projection text directly establishes the full requirement; otherwise unknown.",
+  "provenance_notes": [
+    "Requirement text and provenance copied from requirement_instances.jsonl, sourced from raw_postings_de_en.jsonl.",
+    "Evidence text and provenance copied only from profile_private_001 rows in candidate_evidence_projection.jsonl.",
+    "No translation pairing or inferred claim added."
+  ],
+  "promotion_blocked": true,
+  "label_sha256": "526bbe7dffca0011b0671b25cb0804ef46b0b90d161a0e20fb7c1f515b97e805",
+  "privacy_boundary": {
+    "source_file_aliases": true,
+    "direct_contact_scan": "passed",
+    "reidentifiers_disclosed": true
+  }
+}

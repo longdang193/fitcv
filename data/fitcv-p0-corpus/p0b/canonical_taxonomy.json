@@ -1,0 +1,96 @@
+{
+  "schema_version": "p0b.canonical_taxonomy.v1",
+  "status": "benchmark_only",
+  "scope_note": "Benchmark schema with observed and reserved categories; not a production taxonomy.",
+  "source_basis": {
+    "reviewed_requirement_evidence": "p0b.reviewed_requirement_evidence.v1",
+    "candidate_evidence_projection": "p0b.candidate_evidence_projection.v2"
+  },
+  "requirement_types": [
+    "skill",
+    "education",
+    "experience",
+    "language",
+    "location",
+    "work_authorization",
+    "citizenship",
+    "availability",
+    "certification",
+    "cognitive_ability",
+    "technical_exposure"
+  ],
+  "qualifier_dimensions": {
+    "skill": [
+      "proficiency",
+      "tool_or_technology"
+    ],
+    "education": [
+      "education_level",
+      "study_field",
+      "currently_pursuing_degree"
+    ],
+    "experience": [
+      "years_experience",
+      "duration",
+      "recency"
+    ],
+    "language": [
+      "language_level",
+      "optional_german_knowledge"
+    ],
+    "location": [
+      "location_type"
+    ],
+    "work_authorization": [
+      "authorization_type"
+    ],
+    "citizenship": [
+      "eu_citizenship"
+    ],
+    "availability": [
+      "availability_months"
+    ],
+    "certification": [
+      "certification_name",
+      "validity"
+    ],
+    "cognitive_ability": [
+      "problem_solving",
+      "critical_thinking"
+    ],
+    "technical_exposure": [
+      "sql_exposure"
+    ],
+    "cross_cutting": [
+      "requirement_strength",
+      "negation",
+      "comparator"
+    ]
+  },
+  "verdict_enum": [
+    "supported",
+    "contradicted",
+    "unknown",
+    "not_applicable"
+  ],
+  "observed_verdict_enum": [
+    "supported",
+    "unknown"
+  ],
+  "required_provenance_fields": {
+    "requirement": [
+      "source_file",
+      "source_record_id",
+      "source_field",
+      "job_title",
+      "source_url"
+    ],
+    "evidence": [
+      "source_file",
+      "source_record_id",
+      "source_section",
+      "pairing_status",
+      "translation_pair_id"
+    ]
+  }
+}

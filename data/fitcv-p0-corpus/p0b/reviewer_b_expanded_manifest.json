@@ -1,0 +1,65 @@
+{
+  "schema_version": "p0b.reviewer_b_expanded_manifest.v1",
+  "status": "admitted_for_benchmark_only",
+  "reviewer": "reviewer_b",
+  "generated_at": "2026-09-28",
+  "label_path": "data/fitcv-p0-corpus/p0b/reviewer_b_expanded_labels.jsonl",
+  "profile_id": "profile_private_001",
+  "source_requirement_path": "data/fitcv-p0-corpus/p0b/requirement_instances.jsonl",
+  "source_evidence_path": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection.jsonl",
+  "selection": {
+    "sort_keys": [
+      "source_id",
+      "split",
+      "requirement_instance_id"
+    ],
+    "language_blocks": [
+      "de",
+      "en"
+    ],
+    "rows_per_language": 25,
+    "per_language_split_counts": {
+      "calibration": 20,
+      "held_out": 5
+    },
+    "order": "DE block then EN block; each block calibration then held_out",
+    "total_rows": 50
+  },
+  "records": 50,
+  "requirement_instances": 50,
+  "evidence_ids": 10,
+  "evidence_matches": 37,
+  "null_evidence": 13,
+  "languages": {
+    "de": 25,
+    "en": 25
+  },
+  "splits": {
+    "calibration": 40,
+    "held_out": 10
+  },
+  "support_verdicts": {
+    "supported": 5,
+    "unknown": 45
+  },
+  "review_statuses": {
+    "reviewed": 50
+  },
+  "exact_pair_counts": {
+    "assignments": 50,
+    "non_null_pairs": 37,
+    "null_evidence": 13,
+    "unique_requirement_instances": 50,
+    "unique_evidence_ids": 10,
+    "mismatched_evidence": 0,
+    "duplicate_pairs": 0
+  },
+  "source_policy": "Direct source-text evidence only; support_verdict=supported only when projection text explicitly establishes the full requirement; otherwise unknown.",
+  "promotion_blocked": true,
+  "label_sha256": "6222e0e8c82e6adccb5334f0ab4667cc9385455640b753e4ae523af2b58b05a5",
+  "privacy_boundary": {
+    "source_file_aliases": true,
+    "direct_contact_scan": "passed",
+    "reidentifiers_disclosed": true
+  }
+}
