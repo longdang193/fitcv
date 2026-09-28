@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-fact-grain-benchmark-green-baseline
 targets:
@@ -352,14 +352,15 @@ git ls-files --eol data/fitcv-p0-corpus
 
 ## Execution Record — 2026-09-28
 
-- Baseline worktree: `7a516a3fb77101b5ed9f7212a529133eb8592a51`; no implementation commit created.
+- Baseline worktree: `7a516a3fb77101b5ed9f7212a529133eb8592a51`.
+- Implementation commit: `27d03903cb81fa8b0f69199190db65e305e1e8fb` (`fix: close fact-grain benchmark correctness gaps`).
 - Focused verification: `119 passed`.
 - Full verification: `2832 passed, 6 skipped, 52 warnings`.
 - Corpus integrity: all tracked `data/fitcv-p0-corpus` files report `i/lf w/lf`; manifest hashes match final `read_bytes()` values.
 - Ranking benchmark schema: `ranking_benchmark_v3`; retrieval and ranking metrics use separate ID sets.
 - Support benchmark arms: `production`, `lexical_only`, `full_pool_diagnostic`; repeated non-timing fields match.
 - Promotion status remains blocked: ranking fixture is all-positive; reviewed P0-B coverage remains insufficient.
-- CI exact-SHA run: pending authorized commit and push. Plan remains `proposed` until CI evidence exists.
+- CI exact-SHA run: `36404840399` — all jobs passed: Focused Smoke Tests, Adapter Integrity, Full Suite, Architecture Docs, Public Corpus Integrity (Ubuntu), and Public Corpus Integrity (Windows).
 
 ## Rollback
 
