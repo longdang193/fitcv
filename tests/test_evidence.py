@@ -461,6 +461,10 @@ def test_project_fragment_does_not_inherit_unrelated_project_skill() -> None:
         ("more than 3 years SQL", "more than 4 years SQL", True),
         ("more than 3 years SQL", "at least 3 years SQL", False),
         ("18 months SQL", "2 years SQL", True),
+        ("at most 3 years SQL", "2 years SQL", False),
+        ("under 3 years SQL", "2 years SQL", False),
+        ("no less than 3 years SQL", "4 years SQL", True),
+        ("weniger als 3 Jahre SQL", "2 years SQL", False),
     ],
 )
 def test_duration_qualifiers_compare_intervals(
