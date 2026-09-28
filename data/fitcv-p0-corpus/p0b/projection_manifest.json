@@ -3,7 +3,7 @@
   "generated_at": "2026-09-27",
   "inputs": {
     "cv_glob": "data/sample CVs/*.md",
-    "private_profile": "data/fitcv-p0-corpus/p0b/redacted_candidate_profile.yaml"
+    "private_profile": "profile_private_001 (redacted source omitted)"
   },
   "output": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection.jsonl",
   "counts": {

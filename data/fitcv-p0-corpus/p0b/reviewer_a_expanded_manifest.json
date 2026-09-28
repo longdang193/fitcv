@@ -50,7 +50,7 @@
     "No translation pairing or inferred claim added."
   ],
   "promotion_blocked": true,
-  "label_sha256": "6175033532c3fc74977b2fef4691b377a49a8e26962c5093fd244a522f347761",
+  "label_sha256": "526bbe7dffca0011b0671b25cb0804ef46b0b90d161a0e20fb7c1f515b97e805",
   "privacy_boundary": {
     "source_file_aliases": true,
     "direct_contact_scan": "passed",

@@ -2,7 +2,7 @@
   "schema_version": "p0b.reviewed_requirement_evidence_adjudicated_manifest.v1",
   "status": "admitted_for_benchmark_only",
   "output": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence_expanded.jsonl",
-  "sha256": "248ce3555150e9f8f714208098e1e491f7f75bff19da83f569df099d52102f91",
+  "sha256": "4bf56588011cc78736ce91af41dec4d948ebe3033af061649d7da7b468e2545a",
   "records": 60,
   "requirement_instances": 52,
   "evidence_ids": 20,
