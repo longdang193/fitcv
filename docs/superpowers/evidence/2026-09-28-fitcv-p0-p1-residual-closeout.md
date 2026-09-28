@@ -2,7 +2,7 @@
 
 Date: 2026-09-28
 Plan: `docs/superpowers/plans/2026-09-28-fitcv-p0-p1-residual-completion-plan.md`
-Workspace: `codex/fitcv-p0-p1-residual`, HEAD `39852d3b`
+Workspace: `codex/fitcv-p0-p1-residual`, implementation commit `2bfd58ff`
 
 ## Result
 
