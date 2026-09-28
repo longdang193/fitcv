@@ -23,22 +23,14 @@ def _rows(path: Path) -> dict[tuple[str, str], dict[str, Any]]:
     return result
 
 
-def _by_requirement(rows: dict[tuple[str, str], dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    result: dict[str, dict[str, Any]] = {}
-    for row in rows.values():
-        requirement_id = str(row["requirement_instance_id"])
-        if requirement_id in result:
-            raise ValueError(f"multiple evidence rows for expanded requirement: {requirement_id}")
-        result[requirement_id] = row
-    return result
-
-
 def _adjudicate(
     reviewer_a: dict[str, Any],
     reviewer_b: dict[str, Any],
 ) -> dict[str, Any]:
-    if reviewer_a["requirement_instance_id"] != reviewer_b["requirement_instance_id"]:
-        raise ValueError("reviewers label different requirement instances")
+    key_a = (str(reviewer_a["requirement_instance_id"]), str(reviewer_a.get("evidence_id") or ""))
+    key_b = (str(reviewer_b["requirement_instance_id"]), str(reviewer_b.get("evidence_id") or ""))
+    if key_a != key_b:
+        raise ValueError(f"reviewers label different requirement/evidence pairs: {key_a} != {key_b}")
     final = dict(reviewer_b)
     a_verdict = str(reviewer_a.get("support_verdict") or "unknown")
     b_verdict = str(reviewer_b.get("support_verdict") or "unknown")
@@ -108,13 +100,10 @@ def main() -> None:
     reviewer_b = _rows(args.reviewer_b)
     if set(initial_a) != set(initial_b):
         raise ValueError("initial reviewer label keys differ")
-    if set(_by_requirement(reviewer_a)) != set(_by_requirement(reviewer_b)):
-        raise ValueError("expanded reviewer requirement IDs differ")
+    if set(reviewer_a) != set(reviewer_b):
+        raise ValueError("expanded reviewer requirement/evidence keys differ")
     if len(reviewer_a) != 50:
         raise ValueError(f"expected 50 expanded rows, got {len(reviewer_a)}")
-
-    expanded_a = _by_requirement(reviewer_a)
-    expanded_b = _by_requirement(reviewer_b)
 
     final_rows = []
     disagreements: list[str] = []
@@ -123,10 +112,10 @@ def main() -> None:
         if row["adjudication"]["status"] != "agreed":
             disagreements.append(f"{key[0]}|{key[1]}")
         final_rows.append(row)
-    for requirement_id in sorted(expanded_a):
-        row = _adjudicate(expanded_a[requirement_id], expanded_b[requirement_id])
+    for key in sorted(reviewer_a):
+        row = _adjudicate(reviewer_a[key], reviewer_b[key])
         if row["adjudication"]["status"] != "agreed":
-            disagreements.append(requirement_id)
+            disagreements.append(f"{key[0]}|{key[1]}")
         final_rows.append(row)
 
     final_rows.sort(key=lambda row: (row["language"], row["split"], row["requirement_instance_id"], str(row.get("evidence_id") or "")))
