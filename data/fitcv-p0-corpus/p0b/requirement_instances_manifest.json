@@ -1,0 +1,96 @@
+{
+  "schema_version": "p0b.requirement_instances.v2",
+  "status": "review_queue",
+  "inputs": {
+    "p0a_jobs": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
+    "p0b_reviewed_rows": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl"
+  },
+  "output": "data/fitcv-p0-corpus/p0b/requirement_instances.jsonl",
+  "sha256": "0fdb530c1c2b9c0b1016cfdc1066180f8e33073b990e8447ecc07bc3e9c78815",
+  "max_rows": 100,
+  "counts": {
+    "queue_instances": 100,
+    "preserved_reviewed_instances": 7,
+    "derived_candidate_instances": 93,
+    "source_jobs": 21,
+    "queue_status": {
+      "queued": 100
+    },
+    "languages": {
+      "de": 50,
+      "en": 50
+    },
+    "splits": {
+      "calibration": 80,
+      "held_out": 20
+    },
+    "requirement_types": {
+      "availability": 8,
+      "citizenship": 1,
+      "cognitive_ability": 41,
+      "education": 20,
+      "language": 20,
+      "technical_exposure": 10
+    }
+  },
+  "fields": [
+    "source_id",
+    "job_language",
+    "requirement_text",
+    "requirement_instance_id",
+    "split",
+    "queue_status",
+    "requirement_type",
+    "provenance"
+  ],
+  "diagnostics": {
+    "p0a_reviewed_jobs": 100,
+    "p0b_preserved_reviewed_instances": 7,
+    "derived_candidates_available": 127,
+    "unmatched_p0a_source_ids": [
+      "4471051929"
+    ],
+    "extraction": {
+      "candidate_instances_before_deduplication": 127,
+      "classified_bullets": 127,
+      "requirement_sections": 27,
+      "short_bullets": 7,
+      "unclassified_bullets": 69
+    },
+    "selection": {
+      "strata": {
+        "de:calibration": {
+          "target": 40,
+          "preserved": 4,
+          "derived_selected": 36,
+          "derived_available": 42,
+          "shortfall": 0
+        },
+        "de:held_out": {
+          "target": 10,
+          "preserved": 0,
+          "derived_selected": 10,
+          "derived_available": 14,
+          "shortfall": 0
+        },
+        "en:calibration": {
+          "target": 40,
+          "preserved": 2,
+          "derived_selected": 38,
+          "derived_available": 61,
+          "shortfall": 0
+        },
+        "en:held_out": {
+          "target": 10,
+          "preserved": 1,
+          "derived_selected": 9,
+          "derived_available": 10,
+          "shortfall": 0
+        }
+      },
+      "cap": 100,
+      "selected_derived_candidates": 93,
+      "unfilled_capacity": 0
+    }
+  }
+}

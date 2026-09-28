@@ -1,0 +1,47 @@
+{
+  "schema_version": "p0b.reviewed_requirement_evidence_adjudicated_manifest.v1",
+  "status": "admitted_for_benchmark_only",
+  "output": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence_expanded.jsonl",
+  "sha256": "c84a620082486c9b9cbd6b076fa0031ea66443e39b722bba4317074378c6521f",
+  "records": 60,
+  "requirement_instances": 52,
+  "evidence_ids": 22,
+  "languages": {
+    "de": 31,
+    "en": 29
+  },
+  "splits": {
+    "calibration": 48,
+    "held_out": 12
+  },
+  "support_verdicts": {
+    "supported": 9,
+    "unknown": 51
+  },
+  "review_statuses": {
+    "reviewed": 60
+  },
+  "reviewer_agreement": {
+    "reviewed_records": 60,
+    "disagreements": 4,
+    "agreement_rate": 0.933333,
+    "disagreement_requirement_instances": [
+      "req_4053398457_01|ev_profile_001_de_cv_0021",
+      "req_4471051929_05|ev_profile_001_en_cv_0001",
+      "req_4435320327_candidate_91b83e5838a6",
+      "req_4461951381_candidate_d307dd20bee1"
+    ]
+  },
+  "inputs": {
+    "initial": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl",
+    "initial_reviewer_b": "data/fitcv-p0-corpus/p0b/reviewer_b_labels.jsonl",
+    "reviewer_a": "data/fitcv-p0-corpus/p0b/reviewer_a_expanded_labels.jsonl",
+    "reviewer_b": "data/fitcv-p0-corpus/p0b/reviewer_b_expanded_labels.jsonl"
+  },
+  "promotion_blocked": true,
+  "blockers": [
+    "Labels use one redacted candidate profile and remain benchmark-only.",
+    "Translation pairing is unasserted.",
+    "Production recall promotion requires broader candidate/job pairing and approved taxonomy coverage."
+  ]
+}

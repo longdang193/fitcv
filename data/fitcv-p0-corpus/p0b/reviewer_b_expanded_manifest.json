@@ -1,0 +1,50 @@
+{
+  "schema_version": "p0b.reviewer_b_expanded_manifest.v1",
+  "status": "admitted_for_benchmark_only",
+  "reviewer": "reviewer_b",
+  "generated_at": "2026-09-27",
+  "label_path": "data/fitcv-p0-corpus/p0b/reviewer_b_expanded_labels.jsonl",
+  "profile_id": "profile_private_001",
+  "source_requirement_path": "data/fitcv-p0-corpus/p0b/requirement_instances.jsonl",
+  "source_evidence_path": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection.jsonl",
+  "selection": {
+    "sort_keys": [
+      "source_id",
+      "split",
+      "requirement_instance_id"
+    ],
+    "language_blocks": [
+      "de",
+      "en"
+    ],
+    "rows_per_language": 25,
+    "per_language_split_counts": {
+      "calibration": 20,
+      "held_out": 5
+    },
+    "order": "DE block then EN block; each block calibration then held_out",
+    "total_rows": 50
+  },
+  "records": 50,
+  "requirement_instances": 50,
+  "evidence_ids": 12,
+  "evidence_matches": 24,
+  "null_evidence": 26,
+  "languages": {
+    "de": 25,
+    "en": 25
+  },
+  "splits": {
+    "calibration": 40,
+    "held_out": 10
+  },
+  "support_verdicts": {
+    "supported": 5,
+    "unknown": 45
+  },
+  "review_statuses": {
+    "reviewed": 50
+  },
+  "source_policy": "Direct source-text evidence only; unsupported or non-explicit matches are unknown.",
+  "promotion_blocked": true
+}
