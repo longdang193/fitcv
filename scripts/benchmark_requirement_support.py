@@ -343,14 +343,15 @@ def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
 
 def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> dict[str, Any]:
     normalized_arm = {
-        "production": "lexical-requirement-aware",
+        "production": "production",
         "lexical_only": "lexical-requirement-aware",
-        "full_pool_diagnostic": "lexical-requirement-aware",
+        "full_pool_diagnostic": "production",
         "lexical": "lexical-requirement-aware",
         "current": "lexical-requirement-aware",
         "full-pool": "lexical-requirement-aware",
     }.get(arm, arm)
     if normalized_arm not in {
+        "production",
         "lexical-baseline",
         "lexical-ablation",
         "lexical-requirement-aware",
@@ -363,7 +364,8 @@ def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> di
         "fit_label_thresholds", {"strong": 0.7, "stretch": 0.4}
     )
     semantic_alignment = config.setdefault("cv_analysis", {}).setdefault("semantic_alignment", {})
-    semantic_alignment["enabled"] = normalized_arm == "current-hash"
+    if normalized_arm != "production":
+        semantic_alignment["enabled"] = normalized_arm == "current-hash"
     semantic_alignment["channel_pool_size"] = int(pool_size)
     selection_policy = config["cv_analysis"].setdefault("selection_policy", {})
     if normalized_arm == "lexical-baseline":
@@ -977,7 +979,12 @@ def run_benchmark(
         "scenario_set": [result["scenario_id"] for result in scenario_results],
         "scenario_count": len(scenario_results),
         "workload_count": len(scenario_results),
-        "semantic_alignment_enabled": arm == "current-hash",
+        "semantic_alignment_enabled": bool(
+            _runtime_config(base_config, arm, effective_pool_size)
+            .get("cv_analysis", {})
+            .get("semantic_alignment", {})
+            .get("enabled")
+        ),
         "pool_size": effective_pool_size,
         "top_k": sorted({result["top_k"] for result in scenario_results}),
         "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
@@ -1010,7 +1017,12 @@ def run_benchmark(
             ],
         },
         "arm_configuration": {
-            "retrieval": "hash" if arm == "current-hash" else "lexical",
+            "retrieval": {
+                "production": "canonical",
+                "lexical_only": "lexical",
+                "full_pool_diagnostic": "canonical",
+                "current-hash": "hash",
+            }.get(arm, "lexical"),
             "selection": {
                 "production": "production",
                 "lexical_only": "lexical_only",
