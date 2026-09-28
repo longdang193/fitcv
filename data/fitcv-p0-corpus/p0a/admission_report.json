@@ -18,7 +18,7 @@
   },
   "target": {
     "path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
-    "sha256": "a50f69d745c0d5d1b6944a320c8c93c248577c99ac0058ee1ce3e507c24a3547",
+    "sha256": "f658dc12e1ddeaebe2be9268435565c1416ab23a948d35c55b03b7a9482d8263",
     "rows": 100,
     "unique_job_ids": 100
   },
@@ -36,9 +36,9 @@
   "evidence_corpus": {
     "path": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl",
     "status": "admitted_for_benchmark_only",
-    "sha256": "b46c25d571d43b9bbbdd150b23c5a522bd66eb25087609a01f1daf40014bf570",
-    "records": 10,
-    "requirement_instances": 7,
+    "sha256": "17ed85421a632fdb998774707d1d0b93c6892a5ad460c5832cf32822e31debcb",
+    "records": 8,
+    "requirement_instances": 6,
     "promotion_blocked": true,
     "review_status": "two-agent-adjudicated"
   },
@@ -54,5 +54,22 @@
     "raw_records": 298,
     "unique_records": 297,
     "duplicate_ids": 1
+  },
+  "publication": {
+    "status": "tracked_public_snapshot",
+    "source_files_are_admission_inputs": true,
+    "source_files_note": "Hashes under source_files describe admission inputs and are not expected to match transformed files published under target.",
+    "published_files": {
+      "raw_postings_de_en.jsonl": {
+        "path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
+        "sha256": "f658dc12e1ddeaebe2be9268435565c1416ab23a948d35c55b03b7a9482d8263",
+        "rows": 100
+      },
+      "ranking_source_backed.json": {
+        "path": "data/fitcv-p0-corpus/p0a/ranking_source_backed.json",
+        "sha256": "4dc117ff76d260c41c14993c23118dea743e62e1491b3b51094bd5d4ba2087a6",
+        "profiles": 100
+      }
+    }
   }
 }

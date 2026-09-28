@@ -1741,6 +1741,6 @@
       ]
     }
   },
-  "corpus_source": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tmp\\p0\\corpus\\raw_postings_de_en.jsonl",
+  "corpus_source": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
   "corpus_rows": 100
 }

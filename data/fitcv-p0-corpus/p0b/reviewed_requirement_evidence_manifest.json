@@ -2,30 +2,29 @@
   "schema_version": "p0b.reviewed_requirement_evidence_manifest.v1",
   "status": "admitted_for_benchmark_only",
   "path": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl",
-  "sha256": "b46c25d571d43b9bbbdd150b23c5a522bd66eb25087609a01f1daf40014bf570",
-  "records": 10,
-  "requirement_instances": 7,
-  "evidence_ids": 9,
-  "requirement_evidence_pairs": 10,
+  "sha256": "17ed85421a632fdb998774707d1d0b93c6892a5ad460c5832cf32822e31debcb",
+  "records": 8,
+  "requirement_instances": 6,
+  "evidence_ids": 7,
+  "requirement_evidence_pairs": 8,
   "source_jobs": [
     "4053398457",
-    "4470066191",
-    "4471051929"
+    "4470066191"
   ],
   "languages": {
     "de": 6,
-    "en": 4
+    "en": 2
   },
   "splits": {
-    "calibration": 8,
+    "calibration": 6,
     "held_out": 2
   },
   "support_verdicts": {
-    "supported": 6,
-    "unknown": 4
+    "supported": 5,
+    "unknown": 3
   },
   "review_statuses": {
-    "reviewed": 10
+    "reviewed": 8
   },
   "translation_pairing": "unasserted",
   "promotion_blocked": true,
