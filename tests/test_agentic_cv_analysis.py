@@ -213,6 +213,61 @@ def test_candidate_resolution_answer_uses_requirement_qualifiers(
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
 @patch("fitcv.agentic_cv_analysis.build_evidence_projection")
+def test_candidate_resolution_does_not_transfer_qualifiers_between_skills(
+    mock_projection,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_retrieve,
+) -> None:
+    mock_projection.return_value = {"fingerprint": "projection::resolution-cross-skill"}
+    mock_fingerprint.return_value = {"fingerprint": "analysis::resolution-cross-skill"}
+    mock_bundle.return_value = {
+        "projection_fingerprint": "projection::resolution-cross-skill",
+        "selected_evidence": [],
+        "selected_evidence_ids": [],
+    }
+    mock_retrieve.return_value = []
+    mock_gap.return_value = {"matched": [], "missing": ["3 years production SQL"]}
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": "7"}
+    job = {
+        **_job(),
+        "required_skills": ["3 years production SQL"],
+        "required_skill_entities": [
+            {"raw_text": "3 years production SQL", "canonical": "sql"}
+        ],
+    }
+    requirement_instance_id = build_required_skill_descriptors(job, _config())[0][
+        "requirement_instance_id"
+    ]
+    config = {
+        **_config(),
+        "_requirement_resolutions": [
+            {
+                "resolution_id": "resolution-cross-skill",
+                "candidate_profile_id": "candidate-1",
+                "candidate_profile_revision": "7",
+                "source_profile_fingerprint": "projection::resolution-cross-skill",
+                "resolution_key": requirement_instance_id,
+                "requirement_instance_id": requirement_instance_id,
+                "resolution_action": "RESOLVE_WITH_ANSWER",
+                "resolution_payload": {
+                    "answer_text": "5 years production Python; SQL classroom exercises"
+                },
+            }
+        ],
+    }
+
+    result = analyze_ranked_job(job, profile, config)
+
+    assert result["requirement_coverage"][0]["selected_support"] == "relevant_unverified"
+
+
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.build_evidence_projection")
 def test_candidate_resolution_answer_must_name_required_skill(
     mock_projection,
     mock_fingerprint,

@@ -63,6 +63,71 @@ def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
     assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-python"}
 
 
+def test_content_plan_orders_claims_and_applies_one_page_section_budget() -> None:
+    evidence = [
+        {
+            "evidence_id": f"ev-{index}",
+            "text": f"Verified experience {index}",
+            "source_section": "experiences",
+            "score": index,
+            "skills": ["SQL"],
+        }
+        for index in range(7)
+    ]
+    analysis = {
+        "analysis_input_fingerprint": "analysis-budget",
+        "evidence_payload": evidence,
+        "requirement_coverage": [
+            {
+                "requirement_instance_id": f"required_skill:sql-{index}",
+                "selected_support": "verified",
+                "supporting_evidence_ids": [f"ev-{index}"],
+            }
+            for index in range(7)
+        ],
+    }
+
+    plan = build_cv_content_plan(analysis, {}, {})
+
+    assert plan["approved_evidence_ids"] == [
+        "ev-6",
+        "ev-5",
+        "ev-4",
+        "ev-3",
+        "ev-2",
+        "ev-1",
+    ]
+    assert plan["space_budget"]["page_count"] == 1
+    assert plan["space_budget"]["section_claim_limits"]["experience"] == 6
+    assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-0"}
+    assert plan["omitted_evidence"][0]["reason"] == "space_budget_exceeded"
+
+
+def test_content_plan_treats_malformed_evidence_scores_as_zero() -> None:
+    evidence = [
+        {"evidence_id": "ev-valid", "text": "Valid", "source_section": "experiences", "score": 0.8},
+        {"evidence_id": "ev-text", "text": "Text", "source_section": "experiences", "score": "unknown"},
+        {"evidence_id": "ev-none", "text": "None", "source_section": "experiences", "score": None},
+        {"evidence_id": "ev-nan", "text": "NaN", "source_section": "experiences", "score": float("nan")},
+    ]
+    analysis = {
+        "analysis_input_fingerprint": "analysis-score-coercion",
+        "evidence_payload": evidence,
+        "requirement_coverage": [
+            {
+                "requirement_instance_id": f"required_skill:sql-{item['evidence_id']}",
+                "selected_support": "verified",
+                "supporting_evidence_ids": [item["evidence_id"]],
+            }
+            for item in evidence
+        ],
+    }
+
+    plan = build_cv_content_plan(analysis, {}, {})
+
+    assert plan["approved_evidence_ids"] == ["ev-valid", "ev-nan", "ev-none", "ev-text"]
+
+
 def test_generation_writer_receives_only_content_plan_approved_evidence() -> None:
     analysis = {
         **_minimal_analysis_record(),
@@ -1074,6 +1139,14 @@ def test_generate_from_analysis_direct_path_has_canonical_trace(
         for attempt in trace["attempts"]
     )
     assert trace["validation_summary"]["final_valid"] is (result["status"] == "accepted")
+    efficiency = trace["efficiency_summary"]
+    assert efficiency["schema_version"] == "accepted_cv_efficiency_v1"
+    assert efficiency["status"] in {"accepted", "not_accepted"}
+    assert efficiency["elapsed_ms"] >= 0
+    assert efficiency["provider_call_count"] == len(trace["attempts"])
+    assert efficiency["regeneration_count"] == max(len(trace["attempts"]) - 1, 0)
+    assert efficiency["token_usage_status"] == "not_run"
+    assert efficiency["human_action_count"] == "not_applicable"
 
 
 @patch("fitcv.agentic_cv_generation.generate_cv")
