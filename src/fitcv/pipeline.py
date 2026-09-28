@@ -3531,6 +3531,8 @@ def run_pipeline(
                     [str(job.get("job_url") or "") for job in passed_jobs],
                     config,
                     top_n=vector_top_n,
+                    structured_jobs=passed_jobs,
+                    requested_strategy=VECTOR_RETRIEVAL_STRATEGY,
                 )
                 raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
                 shortlist_audit_rows = list(raw_shortlist_result.get("audit_rows") or [])

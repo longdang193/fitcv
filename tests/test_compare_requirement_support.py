@@ -1,73 +1,48 @@
-from __future__ import annotations
+"""Tests for requirement-support arm comparison."""
 
 import importlib.util
+import json
 from pathlib import Path
-from typing import Any
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_PATH = REPO_ROOT / "scripts" / "compare_requirement_support.py"
-
-
-def _module() -> Any:
-    spec = importlib.util.spec_from_file_location("compare_requirement_support", SCRIPT_PATH)
-    assert spec is not None and spec.loader is not None
+def _comparison_module():
+    path = Path("scripts/compare_requirement_support.py")
+    spec = importlib.util.spec_from_file_location("compare_requirement_support", path)
+    assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def test_arm_registry_preserves_normalized_names() -> None:
-    module = _module()
-    assert set(module.ARM_REGISTRY) == {
-        "lexical-baseline",
-        "lexical-ablation",
-        "lexical-requirement-aware",
-        "current-hash",
-    }
-
-
-def test_not_run_arm_keeps_reason() -> None:
-    module = _module()
-    assert module._current_metrics(
-        {"arm": "unsupported", "status": "not_run", "reason": "provider unavailable"}
-    ) == {"status": "not_run", "reason": "provider unavailable"}
-
-
-def test_pairwise_inputs_return_recommendation() -> None:
-    module = _module()
-    common = {
-        "evaluation_schema_version": 1,
-        "fixture_sha256": "fixture",
-        "scenario_set": ["one"],
-        "evidence_budgets": [1],
-        "top_k": [1],
-        "requirement_support": {
-            "micro_coverage": {
-                "requirement_recall": {"selected": 0.5},
-                "evidence_pair_recall": {"selected": 0.5},
+def _payload(tmp_path: Path, arm: str, recall: float) -> Path:
+    path = tmp_path / f"{arm}.json"
+    path.write_text(
+        json.dumps(
+            {
+                "arm": arm,
+                "fixture_sha256": "fixture",
+                "scenario_set": ["one"],
+                "evidence_budgets": [2],
+                "requirement_support": {
+                    "micro_coverage": {
+                        "requirement_recall": {"selected": recall},
+                        "evidence_pair_recall": {"selected": recall},
+                    },
+                    "incorrect_pairs": [],
+                },
             }
-        },
-        "timing_ms": {"total_ms": {"p95": 10}},
-        "context": {"estimated_prompt_tokens": 10},
-        "validation": {"passed_cases": 1, "case_count": 1},
-    }
-    paths = []
-    for arm, pair_recall in (("lexical-requirement-aware", 0.5), ("current-hash", 0.5)):
-        payload = dict(common)
-        payload["arm"] = arm
-        payload["requirement_support"] = {"micro_coverage": {
-            "requirement_recall": {"selected": 0.5},
-            "evidence_pair_recall": {"selected": pair_recall},
-        }}
-        path = Path(__file__).parent / f"{arm}-comparison-test.json"
-        path.write_text(__import__("json").dumps(payload), encoding="utf-8")
-        paths.append(path)
-    try:
-        result = module.run_inputs(paths)
-    finally:
-        for path in paths:
-            path.unlink()
-    comparison = result["comparisons"]["pairwise"]["current-hash_vs_lexical-requirement-aware"]
-    assert comparison["qualified"] is False
-    assert comparison["recommendation"] == "retain current-hash"
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_compare_current_and_full_pool_reports_qualified_support_gates(tmp_path: Path) -> None:
+    result = _comparison_module().run_inputs(
+        [_payload(tmp_path, "current", 0.5), _payload(tmp_path, "full-pool", 0.75)]
+    )
+
+    comparison = result["comparisons"]["current_vs_full_pool"]
+    assert comparison["qualified_requirement_recall_non_decreasing"] is True
+    assert comparison["qualified_evidence_pair_recall_non_decreasing"] is True
+    assert comparison["false_qualified_pairs"] == 0

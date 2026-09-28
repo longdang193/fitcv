@@ -58,6 +58,31 @@ from fitcv.embeddings import build_embedding_backend_metadata, generate_embeddin
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
+REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v2"
+_QUALIFIER_CONTEXT_TERMS = (
+    "enterprise",
+    "production",
+    "cloud",
+    "classroom",
+    "training",
+    "on-prem",
+    "on premise",
+)
+_QUALIFIER_NEGATION_TERMS = (
+    "no",
+    "not",
+    "never",
+    "without",
+    "haven't",
+    "didn't",
+    "kein",
+    "keine",
+    "keinen",
+    "nicht",
+    "nie",
+    "ohne",
+)
+
 
 SKILL_OVERLAP_WEIGHT: float = 0.70
 BUSINESS_VALUE_WEIGHT: float = 0.30
@@ -311,89 +336,94 @@ def _extract_canonical_entities(values: Any) -> list[str]:
     return extracted
 
 
-REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v2"
-_QUALIFIER_NAMES = ("duration", "context", "action", "level")
-_DURATION_RE = re.compile(
-    r"(?P<amount>\d+(?:[.,]\d+)?)\s*(?:\+|plus|or more)?\s*(?P<unit>years?|yrs?|months?|jahre?n?|monate?n?)",
-    re.IGNORECASE,
-)
-_LEVEL_RE = re.compile(
-    r"\b(?:a1|a2|b1|b2|c1|c2|beginner|basic|junior|entry(?:[- ]level)?|intermediate|mid(?:[- ]level)?|advanced|senior|expert|fluent|native|fortgeschritten(?:e|en)?|grundkenntnisse|fließend|muttersprachlich)\b",
-    re.IGNORECASE,
-)
-_ACTION_RE = re.compile(
-    r"\b(?:analy[sz]e|build|create|develop|deploy|design|maintain|manage|operate|optimi[sz]e|present|support|transform|validate|analysier\w*|entwickel\w*|betreib\w*|unterstütz\w*|verifizier\w*)\b",
-    re.IGNORECASE,
-)
-_CONTEXT_RE = re.compile(
-    r"\b(?:production|enterprise|cloud|on[- ]prem(?:ises)?|real[- ]time|batch|customer[- ]facing|regulated|banking|finance|healthcare|retail|web|mobile|produktion\w*|unternehmen\w*|echtzeit|stapel|kundenorientiert|reguliert)\b",
-    re.IGNORECASE,
-)
-_NEGATION_RE = re.compile(
-    r"\b(?:no|not|never|without|haven['’]t|didn['’]t|kein(?:e|en|er|es)?|nicht|nie|ohne)\b",
-    re.IGNORECASE,
-)
-
-
-def _is_negated(text: str, start: int) -> bool:
-    prefix = text[:start]
-    words = list(re.finditer(r"[\w'’]+", prefix, re.UNICODE))
-    return bool(words and _NEGATION_RE.fullmatch(words[-1].group(0))) or any(
-        _NEGATION_RE.fullmatch(word.group(0)) for word in words[-5:]
+def _parse_duration_qualifier(text: str) -> dict[str, Any] | None:
+    normalized = _normalize_optional_text(text).casefold().replace(",", ".")
+    match = re.search(
+        r"\b(?:(at\s+least|minimum|mindestens|more\s+than|mehr\s+als)\s+)?"
+        r"(\d+(?:\.\d+)?)\s*(\+|plus)?\s*(years?|yrs?|jahre|jahren)\b",
+        normalized,
     )
+    if not match:
+        return None
+    prefix = str(match.group(1) or "").strip()
+    comparator = "gt" if prefix in {"more than", "mehr als"} else "gte"
+    if match.group(3) or prefix in {"at least", "minimum", "mindestens"}:
+        comparator = "gte"
+    return {
+        "comparator": comparator,
+        "months": int(round(float(match.group(2)) * 12)),
+    }
 
 
-def _qualifier_values_from_text(source_text: str) -> dict[str, list[str]]:
-    values: dict[str, list[str]] = {name: [] for name in _QUALIFIER_NAMES}
-    for match in _DURATION_RE.finditer(source_text):
-        values["duration"].append(match.group(0).strip())
-    values["level"].extend(match.group(0).strip() for match in _LEVEL_RE.finditer(source_text))
-    values["action"].extend(match.group(0).strip().lower() for match in _ACTION_RE.finditer(source_text))
-    values["context"].extend(match.group(0).strip().lower() for match in _CONTEXT_RE.finditer(source_text))
-    return {key: list(dict.fromkeys(value)) for key, value in values.items() if value}
+def _parse_requirement_qualifiers(text: str) -> dict[str, Any]:
+    normalized = _normalize_optional_text(text).casefold()
+    qualifiers: dict[str, Any] = {}
+    duration = _parse_duration_qualifier(normalized)
+    if duration:
+        qualifiers["duration"] = duration
+    context = [
+        term for term in _QUALIFIER_CONTEXT_TERMS
+        if re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized)
+    ]
+    if context:
+        qualifiers["context"] = {"all_of": sorted(set(context))}
+    level_match = re.search(
+        r"(?<!\w)(b[12]|c[12]|beginner|intermediate|advanced|"
+        r"grundkenntnisse|fortgeschrittene(?:n|r)?)(?!\w)",
+        normalized,
+    )
+    if level_match:
+        qualifiers["level"] = {"value": level_match.group(1)}
+    return qualifiers
+
+
+def _strip_requirement_qualifiers(text: str) -> str:
+    stripped = _normalize_optional_text(text).casefold()
+    stripped = re.sub(
+        r"\b(?:(?:at\s+least|minimum|mindestens|more\s+than|mehr\s+als)\s+)?"
+        r"\d+(?:[.,]\d+)?\s*(?:\+|plus)?\s*(?:years?|yrs?|jahre|jahren)\b",
+        " ",
+        stripped,
+    )
+    stripped = re.sub(
+        r"\b(?:in|with|for|from|used|use|experience|experienced|kenntnisse|erfahrung)\b",
+        " ",
+        stripped,
+    )
+    for term in _QUALIFIER_CONTEXT_TERMS:
+        stripped = re.sub(rf"(?<!\w){re.escape(term)}(?!\w)", " ", stripped)
+    stripped = re.sub(
+        r"\b(?:b[12]|c[12]|beginner|intermediate|advanced|"
+        r"grundkenntnisse|fortgeschrittene(?:n|r)?)\b",
+        " ",
+        stripped,
+    )
+    return re.sub(r"\s+", " ", stripped).strip(" ,;:-")
 
 
 def _requirement_instance_id(
-    requirement_id: str,
+    *,
     canonical_skill: str,
-    source_text: str,
-    qualifier_values: dict[str, list[str]],
-) -> str:
+    requirement: str,
+    qualifiers: dict[str, Any],
+    ordinal: int,
+    duplicate_count: int,
+) -> str | None:
+    if not qualifiers and duplicate_count == 1:
+        return None
     digest = _stable_json_fingerprint(
         {
             "canonical_skill": canonical_skill,
-            "source_text": _normalize_text(source_text),
-            "qualifier_values": qualifier_values,
+            "requirement": _normalize_optional_text(requirement).casefold(),
+            "qualifiers": qualifiers,
+            "ordinal": ordinal,
         }
-    )[:16]
-    return f"{requirement_id}:{digest}"
+    )[:12]
+    return f"required_skill_instance:{canonical_skill}:{digest}"
 
 
-def _requirement_qualifiers(
-    source_text: str,
-    job_context: dict[str, Any],
-    canonical_skill: str,
-) -> tuple[list[str], dict[str, list[str]]]:
-    values = _qualifier_values_from_text(source_text)
-    for key in ("required_skill_qualifiers", "skill_qualifiers"):
-        configured = job_context.get(key)
-        if not isinstance(configured, dict):
-            continue
-        raw_values = configured.get(canonical_skill) or configured.get(source_text)
-        if isinstance(raw_values, dict):
-            for qualifier, qualifier_values in raw_values.items():
-                if qualifier not in _QUALIFIER_NAMES:
-                    continue
-                if isinstance(qualifier_values, list):
-                    values.setdefault(qualifier, []).extend(str(value).strip() for value in qualifier_values if str(value).strip())
-                elif str(qualifier_values).strip():
-                    values.setdefault(qualifier, []).append(str(qualifier_values).strip())
-    normalized_values = {
-        key: list(dict.fromkeys(value))
-        for key, value in values.items()
-        if value
-    }
-    return list(normalized_values), normalized_values
+def _descriptor_requirement_ref(descriptor: dict[str, Any]) -> str:
+    return str(descriptor.get("requirement_instance_id") or descriptor.get("requirement_id") or "")
 
 
 def build_required_skill_descriptors(
@@ -416,7 +446,14 @@ def build_required_skill_descriptors(
             (
                 str(entity.get("raw_text") or entity.get("canonical") or "").strip(),
                 canonicalize_skill(
-                    str(entity.get("canonical") or entity.get("raw_text") or "").strip(),
+                    str(
+                        entity.get("canonical")
+                        or _strip_requirement_qualifiers(
+                            str(entity.get("raw_text") or "")
+                        )
+                        or entity.get("raw_text")
+                        or ""
+                    ).strip(),
                     config,
                 ),
             )
@@ -425,7 +462,13 @@ def build_required_skill_descriptors(
         ]
     elif raw_skills:
         pairs = [
-            (raw_skill, canonicalize_skill(raw_skill, config))
+            (
+                raw_skill,
+                canonicalize_skill(
+                    _strip_requirement_qualifiers(raw_skill) or raw_skill,
+                    config,
+                ),
+            )
             for raw_skill in raw_skills
         ]
     else:
@@ -434,53 +477,69 @@ def build_required_skill_descriptors(
             for canonical in canonical_skills
         ]
 
-    descriptors: dict[str, dict[str, Any]] = {}
-    job_context = dict(job_context)
+    prepared: list[tuple[str, str, dict[str, Any]]] = []
     for original, canonical in pairs:
         canonical_skill = canonicalize_skill(canonical or original, config)
         if not canonical_skill:
             continue
-        qualifier_names, qualifier_values = _requirement_qualifiers(
-            original or canonical_skill,
-            job_context,
+        requirement = original or canonical_skill
+        prepared.append((requirement, canonical_skill, _parse_requirement_qualifiers(requirement)))
+
+    grouped: dict[tuple[str, str, str], dict[str, Any]] = {}
+    group_order: list[tuple[str, str, str]] = []
+    for requirement, canonical_skill, qualifiers in prepared:
+        key = (
             canonical_skill,
+            _normalize_optional_text(requirement).casefold(),
+            _stable_json_fingerprint(qualifiers),
         )
-        requirement_id = f"required_skill:{canonical_skill}"
-        requirement_instance_id = _requirement_instance_id(
-            requirement_id,
-            canonical_skill,
-            original or canonical_skill,
-            qualifier_values,
-        )
-        descriptor = descriptors.setdefault(
-            requirement_instance_id,
+        group = grouped.setdefault(
+            key,
             {
-                "requirement_id": requirement_id,
-                "requirement_instance_id": requirement_instance_id,
-                "requirement": original or canonical_skill,
+                "requirement": requirement,
                 "canonical_skill": canonical_skill,
+                "qualifiers": qualifiers,
                 "original_requirements": [],
-                "requirement_type": "required_skill",
-                "requirement_priority": "must_have",
-                "source_text": original or canonical_skill,
-                "qualifiers": qualifier_names,
-                "qualifier_values": qualifier_values,
-                "qualifier_support": {name: "unverified" for name in qualifier_names},
             },
         )
-        if not descriptor["original_requirements"] and original:
-            descriptor["requirement"] = original
-        if original and original not in descriptor["original_requirements"]:
-            descriptor["original_requirements"].append(original)
-        for qualifier in qualifier_names:
-            if qualifier not in descriptor["qualifiers"]:
-                descriptor["qualifiers"].append(qualifier)
-            descriptor.setdefault("qualifier_values", {}).setdefault(qualifier, [])
-            descriptor["qualifier_values"][qualifier] = list(dict.fromkeys(
-                [*descriptor["qualifier_values"][qualifier], *qualifier_values.get(qualifier, [])]
-            ))
-            descriptor.setdefault("qualifier_support", {})[qualifier] = "unverified"
-    return list(descriptors.values())
+        if requirement not in group["original_requirements"]:
+            group["original_requirements"].append(requirement)
+        if key not in group_order:
+            group_order.append(key)
+
+    canonical_group_counts: dict[str, int] = {}
+    for key in group_order:
+        canonical_group_counts[key[0]] = canonical_group_counts.get(key[0], 0) + 1
+    sorted_groups = sorted(group_order)
+    descriptors: list[dict[str, Any]] = []
+    for key in group_order:
+        group = grouped[key]
+        requirement = str(group["requirement"])
+        canonical_skill = str(group["canonical_skill"])
+        qualifiers = dict(group["qualifiers"])
+        ordinal = sorted_groups.index(key) + 1
+        requirement_id = f"required_skill:{canonical_skill}"
+        descriptor = {
+            "requirement_id": requirement_id,
+            "requirement": requirement,
+            "canonical_skill": canonical_skill,
+            "original_requirements": list(group["original_requirements"]),
+            "requirement_type": "required_skill",
+            "requirement_priority": "must_have",
+        }
+        if qualifiers:
+            descriptor["qualifiers"] = qualifiers
+        instance_id = _requirement_instance_id(
+            canonical_skill=canonical_skill,
+            requirement=requirement,
+            qualifiers=qualifiers,
+            ordinal=ordinal,
+            duplicate_count=canonical_group_counts[canonical_skill],
+        )
+        if instance_id:
+            descriptor["requirement_instance_id"] = instance_id
+        descriptors.append(descriptor)
+    return descriptors
 
 
 def _tokenize(value: str) -> set[str]:
@@ -627,12 +686,12 @@ def build_cv_analysis_input_fingerprint(
     if not isinstance(semantic_policy, dict):
         semantic_policy = compile_semantic_policy(config)
     raw_required_skills = (
-        list(job_context.get("required_skills") or [])
+        sorted(str(value) for value in list(job_context.get("required_skills") or []))
         if isinstance(job_context, dict)
-        else list(job_context)
+        else sorted(str(value) for value in list(job_context))
     )
     raw_preferred_skills = (
-        list(job_context.get("preferred_skills") or [])
+        sorted(str(value) for value in list(job_context.get("preferred_skills") or []))
         if isinstance(job_context, dict)
         else []
     )
@@ -681,7 +740,17 @@ def build_cv_analysis_input_fingerprint(
         "years_experience_min": job_context.get("years_experience_min") if isinstance(job_context, dict) else None,
         "years_experience_max": job_context.get("years_experience_max") if isinstance(job_context, dict) else None,
         "fit_label": str(job_context.get("fit_label") or "") if isinstance(job_context, dict) else "",
-        "requirement_descriptors": requirement_descriptors,
+        "requirement_descriptors": [
+            {
+                key: value
+                for key, value in descriptor.items()
+                if key != "original_requirements"
+            }
+            for descriptor in sorted(
+                requirement_descriptors,
+                key=lambda item: str(item.get("requirement_instance_id") or item.get("requirement_id") or ""),
+            )
+        ],
     }
     payload = {
         "profile": _cv_analysis_profile_payload(profile),
@@ -695,7 +764,6 @@ def build_cv_analysis_input_fingerprint(
             if value not in (None, "", [], {})
         },
         "contract_fingerprint": build_cv_analysis_contract_fingerprint(config)["fingerprint"],
-        "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
     }
     return {
         "payload": payload,
@@ -1906,189 +1974,103 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
     )
 
 
-def _evidence_availability(item: dict[str, Any]) -> str | None:
-    for key in ("evidence_availability", "evidence_status", "availability", "support_status"):
-        value = str(item.get(key) or "").strip().lower()
-        if value in {"unsupported", "unavailable"}:
-            return value
-    return None
+def _is_negated_term(text: str, term: str) -> bool:
+    normalized = _normalize_optional_text(text).casefold()
+    match = re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized)
+    if not match:
+        return False
+    prefix = normalized[max(0, match.start() - 48):match.start()]
+    return any(
+        re.search(rf"(?<!\w){re.escape(negation)}(?!\w)", prefix)
+        for negation in _QUALIFIER_NEGATION_TERMS
+    )
 
 
 def _evidence_text(item: dict[str, Any]) -> str:
-    values = [
-        item.get("text"),
-        item.get("name"),
-        item.get("title"),
-        item.get("scoring_context"),
-        item.get("context"),
-        item.get("action"),
-        item.get("proficiency"),
-        item.get("level"),
-        *list(item.get("domain_tags") or []),
-        *list(item.get("responsibility_themes") or []),
-    ]
-    return " ".join(str(value or "") for value in values if str(value or "").strip())
-
-
-def _duration_months(value: Any) -> float | None:
-    text = str(value or "").strip()
-    if not text:
-        return None
-    match = _DURATION_RE.search(text)
-    if match:
-        amount = float(match.group("amount").replace(",", "."))
-        unit = match.group("unit").lower()
-        return amount * (
-            12.0 if unit.startswith(("year", "yr", "jahr")) else 1.0
-        )
-    since_match = re.search(
-        r"\b(?:since|seit)\s+(?P<year>\d{4})(?:-(?P<month>\d{1,2}))?\b",
-        text,
-        re.IGNORECASE,
-    )
-    if since_match:
-        start_month = int(since_match.group("year")) * 12 + int(since_match.group("month") or 1)
-        now = datetime.now(tz=timezone.utc)
-        current_month = now.year * 12 + now.month
-        return max(float(current_month - start_month + 1), 0.0)
-    date_match = re.search(r"(?P<start>\d{4}(?:-\d{1,2})?)[^\d]+(?P<end>\d{4}(?:-\d{1,2})?)", text)
-    if not date_match:
-        return None
-    start_parts = [int(part) for part in date_match.group("start").split("-")]
-    end_parts = [int(part) for part in date_match.group("end").split("-")]
-    start_month = start_parts[0] * 12 + (start_parts[1] if len(start_parts) > 1 else 1)
-    end_month = end_parts[0] * 12 + (end_parts[1] if len(end_parts) > 1 else 12)
-    return max(float(end_month - start_month + 1), 0.0)
-
-
-def _item_duration_months(item: dict[str, Any]) -> float | None:
-    explicit = _duration_months(
-        item.get("skill_duration")
-        or item.get("duration")
-        or item.get("experience_duration")
-    )
-    if explicit is not None:
-        return explicit
-    start = str(item.get("skill_start") or "").strip()
-    end = str(item.get("skill_end") or "").strip()
-    if start and end and end.lower() not in {"present", "current", "now"}:
-        return _duration_months(f"{start} — {end}")
-    return None
-
-
-def _qualifier_duration_status(item: dict[str, Any], descriptor: dict[str, Any]) -> str:
-    requested_values = list(dict(descriptor.get("qualifier_values") or {}).get("duration") or [])
-    requested = next(
-        (_duration_months(value) for value in requested_values if _duration_months(value) is not None),
-        None,
-    )
-    strict = any(
-        re.search(r"\b(?:more than|mehr als)\b", str(value), re.IGNORECASE)
-        for value in requested_values
-    )
-    observed = _item_duration_months(item)
-    if observed is None:
-        evidence_text = _evidence_text(item)
-        for match in _DURATION_RE.finditer(evidence_text):
-            if _is_negated(evidence_text, match.start()):
-                return "contradicted"
-            observed = _duration_months(match.group(0))
-            break
-    if observed is None:
-        return "unverified"
-    if requested is not None and (observed <= requested if strict else observed < requested):
-        return "contradicted"
-    return "supported"
-
-
-def _qualifier_text_status(item: dict[str, Any], descriptor: dict[str, Any], qualifier: str) -> str:
-    values = list(dict(descriptor.get("qualifier_values") or {}).get(qualifier) or [])
-    if not values:
-        return "unverified"
-    evidence_text = _normalize_text(_evidence_text(item))
-    evidence_tokens = _tokenize(evidence_text)
-    for value in values:
-        normalized = _normalize_text(value)
-        if not normalized:
-            continue
-        aliases = {
-            "production": {"production", "produktion", "produktionsumgebung"},
-            "enterprise": {"enterprise", "unternehmen"},
-            "real time": {"real time", "echtzeit"},
-        }.get(normalized, {normalized})
-        for alias in aliases:
-            suffix = r"\w*" if alias in {"produktion", "enterprise", "unternehmen"} else ""
-            match = re.search(rf"\b{re.escape(alias)}{suffix}\b", evidence_text, re.IGNORECASE)
-            if match:
-                return "contradicted" if _is_negated(evidence_text, match.start()) else "supported"
-            if _tokenize(alias) <= evidence_tokens:
-                return "supported"
-    return "unverified"
-
-
-def _level_rank(value: str) -> int | None:
-    normalized = _normalize_text(value)
-    ranks = {
-        "beginner": 1,
-        "basic": 1,
-        "junior": 1,
-        "entry level": 1,
-        "intermediate": 2,
-        "mid level": 2,
-        "advanced": 3,
-        "senior": 3,
-        "expert": 4,
-        "fluent": 4,
-        "native": 5,
-        "fortgeschrittene": 3,
-        "fortgeschrittenen": 3,
-        "grundkenntnisse": 1,
-        "fließend": 4,
-        "muttersprachlich": 5,
-    }
-    if normalized in ranks:
-        return ranks[normalized]
-    cefr = re.fullmatch(r"[abc][1-2]", normalized)
-    if cefr:
-        return {"a1": 1, "a2": 2, "b1": 3, "b2": 4, "c1": 5, "c2": 6}[normalized]
-    return None
-
-
-def _qualifier_level_status(item: dict[str, Any], descriptor: dict[str, Any]) -> str:
-    required_values = list(dict(descriptor.get("qualifier_values") or {}).get("level") or [])
-    required_ranks = [rank for rank in (_level_rank(value) for value in required_values) if rank is not None]
-    observed_values = [
+    return " ".join(
         str(item.get(key) or "")
-        for key in ("level", "proficiency", "language_level")
-        if str(item.get(key) or "").strip()
-    ]
-    observed_values.extend(match.group(0) for match in _LEVEL_RE.finditer(_evidence_text(item)))
-    observed_ranks = [rank for rank in (_level_rank(value) for value in observed_values) if rank is not None]
-    if not observed_ranks:
-        return "unverified"
-    evidence_text = _evidence_text(item)
-    if any(_is_negated(evidence_text, match.start()) for match in _LEVEL_RE.finditer(evidence_text)):
-        return "contradicted"
-    if required_ranks and max(observed_ranks) < max(required_ranks):
-        return "contradicted"
-    if required_ranks or any(
-        _normalize_text(value) == _normalize_text(required)
-        for value in observed_values
-        for required in required_values
-    ):
-        return "supported"
-    return "unverified"
+        for key in ("text", "name", "title", "scoring_context", "business_value")
+    ).strip()
 
 
-def _qualifier_status(item: dict[str, Any], descriptor: dict[str, Any], qualifier: str) -> str:
-    availability = _evidence_availability(item)
-    if availability:
-        return availability
-    if qualifier == "duration":
-        return _qualifier_duration_status(item, descriptor)
-    if qualifier == "level":
-        return _qualifier_level_status(item, descriptor)
-    return _qualifier_text_status(item, descriptor, qualifier)
+def _duration_satisfies(required: dict[str, Any], evidence: dict[str, Any]) -> bool | None:
+    required_months = int(required.get("months") or 0)
+    evidence_months = int(evidence.get("months") or 0)
+    if not required_months or not evidence_months:
+        return None
+    comparator = str(required.get("comparator") or "gte")
+    if comparator == "gt":
+        return evidence_months > required_months
+    if comparator == "lte":
+        return evidence_months <= required_months
+    if comparator == "lt":
+        return evidence_months < required_months
+    return evidence_months >= required_months
+
+
+def _assess_requirement_support(
+    item: dict[str, Any],
+    descriptor: dict[str, Any],
+    config: dict[str, Any] | None,
+) -> dict[str, Any]:
+    canonical_skill = str(descriptor.get("canonical_skill") or "")
+    canonical_match = any(
+        canonicalize_skill(str(skill), config) == canonical_skill
+        for skill in list(item.get("skills") or [])
+        if str(skill).strip()
+    )
+    assessment: dict[str, Any] = {
+        "canonical_match": canonical_match,
+        "qualifier_status": "unverified",
+        "qualified_support": False,
+        "supporting_qualifiers": [],
+        "contradicting_qualifiers": [],
+    }
+    if not canonical_match:
+        return assessment
+
+    text = _evidence_text(item)
+    qualifiers = dict(descriptor.get("qualifiers") or {})
+    supporting: list[str] = []
+    contradicting: list[str] = []
+    duration = qualifiers.get("duration")
+    if isinstance(duration, dict):
+        evidence_duration = _parse_duration_qualifier(text)
+        result = _duration_satisfies(duration, evidence_duration or {})
+        if result is True:
+            supporting.append("duration")
+        elif result is False:
+            contradicting.append("duration")
+    context = qualifiers.get("context")
+    if isinstance(context, dict):
+        for term in list(context.get("all_of") or []):
+            term = str(term).casefold()
+            if _is_negated_term(text, term):
+                contradicting.append(f"context:{term}")
+            elif re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text.casefold()):
+                supporting.append(f"context:{term}")
+    level = qualifiers.get("level")
+    if isinstance(level, dict):
+        value = str(level.get("value") or "").casefold()
+        if value and _is_negated_term(text, value):
+            contradicting.append("level")
+        elif value and re.search(rf"(?<!\w){re.escape(value)}(?!\w)", text.casefold()):
+            supporting.append("level")
+    required_qualifier_count = sum(
+        len(list(value.get("all_of") or [])) if isinstance(value, dict) and "all_of" in value else 1
+        for value in qualifiers.values()
+    )
+    if contradicting:
+        status = "contradicted"
+    elif len(supporting) == required_qualifier_count:
+        status = "supported"
+        assessment["qualified_support"] = True
+    else:
+        status = "unverified"
+    assessment["qualifier_status"] = status
+    assessment["supporting_qualifiers"] = list(dict.fromkeys(supporting))
+    assessment["contradicting_qualifiers"] = list(dict.fromkeys(contradicting))
+    return assessment
 
 
 def _annotate_requirement_support(
@@ -2097,116 +2079,35 @@ def _annotate_requirement_support(
     config: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
     for item in items:
-        availability = _evidence_availability(item)
-        if availability:
-            item["evidence_availability"] = availability
-        matching_descriptors = [
-            descriptor
-            for descriptor in descriptors
-            if not availability and any(
-                canonicalize_skill(str(skill), config) == descriptor["canonical_skill"]
-                for skill in list(item.get("skills") or [])
-                if str(skill).strip()
-            )
-        ]
-        item["supported_requirement_ids"] = list(dict.fromkeys(
-            str(descriptor["requirement_id"]) for descriptor in matching_descriptors
-        ))
-        item["supported_requirement_instance_ids"] = list(dict.fromkeys(
-            str(descriptor["requirement_instance_id"]) for descriptor in matching_descriptors
-        ))
-        qualifier_support = {
-            str(descriptor["requirement_instance_id"]): {
-                qualifier: _qualifier_status(item, descriptor, qualifier)
-                for qualifier in list(descriptor.get("qualifiers") or [])
-            }
-            for descriptor in matching_descriptors
-            if descriptor.get("qualifiers")
-        }
-        for descriptor in matching_descriptors:
-            instance_id = str(descriptor["requirement_instance_id"])
-            requirement_id = str(descriptor["requirement_id"])
-            if instance_id in qualifier_support:
-                qualifier_support.setdefault(requirement_id, qualifier_support[instance_id])
-        item["qualifier_support"] = qualifier_support
+        canonical_ids: list[str] = []
+        supported_ids: list[str] = []
+        assessments: dict[str, dict[str, Any]] = {}
+        for descriptor in descriptors:
+            requirement_ref = _descriptor_requirement_ref(descriptor)
+            assessment = _assess_requirement_support(item, descriptor, config)
+            assessments[requirement_ref] = assessment
+            if assessment["canonical_match"]:
+                canonical_ids.append(requirement_ref)
+            if assessment["qualified_support"]:
+                supported_ids.append(requirement_ref)
+        item["canonical_requirement_ids"] = list(dict.fromkeys(canonical_ids))
+        item["supported_requirement_ids"] = list(dict.fromkeys(supported_ids))
+        item["requirement_assessments"] = assessments
     return items
 
 
-def _requirement_support_map(items: list[dict[str, Any]]) -> dict[str, list[str]]:
+def _requirement_support_map(
+    items: list[dict[str, Any]],
+    field: str = "supported_requirement_ids",
+) -> dict[str, list[str]]:
     support: dict[str, list[str]] = {}
     for item in items:
         evidence_id = str(item.get("evidence_id") or "")
         if not evidence_id:
             continue
-        for requirement_id in list(item.get("supported_requirement_ids") or []):
+        for requirement_id in list(item.get(field) or []):
             support.setdefault(str(requirement_id), []).append(evidence_id)
     return {key: list(dict.fromkeys(value)) for key, value in support.items()}
-
-
-def _requirement_instance_support_map(items: list[dict[str, Any]]) -> dict[str, list[str]]:
-    support: dict[str, list[str]] = {}
-    for item in items:
-        evidence_id = str(item.get("evidence_id") or "")
-        if not evidence_id:
-            continue
-        for requirement_id in list(item.get("supported_requirement_instance_ids") or []):
-            support.setdefault(str(requirement_id), []).append(evidence_id)
-    return {key: list(dict.fromkeys(value)) for key, value in support.items()}
-
-
-def _qualifier_support_map(items: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
-    priority = {
-        "unavailable": 5,
-        "unsupported": 4,
-        "contradicted": 3,
-        "supported": 2,
-        "unverified": 1,
-    }
-    support: dict[str, dict[str, str]] = {}
-    for item in items:
-        for requirement_id, qualifiers in dict(item.get("qualifier_support") or {}).items():
-            if not isinstance(qualifiers, dict):
-                continue
-            requirement_support = support.setdefault(str(requirement_id), {})
-            for qualifier, status in qualifiers.items():
-                normalized_status = str(status or "unverified")
-                current_status = requirement_support.get(str(qualifier), "unverified")
-                if priority.get(normalized_status, 0) >= priority.get(current_status, 0):
-                    requirement_support[str(qualifier)] = normalized_status
-    return support
-
-
-def _qualifier_evidence_map(items: list[dict[str, Any]]) -> dict[str, dict[str, dict[str, Any]]]:
-    result: dict[str, dict[str, dict[str, Any]]] = {}
-    for item in items:
-        evidence_id = str(item.get("evidence_id") or "")
-        for requirement_id, qualifiers in dict(item.get("qualifier_support") or {}).items():
-            if not isinstance(qualifiers, dict):
-                continue
-            requirement = result.setdefault(str(requirement_id), {})
-            for qualifier, status in qualifiers.items():
-                detail = requirement.setdefault(
-                    str(qualifier),
-                    {"status": "unverified", "supporting_evidence_ids": [], "contradicting_evidence_ids": []},
-                )
-                status = str(status or "unverified")
-                if status == "supported" and evidence_id:
-                    detail["supporting_evidence_ids"].append(evidence_id)
-                if status == "contradicted" and evidence_id:
-                    detail["contradicting_evidence_ids"].append(evidence_id)
-                if status == "contradicted" or (
-                    status == "supported" and detail["status"] == "unverified"
-                ):
-                    detail["status"] = status
-    for qualifiers in result.values():
-        for detail in qualifiers.values():
-            detail["supporting_evidence_ids"] = list(dict.fromkeys(detail["supporting_evidence_ids"]))
-            detail["contradicting_evidence_ids"] = list(dict.fromkeys(detail["contradicting_evidence_ids"]))
-            if detail["contradicting_evidence_ids"]:
-                detail["status"] = "contradicted"
-            elif detail["supporting_evidence_ids"]:
-                detail["status"] = "supported"
-    return result
 
 
 def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> float:
@@ -2380,13 +2281,8 @@ class _EvidenceSelectionEngine:
     policy: dict[str, Any]
     top_k: int
 
-    def run(
-        self,
-        channel_pools: dict[str, list[dict[str, Any]]],
-        *,
-        merged_pool: list[dict[str, Any]] | None = None,
-    ) -> dict[str, Any]:
-        merged_pool = list(merged_pool) if merged_pool is not None else _merge_channel_pools(channel_pools)
+    def run(self, channel_pools: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+        merged_pool = _merge_channel_pools(channel_pools)
         _annotate_requirement_support(
             merged_pool,
             list(self.job_context.get("requirement_descriptors") or []),
@@ -2443,23 +2339,16 @@ def _build_retrieve_evidence_bundle_payload(
         lexical_weight_key="domain_lexical_weight",
         semantic_weight_key="domain_semantic_weight",
     )
-    canonical_requirement_support = _requirement_support_map(canonical_items)
+    canonical_requirement_support = _requirement_support_map(canonical_items, "canonical_requirement_ids")
     pool_requirement_support = _requirement_support_map(merged_pool)
     selected_requirement_support = _requirement_support_map(selected_evidence)
-    canonical_instance_support = _requirement_instance_support_map(canonical_items)
-    pool_instance_support = _requirement_instance_support_map(merged_pool)
-    selected_instance_support = _requirement_instance_support_map(selected_evidence)
-    canonical_qualifier_support = _qualifier_support_map(canonical_items)
-    pool_qualifier_support = _qualifier_support_map(merged_pool)
-    selected_qualifier_support = _qualifier_support_map(selected_evidence)
-    canonical_qualifier_evidence = _qualifier_evidence_map(canonical_items)
-    pool_qualifier_evidence = _qualifier_evidence_map(merged_pool)
-    selected_qualifier_evidence = _qualifier_evidence_map(selected_evidence)
+    canonical_qualified_support = _requirement_support_map(canonical_items)
+    pool_qualified_support = _requirement_support_map(merged_pool)
+    selected_qualified_support = _requirement_support_map(selected_evidence)
     return {
         "source_profile_schema_version": source_profile_schema_version,
         "projection_schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
         "projection_fingerprint": projection_fingerprint,
-        "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
         "selected_evidence": selected_evidence,
         "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in selected_evidence],
         "channel_counts": {
@@ -2475,20 +2364,10 @@ def _build_retrieve_evidence_bundle_payload(
             "canonical": canonical_requirement_support,
             "pool": pool_requirement_support,
             "selected": selected_requirement_support,
-            "instances": {
-                "canonical": canonical_instance_support,
-                "pool": pool_instance_support,
-                "selected": selected_instance_support,
-            },
-            "qualifier_support": {
-                "canonical": canonical_qualifier_support,
-                "pool": pool_qualifier_support,
-                "selected": selected_qualifier_support,
-            },
-            "qualifier_evidence": {
-                "canonical": canonical_qualifier_evidence,
-                "pool": pool_qualifier_evidence,
-                "selected": selected_qualifier_evidence,
+            "qualified": {
+                "canonical": canonical_qualified_support,
+                "pool": pool_qualified_support,
+                "selected": selected_qualified_support,
             },
         },
         "hybrid_alignment": {
@@ -2554,13 +2433,12 @@ def retrieve_evidence_bundle(
         )
         for channel in RETRIEVAL_CHANNELS
     }
-    merged_pool = _merge_channel_pools(channel_pools)
     selection_engine = _EvidenceSelectionEngine(
         job_context=coerced_job_context,
         policy=selection_policy,
         top_k=top_k,
     )
-    selection_result = selection_engine.run(channel_pools, merged_pool=merged_pool)
+    selection_result = selection_engine.run(channel_pools)
     merged_pool = list(selection_result["merged_pool"])
     selected_evidence = list(selection_result["selected_evidence"])
     semantic_alignment = {

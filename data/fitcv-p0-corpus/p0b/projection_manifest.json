@@ -3,9 +3,9 @@
   "generated_at": "2026-09-27",
   "inputs": {
     "cv_glob": "data/sample CVs/*.md",
-    "private_profile": "data/candidate_profile.private.final.2026-09-27-reviewed-updated.yaml"
+    "profile_projection": "public corpus projection; original profile YAML excluded"
   },
-  "output": "tmp/p0/agents/p0b/candidate_evidence_projection.jsonl",
+  "output": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection.jsonl",
   "counts": {
     "records": 1453,
     "cv_records": 1367,
@@ -25,10 +25,10 @@
     "calibration_private_records": 86
   },
   "stable_ids": {
-    "profile_id": "profile_NNN_en/de derived from source filename only as source-instance IDs; not identity claims; profile_private_001 for private YAML",
-    "evidence_id": "ev_<profile_id>_cv_<ordinal> for CV rows; existing stable private-profile evidence IDs retained",
-    "translation_pair_id": "null for all CV rows because filename numbering alone does not prove EN/DE identity; null for private profile",
-    "source_record_id": "cv:<source_file>:<ordinal> for CV rows; source-backed ID retained for private rows"
+    "profile_id": "profile_NNN_en/de derived from source filename only as source-instance IDs; not identity claims; supplemental profile ID retained for projection rows",
+    "evidence_id": "ev_<profile_id>_cv_<ordinal> for CV rows; existing stable supplemental-profile evidence IDs retained",
+    "translation_pair_id": "null for all CV rows because filename numbering alone does not prove EN/DE identity; null for supplemental profile",
+    "source_record_id": "cv:<source_file>:<ordinal> for CV rows; source-backed ID retained for supplemental rows"
   },
   "fields": [
     "declared_skills",
@@ -49,9 +49,9 @@
     "translation_pair_id"
   ],
   "split_policy": {
-    "calibration": "CV source groups with numeric source number not divisible by 5; private profile calibration_private",
+    "calibration": "CV source groups with numeric source number not divisible by 5; supplemental profile calibration_supplemental",
     "held_out": "CV source groups with numeric source number divisible by 5",
-    "leakage_control": "No EN/DE identity pairing asserted; same numeric source group remains in one split conservatively; no evidence-row split; private profile excluded from held_out",
+    "leakage_control": "No EN/DE identity pairing asserted; same numeric source group remains in one split conservatively; no evidence-row split; supplemental profile excluded from held_out",
     "caveat": "Split grouping is conservative source grouping, not identity resolution; review before benchmark use."
   },
   "blockers_and_gaps": {
@@ -60,7 +60,7 @@
     "schema_gaps": [
       "No explicit content/metadata identity link supports EN/DE pairing; all CV rows are unpaired.",
       "No source line/offset retained.",
-      "No canonical evidence taxonomy supplied; CV rows use cv_text and private rows retain source-backed types.",
+      "No canonical evidence taxonomy supplied; CV rows use cv_text and supplemental rows retain source-backed types.",
       "No requirement/evidence support verdicts created.",
       "No duration inferred from skills.years; CV declared_skills remains empty."
     ],
@@ -86,7 +86,7 @@
         "pair_018",
         "pair_019"
       ],
-      "private_profile_language_assumed": "en for structured profile text; YAML records do not carry per-record language."
+      "supplemental_profile_language_assumed": "en for structured profile text; source records do not carry per-record language."
     }
   },
   "cv_files": [
