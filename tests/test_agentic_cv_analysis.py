@@ -25,7 +25,7 @@ from fitcv.agentic_cv_analysis import (
     resolve_ranked_job_fit,
 )
 from fitcv.contracts import CV_ANALYSIS_REUSE_SCHEMA_VERSION
-from fitcv.evidence import build_cv_analysis_input_fingerprint
+from fitcv.evidence import build_cv_analysis_input_fingerprint, build_required_skill_descriptors
 
 
 def _job() -> dict:
@@ -144,6 +144,66 @@ def test_analyze_ranked_job_applies_profile_scoped_resolution(
     assert python_row["supporting_evidence_ids"] == ["resolution-1"]
     assert any(item["evidence_id"] == "resolution-1" for item in result["evidence_payload"])
     assert all(item["affected_fact"] != "Python" for item in result["uncertainties"])
+
+
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.build_evidence_projection")
+def test_candidate_resolution_answer_uses_requirement_qualifiers(
+    mock_projection,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_retrieve,
+) -> None:
+    mock_projection.return_value = {"fingerprint": "projection::resolution-qualifiers"}
+    mock_fingerprint.return_value = {"fingerprint": "analysis::resolution-qualifiers"}
+    mock_bundle.return_value = {
+        "projection_fingerprint": "projection::resolution-qualifiers",
+        "selected_evidence": [],
+        "selected_evidence_ids": [],
+    }
+    mock_retrieve.return_value = []
+    mock_gap.return_value = {"matched": [], "missing": ["3 years production Python"]}
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": "7"}
+    job = {
+        **_job(),
+        "required_skills": ["3 years production Python"],
+        "required_skill_entities": [
+            {"raw_text": "3 years production Python", "canonical": "python"}
+        ],
+    }
+    requirement_instance_id = build_required_skill_descriptors(job, _config())[0][
+        "requirement_instance_id"
+    ]
+
+    for answer_text, expected_status in (
+        ("No production Python experience.", "contradicted"),
+        ("Python classroom training.", "relevant_unverified"),
+        ("", "pending"),
+    ):
+        config = {
+            **_config(),
+            "_requirement_resolutions": [
+                {
+                    "resolution_id": "resolution-qualifier",
+                    "candidate_profile_id": "candidate-1",
+                    "candidate_profile_revision": "7",
+                    "source_profile_fingerprint": "projection::resolution-qualifiers",
+                    "resolution_key": requirement_instance_id,
+                    "requirement_instance_id": requirement_instance_id,
+                    "resolution_action": "RESOLVE_WITH_ANSWER",
+                    "resolution_payload": {"answer_text": answer_text},
+                }
+            ],
+        }
+
+        result = analyze_ranked_job(job, profile, config)
+
+        python_row = result["requirement_coverage"][0]
+        assert python_row["selected_support"] == expected_status
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
@@ -438,6 +498,87 @@ def test_real_canonical_profile_emits_requirement_coverage_without_mocks() -> No
         str(row["canonical_skill"]): row["selected_support"]
         for row in result["requirement_coverage"]
     } == {"sql": "verified", "python": "verified"}
+
+
+def _canonical_requirement_profile(text: str, skill: str) -> dict:
+    profile = yaml.safe_load(
+        Path("data/candidate_profile.v2.sample.yaml").read_text(encoding="utf-8")
+    )
+    profile["education"] = []
+    profile["projects"] = []
+    profile["achievements"] = []
+    profile["certifications"] = []
+    profile["volunteering"] = []
+    evidence = profile["experiences"][0]["evidence"][0]
+    evidence["text"] = text
+    evidence["source_refs"] = [{"document_id": "doc_cv_1"}]
+    profile["skills"] = [
+        {
+            "id": "skill_requirement",
+            "name": skill,
+            "origin": "extracted_explicit",
+            "confidence": 0.99,
+            "support_status": "supported",
+            "evidence_refs": [evidence["id"]],
+        }
+    ]
+    return profile
+
+
+def test_canonical_requirement_coverage_does_not_leak_qualifiers_across_fragments() -> None:
+    result = analyze_ranked_job(
+        {
+            "job_url": "https://example.com/job/production-sql",
+            "title": "Data Analyst",
+            "baseline_fit": 0.8,
+            "baseline_fit_label": "strong",
+            "required_skills": ["3 years production SQL"],
+            "required_skill_entities": [
+                {"raw_text": "3 years production SQL", "canonical": "sql"}
+            ],
+            "preferred_skills": [],
+            "responsibilities": [],
+        },
+        _canonical_requirement_profile(
+            "5 years production Python; SQL classroom exercises",
+            "SQL",
+        ),
+        {
+            "pipeline": {"evidence_top_k": 2},
+            "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
+            "cv_analysis": {"semantic_alignment": {"enabled": False}},
+        },
+    )
+
+    assert result["requirement_coverage"][0]["selected_support"] != "verified"
+
+
+def test_canonical_requirement_coverage_keeps_qualified_skill_support() -> None:
+    result = analyze_ranked_job(
+        {
+            "job_url": "https://example.com/job/production-sql",
+            "title": "Data Analyst",
+            "baseline_fit": 0.8,
+            "baseline_fit_label": "strong",
+            "required_skills": ["3 years production SQL"],
+            "required_skill_entities": [
+                {"raw_text": "3 years production SQL", "canonical": "sql"}
+            ],
+            "preferred_skills": [],
+            "responsibilities": [],
+        },
+        _canonical_requirement_profile(
+            "4 years production SQL; Python classroom training",
+            "SQL",
+        ),
+        {
+            "pipeline": {"evidence_top_k": 2},
+            "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
+            "cv_analysis": {"semantic_alignment": {"enabled": False}},
+        },
+    )
+
+    assert result["requirement_coverage"][0]["selected_support"] == "verified"
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")

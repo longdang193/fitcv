@@ -58,7 +58,7 @@ from fitcv.embeddings import build_embedding_backend_metadata, generate_embeddin
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
-REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v4"
+REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v5"
 _QUALIFIER_CONTEXT_TERMS = (
     "enterprise",
     "production",
@@ -1188,15 +1188,6 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                 )
                 title = _normalize_optional_text(evidence.get("title"))
                 text = _normalize_optional_text(evidence.get("text"))
-                support_text = " ".join(value for value in (text, title) if value)
-                fragment_skills = _project_fragment_skills(support_text, skills)
-                if not fragment_skills and len(skills) == 1:
-                    fragment_skills = list(skills)
-                support_fragments = (
-                    [{"text": support_text, "skills": fragment_skills}]
-                    if support_text
-                    else []
-                )
                 scoring_context = " ".join(
                     value
                     for value in (
@@ -1231,7 +1222,6 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                         "domain_tags": domain_tags,
                         "responsibility_themes": responsibility_themes,
                         "skills": skills,
-                        "support_fragments": support_fragments,
                         "source_refs": copy.deepcopy(evidence.get("source_refs") or []),
                         "scoring_context": scoring_context,
                         "evidence_type": "candidate_evidence",

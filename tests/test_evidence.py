@@ -13,6 +13,7 @@ tags:
   - ci-safe
 """
 
+import ast
 import copy
 from pathlib import Path
 
@@ -457,7 +458,7 @@ def test_canonical_projection_keeps_parent_metadata_out_of_qualifier_proof() -> 
     assessment = evidence_module._assess_requirement_support(item, descriptor, None)
 
     assert item["support_fragments"] == [
-        {"text": "SQL classroom exercises", "skills": ["SQL"]}
+        {"text": "SQL classroom exercises", "skills": ["sql"]}
     ]
     assert assessment["canonical_match"] is True
     assert assessment["qualifier_status"] == "unverified"
@@ -1854,8 +1855,27 @@ def test_cv_analysis_contract_rejects_v2_requirement_support_policy_fingerprint(
     legacy_payload["requirement_support_policy_version"] = "requirement-support-v2"
     legacy_fingerprint = evidence_module._stable_json_fingerprint(legacy_payload)
 
-    assert current["payload"]["requirement_support_policy_version"] == "requirement-support-v4"
+    assert current["payload"]["requirement_support_policy_version"] == "requirement-support-v5"
     assert current["fingerprint"] != legacy_fingerprint
+
+
+def test_projected_evidence_declares_one_source_support_fragment_field() -> None:
+    tree = ast.parse(Path("src/fitcv/evidence.py").read_text(encoding="utf-8"))
+    function = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "project_candidate_evidence"
+    )
+    support_fragment_keys = [
+        key.value
+        for node in ast.walk(function)
+        if isinstance(node, ast.Dict)
+        for key in node.keys
+        if isinstance(key, ast.Constant) and key.value == "support_fragments"
+    ]
+
+    assert support_fragment_keys == ["support_fragments"]
 
 
 def test_cv_analysis_input_fingerprint_tracks_bounded_alias_equivalence() -> None:
