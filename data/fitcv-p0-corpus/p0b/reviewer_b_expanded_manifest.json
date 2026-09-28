@@ -2,7 +2,7 @@
   "schema_version": "p0b.reviewer_b_expanded_manifest.v1",
   "status": "admitted_for_benchmark_only",
   "reviewer": "reviewer_b",
-  "generated_at": "2026-09-27",
+  "generated_at": "2026-09-28",
   "label_path": "data/fitcv-p0-corpus/p0b/reviewer_b_expanded_labels.jsonl",
   "profile_id": "profile_private_001",
   "source_requirement_path": "data/fitcv-p0-corpus/p0b/requirement_instances.jsonl",
@@ -27,9 +27,9 @@
   },
   "records": 50,
   "requirement_instances": 50,
-  "evidence_ids": 12,
-  "evidence_matches": 24,
-  "null_evidence": 26,
+  "evidence_ids": 10,
+  "evidence_matches": 37,
+  "null_evidence": 13,
   "languages": {
     "de": 25,
     "en": 25
@@ -45,6 +45,15 @@
   "review_statuses": {
     "reviewed": 50
   },
-  "source_policy": "Direct source-text evidence only; unsupported or non-explicit matches are unknown.",
+  "exact_pair_counts": {
+    "assignments": 50,
+    "non_null_pairs": 37,
+    "null_evidence": 13,
+    "unique_requirement_instances": 50,
+    "unique_evidence_ids": 10,
+    "mismatched_evidence": 0,
+    "duplicate_pairs": 0
+  },
+  "source_policy": "Direct source-text evidence only; support_verdict=supported only when projection text explicitly establishes the full requirement; otherwise unknown.",
   "promotion_blocked": true
 }
