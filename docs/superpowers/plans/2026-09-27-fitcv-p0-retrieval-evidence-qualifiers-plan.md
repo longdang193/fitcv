@@ -407,9 +407,9 @@ baseline.
 
 ```text
 uv run pytest -q tests/test_vector_search.py tests/test_embeddings.py tests/test_ranking_evaluation.py
-uv run python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_production_like.json --arm incumbent --output tmp/p0-retrieval-incumbent.json
-uv run python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_production_like.json --arm lexical --output tmp/p0-retrieval-lexical.json
-uv run python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_production_like.json --arm multilingual --output tmp/p0-retrieval-multilingual.json
+uv run python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm incumbent --output tmp/p0-retrieval-incumbent.json
+uv run python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm lexical --output tmp/p0-retrieval-lexical.json
+uv run python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm multilingual --output tmp/p0-retrieval-multilingual.json
 ```
 
 **Exit Criteria:** Production callers retain explicit strategy semantics;

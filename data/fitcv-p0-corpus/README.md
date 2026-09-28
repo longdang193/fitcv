@@ -17,7 +17,7 @@ Public corpus snapshot for P0-A, P0-B, and P0-C work.
 ## Publication boundary
 
 - This directory is approved for public publication.
-- Candidate profile YAML and original CV files are not copied here.
+- Candidate profile YAML and original CV files are not copied here; P0-B projection contains CV-derived rows only.
 - P0-B evidence text may retain organization, school, project, or location re-identifiers; apply downstream entity-level review before wider reuse.
 - Translation pairing remains unasserted.
 
