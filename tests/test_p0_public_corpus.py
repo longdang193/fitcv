@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -105,3 +106,19 @@ def test_public_p0b_reviewed_rows_join_to_admitted_p0a_jobs() -> None:
     assert all(row["provenance"]["requirement"]["source_record_id"] in admitted_ids for row in rows)
     assert manifest["sha256"] == __import__("hashlib").sha256(reviewed.read_bytes()).hexdigest()
     assert manifest["records"] == len(rows)
+
+
+def test_public_p0_corpus_uses_lf_and_manifest_hashes_match_bytes() -> None:
+    root = Path(__file__).parents[1]
+    corpus = root / "data" / "fitcv-p0-corpus"
+    for path in corpus.rglob("*"):
+        if path.is_file():
+            assert b"\r\n" not in path.read_bytes(), path
+
+    manifest_paths = {
+        corpus / "p0b" / "projection_manifest.json": corpus / "p0b" / "candidate_evidence_projection.jsonl",
+        corpus / "p0b" / "reviewed_requirement_evidence_manifest.json": corpus / "p0b" / "reviewed_requirement_evidence.jsonl",
+    }
+    for manifest_path, payload_path in manifest_paths.items():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["sha256"] == hashlib.sha256(payload_path.read_bytes()).hexdigest()

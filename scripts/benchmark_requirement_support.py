@@ -343,11 +343,15 @@ def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
 
 def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> dict[str, Any]:
     normalized_arm = {
+        "production": "production",
+        "lexical_only": "lexical-requirement-aware",
+        "full_pool_diagnostic": "production",
         "lexical": "lexical-requirement-aware",
         "current": "lexical-requirement-aware",
         "full-pool": "lexical-requirement-aware",
     }.get(arm, arm)
     if normalized_arm not in {
+        "production",
         "lexical-baseline",
         "lexical-ablation",
         "lexical-requirement-aware",
@@ -360,7 +364,8 @@ def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> di
         "fit_label_thresholds", {"strong": 0.7, "stretch": 0.4}
     )
     semantic_alignment = config.setdefault("cv_analysis", {}).setdefault("semantic_alignment", {})
-    semantic_alignment["enabled"] = normalized_arm == "current-hash"
+    if normalized_arm != "production":
+        semantic_alignment["enabled"] = normalized_arm == "current-hash"
     semantic_alignment["channel_pool_size"] = int(pool_size)
     selection_policy = config["cv_analysis"].setdefault("selection_policy", {})
     if normalized_arm == "lexical-baseline":
@@ -933,14 +938,18 @@ def run_benchmark(
     runs: int = MEASURED_RUNS,
     warmups: int = WARMUP_RUNS,
 ) -> dict[str, Any]:
-    if arm not in {"current", "full-pool", "current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"}:
+    if arm not in {
+        "production", "lexical_only", "full_pool_diagnostic",
+        "current", "full-pool", "current-hash", "lexical",
+        "lexical-baseline", "lexical-ablation", "lexical-requirement-aware",
+    }:
         raise ValueError(f"Unsupported arm: {arm}")
     if runs <= 0 or warmups < 0:
         raise ValueError("runs must be positive and warmups cannot be negative")
     fixture = _load_json(fixture_path)
     scenarios = _resolve_scenarios(fixture)
     base_config = _load_policy(policy_path)
-    effective_pool_size = 12 if arm == "full-pool" and pool_size == 4 else pool_size
+    effective_pool_size = 12 if arm in {"full-pool", "full_pool_diagnostic"} and pool_size == 4 else pool_size
     scenario_results = [
         _run_benchmark_scenario(
             fixture=fixture,
@@ -956,7 +965,12 @@ def run_benchmark(
     aggregate = _aggregate_scenario_metrics(scenario_results)
     timing_keys = tuple(scenario_results[0]["timing_ms"])
     return {
-        "arm": "lexical-requirement-aware" if arm == "lexical" else arm,
+        "arm": {
+            "production": "production",
+            "lexical_only": "lexical_only",
+            "full_pool_diagnostic": "full_pool_diagnostic",
+            "lexical": "lexical-requirement-aware",
+        }.get(arm, arm),
         "evaluation_schema_version": int(fixture["evaluation_schema_version"]),
         "implementation_ref": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
@@ -965,7 +979,12 @@ def run_benchmark(
         "scenario_set": [result["scenario_id"] for result in scenario_results],
         "scenario_count": len(scenario_results),
         "workload_count": len(scenario_results),
-        "semantic_alignment_enabled": arm == "current-hash",
+        "semantic_alignment_enabled": bool(
+            _runtime_config(base_config, arm, effective_pool_size)
+            .get("cv_analysis", {})
+            .get("semantic_alignment", {})
+            .get("enabled")
+        ),
         "pool_size": effective_pool_size,
         "top_k": sorted({result["top_k"] for result in scenario_results}),
         "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
@@ -998,8 +1017,18 @@ def run_benchmark(
             ],
         },
         "arm_configuration": {
-            "retrieval": "hash" if arm == "current-hash" else "lexical",
-            "selection": arm,
+            "retrieval": {
+                "production": "canonical",
+                "lexical_only": "lexical",
+                "full_pool_diagnostic": "canonical",
+                "current-hash": "hash",
+            }.get(arm, "lexical"),
+            "selection": {
+                "production": "production",
+                "lexical_only": "lexical_only",
+                "full_pool_diagnostic": "full_pool_diagnostic",
+                "lexical": "lexical-requirement-aware",
+            }.get(arm, arm),
             "provider_calls": False,
         },
         "fixture": str(fixture_path.relative_to(REPO_ROOT)),
@@ -1013,7 +1042,11 @@ def main() -> int:
     parser.add_argument("--weight", type=float)
     parser.add_argument(
         "--arm",
-        choices=("current", "full-pool", "current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
+        choices=(
+            "production", "lexical_only", "full_pool_diagnostic",
+            "current", "full-pool", "current-hash", "lexical",
+            "lexical-baseline", "lexical-ablation", "lexical-requirement-aware",
+        ),
     )
     parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)
