@@ -20,6 +20,7 @@ import json
 import logging
 import sqlite3
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Any
 
 from fitcv.config import get_embedding_model
@@ -41,6 +42,11 @@ FRESH_EMBEDDING_STATUS = "fresh_embedding"
 SQLITE_EMBED_DIM = 256
 EMBEDDING_FAILURE_POLICY_DEFAULT = "deterministic_fallback"
 EMBEDDING_FAILURE_POLICY_RAISE = "raise"
+SENTENCE_TRANSFORMERS_BACKEND = "sentence_transformers"
+DEFAULT_SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+DEFAULT_SENTENCE_TRANSFORMERS_REVISION = "e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
+DEFAULT_EMBEDDING_PREPROCESSING_VERSION = "normalize_whitespace_v1"
+SENTENCE_TRANSFORMERS_DEFAULT_DIM = 384
 
 logger = logging.getLogger(__name__)
 
@@ -113,18 +119,68 @@ def build_job_summary_signature_record(structured_jd: dict[str, Any]) -> dict[st
     }
 
 
+def _semantic_alignment_config(config: dict[str, Any]) -> dict[str, Any]:
+    return dict((config.get("cv_analysis") or {}).get("semantic_alignment") or {})
+
+
+def get_embedding_backend(config: dict[str, Any]) -> str:
+    backend = str(
+        config.get("embedding_backend")
+        or _semantic_alignment_config(config).get("embedding_backend")
+        or "sqlite_deterministic_local"
+    ).strip().lower()
+    return backend if backend in {"sqlite_deterministic_local", SENTENCE_TRANSFORMERS_BACKEND} else "sqlite_deterministic_local"
+
+
 def get_shortlist_embedding_model(config: dict[str, Any]) -> str:
     """Return the embedding model identifier used for shortlist job summaries."""
-    return str(config.get("shortlist_embedding_model") or get_embedding_model(config) or SHORTLIST_DEFAULT_EMBEDDING_MODEL)
+    return str(
+        config.get("shortlist_embedding_model")
+        or config.get("embedding_model")
+        or get_embedding_model(config)
+        or SHORTLIST_DEFAULT_EMBEDDING_MODEL
+    )
 
 
-def build_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
-    """Fingerprint deterministic local embedding behavior."""
+def get_embedding_model_revision(config: dict[str, Any], model_name: str | None = None) -> str | None:
+    configured_model = str(model_name or get_shortlist_embedding_model(config))
+    revision = config.get("embedding_model_revision") or _semantic_alignment_config(config).get("embedding_model_revision")
+    if revision:
+        return str(revision)
+    if configured_model == DEFAULT_SENTENCE_TRANSFORMERS_MODEL:
+        return DEFAULT_SENTENCE_TRANSFORMERS_REVISION
+    return None
+
+
+def get_embedding_preprocessing_version(config: dict[str, Any]) -> str:
+    return str(
+        config.get("embedding_preprocessing_version")
+        or _semantic_alignment_config(config).get("embedding_preprocessing_version")
+        or DEFAULT_EMBEDDING_PREPROCESSING_VERSION
+    )
+
+
+def get_embedding_dimension(config: dict[str, Any], backend: str | None = None) -> int:
+    selected_backend = backend or get_embedding_backend(config)
+    if selected_backend == SENTENCE_TRANSFORMERS_BACKEND:
+        return int(config.get("embedding_dimension") or _semantic_alignment_config(config).get("embedding_dimension") or SENTENCE_TRANSFORMERS_DEFAULT_DIM)
+    return SQLITE_EMBED_DIM
+
+
+def build_embedding_contract_fingerprint(
+    config: dict[str, Any],
+    *,
+    configured_model: str | None = None,
+) -> dict[str, Any]:
+    backend = get_embedding_backend(config)
+    model_name = str(configured_model or get_shortlist_embedding_model(config))
     payload = {
         "contract_version": EMBEDDING_CONTRACT_VERSION,
-        "embedding_backend": "sqlite_deterministic_local",
-        "embedding_dimension": SQLITE_EMBED_DIM,
-        "embedding_model": get_shortlist_embedding_model(config),
+        "embedding_backend": backend,
+        "embedding_dimension": get_embedding_dimension(config, backend),
+        "embedding_model": model_name,
+        "embedding_model_revision": get_embedding_model_revision(config, model_name),
+        "embedding_preprocessing_version": get_embedding_preprocessing_version(config),
         "summary_schema_version": SHORTLIST_SUMMARY_SCHEMA_VERSION,
     }
     fingerprint = build_contract_fingerprint(payload)
@@ -139,11 +195,14 @@ def build_embedding_backend_metadata(
     *,
     configured_model: str | None = None,
 ) -> dict[str, Any]:
-    contract = build_embedding_contract_fingerprint(config)
+    contract = build_embedding_contract_fingerprint(config, configured_model=configured_model)
+    payload = contract["payload"]
     return {
-        "backend_id": str(contract["payload"]["embedding_backend"]),
-        "configured_model": str(configured_model or get_shortlist_embedding_model(config)),
-        "dimension": SQLITE_EMBED_DIM,
+        "backend_id": str(payload["embedding_backend"]),
+        "configured_model": str(payload["embedding_model"]),
+        "dimension": int(payload["embedding_dimension"]),
+        "model_revision": payload["embedding_model_revision"],
+        "preprocessing_version": str(payload["embedding_preprocessing_version"]),
         "contract_fingerprint": str(contract["fingerprint"]),
     }
 
@@ -307,14 +366,57 @@ def get_embedding_failure_policy(config: dict[str, Any]) -> str:
     return EMBEDDING_FAILURE_POLICY_DEFAULT
 
 
+@lru_cache(maxsize=4)
+def _load_sentence_transformer_model(model_name: str, revision: str | None) -> Any:
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer(
+        model_name,
+        revision=revision,
+        device="cpu",
+        trust_remote_code=False,
+    )
+
+
+def _sentence_transformer_embedding(text: str, model_name: str, revision: str | None) -> list[float]:
+    model = _load_sentence_transformer_model(model_name, revision)
+    encoded = model.encode(
+        [" ".join(text.split()).strip()],
+        convert_to_numpy=True,
+        normalize_embeddings=False,
+        show_progress_bar=False,
+    )
+    row = encoded[0]
+    values = row.tolist() if hasattr(row, "tolist") else row
+    return [float(value) for value in values]
+
+
 def generate_embedding(
     text: str,
     config: dict[str, Any],
     *,
     model_name: str | None = None,
 ) -> list[float]:
-    """Return deterministic local embedding for SQLite product path."""
-    return _deterministic_local_embedding(text)
+    backend = get_embedding_backend(config)
+    if backend != SENTENCE_TRANSFORMERS_BACKEND:
+        return _deterministic_local_embedding(text)
+    selected_model = str(model_name or get_shortlist_embedding_model(config))
+    revision = get_embedding_model_revision(config, selected_model)
+    try:
+        vector = _sentence_transformer_embedding(text, selected_model, revision)
+        expected_dimension = get_embedding_dimension(config, backend)
+        if len(vector) != expected_dimension:
+            raise ValueError(
+                f"embedding dimension mismatch: expected {expected_dimension}, got {len(vector)}"
+            )
+        return vector
+    except Exception as exc:
+        if get_embedding_failure_policy(config) == EMBEDDING_FAILURE_POLICY_RAISE:
+            raise RuntimeError(
+                f"sentence-transformers embedding backend unavailable: {selected_model}@{revision or 'default'}"
+            ) from exc
+        logger.warning("sentence-transformers backend unavailable; using deterministic fallback", exc_info=True)
+        return _deterministic_local_embedding(text)
 
 
 

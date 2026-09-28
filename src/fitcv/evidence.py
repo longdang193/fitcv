@@ -54,7 +54,7 @@ from fitcv.contracts import (
     RESPONSIBILITY_ALIGNMENT_CHANNEL,
     ROLE_ALIGNMENT_CHANNEL,
 )
-from fitcv.embeddings import build_embedding_backend_metadata, generate_embedding
+from fitcv.embeddings import build_embedding_backend_metadata, build_embedding_contract_fingerprint, generate_embedding
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
@@ -892,7 +892,11 @@ def _embed_text_cached(
     normalized_text = " ".join(str(text).split()).strip()
     if not normalized_text:
         return []
-    cache_key = f"{cache_namespace}:{normalized_text.casefold()}"
+    contract_fingerprint = build_embedding_contract_fingerprint(
+        config,
+        configured_model=model_name,
+    )["fingerprint"]
+    cache_key = f"{cache_namespace}:{contract_fingerprint}:{normalized_text.casefold()}"
     embedding_cache = runtime_state["embedding_cache"]
     cached = embedding_cache.get(cache_key)
     if cached is not None:

@@ -62,10 +62,13 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - resolution actions enqueue one bounded re-analysis through the existing CV regeneration entrypoint; refreshed analysis/generation replaces the prior debug record before closure.
 
 P0-A and P0-B remain benchmark-only. The 2026-09-28 source-backed P0-A run
-measured incumbent and lexical arms, while multilingual retrieval was
-`not_run` because no approved backend was available. P0-B production,
-`full_pool_diagnostic`, and `lexical_only` arms measured equal qualified-support
-recall on the current fixture; production defaults remain unchanged pending
+measured incumbent, lexical, and multilingual arms on identical DE/EN fixture
+bytes. Multilingual uses optional `sentence-transformers==6.1.0` and
+`torch==2.14.0` with pinned model revision
+`e8f8c211226b894fcb81acc59f3b34ba3efd5f42`; it matched incumbent held-out
+quality but was slower, so production defaults remain unchanged. P0-B
+production, `full_pool_diagnostic`, and `lexical_only` arms measured equal
+qualified-support recall on the current fixture; promotion remains blocked by
 broader reviewed labels.
 - P0-A ranking reports include `fixture_sha256`; reports without a matching
   fixture hash are stale and must not support a fresh decision.
@@ -79,8 +82,10 @@ broader reviewed labels.
 ### CV-analysis Retrieval Diagnostics
 
 - `cv_analysis.semantic_alignment.enabled` controls CV-analysis channel scoring only; it does not change shortlist embedding behavior
-- when enabled, diagnostics identify `sqlite_deterministic_local` as the actual embedding backend, report dimension and contract fingerprint, and preserve configured model name as metadata
-- the configured `cv_analysis.semantic_alignment.model` value does not prove provider execution; `generate_embedding()` remains deterministic local/hash output in this path
+- when enabled, diagnostics identify actual backend, model revision, preprocessing version, dimension, and contract fingerprint
+- shortlist retrieval defaults to `sqlite_deterministic_local`; multilingual `sentence_transformers` is optional and benchmark-only unless separately configured
+- embedding cache identity includes backend contract, model revision, preprocessing version, and dimension; changed contracts invalidate SQLite reuse
+- the configured `cv_analysis.semantic_alignment.model` value alone does not prove provider execution; semantic-alignment backend remains deterministic local unless its backend is explicitly selected
 - when disabled, diagnostics report no semantic backend and channel scoring is lexical-only
 - offline comparison uses `scripts/benchmark_requirement_support.py` with the fixed fixture at `tests/fixtures/requirement_support_benchmark.json`; it measures canonical, retrieved, selected, validation, timing, and context-cost boundaries without changing production defaults
 

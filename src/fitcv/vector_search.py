@@ -355,7 +355,7 @@ def build_candidate_query_signature_record(components: dict[str, Any]) -> dict[s
 def build_candidate_query_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
     """Fingerprint shortlist candidate-query embedding behavior to invalidate reuse."""
     payload = {
-        "embedding_model": get_shortlist_embedding_model(config),
+        "embedding_contract_fingerprint": build_embedding_contract_fingerprint(config)["fingerprint"],
         "retrieval_strategy": str(config.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY),
         "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
     }
@@ -765,6 +765,7 @@ def run_vector_search(
         )
     production_cutoff = production_rows[-1] if production_rows else None
     eligible_total = len(eligible_job_urls)
+    embedding_metadata = build_embedding_backend_metadata(config)
     return {
         "production_rows": production_rows,
         "audit_rows": audit_rows,
@@ -774,9 +775,11 @@ def run_vector_search(
             "effective_strategy": VECTOR_RETRIEVAL_STRATEGY,
             "fallback_used": False,
             "fallback_reason": None,
-            "backend_id": "sqlite_deterministic_local",
-            "configured_model": get_shortlist_embedding_model(config),
-            "dimension": len(candidate_embedding) if candidate_embedding is not None else None,
+            "backend_id": embedding_metadata["backend_id"],
+            "configured_model": embedding_metadata["configured_model"],
+            "dimension": len(candidate_embedding) if candidate_embedding is not None else embedding_metadata["dimension"],
+            "model_revision": embedding_metadata["model_revision"],
+            "preprocessing_version": embedding_metadata["preprocessing_version"],
             "contract_fingerprint": expected_contract,
             "eligible_jobs_total": eligible_total,
             "scored_jobs_total": len(ranked_rows),

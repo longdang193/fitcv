@@ -2,14 +2,14 @@
 
 Date: 2026-09-28
 Plan: `docs/superpowers/plans/2026-09-28-fitcv-p0-p1-residual-completion-plan.md`
-Workspace: `main`, HEAD `f04761a0d8caa800b2a161a662f6468ed7e3830a`
+Workspace: `codex/fitcv-p0-p1-residual`, HEAD `39852d3b`
 
 ## Result
 
-Plan execution is blocked, not complete. P1-B lifecycle proof and P0-B
-benchmark provenance are complete. Multilingual implementation and promotion
-claims remain blocked by unavailable local model capability and missing broader
-human-reviewed evidence.
+Plan execution remains blocked only on P0-B broader human-reviewed boundary
+coverage. P1-B lifecycle proof, P0-B benchmark provenance, multilingual adapter
+implementation, and P0-A measurement are complete. Production retrieval remains
+unchanged because multilingual quality did not exceed incumbent quality.
 
 ## Task status
 
@@ -17,8 +17,8 @@ human-reviewed evidence.
 | --- | --- | --- |
 | Task 1: P1-B lifecycle regression | completed | `826 passed` focused suite; real SQLite resolution save/load, worker refresh, candidate injection, debug identity preservation, queue closure, idempotent replay |
 | Task 2: P0-B reviewed evidence | blocked | `98 passed`; production/full-pool/lexical reports and comparison generated; existing manifest still records broader reviewed-label blocker |
-| Task 3: multilingual adapter | blocked | `66 passed, 2 skipped`; `sentence_transformers` and `torch` unavailable; target model not cached; no provider/model download attempted |
-| Task 4: P0-A promotion evidence | blocked | incumbent and lexical measured; multilingual report is `not_run` with reason `approved multilingual retrieval backend unavailable` |
+| Task 3: multilingual adapter | completed | optional lazy `sentence_transformers` backend; pinned CPU packages `sentence-transformers==6.1.0`, `torch==2.14.0`; model revision `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`; `70 passed, 2 skipped` focused suite |
+| Task 4: P0-A promotion evidence | completed | incumbent, lexical, and multilingual arms measured on identical 100-row DE/EN fixture; no production promotion |
 | Task 5: P1 scorecard | completed | generation-focused suite `230 passed`; offline, partial, `not_run`, and `not_applicable` states recorded here |
 | Task 6: final reconciliation | blocked | full suite passes; required external evidence remains unavailable |
 
@@ -28,10 +28,10 @@ Fixture: `data/fitcv-p0-corpus/p0a/ranking_source_backed.json`.
 
 - Fixture SHA-256: `f80f37c407036008a7babc14e6a754cd21d9736373442f4bb2c4a81dba4af0c8`.
 - Corpus: 100 reviewed rows; 80 calibration, 20 held-out; 40 DE and 40 EN calibration rows plus 10 DE and 10 EN held-out rows.
-- Incumbent: held-out Recall@12 `0.15`, Precision@12 `1.0`, nDCG@12 `0.2345000467`, latency p50/p95 `23.8996/47.2529 ms`, fallback count `2`.
-- Lexical: held-out Recall@12 `0.15`, Precision@12 `1.0`, nDCG@12 `0.2345000467`, latency p50/p95 `3.3968/3.6887 ms`, fallback count `0`.
-- Multilingual: `not_run`; reason `approved multilingual retrieval backend unavailable`.
-- Decision: retain incumbent production contract. Do not promote lexical or multilingual from this evidence.
+- Incumbent: held-out Recall@12 `0.15`, Precision@12 `1.0`, nDCG@12 `0.2345000467`, latency p50/p95 `24.1812/25.6758 ms`, fallback count `2`.
+- Lexical: held-out Recall@12 `0.15`, Precision@12 `1.0`, nDCG@12 `0.2345000467`, latency p50/p95 `3.2722/3.6981 ms`, fallback count `0`.
+- Multilingual: held-out Recall@12 `0.15`, Precision@12 `1.0`, nDCG@12 `0.2345000467`, latency p50/p95 `84.5890/93.5632 ms`, fallback count `0`; backend `sentence_transformers`, model `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`, dimension `384`, revision `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`.
+- Decision: retain incumbent production contract. Multilingual adds no held-out quality gain and is slower; lexical and multilingual remain benchmark-only.
 - Reports: `.tmp/p0a-incumbent-residual.json`, `.tmp/p0a-lexical-residual.json`, `.tmp/p0a-multilingual-residual.json`.
 
 ## P0-B
@@ -60,10 +60,11 @@ Fixture: `tests/fixtures/requirement_support_benchmark.json`.
 
 ## Verification
 
-- `py -3.13 -m pytest -q` — `2869 passed, 4 skipped, 52 warnings`.
+- `py -3.13 -m pytest -q` — `2873 passed, 4 skipped, 52 warnings`.
 - `py -3.13 -m pytest -q tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_agentic_cv_analysis.py tests/test_cv_generation_reason_mapping.py` — `826 passed`.
 - `py -3.13 -m pytest -q tests/test_evidence.py tests/test_benchmark_requirement_support.py tests/test_compare_requirement_support.py tests/test_p0_public_corpus.py` — `98 passed`.
-- `py -3.13 -m pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_ranking_evaluation.py` — `66 passed, 2 skipped`.
+- `py -3.13 -m pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_ranking_evaluation.py` — `70 passed, 2 skipped`.
+- `.tmp/p0a-multilingual-venv/Scripts/python.exe` model smoke — 384-dimensional embedding generated with pinned model revision.
 - `py -3.13 -m pytest -q tests/test_cv_generator.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_cv_generation_reason_mapping.py` — `230 passed`.
 - `git diff --check` — clean.
 - `uv run` validation unavailable after accidental WSL `.venv` layout mutation; Windows-native `py -3.13` provided equivalent local proof. `.venv/` and `.tmp/` remain preserved as workspace artifacts.
@@ -71,8 +72,6 @@ Fixture: `tests/fixtures/requirement_support_benchmark.json`.
 ## Blockers and rollback
 
 - Unblock Task 2 with broader human-reviewed P0-B boundary labels and approved provenance.
-- Unblock Task 3 with approved installation/loading of `sentence-transformers` plus pinned `paraphrase-multilingual-MiniLM-L12-v2` revision.
-- Unblock Task 4 by rerunning multilingual arm after Task 3 and retaining incumbent unless held-out thresholds pass.
 - Rollback: revert benchmark metadata/test changes; retain incumbent retrieval and existing P1 runtime paths; discard only residual `.tmp/` reports after evidence retention decision.
 
 ## Deferred

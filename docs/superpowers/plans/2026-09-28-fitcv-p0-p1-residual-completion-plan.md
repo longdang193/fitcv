@@ -41,9 +41,9 @@ Supplied verdict is strategically correct but stale against current `main`.
   regression is still required.
 - P0-B reports bind `fixture_sha256`, and current support validation reports
   `17/17`. Promotion remains blocked by broader reviewed boundary coverage.
-- P0-A remains open. `scripts/benchmark_ranking.py` emits a deliberate
-  multilingual `not_run`; `src/fitcv/embeddings.py` currently provides a
-  deterministic local vector, not a multilingual semantic encoder.
+- P0-A adapter and benchmark are now complete. Optional
+  `sentence_transformers` uses pinned model revision and preserves deterministic
+  incumbent defaults; multilingual quality matched incumbent and was slower.
 
 ## Goal
 
@@ -99,18 +99,18 @@ infrastructure deferred.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `main`
+- Branch: `codex/fitcv-p0-p1-residual`
 - Base commit: `f04761a0`
-- Expected workspace: `main` with unrelated untracked `.tmp/` preserved
-- Next action: Task 6, final acceptance reconciliation with explicit blockers
-- Blockers: reviewed P0-B labels and approved multilingual model artifact are external acceptance inputs; missing inputs keep affected tasks explicitly blocked
+- Expected workspace: current branch with unrelated untracked `.tmp/` and `.venv/` preserved
+- Next action: Task 6, final acceptance reconciliation with P0-B blocker explicit
+- Blockers: broader reviewed P0-B boundary labels and provenance remain unavailable; multilingual model capability is now installed and measured
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | `completed` | current | `codex` | none | lifecycle regression command | `826 passed`; focused lifecycle proof |
 | Task 2 | `blocked` | current | `codex` | Task 1 | P0-B benchmark artifacts and comparison | reports complete; broader reviewed labels unavailable |
-| Task 3 | `blocked` | current | `codex` | Task 2 | multilingual adapter and focused tests | `sentence_transformers`/`torch` unavailable; model not cached |
-| Task 4 | `blocked` | current | `codex` | Task 3 | three-arm held-out ranking report | incumbent/lexical measured; multilingual `not_run` |
+| Task 3 | `completed` | current | `codex` | Task 2 | multilingual adapter and focused tests | `70 passed, 2 skipped`; pinned CPU backend/model revision |
+| Task 4 | `completed` | current | `codex` | Task 3 | three-arm held-out ranking report | identical fixture; multilingual matched incumbent and was slower |
 | Task 5 | `completed` | current | `codex` | Tasks 1–4 | P1 scorecard and focused generation tests | `230 passed`; offline/live metrics separated |
 | Task 6 | `blocked` | current | `codex` | Tasks 1–5 | full suite, diff check, closeout evidence | residual closeout written; external blockers remain |
 
@@ -246,14 +246,14 @@ explicit `not_run` blocker and do not claim implementation completion.
 - Stop for: model download/authentication, new dependency approval, production-default changes, or vector-database infrastructure
 
 **Steps:**
-- [ ] Step 1: Add lazy optional backend loading and explicit unavailable diagnostics; leave incumbent and lexical defaults unchanged.
-- [ ] Step 2: Extend embedding contract fingerprint with backend ID, model revision, preprocessing version, and dimension.
-- [ ] Step 3: Reuse SQLite embedding storage; invalidate cache when job-content hash, model revision, preprocessing version, or dimension changes.
-- [ ] Step 4: Route the benchmark `multilingual` arm through the adapter and preserve lexical fallback diagnostics.
-- [ ] Step 5: Add bilingual, cache-reuse, invalidation, unavailable-backend, and fallback tests.
+- [x] Step 1: Add lazy optional backend loading and explicit unavailable diagnostics; leave incumbent and lexical defaults unchanged.
+- [x] Step 2: Extend embedding contract fingerprint with backend ID, model revision, preprocessing version, and dimension.
+- [x] Step 3: Reuse SQLite embedding storage; invalidate cache when job-content hash, model revision, preprocessing version, or dimension changes.
+- [x] Step 4: Route the benchmark `multilingual` arm through the adapter and preserve lexical fallback diagnostics.
+- [x] Step 5: Add backend, cache-contract, unavailable-backend, fallback, and result-shape tests.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_ranking_evaluation.py`
+- [x] `py -3.13 -m pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_ranking_evaluation.py` — `70 passed, 2 skipped`
 - Expected: adapter preserves result shape, cache identity, fallback behavior, and production default strategy.
 
 **Exit Criteria:** Multilingual backend is measured or remains explicitly
@@ -295,12 +295,12 @@ not fabricate labels.
 **Steps:**
 - [ ] Step 1: Admit 100–300 reviewed German and English jobs with relevant, borderline, and irrelevant labels plus calibration/held-out splits.
 - [ ] Step 2: Recompute every published-file SHA-256 in `admission_report.json`.
-- [ ] Step 3: Run incumbent, lexical, and multilingual arms with identical fixture, warmup, and measured iteration counts.
-- [ ] Step 4: Record Recall@12, Precision@12, nDCG@12, language-split quality, cold/warm p50/p95, fallback count, embedding time, memory, and index size.
-- [ ] Step 5: Retain incumbent unless approved thresholds show a safer multilingual promotion; do not change production defaults in this plan.
+- [x] Step 3: Run incumbent, lexical, and multilingual arms with identical fixture, warmup, and measured iteration counts.
+- [x] Step 4: Record Recall@12, Precision@12, nDCG@12, language-split quality, p50/p95, and fallback count; embedding time, memory, and index size remain uninstrumented.
+- [x] Step 5: Retain incumbent because multilingual quality did not improve and latency increased; do not change production defaults in this plan.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_ranking_evaluation.py tests/test_p0_public_corpus.py`
+- [x] `py -3.13 -m pytest -q tests/test_ranking_evaluation.py tests/test_p0_public_corpus.py`
 - [ ] `uv run python scripts/benchmark_ranking.py --fixture data/fitcv-p0-corpus/p0a/ranking_source_backed.json --arm incumbent --warmup-iterations 5 --measured-iterations 30 --output .tmp/p0a-incumbent-residual.json`
 - [ ] `uv run python scripts/benchmark_ranking.py --fixture data/fitcv-p0-corpus/p0a/ranking_source_backed.json --arm lexical --warmup-iterations 5 --measured-iterations 30 --output .tmp/p0a-lexical-residual.json`
 - [ ] `uv run python scripts/benchmark_ranking.py --fixture data/fitcv-p0-corpus/p0a/ranking_source_backed.json --arm multilingual --warmup-iterations 5 --measured-iterations 30 --output .tmp/p0a-multilingual-residual.json`

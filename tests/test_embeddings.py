@@ -21,6 +21,7 @@ from fitcv.embeddings import (
     EMBEDDING_FAILURE_POLICY_RAISE,
     FRESH_EMBEDDING_STATUS,
     REUSED_CACHED_EMBEDDING_STATUS,
+    SENTENCE_TRANSFORMERS_BACKEND,
     SQLITE_EMBED_DIM,
     build_embedding_backend_metadata,
     build_embedding_contract_fingerprint,
@@ -29,6 +30,7 @@ from fitcv.embeddings import (
     build_job_summary_signature_payload,
     build_job_summary_signature_record,
     build_job_summary_text,
+    generate_embedding,
     get_embedding_failure_policy,
 )
 
@@ -170,8 +172,84 @@ class TestBuildEmbeddingContractFingerprint:
             "backend_id": "sqlite_deterministic_local",
             "configured_model": "text-embedding-005",
             "dimension": SQLITE_EMBED_DIM,
+            "model_revision": None,
+            "preprocessing_version": "normalize_whitespace_v1",
             "contract_fingerprint": build_embedding_contract_fingerprint({})["fingerprint"],
         }
+
+class TestSentenceTransformersContract:
+    def test_contract_includes_model_revision_and_dimension(self) -> None:
+        config = {
+            "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+            "shortlist_embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+            "embedding_model_revision": "revision-1",
+            "embedding_dimension": 384,
+        }
+
+        metadata = build_embedding_backend_metadata(config)
+
+        assert metadata["backend_id"] == SENTENCE_TRANSFORMERS_BACKEND
+        assert metadata["dimension"] == 384
+        assert metadata["model_revision"] == "revision-1"
+        assert metadata["preprocessing_version"]
+        assert metadata["contract_fingerprint"] == build_embedding_contract_fingerprint(config)["fingerprint"]
+
+    def test_contract_changes_when_backend_revision_or_preprocessing_changes(self) -> None:
+        base = {
+            "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+            "shortlist_embedding_model": "model",
+            "embedding_model_revision": "revision-1",
+            "embedding_dimension": 384,
+        }
+
+        assert build_embedding_contract_fingerprint(base)["fingerprint"] != build_embedding_contract_fingerprint(
+            {**base, "embedding_model_revision": "revision-2"}
+        )["fingerprint"]
+        assert build_embedding_contract_fingerprint(base)["fingerprint"] != build_embedding_contract_fingerprint(
+            {**base, "embedding_preprocessing_version": "v2"}
+        )["fingerprint"]
+
+
+class TestSentenceTransformersEmbedding:
+    def test_uses_lazy_backend_and_returns_float_vector(self) -> None:
+        fake_model = SimpleNamespace(encode=lambda texts, **kwargs: [[1, 2.5, 3]])
+
+        with patch("fitcv.embeddings._load_sentence_transformer_model", return_value=fake_model) as load:
+            vector = generate_embedding(
+                "Hallo Dateningenieur",
+                {
+                    "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+                    "shortlist_embedding_model": "model",
+                    "embedding_model_revision": "revision-1",
+                    "embedding_dimension": 3,
+                },
+            )
+
+        assert vector == [1.0, 2.5, 3.0]
+        load.assert_called_once_with("model", "revision-1")
+
+    def test_unavailable_backend_falls_back_or_raises_by_policy(self) -> None:
+        config = {
+            "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+            "shortlist_embedding_model": "model",
+            "embedding_model_revision": "revision-1",
+            "embedding_failure_policy": EMBEDDING_FAILURE_POLICY_RAISE,
+        }
+
+        with patch(
+            "fitcv.embeddings._load_sentence_transformer_model",
+            side_effect=RuntimeError("backend unavailable"),
+        ):
+            with pytest.raises(RuntimeError, match="backend unavailable"):
+                generate_embedding("text", config)
+
+        with patch(
+            "fitcv.embeddings._load_sentence_transformer_model",
+            side_effect=RuntimeError("backend unavailable"),
+        ):
+            vector = generate_embedding("text", {**config, "embedding_failure_policy": "deterministic_fallback"})
+
+        assert len(vector) == SQLITE_EMBED_DIM
 
 
 
