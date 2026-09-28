@@ -276,6 +276,63 @@ def test_canonical_p0b_arm_names_preserve_effective_policy_boundaries() -> None:
     assert production["cv_analysis"]["selection_policy"]["requirement_gain_weight"] == 0.10
 
 
+def test_full_pool_diagnostic_uses_each_scenario_canonical_pool(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _benchmark_module()
+    scenarios = [
+        {
+            "scenario_id": "small",
+            "profile": {"_projected_evidence_pool": [{"evidence_id": f"s-{index}"} for index in range(3)]},
+            "top_k": 1,
+            "evidence_budget": 1,
+        },
+        {
+            "scenario_id": "large",
+            "profile": {"_projected_evidence_pool": [{"evidence_id": f"l-{index}"} for index in range(20)]},
+            "top_k": 1,
+            "evidence_budget": 1,
+        },
+    ]
+    observed: dict[str, int] = {}
+
+    monkeypatch.setattr(module, "_load_json", lambda path: {"evaluation_schema_version": 1})
+    monkeypatch.setattr(module, "_resolve_scenarios", lambda fixture: scenarios)
+    monkeypatch.setattr(module, "_load_policy", lambda path: {})
+    monkeypatch.setattr(module, "_aggregate_scenario_metrics", lambda results: {})
+
+    def fake_run_benchmark_scenario(**kwargs: Any) -> dict[str, Any]:
+        scenario = kwargs["scenario"]
+        scenario_id = str(scenario["scenario_id"])
+        observed[scenario_id] = int(kwargs["pool_size"])
+        return {
+            "scenario_id": scenario_id,
+            "evidence_budget": 1,
+            "top_k": 1,
+            "timing_ms": {"total_ms": {"median": 0.0, "p95": 0.0}},
+            "context": {
+                "selected_item_count": 0,
+                "prompt_bytes": 0,
+                "estimated_prompt_tokens": 0,
+                "payload_bytes": 0,
+            },
+            "validation": {"passed_cases": 0, "case_count": 0},
+            "backend": {},
+        }
+
+    monkeypatch.setattr(module, "_run_benchmark_scenario", fake_run_benchmark_scenario)
+
+    result = module.run_benchmark(
+        arm="full_pool_diagnostic",
+        pool_size=4,
+        fixture_path=FIXTURE_PATH,
+        runs=1,
+        warmups=0,
+    )
+
+    assert observed == {"small": 3, "large": 20}
+    assert result["scenario_pool_sizes"] == observed
+    assert result["pool_size"] == 20
+
+
 def test_validation_uses_production_requirement_coverage_contract() -> None:
     module = _benchmark_module()
     evidence = module._item("ev-sql", ["SQL"], "SQL reporting")

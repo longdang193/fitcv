@@ -58,7 +58,7 @@ from fitcv.embeddings import build_embedding_backend_metadata, generate_embeddin
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
-REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v2"
+REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v3"
 _QUALIFIER_CONTEXT_TERMS = (
     "enterprise",
     "production",
@@ -1164,6 +1164,15 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                 )
                 title = _normalize_optional_text(evidence.get("title"))
                 text = _normalize_optional_text(evidence.get("text"))
+                support_text = " ".join(value for value in (text, title) if value)
+                fragment_skills = _project_fragment_skills(support_text, skills)
+                if not fragment_skills and len(skills) == 1:
+                    fragment_skills = list(skills)
+                support_fragments = (
+                    [{"text": support_text, "skills": fragment_skills}]
+                    if support_text
+                    else []
+                )
                 scoring_context = " ".join(
                     value
                     for value in (
@@ -1197,6 +1206,7 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                         "domain_tags": domain_tags,
                         "responsibility_themes": responsibility_themes,
                         "skills": skills,
+                        "support_fragments": support_fragments,
                         "source_refs": copy.deepcopy(evidence.get("source_refs") or []),
                         "scoring_context": scoring_context,
                         "evidence_type": "candidate_evidence",
@@ -2058,7 +2068,7 @@ def _term_present(text: str, term: str) -> bool:
 def _evidence_text(item: dict[str, Any]) -> str:
     return " ".join(
         str(item.get(key) or "")
-        for key in ("text", "name", "title", "scoring_context", "business_value")
+        for key in ("text", "name", "title", "business_value")
     ).strip()
 
 
@@ -2074,7 +2084,9 @@ def _support_fragments(item: dict[str, Any]) -> list[dict[str, Any]]:
             if isinstance(fragment, dict)
             and (_normalize_optional_text(fragment.get("text")) or fragment.get("skills"))
         ]
-    return [{"text": _evidence_text(item), "skills": _normalize_text_list(item.get("skills"))}]
+    text = _evidence_text(item)
+    skills = _normalize_text_list(item.get("skills"))
+    return [{"text": text, "skills": _project_fragment_skills(text, skills)}]
 
 
 def _duration_satisfies(required: dict[str, Any], evidence: dict[str, Any]) -> bool | None:

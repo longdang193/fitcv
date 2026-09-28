@@ -418,6 +418,69 @@ def test_requirement_support_binds_qualifiers_to_one_structured_bullet() -> None
     assert assessment["qualified_support"] is False
 
 
+def test_canonical_projection_keeps_parent_metadata_out_of_qualifier_proof() -> None:
+    profile = _v2_profile()
+    profile["experiences"] = [
+        {
+            "id": "exp_production_engineer",
+            "role": "Production Engineer",
+            "company": "Example",
+            "source_refs": [{"document_id": "doc_cv_1"}],
+            "evidence": [
+                {
+                    "id": "ev_sql_classroom",
+                    "kind": "work_achievement",
+                    "text": "SQL classroom exercises",
+                    "source_refs": [{"document_id": "doc_cv_1"}],
+                }
+            ],
+        }
+    ]
+    profile["skills"] = [
+        {
+            "id": "skill_sql",
+            "name": "SQL",
+            "origin": "user",
+            "confidence": 1.0,
+            "support_status": "supported",
+            "evidence_refs": ["ev_sql_classroom"],
+        }
+    ]
+
+    item = next(
+        item for item in project_candidate_evidence(profile)
+        if item["evidence_id"] == "ev_sql_classroom"
+    )
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert item["support_fragments"] == [
+        {"text": "SQL classroom exercises", "skills": ["SQL"]}
+    ]
+    assert assessment["canonical_match"] is True
+    assert assessment["qualifier_status"] == "unverified"
+    assert assessment["qualified_support"] is False
+
+
+def test_ambiguous_support_fragment_fails_qualified_support_closed() -> None:
+    item = {
+        "skills": ["SQL"],
+        "text": "5 years production SQL",
+        "support_fragments": [{"text": "5 years production SQL", "skills": []}],
+    }
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert assessment["canonical_match"] is True
+    assert assessment["qualifier_status"] == "unverified"
+    assert assessment["qualified_support"] is False
+
+
 def test_requirement_support_accepts_same_statement_duration_and_context() -> None:
     item = evidence_module._normalise_experience_entry(
         {
@@ -1740,6 +1803,16 @@ def test_cv_analysis_contract_ignores_synonym_data_changes() -> None:
     )
 
     assert baseline == changed
+
+
+def test_cv_analysis_contract_rejects_v2_requirement_support_policy_fingerprint() -> None:
+    current = evidence_module.build_cv_analysis_contract_fingerprint({})
+    legacy_payload = copy.deepcopy(current["payload"])
+    legacy_payload["requirement_support_policy_version"] = "requirement-support-v2"
+    legacy_fingerprint = evidence_module._stable_json_fingerprint(legacy_payload)
+
+    assert current["payload"]["requirement_support_policy_version"] == "requirement-support-v3"
+    assert current["fingerprint"] != legacy_fingerprint
 
 
 def test_cv_analysis_input_fingerprint_tracks_bounded_alias_equivalence() -> None:

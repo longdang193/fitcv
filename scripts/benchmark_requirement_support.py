@@ -333,6 +333,16 @@ def _resolve_scenarios(fixture: dict[str, Any]) -> list[dict[str, Any]]:
     return resolved
 
 
+def _scenario_pool_size(scenario: dict[str, Any], arm: str, pool_size: int) -> int:
+    if arm not in {"full-pool", "full_pool_diagnostic"} or pool_size != 4:
+        return pool_size
+    profile = dict(scenario.get("profile") or {})
+    projected_pool = profile.get("_projected_evidence_pool")
+    if isinstance(projected_pool, list):
+        return len(projected_pool)
+    return len(evidence_module.project_candidate_evidence(profile))
+
+
 def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
     with path.open(encoding="utf-8") as handle:
         payload = yaml.safe_load(handle) or {}
@@ -949,13 +959,16 @@ def run_benchmark(
     fixture = _load_json(fixture_path)
     scenarios = _resolve_scenarios(fixture)
     base_config = _load_policy(policy_path)
-    effective_pool_size = 12 if arm in {"full-pool", "full_pool_diagnostic"} and pool_size == 4 else pool_size
+    scenario_pool_sizes = {
+        str(scenario["scenario_id"]): _scenario_pool_size(scenario, arm, pool_size)
+        for scenario in scenarios
+    }
     scenario_results = [
         _run_benchmark_scenario(
             fixture=fixture,
             scenario=scenario,
             arm=arm,
-            pool_size=effective_pool_size,
+            pool_size=scenario_pool_sizes[str(scenario["scenario_id"])],
             base_config=base_config,
             runs=runs,
             warmups=warmups,
@@ -980,12 +993,13 @@ def run_benchmark(
         "scenario_count": len(scenario_results),
         "workload_count": len(scenario_results),
         "semantic_alignment_enabled": bool(
-            _runtime_config(base_config, arm, effective_pool_size)
+            _runtime_config(base_config, arm, max(scenario_pool_sizes.values(), default=pool_size))
             .get("cv_analysis", {})
             .get("semantic_alignment", {})
             .get("enabled")
         ),
-        "pool_size": effective_pool_size,
+        "pool_size": max(scenario_pool_sizes.values(), default=pool_size),
+        "scenario_pool_sizes": scenario_pool_sizes,
         "top_k": sorted({result["top_k"] for result in scenario_results}),
         "evidence_budgets": sorted({result["evidence_budget"] for result in scenario_results}),
         "backend": scenario_results[-1]["backend"],
