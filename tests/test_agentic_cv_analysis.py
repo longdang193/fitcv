@@ -19,6 +19,7 @@ from pathlib import Path
 import yaml
 
 from fitcv.agentic_cv_analysis import (
+    _answer_mentions_requirement,
     _build_requirement_uncertainties,
     analyze_ranked_job,
     build_analysis_input_summary,
@@ -258,6 +259,13 @@ def test_candidate_resolution_answer_must_name_required_skill(
     assert analyze("Used SQL for four years.")["requirement_coverage"][0]["selected_support"] == "verified"
     assert analyze("Python experience.")["requirement_coverage"][0]["selected_support"] == "relevant_unverified"
     assert analyze("I do not have SQL experience.")["requirement_coverage"][0]["selected_support"] == "contradicted"
+
+def test_candidate_resolution_answer_matches_literal_requirement_text() -> None:
+    assert _answer_mentions_requirement(
+        "Golang experience.",
+        {"canonical_skill": "go", "original_requirements": ["Golang"]},
+        _config(),
+    ) is True
 
 
 def test_requirement_uncertainty_carries_profile_identity_at_creation() -> None:

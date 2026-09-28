@@ -11,6 +11,7 @@ Plan: `docs/superpowers/plans/2026-09-28-fitcv-p0-p1-finalization-plan.md`
 - Candidate answers must mention the canonical requirement skill before their
   temporary fragment can qualify; unrelated answers remain `relevant_unverified`.
 - Negated answers remain `contradicted`, including unqualified skill requirements.
+- Candidate answers also match literal requirement text such as Golang when canonical skill is go.
 - `OVERRIDE_BLOCK` does not create evidence; empty answers remain `pending`.
 - Verification: `uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_validator.py` — `159 passed`.
 

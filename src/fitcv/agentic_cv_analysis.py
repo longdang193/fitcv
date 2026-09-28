@@ -566,7 +566,7 @@ def _answer_mentions_requirement(
     for raw_requirement in list(descriptor.get("original_requirements") or []):
         raw_text = str(raw_requirement or "").strip().casefold()
         if canonical_skill in raw_text:
-            terms.add(canonical_skill)
+            terms.add(raw_text)
     normalized_answer = str(answer_text or "").casefold()
     return any(
         re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized_answer)
