@@ -24,6 +24,8 @@ P0-B artifacts:
 
 - Keep this directory in the private repository only. Do not publish it to a public mirror.
 - Candidate profile YAML and original CV files are not copied here.
+- Corpus provenance uses repository-local redacted source aliases; original local paths are not retained.
+- Direct email and phone scan passed for committed P0-B artifacts; re-identifiers remain disclosed below.
 - P0-B evidence text may retain organization, school, project, or location re-identifiers.
 - Translation pairing remains unasserted.
 

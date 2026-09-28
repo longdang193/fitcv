@@ -49,5 +49,11 @@
     "Evidence text and provenance copied only from profile_private_001 rows in candidate_evidence_projection.jsonl.",
     "No translation pairing or inferred claim added."
   ],
-  "promotion_blocked": true
+  "promotion_blocked": true,
+  "label_sha256": "6175033532c3fc74977b2fef4691b377a49a8e26962c5093fd244a522f347761",
+  "privacy_boundary": {
+    "source_file_aliases": true,
+    "direct_contact_scan": "passed",
+    "reidentifiers_disclosed": true
+  }
 }

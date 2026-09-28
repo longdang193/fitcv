@@ -55,5 +55,11 @@
     "duplicate_pairs": 0
   },
   "source_policy": "Direct source-text evidence only; support_verdict=supported only when projection text explicitly establishes the full requirement; otherwise unknown.",
-  "promotion_blocked": true
+  "promotion_blocked": true,
+  "label_sha256": "138e0a099cc8b4f02c6629a573255d8821e3dc4edbf4d133ed5c7d4ae18af1bd",
+  "privacy_boundary": {
+    "source_file_aliases": true,
+    "direct_contact_scan": "passed",
+    "reidentifiers_disclosed": true
+  }
 }

@@ -3,9 +3,9 @@
   "generated_at": "2026-09-27",
   "inputs": {
     "cv_glob": "data/sample CVs/*.md",
-    "private_profile": "data/candidate_profile.private.final.2026-09-27-reviewed-updated.yaml"
+    "private_profile": "data/fitcv-p0-corpus/p0b/redacted_candidate_profile.yaml"
   },
-  "output": "tmp/p0/agents/p0b/candidate_evidence_projection.jsonl",
+  "output": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection.jsonl",
   "counts": {
     "records": 1453,
     "cv_records": 1367,

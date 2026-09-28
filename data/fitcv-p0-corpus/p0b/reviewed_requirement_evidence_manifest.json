@@ -1,8 +1,8 @@
 {
   "schema_version": "p0b.reviewed_requirement_evidence_manifest.v1",
   "status": "admitted_for_benchmark_only",
-  "path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tmp\\p0\\corpus\\reviewed_requirement_evidence.jsonl",
-  "sha256": "461436faee360621b929805c0173da1dfd101d6d7d833d872046f806b6d96f23",
+  "path": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl",
+  "sha256": "829eb79c85657f516ff2ef985a9e15c86d9eff0c41c22277642997a4db4abce3",
   "records": 10,
   "requirement_instances": 7,
   "evidence_ids": 9,
@@ -35,7 +35,12 @@
     "P0-B benchmark promotion requires broader reviewed requirement/evidence coverage."
   ],
   "input_reviews": [
-    "tmp\\p0\\agents\\p0b\\review_2_adjudication.jsonl",
-    "tmp\\p0\\agents\\p0b\\review_1_final.jsonl"
-  ]
+    "data/fitcv-p0-corpus/p0b/reviewer_a_labels.jsonl",
+    "data/fitcv-p0-corpus/p0b/reviewer_b_labels.jsonl"
+  ],
+  "privacy_boundary": {
+    "source_file_aliases": true,
+    "direct_contact_scan": "passed",
+    "reidentifiers_disclosed": true
+  }
 }

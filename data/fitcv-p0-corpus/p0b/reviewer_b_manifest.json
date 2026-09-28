@@ -66,5 +66,11 @@
     "Requirement source record 4471051929 is absent from the admitted P0-A posting snapshot; labels tied to it remain unknown.",
     "No translation pairing is asserted; all copied evidence retains unpaired_uncertain provenance."
   ],
-  "promotion_blocked": true
+  "promotion_blocked": true,
+  "privacy_boundary": {
+    "source_file_aliases": true,
+    "direct_contact_scan": "passed",
+    "reidentifiers_disclosed": true
+  },
+  "label_sha256": "2dfdeeddbebc11811f26f8eb88a7b4fe2654fe7d4f1e0b8b6711210151c61156"
 }

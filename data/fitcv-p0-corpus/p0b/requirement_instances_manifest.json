@@ -6,7 +6,7 @@
     "p0b_reviewed_rows": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl"
   },
   "output": "data/fitcv-p0-corpus/p0b/requirement_instances.jsonl",
-  "sha256": "0fdb530c1c2b9c0b1016cfdc1066180f8e33073b990e8447ecc07bc3e9c78815",
+  "sha256": "071022dd5ecad8faeadf9d828615ffe516abf08a34a1c6377a89f9b3c4f15ab0",
   "max_rows": 100,
   "counts": {
     "queue_instances": 100,

@@ -2,7 +2,7 @@
   "schema_version": "p0b.reviewed_requirement_evidence_adjudicated_manifest.v1",
   "status": "admitted_for_benchmark_only",
   "output": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence_expanded.jsonl",
-  "sha256": "aed85eceb4f0aa860aca28341011f02ccd9ba3af17a59b3e0cdba43a24796a32",
+  "sha256": "248ce3555150e9f8f714208098e1e491f7f75bff19da83f569df099d52102f91",
   "records": 60,
   "requirement_instances": 52,
   "evidence_ids": 20,
@@ -43,5 +43,10 @@
     "Labels use one redacted candidate profile and remain benchmark-only.",
     "Translation pairing is unasserted.",
     "Production recall promotion requires broader candidate/job pairing and approved taxonomy coverage."
-  ]
+  ],
+  "privacy_boundary": {
+    "source_file_aliases": true,
+    "direct_contact_scan": "passed",
+    "reidentifiers_disclosed": true
+  }
 }
