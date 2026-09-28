@@ -396,6 +396,164 @@ def test_qualified_requirement_does_not_combine_duration_and_context_across_evid
     assert bundle["requirement_support"]["qualified"]["canonical"] == {}
 
 
+def test_requirement_support_binds_qualifiers_to_one_structured_bullet() -> None:
+    item = evidence_module._normalise_experience_entry(
+        {
+            "role": "Engineer",
+            "company": "Example",
+            "bullets": [
+                {"text": "5 years production Python", "skills": ["Python"]},
+                {"text": "SQL classroom exercises", "skills": ["SQL"]},
+            ],
+        },
+        experience_index=0,
+    )
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert assessment["canonical_match"] is True
+    assert assessment["qualified_support"] is False
+
+
+def test_canonical_projection_keeps_parent_metadata_out_of_qualifier_proof() -> None:
+    profile = _v2_profile()
+    profile["experiences"] = [
+        {
+            "id": "exp_production_engineer",
+            "role": "Production Engineer",
+            "company": "Example",
+            "source_refs": [{"document_id": "doc_cv_1"}],
+            "evidence": [
+                {
+                    "id": "ev_sql_classroom",
+                    "kind": "work_achievement",
+                    "text": "SQL classroom exercises",
+                    "source_refs": [{"document_id": "doc_cv_1"}],
+                }
+            ],
+        }
+    ]
+    profile["skills"] = [
+        {
+            "id": "skill_sql",
+            "name": "SQL",
+            "origin": "user",
+            "confidence": 1.0,
+            "support_status": "supported",
+            "evidence_refs": ["ev_sql_classroom"],
+        }
+    ]
+
+    item = next(
+        item for item in project_candidate_evidence(profile)
+        if item["evidence_id"] == "ev_sql_classroom"
+    )
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert item["support_fragments"] == [
+        {"text": "SQL classroom exercises", "skills": ["SQL"]}
+    ]
+    assert assessment["canonical_match"] is True
+    assert assessment["qualifier_status"] == "unverified"
+    assert assessment["qualified_support"] is False
+
+
+def test_ambiguous_support_fragment_fails_qualified_support_closed() -> None:
+    item = {
+        "skills": ["SQL"],
+        "text": "5 years production SQL",
+        "support_fragments": [{"text": "5 years production SQL", "skills": []}],
+    }
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert assessment["canonical_match"] is True
+    assert assessment["qualifier_status"] == "unverified"
+    assert assessment["qualified_support"] is False
+
+
+def test_requirement_support_accepts_same_statement_duration_and_context() -> None:
+    item = evidence_module._normalise_experience_entry(
+        {
+            "role": "Engineer",
+            "company": "Example",
+            "bullets": [{"text": "5 years production SQL", "skills": ["SQL"]}],
+        },
+        experience_index=0,
+    )
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert assessment["qualified_support"] is True
+
+
+def test_project_fragment_does_not_inherit_unrelated_project_skill() -> None:
+    item = evidence_module._normalise_project_entry(
+        {
+            "name": "Mixed project",
+            "skills": ["SQL"],
+            "highlights": ["5 years production Python"],
+        },
+        project_index=0,
+    )
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert assessment["qualified_support"] is False
+
+
+@pytest.mark.parametrize(
+    ("requirement", "evidence", "expected"),
+    [
+        ("more than 3 years SQL", "less than 4 years SQL", False),
+        ("more than 3 years SQL", "more than 4 years SQL", True),
+        ("more than 3 years SQL", "at least 3 years SQL", False),
+        ("18 months SQL", "2 years SQL", True),
+        ("at most 3 years SQL", "2 years SQL", False),
+        ("under 3 years SQL", "2 years SQL", False),
+        ("no less than 3 years SQL", "4 years SQL", True),
+        ("weniger als 3 Jahre SQL", "2 years SQL", False),
+    ],
+)
+def test_duration_qualifiers_compare_intervals(
+    requirement: str,
+    evidence: str,
+    expected: bool,
+) -> None:
+    requirement_duration = evidence_module._parse_duration_qualifier(requirement)
+    evidence_duration = evidence_module._parse_duration_qualifier(evidence)
+
+    assert evidence_module._duration_satisfies(requirement_duration or {}, evidence_duration or {}) is expected
+
+
+def test_duration_negation_and_german_context_aliases_fail_closed() -> None:
+    assert evidence_module._parse_duration_qualifier("without 3 years SQL")["negated"] is True
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["mindestens 3 Jahre Produktionsumgebung SQL"]}
+    )[0]
+    item = _cached_evidence_item("ev-sql", ["SQL"], "5 Jahre Produktion SQL")
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert descriptor["qualifiers"]["context"] == {"all_of": ["production"]}
+    assert assessment["qualified_support"] is True
+
+
 def test_qualified_requirement_does_not_transfer_qualifiers_between_skills_in_one_evidence_item() -> None:
     profile = _cached_evidence_profile(
         _cached_evidence_item(
@@ -1688,6 +1846,16 @@ def test_cv_analysis_contract_ignores_synonym_data_changes() -> None:
     )
 
     assert baseline == changed
+
+
+def test_cv_analysis_contract_rejects_v2_requirement_support_policy_fingerprint() -> None:
+    current = evidence_module.build_cv_analysis_contract_fingerprint({})
+    legacy_payload = copy.deepcopy(current["payload"])
+    legacy_payload["requirement_support_policy_version"] = "requirement-support-v2"
+    legacy_fingerprint = evidence_module._stable_json_fingerprint(legacy_payload)
+
+    assert current["payload"]["requirement_support_policy_version"] == "requirement-support-v4"
+    assert current["fingerprint"] != legacy_fingerprint
 
 
 def test_cv_analysis_input_fingerprint_tracks_bounded_alias_equivalence() -> None:

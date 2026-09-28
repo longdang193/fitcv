@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-fact-grain-benchmark-green-baseline
 targets:
@@ -21,6 +21,7 @@ targets:
   - data/fitcv-p0-corpus/p0b/projection_manifest.json
   - data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl
   - data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence_manifest.json
+  - data/fitcv-p0-corpus/p0c/requirement_support_benchmark.json
   - data/fitcv-p0-corpus/README.md
   - .gitattributes
   - .github/workflows/repo-hooks.yml
@@ -72,7 +73,7 @@ deferred until independently reviewed discriminative coverage exists.
 - Shared-write control: runtime, benchmarks, fixtures, manifests, workflow, and docs are serialized by task order.
 - Required skills: `skill-using-git-worktrees`, `skill-code-standards`, `skill-test-driven-development`, `skill-backend-verification`, `skill-performance-optimization`, `skill-verification-before-completion`.
 - Source and tests override historical plan prose.
-- `Template Profile: unresolved` is intentional while proposed; Task 0 resolves each pending profile from `agents/*.toml` before activation.
+- Task profiles resolved from `agents/*.toml`: `normal` for sequential implementation and verification tasks.
 
 ## Acceptance Contract
 
@@ -93,7 +94,7 @@ deferred until independently reviewed discriminative coverage exists.
 
 **Task Function:** Baseline admission and contract freeze.
 
-**Template Profile:** `unresolved`.
+**Template Profile:** `normal`.
 
 **Specification Coverage:** Exact base, clean worktree, fixture limits, promotion deferrals.
 
@@ -124,7 +125,7 @@ deferred until independently reviewed discriminative coverage exists.
 
 **Task Function:** Backend contract correction and regression proof.
 
-**Template Profile:** `unresolved`.
+**Template Profile:** `normal`.
 
 **Specification Coverage:** Fact granularity, identity, same-evidence support, contradiction safety, legacy compatibility.
 
@@ -139,7 +140,7 @@ deferred until independently reviewed discriminative coverage exists.
 **Steps:**
 
 1. Add derived internal `support_fragments`.
-2. Derive one fragment per structured bullet with bullet-local text and skills. Derive highlight and tech-stack fragments with parent project skills as inherited skill metadata; qualifiers remain local to each fragment.
+2. Derive one fragment per structured bullet with bullet-local text and skills. Derive highlight and tech-stack fragments with only skills explicitly present in each fragment; retain project-level skills on parent evidence for unqualified matching.
 3. Preserve explicit projected fragments. Use one compatibility fragment from full item text only when no structured statement fields exist; structured V1 bullets are not legacy flat evidence.
 4. Assess canonical skill and every qualifier against one fragment.
 5. Set `qualified_support` only when one fragment satisfies all qualifiers.
@@ -156,7 +157,7 @@ deferred until independently reviewed discriminative coverage exists.
 
 **Task Function:** Deterministic parser and backend boundary verification.
 
-**Template Profile:** `unresolved`.
+**Template Profile:** `normal`.
 
 **Specification Coverage:** Months, inequalities, negation, German aliases, unresolved qualifier state.
 
@@ -187,7 +188,7 @@ deferred until independently reviewed discriminative coverage exists.
 
 **Task Function:** Benchmark contract correction.
 
-**Template Profile:** `unresolved`.
+**Template Profile:** `normal`.
 
 **Specification Coverage:** Retrieval/ranking separation, precision/recall denominators, deterministic schema.
 
@@ -218,7 +219,7 @@ deferred until independently reviewed discriminative coverage exists.
 
 **Task Function:** Benchmark configuration correction.
 
-**Template Profile:** `unresolved`.
+**Template Profile:** `normal`.
 
 **Specification Coverage:** Production policy, lexical comparison, full-pool diagnostic, report compatibility.
 
@@ -249,7 +250,7 @@ deferred until independently reviewed discriminative coverage exists.
 
 **Task Function:** Corpus integrity repair and metadata regeneration.
 
-**Template Profile:** `unresolved`.
+**Template Profile:** `normal`.
 
 **Specification Coverage:** LF policy, final-byte hashing, admission/publication separation, manifest consistency.
 
@@ -281,7 +282,7 @@ deferred until independently reviewed discriminative coverage exists.
 
 **Task Function:** CI verification.
 
-**Template Profile:** `unresolved`.
+**Template Profile:** `normal`.
 
 **Specification Coverage:** Cross-platform artifact integrity.
 
@@ -311,7 +312,7 @@ deferred until independently reviewed discriminative coverage exists.
 
 **Task Function:** Final backend, benchmark, corpus, and CI verification.
 
-**Template Profile:** `unresolved`.
+**Template Profile:** `normal`.
 
 **Specification Coverage:** Focused proof, Full Suite, deterministic benchmarks, promotion status, exact-SHA record.
 
@@ -348,6 +349,18 @@ git ls-files --eol data/fitcv-p0-corpus
 ```
 
 **Exit Criteria:** Focused tests, Full Suite, local integrity checks, cross-platform CI, deterministic benchmarks, and exact-SHA acceptance record pass. P0-A/P0-B promotion remains blocked for stated coverage reasons.
+
+## Execution Record — 2026-09-28
+
+- Baseline worktree: `7a516a3fb77101b5ed9f7212a529133eb8592a51`.
+- Implementation commit: `27d03903cb81fa8b0f69199190db65e305e1e8fb` (`fix: close fact-grain benchmark correctness gaps`).
+- Focused verification: `119 passed`.
+- Full verification: `2832 passed, 6 skipped, 52 warnings`.
+- Corpus integrity: all tracked `data/fitcv-p0-corpus` files report `i/lf w/lf`; manifest hashes match final `read_bytes()` values.
+- Ranking benchmark schema: `ranking_benchmark_v3`; retrieval and ranking metrics use separate ID sets.
+- Support benchmark arms: `production`, `lexical_only`, `full_pool_diagnostic`; repeated non-timing fields match.
+- Promotion status remains blocked: ranking fixture is all-positive; reviewed P0-B coverage remains insufficient.
+- CI exact-SHA run: `36404840399` — all jobs passed: Focused Smoke Tests, Adapter Integrity, Full Suite, Architecture Docs, Public Corpus Integrity (Ubuntu), and Public Corpus Integrity (Windows).
 
 ## Rollback
 

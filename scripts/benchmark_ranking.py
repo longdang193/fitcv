@@ -55,6 +55,12 @@ def _recall(returned_ids: set[str], eligible_rows: list[dict[str, Any]]) -> floa
     return len(returned_ids & relevant) / len(relevant) if relevant else 1.0
 
 
+def _precision(returned_ids: set[str], eligible_rows: list[dict[str, Any]]) -> float:
+    eligible_ids = {str(row["candidate_id"]) for row in eligible_rows}
+    returned = returned_ids & eligible_ids
+    return len(returned & _relevant(eligible_rows)) / len(returned) if returned else 1.0
+
+
 def _ndcg(returned: list[dict[str, Any]], eligible_rows: list[dict[str, Any]], top_n: int) -> float:
     ranked = returned[:top_n]
     dcg = sum(
@@ -70,26 +76,23 @@ def _ndcg(returned: list[dict[str, Any]], eligible_rows: list[dict[str, Any]], t
 
 
 def _split_metric_rows(
-    returned_ids: set[str],
-    returned_rows: list[dict[str, Any]],
+    retrieved_ids: set[str],
+    ranked_rows: list[dict[str, Any]],
     source_rows: list[dict[str, Any]],
     top_n: int,
 ) -> dict[str, dict[str, float | int]]:
     metrics: dict[str, dict[str, float | int]] = {}
     for split in ("calibration", "held_out"):
         eligible = [row for row in source_rows if row.get("split") == split]
-        ranked = [row for row in returned_rows if row.get("split") == split]
+        ranked = [row for row in ranked_rows if row.get("split") == split]
+        ranked_ids = {str(row.get("candidate_id")) for row in ranked[:top_n]}
         metrics[split] = {
             "count": len(eligible),
-            "shortlist_recall": _recall(returned_ids, eligible),
-            "ranking_recall": _recall(
-                {
-                    str(row.get("candidate_id"))
-                    for row in ranked[:top_n]
-                },
-                eligible,
-            ),
-            "ndcg": _ndcg(ranked, eligible, top_n),
+            "retrieval_recall_at_n": _recall(retrieved_ids, eligible),
+            "retrieval_precision_at_n": _precision(retrieved_ids, eligible),
+            "ranking_recall_at_n": _recall(ranked_ids, eligible),
+            "ranking_precision_at_n": _precision(ranked_ids, eligible),
+            "ranking_ndcg_at_n": _ndcg(ranked, eligible, top_n),
         }
     return metrics
 
@@ -162,7 +165,9 @@ def _run_once(
     arm: str = "lexical",
 ) -> tuple[dict[str, float], dict[str, int], dict[str, Any]]:
     shortlist_recalls: list[float] = []
+    shortlist_precisions: list[float] = []
     ranking_recalls: list[float] = []
+    ranking_precisions: list[float] = []
     ndcgs: list[float] = []
     llm_calls = 0
     scoring_failures = 0
@@ -228,6 +233,7 @@ def _run_once(
         retrieval_returned_count += len(retrieved_ids)
         shortlist_top_n = request["top_n"]
         shortlist_recalls.append(_recall(retrieved_ids, source_rows))
+        shortlist_precisions.append(_precision(retrieved_ids, source_rows))
         source_by_id = {str(row["candidate_id"]): row for row in source_rows}
         rows: list[dict[str, Any]] = []
         for source in source_rows:
@@ -264,26 +270,32 @@ def _run_once(
             if candidate_id in source_by_id
         ]
         pool_split_metrics = _split_metric_rows(
-            set(ranked_by_id),
+            retrieved_ids,
             ranked_eval,
             source_rows,
             int(pool.get("ndcg_top_n", 15)),
         )
-        ranking_recalls.append(_recall(set(ranked_by_id), source_rows))
+        ranked_ids = set(ranked_by_id)
+        ranking_recalls.append(_recall(ranked_ids, source_rows))
+        ranking_precisions.append(_precision(ranked_ids, source_rows))
         ndcgs.append(_ndcg(ranked_eval, source_rows, int(pool.get("ndcg_top_n", 15))))
         split_metrics.setdefault("calibration", []).append(pool_split_metrics["calibration"])
         split_metrics.setdefault("held_out", []).append(pool_split_metrics["held_out"])
     return (
         {
             "shortlist_recall": statistics.mean(shortlist_recalls),
+            "shortlist_precision": statistics.mean(shortlist_precisions),
             "ranking_recall": statistics.mean(ranking_recalls),
+            "ranking_precision": statistics.mean(ranking_precisions),
             "ndcg": statistics.mean(ndcgs),
             "split_metrics": {
                 split: {
                     "count": int(statistics.mean(item["count"] for item in values)),
-                    "shortlist_recall": statistics.mean(item["shortlist_recall"] for item in values),
-                    "ranking_recall": statistics.mean(item["ranking_recall"] for item in values),
-                    "ndcg": statistics.mean(item["ndcg"] for item in values),
+                    "retrieval_recall_at_n": statistics.mean(item["retrieval_recall_at_n"] for item in values),
+                    "retrieval_precision_at_n": statistics.mean(item["retrieval_precision_at_n"] for item in values),
+                    "ranking_recall_at_n": statistics.mean(item["ranking_recall_at_n"] for item in values),
+                    "ranking_precision_at_n": statistics.mean(item["ranking_precision_at_n"] for item in values),
+                    "ranking_ndcg_at_n": statistics.mean(item["ranking_ndcg_at_n"] for item in values),
                 }
                 for split, values in split_metrics.items()
             },
@@ -327,7 +339,7 @@ def main() -> None:
 
     if args.arm == "multilingual":
         result = {
-            "schema_version": "ranking_benchmark_v2",
+            "schema_version": "ranking_benchmark_v3",
             "arm": "multilingual",
             "status": "not_run",
             "reason": "approved multilingual retrieval backend unavailable",
@@ -355,7 +367,7 @@ def main() -> None:
 
     cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
     result = {
-        "schema_version": "ranking_benchmark_v2",
+        "schema_version": "ranking_benchmark_v3",
         "fixture": str(args.fixture),
         "arm": args.arm,
         "status": "measured",
@@ -374,7 +386,8 @@ def main() -> None:
                 "returned_count": observation["retrieval_returned_count"],
                 "eligible_count": observation["eligible_count"],
                 "coverage": observation["retrieval_returned_count"] / observation["eligible_count"] if observation["eligible_count"] else 0.0,
-                "shortlist_recall": quality["split_metrics"]["held_out"]["shortlist_recall"],
+                "recall_at_n": quality["split_metrics"]["held_out"]["retrieval_recall_at_n"],
+                "precision_at_n": quality["split_metrics"]["held_out"]["retrieval_precision_at_n"],
             },
             "ranking": {
                 "evaluation_scope": "held_out",
@@ -383,8 +396,9 @@ def main() -> None:
                 "returned_count": observation["ranking_returned_count"],
                 "eligible_count": observation["eligible_count"],
                 "coverage": observation["ranking_returned_count"] / observation["eligible_count"] if observation["eligible_count"] else 0.0,
-                "ranking_recall": quality["split_metrics"]["held_out"]["ranking_recall"],
-                "ndcg": quality["split_metrics"]["held_out"]["ndcg"],
+                "recall_at_n": quality["split_metrics"]["held_out"]["ranking_recall_at_n"],
+                "precision_at_n": quality["split_metrics"]["held_out"]["ranking_precision_at_n"],
+                "ndcg_at_n": quality["split_metrics"]["held_out"]["ranking_ndcg_at_n"],
                 "split_metrics": quality["split_metrics"],
                 "split_counts": observation["split_counts"],
                 "language_split_counts": observation["language_split_counts"],

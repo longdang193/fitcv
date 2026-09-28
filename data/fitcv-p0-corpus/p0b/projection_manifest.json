@@ -6,7 +6,7 @@
     "profile_projection": "CV-only public corpus projection; private profile records excluded"
   },
   "output": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection.jsonl",
-  "sha256": "d9396be86f3e3aaaf1368e405dfef7f8310aa5aa2e329661ac704b5af2b05202",
+  "sha256": "376387c05085b36a76e869f8a4632efa5ffd12175f8c137cee9213c826456e68",
   "counts": {
     "records": 1367,
     "cv_records": 1367,

@@ -67,7 +67,17 @@ _QUALIFIER_CONTEXT_TERMS = (
     "training",
     "on-prem",
     "on premise",
+    "real_time",
 )
+_QUALIFIER_CONTEXT_ALIASES = {
+    "enterprise": ("enterprise", "unternehmensumfeld"),
+    "production": ("production", "produktion", "produktionsumgebung"),
+    "cloud": ("cloud",),
+    "classroom": ("classroom",),
+    "training": ("training",),
+    "on-prem": ("on-prem", "on premise"),
+    "real_time": ("real time", "real-time", "echtzeit"),
+}
 _QUALIFIER_NEGATION_TERMS = (
     "no",
     "not",
@@ -339,20 +349,37 @@ def _extract_canonical_entities(values: Any) -> list[str]:
 def _parse_duration_qualifier(text: str) -> dict[str, Any] | None:
     normalized = _normalize_optional_text(text).casefold().replace(",", ".")
     match = re.search(
-        r"\b(?:(at\s+least|minimum|mindestens|more\s+than|mehr\s+als)\s+)?"
-        r"(\d+(?:\.\d+)?)\s*(\+|plus)?\s*(years?|yrs?|jahre|jahren)\b",
+        r"\b(?:(at\s+least|minimum|mindestens|more\s+than|mehr\s+als|"
+        r"less\s+than|under|weniger\s+als|at\s+most|no\s+more\s+than|"
+        r"not\s+more\s+than|no\s+less\s+than|not\s+less\s+than)\s+)?"
+        r"(\d+(?:\.\d+)?)\s*(\+|plus)?\s*(years?|yrs?|jahre|jahren|"
+        r"months?|monate|monat)\b",
         normalized,
     )
     if not match:
         return None
     prefix = str(match.group(1) or "").strip()
-    comparator = "gt" if prefix in {"more than", "mehr als"} else "gte"
-    if match.group(3) or prefix in {"at least", "minimum", "mindestens"}:
+    comparator = "gte"
+    if prefix in {"more than", "mehr als"}:
+        comparator = "gt"
+    elif prefix in {"less than", "under", "weniger als"}:
+        comparator = "lt"
+    elif prefix in {"at most", "no more than", "not more than"}:
+        comparator = "lte"
+    if match.group(3) or prefix in {"at least", "minimum", "mindestens", "no less than", "not less than"}:
         comparator = "gte"
-    return {
+    unit = match.group(4)
+    amount = float(match.group(2))
+    result = {
         "comparator": comparator,
-        "months": int(round(float(match.group(2)) * 12)),
+        "months": int(round(amount * (12 if unit.startswith(("year", "yr", "jahr")) else 1))),
     }
+    if re.search(
+        r"\b(?:not|never|without|kein(?:e|en)?|nicht|nie|ohne)\b",
+        normalized[max(0, match.start() - 48):match.start()],
+    ):
+        result["negated"] = True
+    return result
 
 
 def _parse_requirement_qualifiers(text: str) -> dict[str, Any]:
@@ -362,8 +389,9 @@ def _parse_requirement_qualifiers(text: str) -> dict[str, Any]:
     if duration:
         qualifiers["duration"] = duration
     context = [
-        term for term in _QUALIFIER_CONTEXT_TERMS
-        if re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized)
+        term
+        for term, aliases in _QUALIFIER_CONTEXT_ALIASES.items()
+        if any(re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized) for alias in aliases)
     ]
     if context:
         qualifiers["context"] = {"all_of": sorted(set(context))}
@@ -380,8 +408,11 @@ def _parse_requirement_qualifiers(text: str) -> dict[str, Any]:
 def _strip_requirement_qualifiers(text: str) -> str:
     stripped = _normalize_optional_text(text).casefold()
     stripped = re.sub(
-        r"\b(?:(?:at\s+least|minimum|mindestens|more\s+than|mehr\s+als)\s+)?"
-        r"\d+(?:[.,]\d+)?\s*(?:\+|plus)?\s*(?:years?|yrs?|jahre|jahren)\b",
+        r"\b(?:(?:at\s+least|minimum|mindestens|more\s+than|mehr\s+als|"
+        r"less\s+than|under|weniger\s+als|at\s+most|no\s+more\s+than|"
+        r"not\s+more\s+than|no\s+less\s+than|not\s+less\s+than)\s+)?"
+        r"\d+(?:[.,]\d+)?\s*(?:\+|plus)?\s*(?:years?|yrs?|jahre|jahren|"
+        r"months?|monate|monat)\b",
         " ",
         stripped,
     )
@@ -390,8 +421,9 @@ def _strip_requirement_qualifiers(text: str) -> str:
         " ",
         stripped,
     )
-    for term in _QUALIFIER_CONTEXT_TERMS:
-        stripped = re.sub(rf"(?<!\w){re.escape(term)}(?!\w)", " ", stripped)
+    for aliases in _QUALIFIER_CONTEXT_ALIASES.values():
+        for term in aliases:
+            stripped = re.sub(rf"(?<!\w){re.escape(term)}(?!\w)", " ", stripped)
     stripped = re.sub(
         r"\b(?:b[12]|c[12]|beginner|intermediate|advanced|"
         r"grundkenntnisse|fortgeschrittene(?:n|r)?)\b",
@@ -1156,6 +1188,15 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                 )
                 title = _normalize_optional_text(evidence.get("title"))
                 text = _normalize_optional_text(evidence.get("text"))
+                support_text = " ".join(value for value in (text, title) if value)
+                fragment_skills = _project_fragment_skills(support_text, skills)
+                if not fragment_skills and len(skills) == 1:
+                    fragment_skills = list(skills)
+                support_fragments = (
+                    [{"text": support_text, "skills": fragment_skills}]
+                    if support_text
+                    else []
+                )
                 scoring_context = " ".join(
                     value
                     for value in (
@@ -1190,6 +1231,7 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                         "domain_tags": domain_tags,
                         "responsibility_themes": responsibility_themes,
                         "skills": skills,
+                        "support_fragments": support_fragments,
                         "source_refs": copy.deepcopy(evidence.get("source_refs") or []),
                         "scoring_context": scoring_context,
                         "evidence_type": "candidate_evidence",
@@ -1267,6 +1309,7 @@ def _normalise_experience_entry(
     source_ref = f"experiences[{experience_index}]"
 
     bullet_texts: list[str] = []
+    support_fragments: list[dict[str, Any]] = []
     aggregated_skills: list[str] = []
     seen_skills: set[str] = set()
     for bullet in experience.get("bullets") or []:
@@ -1275,7 +1318,10 @@ def _normalise_experience_entry(
         text = _normalize_optional_text(bullet.get("text") or bullet.get("name"))
         if text:
             bullet_texts.append(text)
-        for skill in _normalize_text_list(bullet.get("skills")):
+        bullet_skills = _normalize_text_list(bullet.get("skills"))
+        if text or bullet_skills:
+            support_fragments.append({"text": text, "skills": bullet_skills})
+        for skill in bullet_skills:
             if skill not in seen_skills:
                 seen_skills.add(skill)
                 aggregated_skills.append(skill)
@@ -1305,6 +1351,7 @@ def _normalise_experience_entry(
         "role_family": role_family,
         "domain_tags": domain_tags,
         "responsibility_themes": responsibility_themes,
+        "support_fragments": support_fragments,
         "scoring_context": " ".join(part for part in scoring_parts if part),
     }
 
@@ -1327,6 +1374,15 @@ def _build_project_scoring_context(
     return " ".join(parts)
 
 
+def _project_fragment_skills(text: str, skills: list[str]) -> list[str]:
+    normalized = text.casefold()
+    return [
+        skill
+        for skill in skills
+        if re.search(rf"(?<!\w){re.escape(skill.casefold())}(?!\w)", normalized)
+    ]
+
+
 def _normalise_project_entry(
     project: dict[str, Any],
     *,
@@ -1340,6 +1396,11 @@ def _normalise_project_entry(
     skills = _normalize_text_list(project.get("skills"))
     domain_tags = _canonicalize_terms(_normalize_text_list(project.get("domain_tags")))
     responsibility_themes = _canonicalize_terms(_normalize_text_list(project.get("responsibility_themes")))
+    support_fragments = [
+        {"text": value, "skills": _project_fragment_skills(value, skills)}
+        for value in (*highlights, *tech_stack)
+        if value
+    ]
     evidence_id = _preferred_evidence_id(
         project,
         _build_evidence_id("project_entry", source_ref, name),
@@ -1368,6 +1429,7 @@ def _normalise_project_entry(
         "role_family": infer_role_family(name),
         "domain_tags": domain_tags,
         "responsibility_themes": responsibility_themes,
+        "support_fragments": support_fragments,
     }
 
 
@@ -2001,13 +2063,30 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
 
 def _is_negated_term(text: str, term: str) -> bool:
     normalized = _normalize_optional_text(text).casefold()
-    match = re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized)
+    aliases = _QUALIFIER_CONTEXT_ALIASES.get(term, (term,))
+    match = next(
+        (
+            candidate
+            for alias in aliases
+            for candidate in [re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized)]
+            if candidate
+        ),
+        None,
+    )
     if not match:
         return False
     prefix = normalized[max(0, match.start() - 48):match.start()]
     return any(
         re.search(rf"(?<!\w){re.escape(negation)}(?!\w)", prefix)
         for negation in _QUALIFIER_NEGATION_TERMS
+    )
+
+
+def _term_present(text: str, term: str) -> bool:
+    normalized = _normalize_optional_text(text).casefold()
+    return any(
+        re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized)
+        for alias in _QUALIFIER_CONTEXT_ALIASES.get(term, (term,))
     )
 
 
@@ -2048,18 +2127,37 @@ def _evidence_text(item: dict[str, Any]) -> str:
 
 
 def _duration_satisfies(required: dict[str, Any], evidence: dict[str, Any]) -> bool | None:
+    if evidence.get("negated"):
+        return None
     required_months = int(required.get("months") or 0)
     evidence_months = int(evidence.get("months") or 0)
     if not required_months or not evidence_months:
         return None
-    comparator = str(required.get("comparator") or "gte")
-    if comparator == "gt":
-        return evidence_months > required_months
-    if comparator == "lte":
-        return evidence_months <= required_months
-    if comparator == "lt":
-        return evidence_months < required_months
-    return evidence_months >= required_months
+
+    def interval(value: dict[str, Any]) -> tuple[tuple[int, bool] | None, tuple[int, bool] | None]:
+        months = int(value.get("months") or 0)
+        comparator = str(value.get("comparator") or "gte")
+        if comparator == "gt":
+            return (months, False), None
+        if comparator == "lt":
+            return None, (months, False)
+        if comparator == "lte":
+            return None, (months, True)
+        return (months, True), None
+
+    required_lower, required_upper = interval(required)
+    evidence_lower, evidence_upper = interval(evidence)
+    if required_lower:
+        if evidence_lower is None or evidence_lower[0] < required_lower[0]:
+            return False
+        if evidence_lower[0] == required_lower[0] and not required_lower[1] and evidence_lower[1]:
+            return False
+    if required_upper:
+        if evidence_upper is None or evidence_upper[0] > required_upper[0]:
+            return False
+        if evidence_upper[0] == required_upper[0] and not required_upper[1] and evidence_upper[1]:
+            return False
+    return True
 
 
 def _assess_requirement_support(
@@ -2100,14 +2198,14 @@ def _assess_requirement_support(
     else:
         fragments = [{"text": _evidence_text(item), "skills": [canonical_skill]}]
 
+    fragment_assessments: list[dict[str, Any]] = []
     for fragment in fragments:
         text = _normalize_optional_text(fragment.get("text"))
         supporting: list[str] = []
         contradicting: list[str] = []
         duration = qualifiers.get("duration")
         if isinstance(duration, dict):
-            evidence_duration = _parse_duration_qualifier(text)
-            result = _duration_satisfies(duration, evidence_duration or {})
+            result = _duration_satisfies(duration, _parse_duration_qualifier(text) or {})
             if result is True:
                 supporting.append("duration")
             elif result is False:
@@ -2118,7 +2216,7 @@ def _assess_requirement_support(
                 term = str(term).casefold()
                 if _is_negated_term(text, term):
                     contradicting.append(f"context:{term}")
-                elif re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text.casefold()):
+                elif _term_present(text, term):
                     supporting.append(f"context:{term}")
         level = qualifiers.get("level")
         if isinstance(level, dict):
@@ -2131,20 +2229,36 @@ def _assess_requirement_support(
             len(list(value.get("all_of") or [])) if isinstance(value, dict) and "all_of" in value else 1
             for value in qualifiers.values()
         )
-        if contradicting:
-            status = "contradicted"
-        elif len(supporting) == required_qualifier_count:
-            assessment["qualified_support"] = True
-            status = "supported"
-        else:
-            status = "unverified"
+        status = "contradicted" if contradicting else (
+            "supported" if len(supporting) == required_qualifier_count else "unverified"
+        )
+        fragment_assessments.append(
+            {
+                "qualifier_status": status,
+                "supporting_qualifiers": list(dict.fromkeys(supporting)),
+                "contradicting_qualifiers": list(dict.fromkeys(contradicting)),
+            }
+        )
         if status == "supported":
-            assessment["qualifier_status"] = status
-            assessment["supporting_qualifiers"] = list(dict.fromkeys(supporting))
-            return assessment
-        if contradicting:
-            assessment["qualifier_status"] = status
-            assessment["contradicting_qualifiers"] = list(dict.fromkeys(contradicting))
+            assessment["qualified_support"] = True
+    assessment["qualifier_status"] = (
+        "supported"
+        if assessment["qualified_support"]
+        else "contradicted"
+        if any(fragment["qualifier_status"] == "contradicted" for fragment in fragment_assessments)
+        else "unverified"
+    )
+    assessment["fragment_assessments"] = fragment_assessments
+    assessment["supporting_qualifiers"] = list(dict.fromkeys(
+        qualifier
+        for fragment in fragment_assessments
+        for qualifier in fragment["supporting_qualifiers"]
+    ))
+    assessment["contradicting_qualifiers"] = list(dict.fromkeys(
+        qualifier
+        for fragment in fragment_assessments
+        for qualifier in fragment["contradicting_qualifiers"]
+    ))
     return assessment
 
 
