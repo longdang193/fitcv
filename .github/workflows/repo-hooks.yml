@@ -9,6 +9,27 @@ defaults:
     shell: pwsh
 
 jobs:
+  corpus-integrity:
+    name: Public Corpus Integrity (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Verify public corpus bytes and hashes
+        run: python -m pytest -q tests/test_p0_public_corpus.py
+
   adapter-integrity:
     name: Adapter Integrity
     runs-on: windows-latest

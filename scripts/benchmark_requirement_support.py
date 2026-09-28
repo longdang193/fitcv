@@ -343,6 +343,9 @@ def _load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
 
 def _runtime_config(base_config: dict[str, Any], arm: str, pool_size: int) -> dict[str, Any]:
     normalized_arm = {
+        "production": "lexical-requirement-aware",
+        "lexical_only": "lexical-requirement-aware",
+        "full_pool_diagnostic": "lexical-requirement-aware",
         "lexical": "lexical-requirement-aware",
         "current": "lexical-requirement-aware",
         "full-pool": "lexical-requirement-aware",
@@ -933,14 +936,18 @@ def run_benchmark(
     runs: int = MEASURED_RUNS,
     warmups: int = WARMUP_RUNS,
 ) -> dict[str, Any]:
-    if arm not in {"current", "full-pool", "current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"}:
+    if arm not in {
+        "production", "lexical_only", "full_pool_diagnostic",
+        "current", "full-pool", "current-hash", "lexical",
+        "lexical-baseline", "lexical-ablation", "lexical-requirement-aware",
+    }:
         raise ValueError(f"Unsupported arm: {arm}")
     if runs <= 0 or warmups < 0:
         raise ValueError("runs must be positive and warmups cannot be negative")
     fixture = _load_json(fixture_path)
     scenarios = _resolve_scenarios(fixture)
     base_config = _load_policy(policy_path)
-    effective_pool_size = 12 if arm == "full-pool" and pool_size == 4 else pool_size
+    effective_pool_size = 12 if arm in {"full-pool", "full_pool_diagnostic"} and pool_size == 4 else pool_size
     scenario_results = [
         _run_benchmark_scenario(
             fixture=fixture,
@@ -956,7 +963,12 @@ def run_benchmark(
     aggregate = _aggregate_scenario_metrics(scenario_results)
     timing_keys = tuple(scenario_results[0]["timing_ms"])
     return {
-        "arm": "lexical-requirement-aware" if arm == "lexical" else arm,
+        "arm": {
+            "production": "production",
+            "lexical_only": "lexical_only",
+            "full_pool_diagnostic": "full_pool_diagnostic",
+            "lexical": "lexical-requirement-aware",
+        }.get(arm, arm),
         "evaluation_schema_version": int(fixture["evaluation_schema_version"]),
         "implementation_ref": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
@@ -999,7 +1011,12 @@ def run_benchmark(
         },
         "arm_configuration": {
             "retrieval": "hash" if arm == "current-hash" else "lexical",
-            "selection": arm,
+            "selection": {
+                "production": "production",
+                "lexical_only": "lexical_only",
+                "full_pool_diagnostic": "full_pool_diagnostic",
+                "lexical": "lexical-requirement-aware",
+            }.get(arm, arm),
             "provider_calls": False,
         },
         "fixture": str(fixture_path.relative_to(REPO_ROOT)),
@@ -1013,7 +1030,11 @@ def main() -> int:
     parser.add_argument("--weight", type=float)
     parser.add_argument(
         "--arm",
-        choices=("current", "full-pool", "current-hash", "lexical", "lexical-baseline", "lexical-ablation", "lexical-requirement-aware"),
+        choices=(
+            "production", "lexical_only", "full_pool_diagnostic",
+            "current", "full-pool", "current-hash", "lexical",
+            "lexical-baseline", "lexical-ablation", "lexical-requirement-aware",
+        ),
     )
     parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)

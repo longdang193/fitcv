@@ -257,6 +257,20 @@ def test_benchmark_arm_configs_keep_comparison_questions_separate() -> None:
     assert current_hash["cv_analysis"]["semantic_alignment"]["enabled"] is True
 
 
+def test_canonical_p0b_arm_names_preserve_effective_policy_boundaries() -> None:
+    module = _benchmark_module()
+    base = {"cv_analysis": {"selection_policy": {"requirement_gain_weight": 0.10}}}
+
+    production = module._runtime_config(base, "production", 4)
+    lexical_only = module._runtime_config(base, "lexical_only", 4)
+    diagnostic = module._runtime_config(base, "full_pool_diagnostic", 12)
+
+    assert production["cv_analysis"]["semantic_alignment"]["enabled"] is False
+    assert lexical_only["cv_analysis"]["semantic_alignment"]["enabled"] is False
+    assert diagnostic["cv_analysis"]["semantic_alignment"]["enabled"] is False
+    assert production["cv_analysis"]["selection_policy"]["requirement_gain_weight"] == 0.10
+
+
 def test_validation_uses_production_requirement_coverage_contract() -> None:
     module = _benchmark_module()
     evidence = module._item("ev-sql", ["SQL"], "SQL reporting")

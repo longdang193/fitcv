@@ -396,6 +396,79 @@ def test_qualified_requirement_does_not_combine_duration_and_context_across_evid
     assert bundle["requirement_support"]["qualified"]["canonical"] == {}
 
 
+def test_requirement_support_binds_qualifiers_to_one_structured_bullet() -> None:
+    item = evidence_module._normalise_experience_entry(
+        {
+            "role": "Engineer",
+            "company": "Example",
+            "bullets": [
+                {"text": "5 years production Python", "skills": ["Python"]},
+                {"text": "SQL classroom exercises", "skills": ["SQL"]},
+            ],
+        },
+        experience_index=0,
+    )
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert assessment["canonical_match"] is True
+    assert assessment["qualified_support"] is False
+
+
+def test_requirement_support_accepts_same_statement_duration_and_context() -> None:
+    item = evidence_module._normalise_experience_entry(
+        {
+            "role": "Engineer",
+            "company": "Example",
+            "bullets": [{"text": "5 years production SQL", "skills": ["SQL"]}],
+        },
+        experience_index=0,
+    )
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert assessment["qualified_support"] is True
+
+
+@pytest.mark.parametrize(
+    ("requirement", "evidence", "expected"),
+    [
+        ("more than 3 years SQL", "less than 4 years SQL", False),
+        ("more than 3 years SQL", "more than 4 years SQL", True),
+        ("more than 3 years SQL", "at least 3 years SQL", False),
+        ("18 months SQL", "2 years SQL", True),
+    ],
+)
+def test_duration_qualifiers_compare_intervals(
+    requirement: str,
+    evidence: str,
+    expected: bool,
+) -> None:
+    requirement_duration = evidence_module._parse_duration_qualifier(requirement)
+    evidence_duration = evidence_module._parse_duration_qualifier(evidence)
+
+    assert evidence_module._duration_satisfies(requirement_duration or {}, evidence_duration or {}) is expected
+
+
+def test_duration_negation_and_german_context_aliases_fail_closed() -> None:
+    assert evidence_module._parse_duration_qualifier("without 3 years SQL")["negated"] is True
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["mindestens 3 Jahre Produktionsumgebung SQL"]}
+    )[0]
+    item = _cached_evidence_item("ev-sql", ["SQL"], "5 Jahre Produktion SQL")
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert descriptor["qualifiers"]["context"] == {"all_of": ["production"]}
+    assert assessment["qualified_support"] is True
+
+
 def test_requirement_gain_preserves_global_budget_and_weight_zero_matches_baseline() -> None:
     profile = _cached_evidence_profile(
         _cached_evidence_item("ev-broad", ["SQL"], "SQL Python"),

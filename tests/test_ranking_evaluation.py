@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from fitcv.ranking import rank_jobs
+from scripts.benchmark_ranking import _split_metric_rows
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ranking_gold.json"
 PROFILE_NAMES = {"backend", "frontend", "data", "product"}
@@ -138,3 +139,19 @@ def test_label_permutation_does_not_change_retrieval_request() -> None:
         row["label"], row["relevance_grade"] = ("relevant", 3) if index % 2 else ("irrelevant", 0)
         row["split"] = "held_out" if row["split"] == "calibration" else "calibration"
     assert build_retrieval_request("backend", pool) == baseline
+
+
+def test_retrieval_and_ranking_metrics_use_separate_id_sets() -> None:
+    rows = [
+        {"candidate_id": "c1", "split": "held_out", "relevance_grade": 3},
+        {"candidate_id": "c3", "split": "held_out", "relevance_grade": 0},
+        {"candidate_id": "c2", "split": "held_out", "relevance_grade": 2},
+        {"candidate_id": "c4", "split": "held_out", "relevance_grade": 0},
+    ]
+
+    metrics = _split_metric_rows({"c1", "c2", "c3", "c4"}, rows, rows, 2)["held_out"]
+
+    assert metrics["retrieval_recall_at_n"] == 1.0
+    assert metrics["retrieval_precision_at_n"] == 0.5
+    assert metrics["ranking_recall_at_n"] == 0.5
+    assert metrics["ranking_precision_at_n"] == 0.5
