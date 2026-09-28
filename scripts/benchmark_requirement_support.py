@@ -1040,13 +1040,34 @@ def run_benchmark(
             "payload_bytes": max(result["context"]["payload_bytes"] for result in scenario_results),
         },
         "validation": {
-            "passed_cases": sum(result["validation"]["passed_cases"] for result in scenario_results),
-            "case_count": sum(result["validation"]["case_count"] for result in scenario_results),
+            "passed_cases": sum(
+                int(result["validation"].get("passed_cases") or 0)
+                for result in scenario_results
+            ),
+            "case_count": sum(
+                max(
+                    0,
+                    int(result["validation"].get("case_count") or 0)
+                    - int(result["validation"].get("not_applicable_cases") or 0),
+                )
+                for result in scenario_results
+            ),
+            "not_applicable_cases": sum(
+                int(result["validation"].get("not_applicable_cases") or 0)
+                for result in scenario_results
+            ),
             "scenario_results": [
                 {
                     "scenario_id": result["scenario_id"],
-                    "passed_cases": result["validation"]["passed_cases"],
-                    "case_count": result["validation"]["case_count"],
+                    "passed_cases": int(result["validation"].get("passed_cases") or 0),
+                    "case_count": max(
+                        0,
+                        int(result["validation"].get("case_count") or 0)
+                        - int(result["validation"].get("not_applicable_cases") or 0),
+                    ),
+                    "not_applicable_cases": int(
+                        result["validation"].get("not_applicable_cases") or 0
+                    ),
                 }
                 for result in scenario_results
             ],

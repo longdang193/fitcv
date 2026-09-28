@@ -10,6 +10,7 @@ Plan: `docs/superpowers/plans/2026-09-28-fitcv-p0-p1-finalization-plan.md`
 - Candidate answers use the same qualifier assessment as profile evidence.
 - Candidate answers must mention the canonical requirement skill before their
   temporary fragment can qualify; unrelated answers remain `relevant_unverified`.
+- Negated answers remain `contradicted`, including unqualified skill requirements.
 - `OVERRIDE_BLOCK` does not create evidence; empty answers remain `pending`.
 - Verification: `uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_validator.py` — `159 passed`.
 
@@ -50,6 +51,7 @@ Fixture: `tests/fixtures/requirement_support_benchmark.json`.
 - `full_pool_diagnostic`: selected qualified evidence-pair recall `1.0`, selected requirement recall `1.0`, p50/p95 total `1.848/7.109 ms`, estimated prompt tokens `671`, validation `17/17`.
 - `lexical_only`: selected qualified evidence-pair recall `1.0`, selected requirement recall `1.0`, p50/p95 total `1.531/2.398 ms`, estimated prompt tokens `583`, validation `17/17`.
 - All arms reported zero incorrect pairs. The prior 11 mismatches were fixture assumptions: seven overclaimed Python in SQL-only profiles, three used Power BI while job requirements were K8s, and one expected unrelated validation for a required skill claim. Harness regression also namespaces derived skill IDs and counts redundant evidence once per requirement.
+- Aggregate validation excludes `not_applicable` cases from measured denominators while retaining their count.
 - Decision: retain production path; no semantic deletion or production promotion. Broader reviewed boundary labels remain required for promotion-grade quality claims.
 - Artifacts: `.tmp/p0b-production-finalization.json`, `.tmp/p0b-full-pool-finalization.json`, `.tmp/p0b-lexical-only-finalization.json`, `.tmp/p0b-comparison-finalization.json`.
 

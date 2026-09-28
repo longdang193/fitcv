@@ -257,6 +257,7 @@ def test_candidate_resolution_answer_must_name_required_skill(
 
     assert analyze("Used SQL for four years.")["requirement_coverage"][0]["selected_support"] == "verified"
     assert analyze("Python experience.")["requirement_coverage"][0]["selected_support"] == "relevant_unverified"
+    assert analyze("I do not have SQL experience.")["requirement_coverage"][0]["selected_support"] == "contradicted"
 
 
 def test_requirement_uncertainty_carries_profile_identity_at_creation() -> None:

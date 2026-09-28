@@ -2193,6 +2193,8 @@ def _assess_requirement_support(
         text = _normalize_optional_text(fragment.get("text"))
         supporting: list[str] = []
         contradicting: list[str] = []
+        if not qualifiers and _is_negated_term(text, canonical_skill):
+            contradicting.append("skill")
         duration = qualifiers.get("duration")
         if isinstance(duration, dict):
             result = _duration_satisfies(duration, _parse_duration_qualifier(text) or {})

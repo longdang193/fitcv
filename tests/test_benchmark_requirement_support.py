@@ -484,6 +484,60 @@ def test_benchmark_does_not_score_validation_when_analysis_is_not_generation_rea
     assert result["validation"]["not_applicable_cases"] == 1
 
 
+def test_benchmark_aggregate_excludes_not_applicable_validation_cases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _benchmark_module()
+    scenarios = [{"scenario_id": "blocked"}]
+
+    monkeypatch.setattr(module, "_load_json", lambda path: {"evaluation_schema_version": 1})
+    monkeypatch.setattr(module, "_resolve_scenarios", lambda fixture: scenarios)
+    monkeypatch.setattr(module, "_load_policy", lambda path: {})
+    monkeypatch.setattr(module, "_aggregate_scenario_metrics", lambda results: {})
+    monkeypatch.setattr(
+        module,
+        "_run_benchmark_scenario",
+        lambda **kwargs: {
+            "scenario_id": "blocked",
+            "evidence_budget": 1,
+            "top_k": 1,
+            "timing_ms": {"total_ms": {"median": 0.0, "p95": 0.0}},
+            "context": {
+                "selected_item_count": 0,
+                "prompt_bytes": 0,
+                "estimated_prompt_tokens": 0,
+                "payload_bytes": 0,
+            },
+            "validation": {
+                "passed_cases": 0,
+                "case_count": 1,
+                "not_applicable_cases": 1,
+            },
+            "backend": {},
+        },
+    )
+
+    result = module.run_benchmark(
+        arm="production",
+        pool_size=4,
+        fixture_path=FIXTURE_PATH,
+        runs=1,
+        warmups=0,
+    )
+
+    assert result["validation"] == {
+        "passed_cases": 0,
+        "case_count": 0,
+        "not_applicable_cases": 1,
+        "scenario_results": [{
+            "scenario_id": "blocked",
+            "passed_cases": 0,
+            "case_count": 0,
+            "not_applicable_cases": 1,
+        }],
+    }
+
+
 def test_comparison_rejects_mismatched_fixture_fingerprints(tmp_path: Path) -> None:
     module = _comparison_module()
     baseline = {
