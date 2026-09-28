@@ -280,7 +280,8 @@ provider response, headers, credentials, or secrets.
 
 Generation debug records expose `cv_content_plan_v1`, content fingerprint,
 approved evidence IDs, omitted evidence reasons, target sections, and repair
-trace. Review-required exports expose actionable uncertainty rows and explicit
+trace. Generation traces also expose full versus approved evidence item counts,
+character counts, and approximate token estimates. Review-required exports expose actionable uncertainty rows and explicit
 resolution actions without exposing private source documents. Resolution reuse
 is valid only for matching candidate profile revision and source fingerprint;
 stale rows remain pending.

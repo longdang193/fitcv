@@ -118,18 +118,18 @@ retrieval and evidence-selection strategy.
 - Coordination schema: 2
 - Branch: main
 - Base commit: 8d646c357cc3a54966d7cb380c0d96cf448176a2
-- Expected workspace: current main aligned with origin/main; preserved untracked .tmp benchmark reports and this active plan
-- Next action: repair P1-B resolution loading/persistence split and add lifecycle trace
-- Blockers: reviewed P0-A/P0-B data is currently insufficient for promotion; Tasks 4–5 must record blocked or not_applicable rather than invent quality evidence
+- Expected workspace: current main ahead of origin/main by verified checkpoint; preserved untracked .tmp benchmark reports and this active plan
+- Next action: add promotion-grade reviewed P0-A/P0-B coverage before changing production retrieval defaults
+- Blockers: P0-A multilingual backend unavailable and promotion-grade held-out fixture absent; P0-B fixture validation is `6/17`; runtime P0-C/P1-A/P1-B closeout is verified
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | completed | current | codex | none | canonical P0-C tests | `157 passed`; checkpoint pending |
-| Task 2 | active | current | codex | Task 1 | resolution lifecycle trace | execution started |
-| Task 3 | pending | current | codex | Tasks 1–2 | writer-context and repair tests | pending |
-| Task 4 | pending | current | codex | Task 1 | held-out ranking report | pending |
-| Task 5 | pending | current | codex | Task 1 | qualified-support comparison | pending |
-| Task 6 | pending | current | codex | Tasks 2–5 | final suites and scorecard | pending |
+| Task 1 | completed | current | codex | none | canonical P0-C tests | `157 passed`; checkpoint `515426f8` |
+| Task 2 | completed | current | codex | Task 1 | resolution lifecycle trace | `822 passed`; loader/persistence guards pass |
+| Task 3 | completed | current | codex | Tasks 1–2 | writer-context and repair tests | `230 passed`; filtering metrics recorded |
+| Task 4 | blocked | current | codex | Task 1 | held-out ranking report | measured DE/EN; multilingual backend unavailable |
+| Task 5 | blocked | current | codex | Task 1 | qualified-support comparison | equal arms; reviewed coverage insufficient for promotion |
+| Task 6 | completed | current | codex | Tasks 2–5 | final suites and scorecard | `2858 passed, 4 skipped`; diff-check clean; P0-A/P0-B promotion blockers recorded |
 
 ## Task Breakdown
 
@@ -229,12 +229,12 @@ Authority:
 - Stop for: new queue, new persistence service, unbounded re-analysis, cross-profile resolution reuse, destructive migration, or silently closing review without refreshed evidence.
 
 Steps:
-- [ ] Step 1: Move all profile identity validation, projection fingerprint construction, list_requirement_resolutions lookup, exception handling, and list return into _load_requirement_resolutions(run, profile); guarantee list[...] on every path.
-- [ ] Step 2: Remove lookup code from _persist_resolution_reanalysis; keep that function limited to loading debug payload, replacing the affected job record, preserving review_item_id, persisting the payload, and returning without storage lookup.
-- [ ] Step 3: Pass candidate profile ID, revision, and source fingerprint directly into build_requirement_uncertainty; replace falsey identity fields instead of relying on setdefault.
-- [ ] Step 4: Ensure every CvGenerationResult and persisted debug record preserves uncertainties, resolution IDs/actions, coverage, content plan, and re-analysis metadata.
-- [ ] Step 5: Preserve one bounded impacted-job re-analysis, queue refresh, and idempotent repeated action behavior; changed revision, changed projection fingerprint, missing profile identity, and malformed storage rows fail closed.
-- [ ] Step 6: Add the full boundary test: review answer → save resolution → worker loads resolution → fresh analysis → fresh generation → debug record replacement → queue refresh; include contradiction, CONFIRM_OMIT, OVERRIDE_BLOCK, stale identity, and duplicate-action cases.
+- [x] Step 1: Move all profile identity validation, projection fingerprint construction, list_requirement_resolutions lookup, exception handling, and list return into _load_requirement_resolutions(run, profile); guarantee list[...] on every path.
+- [x] Step 2: Remove lookup code from _persist_resolution_reanalysis; keep that function limited to loading debug payload, replacing the affected job record, preserving review_item_id, persisting the payload, and returning without storage lookup.
+- [x] Step 3: Pass candidate profile ID, revision, and source fingerprint directly into build_requirement_uncertainty; replace falsey identity fields instead of relying on setdefault.
+- [x] Step 4: Ensure every CvGenerationResult and persisted debug record preserves uncertainties, resolution IDs/actions, coverage, content plan, and re-analysis metadata.
+- [x] Step 5: Preserve one bounded impacted-job re-analysis, queue refresh, and idempotent repeated action behavior; changed revision, changed projection fingerprint, missing profile identity, and malformed storage rows fail closed.
+- [x] Step 6: Add the full boundary test: review answer → save resolution → worker loads resolution → fresh analysis → fresh generation → debug record replacement → queue refresh; include contradiction, CONFIRM_OMIT, OVERRIDE_BLOCK, stale identity, and duplicate-action cases.
 
 Verification:
 - [ ] uv run pytest -q tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_agentic_cv_analysis.py tests/test_cv_generation_reason_mapping.py
@@ -284,12 +284,12 @@ Authority:
 - Stop for: a separate compiler service, persistent plan cache, full-document retry when section repair applies, or page-allocation heuristics unsupported by measurements.
 
 Steps:
-- [ ] Step 1: Keep cv_content_plan_v1 deterministic and derive approved claims only from verified requirement coverage, approved evidence IDs, resolved facts, protected numbers/dates, enabled sections, and explicit omission reasons.
-- [ ] Step 2: Build a writer evidence payload by filtering analysis evidence to content_plan.approved_evidence_ids; retain full evidence only in diagnostics and validator input where required for audit.
-- [ ] Step 3: Include plan version and content fingerprint in generation input components and reuse decisions; stale plan, profile, source, or policy versions force fresh generation.
-- [ ] Step 4: Keep one bounded targeted repair. Replace only requested section keys, preserve unrelated sections, reject unknown section names, render the complete document, and run complete validation after merge.
-- [ ] Step 5: Persist before/after input token estimates, approved/omitted evidence counts, repair attempted/accepted, page-overflow rate, unsupported-claim violations, and full-regeneration count in existing trace fields.
-- [ ] Step 6: Add focused tests proving an unsupported evidence item never reaches writer input, protected facts survive repair, unrelated sections remain unchanged, and full validation still rejects unsupported claims.
+- [x] Step 1: Keep cv_content_plan_v1 deterministic and derive approved claims only from verified requirement coverage, approved evidence IDs, resolved facts, protected numbers/dates, enabled sections, and explicit omission reasons.
+- [x] Step 2: Build a writer evidence payload by filtering analysis evidence to content_plan.approved_evidence_ids; retain full evidence only in diagnostics and validator input where required for audit.
+- [x] Step 3: Include plan version and content fingerprint in generation input components and reuse decisions; stale plan, profile, source, or policy versions force fresh generation.
+- [x] Step 4: Keep one bounded targeted repair. Replace only requested section keys, preserve unrelated sections, reject unknown section names, render the complete document, and run complete validation after merge.
+- [x] Step 5: Persist before/after input token estimates, approved/omitted evidence counts, repair attempted/accepted, page-overflow rate, unsupported-claim violations, and full-regeneration count in existing trace fields.
+- [x] Step 6: Add focused tests proving an unsupported evidence item never reaches writer input, protected facts survive repair, unrelated sections remain unchanged, and full validation still rejects unsupported claims.
 
 Verification:
 - [ ] uv run pytest -q tests/test_cv_generator.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_cv_generation_reason_mapping.py
@@ -337,11 +337,11 @@ Authority:
 - Stop for: provider authentication, production default changes, permanent experiment flags, or a multilingual arm that reports not_run without recording that limitation.
 
 Steps:
-- [ ] Step 1: Expand or replace the P0-A source-backed fixture to 100–300 jobs across German and English with reviewed relevant, borderline, and irrelevant labels, calibration/held-out splits, and valid manifest hashes.
-- [ ] Step 2: Run incumbent and lexical arms with uv run python scripts/benchmark_ranking.py --fixture data/fitcv-p0-corpus/p0a/ranking_source_backed.json --arm incumbent --warmup-iterations 5 --measured-iterations 30 --output .tmp/p0a-incumbent.json and the equivalent --arm lexical command.
-- [ ] Step 3: Run the multilingual arm with the same fixture and iteration counts; record not_run and backend-unavailable reason if no approved encoder is available.
-- [ ] Step 4: Report held-out Recall@N, Precision@N, nDCG, language split metrics, cold/warm p50/p95, fallback count, backend/storage overhead, and correctness status.
-- [ ] Step 5: Choose incumbent retention or one production strategy only when held-out quality and operational thresholds are met; otherwise retain incumbent and record the missing evidence.
+- [ ] Step 1: Expand or replace the P0-A source-backed fixture to 100–300 jobs across German and English with reviewed relevant, borderline, and irrelevant labels, calibration/held-out splits, and valid manifest hashes. **Blocked:** current source-backed fixture lacks promotion-grade mixed-label review coverage.
+- [x] Step 2: Run incumbent and lexical arms with uv run python scripts/benchmark_ranking.py --fixture data/fitcv-p0-corpus/p0a/ranking_source_backed.json --arm incumbent --warmup-iterations 5 --measured-iterations 30 --output .tmp/p0a-incumbent.json and the equivalent --arm lexical command.
+- [x] Step 3: Run the multilingual arm with the same fixture and iteration counts; record not_run and backend-unavailable reason if no approved encoder is available.
+- [x] Step 4: Report held-out Recall@N, Precision@N, nDCG, language split metrics, cold/warm p50/p95, fallback count, backend/storage overhead, and correctness status.
+- [x] Step 5: Choose incumbent retention or one production strategy only when held-out quality and operational thresholds are met; otherwise retain incumbent and record the missing evidence.
 
 Verification:
 - [ ] uv run pytest -q tests/test_ranking_evaluation.py tests/test_p0_public_corpus.py
@@ -393,11 +393,11 @@ Authority:
 - Stop for: direct-support recovery paths, unbounded candidate expansion, LLM/reranker use, or production rollout before qualified-support comparison.
 
 Steps:
-- [ ] Step 1: Add or validate reviewed P0-B labels and manifest hashes for the listed boundary cases; record coverage counts and any unavailable category.
-- [ ] Step 2: Measure production, full_pool_diagnostic, and lexical_only arms with the same corrected qualifier contract, final top_k, warm/cold conditions, and candidate profile/job fixture.
-- [ ] Step 3: Report qualified requirement recall, qualified evidence-pair recall, retrieval-to-selection loss, pool/selected context size, p50/p95 latency, duplicates, and validation outcomes.
-- [ ] Step 4: Promote full_pool_diagnostic or lexical_only only when qualified support is non-decreasing, quality gains meet the recorded threshold, latency/context stay within budget, and validator outcomes remain compatible.
-- [ ] Step 5: If semantic scoring does not earn its cost, remove only after report approval: hash embeddings, semantic weights, cache/settings knobs, and dependent diagnostics/fingerprints. Keep rollback evidence.
+- [ ] Step 1: Add or validate reviewed P0-B labels and manifest hashes for the listed boundary cases; record coverage counts and any unavailable category. **Blocked:** current fixture validation passes `6/17`; broader reviewed labels remain required.
+- [x] Step 2: Measure production, full_pool_diagnostic, and lexical_only arms with the same corrected qualifier contract, final top_k, warm/cold conditions, and candidate profile/job fixture.
+- [x] Step 3: Report qualified requirement recall, qualified evidence-pair recall, retrieval-to-selection loss, pool/selected context size, p50/p95 latency, duplicates, and validation outcomes.
+- [x] Step 4: Promote full_pool_diagnostic or lexical_only only when qualified support is non-decreasing, quality gains meet the recorded threshold, latency/context stay within budget, and validator outcomes remain compatible. **Retained production; promotion gate not met.**
+- [x] Step 5: If semantic scoring does not earn its cost, remove only after report approval: hash embeddings, semantic weights, cache/settings knobs, and dependent diagnostics/fingerprints. Keep rollback evidence. **No deletion: fixture does not earn simplification decision.**
 
 Verification:
 - [ ] uv run pytest -q tests/test_evidence.py tests/test_benchmark_requirement_support.py tests/test_compare_rag_impact.py
@@ -442,18 +442,18 @@ Authority:
 - Stop for: failed required checks, stale plan status, unrecorded scope deviation, production-default mutation, or unrelated workspace cleanup.
 
 Steps:
-- [ ] Step 1: Build scorecard with median/p95 time per accepted truthful CV, provider calls, input/output tokens, repair attempts, full/section regenerations, manual actions, resolution reuse, questions avoided, and accepted-CV rate.
-- [ ] Step 2: Run focused runtime suites, control-plane suites, ranking/support benchmark tests, full suite, git diff --check, and manifest/hash integrity tests.
-- [ ] Step 3: Record P0-A/P0-B measured decisions, P1-A/P1-B metrics, blockers, rollback path, and explicit P1-C/P2 deferrals in docs and plan evidence.
-- [ ] Step 4: Set plan status active before execution; after skill-verification-before-completion returns verified, set status completed. Keep status active or blocked when required proof is missing.
+- [x] Step 1: Build scorecard with median/p95 time per accepted truthful CV, provider calls, input/output tokens, repair attempts, full/section regenerations, manual actions, resolution reuse, questions avoided, and accepted-CV rate; unavailable live/provider fields are recorded as `not_run` or `not_applicable`.
+- [x] Step 2: Run focused runtime suites, control-plane suites, ranking/support benchmark tests, full suite, git diff --check, and manifest/hash integrity tests.
+- [x] Step 3: Record P0-A/P0-B measured decisions, P1-A/P1-B metrics, blockers, rollback path, and explicit P1-C/P2 deferrals in docs and plan evidence.
+- [x] Step 4: Keep plan status active because promotion-grade P0-A/P0-B proof is still blocked; do not claim completed acceptance until those data gates clear.
 
 Verification:
-- [ ] uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_cv_generator.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_validator.py tests/test_cv_generation_reason_mapping.py
-- [ ] uv run pytest -q tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py
-- [ ] uv run pytest -q tests/test_ranking_evaluation.py tests/test_benchmark_requirement_support.py tests/test_p0_public_corpus.py
-- [ ] uv run pytest -q
-- [ ] git diff --check
-- [ ] git status --short --branch
+- [x] uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_cv_generator.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_validator.py tests/test_cv_generation_reason_mapping.py
+- [x] uv run pytest -q tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py
+- [x] uv run pytest -q tests/test_ranking_evaluation.py tests/test_benchmark_requirement_support.py tests/test_p0_public_corpus.py
+- [x] uv run pytest -q — `2858 passed, 4 skipped, 52 warnings`
+- [x] git diff --check
+- [x] git status --short --branch
 - Expected: required suites pass; full-suite failures are fixed or recorded with root cause; no stale hashes, unsupported claim, false verification, broken resolution lifecycle, or unmeasured promotion remains.
 
 Exit Criteria:

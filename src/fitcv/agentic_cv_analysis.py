@@ -346,10 +346,14 @@ def build_cv_analysis_record(
         list(requirement_coverage or []),
         evidence_selection_summary,
         requirement_resolutions,
+        candidate_profile_id=candidate_profile_id,
+        candidate_profile_revision=candidate_profile_revision,
     ))
     for uncertainty in resolved_uncertainties:
-        uncertainty.setdefault("candidate_profile_id", candidate_profile_id)
-        uncertainty.setdefault("candidate_profile_revision", candidate_profile_revision)
+        if candidate_profile_id and not str(uncertainty.get("candidate_profile_id") or "").strip():
+            uncertainty["candidate_profile_id"] = candidate_profile_id
+        if candidate_profile_revision and not str(uncertainty.get("candidate_profile_revision") or "").strip():
+            uncertainty["candidate_profile_revision"] = candidate_profile_revision
     return {
         "raw_job_fingerprint": str(job.get("raw_job_fingerprint") or ""),
         "job_url": extract_job_url(job),
@@ -386,6 +390,9 @@ def _build_requirement_uncertainties(
     requirement_coverage: list[dict[str, Any]],
     evidence_selection_summary: dict[str, Any] | None,
     requirement_resolutions: list[dict[str, Any]] | None = None,
+    *,
+    candidate_profile_id: str = "",
+    candidate_profile_revision: str = "",
 ) -> list[dict[str, Any]]:
     source_fingerprint = str((evidence_selection_summary or {}).get("projection_fingerprint") or "")
     rows: list[dict[str, Any]] = []
@@ -410,6 +417,8 @@ def _build_requirement_uncertainties(
                 question=f"Can you confirm experience with {item.get('requirement') or item.get('canonical_skill') or requirement_ref}?",
                 recommended_disposition=disposition,
                 evidence_ids=list(item.get("supporting_evidence_ids") or item.get("pool_supporting_evidence_ids") or []),
+                candidate_profile_id=candidate_profile_id,
+                candidate_profile_revision=candidate_profile_revision,
                 source_profile_fingerprint=source_fingerprint,
                 resolution_key=requirement_ref,
             )

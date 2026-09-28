@@ -13,6 +13,7 @@ tags:
 """
 
 from unittest.mock import MagicMock, patch
+import ast
 import datetime
 import hashlib
 import json
@@ -36,6 +37,59 @@ def _force_sqlite_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> No
     )
     yield
     set_backend_runtime(None)
+
+
+def test_load_requirement_resolutions_reads_current_profile_projection() -> None:
+    from fitcv_cp import worker_job
+
+    run = MagicMock(run_id="run-1")
+    profile = {"candidate_profile_id": "candidate-1", "revision": "7"}
+    rows = [{"resolution_id": "resolution-1"}]
+
+    with patch.object(
+        worker_job,
+        "build_evidence_projection",
+        return_value={"fingerprint": "projection-1"},
+    ), patch.object(
+        worker_job,
+        "list_requirement_resolutions",
+        return_value=rows,
+    ) as list_resolutions:
+        assert worker_job._load_requirement_resolutions(run, profile) == rows
+
+    list_resolutions.assert_called_once_with(
+        candidate_profile_id="candidate-1",
+        candidate_profile_revision="7",
+        source_profile_fingerprint="projection-1",
+    )
+
+
+def test_worker_resolution_functions_keep_lookup_in_loader() -> None:
+    tree = ast.parse(Path("src/fitcv_cp/worker_job.py").read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name in {"_load_requirement_resolutions", "_persist_resolution_reanalysis"}
+    }
+
+    loader_calls = {
+        node.func.id
+        for node in ast.walk(functions["_load_requirement_resolutions"])
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+    }
+    persistence_names = {
+        node.id
+        for node in ast.walk(functions["_persist_resolution_reanalysis"])
+        if isinstance(node, ast.Name)
+        and isinstance(node.ctx, ast.Load)
+    }
+
+    assert "list_requirement_resolutions" in loader_calls
+    assert not persistence_names.intersection(
+        {"profile", "candidate_profile_id", "candidate_profile_revision", "source_profile_fingerprint"}
+    )
 
 
 def test_central_synonym_sync_ingests_evidence_and_uses_shared_approve_transaction() -> None:

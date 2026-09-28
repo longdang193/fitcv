@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+from fitcv import agentic_cv_generation as generation_module
 from fitcv.pipeline import _is_persistable_cv_generation_result, run_pipeline
 from fitcv.agentic_cv_generation import (
     _LIVE_TRACE_DEBUG_ENV_KEYS,
@@ -60,6 +61,69 @@ def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
     assert plan["approved_evidence_ids"] == ["ev-sql"]
     assert plan["approved_claims"][0]["supports_requirements"] == ["required_skill:sql"]
     assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-python"}
+
+
+def test_generation_writer_receives_only_content_plan_approved_evidence() -> None:
+    analysis = {
+        **_minimal_analysis_record(),
+        "evidence_payload": [
+            {"evidence_id": "ev-approved", "text": "Built SQL pipelines"},
+            {"evidence_id": "ev-omitted", "text": "Unverified Python claim"},
+        ],
+        "requirement_coverage": [
+            {
+                "requirement_instance_id": "required_skill:sql",
+                "requirement": "SQL",
+                "selected_support": "verified",
+                "supporting_evidence_ids": ["ev-approved"],
+            },
+            {
+                "requirement_instance_id": "required_skill:python",
+                "requirement": "Python",
+                "selected_support": "unsupported",
+                "supporting_evidence_ids": [],
+            },
+        ],
+    }
+    captured: dict[str, Any] = {}
+
+    def fake_provider_builder(**kwargs: Any):
+        captured.update(kwargs)
+        return lambda _repair_targets: None
+
+    with patch.object(
+        generation_module,
+        "_build_fallback_provider_generator",
+        side_effect=fake_provider_builder,
+    ), patch.object(
+        generation_module,
+        "_execute_generation_attempt",
+        return_value=(
+            {"sections": {"summary": {"text": "ok"}}},
+            "# CV",
+            {"valid": True},
+            None,
+        ),
+    ), patch.object(
+        generation_module,
+        "_run_repair_cycle",
+        side_effect=lambda **kwargs: (
+            kwargs["structured_cv"],
+            kwargs["markdown"],
+            kwargs["validation"],
+            {"performed": False, "missing_sections": []},
+            kwargs["runtime_provenance"],
+        ),
+    ):
+        result = generation_module._generate_fresh_from_analysis(
+            analysis,
+            _minimal_profile(),
+            _minimal_config(),
+        )
+
+    assert [item["evidence_id"] for item in captured["evidence_payload"]] == ["ev-approved"]
+    assert result["cv_generation_trace"]["input_summary"]["omitted_input_item_count"] == 1
+    assert result["cv_generation_trace"]["input_summary"]["approved_input_item_count"] == 1
 
 
 def test_merge_repaired_section_preserves_unrequested_sections() -> None:

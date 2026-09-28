@@ -1424,13 +1424,35 @@ def _generate_fresh_from_analysis(
     evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
     content_plan = dict(analysis_record.get("content_plan") or build_cv_content_plan(analysis_record, job, config))
     analysis_record["content_plan"] = content_plan
+    approved_evidence_ids = {
+        str(item).strip()
+        for item in list(content_plan.get("approved_evidence_ids") or [])
+        if str(item).strip()
+    }
+    writer_evidence_payload = [
+        item
+        for item in evidence_payload
+        if str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+        in approved_evidence_ids
+    ]
+    full_input_character_count = len(json.dumps(evidence_payload, ensure_ascii=False, sort_keys=True))
+    writer_input_character_count = len(json.dumps(writer_evidence_payload, ensure_ascii=False, sort_keys=True))
+    input_metrics = {
+        "full_input_item_count": len(evidence_payload),
+        "approved_input_item_count": len(writer_evidence_payload),
+        "omitted_input_item_count": len(evidence_payload) - len(writer_evidence_payload),
+        "full_input_character_count": full_input_character_count,
+        "approved_input_character_count": writer_input_character_count,
+        "full_input_token_estimate": full_input_character_count // 4,
+        "approved_input_token_estimate": writer_input_character_count // 4,
+    }
     runtime_evidence: list[dict[str, Any]] = []
     trace_payload = _empty_cv_generation_trace(
         template_path=str(_resolve_template_path(config)),
     )
     provider_generator = _build_fallback_provider_generator(
         job=job,
-        evidence_payload=evidence_payload,
+        evidence_payload=writer_evidence_payload,
         gap_summary=gap_summary,
         profile=profile,
         config=config,
@@ -1455,7 +1477,9 @@ def _generate_fresh_from_analysis(
         attempt_trace = {
             "attempt_index": attempt_index,
             "attempt_type": "initial_generation" if attempt_index == 1 else "repair_retry",
-            "input_item_count": len(evidence_payload),
+            "input_item_count": len(writer_evidence_payload),
+            "input_character_count": writer_input_character_count,
+            "input_token_estimate": writer_input_character_count // 4,
             "retry_reason": "missing_or_shallow_sections" if repair_targets else None,
             "debug_flags_active": {
                 key: bool(str(os.environ.get(key) or "").strip())
@@ -1512,7 +1536,8 @@ def _generate_fresh_from_analysis(
         if trace_payload is not None:
             trace_payload["input_summary"] = {
                 "attempt_count": len(trace_payload["attempts"]),
-                "input_item_count": len(evidence_payload),
+                "input_item_count": len(writer_evidence_payload),
+                **input_metrics,
             }
             trace_payload["repair_summary"] = {
                 "repair_attempted": bool(repair_attempt.get("performed")),
@@ -1561,7 +1586,8 @@ def _generate_fresh_from_analysis(
             trace_payload["trace_status"] = "degraded"
             trace_payload["input_summary"] = {
                 "attempt_count": len(trace_payload["attempts"]),
-                "input_item_count": len(evidence_payload),
+                "input_item_count": len(writer_evidence_payload),
+                **input_metrics,
             }
             trace_payload["repair_summary"] = {
                 "repair_attempted": bool(repair_attempt.get("performed")),

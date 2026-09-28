@@ -55,13 +55,18 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 ### Proof Boundary and Review Uncertainty
 
 - `candidate-evidence.v1` keeps original retrieval text, while `support_fragments` are deterministic source-only sentence/clause fragments used for requirement proof.
-- `requirement-support-v4` requires target skill and every qualifier in one unambiguous fragment; sibling fragments, titles, roles, organizations, scoring metadata, and domains cannot donate proof.
+- `requirement-support-v5` requires target skill and every qualifier in one unambiguous source fragment; sibling fragments, titles, roles, organizations, scoring metadata, and domains cannot donate proof.
 - pre-v4 analysis records are not reusable; policy version participates in the analysis contract fingerprint.
 - non-verified requirement rows expose `uncertainty_id`, `resolution_key`, affected fact, question, disposition, evidence IDs, and source fingerprint. Human actions are `RESOLVE_WITH_ANSWER`, `CONFIRM_OMIT`, and `OVERRIDE_BLOCK`.
 - profile-scoped resolutions reuse only when candidate identity/revision, source fingerprint, resolution key, and requirement instance match; otherwise pipeline asks again.
 - resolution actions enqueue one bounded re-analysis through the existing CV regeneration entrypoint; refreshed analysis/generation replaces the prior debug record before closure.
 
-P0-A and P0-B retrieval experiments remain deferred. No experiment changes production selection defaults.
+P0-A and P0-B remain benchmark-only. The 2026-09-28 source-backed P0-A run
+measured incumbent and lexical arms, while multilingual retrieval was
+`not_run` because no approved backend was available. P0-B production,
+`full_pool_diagnostic`, and `lexical_only` arms measured equal qualified-support
+recall on the current fixture; production defaults remain unchanged pending
+broader reviewed labels.
 
 ### CV Content Plan and Repair
 

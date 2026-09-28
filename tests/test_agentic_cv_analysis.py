@@ -19,6 +19,7 @@ from pathlib import Path
 import yaml
 
 from fitcv.agentic_cv_analysis import (
+    _build_requirement_uncertainties,
     analyze_ranked_job,
     build_analysis_input_summary,
     extract_job_url,
@@ -204,6 +205,26 @@ def test_candidate_resolution_answer_uses_requirement_qualifiers(
 
         python_row = result["requirement_coverage"][0]
         assert python_row["selected_support"] == expected_status
+
+
+def test_requirement_uncertainty_carries_profile_identity_at_creation() -> None:
+    rows = _build_requirement_uncertainties(
+        [
+            {
+                "requirement_instance_id": "required_skill_instance:python:1",
+                "requirement": "Python",
+                "selected_support": "unsupported",
+            }
+        ],
+        {"projection_fingerprint": "projection-1"},
+        [],
+        candidate_profile_id="candidate-1",
+        candidate_profile_revision="7",
+    )
+
+    assert rows[0]["candidate_profile_id"] == "candidate-1"
+    assert rows[0]["candidate_profile_revision"] == "7"
+    assert rows[0]["source_profile_fingerprint"] == "projection-1"
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
