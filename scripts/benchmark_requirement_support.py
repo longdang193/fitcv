@@ -28,6 +28,9 @@ from fitcv.evidence import (
     retrieve_evidence_bundle,
 )
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
+from fitcv.late_stage_contract import (
+    CV_ANALYSIS_READY_FOR_GENERATION_STATUS as READY_FOR_GENERATION_STATUS,
+)
 
 DEFAULT_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "requirement_support_benchmark.json"
 DEFAULT_POLICY = REPO_ROOT / "config" / "policy" / "cv_analysis.yaml"
@@ -557,11 +560,11 @@ def _support_metrics(
         },
         "requirement_counts": {
             stage: {
-                "covered": sum(
-                    1
+                "covered": len({
+                    requirement_id
                     for requirement_id, evidence_id in stage_pairs[stage] & expected_pairs
                     if requirement_id in positive_requirements and evidence_id
-                ),
+                }),
                 "denominator": len(positive_requirements),
             }
             for stage in ("canonical", "retrieved", "selected")
@@ -691,7 +694,7 @@ def _scenario_profile_for_analysis(profile: dict[str, Any], scenario_id: str) ->
                 evidence_ids_by_skill.setdefault(skill_name, []).append(evidence_id)
         prepared["skills"] = [
             {
-                "id": f"{scenario_id}-{skill.casefold().replace(' ', '-')}",
+                "id": f"{scenario_id}-skill-{skill.casefold().replace(' ', '-')}",
                 "name": skill,
                 "origin": "extracted_explicit",
                 "confidence": 1.0,
@@ -767,6 +770,20 @@ def _run_benchmark_scenario(
         case_results: list[dict[str, Any]] = []
         validation_ms = 0.0
         for case in list(scenario["validation_cases"]):
+            if str(analysis_record.get("status") or "") != READY_FOR_GENERATION_STATUS:
+                case_results.append(
+                    {
+                        "case_id": str(case.get("case_id") or ""),
+                        "expected_valid": bool(case.get("expected_valid", True)),
+                        "actual_valid": None,
+                        "expected_violation_class": str(case.get("expected_violation_class") or "none"),
+                        "actual_violation_class": "not_applicable",
+                        "status": "not_applicable",
+                        "reason": f"analysis_status:{analysis_record.get('status')}",
+                        "pass": None,
+                    }
+                )
+                continue
             validation, case_validation_ms = _run_validation(
                 fixture,
                 profile,
@@ -783,6 +800,7 @@ def _run_benchmark_scenario(
                     "actual_valid": bool(validation.get("valid")),
                     "expected_violation_class": str(case.get("expected_violation_class") or "none"),
                     "actual_violation_class": actual_class,
+                    "status": "measured",
                     "pass": bool(case.get("expected_valid", True)) == bool(validation.get("valid"))
                     and str(case.get("expected_violation_class") or "none") == actual_class,
                 }
@@ -834,6 +852,9 @@ def _run_benchmark_scenario(
         "validation": {
             "case_results": final_validation_cases,
             "passed_cases": sum(bool(case["pass"]) for case in final_validation_cases),
+            "not_applicable_cases": sum(
+                case.get("status") == "not_applicable" for case in final_validation_cases
+            ),
             "case_count": len(final_validation_cases),
         },
         "backend": final_bundle.get("semantic_alignment", {}).get("embedding_backend"),

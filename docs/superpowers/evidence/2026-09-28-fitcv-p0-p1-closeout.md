@@ -1,15 +1,17 @@
 # FitCV P0/P1 Closeout Evidence
 
 Date: 2026-09-28
-Plan: `docs/superpowers/plans/2026-09-28-fitcv-p0-p1-closeout-plan.md`
+Plan: `docs/superpowers/plans/2026-09-28-fitcv-p0-p1-finalization-plan.md`
 
 ## P0-C
 
 - `REQUIREMENT_SUPPORT_POLICY_VERSION` is `requirement-support-v5`.
 - Canonical projection now emits source-only `support_fragments` once.
 - Candidate answers use the same qualifier assessment as profile evidence.
+- Candidate answers must mention the canonical requirement skill before their
+  temporary fragment can qualify; unrelated answers remain `relevant_unverified`.
 - `OVERRIDE_BLOCK` does not create evidence; empty answers remain `pending`.
-- Verification: `uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_validator.py` — `157 passed`.
+- Verification: `uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_validator.py` — `159 passed`.
 
 ## P1-B
 
@@ -43,12 +45,13 @@ Fixture: `data/fitcv-p0-corpus/p0a/ranking_source_backed.json`.
 
 Fixture: `tests/fixtures/requirement_support_benchmark.json`.
 
-- Production: selected qualified evidence-pair recall `0.9375`, selected requirement recall `1.0`, p50/p95 total `1.9353/7.0093 ms`, estimated prompt tokens `671`.
-- `full_pool_diagnostic`: selected qualified evidence-pair recall `0.9375`, selected requirement recall `1.0`, p50/p95 total `1.9564/4.7201 ms`, estimated prompt tokens `671`.
-- `lexical_only`: selected qualified evidence-pair recall `0.9375`, selected requirement recall `1.0`, p50/p95 total `1.7426/4.8809 ms`, estimated prompt tokens `583`.
-- All arms reported zero incorrect pairs; current fixture validation passed `6/17` cases, so it is not promotion-grade.
-- Decision: retain production path; no semantic deletion or production promotion. Broader reviewed boundary labels required.
-- Artifacts: `.tmp/p0b-production.json`, `.tmp/p0b-full-pool.json`, `.tmp/p0b-lexical-only.json`, `.tmp/p0b-comparison.json`.
+- Fixture SHA-256: `d91e2747bf02074272a20d0d83e2c2a7fd5082f47fd17b5e8ed64c3f734d3b6d`.
+- Production: selected qualified evidence-pair recall `1.0`, selected requirement recall `1.0`, p50/p95 total `1.732/3.979 ms`, estimated prompt tokens `671`, validation `17/17`.
+- `full_pool_diagnostic`: selected qualified evidence-pair recall `1.0`, selected requirement recall `1.0`, p50/p95 total `1.848/7.109 ms`, estimated prompt tokens `671`, validation `17/17`.
+- `lexical_only`: selected qualified evidence-pair recall `1.0`, selected requirement recall `1.0`, p50/p95 total `1.531/2.398 ms`, estimated prompt tokens `583`, validation `17/17`.
+- All arms reported zero incorrect pairs. The prior 11 mismatches were fixture assumptions: seven overclaimed Python in SQL-only profiles, three used Power BI while job requirements were K8s, and one expected unrelated validation for a required skill claim. Harness regression also namespaces derived skill IDs and counts redundant evidence once per requirement.
+- Decision: retain production path; no semantic deletion or production promotion. Broader reviewed boundary labels remain required for promotion-grade quality claims.
+- Artifacts: `.tmp/p0b-production-finalization.json`, `.tmp/p0b-full-pool-finalization.json`, `.tmp/p0b-lexical-only-finalization.json`, `.tmp/p0b-comparison-finalization.json`.
 
 ## Deferred
 

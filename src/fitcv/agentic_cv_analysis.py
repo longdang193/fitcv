@@ -18,6 +18,7 @@ lifecycle:
 import hashlib
 import json
 import math
+import re
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
@@ -32,7 +33,7 @@ from fitcv.evidence import (
     retrieve_evidence_bundle,
 )
 from fitcv.gap_analysis import compute_gap
-from fitcv.rule_filter import canonicalize_skill
+from fitcv.rule_filter import canonicalize_skill, get_skill_synonyms
 from fitcv.pipeline_stages.common import extract_job_url, job_identity_keys
 from fitcv.reuse import build_reuse_decision
 from fitcv.pipeline_contracts import (
@@ -550,6 +551,30 @@ def _has_relevant_unverified_support(
     return False
 
 
+def _answer_mentions_requirement(
+    answer_text: str,
+    descriptor: dict[str, Any],
+    config: dict[str, Any],
+) -> bool:
+    canonical_skill = str(descriptor.get("canonical_skill") or "").strip().casefold()
+    if not canonical_skill:
+        return False
+    terms = {canonical_skill}
+    for alias, target in get_skill_synonyms(config).items():
+        if canonicalize_skill(str(target), config) == canonical_skill:
+            terms.add(str(alias).strip().casefold())
+    for raw_requirement in list(descriptor.get("original_requirements") or []):
+        raw_text = str(raw_requirement or "").strip().casefold()
+        if canonical_skill in raw_text:
+            terms.add(canonical_skill)
+    normalized_answer = str(answer_text or "").casefold()
+    return any(
+        re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized_answer)
+        for term in terms
+        if term
+    )
+
+
 def _build_requirement_coverage(
     job: dict[str, Any],
     evidence: list[dict[str, Any]],
@@ -601,13 +626,18 @@ def _build_requirement_coverage(
         resolved_fact = str(resolution_payload.get("answer_text") or "").strip()
         if resolution_action == "RESOLVE_WITH_ANSWER" and resolution_id:
             if resolved_fact:
+                answer_skills = (
+                    [str(descriptor.get("canonical_skill") or "")]
+                    if _answer_mentions_requirement(resolved_fact, descriptor, config)
+                    else []
+                )
                 assessment = _assess_requirement_support(
                     {
                         "text": resolved_fact,
-                        "skills": [str(descriptor.get("canonical_skill") or "")],
+                        "skills": answer_skills,
                         "support_fragments": [{
                             "text": resolved_fact,
-                            "skills": [str(descriptor.get("canonical_skill") or "")],
+                            "skills": answer_skills,
                         }],
                     },
                     descriptor,

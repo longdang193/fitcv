@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-p0-p1-finalization
@@ -48,8 +48,9 @@ Current acceptance state:
 - P0-A: benchmark plumbing and fixture integrity exist; multilingual quality
   decision remains blocked until one approved backend and mixed-label evidence
   are available.
-- P0-B: comparison tooling exists; `6/17` is validation-scenario coverage, not
-  six approved labels. Classify all mismatches before collecting more labels.
+- P0-B: comparison tooling exists; prior `6/17` validation coverage was caused
+  by fixture/harness defects, now corrected to `17/17`. No new reviewed labels
+  were collected, so promotion-grade quality claims remain blocked.
 - P1-A: content-plan filtering exists; writer-context reduction, repair impact,
   and one-page truthful output are not decision-grade.
 - P1-B: storage and review actions exist; lifecycle proof from review through
@@ -116,17 +117,17 @@ models, retrieval layers, or speculative orchestration.
 - Branch: `main`
 - Base commit: `72c822b1`
 - Expected workspace: `clean tracked state; preserve unrelated .tmp/`
-- Next action: `run Task 1 focused P0-B validation and classify every mismatch`
+- Next action: `run final verification and reconcile acceptance evidence`
 - Blockers: `approved multilingual backend and promotion-grade P0-B review coverage may remain unavailable`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `active` | current | `codex` | none | mismatch classification report and focused benchmark tests | in progress |
-| Task 2 | `pending` | current | `codex` | Task 1 | candidate-answer proof boundary tests | pending |
-| Task 3 | `pending` | current | `codex` | Task 2 | review-to-refresh lifecycle trace | pending |
-| Task 4 | `pending` | current | `codex` | Task 2 | writer-context and repair measurement | pending |
-| Task 5 | `pending` | current | `codex` | Tasks 1–4 | P0-A/P0-B decision reports or explicit blockers | pending |
-| Task 6 | `pending` | current | `codex` | Tasks 2–5 | fresh final verification and acceptance record | pending |
+| Task 1 | `completed` | current | `codex` | none | mismatch classification report and focused benchmark tests | 17/17 validation cases pass; no new labels collected |
+| Task 2 | `completed` | current | `codex` | Task 1 | candidate-answer proof boundary tests | answer skill-mismatch regression passes; 159 focused tests pass |
+| Task 3 | `completed` | current | `codex` | Task 2 | review-to-refresh lifecycle trace | control-plane/runtime suite passes: 789 tests |
+| Task 4 | `completed` | current | `codex` | Task 2 | writer-context and repair measurement | writer filtering/repair suite passes: 223 tests |
+| Task 5 | `completed` | current | `codex` | Tasks 1–4 | P0-A/P0-B decision reports or explicit blockers | P0-A measured/blocked; P0-B measured with production retained |
+| Task 6 | `completed` | current | `codex` | Tasks 2–5 | fresh final verification and acceptance record | 2865 passed, 4 skipped; diff clean; blockers retained explicitly |
 
 ## Task Breakdown
 
@@ -170,14 +171,14 @@ models, retrieval layers, or speculative orchestration.
 - Stop for: `production retrieval changes, unbounded fixture expansion, external providers, or unresolved classification ambiguity`
 
 **Steps:**
-- [ ] Step 1: Re-run the focused comparison with fixed fixture bytes and record all 17 scenario outcomes.
-- [ ] Step 2: Map each failure to runtime bug, stale expectation, invalid assumption, or genuine recall gap with file/symbol evidence.
-- [ ] Step 3: Add regression coverage for corrected semantics and update only proven-stale expectations.
-- [ ] Step 4: Publish mismatch counts and residual data gaps; leave labels blocked where evidence is insufficient.
+- [x] Step 1: Re-run the focused comparison with fixed fixture bytes and record all 17 scenario outcomes.
+- [x] Step 2: Map each failure to runtime bug, stale expectation, invalid assumption, or genuine recall gap with file/symbol evidence.
+- [x] Step 3: Add regression coverage for corrected semantics and update only proven-stale expectations.
+- [x] Step 4: Publish mismatch counts and residual data gaps; leave labels blocked where evidence is insufficient.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_benchmark_requirement_support.py tests/test_compare_rag_impact.py`
-- [ ] `uv run python scripts/benchmark_requirement_support.py --arm production --runs 50 --warmups 5 --output .tmp/p0b-production-finalization.json`
+- [x] `uv run pytest -q tests/test_benchmark_requirement_support.py tests/test_compare_rag_impact.py` — 25 passed
+- [x] `uv run python scripts/benchmark_requirement_support.py --arm production --runs 50 --warmups 5 --output .tmp/p0b-production-finalization.json` — 17/17 validation cases pass
 - Expected: all 17 scenarios are classified; no unexplained failure is treated as a label gap.
 
 **Exit Criteria:**
@@ -222,15 +223,15 @@ models, retrieval layers, or speculative orchestration.
 - Stop for: `new evaluator subsystem, metadata-derived proof, production retrieval redesign, or any verified claim without source-scoped evidence`
 
 **Steps:**
-- [ ] Step 1: Write failing tests for the answer matrix: exact SQL, Python-for-SQL mismatch, classroom SQL, contradiction, underspecified SQL, and empty answer.
-- [ ] Step 2: Route `RESOLVE_WITH_ANSWER` through a temporary requirement-scoped fragment and existing qualifier assessment.
-- [ ] Step 3: Keep `CONFIRM_OMIT` non-evidentiary and `OVERRIDE_BLOCK` workflow-only; reject falsey or stale resolution identity.
-- [ ] Step 4: Trace profile evidence and candidate-answer evidence through projection, retrieval, coverage, uncertainty, and generation.
-- [ ] Step 5: Bump policy/fingerprint invalidation only if source contract changes; reject stale artifacts safely.
+- [x] Step 1: Write failing tests for the answer matrix: exact SQL, Python-for-SQL mismatch, classroom SQL, contradiction, underspecified SQL, and empty answer.
+- [x] Step 2: Route `RESOLVE_WITH_ANSWER` through a temporary requirement-scoped fragment and existing qualifier assessment.
+- [x] Step 3: Keep `CONFIRM_OMIT` non-evidentiary and `OVERRIDE_BLOCK` workflow-only; reject falsey or stale resolution identity.
+- [x] Step 4: Trace profile evidence and candidate-answer evidence through projection, retrieval, coverage, uncertainty, and generation.
+- [x] Step 5: Bump policy/fingerprint invalidation only if source contract changes; reject stale artifacts safely.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_validator.py`
-- [ ] Direct trace proves both input paths produce identical verification semantics.
+- [x] `uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_validator.py` — 159 passed
+- [x] Direct trace proves both input paths produce identical verification semantics.
 - Expected: only qualified, requirement-scoped answers become verified; all other cases remain unverified, contradicted, pending, or omitted.
 
 **Exit Criteria:**
@@ -278,15 +279,15 @@ models, retrieval layers, or speculative orchestration.
 - Stop for: `schema replacement, destructive migration, external notifications, implicit auto-approval, or state marked resolved before refreshed validation`
 
 **Steps:**
-- [ ] Step 1: Add failing lifecycle tests for `pending`, `processing`, `resolved`, and `failed` action states.
-- [ ] Step 2: Repair resolution loading, persistence, identity replacement, and malformed-row handling; guarantee list return and profile/source scoping.
-- [ ] Step 3: Persist review action before refresh, run one bounded impacted-job re-analysis, and update queue state only from refresh result.
-- [ ] Step 4: Preserve uncertainty ID, resolution ID/action, coverage, content plan, and debug metadata on every return path.
-- [ ] Step 5: Prove contradiction, `CONFIRM_OMIT`, `OVERRIDE_BLOCK`, stale identity, duplicate action, and failed refresh behavior.
+- [x] Step 1: Add failing lifecycle tests for `pending`, `processing`, `resolved`, and `failed` action states.
+- [x] Step 2: Repair resolution loading, persistence, identity replacement, and malformed-row handling; guarantee list return and profile/source scoping.
+- [x] Step 3: Persist review action before refresh, run one bounded impacted-job re-analysis, and update queue state only from refresh result.
+- [x] Step 4: Preserve uncertainty ID, resolution ID/action, coverage, content plan, and debug metadata on every return path.
+- [x] Step 5: Prove contradiction, `CONFIRM_OMIT`, `OVERRIDE_BLOCK`, stale identity, duplicate action, and failed refresh behavior.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_agentic_cv_analysis.py tests/test_cv_generation_reason_mapping.py`
-- [ ] Direct trace records storage before/after, worker load, analysis status, generation status, debug replacement, and queue state.
+- [x] `uv run pytest -q tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_agentic_cv_analysis.py tests/test_cv_generation_reason_mapping.py` — 789 passed
+- [x] Direct trace records storage before/after, worker load, analysis status, generation status, debug replacement, and queue state.
 - Expected: `uncertainty_id_before == uncertainty_id_after_refresh`; resolved state appears only after successful re-analysis.
 
 **Exit Criteria:**
@@ -329,15 +330,15 @@ models, retrieval layers, or speculative orchestration.
 - Stop for: `new page optimizer before baseline measurement, loss of audit evidence, unsupported claim suppression, or visual redesign outside content correctness`
 
 **Steps:**
-- [ ] Step 1: Add failing test proving writer input is limited to `content_plan.approved_evidence_ids` while diagnostics retain full evidence.
-- [ ] Step 2: Verify approved claims, protected numbers/dates, omission reasons, enabled sections, and uncertainty notes survive compilation.
-- [ ] Step 3: Add one bounded section repair path and full-CV revalidation without regenerating unaffected sections.
-- [ ] Step 4: Measure before/after evidence tokens, generation tokens, repair count, factual validation, and rendered page count.
-- [ ] Step 5: Add a simple budget only if measurements show need; use fixed limits, not a speculative optimizer.
+- [x] Step 1: Add failing test proving writer input is limited to `content_plan.approved_evidence_ids` while diagnostics retain full evidence.
+- [x] Step 2: Verify approved claims, protected numbers/dates, omission reasons, enabled sections, and uncertainty notes survive compilation.
+- [x] Step 3: Add one bounded section repair path and full-CV revalidation without regenerating unaffected sections.
+- [x] Step 4: Measure before/after evidence tokens, generation tokens, repair count, factual validation, and rendered page count.
+- [x] Step 5: Add a simple budget only if measurements show need; use fixed limits, not a speculative optimizer.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_cv_generator.py tests/test_pipeline.py tests/test_pipeline_agentic_late_stage.py tests/test_cv_generation_reason_mapping.py`
-- [ ] Scorecard contains before/after context, tokens, repairs, preserved claims, and page count.
+- [x] `uv run pytest -q tests/test_cv_generator.py tests/test_pipeline.py tests/test_pipeline_agentic_late_stage.py tests/test_cv_generation_reason_mapping.py` — 223 passed
+- [x] Scorecard contains before/after context, tokens, repairs, preserved claims, and page count.
 - Expected: less or equal writer context, no factual regression, and bounded repair behavior is observable.
 
 **Exit Criteria:**
@@ -385,15 +386,15 @@ models, retrieval layers, or speculative orchestration.
 - Stop for: `credential/provider setup, production default changes, unreviewed labels, benchmark promotion on synthetic/all-positive data, or semantic-layer deletion before comparison proof`
 
 **Steps:**
-- [ ] Step 1: Verify fixture bytes, split counts, label distribution, and report `fixture_sha256` binding.
-- [ ] Step 2: Run P0-A incumbent and lexical arms; run multilingual arm only with an approved backend, otherwise emit schema-valid `not_run`.
-- [ ] Step 3: Run P0-B production, full-pool diagnostic, and lexical-only arms over only classified scenarios and approved reviewed evidence.
-- [ ] Step 4: Report Recall@10/20, Precision@10, nDCG, qualified support recall, retrieval-to-selection loss, context size, cold/warm latency, provider calls, and validation outcomes.
-- [ ] Step 5: Retain production defaults unless explicit thresholds pass; do not delete semantic scoring or add profile-artifact reuse without measured benefit.
+- [x] Step 1: Verify fixture bytes, split counts, label distribution, and report `fixture_sha256` binding.
+- [x] Step 2: Run P0-A incumbent and lexical arms; run multilingual arm only with an approved backend, otherwise emit schema-valid `not_run`.
+- [x] Step 3: Run P0-B production, full-pool diagnostic, and lexical-only arms over only classified scenarios and approved reviewed evidence.
+- [x] Step 4: Report Recall@10/20, Precision@10, nDCG, qualified support recall, retrieval-to-selection loss, context size, cold/warm latency, provider calls, and validation outcomes.
+- [x] Step 5: Retain production defaults unless explicit thresholds pass; do not delete semantic scoring or add profile-artifact reuse without measured benefit.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_ranking_evaluation.py tests/test_benchmark_requirement_support.py tests/test_p0_public_corpus.py`
-- [ ] Run benchmark commands with outputs under `.tmp/`; inspect `measured`, `blocked`, `not_run`, and `not_applicable` status semantics.
+- [x] `uv run pytest -q tests/test_ranking_evaluation.py tests/test_benchmark_requirement_support.py tests/test_p0_public_corpus.py` — 41 ranking/public-corpus tests plus 25 P0-B tests
+- [x] Run benchmark commands with outputs under `.tmp/`; inspect `measured`, `blocked`, `not_run`, and `not_applicable` status semantics.
 - Expected: reproducible reports or precise blockers; no unsupported promotion claim.
 
 **Exit Criteria:**
@@ -435,15 +436,15 @@ models, retrieval layers, or speculative orchestration.
 - Stop for: `claiming P0/P1 complete with unresolved required correctness, suppressing blockers, pushing or merging without user approval, or unrelated cleanup`
 
 **Steps:**
-- [ ] Step 1: Record accepted-CV metrics: median/p95 latency, retrieval/generation/validation time, tokens, provider calls, repair count, manual actions, resolution reuse, and accepted truthful CV rate.
-- [ ] Step 2: Run focused suites, full suite, manifest/hash checks, and `git diff --check` from a clean tracked baseline.
-- [ ] Step 3: Update evidence and plan ledger with exact commands, results, blockers, rollback path, and deferred scope.
-- [ ] Step 4: Mark plan `completed` only if completion criteria are met; otherwise keep `blocked` with one concrete next action.
+- [x] Step 1: Record accepted-CV metrics: median/p95 latency, retrieval/generation/validation time, tokens, provider calls, repair count, manual actions, resolution reuse, and accepted truthful CV rate.
+- [x] Step 2: Run focused suites, full suite, manifest/hash checks, and `git diff --check` from a clean tracked baseline.
+- [x] Step 3: Update evidence and plan ledger with exact commands, results, blockers, rollback path, and deferred scope.
+- [x] Step 4: Mark plan `completed` only if completion criteria are met; otherwise keep `blocked` with one concrete next action.
 
 **Verification:**
-- [ ] `uv run pytest -q`
-- [ ] `git diff --check`
-- [ ] `git status --short --branch`
+- [x] `uv run pytest -q` — `2865 passed, 4 skipped, 52 warnings`
+- [x] `git diff --check` — clean
+- [x] `git status --short --branch` — tracked changes limited to declared files; preserve unrelated `.tmp/`
 - Expected: fresh proof is green or failures are recorded with owner, blocker, and next action; no stale completion claim remains.
 
 **Exit Criteria:**
