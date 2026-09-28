@@ -448,7 +448,7 @@ Steps:
 - [x] Step 1: Build scorecard with median/p95 time per accepted truthful CV, provider calls, input/output tokens, repair attempts, full/section regenerations, manual actions, resolution reuse, questions avoided, and accepted-CV rate; unavailable live/provider fields are recorded as `not_run` or `not_applicable`.
 - [x] Step 2: Run focused runtime suites, control-plane suites, ranking/support benchmark tests, full suite, git diff --check, and manifest/hash integrity tests.
 - [x] Step 3: Record P0-A/P0-B measured decisions, P1-A/P1-B metrics, blockers, rollback path, and explicit P1-C/P2 deferrals in docs and plan evidence.
-- [x] Step 4: Keep plan status active because promotion-grade P0-A/P0-B proof is still blocked; do not claim completed acceptance until those data gates clear.
+- [x] Step 4: Keep plan status blocked because promotion-grade P0-A/P0-B proof is still blocked; do not claim completed acceptance until those data gates clear.
 
 Verification:
 - [x] uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_cv_generator.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_validator.py tests/test_cv_generation_reason_mapping.py
