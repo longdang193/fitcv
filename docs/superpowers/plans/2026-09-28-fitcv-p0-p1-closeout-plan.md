@@ -506,5 +506,3 @@ contains historical execution claims but is not treated as current source truth
 when current code contradicts it.
 Three independent reviews accepted the concrete test-path, benchmark-arm, and checkpoint-lifecycle fixes. The review suggestion to defer P0-A/P0-B decision work was rejected because the supplied verdict explicitly requires those offline experiments and labels before closeout.
 The follow-up stale-report defect was traced to `scripts/benchmark_ranking.py` recording fixture paths without byte hashes; both measured and `not_run` report branches now emit `fixture_sha256`, with focused regression proof. Remaining plan progress is blocked until promotion-grade reviewed P0-A/P0-B labels and an approved multilingual backend exist; no labels or provider results were fabricated.
-
-
