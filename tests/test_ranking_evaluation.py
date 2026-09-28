@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from fitcv.ranking import rank_jobs
+from scripts import benchmark_ranking
 from scripts.benchmark_ranking import _split_metric_rows
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ranking_gold.json"
@@ -155,3 +156,40 @@ def test_retrieval_and_ranking_metrics_use_separate_id_sets() -> None:
     assert metrics["retrieval_precision_at_n"] == 0.5
     assert metrics["ranking_recall_at_n"] == 0.5
     assert metrics["ranking_precision_at_n"] == 0.5
+
+
+def test_run_once_uses_retrieval_ids_for_shortlist_metrics(monkeypatch: Any) -> None:
+    rows = [
+        {
+            "candidate_id": f"c{index}",
+            "split": "held_out",
+            "relevance_grade": 1,
+            "job": {"job_url": f"job-{index}"},
+            "baseline_fit": float(index),
+            "ai_score": float(index),
+        }
+        for index in range(20)
+    ]
+
+    monkeypatch.setattr(
+        benchmark_ranking,
+        "run_vector_search",
+        lambda *args, **kwargs: {
+            "production_rows": [{"job_url": row["job"]["job_url"]} for row in rows],
+            "diagnostics": {"effective_strategy": "lexical", "backend_id": "test"},
+        },
+    )
+    monkeypatch.setattr(
+        benchmark_ranking,
+        "rank_jobs",
+        lambda ranked_rows, top_n: ranked_rows[:top_n],
+    )
+
+    metrics, _, _ = benchmark_ranking._run_once(
+        {"profile": {"candidates": rows, "retrieval_top_n": 20, "ranking_top_n": 5, "ndcg_top_n": 5}},
+        set(),
+    )
+
+    held_out = metrics["split_metrics"]["held_out"]
+    assert held_out["retrieval_recall_at_n"] == 1.0
+    assert held_out["ranking_recall_at_n"] == 0.25

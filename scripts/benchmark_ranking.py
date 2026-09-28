@@ -270,7 +270,7 @@ def _run_once(
             if candidate_id in source_by_id
         ]
         pool_split_metrics = _split_metric_rows(
-            set(ranked_by_id),
+            retrieved_ids,
             ranked_eval,
             source_rows,
             int(pool.get("ndcg_top_n", 15)),
