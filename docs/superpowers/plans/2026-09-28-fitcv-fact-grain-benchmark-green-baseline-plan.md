@@ -140,7 +140,7 @@ deferred until independently reviewed discriminative coverage exists.
 **Steps:**
 
 1. Add derived internal `support_fragments`.
-2. Derive one fragment per structured bullet with bullet-local text and skills. Derive highlight and tech-stack fragments with parent project skills as inherited skill metadata; qualifiers remain local to each fragment.
+2. Derive one fragment per structured bullet with bullet-local text and skills. Derive highlight and tech-stack fragments with only skills explicitly present in each fragment; retain project-level skills on parent evidence for unqualified matching.
 3. Preserve explicit projected fragments. Use one compatibility fragment from full item text only when no structured statement fields exist; structured V1 bullets are not legacy flat evidence.
 4. Assess canonical skill and every qualifier against one fragment.
 5. Set `qualified_support` only when one fragment satisfies all qualifiers.

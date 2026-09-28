@@ -436,6 +436,24 @@ def test_requirement_support_accepts_same_statement_duration_and_context() -> No
     assert assessment["qualified_support"] is True
 
 
+def test_project_fragment_does_not_inherit_unrelated_project_skill() -> None:
+    item = evidence_module._normalise_project_entry(
+        {
+            "name": "Mixed project",
+            "skills": ["SQL"],
+            "highlights": ["5 years production Python"],
+        },
+        project_index=0,
+    )
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]
+
+    assessment = evidence_module._assess_requirement_support(item, descriptor, None)
+
+    assert assessment["qualified_support"] is False
+
+
 @pytest.mark.parametrize(
     ("requirement", "evidence", "expected"),
     [

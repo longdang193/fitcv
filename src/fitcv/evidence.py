@@ -1339,6 +1339,15 @@ def _build_project_scoring_context(
     return " ".join(parts)
 
 
+def _project_fragment_skills(text: str, skills: list[str]) -> list[str]:
+    normalized = text.casefold()
+    return [
+        skill
+        for skill in skills
+        if re.search(rf"(?<!\w){re.escape(skill.casefold())}(?!\w)", normalized)
+    ]
+
+
 def _normalise_project_entry(
     project: dict[str, Any],
     *,
@@ -1353,7 +1362,7 @@ def _normalise_project_entry(
     domain_tags = _canonicalize_terms(_normalize_text_list(project.get("domain_tags")))
     responsibility_themes = _canonicalize_terms(_normalize_text_list(project.get("responsibility_themes")))
     support_fragments = [
-        {"text": value, "skills": list(skills)}
+        {"text": value, "skills": _project_fragment_skills(value, skills)}
         for value in (*highlights, *tech_stack)
         if value
     ]
