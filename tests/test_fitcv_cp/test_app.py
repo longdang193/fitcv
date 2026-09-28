@@ -6494,6 +6494,84 @@ def test_admin_run_cv_review_action_persists_and_appends_event() -> None:
     mock_append.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    ("action", "answer_text"),
+    [
+        ("RESOLVE_WITH_ANSWER", "Used SQL for four years."),
+        ("CONFIRM_OMIT", ""),
+        ("OVERRIDE_BLOCK", ""),
+    ],
+)
+def test_admin_run_cv_review_resolution_actions_store_identity_and_enqueue(
+    action: str,
+    answer_text: str,
+) -> None:
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id=f"run-resolution-{action.lower()}",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-1",
+                        "candidate_profile_revision": "7",
+                        "source_profile_fingerprint": "projection-1",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "uncertainty-1",
+                                "resolution_key": "required_skill:sql",
+                                "requirement_instance_id": "required_skill:sql",
+                                "candidate_profile_id": "candidate-1",
+                                "candidate_profile_revision": "7",
+                                "source_profile_fingerprint": "projection-1",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    app = _app()
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as update_debug, \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue:
+        response = TestClient(app).post(
+            f"/admin/runs/{run.run_id}/cv-review-action",
+            data={
+                "job_url": "https://example.com/job-1",
+                "action": action,
+                "actor": "operator",
+                "uncertainty_id": "uncertainty-1",
+                "resolution_key": "required_skill:sql",
+                "answer_text": answer_text,
+            },
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    enqueue.assert_called_once()
+    saved = sqlite_store.list_requirement_resolutions(
+        candidate_profile_id="candidate-1",
+        candidate_profile_revision="7",
+        source_profile_fingerprint="projection-1",
+    )
+    assert len(saved) == 1
+    assert saved[0]["resolution_action"] == action
+    assert saved[0]["resolution_payload"] == {"answer_text": answer_text}
+    updated = json.loads(update_debug.call_args.args[1])
+    assert updated["debug_records"][0]["uncertainties"][0]["resolution_action"] == action
+
+
 def test_admin_run_cv_review_action_does_not_repeat_terminal_effects() -> None:
     from datetime import datetime, timezone
 

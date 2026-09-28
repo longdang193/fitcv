@@ -268,6 +268,65 @@ def test_candidate_resolution_answer_matches_literal_requirement_text() -> None:
     ) is True
 
 
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.build_evidence_projection")
+def test_resolution_actions_remain_fail_closed(
+    mock_projection,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_retrieve,
+) -> None:
+    mock_projection.return_value = {"fingerprint": "projection::resolution-actions"}
+    mock_fingerprint.return_value = {"fingerprint": "analysis::resolution-actions"}
+    mock_bundle.return_value = {
+        "projection_fingerprint": "projection::resolution-actions",
+        "selected_evidence": [],
+        "selected_evidence_ids": [],
+    }
+    mock_retrieve.return_value = []
+    mock_gap.return_value = {"matched": [], "missing": ["SQL"]}
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": "7"}
+    job = {**_job(), "required_skills": ["SQL"]}
+    requirement_id = build_required_skill_descriptors(job, _config())[0]["requirement_id"]
+
+    def analyze(action: str, answer_text: str = "") -> dict:
+        return analyze_ranked_job(
+            job,
+            profile,
+            {
+                **_config(),
+                "_requirement_resolutions": [
+                    {
+                        "resolution_id": f"resolution-{action.lower()}",
+                        "candidate_profile_id": "candidate-1",
+                        "candidate_profile_revision": "7",
+                        "source_profile_fingerprint": "projection::resolution-actions",
+                        "resolution_key": requirement_id,
+                        "requirement_instance_id": requirement_id,
+                        "resolution_action": action,
+                        "resolution_payload": {"answer_text": answer_text},
+                    }
+                ],
+            },
+        )
+
+    confirmed_omit = analyze("CONFIRM_OMIT")["requirement_coverage"][0]
+    assert confirmed_omit["selected_support"] == "confirmed_omit"
+    assert confirmed_omit["support_strength"] == "omitted"
+    assert confirmed_omit["supporting_evidence_ids"] == []
+
+    override_block = analyze("OVERRIDE_BLOCK")["requirement_coverage"][0]
+    assert override_block["selected_support"] == "unsupported"
+    assert override_block["supporting_evidence_ids"] == []
+
+    contradicted = analyze("RESOLVE_WITH_ANSWER", "I do not have SQL experience.")["requirement_coverage"][0]
+    assert contradicted["selected_support"] == "contradicted"
+
+
 def test_requirement_uncertainty_carries_profile_identity_at_creation() -> None:
     rows = _build_requirement_uncertainties(
         [

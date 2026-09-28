@@ -31,6 +31,7 @@ from fitcv.embeddings import (
     build_job_summary_signature_record,
     build_job_summary_text,
     generate_embedding,
+    generate_embedding_with_metadata,
     get_embedding_failure_policy,
 )
 
@@ -250,6 +251,56 @@ class TestSentenceTransformersEmbedding:
             vector = generate_embedding("text", {**config, "embedding_failure_policy": "deterministic_fallback"})
 
         assert len(vector) == SQLITE_EMBED_DIM
+
+    def test_fallback_reports_deterministic_backend_identity(self) -> None:
+        config = {
+            "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+            "shortlist_embedding_model": "model",
+            "embedding_model_revision": "revision-1",
+            "embedding_dimension": 384,
+        }
+
+        with patch(
+            "fitcv.embeddings._load_sentence_transformer_model",
+            side_effect=RuntimeError("backend unavailable"),
+        ):
+            result = generate_embedding_with_metadata("text", config)
+
+        assert result["backend_id"] == "sqlite_deterministic_local"
+        assert result["contract_fingerprint"] != build_embedding_contract_fingerprint(config)["fingerprint"]
+
+
+def test_fallback_job_embedding_is_not_reused_after_backend_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    config = {
+        "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+        "shortlist_embedding_model": "model",
+        "embedding_model_revision": "revision-1",
+        "embedding_dimension": 3,
+    }
+    job = {"job_url": "https://example.com/job-1", "title": "Data Engineer", "required_skills": ["SQL"]}
+
+    with patch(
+        "fitcv.embeddings._load_sentence_transformer_model",
+        side_effect=RuntimeError("backend unavailable"),
+    ):
+        first_job = dict(job)
+        assert embed_and_store_jobs([first_job], config) == 1
+
+    with patch(
+        "fitcv.embeddings._load_sentence_transformer_model",
+        return_value=SimpleNamespace(encode=lambda texts, **kwargs: [[1.0, 2.0, 3.0]]),
+    ):
+        second_job = dict(job)
+        assert embed_and_store_jobs([second_job], config) == 1
+
+    assert first_job["embedding_contract_fingerprint"] != second_job["embedding_contract_fingerprint"]
+    assert second_job["embedding_reuse_status"] == FRESH_EMBEDDING_STATUS
 
 
 

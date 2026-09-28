@@ -168,13 +168,26 @@ def _load_requirement_resolutions(run: Any, profile: dict[str, Any]) -> list[dic
     if not source_profile_fingerprint:
         return []
     try:
-        return list(
+        rows = list(
             list_requirement_resolutions(
                 candidate_profile_id=candidate_profile_id,
                 candidate_profile_revision=candidate_profile_revision,
                 source_profile_fingerprint=source_profile_fingerprint,
             )
         )
+        return [
+            row
+            for row in rows
+            if isinstance(row, dict)
+            and str(row.get("candidate_profile_id") or "").strip() == candidate_profile_id
+            and str(row.get("candidate_profile_revision") or "").strip() == candidate_profile_revision
+            and str(row.get("source_profile_fingerprint") or "").strip() == source_profile_fingerprint
+            and str(row.get("resolution_key") or "").strip()
+            and str(row.get("requirement_instance_id") or "").strip()
+            and str(row.get("resolution_action") or "").strip()
+            in {"RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"}
+            and isinstance(row.get("resolution_payload") or {}, dict)
+        ]
     except Exception as exc:
         logger.warning(
             "[run_id=%s] Failed to load requirement resolutions: %s",
@@ -2950,7 +2963,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

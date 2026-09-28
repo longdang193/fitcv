@@ -14567,7 +14567,7 @@ def create_app(
             if target_uncertainty is None:
                 raise HTTPException(status_code=422, detail="Uncertainty not found for resolution")
             resolution_key = str(payload.resolution_key or target_uncertainty.get("resolution_key") or "").strip()
-            resolution_row = client.save_requirement_resolution(
+            resolution_row = sqlite_store_module.save_requirement_resolution(
                 {
                     "candidate_profile_id": str(target_record.get("candidate_profile_id") or target_uncertainty.get("candidate_profile_id") or ""),
                     "candidate_profile_revision": str(target_record.get("candidate_profile_revision") or target_uncertainty.get("candidate_profile_revision") or ""),

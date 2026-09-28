@@ -28,7 +28,7 @@ from fitcv.ranking import compute_declared_preference_fit_details, compute_must_
 from fitcv.embeddings import (
     build_embedding_backend_metadata,
     build_embedding_contract_fingerprint,
-    generate_embedding,
+    generate_embedding_with_metadata,
     get_shortlist_embedding_model,
 )
 from fitcv.shortlist_runtime import (
@@ -61,6 +61,7 @@ class CandidateQueryEmbeddingRecord(TypedDict):
     candidate_query_signature: str
     candidate_query_contract_fingerprint: str
     candidate_query_reuse_status: str
+    embedding_backend_id: str
 
 
 class CandidateQueryEmbeddingCacheRow(TypedDict):
@@ -79,6 +80,7 @@ def _build_candidate_query_embedding_record(
     candidate_query_signature: str,
     candidate_query_contract_fingerprint: str,
     candidate_query_reuse_status: str,
+    embedding_backend_id: str,
 ) -> CandidateQueryEmbeddingRecord:
     return {
         "text": text,
@@ -87,6 +89,7 @@ def _build_candidate_query_embedding_record(
         "candidate_query_signature": candidate_query_signature,
         "candidate_query_contract_fingerprint": candidate_query_contract_fingerprint,
         "candidate_query_reuse_status": candidate_query_reuse_status,
+        "embedding_backend_id": embedding_backend_id,
     }
 
 
@@ -352,10 +355,18 @@ def build_candidate_query_signature_record(components: dict[str, Any]) -> dict[s
     }
 
 
-def build_candidate_query_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+def build_candidate_query_embedding_contract_fingerprint(
+    config: dict[str, Any],
+    *,
+    embedding_backend: str | None = None,
+) -> dict[str, Any]:
     """Fingerprint shortlist candidate-query embedding behavior to invalidate reuse."""
     payload = {
-        "embedding_contract_fingerprint": build_embedding_contract_fingerprint(config)["fingerprint"],
+        "embedding_contract_fingerprint": build_embedding_contract_fingerprint(
+            config,
+            configured_model="hash-v1" if embedding_backend == "sqlite_deterministic_local" else None,
+            backend=embedding_backend,
+        )["fingerprint"],
         "retrieval_strategy": str(config.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY),
         "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
     }
@@ -425,8 +436,15 @@ def resolve_candidate_query_embedding(
                     candidate_query_signature=signature_record["signature"],
                     candidate_query_contract_fingerprint=contract_record["fingerprint"],
                     candidate_query_reuse_status=REUSED_CACHED_QUERY_EMBEDDING_STATUS,
+                    embedding_backend_id=build_embedding_backend_metadata(config)["backend_id"],
                 )
-        embedding_vector = generate_embedding(query_text, config)
+        embedding_result = generate_embedding_with_metadata(query_text, config)
+        embedding_vector = list(embedding_result["embedding"])
+        actual_backend_id = str(embedding_result["backend_id"])
+        actual_contract_record = build_candidate_query_embedding_contract_fingerprint(
+            config,
+            embedding_backend=actual_backend_id,
+        )
         now = datetime.now(tz=timezone.utc).isoformat()
         conn.execute(
             """
@@ -437,7 +455,7 @@ def resolve_candidate_query_embedding(
             """,
             (
                 signature_record["signature"],
-                contract_record["fingerprint"],
+                actual_contract_record["fingerprint"],
                 query_text,
                 signature_record["payload_json"],
                 json.dumps(embedding_vector),
@@ -450,8 +468,9 @@ def resolve_candidate_query_embedding(
         components=components,
         embedding=embedding_vector,
         candidate_query_signature=signature_record["signature"],
-        candidate_query_contract_fingerprint=contract_record["fingerprint"],
+        candidate_query_contract_fingerprint=actual_contract_record["fingerprint"],
         candidate_query_reuse_status=FRESH_QUERY_EMBEDDING_STATUS,
+        embedding_backend_id=actual_backend_id,
     )
 
 
@@ -850,7 +869,6 @@ def store_shortlist(
             conn.commit()
 
     run_sqlite_io_retry(_write_shortlist)
-
 
 
 

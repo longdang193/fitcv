@@ -23,6 +23,7 @@ _CANDIDATE_QUERY_RECORD_KEYS = {
     "candidate_query_signature",
     "candidate_query_contract_fingerprint",
     "candidate_query_reuse_status",
+    "embedding_backend_id",
 }
 
 
@@ -304,8 +305,12 @@ def test_resolve_candidate_query_embedding_contract_shape_when_cache_missing(
         "preferences": {"target_role": "Data Analyst", "domains": ["banking"]},
     }
 
-    with patch("fitcv.vector_search.generate_embedding") as mock_generate_embedding:
-        mock_generate_embedding.return_value = [0.55, 0.66]
+    with patch("fitcv.vector_search.generate_embedding_with_metadata") as mock_generate_embedding:
+        mock_generate_embedding.return_value = {
+            "embedding": [0.55, 0.66],
+            "backend_id": "sqlite_deterministic_local",
+            "contract_fingerprint": "deterministic-contract",
+        }
         record = resolve_candidate_query_embedding(profile, {})
 
     assert set(record.keys()) == _CANDIDATE_QUERY_RECORD_KEYS
@@ -315,6 +320,42 @@ def test_resolve_candidate_query_embedding_contract_shape_when_cache_missing(
     assert record["embedding"] == [0.55, 0.66]
     assert isinstance(record["candidate_query_signature"], str)
     assert isinstance(record["candidate_query_contract_fingerprint"], str)
+
+
+def test_fallback_candidate_query_is_not_reused_after_backend_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "preferences": {"target_role": "Data Analyst", "domains": ["banking"]},
+    }
+    config = {
+        "embedding_backend": "sentence_transformers",
+        "shortlist_embedding_model": "model",
+        "embedding_model_revision": "revision-1",
+        "embedding_dimension": 3,
+    }
+
+    with patch(
+        "fitcv.embeddings._load_sentence_transformer_model",
+        side_effect=RuntimeError("backend unavailable"),
+    ):
+        first = resolve_candidate_query_embedding(profile, config)
+
+    with patch(
+        "fitcv.embeddings._load_sentence_transformer_model",
+        return_value=type("FakeModel", (), {"encode": lambda self, texts, **kwargs: [[1.0, 2.0, 3.0]]})(),
+    ):
+        second = resolve_candidate_query_embedding(profile, config)
+
+    requested_contract = build_candidate_query_embedding_contract_fingerprint(config)["fingerprint"]
+    assert first["candidate_query_contract_fingerprint"] != requested_contract
+    assert second["candidate_query_contract_fingerprint"] == requested_contract
+    assert second["candidate_query_reuse_status"] == "fresh_query_embedding"
+    assert second["embedding_backend_id"] == "sentence_transformers"
 
 
 def test_dedupe_shortlist_rows_keeps_best_rank_per_job_url() -> None:

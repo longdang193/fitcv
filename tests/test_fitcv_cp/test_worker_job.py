@@ -44,7 +44,16 @@ def test_load_requirement_resolutions_reads_current_profile_projection() -> None
 
     run = MagicMock(run_id="run-1")
     profile = {"candidate_profile_id": "candidate-1", "revision": "7"}
-    rows = [{"resolution_id": "resolution-1"}]
+    rows = [{
+        "resolution_id": "resolution-1",
+        "candidate_profile_id": "candidate-1",
+        "candidate_profile_revision": "7",
+        "source_profile_fingerprint": "projection-1",
+        "resolution_key": "required_skill:sql",
+        "requirement_instance_id": "required_skill:sql",
+        "resolution_action": "RESOLVE_WITH_ANSWER",
+        "resolution_payload": {"answer_text": "4 years production SQL"},
+    }]
 
     with patch.object(
         worker_job,
@@ -62,6 +71,58 @@ def test_load_requirement_resolutions_reads_current_profile_projection() -> None
         candidate_profile_revision="7",
         source_profile_fingerprint="projection-1",
     )
+
+
+def test_load_requirement_resolutions_ignores_stale_and_malformed_rows() -> None:
+    from fitcv_cp import worker_job
+
+    run = MagicMock(run_id="run-identity")
+    profile = {"candidate_profile_id": "candidate-1", "revision": "7"}
+    rows = [
+        {
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "source_profile_fingerprint": "projection-1",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "CONFIRM_OMIT",
+            "resolution_payload": {},
+        },
+        {
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "6",
+            "source_profile_fingerprint": "projection-1",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "CONFIRM_OMIT",
+            "resolution_payload": {},
+        },
+        {
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "source_profile_fingerprint": "projection-1",
+            "resolution_key": "required_skill:python",
+            "requirement_instance_id": "required_skill:python",
+            "resolution_action": "UNKNOWN",
+            "resolution_payload": {},
+        },
+        {
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "source_profile_fingerprint": "projection-1",
+            "resolution_key": "required_skill:go",
+            "requirement_instance_id": "required_skill:go",
+            "resolution_action": "OVERRIDE_BLOCK",
+            "resolution_payload": "malformed",
+        },
+    ]
+
+    with patch.object(worker_job, "build_evidence_projection", return_value={"fingerprint": "projection-1"}), \
+         patch.object(worker_job, "list_requirement_resolutions", return_value=rows):
+        loaded = worker_job._load_requirement_resolutions(run, profile)
+
+    assert len(loaded) == 1
+    assert loaded[0]["resolution_action"] == "CONFIRM_OMIT"
 
 
 def test_worker_resolution_functions_keep_lookup_in_loader() -> None:
@@ -519,6 +580,78 @@ def test_requirement_resolution_refresh_loads_answer_and_closes_review_queue() -
     run.cv_generation_debug_json = json.dumps(refreshed_payload)
     queue = _build_hitl_review_queue(run)
     assert queue["pending_count"] == 0
+
+
+def test_requirement_resolution_refresh_failure_keeps_review_queue_open() -> None:
+    from fitcv_cp import worker_job
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    job_url = "https://example.com/job-failure"
+    run = PipelineRun(
+        run_id="run-resolution-failure",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        candidate_profile_json=json.dumps(
+            {"candidate_profile_id": "candidate-1", "revision": "7"}
+        ),
+        effective_settings_json="{}",
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": job_url,
+                        "status": "review_required",
+                        "review_item_id": "review-failure-1",
+                        "uncertainties": [
+                            {"uncertainty_id": "uncertainty-failure-1"}
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    update_versions: list[tuple[str, dict[str, object]]] = []
+
+    with patch.object(worker_job, "get_run", return_value=run), \
+         patch.object(worker_job, "build_evidence_projection", return_value={"fingerprint": "projection-1"}), \
+         patch.object(worker_job, "list_requirement_resolutions", return_value=[]), \
+         patch.object(worker_job, "list_run_structured_jobs", return_value=[{
+             "run_job_id": "run-job-failure", "job_url": job_url, "title": "SQL Engineer"
+         }]), \
+         patch.object(worker_job, "reserve_cv_regeneration", return_value={
+             "version_id": "cv-resolution-failure", "generation_status": "pending", "idempotent_replay": False
+         }), \
+         patch.object(worker_job, "update_cv_version", side_effect=lambda version_id, **kwargs: (
+             update_versions.append((version_id, kwargs))
+             or {"generation_status": kwargs.get("generation_status")}
+         )), \
+         patch.object(worker_job, "insert_cv_evaluation_row"), \
+         patch.object(worker_job, "update_cv_evaluation"), \
+         patch.object(worker_job, "analyze_ranked_job", side_effect=ValueError("malformed resolution")), \
+         patch.object(worker_job, "generate_from_analysis") as generate_cv, \
+         patch.object(worker_job, "update_run_cv_generation_debug") as update_debug, \
+         patch.object(worker_job, "append_event") as append_event:
+        with pytest.raises(ValueError, match="malformed resolution"):
+            worker_job.execute_cv_regenerate_once(
+                run_id=run.run_id,
+                job_url=job_url,
+                actor="operator",
+                idempotency_key="requirement-resolution:resolution-failure",
+                action_id="resolution-failure",
+            )
+
+    assert [item[1]["generation_status"] for item in update_versions] == ["running", "generation_failed"]
+    generate_cv.assert_not_called()
+    update_debug.assert_not_called()
+    assert json.loads(run.cv_generation_debug_json)["debug_records"][0]["status"] == "review_required"
+    assert [call.args[0].stage for call in append_event.call_args_list] == [
+        "cv_regenerate_once_started",
+        "cv_regenerate_once_failed",
+    ]
 
 
 def test_execute_cv_regenerate_once_emits_failed_event_for_missing_record() -> None:

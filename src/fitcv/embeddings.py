@@ -43,6 +43,7 @@ SQLITE_EMBED_DIM = 256
 EMBEDDING_FAILURE_POLICY_DEFAULT = "deterministic_fallback"
 EMBEDDING_FAILURE_POLICY_RAISE = "raise"
 SENTENCE_TRANSFORMERS_BACKEND = "sentence_transformers"
+DETERMINISTIC_EMBEDDING_MODEL = "hash-v1"
 DEFAULT_SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 DEFAULT_SENTENCE_TRANSFORMERS_REVISION = "e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
 DEFAULT_EMBEDDING_PREPROCESSING_VERSION = "normalize_whitespace_v1"
@@ -171,13 +172,14 @@ def build_embedding_contract_fingerprint(
     config: dict[str, Any],
     *,
     configured_model: str | None = None,
+    backend: str | None = None,
 ) -> dict[str, Any]:
-    backend = get_embedding_backend(config)
+    selected_backend = backend or get_embedding_backend(config)
     model_name = str(configured_model or get_shortlist_embedding_model(config))
     payload = {
         "contract_version": EMBEDDING_CONTRACT_VERSION,
-        "embedding_backend": backend,
-        "embedding_dimension": get_embedding_dimension(config, backend),
+        "embedding_backend": selected_backend,
+        "embedding_dimension": get_embedding_dimension(config, selected_backend),
         "embedding_model": model_name,
         "embedding_model_revision": get_embedding_model_revision(config, model_name),
         "embedding_preprocessing_version": get_embedding_preprocessing_version(config),
@@ -194,8 +196,13 @@ def build_embedding_backend_metadata(
     config: dict[str, Any],
     *,
     configured_model: str | None = None,
+    backend: str | None = None,
 ) -> dict[str, Any]:
-    contract = build_embedding_contract_fingerprint(config, configured_model=configured_model)
+    contract = build_embedding_contract_fingerprint(
+        config,
+        configured_model=configured_model,
+        backend=backend,
+    )
     payload = contract["payload"]
     return {
         "backend_id": str(payload["embedding_backend"]),
@@ -397,9 +404,22 @@ def generate_embedding(
     *,
     model_name: str | None = None,
 ) -> list[float]:
+    return list(generate_embedding_with_metadata(text, config, model_name=model_name)["embedding"])
+
+
+def generate_embedding_with_metadata(
+    text: str,
+    config: dict[str, Any],
+    *,
+    model_name: str | None = None,
+) -> dict[str, Any]:
     backend = get_embedding_backend(config)
     if backend != SENTENCE_TRANSFORMERS_BACKEND:
-        return _deterministic_local_embedding(text)
+        vector = _deterministic_local_embedding(text)
+        return {
+            "embedding": vector,
+            **build_embedding_backend_metadata(config, backend=backend),
+        }
     selected_model = str(model_name or get_shortlist_embedding_model(config))
     revision = get_embedding_model_revision(config, selected_model)
     try:
@@ -409,14 +429,29 @@ def generate_embedding(
             raise ValueError(
                 f"embedding dimension mismatch: expected {expected_dimension}, got {len(vector)}"
             )
-        return vector
+        return {
+            "embedding": vector,
+            **build_embedding_backend_metadata(
+                config,
+                configured_model=selected_model,
+                backend=backend,
+            ),
+        }
     except Exception as exc:
         if get_embedding_failure_policy(config) == EMBEDDING_FAILURE_POLICY_RAISE:
             raise RuntimeError(
                 f"sentence-transformers embedding backend unavailable: {selected_model}@{revision or 'default'}"
             ) from exc
         logger.warning("sentence-transformers backend unavailable; using deterministic fallback", exc_info=True)
-        return _deterministic_local_embedding(text)
+        vector = _deterministic_local_embedding(text)
+        return {
+            "embedding": vector,
+            **build_embedding_backend_metadata(
+                config,
+                configured_model=DETERMINISTIC_EMBEDDING_MODEL,
+                backend="sqlite_deterministic_local",
+            ),
+        }
 
 
 
@@ -502,7 +537,10 @@ def embed_and_store_jobs(
         if key in existing:
             job["embedding_reuse_status"] = REUSED_CACHED_EMBEDDING_STATUS
             continue
-        vector = generate_embedding(chunk["chunk_text"], config)
+        embedding_result = generate_embedding_with_metadata(chunk["chunk_text"], config)
+        vector = list(embedding_result["embedding"])
+        actual_contract_fingerprint = str(embedding_result["contract_fingerprint"])
+        job["embedding_contract_fingerprint"] = actual_contract_fingerprint
         job["embedding_reuse_status"] = FRESH_EMBEDDING_STATUS
         rows.append(
             {
@@ -512,7 +550,7 @@ def embed_and_store_jobs(
                 "embedding_json": json.dumps(vector),
                 "created_at": now,
                 "embedding_input_signature": signature_record["signature"],
-                "embedding_contract_fingerprint": contract_fingerprint,
+                "embedding_contract_fingerprint": actual_contract_fingerprint,
                 "embedding_input_signature_payload_json": signature_record["payload_json"],
             }
         )
@@ -588,5 +626,4 @@ def embed_and_store_candidate(
 
     run_sqlite_io_retry(_write_candidate_embeddings)
     return len(rows)
-
 
