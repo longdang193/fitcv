@@ -362,6 +362,165 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
     stages = [call.args[0].stage for call in mock_append.call_args_list]
     assert stages == ["cv_regenerate_once_started", "cv_regenerate_once_succeeded"]
 
+
+def test_requirement_resolution_refresh_loads_answer_and_closes_review_queue() -> None:
+    from fitcv_cp import worker_job
+    from fitcv_cp.app import _build_hitl_review_queue
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    job_url = "https://example.com/job-sql"
+    run = PipelineRun(
+        run_id="run-resolution-refresh",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        candidate_profile_json=json.dumps(
+            {
+                "candidate_profile_id": "candidate-1",
+                "revision": "7",
+                "schema_version": "candidate-profile.v2",
+            }
+        ),
+        effective_settings_json="{}",
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": job_url,
+                        "status": "review_required",
+                        "review_item_id": "review-sql-1",
+                        "candidate_profile_id": "candidate-1",
+                        "candidate_profile_revision": "7",
+                        "source_profile_fingerprint": "projection-1",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "uncertainty-sql-1",
+                                "requirement_instance_id": "required_skill:sql",
+                                "resolution_key": "required_skill:sql",
+                                "candidate_profile_id": "candidate-1",
+                                "candidate_profile_revision": "7",
+                                "source_profile_fingerprint": "projection-1",
+                            }
+                        ],
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+    )
+    sqlite_store.save_requirement_resolution(
+        {
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "source_profile_fingerprint": "projection-1",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "4 years production SQL"},
+            "actor": "operator",
+        }
+    )
+    analysis = {
+        "status": "ready_for_generation",
+        "fit_classification": "good",
+        "job_url": job_url,
+        "analysis_input_fingerprint": "analysis-resolution-1",
+        "analysis_input_components": {"resolution_id": "resolution-1"},
+        "requirement_coverage": [
+            {
+                "requirement": "3 years production SQL",
+                "selected_support": "verified",
+                "supporting_evidence_ids": ["resolution-1"],
+            }
+        ],
+        "uncertainties": [],
+        "evidence_payload": [{"evidence_id": "resolution-1", "text": "4 years production SQL"}],
+        "evidence_used": ["resolution-1"],
+    }
+    generation = {
+        "status": "accepted",
+        "fit_classification": "good",
+        "markdown_final": "# Truthful CV",
+        "structured_cv_final": {"skills": ["SQL"]},
+        "cv_generation_input_fingerprint": "generation-resolution-1",
+        "cv_generation_reuse_status": "fresh_compute",
+        "model": "model-1",
+    }
+    reserve_results = iter(
+        [
+            {"version_id": "cv-resolution-1", "generation_status": "pending", "idempotent_replay": False},
+            {"version_id": "cv-resolution-1", "generation_status": "generated", "idempotent_replay": True},
+        ]
+    )
+    with patch.object(worker_job, "get_run", return_value=run), \
+         patch.object(worker_job, "build_evidence_projection", return_value={"fingerprint": "projection-1"}), \
+         patch.object(worker_job, "list_run_structured_jobs", return_value=[{
+             "run_job_id": "run-job-sql", "job_url": job_url, "title": "SQL Engineer"
+         }]), \
+         patch.object(worker_job, "reserve_cv_regeneration", side_effect=lambda *_args, **_kwargs: next(reserve_results)), \
+         patch.object(worker_job, "update_cv_version", return_value={
+             "generation_status": "generated", "content_checksum": "checksum-resolution-1"
+         }), \
+         patch.object(worker_job, "insert_cv_evaluation_row"), \
+         patch.object(worker_job, "update_cv_evaluation"), \
+         patch.object(worker_job, "insert_cv_review_event"), \
+         patch.object(worker_job, "analyze_ranked_job", return_value=analysis) as analyze_job, \
+         patch.object(worker_job, "generate_from_analysis", return_value=generation) as generate_cv, \
+         patch.object(worker_job, "update_run_cv_generation_debug") as update_debug, \
+         patch.object(worker_job, "append_event"):
+        worker_job.execute_cv_regenerate_once(
+            run_id=run.run_id,
+            job_url=job_url,
+            actor="operator",
+            idempotency_key="requirement-resolution:resolution-1",
+            action_id="resolution-1",
+        )
+        worker_job.execute_cv_regenerate_once(
+            run_id=run.run_id,
+            job_url=job_url,
+            actor="operator",
+            idempotency_key="requirement-resolution:resolution-1",
+            action_id="resolution-1",
+        )
+
+    analyze_job.assert_called_once()
+    generate_cv.assert_called_once()
+    generated_resolutions = generate_cv.call_args.args[2]["_requirement_resolutions"]
+    assert len(generated_resolutions) == 1
+    assert {
+        key: generated_resolutions[0][key]
+        for key in (
+            "candidate_profile_id",
+            "candidate_profile_revision",
+            "source_profile_fingerprint",
+            "resolution_key",
+            "requirement_instance_id",
+            "resolution_action",
+            "resolution_payload",
+        )
+    } == {
+        "candidate_profile_id": "candidate-1",
+        "candidate_profile_revision": "7",
+        "source_profile_fingerprint": "projection-1",
+        "resolution_key": "required_skill:sql",
+        "requirement_instance_id": "required_skill:sql",
+        "resolution_action": "RESOLVE_WITH_ANSWER",
+        "resolution_payload": {"answer_text": "4 years production SQL"},
+    }
+    assert update_debug.call_count == 1
+    refreshed_payload = json.loads(update_debug.call_args.args[1])
+    refreshed_record = refreshed_payload["debug_records"][0]
+    assert refreshed_record["status"] == "accepted"
+    assert refreshed_record["review_item_id"] == "review-sql-1"
+    assert refreshed_record["uncertainties"] == []
+    run.cv_generation_debug_json = json.dumps(refreshed_payload)
+    queue = _build_hitl_review_queue(run)
+    assert queue["pending_count"] == 0
+
+
 def test_execute_cv_regenerate_once_emits_failed_event_for_missing_record() -> None:
     from fitcv_cp.worker_job import execute_cv_regenerate_once
 
