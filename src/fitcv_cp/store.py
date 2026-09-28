@@ -156,6 +156,9 @@ class RunStore(Protocol):
     def update_cv_evaluation(self, evaluation_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def insert_cv_evaluation_row(self, row: dict[str, Any]) -> dict[str, Any]: ...
     def insert_cv_review_event(self, row: dict[str, Any]) -> dict[str, Any]: ...
+    def save_requirement_resolution(self, row: dict[str, Any]) -> dict[str, Any]: ...
+    def get_requirement_resolution(self, **kwargs: Any) -> dict[str, Any] | None: ...
+    def list_requirement_resolutions(self, **kwargs: Any) -> list[dict[str, Any]]: ...
     def get_cv_download(self, version_id: str) -> dict[str, Any] | None: ...
     def get_cv_preview(self, version_id: str) -> dict[str, Any] | None: ...
     def get_cv_markdown(self, version_id: str) -> str | None: ...
@@ -298,6 +301,9 @@ class ControlPlaneStore:
     update_cv_evaluation_fn: Any | None = None
     insert_cv_evaluation_row_fn: Any | None = None
     insert_cv_review_event_fn: Any | None = None
+    save_requirement_resolution_fn: Any | None = None
+    get_requirement_resolution_fn: Any | None = None
+    list_requirement_resolutions_fn: Any | None = None
     get_cv_download_fn: Any | None = None
     get_cv_preview_fn: Any | None = None
     get_cv_markdown_fn: Any | None = None
@@ -1179,6 +1185,33 @@ class ControlPlaneStore:
             **kwargs,
         )
 
+    def save_requirement_resolution(self, row: dict[str, Any]) -> dict[str, Any]:
+        return self._call_dict(
+            self.save_requirement_resolution_fn,
+            sqlite_store.save_requirement_resolution,
+            row,
+        )
+
+    def get_requirement_resolution(self, **kwargs: Any) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(
+                self.get_requirement_resolution_fn,
+                sqlite_store.get_requirement_resolution,
+                **kwargs,
+            ),
+        )
+
+    def list_requirement_resolutions(self, **kwargs: Any) -> list[dict[str, Any]]:
+        return list(
+            self._call(
+                self.list_requirement_resolutions_fn,
+                sqlite_store.list_requirement_resolutions,
+                **kwargs,
+            )
+            or []
+        )
+
     def insert_cv_evaluation_row(self, row: dict[str, Any]) -> dict[str, Any]:
         return self._call_dict(
             self.insert_cv_evaluation_row_fn,
@@ -1475,7 +1508,5 @@ class ControlPlaneStore:
             sqlite_store.insert_cv_version_row,
             row,
         )
-
-
 
 

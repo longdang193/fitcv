@@ -554,6 +554,49 @@ def test_duration_negation_and_german_context_aliases_fail_closed() -> None:
     assert assessment["qualified_support"] is True
 
 
+def test_qualified_requirement_does_not_transfer_qualifiers_between_skills_in_one_evidence_item() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item(
+            "ev-mixed",
+            ["SQL", "Python"],
+            "4 years production SQL and Python in classroom training",
+        )
+    )
+
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["more than 3 years production SQL"]},
+        1,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": False}}},
+    )
+
+    assert bundle["requirement_support"]["qualified"]["canonical"] == {}
+
+
+def test_qualified_requirement_uses_same_skill_bound_source_fragment() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item(
+            "ev-bound",
+            ["SQL", "Python"],
+            "4 years production SQL; Python used in classroom training",
+        )
+    )
+
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["more than 3 years production SQL"]},
+        1,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": False}}},
+    )
+
+    requirement_ref = build_required_skill_descriptors(
+        {"required_skills": ["more than 3 years production SQL"]}
+    )[0]["requirement_instance_id"]
+    assert bundle["requirement_support"]["qualified"]["canonical"] == {
+        requirement_ref: ["ev-bound"]
+    }
+
+
 def test_requirement_gain_preserves_global_budget_and_weight_zero_matches_baseline() -> None:
     profile = _cached_evidence_profile(
         _cached_evidence_item("ev-broad", ["SQL"], "SQL Python"),
@@ -1811,7 +1854,7 @@ def test_cv_analysis_contract_rejects_v2_requirement_support_policy_fingerprint(
     legacy_payload["requirement_support_policy_version"] = "requirement-support-v2"
     legacy_fingerprint = evidence_module._stable_json_fingerprint(legacy_payload)
 
-    assert current["payload"]["requirement_support_policy_version"] == "requirement-support-v3"
+    assert current["payload"]["requirement_support_policy_version"] == "requirement-support-v4"
     assert current["fingerprint"] != legacy_fingerprint
 
 

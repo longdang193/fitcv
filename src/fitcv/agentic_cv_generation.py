@@ -22,6 +22,7 @@ import hashlib
 import json
 from pathlib import Path
 import os
+import re
 from typing import Any, Callable, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
@@ -62,6 +63,7 @@ from fitcv.pipeline_stages.common import job_identity_keys
 from fitcv.reuse import build_reuse_decision
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 DEFAULT_MAX_SUMMARY_LINES = 3
+CV_CONTENT_PLAN_VERSION = "cv_content_plan_v1"
 
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
 
@@ -123,6 +125,95 @@ class CvGenerationResult(TypedDict, total=False):
     validation_evidence_fingerprint: str
     llm_runtime_observations: list[dict[str, Any]]
     cv_generation_trace: dict[str, Any]
+    content_plan: dict[str, Any]
+    uncertainties: list[dict[str, Any]]
+
+
+def build_cv_content_plan(
+    analysis_record: dict[str, Any],
+    job: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build deterministic approved claims from verified requirement coverage."""
+    evidence = [item for item in list(analysis_record.get("evidence_payload") or []) if isinstance(item, dict)]
+    coverage = [item for item in list(analysis_record.get("requirement_coverage") or []) if isinstance(item, dict)]
+    support_by_evidence: dict[str, list[str]] = {}
+    for row in coverage:
+        if str(row.get("selected_support") or "").strip().lower() != "verified":
+            continue
+        requirement_ref = str(row.get("requirement_instance_id") or row.get("requirement_id") or "").strip()
+        for evidence_id in list(row.get("supporting_evidence_ids") or []):
+            evidence_key = str(evidence_id).strip()
+            if evidence_key and requirement_ref:
+                support_by_evidence.setdefault(evidence_key, []).append(requirement_ref)
+
+    approved_claims: list[dict[str, Any]] = []
+    omitted_evidence: list[dict[str, Any]] = []
+    for item in evidence:
+        evidence_id = str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+        if not evidence_id:
+            continue
+        requirement_ids = list(dict.fromkeys(support_by_evidence.get(evidence_id) or []))
+        if requirement_ids:
+            source_section = str(item.get("source_section") or "").strip().lower()
+            target_section = {
+                "experiences": "experience",
+                "projects": "projects",
+                "education": "education",
+                "certifications": "certifications",
+                "volunteering": "experience",
+            }.get(source_section, "summary")
+            approved_claims.append(
+                {
+                    "claim_id": evidence_id,
+                    "evidence_id": evidence_id,
+                    "claim": str(item.get("text") or item.get("name") or "").strip(),
+                    "supports_requirements": requirement_ids,
+                    "target_section": target_section,
+                    "protected_numbers_dates": _protected_numbers_dates(item),
+                }
+            )
+        else:
+            omitted_evidence.append({"evidence_id": evidence_id, "reason": "no_verified_requirement_support"})
+    plan = {
+        "schema_version": CV_CONTENT_PLAN_VERSION,
+        "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
+        "approved_evidence_ids": [str(item["evidence_id"]) for item in approved_claims],
+        "approved_claims": approved_claims,
+        "supported_requirements": sorted({req for item in approved_claims for req in item["supports_requirements"]}),
+        "target_section": "full_document",
+        "space_budget": {
+            "max_summary_lines": DEFAULT_MAX_SUMMARY_LINES,
+            "enabled_sections": sorted(_get_enabled_section_names(config or {})),
+        },
+        "omitted_evidence": omitted_evidence,
+    }
+    plan["content_fingerprint"] = hashlib.sha256(
+        json.dumps(plan, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    return plan
+
+
+def _protected_numbers_dates(item: dict[str, Any]) -> list[str]:
+    text = str(item.get("text") or item.get("name") or "")
+    return list(dict.fromkeys(re.findall(r"\b(?:\d+(?:[.,]\d+)?|\d{4}|\d{1,2}/\d{4})\b", text)))
+
+
+def merge_repaired_section(
+    existing_cv: dict[str, Any],
+    section_name: str,
+    repaired_section_data: Any,
+) -> dict[str, Any]:
+    allowed = {"header", "summary", "experience", "projects", "education", "skills", "certifications", "publications", "languages"}
+    section = str(section_name or "").strip().lower()
+    if section not in allowed:
+        raise ValueError(f"unknown CV section: {section_name}")
+    merged = deepcopy(existing_cv)
+    sections = merged.setdefault("sections", {})
+    if not isinstance(sections, dict):
+        raise ValueError("structured CV sections must be a mapping")
+    sections[section] = deepcopy(repaired_section_data)
+    return merged
 
 _LIVE_TRACE_SCHEMA_VERSION = "stage_execution_trace_record_v1"
 _LIVE_TRACE_SCHEMA_NAME = "fitcv_structured_cv_document"
@@ -161,6 +252,7 @@ def _build_generation_ready_analysis(
     analysis_record: dict[str, Any],
     profile: dict[str, Any],
     job: dict[str, Any],
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     allowed_claim_ids = [
         str(item.get("evidence_id") or item.get("claim_id") or "")
@@ -223,6 +315,7 @@ def _build_generation_ready_analysis(
                 else "Blocked before generation by FitCV late-stage adapter."
             ),
         },
+        "content_plan": build_cv_content_plan(analysis_record, job, config),
     }
 
 def _augmented_gap_summary_from_analysis(analysis_record: dict[str, Any]) -> dict[str, Any]:
@@ -477,6 +570,10 @@ def _determine_repair_targets(validation: dict[str, Any], structured_cv: dict[st
         repair_targets = list(validation.get("missing_sections") or [])
     if repair_targets:
         return repair_targets
+    if not validation.get("valid"):
+        failing_section = _first_failing_section_key(validation)
+        if failing_section:
+            return [failing_section]
     return _shallow_section_repair_targets(structured_cv)
 
 def _normalize_missing_section_keys(missing_sections: list[str] | None) -> list[str]:
@@ -644,7 +741,27 @@ def _run_repair_cycle(
     repair_targets = _determine_repair_targets(validation, structured_cv)
     if repair_targets:
         repair_attempt = _build_repair_attempt(repair_targets)
-        structured_cv, markdown, validation, retry_provenance = retry_executor(repair_targets)
+        repaired_cv, repaired_markdown, validation, retry_provenance = retry_executor(repair_targets)
+        if isinstance(structured_cv, dict) and isinstance(repaired_cv, dict):
+            for section_name in repair_targets:
+                section_key = str(section_name).strip().lower()
+                repaired_sections = repaired_cv.get("sections")
+                if isinstance(repaired_sections, dict) and section_key in repaired_sections:
+                    structured_cv = merge_repaired_section(
+                        structured_cv,
+                        section_key,
+                        repaired_sections[section_key],
+                    )
+            markdown = render_cv_markdown(structured_cv, config)
+            validation = _run_generation_validations(
+                markdown,
+                profile=profile,
+                config=config,
+                structured_cv=structured_cv,
+                analysis_grounding=analysis_grounding,
+            )
+        else:
+            structured_cv, markdown = repaired_cv, repaired_markdown
         if retry_provenance is not None:
             runtime_provenance = retry_provenance
 
@@ -700,6 +817,7 @@ def _build_fallback_provider_generator(
     config: dict[str, Any],
     fit: str,
     evidence_selection_summary: dict[str, Any],
+    content_plan: dict[str, Any],
 ) -> Callable[[list[str] | None], Any]:
     provider_profile = {
         key: value
@@ -717,6 +835,8 @@ def _build_fallback_provider_generator(
             fit_classification=fit,
             evidence_selection_summary=evidence_selection_summary,
             repair_missing_sections=repair_missing_sections,
+            content_plan=content_plan,
+            target_sections=repair_missing_sections,
         )
 
     return _call
@@ -809,6 +929,8 @@ def build_cv_generation_input_fingerprint(
         "schema_version": _CV_GENERATION_FINGERPRINT_SCHEMA_VERSION,
         "generation_contract_version": _CV_GENERATION_RESULT_CONTRACT_VERSION,
         "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
+        "content_plan": dict(analysis_record.get("content_plan") or {}),
+        "uncertainties": [item for item in list(analysis_record.get("uncertainties") or []) if isinstance(item, dict)],
         "fit_classification": str(analysis_record.get("fit_classification") or ""),
         "prompt_id": get_cv_generation_structured_prompt_id(config),
         "prompt_version": get_cv_generation_prompt_version(config),
@@ -1231,6 +1353,7 @@ def _build_result(
         "validation": validation,
         "outcome_reason": error if status in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
+        "content_plan": dict(analysis_record.get("content_plan") or {}),
     }
     runtime_evidence = [dict(item) for item in (llm_runtime_evidence or []) if isinstance(item, dict)]
     if runtime_evidence:
@@ -1259,6 +1382,7 @@ def _generate_fresh_from_analysis(
     profile: dict[str, Any],
     config: dict[str, Any],
 ) -> CvGenerationResult:
+    analysis_record = dict(analysis_record)
     job = dict(analysis_record.get("job_snapshot") or {})
     if not job:
         job = {
@@ -1298,6 +1422,8 @@ def _generate_fresh_from_analysis(
     gap_summary = _augmented_gap_summary_from_analysis(analysis_record)
     fit = str(fit_classification or "skip")
     evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
+    content_plan = dict(analysis_record.get("content_plan") or build_cv_content_plan(analysis_record, job, config))
+    analysis_record["content_plan"] = content_plan
     runtime_evidence: list[dict[str, Any]] = []
     trace_payload = _empty_cv_generation_trace(
         template_path=str(_resolve_template_path(config)),
@@ -1310,6 +1436,7 @@ def _generate_fresh_from_analysis(
         config=config,
         fit=fit,
         evidence_selection_summary=evidence_selection_summary,
+        content_plan=content_plan,
     )
 
     def _call_provider(
@@ -1481,6 +1608,12 @@ def generate_from_analysis(
 ) -> CvGenerationResult:
     if not isinstance(analysis_record, dict) or not isinstance(profile, dict) or not isinstance(config, dict):
         raise TypeError("analysis_record, profile, and config must be mappings")
+    analysis_record = dict(analysis_record)
+    job = dict(analysis_record.get("job_snapshot") or {})
+    analysis_record.setdefault(
+        "content_plan",
+        build_cv_content_plan(analysis_record, job, config),
+    )
     fingerprint_result = build_cv_generation_input_fingerprint(analysis_record, config)
     if str(analysis_record.get("status") or "") == READY_FOR_GENERATION_STATUS:
         reused = _reusable_result_or_none(

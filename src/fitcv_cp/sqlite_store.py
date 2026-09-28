@@ -1045,6 +1045,23 @@ def _ensure_control_plane_schema(
         created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS requirement_resolutions (
+        resolution_id TEXT PRIMARY KEY,
+        candidate_profile_id TEXT NOT NULL,
+        candidate_profile_revision TEXT NOT NULL,
+        source_profile_fingerprint TEXT NOT NULL,
+        resolution_key TEXT NOT NULL,
+        requirement_instance_id TEXT NOT NULL,
+        resolution_action TEXT NOT NULL CHECK (resolution_action IN ('RESOLVE_WITH_ANSWER', 'CONFIRM_OMIT', 'OVERRIDE_BLOCK')),
+        resolution_payload_json TEXT NOT NULL CHECK (json_valid(resolution_payload_json)),
+        actor TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (candidate_profile_id, candidate_profile_revision, source_profile_fingerprint, resolution_key, requirement_instance_id)
+    );
+    CREATE INDEX IF NOT EXISTS ix_requirement_resolutions_lookup
+        ON requirement_resolutions(candidate_profile_id, candidate_profile_revision, source_profile_fingerprint, resolution_key, requirement_instance_id);
+
     CREATE TABLE IF NOT EXISTS bookmarks (
         bookmark_id TEXT PRIMARY KEY,
         run_id TEXT NOT NULL REFERENCES pipeline_runs(run_id) ON DELETE CASCADE,
@@ -14261,6 +14278,108 @@ def insert_cv_review_event(row: dict[str, Any]) -> dict[str, Any]:
         )
         conn.commit()
     return {**row, "created_at": created_at}
+
+
+def save_requirement_resolution(row: dict[str, Any], *, database_path: Path | None = None) -> dict[str, Any]:
+    now = str(row.get("updated_at") or row.get("created_at") or datetime.datetime.now(datetime.timezone.utc).isoformat())
+    resolution_id = str(row.get("resolution_id") or uuid.uuid4())
+    payload = row.get("resolution_payload")
+    payload_json = str(row.get("resolution_payload_json") or json.dumps(payload if isinstance(payload, dict) else {}, sort_keys=True))
+    values = (
+        resolution_id,
+        str(row.get("candidate_profile_id") or ""),
+        str(row.get("candidate_profile_revision") or ""),
+        str(row.get("source_profile_fingerprint") or ""),
+        str(row.get("resolution_key") or ""),
+        str(row.get("requirement_instance_id") or ""),
+        str(row.get("resolution_action") or ""),
+        payload_json,
+        str(row.get("actor") or "system"),
+        str(row.get("created_at") or now),
+        now,
+    )
+    with _sqlite_connection(database_path or Path(_local_sqlite_path())) as conn:
+        conn.execute(
+            """INSERT INTO requirement_resolutions (
+                resolution_id, candidate_profile_id, candidate_profile_revision,
+                source_profile_fingerprint, resolution_key, requirement_instance_id,
+                resolution_action, resolution_payload_json, actor, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(candidate_profile_id, candidate_profile_revision, source_profile_fingerprint, resolution_key, requirement_instance_id)
+            DO UPDATE SET resolution_action=excluded.resolution_action,
+                          resolution_payload_json=excluded.resolution_payload_json,
+                          actor=excluded.actor, updated_at=excluded.updated_at""",
+            values,
+        )
+        conn.row_factory = sqlite3.Row
+        result = conn.execute(
+            """SELECT * FROM requirement_resolutions
+               WHERE candidate_profile_id=? AND candidate_profile_revision=?
+                 AND source_profile_fingerprint=? AND resolution_key=?
+                 AND requirement_instance_id=?""",
+            values[1:6],
+        ).fetchone()
+        conn.commit()
+    result_dict = dict(result) if result else {"resolution_id": resolution_id}
+    result_dict["resolution_payload"] = _decode_json_or_none(result_dict.get("resolution_payload_json")) or {}
+    return result_dict
+
+
+def get_requirement_resolution(
+    *,
+    candidate_profile_id: str,
+    candidate_profile_revision: str,
+    source_profile_fingerprint: str,
+    resolution_key: str,
+    requirement_instance_id: str,
+    database_path: Path | None = None,
+    **_kwargs: Any,
+) -> dict[str, Any] | None:
+    with _sqlite_connection(database_path or Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """SELECT * FROM requirement_resolutions
+               WHERE candidate_profile_id=? AND candidate_profile_revision=?
+                 AND source_profile_fingerprint=? AND resolution_key=?
+                 AND requirement_instance_id=?""",
+            (
+                candidate_profile_id,
+                candidate_profile_revision,
+                source_profile_fingerprint,
+                resolution_key,
+                requirement_instance_id,
+            ),
+        ).fetchone()
+    if row is None:
+        return None
+    result = dict(row)
+    result["resolution_payload"] = _decode_json_or_none(result.get("resolution_payload_json")) or {}
+    return result
+
+
+def list_requirement_resolutions(
+    *,
+    candidate_profile_id: str,
+    candidate_profile_revision: str,
+    source_profile_fingerprint: str,
+    database_path: Path | None = None,
+    **_kwargs: Any,
+) -> list[dict[str, Any]]:
+    with _sqlite_connection(database_path or Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT * FROM requirement_resolutions
+               WHERE candidate_profile_id=? AND candidate_profile_revision=?
+                 AND source_profile_fingerprint=?
+               ORDER BY resolution_key, requirement_instance_id""",
+            (candidate_profile_id, candidate_profile_revision, source_profile_fingerprint),
+        ).fetchall()
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        item["resolution_payload"] = _decode_json_or_none(item.get("resolution_payload_json")) or {}
+        result.append(item)
+    return result
 
 
 def get_cv_download(version_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] | None:

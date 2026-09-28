@@ -585,6 +585,8 @@ def _build_generation_prompt_context(
     config: dict[str, Any] | None,
     evidence_selection_summary: dict[str, Any] | None,
     repair_missing_sections: list[str] | None,
+    content_plan: dict[str, Any] | None,
+    target_sections: list[str] | None,
 ) -> dict[str, str]:
     title = str(jd.get("title") or "")
     required_skills = list(jd.get("required_skills") or [])
@@ -732,6 +734,17 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "Do not leave required sections empty. Each required section must contain at least one grounded line or bullet."
         )
+    if content_plan:
+        constraint_lines.append(
+            "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
+            + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
+        )
+    if target_sections:
+        normalized_targets = [str(item).strip().lower() for item in target_sections if str(item).strip()]
+        constraint_lines.append(
+            "Return and modify only these section keys: " + ", ".join(normalized_targets)
+        )
+        constraint_lines.append("Do not return unrelated sections or alter their content.")
 
     if config is not None:
         composition = (config.get("cv") or {}).get("composition") or {}
@@ -1489,6 +1502,8 @@ def build_structured_generation_prompt(
     config: dict[str, Any] | None = None,
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
+    content_plan: dict[str, Any] | None = None,
+    target_sections: list[str] | None = None,
 ) -> str:
     structured_schema = textwrap.dedent(
         """\
@@ -1521,6 +1536,8 @@ def build_structured_generation_prompt(
         config=config,
         evidence_selection_summary=evidence_selection_summary,
         repair_missing_sections=repair_missing_sections,
+        content_plan=content_plan,
+        target_sections=target_sections,
     )
     prompt_id = get_cv_generation_structured_prompt_id(config or {})
     return render_prompt(
@@ -1551,6 +1568,8 @@ def build_generation_prompt(
     config: dict[str, Any] | None = None,
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
+    content_plan: dict[str, Any] | None = None,
+    target_sections: list[str] | None = None,
 ) -> str:
     """Assemble the full LLM prompt for CV generation.
 
@@ -1571,6 +1590,8 @@ def build_generation_prompt(
         config=config,
         evidence_selection_summary=evidence_selection_summary,
         repair_missing_sections=repair_missing_sections,
+        content_plan=content_plan,
+        target_sections=target_sections,
     )
     return render_prompt(
         LEGACY_MARKDOWN_PROMPT_ID,
@@ -1808,6 +1829,8 @@ def _execute_cv_generation_runtime(
     fit_classification: str,
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
+    content_plan: dict[str, Any] | None = None,
+    target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
     adapter: LlmAdapter | None = None,
@@ -1835,6 +1858,8 @@ def _execute_cv_generation_runtime(
         config=config,
         evidence_selection_summary=evidence_selection_summary,
         repair_missing_sections=repair_missing_sections,
+        content_plan=content_plan,
+        target_sections=target_sections,
     )
     request = LlmTaskRequest(
         routing_part="cv_generation_structured_write",
@@ -1903,6 +1928,8 @@ def generate_structured_cv(
     fit_classification: str,
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
+    content_plan: dict[str, Any] | None = None,
+    target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
 ) -> dict[str, Any]:
@@ -1917,6 +1944,8 @@ def generate_structured_cv(
             fit_classification=fit_classification,
             evidence_selection_summary=evidence_selection_summary,
             repair_missing_sections=repair_missing_sections,
+            content_plan=content_plan,
+            target_sections=target_sections,
             authorized_profile=authorized_profile,
             max_output_tokens=max_output_tokens,
         )
@@ -1934,6 +1963,8 @@ def generate_cv(
     fit_classification: str = "unclassified",
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
+    content_plan: dict[str, Any] | None = None,
+    target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
 ) -> dict[str, Any]:
@@ -1948,6 +1979,8 @@ def generate_cv(
             fit_classification=fit_classification,
             evidence_selection_summary=evidence_selection_summary,
             repair_missing_sections=repair_missing_sections,
+            content_plan=content_plan,
+            target_sections=target_sections,
             authorized_profile=authorized_profile,
             max_output_tokens=max_output_tokens,
         )

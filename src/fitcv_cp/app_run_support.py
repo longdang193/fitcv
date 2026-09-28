@@ -260,6 +260,10 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
                 "provider_name": str(_latest_llm_runtime_provenance(record).get("provider") or ""),
                 "model_name": str(record.get("cv_generation_model") or ""),
                 "request_id": _extract_review_required_request_id(record),
+                "uncertainties": [item for item in list(record.get("uncertainties") or []) if isinstance(item, dict)],
+                "candidate_profile_id": str(record.get("candidate_profile_id") or ""),
+                "candidate_profile_revision": str(record.get("candidate_profile_revision") or ""),
+                "source_profile_fingerprint": str(record.get("source_profile_fingerprint") or ""),
             }
         )
     if not rows:

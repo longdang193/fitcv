@@ -278,6 +278,15 @@ unchanged when old payloads are read.
 The trace is bounded. It stores no chain-of-thought, full prompt body, raw
 provider response, headers, credentials, or secrets.
 
+Generation debug records expose `cv_content_plan_v1`, content fingerprint,
+approved evidence IDs, omitted evidence reasons, target sections, and repair
+trace. Review-required exports expose actionable uncertainty rows and explicit
+resolution actions without exposing private source documents. Resolution reuse
+is valid only for matching candidate profile revision and source fingerprint;
+stale rows remain pending.
+Resolution re-analysis records the bounded queue job ID and completion time in
+the affected debug record, preserving the original review item identity.
+
 ### Timeline and event reasoning
 
 The timeline in run detail and the raw event stream are the best way to inspect:
@@ -479,4 +488,3 @@ Backfill command behavior:
 - [usage.md](usage.md)
 - [pipeline.md](pipeline.md)
 - [architecture.md](architecture.md)
-

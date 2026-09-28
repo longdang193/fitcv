@@ -24,6 +24,9 @@ TERMINAL_REVIEW_RESOLUTION_STATUSES = {
     "rejected",
     "regenerated_and_accepted",
     "regenerated_and_rejected",
+    "resolved_with_answer",
+    "confirmed_omit",
+    "override_block",
 }
 
 def normalize_review_resolution_status(action_name: Any, explicit_status: Any) -> str:
@@ -37,6 +40,12 @@ def normalize_review_resolution_status(action_name: Any, explicit_status: Any) -
         return "rejected"
     if normalized_action == "regenerate_once":
         return "regeneration_requested"
+    if normalized_action == "RESOLVE_WITH_ANSWER":
+        return "resolved_with_answer"
+    if normalized_action == "CONFIRM_OMIT":
+        return "confirmed_omit"
+    if normalized_action == "OVERRIDE_BLOCK":
+        return "override_block"
     return "pending"
 
 

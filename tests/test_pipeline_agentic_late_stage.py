@@ -24,9 +24,51 @@ from fitcv.agentic_cv_generation import (
     _backfill_required_sections_from_profile,
     _shallow_section_repair_targets,
     build_cv_generation_input_fingerprint,
+    build_cv_content_plan,
     generate_from_analysis,
+    merge_repaired_section,
     transition_cv_generation_persistence_failed,
 )
+
+
+def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
+    analysis = {
+        "analysis_input_fingerprint": "analysis-1",
+        "evidence_payload": [
+            {"evidence_id": "ev-sql", "text": "Built SQL pipelines", "source_section": "experiences"},
+            {"evidence_id": "ev-python", "text": "Built Python service", "source_section": "projects"},
+        ],
+        "requirement_coverage": [
+            {
+                "requirement_instance_id": "required_skill:sql",
+                "requirement": "SQL",
+                "selected_support": "verified",
+                "supporting_evidence_ids": ["ev-sql"],
+            },
+            {
+                "requirement_instance_id": "required_skill:python",
+                "requirement": "Python",
+                "selected_support": "unsupported",
+                "supporting_evidence_ids": [],
+            },
+        ],
+    }
+
+    plan = build_cv_content_plan(analysis, {"required_skills": ["SQL", "Python"]}, {})
+
+    assert plan["schema_version"] == "cv_content_plan_v1"
+    assert plan["approved_evidence_ids"] == ["ev-sql"]
+    assert plan["approved_claims"][0]["supports_requirements"] == ["required_skill:sql"]
+    assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-python"}
+
+
+def test_merge_repaired_section_preserves_unrequested_sections() -> None:
+    original = {"sections": {"summary": {"text": "keep"}, "experience": [{"role": "old"}]}}
+
+    merged = merge_repaired_section(original, "experience", [{"role": "new"}])
+
+    assert merged["sections"]["summary"] == {"text": "keep"}
+    assert merged["sections"]["experience"] == [{"role": "new"}]
 from fitcv_cp.backend_runtime import set_backend_runtime
 
 
