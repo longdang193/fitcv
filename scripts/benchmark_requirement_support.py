@@ -637,7 +637,7 @@ def _run_validation(
     return result, (time.perf_counter() - started) * 1000
 
 
-def _fixture_sha256(path: Path) -> str:
+def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -998,6 +998,32 @@ def run_benchmark(
     ]
     aggregate = _aggregate_scenario_metrics(scenario_results)
     timing_keys = tuple(scenario_results[0]["timing_ms"])
+    validation_counts = {
+        "passed": sum(
+            int(result["validation"].get("passed_cases") or 0)
+            for result in scenario_results
+        ),
+        "not_applicable": sum(
+            int(result["validation"].get("not_applicable_cases") or 0)
+            for result in scenario_results
+        ),
+    }
+    validation_counts["failed"] = sum(
+        max(
+            0,
+            int(result["validation"].get("case_count") or 0)
+            - int(result["validation"].get("not_applicable_cases") or 0)
+            - int(result["validation"].get("passed_cases") or 0),
+        )
+        for result in scenario_results
+    )
+    validation_counts["skipped"] = 0
+    commit_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
+    ).strip()
+    fixture_sha256 = _sha256_file(fixture_path)
+    policy_sha256 = _sha256_file(policy_path)
+    script_sha256 = _sha256_file(Path(__file__))
     return {
         "arm": {
             "production": "production",
@@ -1006,10 +1032,19 @@ def run_benchmark(
             "lexical": "lexical-requirement-aware",
         }.get(arm, arm),
         "evaluation_schema_version": int(fixture["evaluation_schema_version"]),
-        "implementation_ref": subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
-        ).strip(),
-        "fixture_sha256": _fixture_sha256(fixture_path),
+        "implementation_ref": commit_sha,
+        "fixture_sha256": fixture_sha256,
+        "benchmark_metadata": {
+            "commit_sha": commit_sha,
+            "benchmark_script_sha256": script_sha256,
+            "policy_version": f"sha256:{policy_sha256}",
+            "fixture_sha256": fixture_sha256,
+            "dataset_size": len(scenarios),
+            "arm": arm,
+            "warmup_runs": warmups,
+            "measured_runs": runs,
+            "validation_counts": validation_counts,
+        },
         "scenario_set": [result["scenario_id"] for result in scenario_results],
         "scenario_count": len(scenario_results),
         "workload_count": len(scenario_results),

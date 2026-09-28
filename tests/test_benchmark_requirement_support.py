@@ -159,6 +159,27 @@ def test_benchmark_executes_each_scenario_once_per_run() -> None:
     assert result["workload_count"] == result["scenario_count"]
 
 
+def test_benchmark_records_reproducibility_metadata() -> None:
+    module = _benchmark_module()
+    result = module.run_benchmark(
+        arm="production",
+        fixture_path=FIXTURE_PATH,
+        runs=1,
+        warmups=0,
+    )
+
+    metadata = result["benchmark_metadata"]
+    assert metadata["commit_sha"] == result["implementation_ref"]
+    assert len(metadata["benchmark_script_sha256"]) == 64
+    assert metadata["policy_version"].startswith("sha256:")
+    assert metadata["fixture_sha256"] == result["fixture_sha256"]
+    assert metadata["dataset_size"] == result["scenario_count"]
+    assert metadata["arm"] == "production"
+    assert metadata["warmup_runs"] == 0
+    assert metadata["measured_runs"] == 1
+    assert metadata["validation_counts"]["skipped"] == 0
+
+
 def test_tight_top_k_exposes_requirement_gain_ranking_conflict() -> None:
     module = _benchmark_module()
     results = {

@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import statistics
 import sys
 import time
@@ -16,6 +17,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from fitcv.ranking import rank_jobs
+from fitcv.embeddings import (
+    DEFAULT_SENTENCE_TRANSFORMERS_MODEL,
+    DEFAULT_SENTENCE_TRANSFORMERS_REVISION,
+    SENTENCE_TRANSFORMERS_BACKEND,
+    embed_and_store_jobs,
+)
 from fitcv.vector_search import LEXICAL_RETRIEVAL_STRATEGY, VECTOR_RETRIEVAL_STRATEGY, run_vector_search
 
 _EVALUATOR_FIELDS = {
@@ -189,7 +196,8 @@ def _run_once(
     fallback_count = 0
     effective_strategies: set[str] = set()
     backend_ids: set[str] = set()
-    requested_strategy = VECTOR_RETRIEVAL_STRATEGY if arm == "incumbent" else LEXICAL_RETRIEVAL_STRATEGY
+    backend_metadata: dict[str, Any] = {}
+    requested_strategy = VECTOR_RETRIEVAL_STRATEGY if arm in {"incumbent", "multilingual"} else LEXICAL_RETRIEVAL_STRATEGY
     for profile_id, pool in profiles.items():
         source_rows = list(pool["candidates"])
         eligible_count += len(source_rows)
@@ -206,6 +214,17 @@ def _run_once(
             pool,
             requested_strategy=requested_strategy,
         )
+        if arm == "multilingual":
+            request["config"].update(
+                {
+                    "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+                    "shortlist_embedding_model": DEFAULT_SENTENCE_TRANSFORMERS_MODEL,
+                    "embedding_model_revision": DEFAULT_SENTENCE_TRANSFORMERS_REVISION,
+                    "embedding_dimension": 384,
+                    "embedding_failure_policy": "raise",
+                }
+            )
+            embed_and_store_jobs(request["structured_jobs"], request["config"])
         retrieval = run_vector_search(
             request["profile"],
             request["job_urls"],
@@ -218,6 +237,11 @@ def _run_once(
         fallback_count += int(bool(diagnostics.get("fallback_used")))
         effective_strategies.add(str(diagnostics.get("effective_strategy") or ""))
         backend_ids.add(str(diagnostics.get("backend_id") or ""))
+        backend_metadata = {
+            key: diagnostics.get(key)
+            for key in ("backend_id", "configured_model", "dimension", "model_revision", "preprocessing_version", "contract_fingerprint")
+            if key in diagnostics
+        }
         source_ids_by_url: dict[str, str] = {}
         for source in source_rows:
             candidate_id = str(source["candidate_id"])
@@ -324,6 +348,7 @@ def _run_once(
             "requested_strategy": requested_strategy,
             "effective_strategies": sorted(effective_strategies),
             "backend_ids": sorted(backend_ids),
+            "backend": backend_metadata,
         },
     )
 
@@ -345,34 +370,38 @@ def main() -> None:
     fixture_path = Path(args.fixture)
     fixture_sha256 = _fixture_sha256(fixture_path)
 
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
     if args.arm == "multilingual":
-        result = {
-            "schema_version": "ranking_benchmark_v3",
-            "arm": "multilingual",
-            "status": "not_run",
-            "reason": "approved multilingual retrieval backend unavailable",
-            "fixture": str(args.fixture),
-            "fixture_sha256": fixture_sha256,
-        }
-        output = Path(args.output)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-        print(json.dumps(result, separators=(",", ":")))
-        return
+        os.environ["FITCV_CP_SQLITE_PATH"] = str(output.with_suffix(".sqlite3"))
 
     data = json.loads(fixture_path.read_text(encoding="utf-8"))
     profiles = data["profiles"]
     cache: set[str] = set()
-    for _ in range(args.warmup_iterations):
-        _run_once(profiles, cache, arm=args.arm)
-    durations: list[float] = []
-    quality: dict[str, float] = {}
-    cache_metrics: dict[str, int] = {}
-    observation: dict[str, Any] = {}
-    for _ in range(args.measured_iterations):
-        started = time.perf_counter()
-        quality, cache_metrics, observation = _run_once(profiles, cache, arm=args.arm)
-        durations.append((time.perf_counter() - started) * 1000)
+    try:
+        for _ in range(args.warmup_iterations):
+            _run_once(profiles, cache, arm=args.arm)
+        durations: list[float] = []
+        quality: dict[str, float] = {}
+        cache_metrics: dict[str, int] = {}
+        observation: dict[str, Any] = {}
+        for _ in range(args.measured_iterations):
+            started = time.perf_counter()
+            quality, cache_metrics, observation = _run_once(profiles, cache, arm=args.arm)
+            durations.append((time.perf_counter() - started) * 1000)
+
+    except RuntimeError as exc:
+        result = {
+            "schema_version": "ranking_benchmark_v3",
+            "arm": "multilingual",
+            "status": "not_run",
+            "reason": str(exc),
+            "fixture": str(args.fixture),
+            "fixture_sha256": fixture_sha256,
+        }
+        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(result, separators=(",", ":")))
+        return
 
     cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
     result = {
@@ -391,6 +420,7 @@ def main() -> None:
                 "requested_strategy": observation["requested_strategy"],
                 "effective_strategies": observation["effective_strategies"],
                 "backend_ids": observation["backend_ids"],
+                "backend": observation["backend"],
                 "fallback_count": observation["fallback_count"],
                 "top_n": observation["shortlist_top_n"],
                 "returned_count": observation["retrieval_returned_count"],
