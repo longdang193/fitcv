@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: blocked
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-p0-p1-closeout
@@ -127,9 +127,9 @@ retrieval and evidence-selection strategy.
 | Task 1 | completed | current | codex | none | canonical P0-C tests | `157 passed`; checkpoint `515426f8` |
 | Task 2 | completed | current | codex | Task 1 | resolution lifecycle trace | `822 passed`; loader/persistence guards pass |
 | Task 3 | completed | current | codex | Tasks 1–2 | writer-context and repair tests | `230 passed`; filtering metrics recorded |
-| Task 4 | blocked | current | codex | Task 1 | held-out ranking report | measured DE/EN; multilingual backend unavailable |
+| Task 4 | blocked | current | codex | Task 1 | held-out ranking report | measured DE/EN; multilingual backend unavailable; fixture hash now bound to every report |
 | Task 5 | blocked | current | codex | Task 1 | qualified-support comparison | equal arms; reviewed coverage insufficient for promotion |
-| Task 6 | completed | current | codex | Tasks 2–5 | final suites and scorecard | `2858 passed, 4 skipped`; diff-check clean; P0-A/P0-B promotion blockers recorded |
+| Task 6 | completed | current | codex | Tasks 2–5 | final suites and scorecard | `2860 passed, 4 skipped`; diff-check clean; P0-A/P0-B promotion blockers recorded |
 
 ## Task Breakdown
 
@@ -340,12 +340,12 @@ Steps:
 - [ ] Step 1: Expand or replace the P0-A source-backed fixture to 100–300 jobs across German and English with reviewed relevant, borderline, and irrelevant labels, calibration/held-out splits, and valid manifest hashes. **Blocked:** current source-backed fixture lacks promotion-grade mixed-label review coverage.
 - [x] Step 2: Run incumbent and lexical arms with uv run python scripts/benchmark_ranking.py --fixture data/fitcv-p0-corpus/p0a/ranking_source_backed.json --arm incumbent --warmup-iterations 5 --measured-iterations 30 --output .tmp/p0a-incumbent.json and the equivalent --arm lexical command.
 - [x] Step 3: Run the multilingual arm with the same fixture and iteration counts; record not_run and backend-unavailable reason if no approved encoder is available.
-- [x] Step 4: Report held-out Recall@N, Precision@N, nDCG, language split metrics, cold/warm p50/p95, fallback count, backend/storage overhead, and correctness status.
+- [x] Step 4: Report held-out Recall@N, Precision@N, nDCG, language split metrics, cold/warm p50/p95, fallback count, backend/storage overhead, correctness status, and `fixture_sha256` bound to report bytes.
 - [x] Step 5: Choose incumbent retention or one production strategy only when held-out quality and operational thresholds are met; otherwise retain incumbent and record the missing evidence.
 
 Verification:
-- [ ] uv run pytest -q tests/test_ranking_evaluation.py tests/test_p0_public_corpus.py
-- [ ] Run all three benchmark commands above and inspect JSON schema/status.
+- [x] uv run pytest -q tests/test_ranking_evaluation.py tests/test_p0_public_corpus.py
+- [x] Run all three benchmark commands above and inspect JSON schema/status, including matching `fixture_sha256`.
 - Expected: no all-positive shortcut, held-out metrics are present for measured arms, unavailable arms are explicit, and production defaults remain unchanged until a recorded decision passes.
 
 Exit Criteria:
@@ -400,8 +400,11 @@ Steps:
 - [x] Step 5: If semantic scoring does not earn its cost, remove only after report approval: hash embeddings, semantic weights, cache/settings knobs, and dependent diagnostics/fingerprints. Keep rollback evidence. **No deletion: fixture does not earn simplification decision.**
 
 Verification:
-- [ ] uv run pytest -q tests/test_evidence.py tests/test_benchmark_requirement_support.py tests/test_compare_rag_impact.py
-- [ ] uv run python scripts/benchmark_requirement_support.py --arm production --runs 50 --warmups 5 --output .tmp/p0b-production.json`r`n- [ ] uv run python scripts/benchmark_requirement_support.py --arm full_pool_diagnostic --runs 50 --warmups 5 --output .tmp/p0b-full-pool.json`r`n- [ ] uv run python scripts/benchmark_requirement_support.py --arm lexical_only --runs 50 --warmups 5 --output .tmp/p0b-lexical-only.json`r`n- [ ] Preserve JSON outputs under .tmp/ and write one comparison report.
+- [x] uv run pytest -q tests/test_evidence.py tests/test_benchmark_requirement_support.py tests/test_compare_rag_impact.py
+- [x] uv run python scripts/benchmark_requirement_support.py --arm production --runs 50 --warmups 5 --output .tmp/p0b-production.json
+- [x] uv run python scripts/benchmark_requirement_support.py --arm full_pool_diagnostic --runs 50 --warmups 5 --output .tmp/p0b-full-pool.json
+- [x] uv run python scripts/benchmark_requirement_support.py --arm lexical_only --runs 50 --warmups 5 --output .tmp/p0b-lexical-only.json
+- [x] Preserve JSON outputs under .tmp/ and write one comparison report.
 - Expected: selected support never borrows qualifiers across evidence; comparison distinguishes measured, blocked, and not_applicable arms; no production change occurs without threshold evidence.
 
 Exit Criteria:
@@ -451,7 +454,7 @@ Verification:
 - [x] uv run pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_cv_generator.py tests/test_pipeline_agentic_late_stage.py tests/test_pipeline.py tests/test_validator.py tests/test_cv_generation_reason_mapping.py
 - [x] uv run pytest -q tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py
 - [x] uv run pytest -q tests/test_ranking_evaluation.py tests/test_benchmark_requirement_support.py tests/test_p0_public_corpus.py
-- [x] uv run pytest -q — `2858 passed, 4 skipped, 52 warnings`
+- [x] uv run pytest -q — `2860 passed, 4 skipped, 52 warnings`
 - [x] git diff --check
 - [x] git status --short --branch
 - Expected: required suites pass; full-suite failures are fixed or recorded with root cause; no stale hashes, unsupported claim, false verification, broken resolution lifecycle, or unmeasured promotion remains.
@@ -497,10 +500,11 @@ approval. Preserve benchmark reports and failing test output for diagnosis.
 ## Evidence
 
 Plan created 2026-09-28 from verdict review and source inspection on main at
-8d646c357cc3a54966d7cb380c0d96cf448176a. Current source is clean. Existing
+8d646c357cc3a54966d7cb380c0d96cf448176a. Initial source baseline was clean. Existing
 completed plan docs/superpowers/plans/2026-09-28-fitcv-p0c-p1ab-implementation-plan.md
 contains historical execution claims but is not treated as current source truth
 when current code contradicts it.
 Three independent reviews accepted the concrete test-path, benchmark-arm, and checkpoint-lifecycle fixes. The review suggestion to defer P0-A/P0-B decision work was rejected because the supplied verdict explicitly requires those offline experiments and labels before closeout.
+The follow-up stale-report defect was traced to `scripts/benchmark_ranking.py` recording fixture paths without byte hashes; both measured and `not_run` report branches now emit `fixture_sha256`, with focused regression proof. Remaining plan progress is blocked until promotion-grade reviewed P0-A/P0-B labels and an approved multilingual backend exist; no labels or provider results were fabricated.
 
 

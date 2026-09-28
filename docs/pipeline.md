@@ -67,6 +67,8 @@ measured incumbent and lexical arms, while multilingual retrieval was
 `full_pool_diagnostic`, and `lexical_only` arms measured equal qualified-support
 recall on the current fixture; production defaults remain unchanged pending
 broader reviewed labels.
+- P0-A ranking reports include `fixture_sha256`; reports without a matching
+  fixture hash are stale and must not support a fresh decision.
 
 ### CV Content Plan and Repair
 

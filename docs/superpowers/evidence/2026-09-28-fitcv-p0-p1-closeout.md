@@ -31,8 +31,10 @@ Plan: `docs/superpowers/plans/2026-09-28-fitcv-p0-p1-closeout-plan.md`
 
 Fixture: `data/fitcv-p0-corpus/p0a/ranking_source_backed.json`.
 
-- Incumbent: held-out ranking Recall@12 `0.15`, Precision@12 `1.0`, nDCG `0.234500`, p50/p95 `27.77/49.70 ms`, fallback count `2`.
-- Lexical: held-out ranking Recall@12 `0.15`, Precision@12 `1.0`, nDCG `0.234500`, p50/p95 `4.41/7.04 ms`, fallback count `0`.
+- Fixture SHA-256: `f80f37c407036008a7babc14e6a754cd21d9736373442f4bb2c4a81dba4af0c8`.
+
+- Incumbent: held-out ranking Recall@12 `0.15`, Precision@12 `1.0`, nDCG `0.234500`, p50/p95 `34.08/50.49 ms`, fallback count `2`.
+- Lexical: held-out ranking Recall@12 `0.15`, Precision@12 `1.0`, nDCG `0.234500`, p50/p95 `5.89/8.04 ms`, fallback count `0`.
 - Multilingual: `not_run`; reason `approved multilingual retrieval backend unavailable`.
 - Decision: retain incumbent production request/default contract; do not promote lexical or multilingual without broader held-out evidence and approved multilingual backend.
 - Artifacts: `.tmp/p0a-incumbent.json`, `.tmp/p0a-lexical.json`, `.tmp/p0a-multilingual.json`.
@@ -65,4 +67,4 @@ P1-C, P2, GraphRAG, advanced routing, extra agents, and unmeasured retrieval pro
 | Full/section regenerations | Offline fixture proves bounded section path; no live regeneration sample | partial |
 | Questions avoided | No live paired workload available | not_run |
 | Accepted-CV rate and economics | No live provider cost or accepted-CV denominator available | not_applicable |
-| Full verification | `uv run pytest -q`: `2858 passed, 4 skipped, 52 warnings`; `git diff --check` clean | measured |
+| Full verification | `uv run pytest -q`: `2860 passed, 4 skipped, 52 warnings`; `git diff --check` clean | measured |
