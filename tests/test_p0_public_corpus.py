@@ -106,6 +106,11 @@ def test_public_p0b_reviewed_rows_join_to_admitted_p0a_jobs() -> None:
     assert all(row["provenance"]["requirement"]["source_record_id"] in admitted_ids for row in rows)
     assert manifest["sha256"] == __import__("hashlib").sha256(reviewed.read_bytes()).hexdigest()
     assert manifest["records"] == len(rows)
+    assert manifest["requirement_instances"] == len({row["requirement_instance_id"] for row in rows})
+    assert manifest["evidence_ids"] == len({row["evidence_id"] for row in rows})
+    assert manifest["requirement_evidence_pairs"] == len({
+        (row["requirement_instance_id"], row["evidence_id"]) for row in rows
+    })
 
 
 def test_public_p0b_adjudicated_relevance_labels_cover_mixed_cases() -> None:

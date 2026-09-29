@@ -4,7 +4,7 @@
   "path": "data/fitcv-p0-corpus/p0b/reviewed_requirement_evidence.jsonl",
   "sha256": "e4ffc9ade4fa8834b8f7052d0577fbc9d3fb04e02be28d250ad34ae8a1efbdcb",
   "records": 8,
-  "requirement_instances": 6,
+  "requirement_instances": 5,
   "evidence_ids": 7,
   "requirement_evidence_pairs": 8,
   "source_jobs": [

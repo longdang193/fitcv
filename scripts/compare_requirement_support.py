@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -17,10 +18,10 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def _validate_compatibility(payloads: list[dict[str, Any]]) -> None:
-    fixture_hashes = {str(payload.get("fixture_sha256") or "") for payload in payloads}
+    fixture_hashes = {str(payload.get("fixture_sha256") or "").strip() for payload in payloads}
     top_ks = {json.dumps(payload.get("top_k"), sort_keys=True) for payload in payloads}
-    if len(fixture_hashes) != 1:
-        raise ValueError("Benchmark outputs use different fixture SHA-256 values")
+    if len(fixture_hashes) != 1 or "" in fixture_hashes:
+        raise ValueError("Benchmark outputs use missing or different fixture SHA-256 values")
     if len(top_ks) != 1:
         raise ValueError("Benchmark outputs use different top_k values")
 
@@ -67,19 +68,43 @@ def _impact_delta(left: dict[str, Any], right: dict[str, Any], metric: str, stag
     return round(float(right_value) - float(left_value), 6)
 
 
+def _required_selected_metric(metrics: dict[str, Any], metric: str) -> float:
+    value = metrics.get("micro_coverage", {}).get(metric, {}).get("selected")
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 1:
+        raise ValueError(f"Benchmark output missing selected {metric} metric")
+    return float(value)
+
+
+def _validate_current_payload(payload: dict[str, Any]) -> None:
+    support = payload.get("requirement_support")
+    if not isinstance(support, dict) or not isinstance(support.get("incorrect_pairs"), list):
+        raise ValueError("Benchmark output missing explicit incorrect_pairs list")
+    metrics = _current_metrics(payload)
+    _required_selected_metric(metrics, "requirement_recall")
+    _required_selected_metric(metrics, "evidence_pair_recall")
+
+
 def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
     if len(input_paths) < 2:
         raise ValueError("at least two benchmark inputs are required")
     payloads = [_load_json(path) for path in input_paths]
     _validate_impact_compatibility(payloads)
-    by_arm = {str(payload.get("arm") or ""): payload for payload in payloads}
+    arms = [str(payload.get("arm") or "").strip() for payload in payloads]
+    if any(not arm for arm in arms):
+        raise ValueError("Benchmark inputs missing arm provenance")
+    if len(arms) != len(set(arms)):
+        raise ValueError("Benchmark inputs contain duplicate arm provenance")
+    by_arm = dict(zip(arms, payloads))
     if {"production", "full_pool_diagnostic"}.issubset(by_arm):
-        metrics = {
-            arm: _current_metrics(by_arm[arm])
-            for arm in ("production", "full_pool_diagnostic")
-        }
+        for payload in by_arm.values():
+            _validate_current_payload(payload)
+        metrics = {arm: _current_metrics(payload) for arm, payload in by_arm.items()}
         production_metrics = metrics["production"]
         full_pool_metrics = metrics["full_pool_diagnostic"]
+        production_requirement_recall = _required_selected_metric(production_metrics, "requirement_recall")
+        full_pool_requirement_recall = _required_selected_metric(full_pool_metrics, "requirement_recall")
+        production_evidence_pair_recall = _required_selected_metric(production_metrics, "evidence_pair_recall")
+        full_pool_evidence_pair_recall = _required_selected_metric(full_pool_metrics, "evidence_pair_recall")
         return {
             "evaluation_schema_version": 1,
             "fixture_sha256": payloads[0].get("fixture_sha256"),
@@ -91,24 +116,29 @@ def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
                     "from": "production",
                     "to": "full_pool_diagnostic",
                     "qualified_requirement_recall_non_decreasing": (
-                        float(full_pool_metrics["micro_coverage"].get("requirement_recall", {}).get("selected") or 0.0)
-                        >= float(production_metrics["micro_coverage"].get("requirement_recall", {}).get("selected") or 0.0)
+                        full_pool_requirement_recall >= production_requirement_recall
                     ),
                     "qualified_evidence_pair_recall_non_decreasing": (
-                        float(full_pool_metrics["micro_coverage"].get("evidence_pair_recall", {}).get("selected") or 0.0)
-                        >= float(production_metrics["micro_coverage"].get("evidence_pair_recall", {}).get("selected") or 0.0)
+                        full_pool_evidence_pair_recall >= production_evidence_pair_recall
                     ),
                     "false_qualified_pairs": len(full_pool_metrics.get("incorrect_pairs") or []),
                 }
             },
             "limitations": [
                 "Latency and context gates require measured benchmark timing and prompt-size fields.",
+                "Synthetic CLI comparisons are diagnostic only; they do not prove reviewed held-out promotion readiness.",
             ],
         }
     if {"current", "full-pool"}.issubset(by_arm):
-        metrics = {arm: _current_metrics(by_arm[arm]) for arm in ("current", "full-pool")}
+        for payload in by_arm.values():
+            _validate_current_payload(payload)
+        metrics = {arm: _current_metrics(payload) for arm, payload in by_arm.items()}
         current_metrics = metrics["current"]
         full_pool_metrics = metrics["full-pool"]
+        current_requirement_recall = _required_selected_metric(current_metrics, "requirement_recall")
+        full_pool_requirement_recall = _required_selected_metric(full_pool_metrics, "requirement_recall")
+        current_evidence_pair_recall = _required_selected_metric(current_metrics, "evidence_pair_recall")
+        full_pool_evidence_pair_recall = _required_selected_metric(full_pool_metrics, "evidence_pair_recall")
         return {
             "evaluation_schema_version": 1,
             "fixture_sha256": payloads[0].get("fixture_sha256"),
@@ -120,18 +150,17 @@ def run_inputs(input_paths: list[Path]) -> dict[str, Any]:
                     "from": "current",
                     "to": "full-pool",
                     "qualified_requirement_recall_non_decreasing": (
-                        float(full_pool_metrics["micro_coverage"].get("requirement_recall", {}).get("selected") or 0.0)
-                        >= float(current_metrics["micro_coverage"].get("requirement_recall", {}).get("selected") or 0.0)
+                        full_pool_requirement_recall >= current_requirement_recall
                     ),
                     "qualified_evidence_pair_recall_non_decreasing": (
-                        float(full_pool_metrics["micro_coverage"].get("evidence_pair_recall", {}).get("selected") or 0.0)
-                        >= float(current_metrics["micro_coverage"].get("evidence_pair_recall", {}).get("selected") or 0.0)
+                        full_pool_evidence_pair_recall >= current_evidence_pair_recall
                     ),
                     "false_qualified_pairs": len(full_pool_metrics.get("incorrect_pairs") or []),
                 }
             },
             "limitations": [
                 "Latency and context gates require measured benchmark timing and prompt-size fields.",
+                "Synthetic CLI comparisons are diagnostic only; they do not prove reviewed held-out promotion readiness.",
             ],
         }
     required_arms = {

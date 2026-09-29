@@ -1,0 +1,566 @@
+{
+  "arms": {
+    "full_pool_diagnostic": {
+      "assignment_precision": 1.0,
+      "context": {
+        "estimated_prompt_tokens": 671,
+        "payload_bytes": 6771,
+        "prompt_bytes": 2682,
+        "selected_item_count": 2
+      },
+      "evidence_pair_recall": {
+        "canonical": 1.0,
+        "retrieved": 1.0,
+        "selected": 1.0
+      },
+      "implementation_ref": "251ee0a2a7c3dbfba1404f5e620bc6383df965cb",
+      "incorrect_pairs": [],
+      "macro_coverage": {
+        "evidence_pair_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        },
+        "requirement_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        }
+      },
+      "micro_coverage": {
+        "evidence_pair_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        },
+        "requirement_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        }
+      },
+      "missed_pairs": [],
+      "requirement_recall": {
+        "canonical": 1.0,
+        "retrieved": 1.0,
+        "selected": 1.0
+      },
+      "timing_ms": {
+        "benchmark_payload_serialization_ms": {
+          "median": 0.06165000195323955,
+          "p95": 0.2117000040016137
+        },
+        "generation_prompt_build_ms": {
+          "median": 0.36234999970474746,
+          "p95": 0.7399000023724511
+        },
+        "retrieval_ms": {
+          "median": 1.071799993951572,
+          "p95": 5.863699989276938
+        },
+        "selection_ms": {
+          "median": 0.12604999938048422,
+          "p95": 0.5179999934625812
+        },
+        "total_ms": {
+          "median": 2.97474999933911,
+          "p95": 10.606799995002802
+        },
+        "validation_ms": {
+          "median": 0.5525750002561836,
+          "p95": 1.2531000029412098
+        }
+      },
+      "validation": {
+        "case_count": 17,
+        "not_applicable_cases": 0,
+        "passed_cases": 17,
+        "scenario_results": [
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "exact_skill"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "canonical_alias"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "paraphrase"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "unsupported_skill"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "wrong_evidence_id"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "canonical_synonym"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "responsibility_only"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "multi_requirement_item"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "redundant_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "below_cutoff"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "tight_top_k"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "education_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "certification_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "candidate_gap"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "long_context"
+          },
+          {
+            "case_count": 2,
+            "not_applicable_cases": 0,
+            "passed_cases": 2,
+            "scenario_id": "mixed_support"
+          }
+        ]
+      }
+    },
+    "lexical_only": {
+      "assignment_precision": 1.0,
+      "context": {
+        "estimated_prompt_tokens": 583,
+        "payload_bytes": 5394,
+        "prompt_bytes": 2329,
+        "selected_item_count": 2
+      },
+      "evidence_pair_recall": {
+        "canonical": 1.0,
+        "retrieved": 1.0,
+        "selected": 1.0
+      },
+      "implementation_ref": "251ee0a2a7c3dbfba1404f5e620bc6383df965cb",
+      "incorrect_pairs": [],
+      "macro_coverage": {
+        "evidence_pair_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        },
+        "requirement_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        }
+      },
+      "micro_coverage": {
+        "evidence_pair_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        },
+        "requirement_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        }
+      },
+      "missed_pairs": [],
+      "requirement_recall": {
+        "canonical": 1.0,
+        "retrieved": 1.0,
+        "selected": 1.0
+      },
+      "timing_ms": {
+        "benchmark_payload_serialization_ms": {
+          "median": 0.05547500040847808,
+          "p95": 0.22519999765791
+        },
+        "generation_prompt_build_ms": {
+          "median": 0.2683000020624604,
+          "p95": 0.800499998149462
+        },
+        "retrieval_ms": {
+          "median": 0.11972499851253815,
+          "p95": 0.5423999900813214
+        },
+        "selection_ms": {
+          "median": 0.11032499969587661,
+          "p95": 0.8171000008587725
+        },
+        "total_ms": {
+          "median": 1.8012999989878153,
+          "p95": 8.223299999372102
+        },
+        "validation_ms": {
+          "median": 0.3724250000232132,
+          "p95": 1.3797999999951571
+        }
+      },
+      "validation": {
+        "case_count": 17,
+        "not_applicable_cases": 0,
+        "passed_cases": 17,
+        "scenario_results": [
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "exact_skill"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "canonical_alias"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "paraphrase"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "unsupported_skill"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "wrong_evidence_id"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "canonical_synonym"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "responsibility_only"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "multi_requirement_item"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "redundant_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "below_cutoff"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "tight_top_k"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "education_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "certification_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "candidate_gap"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "long_context"
+          },
+          {
+            "case_count": 2,
+            "not_applicable_cases": 0,
+            "passed_cases": 2,
+            "scenario_id": "mixed_support"
+          }
+        ]
+      }
+    },
+    "production": {
+      "assignment_precision": 1.0,
+      "context": {
+        "estimated_prompt_tokens": 671,
+        "payload_bytes": 6771,
+        "prompt_bytes": 2682,
+        "selected_item_count": 2
+      },
+      "evidence_pair_recall": {
+        "canonical": 1.0,
+        "retrieved": 1.0,
+        "selected": 1.0
+      },
+      "implementation_ref": "251ee0a2a7c3dbfba1404f5e620bc6383df965cb",
+      "incorrect_pairs": [],
+      "macro_coverage": {
+        "evidence_pair_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        },
+        "requirement_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        }
+      },
+      "micro_coverage": {
+        "evidence_pair_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        },
+        "requirement_recall": {
+          "canonical": 1.0,
+          "retrieved": 1.0,
+          "selected": 1.0
+        }
+      },
+      "missed_pairs": [],
+      "requirement_recall": {
+        "canonical": 1.0,
+        "retrieved": 1.0,
+        "selected": 1.0
+      },
+      "timing_ms": {
+        "benchmark_payload_serialization_ms": {
+          "median": 0.05832500028191134,
+          "p95": 0.19129999418510124
+        },
+        "generation_prompt_build_ms": {
+          "median": 0.271849998171092,
+          "p95": 0.9094000051845796
+        },
+        "retrieval_ms": {
+          "median": 0.649575002171332,
+          "p95": 5.563500009884592
+        },
+        "selection_ms": {
+          "median": 0.11367499610059895,
+          "p95": 0.458500006061513
+        },
+        "total_ms": {
+          "median": 2.2472999971796526,
+          "p95": 10.801199998240918
+        },
+        "validation_ms": {
+          "median": 0.3661999999167165,
+          "p95": 1.4062999980524182
+        }
+      },
+      "validation": {
+        "case_count": 17,
+        "not_applicable_cases": 0,
+        "passed_cases": 17,
+        "scenario_results": [
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "exact_skill"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "canonical_alias"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "paraphrase"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "unsupported_skill"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "wrong_evidence_id"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "canonical_synonym"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "responsibility_only"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "multi_requirement_item"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "redundant_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "below_cutoff"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "tight_top_k"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "education_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "certification_support"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "candidate_gap"
+          },
+          {
+            "case_count": 1,
+            "not_applicable_cases": 0,
+            "passed_cases": 1,
+            "scenario_id": "long_context"
+          },
+          {
+            "case_count": 2,
+            "not_applicable_cases": 0,
+            "passed_cases": 2,
+            "scenario_id": "mixed_support"
+          }
+        ]
+      }
+    }
+  },
+  "comparisons": {
+    "production_vs_full_pool_diagnostic": {
+      "false_qualified_pairs": 0,
+      "from": "production",
+      "qualified_evidence_pair_recall_non_decreasing": true,
+      "qualified_requirement_recall_non_decreasing": true,
+      "to": "full_pool_diagnostic"
+    }
+  },
+  "evaluation_schema_version": 1,
+  "evidence_budgets": [
+    1,
+    2
+  ],
+  "fixture_sha256": "58acd4396905dc6b5b1c33c50b91c5eebc27c49db1abf35fb14dd20854bc977b",
+  "limitations": [
+    "Latency and context gates require measured benchmark timing and prompt-size fields.",
+    "Synthetic CLI comparisons are diagnostic only; they do not prove reviewed held-out promotion readiness."
+  ],
+  "scenario_set": [
+    "exact_skill",
+    "canonical_alias",
+    "paraphrase",
+    "unsupported_skill",
+    "wrong_evidence_id",
+    "canonical_synonym",
+    "responsibility_only",
+    "multi_requirement_item",
+    "redundant_support",
+    "below_cutoff",
+    "tight_top_k",
+    "education_support",
+    "certification_support",
+    "candidate_gap",
+    "long_context",
+    "mixed_support"
+  ]
+}
