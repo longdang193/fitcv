@@ -322,6 +322,38 @@ def test_resolve_candidate_query_embedding_contract_shape_when_cache_missing(
     assert isinstance(record["candidate_query_contract_fingerprint"], str)
 
 
+def test_default_candidate_query_embedding_reuses_after_first_generation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "preferences": {"target_role": "Data Analyst", "domains": ["banking"]},
+    }
+
+    with patch("fitcv.vector_search.generate_embedding_with_metadata") as generate:
+        generate.return_value = {
+            "embedding": [0.55, 0.66],
+            "backend_id": "sqlite_deterministic_local",
+            "contract_fingerprint": "deterministic-contract",
+        }
+        first = resolve_candidate_query_embedding(profile, {})
+        second = resolve_candidate_query_embedding(profile, {})
+
+    with sqlite3.connect(db_path) as conn:
+        row_count = conn.execute(
+            "SELECT COUNT(*) FROM candidate_query_embeddings"
+        ).fetchone()[0]
+
+    assert first["candidate_query_reuse_status"] == "fresh_query_embedding"
+    assert second["candidate_query_reuse_status"] == "reused_cached_query_embedding"
+    assert generate.call_count == 1
+    assert row_count == 1
+
+
 def test_fallback_candidate_query_is_not_reused_after_backend_recovery(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

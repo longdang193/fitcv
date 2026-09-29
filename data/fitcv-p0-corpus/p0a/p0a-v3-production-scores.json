@@ -1,0 +1,433 @@
+{
+  "schema_version": "ranking_score_artifact_v1",
+  "fixture": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v3.json",
+  "fixture_sha256": "e3a14dee893a22c63506951a0d2a2df5e26f0dfcdfdcf90f9051ddafe0489250",
+  "generated_at": "2026-09-29T13:22:04.031781+00:00",
+  "scoring_path": [
+    "fitcv.ai_score.run_ai_scoring",
+    "fitcv.pipeline.build_ranking_features"
+  ],
+  "score_row_count": 104,
+  "scores": {
+    "de": {
+      "4053398457:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4103707442:de": {
+        "ai_score": 0.15,
+        "baseline_fit": 0.15
+      },
+      "4160193650:de": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4227000667:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4275524072:de": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4327938588:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4328685196:de": {
+        "ai_score": 0.12,
+        "baseline_fit": 0.12
+      },
+      "4328872203:de": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4368322024:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4385279753:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4386064244:de": {
+        "ai_score": 0.3,
+        "baseline_fit": 0.3
+      },
+      "4393531445:de": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4399882463:de": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4406085214:de": {
+        "ai_score": 0.12,
+        "baseline_fit": 0.12
+      },
+      "4406288643:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4406299470:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4407833391:de": {
+        "ai_score": 0.03,
+        "baseline_fit": 0.03
+      },
+      "4408206405:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4409402951:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4409487959:de": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4412815375:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4414654124:de": {
+        "ai_score": 0.03,
+        "baseline_fit": 0.03
+      },
+      "4416093999:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4416121824:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4416281834:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4416654772:de": {
+        "ai_score": 0.03,
+        "baseline_fit": 0.03
+      },
+      "4416667912:de": {
+        "ai_score": 0.03,
+        "baseline_fit": 0.03
+      },
+      "4417465844:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4417470266:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4421693019:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4425267605:de": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4425612699:de": {
+        "ai_score": 0.15,
+        "baseline_fit": 0.15
+      },
+      "4425838935:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4426708623:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4426796504:de": {
+        "ai_score": 0.15,
+        "baseline_fit": 0.15
+      },
+      "4427021864:de": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4427095223:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4427954578:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4431972980:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4431987517:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4432372375:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4433111639:de": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4433185586:de": {
+        "ai_score": 0.01,
+        "baseline_fit": 0.01
+      },
+      "4434668723:de": {
+        "ai_score": 0.2,
+        "baseline_fit": 0.2
+      },
+      "4435320327:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4435334024:de": {
+        "ai_score": 0.15,
+        "baseline_fit": 0.15
+      },
+      "4435362862:de": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4435380423:de": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4435462002:de": {
+        "ai_score": 0.15,
+        "baseline_fit": 0.15
+      },
+      "4435874488:de": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      }
+    },
+    "en": {
+      "4470112984:en": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4472052252:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4470066191:en": {
+        "ai_score": 0.2,
+        "baseline_fit": 0.2
+      },
+      "4472056158:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470164908:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4472010992:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470133232:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4470129620:en": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4454513814:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470317164:en": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4462883860:en": {
+        "ai_score": 0.0,
+        "baseline_fit": 0.0
+      },
+      "4472056822:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4472058714:en": {
+        "ai_score": 0.15,
+        "baseline_fit": 0.15
+      },
+      "4454069782:en": {
+        "ai_score": 0.2,
+        "baseline_fit": 0.2
+      },
+      "4470155944:en": {
+        "ai_score": 0.2,
+        "baseline_fit": 0.2
+      },
+      "4444332299:en": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4470096497:en": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4461903030:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470325124:en": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4470301870:en": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4451180978:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4461951381:en": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4471885441:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4472006046:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4443181133:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470313402:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4472045275:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4470099614:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4452918695:en": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4470089757:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470309258:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470318861:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4470309253:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470041475:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4472078789:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470128621:en": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4472037256:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4472057342:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4470121998:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4441060540:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470136429:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "4470172617:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4470117922:en": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4467843779:en": {
+        "ai_score": 0.08,
+        "baseline_fit": 0.08
+      },
+      "4470328293:en": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4461187828:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4445259551:en": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "4470540570:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4433111639:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4471009092:en": {
+        "ai_score": 0.2,
+        "baseline_fit": 0.2
+      },
+      "4321360960:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      },
+      "4373950965:en": {
+        "ai_score": 0.1,
+        "baseline_fit": 0.1
+      },
+      "6099616004:en": {
+        "ai_score": 0.02,
+        "baseline_fit": 0.02
+      },
+      "7799617003:en": {
+        "ai_score": 0.05,
+        "baseline_fit": 0.05
+      }
+    }
+  }
+}

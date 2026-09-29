@@ -157,16 +157,24 @@ def build_cv_content_plan(
     evidence = [item for item in list(analysis_record.get("evidence_payload") or []) if isinstance(item, dict)]
     coverage = [item for item in list(analysis_record.get("requirement_coverage") or []) if isinstance(item, dict)]
     support_by_evidence: dict[str, list[str]] = {}
+    requirement_groups: dict[str, str] = {}
     for row in coverage:
         if str(row.get("selected_support") or "").strip().lower() != "verified":
             continue
         requirement_ref = str(row.get("requirement_instance_id") or row.get("requirement_id") or "").strip()
+        requirement_group = str(
+            row.get("requirement") or row.get("canonical_skill") or row.get("requirement_id") or ""
+        ).strip().casefold()
+        if not requirement_group:
+            requirement_group = re.sub(r"(?:[-:]\d+)+$", "", requirement_ref.casefold())
+            requirement_group = re.sub(r"-[a-z0-9-]+$", "", requirement_group)
+        requirement_groups[requirement_ref] = requirement_group
         for evidence_id in list(row.get("supporting_evidence_ids") or []):
             evidence_key = str(evidence_id).strip()
             if evidence_key and requirement_ref:
                 support_by_evidence.setdefault(evidence_key, []).append(requirement_ref)
 
-    approved_candidates: list[tuple[dict[str, Any], list[str], str]] = []
+    approved_candidates: list[tuple[dict[str, Any], list[str], str, set[str]]] = []
     omitted_evidence: list[dict[str, Any]] = []
     for item in evidence:
         evidence_id = str(item.get("evidence_id") or item.get("claim_id") or "").strip()
@@ -182,26 +190,40 @@ def build_cv_content_plan(
                 "certifications": "certifications",
                 "volunteering": "experience",
             }.get(source_section, "summary")
-            approved_candidates.append((dict(item), requirement_ids, target_section))
+            approved_candidates.append(
+                (dict(item), requirement_ids, target_section, {requirement_groups.get(ref, ref) for ref in requirement_ids})
+            )
         else:
             omitted_evidence.append({"evidence_id": evidence_id, "reason": "no_verified_requirement_support"})
     approved_claims: list[dict[str, Any]] = []
     section_counts: dict[str, int] = {}
-    for item, requirement_ids, target_section in sorted(
-        approved_candidates,
-        key=lambda candidate: (
-            -len(candidate[1]),
-            -_evidence_score_for_sort(candidate[0].get("score")),
-            -len({str(skill).strip().casefold() for skill in list(candidate[0].get("skills") or []) if str(skill).strip()}),
-            str(candidate[0].get("evidence_id") or candidate[0].get("claim_id") or ""),
-        ),
-    ):
+    remaining = list(approved_candidates)
+    covered_groups: set[str] = set()
+    while remaining:
+        eligible = [
+            candidate
+            for candidate in remaining
+            if section_counts.get(candidate[2], 0) < DEFAULT_SECTION_CLAIM_LIMITS.get(candidate[2], 2)
+        ]
+        if not eligible:
+            break
+        item, requirement_ids, target_section, groups = min(
+            eligible,
+            key=lambda candidate: (
+                -len(candidate[3] - covered_groups),
+                -_evidence_score_for_sort(candidate[0].get("score")),
+                -len({str(skill).strip().casefold() for skill in list(candidate[0].get("skills") or []) if str(skill).strip()}),
+                str(candidate[0].get("evidence_id") or candidate[0].get("claim_id") or ""),
+            ),
+        )
+        remaining.remove((item, requirement_ids, target_section, groups))
         evidence_id = str(item.get("evidence_id") or item.get("claim_id") or "").strip()
         limit = DEFAULT_SECTION_CLAIM_LIMITS.get(target_section, 2)
         if section_counts.get(target_section, 0) >= limit:
             omitted_evidence.append({"evidence_id": evidence_id, "reason": "space_budget_exceeded"})
             continue
         section_counts[target_section] = section_counts.get(target_section, 0) + 1
+        covered_groups.update(groups)
         approved_claims.append(
             {
                 "claim_id": evidence_id,
@@ -210,6 +232,13 @@ def build_cv_content_plan(
                 "supports_requirements": requirement_ids,
                 "target_section": target_section,
                 "protected_numbers_dates": _protected_numbers_dates(item),
+            }
+        )
+    for item, _, _, _ in remaining:
+        omitted_evidence.append(
+            {
+                "evidence_id": str(item.get("evidence_id") or item.get("claim_id") or "").strip(),
+                "reason": "space_budget_exceeded",
             }
         )
     plan = {
@@ -223,6 +252,7 @@ def build_cv_content_plan(
             "max_summary_lines": DEFAULT_MAX_SUMMARY_LINES,
             "section_claim_limits": dict(DEFAULT_SECTION_CLAIM_LIMITS),
             "page_count": 1,
+            "page_fit_status": "unverified",
             "enabled_sections": sorted(_get_enabled_section_names(config or {})),
         },
         "omitted_evidence": omitted_evidence,
@@ -1445,6 +1475,11 @@ def _build_result(
         "outcome_reason": error if status in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "content_plan": dict(analysis_record.get("content_plan") or {}),
+        "uncertainties": [
+            dict(item)
+            for item in list(analysis_record.get("uncertainties") or [])
+            if isinstance(item, dict)
+        ],
     }
     runtime_evidence = [dict(item) for item in (llm_runtime_evidence or []) if isinstance(item, dict)]
     if runtime_evidence:

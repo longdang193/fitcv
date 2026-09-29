@@ -30,6 +30,75 @@ RUN_ATTEMPT_SCHEMA_VERSION = "run_attempt.v1"
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
 
+def build_accepted_cv_effort_projection(
+    records: list[dict[str, Any]],
+    actions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    deduplicated_actions: list[dict[str, Any]] = []
+    seen_actions: set[str] = set()
+    for action in actions:
+        action_key = stable_sha256_fingerprint(
+            {
+                key: action.get(key)
+                for key in ("review_item_id", "job_url", "action", "created_at", "artifact_version_id")
+            }
+        )
+        if action_key in seen_actions:
+            continue
+        seen_actions.add(action_key)
+        deduplicated_actions.append(action)
+    accepted_actions = [
+        action
+        for action in deduplicated_actions
+        if bool(action.get("artifact_finalized")) and str(action.get("artifact_version_id") or "").strip()
+    ]
+
+    if not accepted_actions:
+        return {
+            "schema_version": "accepted_cv_effort_v1",
+            "status": "not_run",
+            "blocker": "no_accepted_artifact_action",
+            "denominator": {"accepted_cv_count": 0},
+            "records": [],
+        }
+
+    records_by_job = {
+        str(record.get("job_url") or "").strip(): record
+        for record in records
+        if str(record.get("job_url") or "").strip()
+    }
+    projected: list[dict[str, Any]] = []
+    for action in accepted_actions:
+        job_url = str(action.get("job_url") or "").strip()
+        record = records_by_job.get(job_url, {})
+        efficiency = dict(dict(record.get("cv_generation_trace") or {}).get("efficiency_summary") or {})
+        related_actions = [item for item in deduplicated_actions if str(item.get("job_url") or "").strip() == job_url]
+        projected.append(
+            {
+                "job_url": job_url,
+                "artifact_version_id": str(action.get("artifact_version_id") or "").strip(),
+                "final_status": "accepted",
+                "provider_call_count": int(efficiency.get("provider_call_count") or 0),
+                "regeneration_count": max(
+                    int(efficiency.get("regeneration_count") or 0),
+                    sum(str(item.get("action") or "") == "regenerate_once" for item in related_actions),
+                ),
+                "review_question_count": efficiency.get("review_question_count", "not_run"),
+                "human_action_count": len(related_actions),
+                "token_usage": efficiency.get("token_usage"),
+                "token_usage_status": str(efficiency.get("token_usage_status") or "not_run"),
+                "elapsed_ms": None,
+                "elapsed_status": "not_run",
+            }
+        )
+    return {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "denominator": {"accepted_cv_count": len(projected)},
+        "records": projected,
+    }
+
+
 def string_or_none(value: Any) -> str | None:
     return value if isinstance(value, str) else None
 

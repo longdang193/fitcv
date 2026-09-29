@@ -98,9 +98,56 @@ def test_content_plan_orders_claims_and_applies_one_page_section_budget() -> Non
         "ev-1",
     ]
     assert plan["space_budget"]["page_count"] == 1
+    assert plan["space_budget"]["page_fit_status"] == "unverified"
     assert plan["space_budget"]["section_claim_limits"]["experience"] == 6
     assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-0"}
     assert plan["omitted_evidence"][0]["reason"] == "space_budget_exceeded"
+
+
+def test_content_plan_prioritizes_unique_requirement_coverage_over_redundant_scores() -> None:
+    evidence = [
+        {
+            "evidence_id": f"ev-python-{index}",
+            "text": f"Production Python claim {index}",
+            "source_section": "experiences",
+            "score": 10 - index,
+            "skills": ["Python"],
+        }
+        for index in range(6)
+    ]
+    evidence.append(
+        {
+            "evidence_id": "ev-sql",
+            "text": "Production SQL claim",
+            "source_section": "experiences",
+            "score": 0.1,
+            "skills": ["SQL"],
+        }
+    )
+    analysis = {
+        "analysis_input_fingerprint": "analysis-coverage-first",
+        "evidence_payload": evidence,
+        "requirement_coverage": [
+            {
+                "requirement_instance_id": f"required_skill:python-{index}",
+                "selected_support": "verified",
+                "supporting_evidence_ids": [f"ev-python-{index}"],
+            }
+            for index in range(6)
+        ]
+        + [
+            {
+                "requirement_instance_id": "required_skill:sql",
+                "selected_support": "verified",
+                "supporting_evidence_ids": ["ev-sql"],
+            }
+        ],
+    }
+
+    plan = build_cv_content_plan(analysis, {}, {})
+
+    assert "ev-sql" in plan["approved_evidence_ids"]
+    assert "required_skill:sql" in plan["supported_requirements"]
 
 
 def test_content_plan_treats_malformed_evidence_scores_as_zero() -> None:
@@ -1198,6 +1245,16 @@ def test_generate_from_analysis_returns_complete_canonical_result(
     analysis_record = _minimal_analysis_record()
     analysis_record["raw_job_fingerprint"] = "raw::job"
     analysis_record["analysis_input_fingerprint"] = "analysis::input"
+    analysis_record["uncertainties"] = [
+        {
+            "uncertainty_id": "uncertainty-1",
+            "resolution_key": "required_skill:sql",
+            "affected_fact": "SQL",
+            "question": "How many years of production SQL experience?",
+            "recommended_disposition": "resolve_with_answer",
+            "evidence_ids": [],
+        }
+    ]
     config = _minimal_config()
     mock_generate_cv.return_value = {
         "structured_cv": _minimal_structured_cv(),
@@ -1232,6 +1289,7 @@ def test_generate_from_analysis_returns_complete_canonical_result(
     assert result["cv_generation_reuse_status"] == "fresh_compute"
     assert result["reuse_decision"]["decision"] == "fresh_compute"
     assert result["review_required_reason_code"] is None
+    assert result["uncertainties"] == analysis_record["uncertainties"]
     assert result["validation_evidence_fingerprint"]
     observation = result["llm_runtime_observations"][0]
     provenance = observation["evidence"]["provenance"]

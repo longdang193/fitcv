@@ -401,7 +401,9 @@ def load_local_controller_overlay(path: str | Path | None = None) -> dict[str, A
         database_path = str(os.environ.get("FITCV_CP_SQLITE_PATH") or "").strip()
         if database_path and Path(database_path).exists():
             try:
-                with sqlite3.connect(database_path) as connection:
+                from fitcv.persistence import sqlite_connection
+
+                with sqlite_connection(database_path) as connection:
                     migrated = connection.execute(
                         "SELECT 1 FROM integration_migrations WHERE migration_key = ?",
                         ("packaged_local_complete_integration_v1",),

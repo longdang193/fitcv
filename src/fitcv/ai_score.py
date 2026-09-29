@@ -49,7 +49,7 @@ from fitcv.llm_runtime import (
     project_llm_runtime_evidence,
 )
 from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
-from fitcv.persistence import get_local_sqlite_path
+from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv.pipeline_stages.common import job_identity_keys
 from fitcv.evidence import project_candidate_evidence
 from fitcv.candidate import flatten_skills
@@ -548,7 +548,7 @@ def store_ai_scores(
     now = datetime.now(tz=timezone.utc).isoformat()
     db_path = Path(get_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
+    with sqlite_connection(db_path) as conn:
         _ensure_local_ai_score_results_table(conn)
         conn.executemany(
             """

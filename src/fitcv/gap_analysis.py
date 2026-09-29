@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fitcv.persistence import get_local_sqlite_path
+from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv.rule_filter import canonicalize_skill
 from fitcv.semantic_snapshot import (
     build_semantic_snapshot,
@@ -364,7 +364,7 @@ def store_gap_analysis(
 
     db_path = Path(get_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
+    with sqlite_connection(db_path) as conn:
         _ensure_local_gap_analysis_table(conn)
         conn.execute(
             """

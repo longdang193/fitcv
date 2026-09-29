@@ -58,7 +58,7 @@ from fitcv.embeddings import build_embedding_backend_metadata, build_embedding_c
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
-REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v5"
+REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v6"
 _QUALIFIER_CONTEXT_TERMS = (
     "enterprise",
     "production",
@@ -2768,7 +2768,9 @@ def _record_to_sqlite_params(record: EvidenceSelectionRecord) -> tuple[str, str,
 def _persist_selection_sqlite(records: list[EvidenceSelectionRecord]) -> None:
     db_path = Path(_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
+    from fitcv.persistence import sqlite_connection
+
+    with sqlite_connection(db_path) as conn:
         _ensure_local_evidence_selections_table(conn)
         conn.executemany(
             """

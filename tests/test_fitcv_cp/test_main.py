@@ -14,10 +14,12 @@ tags:
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import sqlite3
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -112,9 +114,10 @@ def test_build_app_uses_sqlite_runtime_without_remote_client(monkeypatch: pytest
 
     captured: dict[str, Any] = {}
 
-    def _fake_create_app(*, redis_url: str, backend_runtime: Any = None) -> str:
+    def _fake_create_app(*, redis_url: str, backend_runtime: Any = None, lifespan: Any = None) -> str:
         captured["redis_url"] = redis_url
         captured["backend_runtime"] = backend_runtime
+        captured["lifespan"] = lifespan
         return "ok"
 
     monkeypatch.setattr(module, "create_app", _fake_create_app)
@@ -123,6 +126,44 @@ def test_build_app_uses_sqlite_runtime_without_remote_client(monkeypatch: pytest
 
     assert result == "ok"
     assert captured["backend_runtime"].backend_type == "sqlite"
+    assert callable(captured["lifespan"])
+
+
+def test_build_app_lifespan_owns_delivery_loop_shutdown(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _reload_main_module(monkeypatch)
+    calls: list[object] = []
+
+    class FakeDeliveryLoop:
+        def __init__(self, *, limit: int) -> None:
+            calls.append(("init", limit))
+
+        def start(self) -> None:
+            calls.append("start")
+
+        def stop(self, *, final_drain: bool, shutdown_deadline: float) -> None:
+            calls.append(("stop", final_drain, shutdown_deadline))
+
+    application = SimpleNamespace(state=SimpleNamespace())
+    captured: dict[str, Any] = {}
+
+    def fake_create_app(**kwargs: Any) -> Any:
+        captured.update(kwargs)
+        return application
+
+    monkeypatch.setattr("fitcv_cp.reporter.ProcessEventDeliveryLoop", FakeDeliveryLoop)
+    monkeypatch.setattr("fitcv.llm_runtime.close_ranking_transport_pool", lambda: calls.append("close"))
+    monkeypatch.setattr(module, "create_app", fake_create_app)
+
+    assert module.build_app() is application
+    assert calls == [("init", 20)]
+
+    async def exercise_lifespan() -> None:
+        async with captured["lifespan"](application):
+            assert calls == [("init", 20), "start"]
+
+    asyncio.run(exercise_lifespan())
+    assert calls[2][0:2] == ("stop", True)
+    assert calls[3] == "close"
 
 
 def test_build_app_does_not_retry_pending_process_event_deliveries_synchronously(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -155,7 +196,7 @@ def test_build_app_always_uses_sqlite_runtime(
 
     captured: dict[str, Any] = {}
 
-    def _fake_create_app(*, redis_url: str, backend_runtime: Any = None) -> str:
+    def _fake_create_app(*, redis_url: str, backend_runtime: Any = None, lifespan: Any = None) -> str:
         captured["backend_runtime"] = backend_runtime
         return "ok"
 
@@ -177,7 +218,7 @@ def test_build_app_defaults_to_inline_when_no_redis_url_is_set(monkeypatch: pyte
 
     captured: dict[str, Any] = {}
 
-    def _fake_create_app(*, redis_url: str, backend_runtime: Any = None) -> str:
+    def _fake_create_app(*, redis_url: str, backend_runtime: Any = None, lifespan: Any = None) -> str:
         captured["redis_url"] = redis_url
         captured["backend_runtime"] = backend_runtime
         return "ok"

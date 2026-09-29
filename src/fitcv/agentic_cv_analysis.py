@@ -27,6 +27,7 @@ from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
     _assess_requirement_support,
     _build_support_fragments,
+    REQUIREMENT_SUPPORT_POLICY_VERSION,
     build_evidence_projection,
     build_required_skill_descriptors,
     build_cv_analysis_input_fingerprint,
@@ -814,8 +815,10 @@ def _build_analysis_input_components(payload: dict[str, Any]) -> dict[str, Any]:
         "profile_payload_hash": _hash(dict(payload.get("profile") or {})),
         "job_payload_hash": _hash(dict(payload.get("job") or {})),
     }
-    if payload.get("requirement_support_policy_version") is not None:
-        components["requirement_support_policy_version"] = str(payload.get("requirement_support_policy_version") or "")
+    components["requirement_support_policy_version"] = str(
+        payload.get("requirement_support_policy_version")
+        or REQUIREMENT_SUPPORT_POLICY_VERSION
+    )
     components["requirement_resolutions_hash"] = _hash(list(payload.get("requirement_resolutions") or []))
     return components
 
@@ -852,10 +855,7 @@ def _reuse_rejection_reason(
         analysis_input_components.get("contract_fingerprint") or ""
     ):
         return "contract_fingerprint_changed"
-    if (
-        "requirement_support_policy_version" in prior_components
-        and str(prior_components.get("requirement_support_policy_version") or "") != "requirement-support-v5"
-    ):
+    if str(prior_components.get("requirement_support_policy_version") or "") != REQUIREMENT_SUPPORT_POLICY_VERSION:
         return "requirement_support_policy_version_changed"
     return None
 

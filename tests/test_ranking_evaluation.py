@@ -154,7 +154,7 @@ def test_retrieval_and_ranking_metrics_use_separate_id_sets() -> None:
         {"candidate_id": "c4", "split": "held_out", "relevance_grade": 0},
     ]
 
-    metrics = _split_metric_rows({"c1", "c2", "c3", "c4"}, rows, rows, 2)["held_out"]
+    metrics = _split_metric_rows({"c1", "c2", "c3", "c4"}, rows, rows, 2, 2, 2)["held_out"]
 
     assert metrics["retrieval_recall_at_n"] == 1.0
     assert metrics["retrieval_precision_at_n"] == 0.5
@@ -162,12 +162,334 @@ def test_retrieval_and_ranking_metrics_use_separate_id_sets() -> None:
     assert metrics["ranking_precision_at_n"] == 0.5
 
 
+def test_retrieval_mrr_preserves_return_order() -> None:
+    rows = [
+        {"candidate_id": "bad", "split": "held_out", "relevance_grade": 0},
+        {"candidate_id": "good", "split": "held_out", "relevance_grade": 3},
+    ]
+
+    metrics = _split_metric_rows(["bad", "good"], rows, rows, 2, 2, 2)["held_out"]
+
+    assert metrics["retrieval_mrr_at_n"] == 0.5
+
+
+def test_primary_metrics_exclude_borderline_grade() -> None:
+    rows = [
+        {"candidate_id": "borderline", "split": "held_out", "relevance_grade": 1},
+        {"candidate_id": "relevant", "split": "held_out", "relevance_grade": 2},
+    ]
+
+    metrics = _split_metric_rows(["borderline"], rows, rows, 1, 1, 1)["held_out"]
+
+    assert metrics["retrieval_recall_at_n"] == 0.0
+    assert metrics["retrieval_mrr_at_n"] == 0.0
+
+
+def test_metric_cutoffs_remain_separate() -> None:
+    rows = [
+        {"candidate_id": "bad-1", "split": "held_out", "relevance_grade": 0},
+        {"candidate_id": "bad-2", "split": "held_out", "relevance_grade": 0},
+        {"candidate_id": "bad-3", "split": "held_out", "relevance_grade": 0},
+        {"candidate_id": "good", "split": "held_out", "relevance_grade": 2},
+    ]
+
+    metrics = _split_metric_rows(
+        ["bad-1", "bad-2", "bad-3"],
+        [rows[0], rows[3]],
+        rows,
+        3,
+        2,
+        1,
+    )["held_out"]
+
+    assert metrics["retrieval_mrr_at_n"] == 0.0
+    assert metrics["ranking_mrr_at_n"] == 0.5
+
+
+def test_evaluation_input_rejects_unassigned_split_and_duplicate_source() -> None:
+    rows = [
+        {"candidate_id": "a", "source_id": "same", "source_group_id": "g1", "split": None, "reviewed": True, "relevance_grade": 0},
+        {"candidate_id": "b", "source_id": "same", "source_group_id": "g2", "split": "held_out", "reviewed": True, "relevance_grade": 1},
+        {"candidate_id": "c", "source_id": "other", "source_group_id": "g3", "split": "calibration", "reviewed": True, "relevance_grade": 2},
+    ]
+
+    errors = benchmark_ranking._validate_evaluation_input(
+        {"profile": {"candidates": rows, "retrieval_top_n": 2, "ranking_top_n": 1, "ndcg_top_n": 1}}
+    )
+
+    assert "profile:invalid_split_values:" in next(error for error in errors if error.startswith("profile:invalid_split_values:"))
+    assert "profile:same:duplicate_source_id" in errors
+
+
+def test_source_backed_payload_rejects_synthetic_fallback() -> None:
+    errors = benchmark_ranking._source_backed_payload_errors(
+        {"profile": {"profile": {}, "candidates": [{"candidate_id": "c1", "job": {}}]}}
+    )
+
+    assert errors == [
+        "profile:missing_source_backed_profile",
+        "profile:c1:missing_source_backed_job_payload",
+    ]
+
+
+def test_source_backed_scores_are_required_before_benchmark() -> None:
+    errors = benchmark_ranking._source_backed_score_errors(
+        {
+            "profile": {
+                "candidates": [
+                    {"candidate_id": "c1", "baseline_fit": 0.0, "ai_score": None},
+                    {"candidate_id": "c2", "baseline_fit": None, "ai_score": 0.0},
+                ]
+            }
+        }
+    )
+
+    assert errors == [
+        "profile:c1:missing_or_invalid_ai_score",
+        "profile:c2:missing_or_invalid_baseline_fit",
+    ]
+
+
+def _source_backed_review_profiles() -> dict[str, dict[str, Any]]:
+    return {
+        "profile": {
+            "candidates": [
+                {
+                    "candidate_id": "c1",
+                    "reviewed": True,
+                    "label": "relevant",
+                    "relevance_grade": 2,
+                    "judgments": [
+                        {
+                            "reviewer_id": "reviewer-a",
+                            "label": "relevant",
+                            "relevance_grade": 2,
+                            "rationale": "Direct role match.",
+                            "evidence": [{"field": "description", "quote": "analytics intern"}],
+                        },
+                        {
+                            "reviewer_id": "reviewer-b",
+                            "label": "relevant",
+                            "relevance_grade": 2,
+                            "rationale": "Role and profile align.",
+                            "evidence": [{"field": "description", "quote": "business analysis"}],
+                        },
+                    ],
+                    "adjudication": None,
+                }
+            ]
+        }
+    }
+
+
+def test_source_backed_review_accepts_two_complete_agreements() -> None:
+    assert benchmark_ranking._source_backed_review_errors(_source_backed_review_profiles()) == []
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected"),
+    [
+        (lambda row: row.update(judgments=row["judgments"][:1]), "profile:c1:requires_exactly_two_judgments"),
+        (lambda row: row["judgments"][1].update(reviewer_id="reviewer-a"), "profile:c1:duplicate_reviewer_identity"),
+        (lambda row: row["judgments"][0].update(relevance_grade=4), "profile:c1:judgment_0_invalid_grade"),
+        (lambda row: row["judgments"][0].update(label="borderline"), "profile:c1:judgment_0_label_grade_mismatch"),
+        (lambda row: row["judgments"][0].update(rationale=" "), "profile:c1:judgment_0_missing_rationale"),
+        (lambda row: row["judgments"][0].update(evidence=[]), "profile:c1:judgment_0_missing_evidence"),
+    ],
+)
+def test_source_backed_review_rejects_incomplete_judgments(mutator: Any, expected: str) -> None:
+    profiles = _source_backed_review_profiles()
+    mutator(profiles["profile"]["candidates"][0])
+
+    assert expected in benchmark_ranking._source_backed_review_errors(profiles)
+
+
+def test_source_backed_review_requires_adjudication_for_disagreement() -> None:
+    profiles = _source_backed_review_profiles()
+    row = profiles["profile"]["candidates"][0]
+    row["judgments"][1].update(label="borderline", relevance_grade=1)
+
+    errors = benchmark_ranking._source_backed_review_errors(profiles)
+
+    assert "profile:c1:disagreement_requires_adjudication" in errors
+    row["adjudication"] = {
+        "adjudicator_id": "adjudicator-1",
+        "final_grade": 2,
+        "decision_rationale": "First judgment upheld after review.",
+    }
+    assert benchmark_ranking._source_backed_review_errors(profiles) == []
+
+
+def test_source_backed_ready_fixture_requires_ready_manifest(tmp_path: Path) -> None:
+    fixture = tmp_path / "ranking_source_backed_v2.json"
+    fixture.write_text(json.dumps({"fixture_status": "ready", "profiles": {}}), encoding="utf-8")
+    manifest = tmp_path / "ranking_source_backed_v2_manifest.json"
+    manifest.write_text(json.dumps({"fixture_status": "awaiting_human_labels"}), encoding="utf-8")
+
+    errors = benchmark_ranking._manifest_errors(fixture, json.loads(fixture.read_text()), "actual")
+
+    assert "source_backed:manifest_fixture_not_ready" in errors
+
+
+def test_benchmark_rejects_ready_source_backed_fixture_without_review_completion(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    fixture = tmp_path / "source-backed-ready.json"
+    fixture.write_text(
+        json.dumps(
+            {
+                "schema_version": "ranking_gold_source_backed_v2",
+                "fixture_role": "source_backed",
+                "fixture_status": "ready",
+                "profiles": {
+                    "profile": {
+                        "candidates": [
+                            {
+                                "candidate_id": "c1",
+                                "label": None,
+                                "relevance_grade": None,
+                                "judgments": [],
+                            }
+                        ]
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "report.json"
+    monkeypatch.setattr(benchmark_ranking, "_manifest_errors", lambda *args: [])
+    monkeypatch.setattr(benchmark_ranking, "_source_backed_payload_errors", lambda *args: [])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["benchmark_ranking.py", "--fixture", str(fixture), "--output", str(output)],
+    )
+
+    benchmark_ranking.main()
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["status"] == "not_run"
+    assert report["reason"] == "invalid_source_backed_review"
+
+
+def test_evaluation_input_rejects_full_pool_retrieval() -> None:
+    errors = benchmark_ranking._validate_evaluation_input(
+        {
+            "profile": {
+                "retrieval_top_n": 2,
+                "candidates": [
+                    {"candidate_id": "a", "split": "calibration", "reviewed": True, "relevance_grade": 3},
+                    {"candidate_id": "b", "split": "held_out", "reviewed": True, "relevance_grade": 1},
+                ],
+            }
+        }
+    )
+
+    assert "profile:retrieval_top_n_must_be_less_than_pool_size" in errors
+
+
+def test_evaluation_input_accepts_source_groups_reserved_to_one_split() -> None:
+    rows = [
+        {"candidate_id": "cal-1", "source_group_id": "group-cal", "split": "calibration", "reviewed": True, "relevance_grade": 3},
+        {"candidate_id": "cal-2", "source_group_id": "group-cal", "split": "calibration", "reviewed": True, "relevance_grade": 0},
+        {"candidate_id": "hold-1", "source_group_id": "group-hold", "split": "held_out", "reviewed": True, "relevance_grade": 1},
+        {"candidate_id": "hold-2", "source_group_id": "group-hold", "split": "held_out", "reviewed": True, "relevance_grade": 0},
+    ]
+
+    errors = benchmark_ranking._validate_evaluation_input(
+        {"profile": {"candidates": rows, "retrieval_top_n": 2, "ranking_top_n": 1, "ndcg_top_n": 1}}
+    )
+
+    assert errors == []
+
+
+def test_evaluation_input_rejects_source_group_crossing_split() -> None:
+    rows = [
+        {"candidate_id": "cal-1", "source_group_id": "group-1", "split": "calibration", "reviewed": True, "relevance_grade": 3},
+        {"candidate_id": "hold-1", "source_group_id": "group-1", "split": "held_out", "reviewed": True, "relevance_grade": 1},
+        {"candidate_id": "hold-2", "source_group_id": "group-2", "split": "held_out", "reviewed": True, "relevance_grade": 0},
+    ]
+
+    errors = benchmark_ranking._validate_evaluation_input(
+        {"profile": {"candidates": rows, "retrieval_top_n": 2, "ranking_top_n": 1, "ndcg_top_n": 1}}
+    )
+
+    assert "profile:group-1:source_group_crosses_split" in errors
+
+
+def test_score_artifact_overlays_scores_only_for_matching_fixture(tmp_path: Path) -> None:
+    profiles = {
+        "profile": {
+            "candidates": [
+                {"candidate_id": "c1", "baseline_fit": None, "ai_score": None},
+                {"candidate_id": "c2", "baseline_fit": None, "ai_score": None},
+            ]
+        }
+    }
+    artifact = tmp_path / "scores.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "schema_version": "ranking_score_artifact_v1",
+                "fixture_sha256": "fixture",
+                "scores": {
+                    "profile": {
+                        "c1": {"baseline_fit": 0.8, "ai_score": 0.7},
+                        "c2": {"baseline_fit": 0.2, "ai_score": 0.1},
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    benchmark_ranking._apply_score_artifact(profiles, artifact, "fixture")
+
+    assert profiles["profile"]["candidates"][0]["baseline_fit"] == pytest.approx(0.8)
+    assert profiles["profile"]["candidates"][1]["ai_score"] == pytest.approx(0.1)
+
+
+def test_score_artifact_rejects_fixture_hash_mismatch(tmp_path: Path) -> None:
+    artifact = tmp_path / "scores.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "schema_version": "ranking_score_artifact_v1",
+                "fixture_sha256": "wrong",
+                "scores": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="score_artifact_fixture_sha256_mismatch"):
+        benchmark_ranking._apply_score_artifact({"profile": {"candidates": []}}, artifact, "fixture")
+
+
+def test_evaluation_input_rejects_inconsistent_cutoffs() -> None:
+    rows = [
+        {"candidate_id": "cal-1", "split": "calibration", "reviewed": True, "relevance_grade": 3},
+        {"candidate_id": "cal-2", "split": "calibration", "reviewed": True, "relevance_grade": 0},
+        {"candidate_id": "hold-1", "split": "held_out", "reviewed": True, "relevance_grade": 1},
+        {"candidate_id": "hold-2", "split": "held_out", "reviewed": True, "relevance_grade": 0},
+    ]
+
+    errors = benchmark_ranking._validate_evaluation_input(
+        {"profile": {"candidates": rows, "retrieval_top_n": 3, "ranking_top_n": 4, "ndcg_top_n": 5}}
+    )
+
+    assert "profile:ranking_top_n_must_not_exceed_retrieval_top_n" in errors
+    assert "profile:ndcg_top_n_must_not_exceed_ranking_top_n" in errors
+
+
 def test_run_once_uses_retrieval_ids_for_shortlist_metrics(monkeypatch: Any) -> None:
     rows = [
         {
             "candidate_id": f"c{index}",
             "split": "held_out",
-            "relevance_grade": 1,
+            "relevance_grade": 2,
             "job": {"job_url": f"job-{index}"},
             "baseline_fit": float(index),
             "ai_score": float(index),
@@ -197,6 +519,35 @@ def test_run_once_uses_retrieval_ids_for_shortlist_metrics(monkeypatch: Any) -> 
     held_out = metrics["split_metrics"]["held_out"]
     assert held_out["retrieval_recall_at_n"] == 1.0
     assert held_out["ranking_recall_at_n"] == 0.25
+    assert metrics["language_split_metrics"]["profile"]["held_out"]["ranking_recall_at_n"] == 0.25
+
+
+def test_manifest_mismatch_blocks_source_backed_run(tmp_path: Path) -> None:
+    fixture = tmp_path / "ranking_source_backed_v2.json"
+    fixture.write_text(json.dumps({"profiles": {}, "source_snapshot": {"path": "", "sha256": ""}}), encoding="utf-8")
+    manifest = tmp_path / "ranking_source_backed_v2_manifest.json"
+    manifest.write_text(json.dumps({"fixture_path": "wrong.json", "fixture_sha256": "wrong"}), encoding="utf-8")
+
+    errors = benchmark_ranking._manifest_errors(fixture, json.loads(fixture.read_text()), "actual")
+
+    assert "source_backed:manifest_fixture_path_mismatch" in errors
+    assert "source_backed:fixture_sha256_mismatch" in errors
+
+
+def test_runtime_error_report_keeps_requested_arm(tmp_path: Path, monkeypatch: Any) -> None:
+    output = tmp_path / "report.json"
+    monkeypatch.setattr(benchmark_ranking, "_run_once", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["benchmark_ranking.py", "--fixture", str(FIXTURE), "--arm", "lexical", "--output", str(output)],
+    )
+
+    benchmark_ranking.main()
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["status"] == "not_run"
+    assert report["arm"] == "lexical"
 
 
 @pytest.mark.parametrize("arm", ["lexical", "multilingual"])
@@ -228,3 +579,30 @@ def test_benchmark_report_binds_results_to_fixture_bytes(
 
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["fixture_sha256"] == hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
+    assert report["fixture_role"] == "smoke"
+
+
+def test_benchmark_rejects_fixture_awaiting_human_labels(tmp_path: Path, monkeypatch: Any) -> None:
+    fixture = tmp_path / "source-backed-draft.json"
+    fixture.write_text(
+        json.dumps({
+            "schema_version": "ranking_gold_source_backed_v2",
+            "fixture_role": "source_backed",
+            "fixture_status": "awaiting_human_labels",
+            "profiles": {},
+        }),
+        encoding="utf-8",
+    )
+    output = tmp_path / "report.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["benchmark_ranking.py", "--fixture", str(fixture), "--output", str(output)],
+    )
+
+    benchmark_ranking.main()
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["status"] == "not_run"
+    assert report["reason"] == "fixture_not_ready"
+    assert report["fixture_role"] == "source_backed"

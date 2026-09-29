@@ -32,6 +32,7 @@ from fitcv.shortlist_runtime import (
     run_sqlite_io_retry,
     sqlite_path,
 )
+from fitcv.persistence import sqlite_connection
 
 JOB_SUMMARY_CHUNK_TYPE = "job_summary"
 SHORTLIST_SUMMARY_SCHEMA_VERSION = "shortlist_job_summary_v2"
@@ -519,7 +520,7 @@ def embed_and_store_jobs(
     embedding_contract = build_embedding_contract_fingerprint(config)
     rows: list[dict[str, Any]] = []
     contract_fingerprint = embedding_contract["fingerprint"]
-    with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+    with sqlite_connection(sqlite_path(), timeout=30) as conn:
         configure_sqlite_connection(conn)
         _ensure_sqlite_embedding_tables(conn)
         existing = {
@@ -556,7 +557,7 @@ def embed_and_store_jobs(
         )
 
     def _write_job_embeddings() -> None:
-        with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+        with sqlite_connection(sqlite_path(), timeout=30) as conn:
             configure_sqlite_connection(conn)
             _ensure_sqlite_embedding_tables(conn)
             conn.executemany(
@@ -611,7 +612,7 @@ def embed_and_store_candidate(
         )
 
     def _write_candidate_embeddings() -> None:
-        with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+        with sqlite_connection(sqlite_path(), timeout=30) as conn:
             configure_sqlite_connection(conn)
             _ensure_sqlite_embedding_tables(conn)
             conn.executemany(
@@ -626,4 +627,3 @@ def embed_and_store_candidate(
 
     run_sqlite_io_retry(_write_candidate_embeddings)
     return len(rows)
-

@@ -1885,7 +1885,9 @@ def lookup_reusable_structured_jobs(
         f"WHERE job_url IN ({placeholders})"
     )
     reusable_rows: dict[str, dict[str, Any]] = {}
-    with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+    from fitcv.persistence import sqlite_connection
+
+    with sqlite_connection(_sqlite_path(), timeout=30) as conn:
         _configure_sqlite_connection(conn)
         _ensure_sqlite_structured_jobs_table(conn)
         for job_url, raw_fingerprint, contract_fingerprint, payload_json in conn.execute(sql, job_urls).fetchall():
@@ -2267,7 +2269,9 @@ def load_structured_jobs(
     if not cacheable_rows:
         return 0
 
-    with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+    from fitcv.persistence import sqlite_connection
+
+    with sqlite_connection(_sqlite_path(), timeout=30) as conn:
         _configure_sqlite_connection(conn)
         _ensure_sqlite_structured_jobs_table(conn)
         rows = []
@@ -2391,7 +2395,9 @@ def load_run_structured_jobs(
     rows = [_map_to_run_structured_jobs_row(row, run_id) for row in enriched]
     db_path = _sqlite_path()
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
+    from fitcv.persistence import sqlite_connection
+
+    with sqlite_connection(db_path) as conn:
         _configure_sqlite_connection(conn)
         _ensure_sqlite_run_structured_jobs_table(conn)
         conn.executemany(

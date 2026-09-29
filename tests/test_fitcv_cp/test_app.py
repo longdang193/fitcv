@@ -41,6 +41,7 @@ from fitcv_cp.models import (
 from fitcv_cp.orchestrator import RunSubmission
 from fitcv_cp import sqlite_store
 from fitcv_cp.backend_runtime import set_backend_runtime
+from fitcv.persistence import sqlite_connection
 
 _TEST_DATABASE_ROOT = tempfile.TemporaryDirectory(prefix="fitcv-cp-app-tests-")
 
@@ -521,7 +522,7 @@ def test_candidate_profile_baseline_validation_failure_registers_blocks_and_retr
     assert failed["creation_status"] == "failed"
     assert failed["failure"]["message"] == "baseline collection requires valid source_block_ids"
     assert failed["capabilities"]["retry"] is True
-    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
+    with sqlite_connection(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
         assert conn.execute(
             "SELECT COUNT(*) FROM candidate_profile_source_blocks WHERE attempt_id=?",
             (initial["attempt_id"],),
@@ -1984,7 +1985,7 @@ def test_managed_run_keeps_profile_metadata_outside_analysis_snapshot(monkeypatc
     assert detail is not None
     canonical = converge_candidate_profile_for_runtime(detail["profile"]["canonical"])
     profile_json = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+    with sqlite_connection(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
         connection.execute(
             "UPDATE candidate_profile_revisions SET profile_json = ?, checksum = ?, schema_revision = ? WHERE candidate_profile_id = ? AND revision = 1",
             (profile_json, hashlib.sha256(profile_json.encode("utf-8")).hexdigest(), "candidate-profile.v2", profile_id),
@@ -2020,7 +2021,7 @@ def test_managed_run_keeps_profile_metadata_outside_analysis_snapshot(monkeypatc
     runtime_snapshot = json.loads(json.loads(run.effective_settings_json)["runtime_inputs"]["candidate_profile_json"])
     assert runtime_snapshot == snapshot
 
-    with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+    with sqlite_connection(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
         persisted = connection.execute(
             "SELECT candidate_profile_id, candidate_profile_revision FROM run_inputs WHERE run_id = ?",
             (run_id,),
@@ -2058,7 +2059,7 @@ def test_real_managed_run_preserves_upload_then_selected_scan_order(
     assert response.status_code == 201, response.text
     run_id = response.json()["data"]["run_id"]
     database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
-    with sqlite3.connect(database_path) as connection:
+    with sqlite_connection(database_path) as connection:
         jobs = connection.execute(
             "SELECT title FROM run_jobs WHERE run_id = ? ORDER BY source_index",
             (run_id,),
@@ -2085,7 +2086,7 @@ def test_real_managed_run_rejects_missing_archived_empty_and_integrity_invalid_s
     )["items"][0]
     empty = _seed_succeeded_scan(name="empty", jobs=[])
     invalid = _seed_succeeded_scan(name="invalid", jobs=[_valid_fitcv_job()])
-    with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+    with sqlite_connection(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
         connection.execute(
             "UPDATE scan_outputs SET output_json = ? WHERE scan_id = ?",
             ('[{"title":"tampered"}]', invalid["scan_id"]),
@@ -5571,7 +5572,7 @@ def test_run_history_http_routes_use_canonical_sqlite_rows() -> None:
     assert client.get(f"/runs/{run.run_id}/jobs").status_code == 200
     events = client.get(f"/runs/{run.run_id}/events").json()
     assert events["data"][0]["event_id"] == "direct-canonical-event"
-    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
+    with sqlite_connection(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
         legacy_tables = {
             str(row[0])
             for row in conn.execute(
@@ -6309,6 +6310,16 @@ def test_admin_review_queue_page_renders_shared_controls_and_back_link() -> None
                         "status": "review_required",
                         "fit_classification": "stretch",
                         "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "uncertainty-1",
+                                "resolution_key": "required_skill:sql",
+                                "affected_fact": "SQL",
+                                "question": "How many years of production SQL experience?",
+                                "recommended_disposition": "resolve_with_answer",
+                                "evidence_ids": [],
+                            }
+                        ],
                     }
                 ],
                 "hitl_review_actions": [],
@@ -6323,6 +6334,7 @@ def test_admin_review_queue_page_renders_shared_controls_and_back_link() -> None
     assert "Apply to Selected Jobs" in resp.text
     assert "Select All" in resp.text
     assert "Clear All" in resp.text
+    assert 'name="answer_text"' in resp.text
 
 def test_admin_review_queue_page_guards_empty_batch_selection_with_alert() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -6570,6 +6582,51 @@ def test_admin_run_cv_review_resolution_actions_store_identity_and_enqueue(
     assert saved[0]["resolution_payload"] == {"answer_text": answer_text}
     updated = json.loads(update_debug.call_args.args[1])
     assert updated["debug_records"][0]["uncertainties"][0]["resolution_action"] == action
+
+
+def test_admin_run_cv_review_answer_resolution_rejects_empty_answer() -> None:
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-resolution-empty-answer",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "uncertainty-1",
+                                "resolution_key": "required_skill:sql",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(_app()).post(
+            f"/admin/runs/{run.run_id}/cv-review-action",
+            data={
+                "job_url": "https://example.com/job-1",
+                "action": "RESOLVE_WITH_ANSWER",
+                "uncertainty_id": "uncertainty-1",
+                "resolution_key": "required_skill:sql",
+                "answer_text": "   ",
+            },
+        )
+
+    assert response.status_code == 422
+    assert "answer_text is required" in response.text
 
 
 def test_admin_run_cv_review_action_does_not_repeat_terminal_effects() -> None:
@@ -15939,7 +15996,7 @@ def test_company_catalog_track_replays_and_rejects_client_provider_fields() -> N
     assert replayed.json() == created.json()
     assert rejected.status_code == 422
     assert rejected.json()["error"]["code"] == "validation_failed"
-    with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+    with sqlite_connection(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
         assert connection.execute("SELECT COUNT(*) FROM tracked_companies").fetchone()[0] == 1
 
 
@@ -16030,7 +16087,7 @@ def test_company_catalog_track_duplicate_and_persistence_failure() -> None:
                 json={"catalog_id": "company-openai"},
             )
 
-        with sqlite3.connect(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
+        with sqlite_connection(Path(os.environ["FITCV_CP_SQLITE_PATH"])) as connection:
             assert connection.execute(
                 "SELECT COUNT(*) FROM tracked_companies WHERE catalog_id = ?",
                 ("company-openai",),

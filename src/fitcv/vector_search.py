@@ -39,6 +39,7 @@ from fitcv.shortlist_runtime import (
     run_sqlite_io_retry,
     sqlite_path,
 )
+from fitcv.persistence import sqlite_connection
 
 DEFAULT_RECENT_ROLE_COUNT = 3
 DEFAULT_ROLE_FAMILY_HINT_COUNT = 3
@@ -408,8 +409,12 @@ def resolve_candidate_query_embedding(
     components = build_candidate_query_components(profile, config)
     query_text = build_candidate_query_text(profile, config)
     signature_record = build_candidate_query_signature_record(components)
-    contract_record = build_candidate_query_embedding_contract_fingerprint(config)
-    with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+    configured_backend_id = build_embedding_backend_metadata(config)["backend_id"]
+    contract_record = build_candidate_query_embedding_contract_fingerprint(
+        config,
+        embedding_backend=configured_backend_id,
+    )
+    with sqlite_connection(sqlite_path(), timeout=30) as conn:
         configure_sqlite_connection(conn)
         _ensure_sqlite_vector_tables(conn)
         row = conn.execute(
@@ -641,7 +646,7 @@ def run_vector_search(
         if key != "embedding"
     }
     placeholders = ",".join(["?"] * len(eligible_job_urls))
-    with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+    with sqlite_connection(sqlite_path(), timeout=30) as conn:
         configure_sqlite_connection(conn)
         embedding_columns = {
             str(row[1]) for row in conn.execute("PRAGMA table_info(job_embeddings)").fetchall()
@@ -847,7 +852,7 @@ def store_shortlist(
     now = datetime.now(tz=timezone.utc).isoformat()
 
     def _write_shortlist() -> None:
-        with sqlite3.connect(sqlite_path(), timeout=30) as conn:
+        with sqlite_connection(sqlite_path(), timeout=30) as conn:
             configure_sqlite_connection(conn)
             _ensure_sqlite_vector_tables(conn)
             conn.executemany(
@@ -869,8 +874,6 @@ def store_shortlist(
             conn.commit()
 
     run_sqlite_io_retry(_write_shortlist)
-
-
 
 
 

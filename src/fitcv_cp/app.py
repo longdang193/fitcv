@@ -7297,6 +7297,7 @@ def create_app(
     *,
     redis_url: str,
     backend_runtime: BackendRuntime | None = None,
+    lifespan: Any = None,
 ) -> FastAPI:
     global _CP_STORE
     client = None
@@ -7332,7 +7333,7 @@ def create_app(
         inspect_ranking_policy_lifecycle_fn=sqlite_store_module.inspect_ranking_policy_lifecycle,
         insert_cv_version_row_fn=sqlite_store_module.insert_cv_version_row,
     )
-    app = FastAPI(title="FitCV Admin Control Plane")
+    app = FastAPI(title="FitCV Admin Control Plane", lifespan=lifespan)
     app.state.run_store = _CP_STORE
     from fitcv_cp.queue import enqueue_candidate_profile_stage, enqueue_scan_with_job_id
 
@@ -14461,6 +14462,8 @@ def create_app(
         }
         if payload.action not in allowed_actions:
             raise HTTPException(status_code=422, detail="Invalid review action")
+        if payload.action == "RESOLVE_WITH_ANSWER" and not payload.answer_text:
+            raise HTTPException(status_code=422, detail="answer_text is required for RESOLVE_WITH_ANSWER")
 
         if payload.action == "reconcile_historical":
             if run.status == RunStatus.AWAITING_CONTINUE and str(run.checkpoint_status or "") == "awaiting_review":

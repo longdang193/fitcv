@@ -23,7 +23,10 @@ from fitcv_cp.review_identity import (
     is_review_resolution_pending,
     normalize_review_resolution_status,
 )
-from fitcv_cp.run_artifact_contracts import decode_json_object_or_none
+from fitcv_cp.run_artifact_contracts import (
+    build_accepted_cv_effort_projection,
+    decode_json_object_or_none,
+)
 
 GERMANY_TZ = ZoneInfo("Europe/Berlin")
 
@@ -63,6 +66,10 @@ def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | 
         copied["debug_records"] = normalized_records
     if "cv_generation_debug_records" in copied:
         copied["cv_generation_debug_records"] = normalized_records
+    copied["accepted_cv_effort"] = build_accepted_cv_effort_projection(
+        normalized_records,
+        [item for item in list(copied.get("hitl_review_actions") or []) if isinstance(item, dict)],
+    )
     return copied
 
 def _run_status_allows_export(run: PipelineRun) -> bool:

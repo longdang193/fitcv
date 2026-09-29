@@ -31,7 +31,7 @@ from fitcv.contracts import (
     REQUIRED_SCRAPER_FIELDS,
     SCRAPER_CAMEL_TO_SNAKE,
 )
-from fitcv.persistence import get_local_sqlite_path
+from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv.pipeline_stages.common import normalize_job_url_key
 
 # ── field mapping: LinkedIn scraper camelCase → raw_jobs snake_case ──────────
@@ -509,7 +509,7 @@ def load_raw_jobs(rows: list[dict[str, Any]], config: dict[str, Any]) -> int:
     """Insert *rows* into local `raw_jobs` table and return inserted count."""
     db_path = Path(_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
+    with sqlite_connection(db_path) as conn:
         _ensure_local_raw_jobs_table(conn)
         conn.executemany(
             """

@@ -26,6 +26,7 @@ from fitcv_cp.run_artifact_contracts import (
     schema_version_matches,
     schema_version_or_none,
     stable_sha256_fingerprint,
+    build_accepted_cv_effort_projection,
 )
 
 
@@ -106,6 +107,42 @@ def test_decode_run_attempt_payload_or_none_accepts_minimal_valid_payload() -> N
     decoded = decode_run_attempt_payload_or_none(raw)
     assert isinstance(decoded, dict)
     assert decoded["attempt"]["attempt_id"] == "a1"
+
+
+def test_accepted_cv_effort_projection_is_not_run_without_finalized_artifact() -> None:
+    result = build_accepted_cv_effort_projection([], [{"action": "regenerate_once"}])
+
+    assert result["status"] == "not_run"
+    assert result["denominator"] == {"accepted_cv_count": 0}
+
+
+def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
+    record = {
+        "job_url": "job-1",
+        "cv_generation_trace": {
+            "efficiency_summary": {
+                "provider_call_count": 2,
+                "regeneration_count": 1,
+                "review_question_count": 1,
+                "token_usage_status": "not_run",
+            }
+        },
+    }
+    action = {
+        "job_url": "job-1",
+        "action": "approve_as_is",
+        "created_at": "2026-09-29T00:00:00Z",
+        "artifact_finalized": True,
+        "artifact_version_id": "cv-v1",
+    }
+
+    result = build_accepted_cv_effort_projection([record], [action, dict(action)])
+
+    assert result["status"] == "measured"
+    assert result["denominator"] == {"accepted_cv_count": 1}
+    assert result["records"][0]["provider_call_count"] == 2
+    assert result["records"][0]["human_action_count"] == 1
+    assert result["records"][0]["elapsed_status"] == "not_run"
 
 def test_run_attempt_payload_v1_truncates_error_details_when_over_cap() -> None:
     payload = run_attempt_payload_v1(

@@ -1855,7 +1855,7 @@ def test_cv_analysis_contract_rejects_v2_requirement_support_policy_fingerprint(
     legacy_payload["requirement_support_policy_version"] = "requirement-support-v2"
     legacy_fingerprint = evidence_module._stable_json_fingerprint(legacy_payload)
 
-    assert current["payload"]["requirement_support_policy_version"] == "requirement-support-v5"
+    assert current["payload"]["requirement_support_policy_version"] == "requirement-support-v6"
     assert current["fingerprint"] != legacy_fingerprint
 
 

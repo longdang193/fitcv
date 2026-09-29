@@ -10280,7 +10280,7 @@ def list_run_structured_jobs(
     import sqlite3
     db_path = _local_sqlite_path()
     try:
-        with sqlite3.connect(db_path) as conn:
+        with _sqlite_connection(Path(db_path)) as conn:
             rows = conn.execute(
                 """
                 SELECT payload_json
@@ -10313,7 +10313,7 @@ def list_filter_results_for_run(
     """
     db_path = _local_sqlite_path()
     try:
-        with sqlite3.connect(db_path) as conn:
+        with _sqlite_connection(Path(db_path)) as conn:
             _ensure_local_rule_filter_results_table(conn)
             cursor = conn.execute(
                 """

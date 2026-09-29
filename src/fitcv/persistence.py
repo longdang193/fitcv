@@ -16,8 +16,22 @@ lifecycle:
 """
 
 import os
+import sqlite3
+from contextlib import contextmanager
+from collections.abc import Iterator
+from typing import Any
 
 from fitcv.config import load_control_plane_config
+
+
+@contextmanager
+def sqlite_connection(*args: Any, **kwargs: Any) -> Iterator[sqlite3.Connection]:
+    connection = sqlite3.connect(*args, **kwargs)
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
 
 
 def get_local_sqlite_path() -> str:

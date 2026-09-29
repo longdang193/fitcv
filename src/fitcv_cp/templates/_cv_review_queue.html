@@ -107,6 +107,12 @@
               <input type="hidden" name="action" value="{{ resolution_action }}">
               <input type="hidden" name="uncertainty_id" value="{{ uncertainty.uncertainty_id }}">
               <input type="hidden" name="resolution_key" value="{{ uncertainty.resolution_key }}">
+              {% if resolution_action == 'RESOLVE_WITH_ANSWER' %}
+              <label style="display:flex;flex-direction:column;gap:0.2rem;min-width:18rem">
+                <span class="meta">Candidate answer</span>
+                <textarea name="answer_text" rows="3" required placeholder="Enter verified answer">{{ uncertainty.resolution_payload.answer_text if uncertainty.resolution_payload else '' }}</textarea>
+              </label>
+              {% endif %}
               <button class="btn-secondary" type="submit">{{ resolution_action }}</button>
             </form>
             {% endfor %}
@@ -274,4 +280,3 @@
     linear-gradient(transparent 27px, rgba(255, 255, 255, 0.04) 28px) 0 0 / 100% 28px;
 }
 </style>
-

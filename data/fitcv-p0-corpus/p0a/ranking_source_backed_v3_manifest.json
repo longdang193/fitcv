@@ -1,0 +1,102 @@
+{
+  "schema_version": "ranking_gold_source_backed_v3_manifest",
+  "fixture_path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v3.json",
+  "fixture_sha256": "e3a14dee893a22c63506951a0d2a2df5e26f0dfcdfdcf90f9051ddafe0489250",
+  "source_snapshot_path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v3.jsonl",
+  "source_snapshot_sha256": "18f1cc18ddae5f036b62737756d88482fb580a0ef328434eb9ca54293a7548d6",
+  "source_snapshot_row_count": 104,
+  "source_components": [
+    {
+      "path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
+      "sha256": "8c989136bd672841862db99e1bde5f02ec0dc121ce1555b202b04db7edfcc0fd",
+      "row_count": 100
+    },
+    {
+      "path": "tmp/liveprobe/jobs.filtered.all.2a5d3b6e-52ad-4a27-bf1d-5982ff38ca9e.jsonl",
+      "source_id": "4321360960",
+      "source_group_id": "company-posting-family:39711:en"
+    },
+    {
+      "path": "tmp/liveprobe/jobs.filtered.all.2a5d3b6e-52ad-4a27-bf1d-5982ff38ca9e.jsonl",
+      "source_id": "4373950965",
+      "source_group_id": "company-posting-family:10187971:en"
+    },
+    {
+      "path": "data/uploads/2c645973-fcc6-4f17-8712-fd8f16227865_jobs.json",
+      "source_id": "6099616004",
+      "source_group_id": "external-company:figma:en"
+    },
+    {
+      "path": "data/uploads/2fb54095-8438-43e6-84e6-bb5bc06ad67f_jobs.json",
+      "source_id": "7799617003",
+      "source_group_id": "external-company:awin:en"
+    }
+  ],
+  "row_count": 104,
+  "profile_count": 2,
+  "profile_counts": {
+    "de": 50,
+    "en": 54
+  },
+  "class_counts": {
+    "de": {
+      "relevant": 28,
+      "irrelevant": 18,
+      "borderline": 4
+    },
+    "en": {
+      "relevant": 21,
+      "borderline": 29,
+      "irrelevant": 4
+    }
+  },
+  "split_counts": {
+    "de:calibration": 40,
+    "de:held_out": 10,
+    "en:calibration": 44,
+    "en:held_out": 10
+  },
+  "source_group_count": 84,
+  "source_group_status": "assigned_by_approved_rule_with_external_fallback",
+  "reviewer_status": "complete",
+  "adjudication_status": "adjudicated",
+  "fixture_status": "ready",
+  "label_policy_version": "p0a-relevance-v2",
+  "cutoffs": {
+    "de": {
+      "retrieval_top_n": 10,
+      "ranking_top_n": 5,
+      "ndcg_top_n": 5
+    },
+    "en": {
+      "retrieval_top_n": 10,
+      "ranking_top_n": 5,
+      "ndcg_top_n": 5
+    }
+  },
+  "review_packet_path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v3_review_packet.json",
+  "review_packet_sha256": "d187b8f704fecb51e537a49b35a564125342121cb617fd0a207881ad415d5b03",
+  "promotion_blockers": [],
+  "grade_counts": {
+    "de": {
+      "3": 23,
+      "2": 5,
+      "0": 18,
+      "1": 4
+    },
+    "en": {
+      "3": 20,
+      "1": 29,
+      "2": 1,
+      "0": 4
+    }
+  },
+  "reviewer_ids": [
+    "p0a-reviewer-01",
+    "p0a-reviewer-02"
+  ],
+  "reviewed_row_count": 104,
+  "adjudicator_id": "p0a-adjudicator-01",
+  "adjudicated_disagreement_count": 6,
+  "adjudicated_at": "2026-09-29"
+}

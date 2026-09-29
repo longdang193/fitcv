@@ -1,0 +1,76 @@
+{
+  "schema_version": "ranking_gold_source_backed_v2_manifest",
+  "fixture_path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v2.json",
+  "fixture_sha256": "0329cef00c09521a2c78bf11685d9d20e6432aa75c647ebc3e839d8d309a2b1b",
+  "source_snapshot_path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
+  "source_snapshot_sha256": "8c989136bd672841862db99e1bde5f02ec0dc121ce1555b202b04db7edfcc0fd",
+  "row_count": 100,
+  "profile_count": 2,
+  "profile_counts": {
+    "de": 50,
+    "en": 50
+  },
+  "class_counts": {
+    "de": {
+      "irrelevant": 21,
+      "borderline": 2,
+      "relevant": 27
+    },
+    "en": {
+      "irrelevant": 0,
+      "borderline": 29,
+      "relevant": 21
+    }
+  },
+  "split_counts": {
+    "de:calibration": 40,
+    "de:held_out": 10,
+    "en:calibration": 40,
+    "en:held_out": 10
+  },
+  "source_group_count": 80,
+  "source_group_status": "assigned_by_approved_rule",
+  "reviewer_status": "complete",
+  "adjudication_status": "adjudicated",
+  "fixture_status": "awaiting_pool_rebalance",
+  "label_policy_version": "p0a-relevance-v2",
+  "cutoffs": {
+    "de": {
+      "retrieval_top_n": 10,
+      "ranking_top_n": 5,
+      "ndcg_top_n": 5
+    },
+    "en": {
+      "retrieval_top_n": 10,
+      "ranking_top_n": 5,
+      "ndcg_top_n": 5
+    }
+  },
+  "review_packet_path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v2_review_packet.json",
+  "review_packet_sha256": "c11676ebfbe317f6aace2a9916ee951a797fae85459bcf0e7c3960878f6a52dd",
+  "grade_counts": {
+    "de": {
+      "0": 21,
+      "1": 2,
+      "2": 0,
+      "3": 27
+    },
+    "en": {
+      "0": 0,
+      "1": 29,
+      "2": 0,
+      "3": 21
+    }
+  },
+  "reviewer_ids": [
+    "p0a-reviewer-01",
+    "p0a-reviewer-02"
+  ],
+  "reviewed_row_count": 100,
+  "adjudicator_id": "p0a-adjudicator-01",
+  "adjudicated_disagreement_count": 8,
+  "adjudicated_at": "2026-09-29",
+  "promotion_blockers": [
+    "en:missing_mixed_relevance_classes"
+  ]
+}

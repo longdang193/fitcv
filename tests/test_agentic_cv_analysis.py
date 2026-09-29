@@ -27,7 +27,11 @@ from fitcv.agentic_cv_analysis import (
     resolve_ranked_job_fit,
 )
 from fitcv.contracts import CV_ANALYSIS_REUSE_SCHEMA_VERSION
-from fitcv.evidence import build_cv_analysis_input_fingerprint, build_required_skill_descriptors
+from fitcv.evidence import (
+    REQUIREMENT_SUPPORT_POLICY_VERSION,
+    build_cv_analysis_input_fingerprint,
+    build_required_skill_descriptors,
+)
 
 
 def _job() -> dict:
@@ -608,6 +612,7 @@ def _complete_reusable_record() -> dict:
             "contract_fingerprint": "contract::1",
             "profile_payload_hash": "profile::1",
             "job_payload_hash": "job::1",
+            "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
         },
         "analysis_reuse_status": "fresh_compute",
         "reuse_decision": {"decision": "fresh_compute"},
@@ -975,6 +980,79 @@ def test_analyze_ranked_job_rebuilds_complete_exact_reuse_without_analysis(
     assert result["cv_analysis_trace"]["record_id"] == "fp:raw-job-1"
     mock_bundle.assert_not_called()
     mock_gap.assert_not_called()
+
+
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.build_evidence_projection")
+def test_analyze_ranked_job_recomputes_v5_snapshot_after_support_policy_change(
+    mock_projection,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_retrieve,
+) -> None:
+    mock_projection.return_value = {"fingerprint": "projection::stale-policy"}
+    mock_fingerprint.return_value = {
+        "fingerprint": "analysis::stale-policy",
+        "payload": {
+            "contract_fingerprint": "contract::1",
+            "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
+        },
+    }
+    mock_bundle.return_value = {
+        "projection_fingerprint": "projection::stale-policy",
+        "selected_evidence": [],
+        "selected_evidence_ids": [],
+    }
+    mock_retrieve.return_value = []
+    mock_gap.return_value = {"matched": [], "missing": ["3 years production SQL"]}
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": "7"}
+    job = {
+        **_job(),
+        "required_skills": ["3 years production SQL"],
+        "required_skill_entities": [
+            {"raw_text": "3 years production SQL", "canonical": "sql"}
+        ],
+    }
+    requirement_instance_id = build_required_skill_descriptors(job, _config())[0][
+        "requirement_instance_id"
+    ]
+    config = {
+        **_config(),
+        "_requirement_resolutions": [
+            {
+                "resolution_id": "resolution-stale-policy",
+                "candidate_profile_id": "candidate-1",
+                "candidate_profile_revision": "7",
+                "source_profile_fingerprint": "projection::stale-policy",
+                "resolution_key": requirement_instance_id,
+                "requirement_instance_id": requirement_instance_id,
+                "resolution_action": "RESOLVE_WITH_ANSWER",
+                "resolution_payload": {
+                    "answer_text": "5 years production Python; SQL classroom exercises"
+                },
+            }
+        ],
+    }
+    reusable_record = _complete_reusable_record()
+    reusable_record["analysis_input_fingerprint"] = "analysis::stale-policy"
+    reusable_record["analysis_input_components"]["requirement_support_policy_version"] = "requirement-support-v5"
+    reusable_record["requirement_coverage"] = [
+        {"requirement": "3 years production SQL", "selected_support": "verified"}
+    ]
+
+    result = analyze_ranked_job(
+        job,
+        profile,
+        config,
+        reusable_record=reusable_record,
+    )
+
+    assert result["analysis_reuse_status"] == "fresh_compute"
+    assert result["requirement_coverage"][0]["selected_support"] == "relevant_unverified"
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")

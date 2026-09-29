@@ -18,6 +18,8 @@ from __future__ import annotations
 import logging
 import os
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -73,27 +75,32 @@ def build_app() -> Any:
         migrate_packaged_local_integration_state(local_paths)
     redis_url = None if local_mode else os.environ.get("REDIS_URL", "redis://redis:6379/0")
     logger.info("control-plane backend mode: sqlite")
-    application = create_app(redis_url=redis_url, backend_runtime=runtime)
     from fitcv_cp.reporter import ProcessEventDeliveryLoop
 
+    delivery_loop = ProcessEventDeliveryLoop(limit=20)
+
+    @asynccontextmanager
+    async def lifespan(_application: Any) -> AsyncIterator[None]:
+        delivery_loop.start()
+        try:
+            yield
+        finally:
+            delivery_loop.stop(
+                final_drain=True,
+                shutdown_deadline=time.monotonic() + 5.5,
+            )
+            from fitcv.llm_runtime import close_ranking_transport_pool
+
+            close_ranking_transport_pool()
+
+    application = create_app(
+        redis_url=redis_url,
+        backend_runtime=runtime,
+        lifespan=lifespan,
+    )
     if not hasattr(application, "state"):
         return application
-    delivery_loop = ProcessEventDeliveryLoop(limit=20)
     application.state.process_event_delivery_loop = delivery_loop
-
-    @application.on_event("startup")
-    async def start_process_event_delivery_loop() -> None:
-        delivery_loop.start()
-
-    @application.on_event("shutdown")
-    async def stop_process_event_delivery_loop() -> None:
-        delivery_loop.stop(
-            final_drain=True,
-            shutdown_deadline=time.monotonic() + 5.5,
-        )
-        from fitcv.llm_runtime import close_ranking_transport_pool
-
-        close_ranking_transport_pool()
 
     return application
 

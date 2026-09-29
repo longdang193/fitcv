@@ -24,7 +24,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Callable
 
-from fitcv.persistence import get_local_sqlite_path
+from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.settings_schema import (
     canonical_settings_key,
@@ -147,7 +147,7 @@ def _load_local_settings_rows() -> list[sqlite3.Row]:
         return []
     for attempt in (1, 2):
         try:
-            with sqlite3.connect(
+            with sqlite_connection(
                 f"file:{db_path.resolve().as_posix()}?mode=ro", timeout=30, uri=True
             ) as conn:
                 conn.row_factory = sqlite3.Row
@@ -176,7 +176,7 @@ def _delete_local_settings_rows(rows: list[tuple[str, str]]) -> None:
     db_path = _local_sqlite_path()
     if not db_path.exists():
         return
-    with sqlite3.connect(db_path, timeout=30) as conn:
+    with sqlite_connection(db_path, timeout=30) as conn:
         _ensure_local_pipeline_settings_table(conn)
         conn.executemany(
             "DELETE FROM pipeline_settings WHERE setting_key = ? AND setting_value_json = ?",
@@ -299,7 +299,7 @@ def mutate_settings_atomically(
 
     for attempt in (1, 2):
         try:
-            with sqlite3.connect(db_path, timeout=30, isolation_level=None) as conn:
+            with sqlite_connection(db_path, timeout=30, isolation_level=None) as conn:
                 conn.execute("BEGIN IMMEDIATE")
                 _ensure_local_pipeline_settings_table(conn)
                 active, invalid_rows = _load_active_settings_from_connection(conn)
@@ -418,7 +418,7 @@ def _load_configuration_resource(resource_name: str) -> dict[str, Any]:
         if resource_name == "llm_configuration":
             value = _hydrate_llm_configuration_tasks(value)
         return _resource_result(resource_name, value, 1, "")
-    with sqlite3.connect(
+    with sqlite_connection(
         f"file:{db_path.resolve().as_posix()}?mode=ro", timeout=30, uri=True
     ) as conn:
         row = conn.execute(
@@ -445,7 +445,7 @@ def _patch_configuration_resource(
 ) -> dict[str, Any]:
     db_path = _local_sqlite_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path, timeout=30, isolation_level=None) as conn:
+    with sqlite_connection(db_path, timeout=30, isolation_level=None) as conn:
         _ensure_configuration_schema(conn)
         conn.execute("BEGIN IMMEDIATE")
         try:
