@@ -1,51 +1,47 @@
 {
-  "schema_version": "ranking_gold_source_backed_v3",
+  "schema_version": "ranking_gold_source_backed_v4",
   "fixture_role": "source_backed",
   "fixture_status": "ready",
   "label_policy_version": "p0a-relevance-v2",
   "source_snapshot": {
-    "path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v3.jsonl",
-    "sha256": "18f1cc18ddae5f036b62737756d88482fb580a0ef328434eb9ca54293a7548d6",
-    "encoding": "utf-8",
-    "text_hash_normalization": "CRLF-to-LF only",
-    "source_components": [
-      {
-        "path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl",
-        "sha256": "8c989136bd672841862db99e1bde5f02ec0dc121ce1555b202b04db7edfcc0fd",
-        "row_count": 100
-      },
-      {
-        "path": "tmp/liveprobe/jobs.filtered.all.2a5d3b6e-52ad-4a27-bf1d-5982ff38ca9e.jsonl",
-        "source_id": "4321360960",
-        "source_group_id": "company-posting-family:39711:en"
-      },
-      {
-        "path": "tmp/liveprobe/jobs.filtered.all.2a5d3b6e-52ad-4a27-bf1d-5982ff38ca9e.jsonl",
-        "source_id": "4373950965",
-        "source_group_id": "company-posting-family:10187971:en"
-      },
-      {
-        "path": "data/uploads/2c645973-fcc6-4f17-8712-fd8f16227865_jobs.json",
-        "source_id": "6099616004",
-        "source_group_id": "external-company:figma:en"
-      },
-      {
-        "path": "data/uploads/2fb54095-8438-43e6-84e6-bb5bc06ad67f_jobs.json",
-        "source_id": "7799617003",
-        "source_group_id": "external-company:awin:en"
-      }
-    ]
+    "path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
+    "sha256": "45f4c845bf242a57f7725faba64f5b835a5abd9e9517e6aaacf64465ea426884"
   },
   "profiles": {
     "de": {
       "profile_id": "de",
       "profile": {
         "preferences": {
-          "target_role": "intern",
+          "target_role": null,
+          "role_families": [],
           "domains": [],
           "location_types": []
         },
-        "skills": []
+        "skills": [
+          "Python",
+          "SQL",
+          "Scala",
+          "Bash",
+          "GCP",
+          "AWS",
+          "Docker / Kubernetes",
+          "Terraform",
+          "Apache Spark",
+          "dbt",
+          "Apache Airflow",
+          "Apache Kafka",
+          "Data Modeling",
+          "Looker",
+          "Power BI",
+          "Tableau",
+          "Great Expectations",
+          "Data Contract",
+          "BigQuery ML",
+          "Vertex AI",
+          "Git / GitHub",
+          "GitHub Actions",
+          "CI/CD Pipelines"
+        ]
       },
       "retrieval_top_n": 10,
       "ranking_top_n": 5,
@@ -5219,11 +5215,36 @@
       "profile_id": "en",
       "profile": {
         "preferences": {
-          "target_role": "intern",
+          "target_role": null,
+          "role_families": [],
           "domains": [],
           "location_types": []
         },
-        "skills": []
+        "skills": [
+          "Python",
+          "SQL",
+          "Scala",
+          "Bash",
+          "GCP",
+          "AWS",
+          "Docker / Kubernetes",
+          "Terraform",
+          "Apache Spark",
+          "dbt",
+          "Apache Airflow",
+          "Apache Kafka",
+          "Data Modeling",
+          "Looker",
+          "Power BI",
+          "Tableau",
+          "Great Expectations",
+          "Data Contract",
+          "BigQuery ML",
+          "Vertex AI",
+          "Git / GitHub",
+          "GitHub Actions",
+          "CI/CD Pipelines"
+        ]
       },
       "retrieval_top_n": 10,
       "ranking_top_n": 5,
@@ -5274,7 +5295,7 @@
           "source_id": "4470112984",
           "source_file": "linkedin-2026-09-25-22-54-17.json",
           "source_job_url": "https://de.linkedin.com/jobs/view/paid-eramus%2B-sales-italian-intern-at-e-farm-4470112984?trk=public_jobs_topcard-title",
-          "language": "en",
+          "language": "mixed",
           "source_text_field": "description",
           "source_text_sha256": "7640d76c2d7d4a36c17c764fe4f3afb575347ffdc94b1102a5c4247563fe6fd1",
           "job": {
@@ -10415,7 +10436,7 @@
           ],
           "adjudication": null,
           "source_id": "4321360960",
-          "source_file": "tmp/liveprobe/jobs.filtered.all.2a5d3b6e-52ad-4a27-bf1d-5982ff38ca9e.jsonl",
+          "source_file": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
           "source_job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
           "language": "en",
           "source_text_field": "description",
@@ -10444,7 +10465,7 @@
             "id": "4321360960",
             "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
             "source_id": "4321360960",
-            "source_file": "tmp/liveprobe/jobs.filtered.all.2a5d3b6e-52ad-4a27-bf1d-5982ff38ca9e.jsonl",
+            "source_file": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
             "source_job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
             "language": "en"
           },
@@ -10498,7 +10519,7 @@
           ],
           "adjudication": null,
           "source_id": "4373950965",
-          "source_file": "tmp/liveprobe/jobs.filtered.all.2a5d3b6e-52ad-4a27-bf1d-5982ff38ca9e.jsonl",
+          "source_file": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
           "source_job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
           "language": "en",
           "source_text_field": "description",
@@ -10527,7 +10548,7 @@
             "id": "4373950965",
             "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
             "source_id": "4373950965",
-            "source_file": "tmp/liveprobe/jobs.filtered.all.2a5d3b6e-52ad-4a27-bf1d-5982ff38ca9e.jsonl",
+            "source_file": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
             "source_job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
             "language": "en"
           },
@@ -10581,7 +10602,7 @@
           ],
           "adjudication": null,
           "source_id": "6099616004",
-          "source_file": "data/uploads/2c645973-fcc6-4f17-8712-fd8f16227865_jobs.json",
+          "source_file": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
           "source_job_url": "https://boards.greenhouse.io/figma/jobs/6099616004?gh_jid=6099616004",
           "language": "en",
           "source_text_field": "description",
@@ -10593,7 +10614,7 @@
             "jobUrl": "https://boards.greenhouse.io/figma/jobs/6099616004?gh_jid=6099616004",
             "companyName": "Figma Task3 Inline Fresh 20260831T165239Z",
             "companyUrl": "https://job-boards.greenhouse.io/figma",
-            "description": "<div class=\"content-intro\"><p>Figma is growing our team of passionate creatives and builders on a mission to make design accessible to all. Figma’s platform helps teams bring ideas to life—whether you're brainstorming, creating a prototype, translating designs into code, or iterating with AI. From idea to product, Figma empowers teams to streamline workflows, move faster, and work together in real time from anywhere in the world. If you're excited to shape the future of design and collaboration, join us!</p></div><p>We’re looking for an Engineering Manager to join the Developer Tools team at Figma. This team is building solutions targeting mainly frontend and full stack developers, helping them bring products from idea to production faster than ever. As a manager on the Developer tools team you will lead teams working across Dev Mode, MCP, Code Connect, and more. You’ll also be responsible for helping define the future of our developer offering, very likely helping incubate and lead new product development. Developer tools is a major initiative at Figma and is spearheaded from the London office. You’ll be working on one of the most exciting areas within Figma incorporating design thinking, the latest AI developments, and open source developer tooling.</p>\n<p>This is a full time role that can be held from our London hub or remotely in the UK.</p>\n<h4>What you’ll do at Figma:</h4>\n<ul>\n<li>Manage and support a team of product engineers focused on building and expanding Figma’s developer offerings, including Dev Mode, MCP, Code Connect, and more</li>\n<li>Partner closely with cross-functional stakeholders to coordinate work across product, design, engineering, and other functions</li>\n<li>Define strategy &amp; roadmap for your team and execute on that roadmap with a high degree of autonomy, velocity, and craftsmanship</li>\n<li>Provide hands-on technical leadership to your teams and others that collaborate with your teams to ensure a cohesive product experience and the right technical abstractions</li>\n<li>Recruit, mentor, and retain high performing engineers (and help with other cross functional roles). You’ll foster a culture of innovation, collaboration and taking calculated risks</li>\n<li>Figma is committed to building an inclusive and diverse team and culture. We expect all of our leaders to play a role in helping to build and drive these initiatives through hiring, community events, and other programs in partnership with teams across all of Figma</li>\n</ul>\n<div class=\"section page-centered\">\n<h4>We'd love to hear from you if you have:</h4>\n<ul>\n<li>2+ years of experience managing software engineers working on products used by external users</li>\n<li>A proven track record of building AI-powered products (both as a manager and individual contributor) that are best in class in user experience</li>\n<li>Demonstrated ability to tie product and engineering work to clear business impact</li>\n<li>Demonstrated leadership skills in building a high-performing and highly engaged engineering team; including mentoring, and growing senior engineers</li>\n<li>Strong ability to build and operate fast-moving teams that balance innovation with execution</li>\n<li>Genuine curiosity and enthusiasm for emerging AI technologies and their application to user-facing products</li>\n</ul>\n<h4>While not required, it’s an added plus if you also have:</h4>\n<ul>\n<li>Experience building large scale systems using React, C++, and/or Ruby</li>\n<li>Experience building &amp; maintaining open source software and/or libraries for developers</li>\n<li>Knowledge and experience in generative AI, RAG, the fine-tuning process and its application to creative products</li>\n</ul>\n<div class=\"section page-centered\">\n<div>\n<div>At Figma, one of our values is Grow as you go. We believe in hiring smart, curious people who are excited to learn and develop their skills. If you’re excited about this role but your past experience doesn’t align perfectly with the points outlined in the job description, we encourage you to apply anyways. You may be just the right candidate for this or other roles.</div>\n</div>\n</div>\n</div><div class=\"content-conclusion\"><p>At Figma we celebrate and support our differences. We know employing a team rich in diverse thoughts, experiences, and opinions allows our employees, our product and our community to flourish. Figma is an <a href=\"https://www.eeoc.gov/sites/default/files/2022-10/EEOC_KnowYourRights_screen_reader_10_20.pdf\">equal opportunity workplace</a> - we are dedicated to equal employment opportunities regardless of race, color, ancestry, religion, sex, national origin, sexual orientation, age, citizenship, marital status, disability, gender identity/expression, veteran status<strong>, </strong>or any other characteristic protected by law. We also consider qualified applicants regardless of criminal histories, consistent with legal requirements.</p>\n<p>We will work to ensure individuals with disabilities are provided reasonable accommodation to apply for a role, participate in the interview process, perform essential job functions, and receive other benefits and privileges of employment. If you require accommodation, please reach out to <a href=\"mailto:accommodations-ext@figma.com\">accommodations-ext@figma.com</a>. These modifications enable an individual with a disability to have an equal opportunity not only to get a job, but successfully perform their job tasks to the same extent as people without disabilities.&nbsp;</p>\n<p>Examples of accommodations include but are not limited to:&nbsp;</p>\n<ul>\n<li>Holding interviews in an accessible location</li>\n<li>Enabling closed captioning on video conferencing</li>\n<li>Ensuring all written communication be compatible with screen readers</li>\n<li>Changing the mode or format of interviews&nbsp;</li>\n</ul>\n<p>To ensure the integrity of our hiring process and facilitate a more personal connection, we require all candidates keep their cameras on during video interviews. Additionally, if hired you will be required to attend in person onboarding.</p>\n<p>By applying for this job, the candidate acknowledges and agrees that any personal data contained in their application or supporting materials will be processed in accordance with <a class=\"c-link c-link--underline\" href=\"https://www.figma.com/legal/candidate-privacy-notice/\" target=\"_blank\" data-stringify-link=\"https://www.figma.com/legal/candidate-privacy-notice/\" data-sk=\"tooltip_parent\">Figma's Candidate Privacy Notice</a>.</p></div>",
+            "description": "<div class=\"content-intro\"><p>Figma is growing our team of passionate creatives and builders on a mission to make design accessible to all. Figma’s platform helps teams bring ideas to life—whether you're brainstorming, creating a prototype, translating designs into code, or iterating with AI. From idea to product, Figma empowers teams to streamline workflows, move faster, and work together in real time from anywhere in the world. If you're excited to shape the future of design and collaboration, join us!</p></div><p>We’re looking for an Engineering Manager to join the Developer Tools team at Figma. This team is building solutions targeting mainly frontend and full stack developers, helping them bring products from idea to production faster than ever. As a manager on the Developer tools team you will lead teams working across Dev Mode, MCP, Code Connect, and more. You’ll also be responsible for helping define the future of our developer offering, very likely helping incubate and lead new product development. Developer tools is a major initiative at Figma and is spearheaded from the London office. You’ll be working on one of the most exciting areas within Figma incorporating design thinking, the latest AI developments, and open source developer tooling.</p>\n<p>This is a full time role that can be held from our London hub or remotely in the UK.</p>\n<h4>What you’ll do at Figma:</h4>\n<ul>\n<li>Manage and support a team of product engineers focused on building and expanding Figma’s developer offerings, including Dev Mode, MCP, Code Connect, and more</li>\n<li>Partner closely with cross-functional stakeholders to coordinate work across product, design, engineering, and other functions</li>\n<li>Define strategy &amp; roadmap for your team and execute on that roadmap with a high degree of autonomy, velocity, and craftsmanship</li>\n<li>Provide hands-on technical leadership to your teams and others that collaborate with your teams to ensure a cohesive product experience and the right technical abstractions</li>\n<li>Recruit, mentor, and retain high performing engineers (and help with other cross functional roles). You’ll foster a culture of innovation, collaboration and taking calculated risks</li>\n<li>Figma is committed to building an inclusive and diverse team and culture. We expect all of our leaders to play a role in helping to build and drive these initiatives through hiring, community events, and other programs in partnership with teams across all of Figma</li>\n</ul>\n<div class=\"section page-centered\">\n<h4>We'd love to hear from you if you have:</h4>\n<ul>\n<li>2+ years of experience managing software engineers working on products used by external users</li>\n<li>A proven track record of building AI-powered products (both as a manager and individual contributor) that are best in class in user experience</li>\n<li>Demonstrated ability to tie product and engineering work to clear business impact</li>\n<li>Demonstrated leadership skills in building a high-performing and highly engaged engineering team; including mentoring, and growing senior engineers</li>\n<li>Strong ability to build and operate fast-moving teams that balance innovation with execution</li>\n<li>Genuine curiosity and enthusiasm for emerging AI technologies and their application to user-facing products</li>\n</ul>\n<h4>While not required, it’s an added plus if you also have:</h4>\n<ul>\n<li>Experience building large scale systems using React, C++, and/or Ruby</li>\n<li>Experience building &amp; maintaining open source software and/or libraries for developers</li>\n<li>Knowledge and experience in generative AI, RAG, the fine-tuning process and its application to creative products</li>\n</ul>\n<div class=\"section page-centered\">\n<div>\n<div>At Figma, one of our values is Grow as you go. We believe in hiring smart, curious people who are excited to learn and develop their skills. If you’re excited about this role but your past experience doesn’t align perfectly with the points outlined in the job description, we encourage you to apply anyways. You may be just the right candidate for this or other roles.</div>\n</div>\n</div>\n</div><div class=\"content-conclusion\"><p>At Figma we celebrate and support our differences. We know employing a team rich in diverse thoughts, experiences, and opinions allows our employees, our product and our community to flourish. Figma is an <a href=\"https://www.eeoc.gov/sites/default/files/2022-10/EEOC_KnowYourRights_screen_reader_10_20.pdf\">equal opportunity workplace</a> - we are dedicated to equal employment opportunities regardless of race, color, ancestry, religion, sex, national origin, sexual orientation, age, citizenship, marital status, disability, gender identity/expression, veteran status<strong>, </strong>or any other characteristic protected by law. We also consider qualified applicants regardless of criminal histories, consistent with legal requirements.</p>\n<p>We will work to ensure individuals with disabilities are provided reasonable accommodation to apply for a role, participate in the interview process, perform essential job functions, and receive other benefits and privileges of employment. If you require accommodation, please reach out to <a href=\"mailto:[redacted-email]\">[redacted-email]</a>. These modifications enable an individual with a disability to have an equal opportunity not only to get a job, but successfully perform their job tasks to the same extent as people without disabilities.&nbsp;</p>\n<p>Examples of accommodations include but are not limited to:&nbsp;</p>\n<ul>\n<li>Holding interviews in an accessible location</li>\n<li>Enabling closed captioning on video conferencing</li>\n<li>Ensuring all written communication be compatible with screen readers</li>\n<li>Changing the mode or format of interviews&nbsp;</li>\n</ul>\n<p>To ensure the integrity of our hiring process and facilitate a more personal connection, we require all candidates keep their cameras on during video interviews. Additionally, if hired you will be required to attend in person onboarding.</p>\n<p>By applying for this job, the candidate acknowledges and agrees that any personal data contained in their application or supporting materials will be processed in accordance with <a class=\"c-link c-link--underline\" href=\"https://www.figma.com/legal/candidate-privacy-notice/\" target=\"_blank\" data-stringify-link=\"https://www.figma.com/legal/candidate-privacy-notice/\" data-sk=\"tooltip_parent\">Figma's Candidate Privacy Notice</a>.</p></div>",
             "contractType": "",
             "experienceLevel": "",
             "workType": "",
@@ -10604,7 +10625,7 @@
             "id": "6099616004",
             "job_url": "https://boards.greenhouse.io/figma/jobs/6099616004?gh_jid=6099616004",
             "source_id": "6099616004",
-            "source_file": "data/uploads/2c645973-fcc6-4f17-8712-fd8f16227865_jobs.json",
+            "source_file": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
             "source_job_url": "https://boards.greenhouse.io/figma/jobs/6099616004?gh_jid=6099616004",
             "language": "en"
           },
@@ -10658,7 +10679,7 @@
           ],
           "adjudication": null,
           "source_id": "7799617003",
-          "source_file": "data/uploads/2fb54095-8438-43e6-84e6-bb5bc06ad67f_jobs.json",
+          "source_file": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
           "source_job_url": "https://job-boards.greenhouse.io/awin/jobs/7799617003",
           "language": "en",
           "source_text_field": "description",
@@ -10681,7 +10702,7 @@
             "id": "7799617003",
             "job_url": "https://job-boards.greenhouse.io/awin/jobs/7799617003",
             "source_id": "7799617003",
-            "source_file": "data/uploads/2fb54095-8438-43e6-84e6-bb5bc06ad67f_jobs.json",
+            "source_file": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
             "source_job_url": "https://job-boards.greenhouse.io/awin/jobs/7799617003",
             "language": "en"
           },
@@ -10721,5 +10742,6 @@
   "adjudicator_id": "p0a-adjudicator-01",
   "reviewed_row_count": 104,
   "adjudicated_disagreement_count": 6,
-  "adjudicated_at": "2026-09-29"
+  "adjudicated_at": "2026-09-29",
+  "profile_projection_schema": "candidate-retrieval-profile-v1"
 }

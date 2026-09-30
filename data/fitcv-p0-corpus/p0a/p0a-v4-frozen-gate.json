@@ -1,0 +1,63 @@
+{
+  "schema_version": "p0a_frozen_gate_v1",
+  "evaluated_at": "2026-09-29",
+  "status": "evaluated_not_promoted",
+  "fixture_sha256": "c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e",
+  "score_artifact_sha256": "9036fb4ee212c9c7d3e74f204d0fa505eb99ba890e6af401c17943a09d179f1d",
+  "incumbent_report": "data/fitcv-p0-corpus/p0a/p0a-v4-incumbent-final.json",
+  "candidate_report": "data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-final.json",
+  "frozen_gates": {
+    "macro_recall_at_10_min_delta": -0.02,
+    "macro_ndcg_at_5_min_delta": -0.01,
+    "per_language_recall_at_10_min_delta": -0.05,
+    "per_language_ndcg_at_5_min_delta": -0.05,
+    "p95_candidate_to_incumbent_max_ratio": 1.2
+  },
+  "observed": {
+    "macro_recall_delta": -0.16666666666666669,
+    "macro_ndcg_delta": -0.09580299651725982,
+    "per_language": {
+      "de": {
+        "recall_delta": 0.0,
+        "ndcg_delta": 0.0,
+        "incumbent": {
+          "recall_at_5": 0.0,
+          "ndcg_at_5": 0.0
+        },
+        "candidate": {
+          "recall_at_5": 0.0,
+          "ndcg_at_5": 0.0
+        },
+        "recall_gate": true,
+        "ndcg_gate": true
+      },
+      "en": {
+        "recall_delta": -0.33333333333333337,
+        "ndcg_delta": -0.19160599303451964,
+        "incumbent": {
+          "recall_at_5": 1.0,
+          "ndcg_at_5": 0.917199037616598
+        },
+        "candidate": {
+          "recall_at_5": 0.6666666666666666,
+          "ndcg_at_5": 0.7255930445820784
+        },
+        "recall_gate": false,
+        "ndcg_gate": false
+      }
+    },
+    "incumbent_p95_ms": 75.06280000234256,
+    "candidate_p95_ms": 293.8907999996445,
+    "p95_ratio": 3.915265617462615,
+    "primary_stage": "ranking",
+    "primary_cutoff": 5
+  },
+  "gates": {
+    "macro_quality": false,
+    "per_language": false,
+    "latency": false
+  },
+  "promotion_rule": "all_quality_gates_pass_and_latency_gate_passes",
+  "promotion": "retain_incumbent",
+  "blocker": "quality_gate_failed;latency_gate_failed"
+}

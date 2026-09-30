@@ -1,0 +1,57 @@
+{
+  "counts": {
+    "expected_positive_requirement_refs": 17,
+    "requirements": 170,
+    "scenarios": 10,
+    "supported_requirements": 17
+  },
+  "fixture_path": "data/fitcv-p0-corpus/p0b/p0b_holdout_requirement_support_source_backed_v2.json",
+  "fixture_sha256": "991e06511f023f18abf27de4e21ed6774a502bb56162f2f3cc303b5fe5505f53",
+  "human_acceptance": {
+    "accepted_at": "2026-09-30T20:32:00+02:00",
+    "adjudicator_id": "github:longdang193",
+    "method": "user_confirmed_completed_review",
+    "model_labels_unchanged": true,
+    "rows": 170,
+    "scope": "all_model_decisions"
+  },
+  "packet_counts": {
+    "adjudicator_metadata_pending": 170,
+    "assistant_reviewed_rows": 170,
+    "cases": 10,
+    "changed_support_labels_vs_source": 16,
+    "field_disagreements": {
+      "evidence": 2,
+      "qualifier_verdicts": 0,
+      "support_verdict": 1
+    },
+    "final_decisions": 170,
+    "final_support_verdicts": {
+      "supported": 17,
+      "unknown": 152,
+      "unsupported": 1
+    },
+    "human_review_pending": 0,
+    "human_signed_off_rows": 170,
+    "human_support_verdicts": {
+      "supported": 17,
+      "unknown": 152,
+      "unsupported": 1
+    },
+    "model_adjudicator_metadata_complete": 170,
+    "pending_review_rows": 0,
+    "requirements": 170,
+    "unique_rows_needing_attention": 2
+  },
+  "packet_path": "source-packet-not-published.json",
+  "packet_sha256": "adf2e841dfaf0f20545cb5e59a9ae33df563a65264ee112d63aa8dfc0c53c99d",
+  "profile_path": "source-profile-not-published.yaml",
+  "profile_sha256": "27dcd3c86403ac184b12e0c71b0b466bf7ce791b0fbb63ee06a4ff3402aa559f",
+  "promotion_eligible": false,
+  "promotion_status": "blocked_until_benchmark_gate_review",
+  "raw_snapshot_path": "source-snapshot-not-published.json",
+  "raw_snapshot_sha256": "3d9cf24abf4737ddc474abfa73c61bfbd6c19d931bdcdfe500a4ebf08065567d",
+  "reviewer_judgments_preserved": true,
+  "schema_version": "p0b.requirement_support.source_backed_manifest.v2",
+  "status": "fixture_frozen_benchmark_gate_pending"
+}

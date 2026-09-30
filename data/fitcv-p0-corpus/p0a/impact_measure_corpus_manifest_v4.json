@@ -1,0 +1,48 @@
+{
+  "schema_version": "impact_measure_corpus_v2",
+  "corpus_id": "fitcv-p0a-v4",
+  "created_at": "2026-09-29",
+  "fixture_path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json",
+  "fixture_sha256": "c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e",
+  "source_snapshot_path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
+  "source_snapshot_sha256": "45f4c845bf242a57f7725faba64f5b835a5abd9e9517e6aaacf64465ea426884",
+  "score_artifact_path": "data/fitcv-p0-corpus/p0a/p0a-v4-production-scores.json",
+  "score_artifact_sha256": "d547cec8f286f0a7ad5f9e63433b8d7673d54c4d317484da2f5edaae2634def4",
+  "benchmark_reports": {
+    "incumbent": {
+      "path": "data/fitcv-p0-corpus/p0a/p0a-v4-incumbent-final.json",
+      "sha256": "d4084d81f570f293c574f35c7d181ac1b5533bbd3ed19d2e35473faca4a4a3e6"
+    },
+    "multilingual": {
+      "path": "data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-final.json",
+      "sha256": "7aff30f015f0583a0e7e90995ac40f82e55fdb5c65ec76839174c9211ab0d951"
+    },
+    "frozen_gate": {
+      "path": "data/fitcv-p0-corpus/p0a/p0a-v4-frozen-gate.json",
+      "sha256": "957fbb65662c161b53d8dc7b26e19f46c6703f91e71110d2e81abf1973b72944"
+    }
+  },
+  "diagnostics": {
+    "multilingual_calibration_loss": {
+      "path": "data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-calibration-loss.json",
+      "sha256": "842592611a70c2e32683b2fd7b3b78f64dc00c0d884959ab0d54b527d3bb9a2d"
+    }
+  },
+  "row_count": 104,
+  "profile_count": 2,
+  "languages": [
+    "de",
+    "en",
+    "mixed"
+  ],
+  "splits": {
+    "calibration": 84,
+    "held_out": 20
+  },
+  "retrieval_top_n": 10,
+  "ranking_top_n": 5,
+  "ndcg_top_n": 5,
+  "quality_gate_status": "evaluated_not_promoted",
+  "promotion_status": "retain_incumbent",
+  "promotion_blocker": "quality_gate_failed;latency_gate_failed"
+}

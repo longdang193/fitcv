@@ -1,0 +1,103 @@
+{
+  "schema_version": "ranking_gold_source_backed_v4_manifest",
+  "fixture_path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json",
+  "fixture_sha256": "c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e",
+  "source_snapshot_path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
+  "source_snapshot_sha256": "45f4c845bf242a57f7725faba64f5b835a5abd9e9517e6aaacf64465ea426884",
+  "source_snapshot_row_count": 104,
+  "source_components": [
+    {
+      "path": "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl",
+      "sha256": "45f4c845bf242a57f7725faba64f5b835a5abd9e9517e6aaacf64465ea426884",
+      "row_count": 104
+    }
+  ],
+  "row_count": 104,
+  "profile_count": 2,
+  "profile_counts": {
+    "de": 50,
+    "en": 54
+  },
+  "class_counts": {
+    "de": {
+      "relevant": 28,
+      "irrelevant": 18,
+      "borderline": 4
+    },
+    "en": {
+      "relevant": 21,
+      "borderline": 29,
+      "irrelevant": 4
+    }
+  },
+  "split_counts": {
+    "de:calibration": 40,
+    "de:held_out": 10,
+    "en:calibration": 43,
+    "en:held_out": 10,
+    "mixed:calibration": 1
+  },
+  "source_group_count": 84,
+  "source_group_status": "assigned_by_approved_rule_with_external_fallback",
+  "reviewer_status": "complete",
+  "adjudication_status": "adjudicated",
+  "fixture_status": "ready",
+  "label_policy_version": "p0a-relevance-v2",
+  "cutoffs": {
+    "de": {
+      "retrieval_top_n": 10,
+      "ranking_top_n": 5,
+      "ndcg_top_n": 5
+    },
+    "en": {
+      "retrieval_top_n": 10,
+      "ranking_top_n": 5,
+      "ndcg_top_n": 5
+    }
+  },
+  "review_packet_path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_review_packet.json",
+  "review_packet_sha256": "2eed8058f222585dbc0626eefdaaffbb68032fcc76d886ec0e878164fbfdac46",
+  "reviewer_artifacts": [
+    {
+      "reviewer_id": "p0a-reviewer-01",
+      "path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_reviewer_a.json",
+      "sha256": "a8298ca089ebfae38d32ac274aa1d3af9e93bb2743050932c8db07886d4df47c"
+    },
+    {
+      "reviewer_id": "p0a-reviewer-02",
+      "path": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_reviewer_b.json",
+      "sha256": "dd176ff535a5704eaced2ed73c3bee61fd8f807dbc8af63655b701bf180f1762"
+    }
+  ],
+  "promotion_blockers": [],
+  "grade_counts": {
+    "de": {
+      "3": 23,
+      "2": 5,
+      "0": 18,
+      "1": 4
+    },
+    "en": {
+      "3": 20,
+      "1": 29,
+      "2": 1,
+      "0": 4
+    }
+  },
+  "reviewer_ids": [
+    "p0a-reviewer-01",
+    "p0a-reviewer-02"
+  ],
+  "reviewed_row_count": 104,
+  "adjudicator_id": "p0a-adjudicator-01",
+  "adjudicated_disagreement_count": 6,
+  "adjudicated_at": "2026-09-29",
+  "languages": [
+    "de",
+    "en",
+    "mixed"
+  ],
+  "score_artifact_path": "data/fitcv-p0-corpus/p0a/p0a-v4-production-scores.json",
+  "score_artifact_sha256": "d547cec8f286f0a7ad5f9e63433b8d7673d54c4d317484da2f5edaae2634def4",
+  "profile_projection_schema": "candidate-retrieval-profile-v1"
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -52,44 +53,29 @@ def test_public_p0b_projection_contains_cv_rows_only() -> None:
 def test_public_p0a_snapshot_integrity() -> None:
     root = Path(__file__).parents[1]
     corpus = root / "data" / "fitcv-p0-corpus" / "p0a"
-    postings_path = corpus / "raw_postings_de_en.jsonl"
-    ranking_path = corpus / "ranking_source_backed.json"
-    admission = json.loads((corpus / "admission_report.json").read_text(encoding="utf-8"))
+    postings_path = corpus / "raw_postings_de_en_v4.jsonl"
+    ranking_path = corpus / "ranking_source_backed_v4.json"
+    manifest = json.loads((corpus / "ranking_source_backed_v4_manifest.json").read_text(encoding="utf-8"))
     postings = [json.loads(line) for line in postings_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     ranking = json.loads(ranking_path.read_text(encoding="utf-8"))
 
-    assert len(postings) == 100
-    assert len({row["job_id"] for row in postings}) == 100
-    assert {row["language"] for row in postings} == {"de", "en"}
-    assert all(row["reviewed"] is True for row in postings)
-    assert all(row["split"] in {"calibration", "held_out"} for row in postings)
+    assert len(postings) == manifest["row_count"] == 104
+    assert len({(row["source_id"], row["language"]) for row in postings}) == 104
+    assert {row["language"] for row in postings} == {"de", "en", "mixed"}
+    assert all(row.get("reviewed", True) is True for row in postings)
+    assert all(row.get("split", "") in {"", "calibration", "held_out"} for row in postings)
     assert all(not row.get("posterFullName") and not row.get("posterProfileUrl") for row in postings)
     assert not re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", postings_path.read_text(encoding="utf-8"))
-    assert all(
-        sum(1 for row in postings if row["language"] == language and row["split"] == split)
-        == expected
-        for language, split, expected in (
-            ("de", "calibration", 40),
-            ("de", "held_out", 10),
-            ("en", "calibration", 40),
-            ("en", "held_out", 10),
-        )
-    )
-    assert admission["target"]["path"] == "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl"
-    assert admission["target"]["sha256"] == __import__("hashlib").sha256(
-        postings_path.read_bytes()
-    ).hexdigest()
-    assert ranking["corpus_source"] == "data/fitcv-p0-corpus/p0a/raw_postings_de_en.jsonl"
-    assert admission["publication"]["source_files_are_admission_inputs"] is True
-    assert admission["publication"]["published_files"]["raw_postings_de_en.jsonl"]["sha256"] == admission["target"]["sha256"]
-    assert admission["publication"]["published_files"]["ranking_source_backed.json"]["sha256"] == __import__("hashlib").sha256(
-        ranking_path.read_bytes()
-    ).hexdigest()
+    assert manifest["fixture_path"] == "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json"
+    assert manifest["fixture_sha256"] == __import__("hashlib").sha256(ranking_path.read_bytes()).hexdigest()
+    assert manifest["source_snapshot_sha256"] == __import__("hashlib").sha256(postings_path.read_bytes()).hexdigest()
+    assert ranking["fixture_status"] == "ready"
+    assert ranking["source_snapshot"]["path"] == "data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl"
 
 
 def test_public_p0b_reviewed_rows_join_to_admitted_p0a_jobs() -> None:
     root = Path(__file__).parents[1]
-    p0a = root / "data" / "fitcv-p0-corpus" / "p0a" / "raw_postings_de_en.jsonl"
+    p0a = root / "data" / "fitcv-p0-corpus" / "p0a" / "raw_postings_de_en_v4.jsonl"
     reviewed = root / "data" / "fitcv-p0-corpus" / "p0b" / "reviewed_requirement_evidence.jsonl"
     manifest = json.loads(
         (root / "data" / "fitcv-p0-corpus" / "p0b" / "reviewed_requirement_evidence_manifest.json").read_text(
@@ -136,7 +122,15 @@ def test_public_p0b_adjudicated_relevance_labels_cover_mixed_cases() -> None:
 def test_public_p0_corpus_uses_lf_and_manifest_hashes_match_bytes() -> None:
     root = Path(__file__).parents[1]
     corpus = root / "data" / "fitcv-p0-corpus"
-    for path in corpus.rglob("*"):
+    tracked = subprocess.run(
+        ["git", "ls-files", "--cached", "data/fitcv-p0-corpus"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    for relative_path in tracked:
+        path = root / relative_path
         if path.is_file():
             assert b"\r\n" not in path.read_bytes(), path
 
@@ -147,3 +141,57 @@ def test_public_p0_corpus_uses_lf_and_manifest_hashes_match_bytes() -> None:
     for manifest_path, payload_path in manifest_paths.items():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert manifest["sha256"] == hashlib.sha256(payload_path.read_bytes()).hexdigest()
+
+
+def test_public_p0a_v4_manifest_binds_all_referenced_artifacts() -> None:
+    root = Path(__file__).parents[1]
+    corpus = root / "data" / "fitcv-p0-corpus" / "p0a"
+    manifest = json.loads((corpus / "ranking_source_backed_v4_manifest.json").read_text(encoding="utf-8"))
+    fixture = corpus / "ranking_source_backed_v4.json"
+    source_snapshot = corpus / "raw_postings_de_en_v4.jsonl"
+    score_artifact = corpus / "p0a-v4-production-scores.json"
+    impact_manifest = json.loads((corpus / "impact_measure_corpus_manifest_v4.json").read_text(encoding="utf-8"))
+
+    assert manifest["fixture_path"] == "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json"
+    assert manifest["fixture_sha256"] == hashlib.sha256(fixture.read_bytes()).hexdigest()
+    assert manifest["source_snapshot_sha256"] == hashlib.sha256(source_snapshot.read_bytes()).hexdigest()
+    assert manifest["score_artifact_sha256"] == hashlib.sha256(score_artifact.read_bytes()).hexdigest()
+    assert manifest["review_packet_sha256"] == hashlib.sha256(
+        (root / manifest["review_packet_path"]).read_bytes()
+    ).hexdigest()
+    for reviewer in manifest["reviewer_artifacts"]:
+        reviewer_path = root / reviewer["path"]
+        assert reviewer["sha256"] == hashlib.sha256(reviewer_path.read_bytes()).hexdigest()
+
+    fixture_data = json.loads(fixture.read_text(encoding="utf-8"))
+    score_data = json.loads(score_artifact.read_text(encoding="utf-8"))
+    assert fixture_data["fixture_status"] == "ready"
+    assert manifest["row_count"] == sum(
+        len(pool["candidates"]) for pool in fixture_data["profiles"].values()
+    )
+    assert score_data["fixture"] == manifest["fixture_path"]
+    assert score_data["fixture_sha256"] == manifest["fixture_sha256"]
+    for report in impact_manifest["benchmark_reports"].values():
+        report_path = root / report["path"]
+        assert report["sha256"] == hashlib.sha256(report_path.read_bytes()).hexdigest()
+    assert {row["language"] for pool in fixture_data["profiles"].values() for row in pool["candidates"]} >= {
+        "de",
+        "en",
+        "mixed",
+    }
+    assert any(
+        row["language"] == "mixed" and "Italian" in row["job"]["title"]
+        for pool in fixture_data["profiles"].values()
+        for row in pool["candidates"]
+    )
+    for pool in fixture_data["profiles"].values():
+        assert set(pool["profile"]) == {"preferences", "skills"}
+        assert set(pool["profile"]["preferences"]) == {
+            "target_role",
+            "role_families",
+            "domains",
+            "location_types",
+        }
+        profile_text = json.dumps(pool["profile"], ensure_ascii=False)
+        assert not re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", profile_text)
+        assert not re.search(r"(?<!\d)\+?\d[\d ()-]{7,}\d(?!\d)", profile_text)

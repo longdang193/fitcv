@@ -1,7 +1,7 @@
 {
   "schema_version": "ranking_score_artifact_v1",
-  "fixture": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v3.json",
-  "fixture_sha256": "e3a14dee893a22c63506951a0d2a2df5e26f0dfcdfdcf90f9051ddafe0489250",
+  "fixture": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json",
+  "fixture_sha256": "c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e",
   "generated_at": "2026-09-29T13:22:04.031781+00:00",
   "scoring_path": [
     "fitcv.ai_score.run_ai_scoring",

@@ -1,0 +1,85 @@
+{
+  "schema_version": "ranking_loss_diagnostic_v1",
+  "fixture": "data\\fitcv-p0-corpus\\p0a\\ranking_source_backed_v4.json",
+  "fixture_sha256": "c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e",
+  "arm": "multilingual",
+  "score_artifact": "data\\fitcv-p0-corpus\\p0a\\p0a-v4-production-scores.json",
+  "score_artifact_sha256": "9036fb4ee212c9c7d3e74f204d0fa505eb99ba890e6af401c17943a09d179f1d",
+  "scope": "calibration_only",
+  "held_out_rows_read": 0,
+  "production_change": false,
+  "profiles": [
+    {
+      "profile_id": "de",
+      "calibration_row_count": 40,
+      "held_out_rows_read": 0,
+      "relevant_retrieval_hits_removed_by_ranking": [
+        {
+          "candidate_id": "4427021864:de",
+          "retrieval_rank": 2,
+          "ranking_score": 0.1,
+          "final_rank": 6,
+          "relevance_grade": 3,
+          "removal_reason": "ranking_cutoff"
+        },
+        {
+          "candidate_id": "4433111639:de",
+          "retrieval_rank": 5,
+          "ranking_score": 0.02,
+          "final_rank": 10,
+          "relevance_grade": 3,
+          "removal_reason": "ranking_cutoff"
+        },
+        {
+          "candidate_id": "4160193650:de",
+          "retrieval_rank": 7,
+          "ranking_score": 0.02,
+          "final_rank": 9,
+          "relevance_grade": 2,
+          "removal_reason": "ranking_cutoff"
+        }
+      ],
+      "baseline": {
+        "relevant_retrieved": 6,
+        "relevant_in_final_ranking": 3
+      },
+      "rrf_tie_break_diagnostic": {
+        "ranking_top_n": 5,
+        "relevant_in_final_ranking": 3,
+        "changed_order": true
+      }
+    },
+    {
+      "profile_id": "en",
+      "calibration_row_count": 44,
+      "held_out_rows_read": 0,
+      "relevant_retrieval_hits_removed_by_ranking": [
+        {
+          "candidate_id": "4472010992:en",
+          "retrieval_rank": 2,
+          "ranking_score": 0.05,
+          "final_rank": 7,
+          "relevance_grade": 3,
+          "removal_reason": "ranking_cutoff"
+        },
+        {
+          "candidate_id": "4470164908:en",
+          "retrieval_rank": 9,
+          "ranking_score": 0.05,
+          "final_rank": 6,
+          "relevance_grade": 3,
+          "removal_reason": "ranking_cutoff"
+        }
+      ],
+      "baseline": {
+        "relevant_retrieved": 6,
+        "relevant_in_final_ranking": 4
+      },
+      "rrf_tie_break_diagnostic": {
+        "ranking_top_n": 5,
+        "relevant_in_final_ranking": 4,
+        "changed_order": true
+      }
+    }
+  ]
+}

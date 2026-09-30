@@ -1,0 +1,249 @@
+{
+  "schema_version": "ranking_benchmark_v3",
+  "fixture": "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json",
+  "arm": "incumbent",
+  "status": "measured",
+  "fixture_role": "source_backed",
+  "score_artifact": "data/fitcv-p0-corpus/p0a/p0a-v4-production-scores.json",
+  "score_artifact_sha256": "9036fb4ee212c9c7d3e74f204d0fa505eb99ba890e6af401c17943a09d179f1d",
+  "fixture_sha256": "c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e",
+  "mode": "replayed",
+  "warmup_iterations": 5,
+  "measured_iterations": 50,
+  "latency_ms": {
+    "p50": 46.31139999946754,
+    "p95": 75.06280000234256
+  },
+  "metrics": {
+    "retrieval": {
+      "requested_strategy": "vector_cosine_v1",
+      "effective_strategies": [
+        "lexical_v1"
+      ],
+      "backend_ids": [
+        "structured_jobs_lexical"
+      ],
+      "backend": {
+        "backend_id": "structured_jobs_lexical",
+        "configured_model": "text-embedding-005",
+        "dimension": 256,
+        "contract_fingerprint": "32bdf490e0313b47de343655175d1541279c0a138676332681c32c309b6a45e4"
+      },
+      "fallback_count": 2,
+      "top_n": 10,
+      "returned_count": 20,
+      "eligible_count": 104,
+      "coverage": 0.19230769230769232,
+      "cutoff": 10,
+      "recall_at_10": 0.5,
+      "precision_at_10": 0.5,
+      "mrr_at_10": 0.1,
+      "ndcg_at_5": 0.08605450528808949
+    },
+    "ranking": {
+      "evaluation_scope": "held_out",
+      "profiles": 2,
+      "top_n": 5,
+      "returned_count": 10,
+      "eligible_count": 104,
+      "coverage": 0.09615384615384616,
+      "cutoff": 5,
+      "recall_at_5": 0.5,
+      "precision_at_5": 0.5,
+      "mrr_at_5": 0.5,
+      "ndcg_at_5": 0.458599518808299,
+      "split_metrics": {
+        "calibration": {
+          "count": 42,
+          "retrieval": {
+            "cutoff": 10,
+            "recall": 0.15888888888888889,
+            "precision": 0.41964285714285715,
+            "mrr": 0.75,
+            "ndcg": 0.36489214312074847
+          },
+          "ranking": {
+            "cutoff": 5,
+            "ndcg_cutoff": 5,
+            "recall": 0.05555555555555555,
+            "precision": 0.5,
+            "mrr": 0.16666666666666666,
+            "ndcg": 0.15039259007457492
+          }
+        },
+        "held_out": {
+          "count": 10,
+          "retrieval": {
+            "cutoff": 10,
+            "recall": 0.5,
+            "precision": 0.5,
+            "mrr": 0.1,
+            "ndcg": 0.08605450528808949
+          },
+          "ranking": {
+            "cutoff": 5,
+            "ndcg_cutoff": 5,
+            "recall": 0.5,
+            "precision": 0.5,
+            "mrr": 0.5,
+            "ndcg": 0.458599518808299
+          }
+        }
+      },
+      "language_split_metrics": {
+        "de": {
+          "calibration": {
+            "count": 40,
+            "retrieval": {
+              "cutoff": 10,
+              "recall": 0.04,
+              "precision": 0.125,
+              "mrr": 1.0,
+              "ndcg": 0.3697296716642629
+            },
+            "ranking": {
+              "cutoff": 5,
+              "ndcg_cutoff": 5,
+              "recall": 0.0,
+              "precision": 0.0,
+              "mrr": 0.0,
+              "ndcg": 0.0
+            }
+          },
+          "held_out": {
+            "count": 10,
+            "retrieval": {
+              "cutoff": 10,
+              "recall": 0.0,
+              "precision": 0.0,
+              "mrr": 0.0,
+              "ndcg": 0.0
+            },
+            "ranking": {
+              "cutoff": 5,
+              "ndcg_cutoff": 5,
+              "recall": 0.0,
+              "precision": 0.0,
+              "mrr": 0.0,
+              "ndcg": 0.0
+            }
+          }
+        },
+        "en": {
+          "calibration": {
+            "count": 43,
+            "retrieval": {
+              "cutoff": 10,
+              "recall": 0.29411764705882354,
+              "precision": 0.7142857142857143,
+              "mrr": 0.5,
+              "ndcg": 0.360054614577234
+            },
+            "ranking": {
+              "cutoff": 5,
+              "ndcg_cutoff": 5,
+              "recall": 0.11764705882352941,
+              "precision": 1.0,
+              "mrr": 0.3333333333333333,
+              "ndcg": 0.30078518014914984
+            }
+          },
+          "held_out": {
+            "count": 10,
+            "retrieval": {
+              "cutoff": 10,
+              "recall": 1.0,
+              "precision": 1.0,
+              "mrr": 0.2,
+              "ndcg": 0.17210901057617897
+            },
+            "ranking": {
+              "cutoff": 5,
+              "ndcg_cutoff": 5,
+              "recall": 1.0,
+              "precision": 1.0,
+              "mrr": 1.0,
+              "ndcg": 0.917199037616598
+            }
+          }
+        },
+        "mixed": {
+          "calibration": {
+            "count": 1,
+            "retrieval": {
+              "cutoff": 10,
+              "recall": 0.0,
+              "precision": 1.0,
+              "mrr": 0.0,
+              "ndcg": 0.0
+            },
+            "ranking": {
+              "cutoff": 5,
+              "ndcg_cutoff": 5,
+              "recall": 0.0,
+              "precision": 1.0,
+              "mrr": 0.0,
+              "ndcg": 0.0
+            }
+          },
+          "held_out": {
+            "count": 0,
+            "retrieval": {
+              "cutoff": 10,
+              "recall": 1.0,
+              "precision": 1.0,
+              "mrr": 0.0,
+              "ndcg": 1.0
+            },
+            "ranking": {
+              "cutoff": 5,
+              "ndcg_cutoff": 5,
+              "recall": 1.0,
+              "precision": 1.0,
+              "mrr": 0.0,
+              "ndcg": 1.0
+            }
+          }
+        }
+      },
+      "split_counts": {
+        "calibration": 84,
+        "held_out": 20
+      },
+      "language_split_counts": {
+        "de": {
+          "calibration": 40,
+          "held_out": 10
+        },
+        "mixed": {
+          "calibration": 1,
+          "held_out": 0
+        },
+        "en": {
+          "calibration": 43,
+          "held_out": 10
+        }
+      }
+    },
+    "calibration": {
+      "count": 84
+    },
+    "held_out": {
+      "count": 20
+    },
+    "cache": {
+      "adapter": "replay_fingerprint_set",
+      "cache_hits": 104,
+      "cache_misses": 0,
+      "llm_calls": 0,
+      "retries": 0,
+      "scoring_failure_count": 0,
+      "hit_rate": 1.0
+    },
+    "llm": {
+      "calls": 0,
+      "retries": 0,
+      "scoring_failure_count": 0
+    }
+  }
+}
