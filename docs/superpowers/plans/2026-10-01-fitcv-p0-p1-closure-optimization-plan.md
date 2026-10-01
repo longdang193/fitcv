@@ -108,8 +108,8 @@ P1-A keeps current render fixtures and shell consistency. P1-B preserves `accept
 - Branch: `main`
 - Base commit: `525216b49afdca80ad15e3a6da57f1633cb9e7c0`
 - Expected workspace: `main` with protected untracked files preserved and unstaged
-- Next action: `Task 8 — run one final protected corrected P0-B acceptance evaluation`
-- Blockers: no production calibration loss is measurable; P0-B remains blocked by its final protected evaluation gates if they fail. Task 7 ships no optimization because production/full-pool calibration loss is zero.
+- Next action: `Task 9 — close P0/P1 evidence and final verification`
+- Blockers: protected P0-B evaluation is valid but not promotable: `7` pair false positives and support recall `0.052132701421800945` against threshold `1.0`.
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -120,8 +120,8 @@ P1-A keeps current render fixtures and shell consistency. P1-B preserves `accept
 | Task 5 | `completed` | current | `normal` | Task 4 | disjoint/exhaustive calibration | conservation and disjointness checks pass; production/full-pool dominant loss is `none` |
 | Task 6 | `completed` | current | `normal` | Task 5 | clean-checkout CI | clean worktree suite passes (`57 passed`) with no private inputs |
 | Task 7 | `completed` | current | `normal` | Task 5, Task 6 | measured optimization baseline | no optimization shipped; production/full-pool loss is zero; lexical-only diagnostic has one selection loss |
-| Task 8 | `pending` | current | `normal` | Task 7 | one protected acceptance run | pending |
-| Task 9 | `pending` | current | `normal` | Task 8 | P0/P1 bounded evidence and final verification | pending |
+| Task 8 | `completed` | current | `normal` | Task 7 | one protected acceptance run | saved protected result; valid, not promotable |
+| Task 9 | `completed` | current | `normal` | Task 8 | P0/P1 bounded evidence and final verification | acceptance state and closure evidence reconciled; P0-B remains blocked |
 
 ## Task Breakdown
 

@@ -1,0 +1,32 @@
+{
+  "schema_version": "p0b.public_source_job_evaluation.v1",
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "projection_rows": 61,
+    "review_rows": 212,
+    "review_requirements": 212,
+    "oracle_rows": 549,
+    "oracle_pairs": 549,
+    "oracle_coverage": 1.0,
+    "review_completeness": 1.0,
+    "support_recall_threshold": 1.0
+  },
+  "metrics": {
+    "true_positive": 11,
+    "false_negative": 200,
+    "pair_false_positive": 7,
+    "unjudged_selected": 0,
+    "support_recall": 0.052132701421800945,
+    "relevance_recall": null
+  },
+  "gates": {
+    "pair_false_positives": false,
+    "review_completeness": true,
+    "oracle_coverage": true,
+    "support_recall": false,
+    "no_unjudged_selected": true
+  },
+  "eligible": false,
+  "status": "not_promotable"
+}
