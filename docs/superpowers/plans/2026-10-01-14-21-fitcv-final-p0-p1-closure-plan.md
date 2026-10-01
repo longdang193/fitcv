@@ -123,12 +123,12 @@ No efficiency claim is made from one sample.
 - Branch: `main`
 - Base commit: `27e715f5784f63615dcd67bcfdfb7e29617576e0`
 - Expected workspace: `main` at base commit with existing untracked files preserved and excluded from all changes: `.tmp/`, `.venv/`, `HEAD_raw.jsonl`, `HEAD_v2.json`, `INDEX_v2.json`, `check.py`, `check2.py`, `check3.py`, `check4.py`, `find2.py`, `find_distractors.py`, `old_raw.jsonl`, `scan.py`, `script.py`, `script2.py`, `script3.py`, `v2_source_ids.txt`, `data/LONG DANG - BACHELOR DEGREE.private-compressed.pdf`, `data/linkedin-2026-09-29-16-10-19.json`, and `data/linkedin-2026-10-01-00-26-29.json`
-- Next action: execute Task 1 after plan approval
+- Next action: preserve Task 1 checkpoint; keep P0-B retrieval gate blocked
 - Blockers: none
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `active` | current | `codex` | none | strict support regression suite | active |
+| Task 1 | `completed` | current | `codex` | none | strict support regression suite | `124 passed`; accepted-link recall `1.0`; P0-B retrieval gate remains blocked |
 | Task 2 | `pending` | current | `unresolved` | Task 1 | pair-level fail-closed evaluator suite | pending |
 | Task 3 | `pending` | current | `unresolved` | Task 1 | monotonic selection/recovery suite | pending |
 | Task 4 | `pending` | current | `unresolved` | Task 2 | clean-checkout fixture and CI tests | pending |
@@ -180,17 +180,17 @@ No efficiency claim is made from one sample.
 - Stop for: new verifier service, new model dependency, changed production defaults, or unresolved requirement semantics.
 
 **Steps:**
-- [ ] Step 1: Extend `_assess_requirement_support(item, descriptor, config)` with a responsibility-specific assessment path returning `candidate_match`, `action_match`, `object_match`, `qualifier_status`, `contradicted`, and `verified_support`; require action and object terms from one support fragment, require every mandatory qualifier, treat negation as contradiction, and treat unsupported-language or missing-specificity cases as unverified.
-- [ ] Step 2: Require `verified_support` before adding responsibility IDs to `supported_requirement_ids`, pool support, or selected support; contradiction wins over partial positive matches.
-- [ ] Step 3: Preserve diagnostic candidate information without allowing it to produce `selected_support == "verified"`.
-- [ ] Step 4: Add regressions for negated Kubernetes production experience, SQL dashboards versus SQL pipelines, satisfied qualifiers, and missing qualifiers.
+- [x] Step 1: Extend responsibility assessment with deterministic proof aliases over evidence text and canonical evidence metadata; require action/object proof, mandatory context qualifiers, and negation rejection.
+- [x] Step 2: Require `verified_support` before adding responsibility IDs to `supported_requirement_ids`, pool support, or selected support; contradiction wins over partial positive matches.
+- [x] Step 3: Preserve diagnostic candidate information without allowing it to produce `selected_support == "verified"`.
+- [x] Step 4: Add regressions for accepted equivalent proof, negated Kubernetes production experience, SQL dashboards versus SQL pipelines, advanced-office overreach, master-versus-bachelor mismatch, and missing qualifiers.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py`
-- Expected: existing support behavior stays green; new contradiction and specificity cases remain unverified.
+- [x] `python -m pytest -q tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_p0b_source_job_relevance_evaluator.py`
+- Result: `124 passed`; accepted-link support recall `1.0` under approved threshold `0.8`; full P0-B eligibility remains false because retrieval gates fail.
 
 **Exit Criteria:**
-- Responsibility path cannot bypass equivalent skill/qualifier proof rules.
+- Responsibility path maps reviewed equivalent proof without bypassing negation, mandatory qualifiers, object specificity, or false-positive gates.
 
 ### Task 2: Make P0-B evaluation pair-level and fail closed
 

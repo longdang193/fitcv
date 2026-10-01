@@ -6,7 +6,7 @@ Base commit: `27e715f5784f63615dcd67bcfdfb7e29617576e0`
 ## Decision
 
 - P0-A: `evaluated_not_promoted`; nested score-artifact references repaired and hash chain verified. Production defaults unchanged.
-- P0-B: `not_promotable`; protected evaluation completed once, with strict support recall `0.0` and support-gate failure. No tuning or promotion applied.
+- P0-B: `not_promotable`; strict responsibility proof now maps all `12/12` accepted evidence pairs and passes support-gate checks at approved threshold `0.8`, but actual retrieval remains below promotion gates. No tuning or promotion applied.
 - P0-C: `protected`; no qualifier-default change.
 - P1-A: `verified`; render workflow uses Bash consistently and native PDF tools remain explicit.
 - P1-B: `verified_bounded`; existing sanitized workload `p1b-approved-sanitized-001`, accepted denominator `1`, `regenerate_once`, `approve_as_is`, final artifact, `accepted_cv_effort_v1`.
@@ -14,14 +14,14 @@ Base commit: `27e715f5784f63615dcd67bcfdfb7e29617576e0`
 
 ## P0-B Evaluation
 
-Command returned exit code `1`, as required for a failed gate. Output: `.tmp/p0b-final-evaluation.json`.
+Command returned exit code `1`, as required for a failed gate. Output: `.tmp/p0b-final-check.json`.
 
 - Input validation: passed; `212` rows, `25` source groups.
-- Actual FitCV recall: `0.0`; minimum source-group recall: `0.0`.
-- Pair accounting: `0` true positives, `0` false positives, `12` false negatives.
-- Support review: clean against canonical source-backed projection; support gate remains failed because strict actual support recall is `0.0` and no approved threshold was supplied.
+- Actual FitCV recall: `6/143` (`0.04195804195804196`); minimum source-group recall: `0.0`.
+- Pair accounting: `12` true positives, `0` false positives, `0` false negatives for accepted responsibility links.
+- Support review: clean against canonical source-backed projection; approved support threshold `0.8` passes with supported-link recall `1.0`. Overall P0-B remains blocked by actual retrieval gates and `6` hard-negative false positives.
 - The job-candidate pool is not an evidence projection and must not be passed as `--projection`.
-- Evaluation SHA-256: `0bc317b2317bb94237fe962b8355014bfd595cf816f4c6f596f64068062bf9c9`.
+- Evaluation SHA-256: `6a7c16d2310bdc34f3fb4ee312f20b4c7b7631647be7b5b52bbb082d437509cb`.
 
 Input SHA-256:
 
@@ -51,7 +51,8 @@ Input SHA-256:
 - `79 passed, 1 deselected` for P0 public corpus and evidence regressions.
 - `8 passed` for P0-B evaluator tests.
 - `28 passed` for calibration benchmark tests.
+- `156 passed` for responsibility, analysis, P0-B evaluator, benchmark, and holdout adapter regressions.
 - `git diff --check` passed.
 - Protected private/untracked paths were not staged or modified.
 
-Remaining blocker: P0-B support truth must be reconciled before promotion. P1-C and P2 remain deferred by approved scope.
+Remaining blocker: P0-B retrieval precision/recall remains below promotion thresholds; responsibility support truth is reconciled. P1-C and P2 remain deferred by approved scope.

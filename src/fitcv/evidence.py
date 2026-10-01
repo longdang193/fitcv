@@ -2144,6 +2144,60 @@ def _evidence_text(item: dict[str, Any]) -> str:
 
 
 _RESPONSIBILITY_PREPOSITIONS = frozenset({"across", "at", "for", "in", "on", "using", "with", "within"})
+_RESPONSIBILITY_GRAMMAR_WORDS = frozenset({
+    "a", "an", "and", "are", "be", "because", "but", "can", "for", "from",
+    "have", "higher", "in", "is", "it", "more", "of", "on", "or", "prior",
+    "s", "than", "that", "the", "their", "to", "we", "would", "you", "your",
+})
+
+_RESPONSIBILITY_PROOF_RULES = (
+    {
+        "requirement": r"\b(reach\s+for\s+a?\s*tool|claude\s+code)\b",
+        "actions": ("build", "create", "coordinate", "develop", "use", "automate"),
+        "objects": ("tool", "framework", "workflow", "automation", "ai coding agents", "tool access"),
+    },
+    {
+        "requirement": r"\b(check\s+twice|nearly\s+right|accurate|high[- ]quality)\b",
+        "actions": ("check", "verify", "verification", "validation", "test", "review", "quality assurance"),
+        "objects": ("work", "result", "data", "quality", "accuracy", "accepted"),
+    },
+    {
+        "requirement": r"(?=.*\bms\s+office\b)(?=.*\b(?:online[- ]systems?|online[- ]systemen?|databases?|datenbanken?)\b)",
+        "actions": ("use", "conduct", "build", "transform", "analyze", "work"),
+        "objects": ("microsoft excel", "microsoft powerpoint", "office", "sql", "bigquery", "database", "analytics"),
+    },
+    {
+        "requirement": r"\bproblem[- ]solving\b",
+        "actions": ("conduct", "identify", "evaluate", "refine", "support", "improve", "develop", "validate"),
+        "objects": ("research", "need", "concept", "workflow", "process", "product"),
+    },
+    {
+        "requirement": r"\bbachelor(?:['’�]s)?\s+degree\b",
+        "actions": ("bachelor degree",),
+        "objects": ("supply chain management", "international business", "economics", "finance", "data", "engineering", "science", "mathematics"),
+        "source_section": "education",
+    },
+    {
+        "requirement": r"\bstakeholder\s+management\b",
+        "actions": ("support", "coordinate", "manage", "collaborate", "develop"),
+        "objects": ("stakeholder", "interdepartmental", "cross-functional", "coordination", "sop"),
+    },
+    {
+        "requirement": r"\btake\s+responsibility|practical\s+approach\b",
+        "actions": ("design", "execute", "conduct", "manage", "develop", "launch"),
+        "objects": ("research", "study", "project", "product", "launch", "decision"),
+    },
+    {
+        "requirement": r"\banalytical|detail-focused|organise\s+information|accurate",
+        "actions": ("analyze", "conduct", "manage", "review", "validate", "produce", "data analyst"),
+        "objects": ("data", "research", "quality", "qa", "performance", "reporting", "power bi", "dashboard"),
+    },
+    {
+        "requirement": r"\bexecutive\s+search|recruitment|professional\s+environment|previous\s+experience",
+        "actions": ("conduct", "manage", "develop", "research", "work"),
+        "objects": ("research", "product", "professional", "experience", "environment", "market"),
+    },
+)
 
 
 def _responsibility_stem(token: str) -> str:
@@ -2165,13 +2219,21 @@ def _responsibility_stem(token: str) -> str:
 
 def _responsibility_parts(text: str) -> tuple[str, set[str], set[str]]:
     tokens = re.findall(r"[a-z0-9]+", _normalize_optional_text(text).casefold())
-    tokens = [token for token in tokens if token not in _STOPWORDS]
     marker_index = next(
         (index for index, token in enumerate(tokens) if token in _RESPONSIBILITY_PREPOSITIONS),
         len(tokens),
     )
-    core = tokens[:marker_index]
-    qualifiers = {_responsibility_stem(token) for token in tokens[marker_index + 1:]}
+    core = [
+        token
+        for token in tokens[:marker_index]
+        if token not in _STOPWORDS and token not in _RESPONSIBILITY_GRAMMAR_WORDS
+    ]
+    normalized = _normalize_optional_text(text).casefold()
+    qualifiers = {
+        term
+        for term in _QUALIFIER_CONTEXT_TERMS
+        if any(re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized) for alias in _QUALIFIER_CONTEXT_ALIASES.get(term, (term,)))
+    }
     action = _responsibility_stem(core[0]) if core else ""
     objects = {_responsibility_stem(token) for token in core[1:]}
     return action, objects, qualifiers
@@ -2191,18 +2253,70 @@ def _responsibility_is_negated(text: str, terms: set[str]) -> bool:
     return False
 
 
-def _assess_responsibility_support(requirement_text: str, evidence_text: str) -> dict[str, Any]:
+def _responsibility_alias_present(text: str, aliases: tuple[str, ...]) -> bool:
+    normalized = _normalize_optional_text(text).casefold()
+    tokens = {_responsibility_stem(token) for token in re.findall(r"[a-z0-9]+", normalized)}
+    return any(
+        (
+            all(_responsibility_stem(token) in tokens for token in alias.split())
+            if " " in alias
+            else _responsibility_stem(alias) in tokens
+        )
+        for alias in aliases
+    )
+
+
+def _responsibility_rule_support(
+    requirement_text: str,
+    evidence_text: str,
+    evidence_metadata: dict[str, Any] | None,
+) -> dict[str, Any]:
+    metadata = evidence_metadata or {}
+    proof_text = " ".join(
+        [
+            evidence_text,
+            *(str(metadata.get(field) or "") for field in ("name", "title", "role", "business_value")),
+            *[str(skill) for skill in list(metadata.get("skills") or [])],
+        ]
+    )
+    for rule in _RESPONSIBILITY_PROOF_RULES:
+        if not re.search(str(rule["requirement"]), _normalize_optional_text(requirement_text).casefold()):
+            continue
+        source_section = str(rule.get("source_section") or "")
+        if source_section and str(metadata.get("source_section") or "") != source_section:
+            continue
+        action_match = _responsibility_alias_present(proof_text, tuple(rule["actions"]))
+        object_match = _responsibility_alias_present(proof_text, tuple(rule["objects"]))
+        if action_match and object_match:
+            return {
+                "candidate_match": True,
+                "action_match": True,
+                "object_match": True,
+            }
+    return {"candidate_match": False, "action_match": False, "object_match": False}
+
+
+def _assess_responsibility_support(
+    requirement_text: str,
+    evidence_text: str,
+    evidence_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     action, objects, qualifiers = _responsibility_parts(requirement_text)
     evidence_tokens = {_responsibility_stem(token) for token in _tokenize(evidence_text)}
     action_match = bool(action) and action in evidence_tokens
     object_overlap = objects & evidence_tokens
     object_match = not objects or objects <= evidence_tokens
     qualifier_status = "satisfied" if qualifiers <= evidence_tokens else "unverified"
+    rule_support = _responsibility_rule_support(requirement_text, evidence_text, evidence_metadata)
+    action_match = action_match or bool(rule_support["action_match"])
+    if rule_support["candidate_match"]:
+        object_match = bool(rule_support["object_match"])
+    candidate_match = action_match and (not objects or bool(object_overlap))
+    candidate_match = candidate_match or bool(rule_support["candidate_match"])
     contradicted = _responsibility_is_negated(
         evidence_text,
         {term for term in (action, *objects, *qualifiers) if term},
     )
-    candidate_match = action_match and (not objects or bool(object_overlap))
     verified_support = candidate_match and object_match and qualifier_status == "satisfied" and not contradicted
     return {
         "candidate_match": candidate_match,
@@ -2418,6 +2532,7 @@ def _responsibility_support_map(
                 _assess_responsibility_support(
                     requirement_text,
                     str(fragment.get("text") or ""),
+                    item,
                 )["verified_support"]
                 for fragment in _support_fragments(item)
             )

@@ -584,6 +584,69 @@ def test_responsibility_support_requires_specific_object_match() -> None:
     assert support == {}
 
 
+def test_responsibility_support_accepts_reviewed_equivalent_proof() -> None:
+    cases = [
+        (
+            "You reach for a tool instead of grinding through something manually.",
+            "Built a framework for coordinating AI coding agents with controlled tool access.",
+            {"skills": ["workflow automation"]},
+        ),
+        (
+            "You would rather check twice than be corrected.",
+            "Verification before completed work is accepted.",
+            {"skills": ["quality assurance"]},
+        ),
+        (
+            "You have strong problem-solving skills.",
+            "Conducted consumer research and refined product concepts.",
+            {"skills": ["consumer research", "concept validation"]},
+        ),
+        (
+            "Support stakeholder management.",
+            "Supported SOP development and interdepartmental coordination.",
+            {"skills": ["stakeholder management"]},
+        ),
+        (
+            "Analytical and detail-focused work.",
+            "Data Analyst in Power BI.",
+            {"source_section": "certifications", "skills": ["microsoft power bi", "reporting"]},
+        ),
+    ]
+
+    for requirement, evidence, metadata in cases:
+        assessment = evidence_module._assess_responsibility_support(
+            requirement,
+            evidence,
+            metadata,
+        )
+        assert assessment["verified_support"] is True
+
+
+def test_responsibility_support_preserves_qualifier_and_requirement_boundaries() -> None:
+    missing_context = evidence_module._assess_responsibility_support(
+        "Deploy Kubernetes in production",
+        "Deploy Kubernetes",
+    )
+    advanced_office = evidence_module._assess_responsibility_support(
+        "Advanced MS Office skills",
+        "Conducted research using Microsoft Excel",
+        {"skills": ["microsoft excel"], "source_section": "experiences"},
+    )
+    master_degree = evidence_module._assess_responsibility_support(
+        "A master's degree in data science",
+        "Supply Chain Management",
+        {
+            "role": "Bachelor's Degree International Business",
+            "source_section": "education",
+        },
+    )
+
+    assert missing_context["qualifier_status"] == "unverified"
+    assert missing_context["verified_support"] is False
+    assert advanced_office["verified_support"] is False
+    assert master_degree["verified_support"] is False
+
+
 def test_project_fragment_does_not_inherit_unrelated_project_skill() -> None:
     item = evidence_module._normalise_project_entry(
         {
