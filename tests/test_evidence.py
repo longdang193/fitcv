@@ -566,6 +566,24 @@ def test_requirement_support_accepts_same_statement_duration_and_context() -> No
     assert assessment["qualified_support"] is True
 
 
+def test_responsibility_support_rejects_negated_experience() -> None:
+    support = evidence_module._responsibility_support_map(
+        [{"evidence_id": "ev-k8s", "text": "No experience deploying Kubernetes in production"}],
+        [{"source_requirement_id": "req-k8s", "text": "Deploy Kubernetes in production"}],
+    )
+
+    assert support == {}
+
+
+def test_responsibility_support_requires_specific_object_match() -> None:
+    support = evidence_module._responsibility_support_map(
+        [{"evidence_id": "ev-sql", "text": "Build SQL dashboards"}],
+        [{"source_requirement_id": "req-sql", "text": "Build SQL pipelines"}],
+    )
+
+    assert support == {}
+
+
 def test_project_fragment_does_not_inherit_unrelated_project_skill() -> None:
     item = evidence_module._normalise_project_entry(
         {

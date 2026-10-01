@@ -745,28 +745,27 @@ def _calibration_loss_decomposition(
     stage_pairs: dict[str, set[tuple[str, str]]],
 ) -> dict[str, Any]:
     bucket_names = (
-        "not_in_pool",
-        "in_pool_not_support_candidate",
-        "false_support_candidate",
-        "support_candidate_not_selected",
-        "selected_not_assigned",
-        "assigned_false_positive",
+        "not_in_canonical_pool",
+        "retrieval_loss",
+        "false_verified_pair",
+        "selection_loss",
+        "assignment_loss",
         "qualifier_failure",
     )
     buckets = {name: [] for name in bucket_names}
     for pair in sorted(expected_pairs - stage_pairs["selected"]):
         if pair not in stage_pairs["canonical"]:
-            bucket = "not_in_pool"
+            bucket = "not_in_canonical_pool"
         elif pair not in stage_pairs["retrieved"]:
-            bucket = "in_pool_not_support_candidate"
+            bucket = "retrieval_loss"
         else:
-            bucket = "support_candidate_not_selected"
+            bucket = "selection_loss"
         buckets[bucket].append(list(pair))
     for pair in sorted(stage_pairs["selected"] - expected_pairs):
         bucket = (
-            "false_support_candidate"
+            "false_verified_pair"
             if pair in stage_pairs["retrieved"]
-            else "assigned_false_positive"
+            else "assignment_loss"
         )
         buckets[bucket].append(list(pair))
     counts = {name: len(values) for name, values in buckets.items()}

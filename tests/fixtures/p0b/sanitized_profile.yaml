@@ -1,0 +1,28 @@
+schema_version: candidate-profile.v2
+source_documents:
+  - id: doc_sanitized
+    origin: uploaded
+    filename: sanitized-profile.md
+    media_type: text/markdown
+    sha256: 4d2a2b7f5e7c9b2e0f6f1cc2d8e6b6f7a98f16b6ab07f4bbf3b42a5e3d0f9c11
+    parser:
+      name: fitcv-fixture
+      version: v1
+name: Sanitized Candidate
+experiences: []
+education: []
+projects: []
+achievements: []
+certifications: []
+volunteering: []
+languages: []
+skills:
+  - id: skill-sql
+    name: SQL
+    origin: extracted_explicit
+    confidence: 0.99
+    support_status: supported
+    evidence_refs: []
+role_families: []
+domain_tags: []
+responsibility_themes: []

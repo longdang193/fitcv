@@ -149,11 +149,10 @@ def test_fixture_validation_rejects_shared_scenario_inputs() -> None:
 
 def test_fixture_validation_rejects_invalid_runtime_requirement_mappings() -> None:
     module = _benchmark_module()
-    packet = load_json(REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_holdout_170_human_accepted_v1.json")
-    profile = yaml.safe_load(
-        (REPO_ROOT / "data/candidate_profile.private.final.2026-09-27-reviewed-updated.yaml").read_text(encoding="utf-8")
-    )
-    jobs = load_raw_jobs(REPO_ROOT / "data/linkedin-2026-09-29-16-10-19.json")
+    fixture_root = REPO_ROOT / "tests" / "fixtures" / "p0b"
+    packet = load_json(fixture_root / "sanitized_packet.json")
+    profile = yaml.safe_load((fixture_root / "sanitized_profile.yaml").read_text(encoding="utf-8"))
+    jobs = load_raw_jobs(fixture_root / "sanitized_jobs.json")
     fixture = build_fixture(packet, profile, jobs)
     fixture["fixture_schema_version"] = "p0b.requirement_support.source_backed.v2"
     rows = [row for case_rows in fixture["acceptance_rows"].values() for row in case_rows]

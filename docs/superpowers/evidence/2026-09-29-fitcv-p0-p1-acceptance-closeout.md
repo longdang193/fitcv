@@ -36,10 +36,10 @@ The Italian row is classified `mixed`, not English.
 | `data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json` | `c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e` |
 | `data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_review_packet.json` | `2eed8058f222585dbc0626eefdaaffbb68032fcc76d886ec0e878164fbfdac46` |
 | `data/fitcv-p0-corpus/p0a/p0a-v4-production-scores.json` | `d547cec8f286f0a7ad5f9e63433b8d7673d54c4d317484da2f5edaae2634def4` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-incumbent-final.json` | `d4084d81f570f293c574f35c7d181ac1b5533bbd3ed19d2e35473faca4a4a3e6` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-final.json` | `7aff30f015f0583a0e7e90995ac40f82e55fdb5c65ec76839174c9211ab0d951` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-frozen-gate.json` | `957fbb65662c161b53d8dc7b26e19f46c6703f91e71110d2e81abf1973b72944` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-calibration-loss.json` | `842592611a70c2e32683b2fd7b3b78f64dc00c0d884959ab0d54b527d3bb9a2d` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-incumbent-final.json` | `a2d8b8c73073f666f80e574865be5f4f13e3986c0601c04974e94dd0db3be42c` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-final.json` | `12e60d29264defd5c9ea36ee3021d16b9d0d4ba19616a2e44812d6888525fe20` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-frozen-gate.json` | `1c4ae684fc0dd5fd5830e36571a570516da2d90cdd488a97e3a43d60399a9759` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-calibration-loss.json` | `c86264f1e96eb40bb0d5abfdcc5638d90faf56ac8a4aef7d4e100e459236aa16` |
 
 Same-environment incumbent v4 completed with `status=measured`, `p50=46.31 ms`,
 and `p95=75.06 ms`. Multilingual v4 completed with `status=measured`,

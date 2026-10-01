@@ -1,0 +1,10 @@
+[
+  {
+    "id": "sanitized-job-001",
+    "jobUrl": "https://sanitized.invalid/jobs/001",
+    "title": "Synthetic Data Analyst",
+    "sector": "Technology",
+    "description": "Use SQL for reporting.",
+    "description_sha256": "18359a551146cef6e7c87b74ac209f9a3d0d75bb4db41fcfc860e93f0a5e4783"
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "schema_version": "p0b.holdout_source_review_packet.v1",
+  "status": "human_accepted",
+  "human_acceptance": {"status": "accepted", "accepted_at": "2026-10-01"},
+  "cases": [
+    {
+      "case_id": "holdout-sanitized-001",
+      "source_record_id": "sanitized-job-001",
+      "title": "Synthetic Data Analyst",
+      "requirements": [
+        {
+          "requirement_id": "req_sanitized_001",
+          "requirement_text": "SQL",
+          "adjudication": {
+            "final_support_verdict": "unknown",
+            "minimal_sufficient_evidence": []
+          }
+        },
+        {
+          "requirement_id": "req_sanitized_002",
+          "requirement_text": "Python",
+          "adjudication": {
+            "final_support_verdict": "unsupported",
+            "minimal_sufficient_evidence": []
+          }
+        }
+      ]
+    }
+  ]
+}

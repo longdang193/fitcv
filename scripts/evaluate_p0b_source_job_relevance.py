@@ -31,6 +31,14 @@ THRESHOLDS = {
 }
 LABEL_TO_GRADE = {"irrelevant": 0, "borderline": 1, "relevant": 2}
 REVIEWER_LABEL_TO_GRADES = {"irrelevant": {0}, "borderline": {1}, "relevant": {2, 3}}
+QUALIFIER_VERDICTS = {
+    "supported",
+    "unsupported",
+    "unknown",
+    "contradicted",
+    "satisfied",
+    "not_applicable",
+}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -329,6 +337,9 @@ def evaluate_evidence_link_review(
     unsupported_selected_rows = 0
     qualifier_contradictions = 0
     invalid_verdicts = 0
+    invalid_qualifier_verdicts = 0
+    actual_pairs: set[tuple[str, str]] = set()
+    gold_pairs: set[tuple[str, str]] = set()
 
     for row in review_rows:
         requirement_id = str(row.get("requirement_instance_id") or "")
@@ -352,12 +363,16 @@ def evaluate_evidence_link_review(
         if verdict not in {"supported", "unsupported", "unknown"}:
             invalid_verdicts += 1
             validation_errors.append(f"review_support_verdict_invalid:{requirement_id}")
+        if qualifier_verdict not in QUALIFIER_VERDICTS:
+            invalid_qualifier_verdicts += 1
+            validation_errors.append(f"review_qualifier_verdict_invalid:{requirement_id}")
         if not accepted_ids <= historical_selected_ids:
             validation_errors.append(f"review_accepted_ids_not_historical_selected:{requirement_id}")
         if not accepted_ids <= projection_ids:
             validation_errors.append(f"review_accepted_ids_not_in_projection:{requirement_id}")
         if verdict == "supported":
             supported_rows += 1
+            gold_pairs.update((requirement_id, evidence_id) for evidence_id in accepted_ids)
             if not accepted_ids:
                 validation_errors.append(f"supported_without_accepted_evidence:{requirement_id}")
             covered_supported_rows += int(bool(accepted_ids & assigned_ids))
@@ -367,6 +382,7 @@ def evaluate_evidence_link_review(
             unsupported_selected_rows += 1
         if qualifier_verdict == "contradicted":
             qualifier_contradictions += 1
+        actual_pairs.update((requirement_id, evidence_id) for evidence_id in assigned_ids)
         accepted_pairs += len(accepted_ids)
 
     if len(review_rows) != len(expected_ids):
@@ -390,6 +406,7 @@ def evaluate_evidence_link_review(
             for error in validation_errors
         ),
         "valid_verdict_vocabulary": invalid_verdicts == 0,
+        "valid_qualifier_vocabulary": invalid_qualifier_verdicts == 0,
         "accepted_ids_in_projection": not any(
             error.startswith("review_accepted_ids_not_in_projection:")
             for error in validation_errors
@@ -405,6 +422,7 @@ def evaluate_evidence_link_review(
         ),
         "unsupported_selected_assignments": unsupported_selected_rows == 0,
         "qualifier_contradictions": qualifier_contradictions == 0,
+        "validation_errors": not validation_errors,
     }
     support_gate["passed"] = all(
         value for key, value in support_gate.items() if key != "threshold"
@@ -415,6 +433,15 @@ def evaluate_evidence_link_review(
         "supported_requirement_recall": supported_requirement_recall,
         "unsupported_selected_rows": unsupported_selected_rows,
         "qualifier_contradictions": qualifier_contradictions,
+        "pair_true_positive": len(actual_pairs & gold_pairs),
+        "pair_false_positive": len(actual_pairs - gold_pairs),
+        "pair_false_negative": len(gold_pairs - actual_pairs),
+        "pair_precision": (
+            len(actual_pairs & gold_pairs) / len(actual_pairs) if actual_pairs else 1.0
+        ),
+        "pair_recall": (
+            len(actual_pairs & gold_pairs) / len(gold_pairs) if gold_pairs else 1.0
+        ),
         "validation_errors": sorted(set(validation_errors)),
         "status": "clean" if not validation_errors else "invalid",
         "support_gate": support_gate,

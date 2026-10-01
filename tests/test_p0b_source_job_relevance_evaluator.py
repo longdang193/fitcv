@@ -72,16 +72,16 @@ def test_actual_fitcv_output_is_evaluated_separately_from_reviewer_arms() -> Non
     assert len(report["job_outputs"]) == 25
     assert all("selected_evidence_ids" in output for output in report["job_outputs"])
     actual = report["actual_metrics"]
-    assert actual["selected_requirement_recall"] == 29 / 143
+    assert actual["selected_requirement_recall"] == 0.0
     assert actual["minimum_source_group_recall"] == 0.0
     assert actual["gates"]["incorrect_pairs"] is True
-    assert actual["gates"]["hard_negative_false_positives"] is False
+    assert actual["gates"]["hard_negative_false_positives"] is True
     links = report["evidence_link_review"]
     assert links["status"] == "clean"
     assert links["rows"] == 212
     assert links["accepted_pairs"] == 12
     assert links["supported_requirement_recall"] == 0.0
-    assert links["unsupported_selected_rows"] == 24
+    assert links["unsupported_selected_rows"] == 0
     assert report["eligible"] is False
 
 

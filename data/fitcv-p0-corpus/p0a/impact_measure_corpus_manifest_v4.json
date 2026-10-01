@@ -11,21 +11,21 @@
   "benchmark_reports": {
     "incumbent": {
       "path": "data/fitcv-p0-corpus/p0a/p0a-v4-incumbent-final.json",
-      "sha256": "d4084d81f570f293c574f35c7d181ac1b5533bbd3ed19d2e35473faca4a4a3e6"
+      "sha256": "a2d8b8c73073f666f80e574865be5f4f13e3986c0601c04974e94dd0db3be42c"
     },
     "multilingual": {
       "path": "data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-final.json",
-      "sha256": "7aff30f015f0583a0e7e90995ac40f82e55fdb5c65ec76839174c9211ab0d951"
+      "sha256": "12e60d29264defd5c9ea36ee3021d16b9d0d4ba19616a2e44812d6888525fe20"
     },
     "frozen_gate": {
       "path": "data/fitcv-p0-corpus/p0a/p0a-v4-frozen-gate.json",
-      "sha256": "957fbb65662c161b53d8dc7b26e19f46c6703f91e71110d2e81abf1973b72944"
+      "sha256": "1c4ae684fc0dd5fd5830e36571a570516da2d90cdd488a97e3a43d60399a9759"
     }
   },
   "diagnostics": {
     "multilingual_calibration_loss": {
       "path": "data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-calibration-loss.json",
-      "sha256": "842592611a70c2e32683b2fd7b3b78f64dc00c0d884959ab0d54b527d3bb9a2d"
+      "sha256": "c86264f1e96eb40bb0d5abfdcc5638d90faf56ac8a4aef7d4e100e459236aa16"
     }
   },
   "row_count": 104,

@@ -170,6 +170,9 @@ jobs:
   render-acceptance:
     name: Render Acceptance
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

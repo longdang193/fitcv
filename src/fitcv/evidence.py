@@ -2143,6 +2143,77 @@ def _evidence_text(item: dict[str, Any]) -> str:
     return _normalize_optional_text(item.get("text"))
 
 
+_RESPONSIBILITY_PREPOSITIONS = frozenset({"across", "at", "for", "in", "on", "using", "with", "within"})
+
+
+def _responsibility_stem(token: str) -> str:
+    token = token.casefold()
+    if token in {"built", "created"}:
+        return {"built": "build", "created": "create"}[token]
+    if token.endswith("ies") and len(token) > 4:
+        return token[:-3] + "y"
+    if token.endswith("ing") and len(token) > 5:
+        return token[:-3]
+    if token.endswith("ed") and len(token) > 4:
+        return token[:-2]
+    if token.endswith("es") and len(token) > 4:
+        return token[:-2]
+    if token.endswith("s") and len(token) > 3:
+        return token[:-1]
+    return token
+
+
+def _responsibility_parts(text: str) -> tuple[str, set[str], set[str]]:
+    tokens = re.findall(r"[a-z0-9]+", _normalize_optional_text(text).casefold())
+    tokens = [token for token in tokens if token not in _STOPWORDS]
+    marker_index = next(
+        (index for index, token in enumerate(tokens) if token in _RESPONSIBILITY_PREPOSITIONS),
+        len(tokens),
+    )
+    core = tokens[:marker_index]
+    qualifiers = {_responsibility_stem(token) for token in tokens[marker_index + 1:]}
+    action = _responsibility_stem(core[0]) if core else ""
+    objects = {_responsibility_stem(token) for token in core[1:]}
+    return action, objects, qualifiers
+
+
+def _responsibility_term_aliases(term: str) -> tuple[str, ...]:
+    return tuple(dict.fromkeys((term, f"{term}ing", f"{term}ed", f"{term}s")))
+
+
+def _responsibility_is_negated(text: str, terms: set[str]) -> bool:
+    normalized = _normalize_optional_text(text).casefold()
+    negation = r"(?:no|not|never|without|haven't|didn't|kein|keine|keinen|nicht)"
+    for term in terms:
+        aliases = "|".join(re.escape(alias) for alias in _responsibility_term_aliases(term))
+        if re.search(rf"(?<!\w){negation}\b.{{0,48}}\b(?:{aliases})(?!\w)", normalized):
+            return True
+    return False
+
+
+def _assess_responsibility_support(requirement_text: str, evidence_text: str) -> dict[str, Any]:
+    action, objects, qualifiers = _responsibility_parts(requirement_text)
+    evidence_tokens = {_responsibility_stem(token) for token in _tokenize(evidence_text)}
+    action_match = bool(action) and action in evidence_tokens
+    object_overlap = objects & evidence_tokens
+    object_match = not objects or objects <= evidence_tokens
+    qualifier_status = "satisfied" if qualifiers <= evidence_tokens else "unverified"
+    contradicted = _responsibility_is_negated(
+        evidence_text,
+        {term for term in (action, *objects, *qualifiers) if term},
+    )
+    candidate_match = action_match and (not objects or bool(object_overlap))
+    verified_support = candidate_match and object_match and qualifier_status == "satisfied" and not contradicted
+    return {
+        "candidate_match": candidate_match,
+        "action_match": action_match,
+        "object_match": object_match,
+        "qualifier_status": "contradicted" if contradicted else qualifier_status,
+        "contradicted": contradicted,
+        "verified_support": verified_support,
+    }
+
+
 def _duration_satisfies(required: dict[str, Any], evidence: dict[str, Any]) -> bool | None:
     if evidence.get("negated"):
         return None
@@ -2325,12 +2396,6 @@ def _responsibility_support_map(
     items: list[dict[str, Any]],
     entities: list[dict[str, Any]],
 ) -> dict[str, list[str]]:
-    def token_keys(text: str) -> set[str]:
-        return {
-            token if len(token) <= 4 else token[:4]
-            for token in _tokenize(text)
-        }
-
     support: dict[str, list[str]] = {}
     for entity in entities:
         requirement_id = str(
@@ -2347,13 +2412,13 @@ def _responsibility_support_map(
         ).strip()
         if not requirement_id or not requirement_text:
             continue
-        requirement_tokens = token_keys(requirement_text)
-        if not requirement_tokens:
-            continue
         for item in items:
             evidence_id = str(item.get("evidence_id") or "").strip()
             direct_support = any(
-                len(requirement_tokens & token_keys(str(fragment.get("text") or ""))) >= min(2, len(requirement_tokens))
+                _assess_responsibility_support(
+                    requirement_text,
+                    str(fragment.get("text") or ""),
+                )["verified_support"]
                 for fragment in _support_fragments(item)
             )
             if evidence_id and direct_support:
@@ -2534,7 +2599,6 @@ def _recover_verified_supporters(
 ) -> tuple[list[dict[str, Any]], list[str]]:
     if (
         top_k <= 0
-        or len(selected) < top_k
         or float(policy.get("requirement_gain_weight", 0.0)) <= 0.0
     ):
         return selected, []
@@ -2570,10 +2634,28 @@ def _recover_verified_supporters(
         ]))
         recovered["selection_score"] = round(_base_selection_score(candidate, policy=policy), 6)
         if len(selected) >= top_k:
+            covered_before = set().union(*(
+                set(str(value) for value in list(item.get("supported_requirement_ids") or []))
+                for item in selected
+            ))
+            candidate_support = set(str(value) for value in list(recovered.get("supported_requirement_ids") or []))
+            removable = [
+                item
+                for item in selected
+                if covered_before <= (
+                    set().union(*(
+                        set(str(value) for value in list(other.get("supported_requirement_ids") or []))
+                        for other in selected
+                        if other is not item
+                    ))
+                    | candidate_support
+                )
+            ]
+            if not removable:
+                continue
             victim = min(
-                selected,
+                removable,
                 key=lambda item: (
-                    len(list(item.get("supported_requirement_ids") or [])),
                     float(item.get("selection_score") or 0.0),
                     str(item.get("evidence_id") or ""),
                 ),
