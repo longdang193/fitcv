@@ -36,8 +36,17 @@ def validate(oracle_path: Path, manifest_path: Path) -> dict:
     if manifest.get("oracle", {}).get("label_counts") != dict(sorted(counts.items())):
         errors.append("label_counts_mismatch")
     human_review_complete = bool(manifest.get("labels", {}).get("human_review_complete"))
+    if human_review_complete:
+        acceptance_ids = manifest.get("labels", {}).get("human_acceptance_ids") or []
+        acceptance_dates = manifest.get("labels", {}).get("human_acceptance_dates") or []
+        if not acceptance_ids or not all(str(x).startswith("human:") for x in acceptance_ids):
+            errors.append("human_acceptance_provenance_invalid")
+        if not acceptance_dates or not all(str(x) for x in acceptance_dates):
+            errors.append("human_acceptance_date_missing")
     if manifest.get("promotion_eligible") and not human_review_complete:
         errors.append("promotion_without_human_review")
+    if manifest.get("promotion_eligible") and counts.get("unjudged", 0):
+        errors.append("promotion_with_unjudged_pairs")
     return {
         "status": "clean" if not errors else "blocked",
         "oracle_rows": len(oracle),
@@ -45,6 +54,7 @@ def validate(oracle_path: Path, manifest_path: Path) -> dict:
         "evidence_rows": len(evidence),
         "coverage": coverage,
         "label_counts": dict(sorted(counts.items())),
+        "unjudged": counts.get("unjudged", 0),
         "human_review_complete": human_review_complete,
         "promotion_eligible": bool(manifest.get("promotion_eligible")),
         "errors": errors,

@@ -1,29 +1,33 @@
 {
-  "blockers": [
-    "human_oracle_acceptance"
-  ],
   "cohort_id": "p0b-support-oracle-calibration-supported-requirements-v1",
   "labels": {
-    "human_review_complete": false,
+    "human_acceptance_dates": [
+      "2026-10-01"
+    ],
+    "human_acceptance_ids": [
+      "human:operator-confirmed"
+    ],
+    "human_review_complete": true,
     "path": "tests/fixtures/p0b/support_oracle_labels.jsonl",
     "reviewer_ids": [
-      "model:openai:gpt-5.6-sol"
+      "consensus:model:openai:gpt-5.6-sol:oracle-reviewer-a|model:openai:gpt-5.6-sol:oracle-reviewer-b",
+      "model:openai:gpt-5.6-sol:oracle-adjudicator"
     ],
     "rows": 549,
-    "sha256": "10cb393bd9244350e8908e3c21255fcae06982d1e4b36aad63f5dc58c3db3bf4"
+    "sha256": "cb5c55be0238dc406624c70596b0564963affa92a001017ac1f0e830b201045b"
   },
   "oracle": {
     "coverage": 1.0,
     "evidence_rows": 61,
     "label_counts": {
-      "supported": 146,
-      "unjudged": 123,
+      "supported": 157,
+      "unjudged": 112,
       "unsupported": 280
     },
     "path": "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1.jsonl",
     "requirements": 9,
     "rows": 549,
-    "sha256": "50ee8fddb41c10a44d5721d3b4bfa90e6808dd8ef3c92d28959d83ac9e929d6f"
+    "sha256": "8fb5213fc12d73a7e9330df0c77497fc98980365a8fe0bfd70cf7f2fa84f465b"
   },
   "projection": {
     "path": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection_source_backed_v1.jsonl",
@@ -32,11 +36,6 @@
     "unique_evidence_ids": 61
   },
   "promotion_eligible": false,
-  "review": {
-    "path": "data/fitcv-p0-corpus/p0b/p0b_source_job_evidence_link_review_v1.csv",
-    "rows": 212,
-    "sha256": "9cc9b7745142831a5ca7b9a0b7ac618e96ed0da2107f700dc96ea7391957e73a"
-  },
   "schema_version": "p0b.source_job_support_oracle_manifest.v1",
-  "status": "validated_draft_pending_human_acceptance"
+  "status": "validated_human_oracle_blocked_unjudged"
 }

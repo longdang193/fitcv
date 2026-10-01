@@ -34,6 +34,8 @@ def build(projection_path: Path, labels_path: Path, output_path: Path, manifest_
     seen = set()
     requirement_ids = set()
     reviewer_ids = set()
+    acceptance_ids = set()
+    acceptance_dates = set()
     cohort_ids = set()
     oracle = []
     for row in labels:
@@ -54,6 +56,9 @@ def build(projection_path: Path, labels_path: Path, output_path: Path, manifest_
         seen.add(pid)
         requirement_ids.add(rid)
         reviewer_ids.add(str(row.get("reviewer_id") or ""))
+        acceptance = row.get("human_acceptance") or {}
+        acceptance_ids.add(str(acceptance.get("accepted_by") or ""))
+        acceptance_dates.add(str(acceptance.get("accepted_at") or ""))
         cohort_ids.add(str(row.get("cohort_id") or ""))
         src = row.get("source_reference") or {}
         if src.get("evidence_source_ref") != evidence[eid].get("source_ref"):
@@ -71,6 +76,10 @@ def build(projection_path: Path, labels_path: Path, output_path: Path, manifest_
             "reviewer_id": str(row.get("reviewer_id") or ""),
             "reviewed_at": str(row.get("reviewed_at") or ""),
             "rationale": str(row.get("rationale") or ""),
+            "human_acceptance": {
+                "accepted_by": str(acceptance.get("accepted_by") or ""),
+                "accepted_at": str(acceptance.get("accepted_at") or ""),
+            },
         })
     if len(cohort_ids) != 1:
         raise ValueError("cohort_id_not_unique")
@@ -83,10 +92,18 @@ def build(projection_path: Path, labels_path: Path, output_path: Path, manifest_
         encoding="utf-8", newline="\n"
     )
     counts = Counter(row["support_label"] for row in oracle)
-    all_human = bool(reviewer_ids) and all(x.startswith("human:") for x in reviewer_ids)
+    all_human = bool(acceptance_ids) and all(x.startswith("human:") for x in acceptance_ids)
+    acceptance_complete = bool(acceptance_dates) and all(acceptance_dates)
+    unjudged_count = counts.get("unjudged", 0)
     manifest = {
         "schema_version": MANIFEST_SCHEMA,
-        "status": "validated_human_oracle" if all_human else "validated_draft_pending_human_acceptance",
+        "status": (
+            "validated_human_oracle"
+            if all_human and acceptance_complete and not unjudged_count
+            else "validated_human_oracle_blocked_unjudged"
+            if all_human and acceptance_complete
+            else "validated_draft_pending_human_acceptance"
+        ),
         "cohort_id": next(iter(cohort_ids)),
         "projection": {
             "path": str(projection_path).replace("\\", "/"),
@@ -99,7 +116,9 @@ def build(projection_path: Path, labels_path: Path, output_path: Path, manifest_
             "sha256": sha256_file(labels_path),
             "rows": len(labels),
             "reviewer_ids": sorted(reviewer_ids),
-            "human_review_complete": all_human,
+            "human_acceptance_ids": sorted(acceptance_ids),
+            "human_acceptance_dates": sorted(acceptance_dates),
+            "human_review_complete": all_human and acceptance_complete,
         },
         "oracle": {
             "path": str(output_path).replace("\\", "/"),
@@ -110,7 +129,12 @@ def build(projection_path: Path, labels_path: Path, output_path: Path, manifest_
             "coverage": len(oracle) / expected if expected else 0.0,
             "label_counts": dict(sorted(counts.items())),
         },
-        "promotion_eligible": all_human and len(oracle) == expected,
+        "promotion_eligible": (
+            all_human
+            and acceptance_complete
+            and len(oracle) == expected
+            and unjudged_count == 0
+        ),
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
