@@ -648,6 +648,8 @@ def _support_metrics(
 
     incorrect_pairs = sorted(stage_pairs["selected"] - expected_pairs)
     missed_pairs = sorted(expected_pairs - stage_pairs["selected"])
+    true_positive_count = len(stage_pairs["selected"] & expected_pairs)
+    false_negative_count = len(missed_pairs)
     direct_support_opportunities = {
         key: (
             []
@@ -658,6 +660,10 @@ def _support_metrics(
     }
     selected_ids = [str(value) for value in list(bundle.get("selected_evidence_ids") or [])]
     duplicate_ids = sorted({value for value in selected_ids if selected_ids.count(value) > 1})
+    loss_buckets = _calibration_loss_decomposition(
+        expected_pairs,
+        stage_pairs,
+    )
     return {
         "canonical_coverage": sum(bool(canonical.get(key)) for key in expected_support),
         "retrieved_coverage": sum(bool(retrieved.get(key)) for key in expected_support),
@@ -694,8 +700,13 @@ def _support_metrics(
         "expected_pair_errors": expected_pair_errors,
         "unexpected_selected": unexpected_selected,
         "incorrect_pairs": [list(pair) for pair in incorrect_pairs],
+        "incorrect_pair_count": len(incorrect_pairs),
         "correct_pairs": [list(pair) for pair in sorted(stage_pairs["selected"] & expected_pairs)],
         "missed_pairs": [list(pair) for pair in missed_pairs],
+        "missed_pair_count": false_negative_count,
+        "true_positive_count": true_positive_count,
+        "false_negative_count": false_negative_count,
+        "calibration_loss_buckets": loss_buckets,
         "assignment_precision": (
             round(len(stage_pairs["selected"] & expected_pairs) / len(stage_pairs["selected"]), 6)
             if stage_pairs["selected"]
@@ -725,6 +736,61 @@ def _support_metrics(
                 )
                 for stage in ("canonical", "retrieved", "selected")
             },
+        },
+    }
+
+
+def _calibration_loss_decomposition(
+    expected_pairs: set[tuple[str, str]],
+    stage_pairs: dict[str, set[tuple[str, str]]],
+) -> dict[str, Any]:
+    bucket_names = (
+        "not_in_pool",
+        "in_pool_not_support_candidate",
+        "false_support_candidate",
+        "support_candidate_not_selected",
+        "selected_not_assigned",
+        "assigned_false_positive",
+        "qualifier_failure",
+    )
+    buckets = {name: [] for name in bucket_names}
+    for pair in sorted(expected_pairs - stage_pairs["selected"]):
+        if pair not in stage_pairs["canonical"]:
+            bucket = "not_in_pool"
+        elif pair not in stage_pairs["retrieved"]:
+            bucket = "in_pool_not_support_candidate"
+        else:
+            bucket = "support_candidate_not_selected"
+        buckets[bucket].append(list(pair))
+    for pair in sorted(stage_pairs["selected"] - expected_pairs):
+        bucket = (
+            "false_support_candidate"
+            if pair in stage_pairs["retrieved"]
+            else "assigned_false_positive"
+        )
+        buckets[bucket].append(list(pair))
+    counts = {name: len(values) for name, values in buckets.items()}
+    return {
+        "counts": counts,
+        "total_errors": sum(counts.values()),
+        "unclassified": 0,
+        "pairs": buckets,
+        "by_requirement_type": {
+            requirement_type: sum(
+                count
+                for name, count in counts.items()
+                if any(
+                    str(pair[0]).split(":", 1)[0] == requirement_type
+                    for pair in buckets[name]
+                )
+            )
+            for requirement_type in sorted(
+                {
+                    str(pair[0]).split(":", 1)[0]
+                    for values in buckets.values()
+                    for pair in values
+                }
+            )
         },
     }
 
@@ -1041,11 +1107,27 @@ def _aggregate_scenario_metrics(scenario_results: list[dict[str, Any]]) -> dict[
             for result in scenario_results
             for pair in result["metrics"].get("incorrect_pairs", [])
         ],
+        "incorrect_pair_count": sum(
+            int(result["metrics"].get("incorrect_pair_count") or 0)
+            for result in scenario_results
+        ),
         "missed_pairs": [
             [result["scenario_id"], *pair]
             for result in scenario_results
             for pair in result["metrics"].get("missed_pairs", [])
         ],
+        "missed_pair_count": sum(
+            int(result["metrics"].get("missed_pair_count") or 0)
+            for result in scenario_results
+        ),
+        "true_positive_count": sum(
+            int(result["metrics"].get("true_positive_count") or 0)
+            for result in scenario_results
+        ),
+        "false_negative_count": sum(
+            int(result["metrics"].get("false_negative_count") or 0)
+            for result in scenario_results
+        ),
         "assignment_precision": (
             "not_applicable"
             if not all(result["metrics"].get("explicit_requirement_links") for result in scenario_results)

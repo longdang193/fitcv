@@ -7,7 +7,11 @@ import sys
 from pathlib import Path
 
 import scripts.evaluate_p0b_source_job_relevance as evaluator
-from scripts.evaluate_p0b_source_job_relevance import evaluate_documents, evaluate_actual_fitcv
+from scripts.evaluate_p0b_source_job_relevance import (
+    evaluate_documents,
+    evaluate_actual_fitcv,
+    evaluate_evidence_link_review,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,7 +72,7 @@ def test_actual_fitcv_output_is_evaluated_separately_from_reviewer_arms() -> Non
     assert len(report["job_outputs"]) == 25
     assert all("selected_evidence_ids" in output for output in report["job_outputs"])
     actual = report["actual_metrics"]
-    assert actual["selected_requirement_recall"] == 52 / 143
+    assert actual["selected_requirement_recall"] == 29 / 143
     assert actual["minimum_source_group_recall"] == 0.0
     assert actual["gates"]["incorrect_pairs"] is True
     assert actual["gates"]["hard_negative_false_positives"] is False
@@ -76,8 +80,8 @@ def test_actual_fitcv_output_is_evaluated_separately_from_reviewer_arms() -> Non
     assert links["status"] == "clean"
     assert links["rows"] == 212
     assert links["accepted_pairs"] == 12
-    assert links["supported_requirement_recall"] == 2 / 3
-    assert links["unsupported_selected_rows"] == 35
+    assert links["supported_requirement_recall"] == 0.0
+    assert links["unsupported_selected_rows"] == 24
     assert report["eligible"] is False
 
 
@@ -131,3 +135,69 @@ def test_actual_fitcv_cli_fails_when_actual_gates_fail(tmp_path) -> None:
     )
 
     assert result.returncode == 1
+
+
+def test_evidence_link_review_fails_closed_when_review_is_incomplete() -> None:
+    result = evaluate_evidence_link_review(
+        review_rows=[],
+        fixture_by_id={"req-1": {"source_record_id": "job-1"}},
+        selected_by_source={"job-1": set()},
+        selected_by_requirement={},
+        projection_ids=set(),
+        support_recall_threshold=1.0,
+    )
+
+    assert result["status"] == "invalid"
+    assert "review_coverage_incomplete" in result["validation_errors"]
+    assert result["support_gate"]["passed"] is False
+    assert result["support_gate"]["complete_review"] is False
+
+
+def test_evidence_link_review_ignores_current_selection_snapshot_for_gold() -> None:
+    result = evaluate_evidence_link_review(
+        review_rows=[
+            {
+                "requirement_instance_id": "req-1",
+                "source_record_id": "job-1",
+                "selected_evidence_ids": "ev-gold;ev-old",
+                "accepted_evidence_ids": "ev-gold",
+                "support_verdict": "supported",
+                "qualifier_verdict": "supported",
+            }
+        ],
+        fixture_by_id={"req-1": {"source_record_id": "job-1"}},
+        selected_by_source={"job-1": {"ev-gold"}},
+        selected_by_requirement={"req-1": {"ev-gold"}},
+        projection_ids={"ev-gold", "ev-old"},
+        support_recall_threshold=1.0,
+    )
+
+    assert result["status"] == "clean"
+    assert result["validation_errors"] == []
+    assert result["support_gate"]["passed"] is True
+    assert result["supported_requirement_recall"] == 1.0
+
+
+def test_evidence_link_review_rejects_invalid_gold_and_zero_support_denominator() -> None:
+    result = evaluate_evidence_link_review(
+        review_rows=[
+            {
+                "requirement_instance_id": "req-1",
+                "source_record_id": "job-1",
+                "selected_evidence_ids": "ev-selected",
+                "accepted_evidence_ids": "ev-missing",
+                "support_verdict": "unsupported",
+                "qualifier_verdict": "unknown",
+            }
+        ],
+        fixture_by_id={"req-1": {"source_record_id": "job-1"}},
+        selected_by_source={"job-1": {"ev-current"}},
+        selected_by_requirement={"req-1": {"ev-current"}},
+        projection_ids={"ev-selected"},
+        support_recall_threshold=0.0,
+    )
+
+    assert "review_accepted_ids_not_in_projection:req-1" in result["validation_errors"]
+    assert result["supported_requirement_recall"] is None
+    assert result["support_gate"]["supported_link_recall"] is False
+    assert result["support_gate"]["passed"] is False

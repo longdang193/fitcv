@@ -224,9 +224,11 @@ def _evaluate_selected(validation: dict[str, Any], selected_by_id: dict[str, boo
     hard_negative_false_positives: list[dict[str, Any]] = []
     group_stats: dict[str, dict[str, Any]] = {}
     true_positive = false_negative = 0
+    relevance_counts = {label: 0 for label in LABEL_TO_GRADE}
 
     for requirement_id, fixture_row in fixture_by_id.items():
         gold_grade = int(fixture_row["final_relevance_grade"])
+        relevance_counts[str(fixture_row["final_relevance_label"])] += 1
         selected = bool(selected_by_id.get(requirement_id, False))
         gold_relevant = gold_grade >= 2
         if selected and gold_relevant:
@@ -269,10 +271,13 @@ def _evaluate_selected(validation: dict[str, Any], selected_by_id: dict[str, boo
     }
     return {
         "predicted_selected": sum(selected_by_id.values()),
+        "relevance_counts": relevance_counts,
         "selected_requirement_recall": selected_recall,
         "true_positive": true_positive,
         "false_negative": false_negative,
         "gold_relevant": true_positive + false_negative,
+        "incorrect_pair_count": len(incorrect_pairs),
+        "hard_negative_false_positive_count": len(hard_negative_false_positives),
         "incorrect_pairs": incorrect_pairs,
         "hard_negative_false_positives": hard_negative_false_positives,
         "minimum_source_group_recall": minimum_group_recall,
@@ -306,6 +311,116 @@ def _split_ids(value: Any) -> set[str]:
     return {item.strip() for item in str(value or "").split(";") if item.strip()}
 
 
+def evaluate_evidence_link_review(
+    *,
+    review_rows: list[dict[str, Any]],
+    fixture_by_id: dict[str, dict[str, Any]],
+    selected_by_source: dict[str, set[str]],
+    selected_by_requirement: dict[str, set[str]],
+    projection_ids: set[str],
+    support_recall_threshold: float | None,
+) -> dict[str, Any]:
+    expected_ids = set(fixture_by_id)
+    seen_ids: set[str] = set()
+    validation_errors: list[str] = []
+    supported_rows = 0
+    covered_supported_rows = 0
+    accepted_pairs = 0
+    unsupported_selected_rows = 0
+    qualifier_contradictions = 0
+    invalid_verdicts = 0
+
+    for row in review_rows:
+        requirement_id = str(row.get("requirement_instance_id") or "")
+        source_id = str(row.get("source_record_id") or "")
+        historical_selected_ids = _split_ids(row.get("selected_evidence_ids"))
+        accepted_ids = _split_ids(row.get("accepted_evidence_ids"))
+        assigned_ids = selected_by_requirement.get(requirement_id, set())
+        verdict = str(row.get("support_verdict") or "")
+        qualifier_verdict = str(row.get("qualifier_verdict") or "")
+
+        if requirement_id not in fixture_by_id:
+            validation_errors.append(f"review_requirement_not_in_fixture:{requirement_id}")
+        elif requirement_id in seen_ids:
+            validation_errors.append(f"review_requirement_duplicate:{requirement_id}")
+        else:
+            seen_ids.add(requirement_id)
+            expected_source_id = str(fixture_by_id[requirement_id].get("source_record_id") or "")
+            if source_id != expected_source_id:
+                validation_errors.append(f"review_source_record_mismatch:{requirement_id}")
+
+        if verdict not in {"supported", "unsupported", "unknown"}:
+            invalid_verdicts += 1
+            validation_errors.append(f"review_support_verdict_invalid:{requirement_id}")
+        if not accepted_ids <= historical_selected_ids:
+            validation_errors.append(f"review_accepted_ids_not_historical_selected:{requirement_id}")
+        if not accepted_ids <= projection_ids:
+            validation_errors.append(f"review_accepted_ids_not_in_projection:{requirement_id}")
+        if verdict == "supported":
+            supported_rows += 1
+            if not accepted_ids:
+                validation_errors.append(f"supported_without_accepted_evidence:{requirement_id}")
+            covered_supported_rows += int(bool(accepted_ids & assigned_ids))
+        elif accepted_ids:
+            validation_errors.append(f"non_supported_has_accepted_evidence:{requirement_id}")
+        if verdict == "unsupported" and assigned_ids:
+            unsupported_selected_rows += 1
+        if qualifier_verdict == "contradicted":
+            qualifier_contradictions += 1
+        accepted_pairs += len(accepted_ids)
+
+    if len(review_rows) != len(expected_ids):
+        validation_errors.append("review_coverage_incomplete")
+    if seen_ids != expected_ids:
+        validation_errors.append("review_requirement_set_mismatch")
+
+    supported_requirement_recall = (
+        covered_supported_rows / supported_rows if supported_rows else None
+    )
+    threshold_approved = (
+        isinstance(support_recall_threshold, (int, float))
+        and not isinstance(support_recall_threshold, bool)
+        and 0.0 <= float(support_recall_threshold) <= 1.0
+    )
+    support_gate = {
+        "threshold": support_recall_threshold,
+        "threshold_approved": threshold_approved,
+        "complete_review": not any(
+            error in {"review_coverage_incomplete", "review_requirement_set_mismatch"}
+            for error in validation_errors
+        ),
+        "valid_verdict_vocabulary": invalid_verdicts == 0,
+        "accepted_ids_in_projection": not any(
+            error.startswith("review_accepted_ids_not_in_projection:")
+            for error in validation_errors
+        ),
+        "accepted_ids_in_historical_selection": not any(
+            error.startswith("review_accepted_ids_not_historical_selected:")
+            for error in validation_errors
+        ),
+        "supported_link_recall": (
+            supported_requirement_recall is not None
+            and threshold_approved
+            and supported_requirement_recall >= float(support_recall_threshold)
+        ),
+        "unsupported_selected_assignments": unsupported_selected_rows == 0,
+        "qualifier_contradictions": qualifier_contradictions == 0,
+    }
+    support_gate["passed"] = all(
+        value for key, value in support_gate.items() if key != "threshold"
+    )
+    return {
+        "rows": len(review_rows),
+        "accepted_pairs": accepted_pairs,
+        "supported_requirement_recall": supported_requirement_recall,
+        "unsupported_selected_rows": unsupported_selected_rows,
+        "qualifier_contradictions": qualifier_contradictions,
+        "validation_errors": sorted(set(validation_errors)),
+        "status": "clean" if not validation_errors else "invalid",
+        "support_gate": support_gate,
+    }
+
+
 def evaluate_actual_fitcv(
     fixture: dict[str, Any],
     packet: dict[str, Any],
@@ -314,6 +429,7 @@ def evaluate_actual_fitcv(
     projection_path: Path = DEFAULT_PROJECTION,
     evidence_link_review_path: Path = DEFAULT_EVIDENCE_LINK_REVIEW,
     policy_path: Path = DEFAULT_POLICY,
+    support_recall_threshold: float | None = None,
 ) -> dict[str, Any]:
     validation = validate_inputs(fixture, packet, group_map)
     report: dict[str, Any] = {
@@ -393,47 +509,27 @@ def evaluate_actual_fitcv(
     }
     report["actual_metrics"] = _evaluate_selected(validation, selected_by_id)
     review_rows = _load_evidence_link_review(evidence_link_review_path)
-    review_errors: list[str] = []
-    supported_rows = 0
-    covered_supported_rows = 0
-    accepted_pairs = 0
-    unsupported_selected_rows = 0
-    verdict_counts: dict[str, int] = {}
-    for row in review_rows:
-        requirement_id = str(row.get("requirement_instance_id") or "")
-        source_id = str(row.get("source_record_id") or "")
-        selected_ids = _split_ids(row.get("selected_evidence_ids"))
-        accepted_ids = _split_ids(row.get("accepted_evidence_ids"))
-        assigned_ids = selected_by_requirement.get(requirement_id, set())
-        verdict = str(row.get("support_verdict") or "")
-        verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
-        if requirement_id not in validation["fixture_by_id"]:
-            review_errors.append(f"review_requirement_not_in_fixture:{requirement_id}")
-        if selected_ids != selected_by_source.get(source_id, set()):
-            review_errors.append(f"review_selected_ids_mismatch:{requirement_id}")
-        if not accepted_ids <= selected_ids:
-            review_errors.append(f"review_accepted_ids_not_selected:{requirement_id}")
-        if verdict == "supported":
-            supported_rows += 1
-            covered_supported_rows += int(bool(accepted_ids & assigned_ids))
-        if verdict == "unsupported" and assigned_ids:
-            unsupported_selected_rows += 1
-        accepted_pairs += len(accepted_ids)
+    projection_ids = {
+        str(item.get("evidence_id") or "")
+        for item in projection
+        if str(item.get("evidence_id") or "")
+    }
+    link_review = evaluate_evidence_link_review(
+        review_rows=review_rows,
+        fixture_by_id=validation["fixture_by_id"],
+        selected_by_source=selected_by_source,
+        selected_by_requirement=selected_by_requirement,
+        projection_ids=projection_ids,
+        support_recall_threshold=support_recall_threshold,
+    )
     report["evidence_link_review"] = {
         "path": str(evidence_link_review_path),
-        "rows": len(review_rows),
-        "support_verdicts": verdict_counts,
-        "accepted_pairs": accepted_pairs,
-        "supported_requirement_recall": (
-            covered_supported_rows / supported_rows if supported_rows else None
-        ),
-        "unsupported_selected_rows": unsupported_selected_rows,
-        "validation_errors": sorted(set(review_errors)),
-        "status": "clean" if not review_errors else "invalid",
+        **link_review,
     }
+    report["support_gate"] = dict(link_review["support_gate"])
     report["eligible"] = bool(
         report["actual_metrics"]["eligible"]
-        and report["evidence_link_review"]["status"] == "clean"
+        and report["support_gate"]["passed"]
     )
     return report
 
@@ -468,6 +564,7 @@ def main() -> int:
     parser.add_argument("--projection", type=Path, default=DEFAULT_PROJECTION)
     parser.add_argument("--evidence-link-review", type=Path, default=DEFAULT_EVIDENCE_LINK_REVIEW)
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
+    parser.add_argument("--support-recall-threshold", type=float, default=None)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
 
@@ -482,6 +579,7 @@ def main() -> int:
         projection_path=args.projection,
         evidence_link_review_path=args.evidence_link_review,
         policy_path=args.policy,
+        support_recall_threshold=args.support_recall_threshold,
     )
     report["actual_fitcv"] = actual_fitcv
     args.output.parent.mkdir(parents=True, exist_ok=True)

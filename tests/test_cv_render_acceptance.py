@@ -15,6 +15,7 @@ from fitcv.cv_generator import build_empty_structured_cv, render_cv_markdown
 
 
 CONFIG = {"cv": {"preset": "europass"}}
+pytestmark = pytest.mark.render_acceptance
 
 
 def _build_fixture(*, experience_count: int, bullets_per_experience: int, include_optional: bool) -> dict[str, Any]:

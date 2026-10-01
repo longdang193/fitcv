@@ -20,6 +20,7 @@ import yaml
 
 from fitcv.agentic_cv_analysis import (
     _answer_mentions_requirement,
+    _build_requirement_coverage,
     _build_requirement_uncertainties,
     analyze_ranked_job,
     build_analysis_input_summary,
@@ -61,6 +62,35 @@ def _config() -> dict:
         "pipeline": {"evidence_top_k": 3},
         "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
     }
+
+
+def test_responsibility_direct_support_reaches_requirement_coverage() -> None:
+    job = {
+        "responsibilities": ["Build SQL pipelines"],
+        "responsibility_entities": [
+            {"source_requirement_id": "req-responsibility", "text": "Build SQL pipelines"},
+        ],
+    }
+    coverage = _build_requirement_coverage(
+        job,
+        [{"evidence_id": "ev-sql", "source_refs": []}],
+        gap_summary={},
+        evidence_selection_summary={
+            "deduped_pool_size": 1,
+            "requirement_support": {
+                "responsibility": {
+                    "pool": {"req-responsibility": ["ev-sql"]},
+                    "selected": {"req-responsibility": ["ev-sql"]},
+                }
+            },
+        },
+        config={},
+    )
+
+    assert coverage[0]["requirement_type"] == "responsibility"
+    assert coverage[0]["selected_support"] == "verified"
+    assert coverage[0]["support_method"] == "responsibility_direct_support"
+    assert coverage[0]["supporting_evidence_ids"] == ["ev-sql"]
 
 
 def test_extract_job_url_accepts_indeed_url_alias() -> None:

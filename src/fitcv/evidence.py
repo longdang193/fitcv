@@ -2299,7 +2299,10 @@ def _annotate_requirement_support(
             if assessment["qualified_support"]:
                 supported_ids.append(requirement_ref)
         item["canonical_requirement_ids"] = list(dict.fromkeys(canonical_ids))
-        item["supported_requirement_ids"] = list(dict.fromkeys(supported_ids))
+        item["supported_requirement_ids"] = list(dict.fromkeys([
+            *supported_ids,
+            *list(item.get("responsibility_requirement_ids") or []),
+        ]))
         item["requirement_assessments"] = assessments
     return items
 
@@ -2322,6 +2325,12 @@ def _responsibility_support_map(
     items: list[dict[str, Any]],
     entities: list[dict[str, Any]],
 ) -> dict[str, list[str]]:
+    def token_keys(text: str) -> set[str]:
+        return {
+            token if len(token) <= 4 else token[:4]
+            for token in _tokenize(text)
+        }
+
     support: dict[str, list[str]] = {}
     for entity in entities:
         requirement_id = str(
@@ -2338,12 +2347,38 @@ def _responsibility_support_map(
         ).strip()
         if not requirement_id or not requirement_text:
             continue
-        requirement_context = {"responsibilities": [requirement_text]}
+        requirement_tokens = token_keys(requirement_text)
+        if not requirement_tokens:
+            continue
         for item in items:
             evidence_id = str(item.get("evidence_id") or "").strip()
-            if evidence_id and _score_responsibility_alignment_lexical(item, requirement_context) > 0.0:
+            direct_support = any(
+                len(requirement_tokens & token_keys(str(fragment.get("text") or ""))) >= min(2, len(requirement_tokens))
+                for fragment in _support_fragments(item)
+            )
+            if evidence_id and direct_support:
                 support.setdefault(requirement_id, []).append(evidence_id)
     return {key: list(dict.fromkeys(value)) for key, value in support.items()}
+
+
+def _annotate_responsibility_support(
+    items: list[dict[str, Any]],
+    entities: list[dict[str, Any]],
+) -> dict[str, list[str]]:
+    support = _responsibility_support_map(items, entities)
+    evidence_to_requirements: dict[str, list[str]] = {}
+    for requirement_id, evidence_ids in support.items():
+        for evidence_id in evidence_ids:
+            evidence_to_requirements.setdefault(evidence_id, []).append(requirement_id)
+    for item in items:
+        evidence_id = str(item.get("evidence_id") or "")
+        responsibility_ids = list(dict.fromkeys(evidence_to_requirements.get(evidence_id, [])))
+        item["responsibility_requirement_ids"] = responsibility_ids
+        item["supported_requirement_ids"] = list(dict.fromkeys([
+            *list(item.get("supported_requirement_ids") or []),
+            *responsibility_ids,
+        ]))
+    return support
 
 
 def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> float:
@@ -2488,6 +2523,69 @@ def _select_final_evidence(
     return selected
 
 
+def _recover_verified_supporters(
+    selected: list[dict[str, Any]],
+    merged_pool: list[dict[str, Any]],
+    descriptors: list[dict[str, Any]],
+    *,
+    top_k: int,
+    job_context: dict[str, Any],
+    policy: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    if (
+        top_k <= 0
+        or len(selected) < top_k
+        or float(policy.get("requirement_gain_weight", 0.0)) <= 0.0
+    ):
+        return selected, []
+    selected_ids = {str(item.get("evidence_id") or "") for item in selected}
+    recovered_ids: list[str] = []
+    requirement_ids = [_descriptor_requirement_ref(descriptor) for descriptor in descriptors]
+    requirement_ids.extend(
+        str(entity.get("source_requirement_id") or entity.get("requirement_instance_id") or entity.get("id") or "").strip()
+        for entity in list(job_context.get("responsibility_entities") or [])
+        if isinstance(entity, dict)
+    )
+    for requirement_id in dict.fromkeys(value for value in requirement_ids if value):
+        if any(requirement_id in list(item.get("supported_requirement_ids") or []) for item in selected):
+            continue
+        candidates = [
+            item for item in merged_pool
+            if str(item.get("evidence_id") or "") not in selected_ids
+            and requirement_id in list(item.get("supported_requirement_ids") or [])
+        ]
+        if not candidates:
+            continue
+        candidate = max(
+            candidates,
+            key=lambda item: (
+                _base_selection_score(item, policy=policy),
+                str(item.get("evidence_id") or ""),
+            ),
+        )
+        recovered = _finalize_selected_item(dict(candidate), job_context, policy=policy)
+        recovered["selection_reasons"] = list(dict.fromkeys([
+            "verified_requirement_recovery",
+            *_selection_reasons(recovered),
+        ]))
+        recovered["selection_score"] = round(_base_selection_score(candidate, policy=policy), 6)
+        if len(selected) >= top_k:
+            victim = min(
+                selected,
+                key=lambda item: (
+                    len(list(item.get("supported_requirement_ids") or [])),
+                    float(item.get("selection_score") or 0.0),
+                    str(item.get("evidence_id") or ""),
+                ),
+            )
+            selected.remove(victim)
+            selected_ids.remove(str(victim.get("evidence_id") or ""))
+        selected.append(recovered)
+        selected_ids.add(str(recovered.get("evidence_id") or ""))
+        recovered_ids.append(str(recovered.get("evidence_id") or ""))
+    return selected, recovered_ids
+
+
 def _top_unselected_candidates(
     merged_pool: list[dict[str, Any]],
     selected_evidence: list[dict[str, Any]],
@@ -2536,6 +2634,14 @@ class _EvidenceSelectionEngine:
             job_context=self.job_context,
             policy=self.policy,
         )
+        selected_evidence, recovered_ids = _recover_verified_supporters(
+            selected_evidence,
+            merged_pool,
+            list(self.job_context.get("requirement_descriptors") or []),
+            top_k=self.top_k,
+            job_context=self.job_context,
+            policy=self.policy,
+        )
         unselected_top_candidates = _top_unselected_candidates(
             merged_pool,
             selected_evidence,
@@ -2544,6 +2650,7 @@ class _EvidenceSelectionEngine:
         return {
             "merged_pool": merged_pool,
             "selected_evidence": selected_evidence,
+            "recovered_evidence_ids": recovered_ids,
             "unselected_top_candidates": unselected_top_candidates,
         }
 
@@ -2561,6 +2668,7 @@ def _build_retrieve_evidence_bundle_payload(
     source_profile_schema_version: str,
     projection_fingerprint: str,
     responsibility_support: dict[str, dict[str, list[str]]] | None = None,
+    recovered_evidence_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
         semantic_settings,
@@ -2604,6 +2712,7 @@ def _build_retrieve_evidence_bundle_payload(
         "merged_pool_size": sum(len(pool) for pool in channel_pools.values()),
         "deduped_pool_size": len(merged_pool),
         "selected_evidence_count": len(selected_evidence),
+        "recovered_evidence_ids": list(recovered_evidence_ids or []),
         "unselected_top_candidates": unselected_top_candidates,
         "requirement_support": {
             "canonical": canonical_requirement_support,
@@ -2663,6 +2772,11 @@ def retrieve_evidence_bundle(
         list(coerced_job_context.get("requirement_descriptors") or []),
         config,
     )
+    responsibility_entities = list(coerced_job_context.get("responsibility_entities") or [])
+    canonical_responsibility_support = _annotate_responsibility_support(
+        base_items,
+        responsibility_entities,
+    )
     canonical_items = copy.deepcopy(base_items)
     selection_policy = _cv_analysis_policy_settings(config)
     semantic_settings = _semantic_alignment_settings(config)
@@ -2687,9 +2801,8 @@ def retrieve_evidence_bundle(
     selection_result = selection_engine.run(channel_pools)
     merged_pool = list(selection_result["merged_pool"])
     selected_evidence = list(selection_result["selected_evidence"])
-    responsibility_entities = list(coerced_job_context.get("responsibility_entities") or [])
     responsibility_support = {
-        "canonical": _responsibility_support_map(canonical_items, responsibility_entities),
+        "canonical": canonical_responsibility_support,
         "pool": _responsibility_support_map(merged_pool, responsibility_entities),
         "selected": _responsibility_support_map(selected_evidence, responsibility_entities),
     }
@@ -2726,6 +2839,7 @@ def retrieve_evidence_bundle(
         source_profile_schema_version=source_profile_schema_version,
         projection_fingerprint=projection_fingerprint,
         responsibility_support=responsibility_support,
+        recovered_evidence_ids=list(selection_result.get("recovered_evidence_ids") or []),
     )
 
 

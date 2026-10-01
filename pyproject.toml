@@ -26,6 +26,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+markers = ["render_acceptance: requires native PDF rendering tools"]
 
 [tool.mypy]
 python_version = "3.11"

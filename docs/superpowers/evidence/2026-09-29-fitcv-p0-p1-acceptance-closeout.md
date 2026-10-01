@@ -32,14 +32,14 @@ The Italian row is classified `mixed`, not English.
 
 | Artifact | SHA-256 |
 |---|---|
-| `data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl` | `2d27e390652c947e1252aafe1769236f51796dd65e7380363c43739a8fdf303a` |
-| `data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json` | `f456a065ca89c1f3eaef75c6394aa8be61fa5e8dc0d2a97b1fcc61720a501c4c` |
-| `data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_review_packet.json` | `e81ebddce01f97ebee2142efc519a9baa9328cdd5d89d10e4916f98c3507c04b` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-production-scores.json` | `9036fb4ee212c9c7d3e74f204d0fa505eb99ba890e6af401c17943a09d179f1d` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-incumbent-final.json` | `89236ca2553fd8a958d98dbb8b26a1607d618440363fcfb92ad59681d460bf4f` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-final.json` | `c29260575a7082ab5d1f23b1c158dbc42aa6e1646ce5e571f716f439b998a343` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-frozen-gate.json` | `d6daeada6a06f913520c88ba89b9b265f14877116909708abc13132134275328` |
-| `data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-calibration-loss.json` | `596a114d50185775ceb97668f1257ffdd3cfbea01ac8a6826bd9d69ff5fdff75` |
+| `data/fitcv-p0-corpus/p0a/raw_postings_de_en_v4.jsonl` | `45f4c845bf242a57f7725faba64f5b835a5abd9e9517e6aaacf64465ea426884` |
+| `data/fitcv-p0-corpus/p0a/ranking_source_backed_v4.json` | `c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e` |
+| `data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_review_packet.json` | `2eed8058f222585dbc0626eefdaaffbb68032fcc76d886ec0e878164fbfdac46` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-production-scores.json` | `d547cec8f286f0a7ad5f9e63433b8d7673d54c4d317484da2f5edaae2634def4` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-incumbent-final.json` | `d4084d81f570f293c574f35c7d181ac1b5533bbd3ed19d2e35473faca4a4a3e6` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-final.json` | `7aff30f015f0583a0e7e90995ac40f82e55fdb5c65ec76839174c9211ab0d951` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-frozen-gate.json` | `957fbb65662c161b53d8dc7b26e19f46c6703f91e71110d2e81abf1973b72944` |
+| `data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-calibration-loss.json` | `842592611a70c2e32683b2fd7b3b78f64dc00c0d884959ab0d54b527d3bb9a2d` |
 
 Same-environment incumbent v4 completed with `status=measured`, `p50=46.31 ms`,
 and `p95=75.06 ms`. Multilingual v4 completed with `status=measured`,

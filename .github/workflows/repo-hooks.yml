@@ -165,7 +165,37 @@ jobs:
           python -m pip install -e ".[local,inverse-optimization]"
 
       - name: Run full pytest suite
-        run: python -m pytest -q
+        run: python -m pytest -q -m "not render_acceptance"
+
+  render-acceptance:
+    name: Render Acceptance
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install native PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic poppler-utils
+          pandoc --version
+          xelatex --version
+          pdfinfo -v
+          pdftotext -v
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+          python -m pip install -e ".[local]"
+
+      - name: Run render acceptance
+        run: python -m pytest -q tests/test_cv_render_acceptance.py -m render_acceptance
 
   architecture-docs:
     name: Architecture Docs

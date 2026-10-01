@@ -1197,7 +1197,7 @@ def test_retrieve_evidence_bundle_emits_responsibility_scoped_selected_support()
 
     selected = bundle["requirement_support"]["responsibility"]["selected"]
     assert selected["req-sql"] == ["ev-sql"]
-    assert "req-dashboard" not in selected
+    assert selected["req-dashboard"] == ["ev-dashboard"]
 
 
 def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matches(monkeypatch) -> None:

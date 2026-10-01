@@ -84,6 +84,10 @@ broader reviewed labels.
   pass. One sanitized local accepted-CV workload measured
   `accepted_cv_effort_v1` with denominator `1`; production defaults remain
   unchanged.
+- Responsibility support now requires direct fragment evidence, feeds one shared
+  support map into requirement coverage and bounded selection recovery, and does
+  not expand global evidence-pool limits. P0-C qualifier behavior remains
+  unchanged.
 
 ### CV Content Plan and Repair
 

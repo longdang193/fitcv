@@ -596,6 +596,52 @@ def _build_requirement_coverage(
         "selected",
         restrict_to_evidence=True,
     )
+    responsibility_entities = [
+        entity
+        for entity in list(job.get("responsibility_entities") or [])
+        if isinstance(entity, dict)
+    ]
+    seen_responsibility_ids = set()
+    for entity in responsibility_entities:
+        requirement_id = str(
+            entity.get("source_requirement_id")
+            or entity.get("requirement_instance_id")
+            or entity.get("id")
+            or ""
+        ).strip()
+        requirement_text = str(
+            entity.get("text")
+            or entity.get("requirement_text")
+            or entity.get("raw_text")
+            or ""
+        ).strip()
+        if not requirement_id or not requirement_text or requirement_id in seen_responsibility_ids:
+            continue
+        seen_responsibility_ids.add(requirement_id)
+        descriptors.append(
+            {
+                "requirement_id": requirement_id,
+                "requirement_instance_id": requirement_id,
+                "source_requirement_id": requirement_id,
+                "requirement": requirement_text,
+                "original_requirements": [requirement_text],
+                "canonical_skill": "",
+                "requirement_type": "responsibility",
+                "requirement_priority": "must_have",
+            }
+        )
+    responsibility_support = dict(requirement_support.get("responsibility") or {})
+    pool_support.update(
+        _support_ids_by_requirement([], responsibility_support, "pool")
+    )
+    selected_support.update(
+        _support_ids_by_requirement(
+            evidence,
+            responsibility_support,
+            "selected",
+            restrict_to_evidence=True,
+        )
+    )
     resolutions = _resolution_map(requirement_resolutions)
     coverage: list[dict[str, Any]] = []
     for descriptor in descriptors:
@@ -681,6 +727,8 @@ def _build_requirement_coverage(
                 "support_method": (
                     "human_resolution"
                     if resolution_action in {"RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"}
+                    else "responsibility_direct_support"
+                    if descriptor.get("requirement_type") == "responsibility" and (selected_ids or pool_ids)
                     else "canonical_skill_link"
                     if selected_ids or pool_ids
                     else "none"
