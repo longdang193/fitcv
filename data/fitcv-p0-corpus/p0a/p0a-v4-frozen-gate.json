@@ -3,7 +3,7 @@
   "evaluated_at": "2026-09-29",
   "status": "evaluated_not_promoted",
   "fixture_sha256": "c438a2167f4c189203137f08bc25ff7a82f240e80ed0b4fedb8e566fe08bd60e",
-  "score_artifact_sha256": "d547cec8f286f0a7ad5f9e63433b8d7673d54c4d317484da2f5edaae2634def4",
+  "score_artifact_sha256": "9036fb4ee212c9c7d3e74f204d0fa505eb99ba890e6af401c17943a09d179f1d",
   "incumbent_report": "data/fitcv-p0-corpus/p0a/p0a-v4-incumbent-final.json",
   "candidate_report": "data/fitcv-p0-corpus/p0a/p0a-v4-multilingual-final.json",
   "frozen_gates": {

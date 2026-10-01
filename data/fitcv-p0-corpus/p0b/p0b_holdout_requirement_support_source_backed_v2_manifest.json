@@ -6,7 +6,7 @@
     "supported_requirements": 17
   },
   "fixture_path": "data/fitcv-p0-corpus/p0b/p0b_holdout_requirement_support_source_backed_v2.json",
-  "fixture_sha256": "991e06511f023f18abf27de4e21ed6774a502bb56162f2f3cc303b5fe5505f53",
+  "fixture_sha256": "89abfdd4d17f342855c4556c60cc34c6784d2cc6fe8b35c6e627d4351355592f",
   "human_acceptance": {
     "accepted_at": "2026-09-30T20:32:00+02:00",
     "adjudicator_id": "github:longdang193",

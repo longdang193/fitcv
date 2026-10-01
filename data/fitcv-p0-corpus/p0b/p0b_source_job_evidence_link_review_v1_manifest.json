@@ -1,0 +1,28 @@
+{
+  "schema_version": "p0b.source_job_evidence_link_review.v1",
+  "status": "benchmark_only_not_promotable",
+  "projection": {
+    "path": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection_source_backed_v1.jsonl",
+    "sha256": "39ce1ab9ad72b409131921595f9cc844a7294ef99b9a45b2eefc864bfb9ceeef",
+    "records": 61,
+    "unique_evidence_ids": 61
+  },
+  "review": {
+    "path": "data/fitcv-p0-corpus/p0b/p0b_source_job_evidence_link_review_v1.csv",
+    "sha256": "9cc9b7745142831a5ca7b9a0b7ac618e96ed0da2107f700dc96ea7391957e73a",
+    "rows": 212,
+    "selected_evidence_ids": 35,
+    "accepted_evidence_ids": 9
+  },
+  "integrity": {
+    "selected_and_accepted_ids_join_projection": true,
+    "direct_email_or_phone_matches_in_narrative_fields": 0,
+    "private_path_matches_in_narrative_fields": 0
+  },
+  "publication_boundary": {
+    "raw_source_job_packets_published": false,
+    "candidate_pool_published": false,
+    "promotion_eligible": false,
+    "note": "Use projection file as evaluator evidence input. Candidate pool is not an evidence projection."
+  }
+}
