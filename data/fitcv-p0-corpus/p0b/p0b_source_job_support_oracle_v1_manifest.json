@@ -2,32 +2,34 @@
   "cohort_id": "p0b-support-oracle-calibration-supported-requirements-v1",
   "labels": {
     "human_acceptance_dates": [
+      "",
       "2026-10-01"
     ],
     "human_acceptance_ids": [
+      "",
       "human:operator-confirmed"
     ],
-    "human_review_complete": true,
+    "human_review_complete": false,
     "path": "tests/fixtures/p0b/support_oracle_labels.jsonl",
     "reviewer_ids": [
       "consensus:model:openai:gpt-5.6-sol:oracle-reviewer-a|model:openai:gpt-5.6-sol:oracle-reviewer-b",
-      "model:openai:gpt-5.6-sol:oracle-adjudicator"
+      "model:openai:gpt-5.6-sol:oracle-adjudicator",
+      "model:openai:gpt-5.6-sol:oracle-final-adjudicator"
     ],
     "rows": 549,
-    "sha256": "cb5c55be0238dc406624c70596b0564963affa92a001017ac1f0e830b201045b"
+    "sha256": "4c957317873364d54c75d076b50245061fac67e9179c3c3e0e827b59c44b642d"
   },
   "oracle": {
-    "coverage": 1.0,
+    "coverage": 1,
     "evidence_rows": 61,
     "label_counts": {
-      "supported": 157,
-      "unjudged": 112,
-      "unsupported": 280
+      "supported": 211,
+      "unsupported": 338
     },
     "path": "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1.jsonl",
     "requirements": 9,
     "rows": 549,
-    "sha256": "8fb5213fc12d73a7e9330df0c77497fc98980365a8fe0bfd70cf7f2fa84f465b"
+    "sha256": "ed213e30c4df6160317999e8fbbba937d77c1c939603a95c8b0a3a43015a1cb1"
   },
   "projection": {
     "path": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection_source_backed_v1.jsonl",
@@ -37,5 +39,5 @@
   },
   "promotion_eligible": false,
   "schema_version": "p0b.source_job_support_oracle_manifest.v1",
-  "status": "validated_human_oracle_blocked_unjudged"
+  "status": "validated_draft_pending_human_acceptance"
 }
