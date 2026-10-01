@@ -50,6 +50,11 @@ PUBLIC_REVIEW_COLUMNS = {
     "qualifier_verdict",
 }
 ORACLE_STATES = {"supported", "unsupported", "unjudged"}
+REVIEW_SUPPORT_VERDICTS = {"supported", "unsupported", "unknown"}
+
+
+def _oracle_state(row: dict[str, Any]) -> str:
+    return str(row.get("support_state") or row.get("support_label") or "")
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -377,25 +382,28 @@ def validate_public_inputs(
             _error(errors, f"accepted_not_in_projection:{requirement_id}")
         selected_pairs.update(_public_pair_id(requirement_id, evidence_id) for evidence_id in selected_ids)
         accepted_pairs.update(_public_pair_id(requirement_id, evidence_id) for evidence_id in accepted_ids)
-        if row.get("support_verdict") not in ORACLE_STATES:
+        if row.get("support_verdict") not in REVIEW_SUPPORT_VERDICTS:
             _error(errors, f"support_verdict_invalid:{requirement_id}")
         if row.get("qualifier_verdict") not in QUALIFIER_VERDICTS:
             _error(errors, f"qualifier_verdict_invalid:{requirement_id}")
 
     oracle_by_pair: dict[str, dict[str, Any]] = {}
+    oracle_pair_ids: set[str] = set()
     for row in oracle:
         requirement_id = str(row.get("requirement_instance_id") or "")
         evidence_id = str(row.get("evidence_id") or "")
-        pair_id = str(row.get("pair_id") or _public_pair_id(requirement_id, evidence_id))
-        if not requirement_id or not evidence_id or pair_id in oracle_by_pair:
-            _error(errors, f"oracle_pair_invalid:{pair_id}")
-        if row.get("support_state") not in ORACLE_STATES:
+        raw_pair_id = str(row.get("pair_id") or "")
+        pair_id = _public_pair_id(requirement_id, evidence_id)
+        if not requirement_id or not evidence_id or raw_pair_id in oracle_pair_ids or pair_id in oracle_by_pair:
+            _error(errors, f"oracle_pair_invalid:{raw_pair_id or pair_id}")
+        oracle_pair_ids.add(raw_pair_id)
+        if _oracle_state(row) not in ORACLE_STATES:
             _error(errors, f"oracle_state_invalid:{pair_id}")
-        if not str(row.get("adjudicator_id") or "").strip():
+        if not str(row.get("adjudicator_id") or row.get("reviewer_id") or "").strip():
             _error(errors, f"oracle_adjudicator_missing:{pair_id}")
         if not str(row.get("reviewed_at") or "").strip():
             _error(errors, f"oracle_reviewed_at_missing:{pair_id}")
-        if not str(row.get("source_ref") or "").strip():
+        if not str(row.get("source_ref") or row.get("evidence_source_ref") or "").strip():
             _error(errors, f"oracle_source_ref_missing:{pair_id}")
         if evidence_id not in projection_by_id:
             _error(errors, f"oracle_evidence_not_in_projection:{pair_id}")
@@ -416,11 +424,20 @@ def validate_public_inputs(
     }
     if not oracle_requirement_ids <= review_ids:
         _error(errors, "review_requirement_set_incomplete")
-    if not selected_pairs <= oracle_pairs:
+    oracle_requirement_ids = {
+        str(row.get("requirement_instance_id") or "")
+        for row in oracle_by_pair.values()
+    }
+    scoped_selected_pairs = {
+        pair_id
+        for pair_id in selected_pairs
+        if pair_id.split("::", 1)[0] in oracle_requirement_ids
+    }
+    if not scoped_selected_pairs <= oracle_pairs:
         _error(errors, "selected_pair_not_in_oracle")
     judged_pairs = {
         pair_id for pair_id, row in oracle_by_pair.items()
-        if row.get("support_state") != "unjudged"
+        if _oracle_state(row) != "unjudged"
     }
     return {
         "passed": not errors,
@@ -437,8 +454,11 @@ def validate_public_inputs(
         ),
         "projection_by_id": projection_by_id,
         "review_ids": review_ids,
-        "selected_pairs": selected_pairs,
-        "accepted_pairs": accepted_pairs,
+        "selected_pairs": scoped_selected_pairs,
+        "accepted_pairs": {
+            pair_id for pair_id in accepted_pairs
+            if pair_id.split("::", 1)[0] in oracle_requirement_ids
+        },
         "oracle_by_pair": oracle_by_pair,
         "support_recall_threshold": threshold,
     }
@@ -460,15 +480,15 @@ def evaluate_public_corpus(
     judged_selected = selected_pairs & set(oracle_by_pair)
     supported_pairs = {
         pair_id for pair_id, row in oracle_by_pair.items()
-        if row.get("support_state") == "supported"
+        if _oracle_state(row) == "supported"
     }
     unsupported_selected = {
         pair_id for pair_id in judged_selected
-        if oracle_by_pair[pair_id].get("support_state") == "unsupported"
+        if _oracle_state(oracle_by_pair[pair_id]) == "unsupported"
     }
     unjudged_selected = {
         pair_id for pair_id in judged_selected
-        if oracle_by_pair[pair_id].get("support_state") == "unjudged"
+        if _oracle_state(oracle_by_pair[pair_id]) == "unjudged"
     }
     true_positive = len(judged_selected & supported_pairs)
     false_negative = len(supported_pairs - judged_selected)

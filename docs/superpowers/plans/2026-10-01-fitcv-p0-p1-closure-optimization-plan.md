@@ -108,15 +108,15 @@ P1-A keeps current render fixtures and shell consistency. P1-B preserves `accept
 - Branch: `main`
 - Base commit: `525216b49afdca80ad15e3a6da57f1633cb9e7c0`
 - Expected workspace: `main` with protected untracked files preserved and unstaged
-- Next action: `Task 4 — admit independent oracle labels and approved support threshold`
-- Blockers: `Task 4` cannot build oracle truth without admitted independent sanitized labels; `support_recall_threshold` remains `null`; dependent Tasks 5–9 stay blocked
+- Next action: `Task 4 — obtain independent acceptance for draft oracle labels`
+- Blockers: draft oracle is structurally complete and threshold is `1.0`, but `123` pairs remain `unjudged` and reviewer provenance is model-only; dependent Tasks 5–9 stay blocked for promotion claims
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | `completed` | current | `normal` | none | boundary probe and acceptance-state schema | `artifacts/acceptance_state.json`, `tests/test_acceptance_state.py`, `tests/test_p0_public_corpus.py` |
 | Task 2 | `completed` | current | `normal` | Task 1 | mandatory-constraint regressions | `src/fitcv/evidence.py`, `tests/test_evidence.py`, `117 passed` |
 | Task 3 | `completed` | current | `normal` | Task 2 | evaluator fail-closed tests | `scripts/evaluate_p0b_source_job_relevance.py`, `tests/test_p0b_source_job_relevance_evaluator.py`, `7 passed, 4 skipped` |
-| Task 4 | `blocked` | current | `normal` | Task 3 | full-pool oracle fixture | blocked: admitted independent labels and approved `support_recall_threshold` are missing |
+| Task 4 | `blocked` | current | `normal` | Task 3 | full-pool oracle fixture | draft oracle validated (`549/549`); blocked: human acceptance and independent reviewer provenance remain missing |
 | Task 5 | `pending` | current | `normal` | Task 4 | disjoint/exhaustive calibration | pending |
 | Task 6 | `pending` | current | `normal` | Task 5 | clean-checkout CI | pending |
 | Task 7 | `pending` | current | `normal` | Task 5, Task 6 | measured optimization baseline | pending |
