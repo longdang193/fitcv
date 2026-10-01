@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 import scripts.evaluate_p0b_source_job_relevance as evaluator
 from scripts.evaluate_p0b_source_job_relevance import (
     evaluate_documents,
@@ -19,6 +21,14 @@ P0B = ROOT / "data/fitcv-p0-corpus/p0b"
 
 
 def _documents() -> tuple[dict, dict, dict]:
+    required = [
+        P0B / "p0b_source_job_relevance_fixture_v2_human_frozen.json",
+        P0B / "p0b_source_job_review_packet_v2_human_adjudicated.json",
+        P0B / "p0b_source_job_source_group_map_v2.json",
+    ]
+    if not all(path.is_file() for path in required):
+        pytest.skip("private relevance fixtures unavailable; public evaluator tests are authoritative")
+
     def load(name: str) -> dict:
         return json.loads((P0B / name).read_text(encoding="utf-8"))
 
@@ -203,3 +213,81 @@ def test_evidence_link_review_rejects_invalid_gold_and_zero_support_denominator(
     assert result["supported_requirement_recall"] is None
     assert result["support_gate"]["supported_link_recall"] is False
     assert result["support_gate"]["passed"] is False
+
+
+def _public_inputs() -> tuple[list[dict], list[dict], list[dict], dict]:
+    projection = [
+        {"evidence_id": "ev-good", "schema_version": "candidate-evidence.v1"},
+        {"evidence_id": "ev-bad", "schema_version": "candidate-evidence.v1"},
+    ]
+    review = [{
+        "requirement_instance_id": "req-1",
+        "source_record_id": "job-1",
+        "requirement_text": "Build reports using Python",
+        "selected_evidence_ids": "ev-good;ev-bad",
+        "accepted_evidence_ids": "ev-good",
+        "support_verdict": "supported",
+        "qualifier_verdict": "supported",
+    }]
+    oracle = [
+        {
+            "pair_id": "req-1::ev-good",
+            "requirement_instance_id": "req-1",
+            "evidence_id": "ev-good",
+            "support_state": "supported",
+            "adjudicator_id": "reviewer-a",
+            "reviewed_at": "2026-10-01T00:00:00Z",
+            "source_ref": "fixture:req-1::ev-good",
+        },
+        {
+            "pair_id": "req-1::ev-bad",
+            "requirement_instance_id": "req-1",
+            "evidence_id": "ev-bad",
+            "support_state": "unsupported",
+            "adjudicator_id": "reviewer-a",
+            "reviewed_at": "2026-10-01T00:00:00Z",
+            "source_ref": "fixture:req-1::ev-bad",
+        },
+    ]
+    state = {
+        "statuses": {"p0_b": "blocked"},
+        "support_thresholds": {
+            "maximum_pair_false_positives": 0,
+            "minimum_review_completeness": 1.0,
+            "minimum_oracle_coverage": 1.0,
+            "support_recall_threshold": 1.0,
+        },
+    }
+    return projection, review, oracle, state
+
+
+def test_public_evaluator_counts_unsupported_assigned_pairs() -> None:
+    inputs = _public_inputs()
+    validation = evaluator.validate_public_inputs(*inputs)
+
+    assert validation["passed"] is True
+    selected = validation["selected_pairs"]
+    assert "req-1::ev-bad" in selected
+
+
+def test_public_evaluator_fails_closed_on_missing_threshold() -> None:
+    projection, review, oracle, state = _public_inputs()
+    state["support_thresholds"]["support_recall_threshold"] = None
+
+    validation = evaluator.validate_public_inputs(projection, review, oracle, state)
+
+    assert validation["passed"] is False
+    assert "support_recall_threshold_missing_or_invalid" in validation["errors"]
+
+
+def test_public_evaluator_rejects_dangling_and_private_inputs() -> None:
+    projection, review, oracle, state = _public_inputs()
+    review[0]["selected_evidence_ids"] = "ev-missing"
+
+    validation = evaluator.validate_public_inputs(projection, review, oracle, state)
+
+    assert validation["passed"] is False
+    assert "selected_not_in_projection:req-1" in validation["errors"]
+
+    with pytest.raises(ValueError, match="private_or_external_input"):
+        evaluator._public_path(Path("C:/private/oracle.json"))

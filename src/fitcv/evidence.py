@@ -2202,8 +2202,8 @@ _RESPONSIBILITY_PROOF_RULES = (
 
 def _responsibility_stem(token: str) -> str:
     token = token.casefold()
-    if token in {"built", "created"}:
-        return {"built": "build", "created": "create"}[token]
+    if token in {"built", "created", "used"}:
+        return {"built": "build", "created": "create", "used": "use"}[token]
     if token.endswith("ies") and len(token) > 4:
         return token[:-3] + "y"
     if token.endswith("ing") and len(token) > 5:
@@ -2237,6 +2237,50 @@ def _responsibility_parts(text: str) -> tuple[str, set[str], set[str]]:
     action = _responsibility_stem(core[0]) if core else ""
     objects = {_responsibility_stem(token) for token in core[1:]}
     return action, objects, qualifiers
+
+
+def _responsibility_constraints(text: str) -> dict[str, Any]:
+    normalized = _normalize_optional_text(text).casefold()
+    tokens = re.findall(r"[a-z0-9]+", normalized)
+    action, objects, qualifiers = _responsibility_parts(text)
+    duration = _parse_duration_qualifier(normalized)
+    entity_tokens: set[str] = set()
+    domain_tokens: set[str] = set()
+    for index, token in enumerate(tokens):
+        if token not in {"using", "with"} and not (
+            token == "in" and "degree" in tokens[:index]
+        ):
+            continue
+        tail = tokens[index + 1 :]
+        if duration:
+            duration_start = next(
+                (position for position, value in enumerate(tail) if value.isdigit()),
+                len(tail),
+            )
+            tail = tail[:duration_start]
+        target = {
+            _responsibility_stem(value)
+            for value in tail
+            if value not in _STOPWORDS
+            and value not in _RESPONSIBILITY_GRAMMAR_WORDS
+        }
+        if token == "in" and "degree" in tokens[:index]:
+            domain_tokens.update(target)
+        else:
+            entity_tokens.update(target)
+    if duration and not entity_tokens:
+        entity_tokens.update(objects)
+    level = _parse_requirement_qualifiers(normalized).get("level", {}).get("value")
+    level_tokens = {_responsibility_stem(str(level))} if level else set()
+    return {
+        "action": action,
+        "objects": objects,
+        "qualifiers": qualifiers,
+        "entity_tokens": entity_tokens,
+        "domain_tokens": domain_tokens,
+        "level_tokens": level_tokens,
+        "duration": duration,
+    }
 
 
 def _responsibility_term_aliases(term: str) -> tuple[str, ...]:
@@ -2301,12 +2345,30 @@ def _assess_responsibility_support(
     evidence_text: str,
     evidence_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    action, objects, qualifiers = _responsibility_parts(requirement_text)
+    constraints = _responsibility_constraints(requirement_text)
+    action = str(constraints["action"])
+    objects = set(constraints["objects"])
+    qualifiers = set(constraints["qualifiers"])
     evidence_tokens = {_responsibility_stem(token) for token in _tokenize(evidence_text)}
     action_match = bool(action) and action in evidence_tokens
     object_overlap = objects & evidence_tokens
     object_match = not objects or objects <= evidence_tokens
     qualifier_status = "satisfied" if qualifiers <= evidence_tokens else "unverified"
+    entity_tokens = set(constraints["entity_tokens"])
+    domain_tokens = set(constraints["domain_tokens"])
+    level_tokens = set(constraints["level_tokens"])
+    entity_match = not entity_tokens or entity_tokens <= evidence_tokens
+    level_domain_match = (
+        (not domain_tokens or domain_tokens <= evidence_tokens)
+        and (not level_tokens or level_tokens <= evidence_tokens)
+    )
+    duration = constraints["duration"]
+    evidence_duration = _parse_duration_qualifier(evidence_text)
+    duration_match = (
+        True
+        if not duration
+        else _duration_satisfies(duration, evidence_duration or {}) is True
+    )
     rule_support = _responsibility_rule_support(requirement_text, evidence_text, evidence_metadata)
     action_match = action_match or bool(rule_support["action_match"])
     if rule_support["candidate_match"]:
@@ -2317,11 +2379,22 @@ def _assess_responsibility_support(
         evidence_text,
         {term for term in (action, *objects, *qualifiers) if term},
     )
-    verified_support = candidate_match and object_match and qualifier_status == "satisfied" and not contradicted
+    verified_support = (
+        candidate_match
+        and object_match
+        and entity_match
+        and duration_match
+        and level_domain_match
+        and qualifier_status == "satisfied"
+        and not contradicted
+    )
     return {
         "candidate_match": candidate_match,
         "action_match": action_match,
         "object_match": object_match,
+        "entity_match": entity_match,
+        "duration_match": duration_match,
+        "level_domain_match": level_domain_match,
         "qualifier_status": "contradicted" if contradicted else qualifier_status,
         "contradicted": contradicted,
         "verified_support": verified_support,

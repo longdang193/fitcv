@@ -1,0 +1,35 @@
+{
+  "contract_versions": {
+    "acceptance": "fitcv.acceptance_state.v1",
+    "corpus": "p0.public.v1"
+  },
+  "corpus_manifests": [
+    "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_manifest.json",
+    "data/fitcv-p0-corpus/p0b/projection_manifest.json",
+    "data/fitcv-p0-corpus/p0b/p0b_source_job_evidence_link_review_v1_manifest.json",
+    "data/fitcv-p0-corpus/p0c/requirement_support_benchmark.json"
+  ],
+  "evidence_paths": [
+    "docs/superpowers/evidence/2026-10-01-fitcv-approved-p0-p1-finalization.md",
+    "docs/superpowers/evidence/2026-10-01-fitcv-final-p0-p1-closure.md"
+  ],
+  "repository": "longdang193/fitcv",
+  "sanitizer_version": "fitcv-p0-corpus-sanitizer.v1",
+  "schema_version": "fitcv.acceptance_state.v1",
+  "source_commit": "525216b49afdca80ad15e3a6da57f1633cb9e7c0",
+  "statuses": {
+    "p0_a": "rejected",
+    "p0_b": "blocked",
+    "p0_c": "protected",
+    "p1_a": "maintenance_only",
+    "p1_b": "measurement_only",
+    "p1_c": "deferred",
+    "p2": "deferred"
+  },
+  "support_thresholds": {
+    "maximum_pair_false_positives": 0,
+    "minimum_oracle_coverage": 1.0,
+    "minimum_review_completeness": 1.0,
+    "support_recall_threshold": null
+  }
+}

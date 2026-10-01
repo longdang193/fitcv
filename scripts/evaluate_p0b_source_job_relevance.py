@@ -19,6 +19,7 @@ DEFAULT_PROJECTION = REPO_ROOT / "data/fitcv-p0-corpus/p0b/candidate_evidence_pr
 DEFAULT_EVIDENCE_LINK_REVIEW = REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_source_job_evidence_link_review_v1.csv"
 DEFAULT_POLICY = REPO_ROOT / "config/policy/cv_analysis.yaml"
 DEFAULT_OUTPUT = REPO_ROOT / ".tmp/p0b-v2-relevance-evaluation.json"
+DEFAULT_ACCEPTANCE_STATE = REPO_ROOT / "config/acceptance_state.yaml"
 
 THRESHOLDS = {
     "selected_requirement_recall": 0.80,
@@ -39,6 +40,16 @@ QUALIFIER_VERDICTS = {
     "satisfied",
     "not_applicable",
 }
+PUBLIC_REVIEW_COLUMNS = {
+    "requirement_instance_id",
+    "source_record_id",
+    "requirement_text",
+    "selected_evidence_ids",
+    "accepted_evidence_ids",
+    "support_verdict",
+    "qualifier_verdict",
+}
+ORACLE_STATES = {"supported", "unsupported", "unjudged"}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -315,6 +326,179 @@ def _load_evidence_link_review(path: Path) -> list[dict[str, Any]]:
         return list(csv.DictReader(handle))
 
 
+def _public_path(path: Path) -> Path:
+    resolved = path.resolve()
+    if "private" in str(resolved).casefold() or REPO_ROOT not in resolved.parents:
+        raise ValueError(f"private_or_external_input:{path}")
+    return resolved
+
+
+def _load_acceptance_state(path: Path = DEFAULT_ACCEPTANCE_STATE) -> dict[str, Any]:
+    return yaml.safe_load(_public_path(path).read_text(encoding="utf-8")) or {}
+
+
+def _public_pair_id(requirement_id: str, evidence_id: str) -> str:
+    return f"{requirement_id}::{evidence_id}"
+
+
+def validate_public_inputs(
+    projection: list[dict[str, Any]],
+    review_rows: list[dict[str, Any]],
+    oracle: list[dict[str, Any]],
+    acceptance_state: dict[str, Any],
+) -> dict[str, Any]:
+    errors: list[str] = []
+    projection_by_id: dict[str, dict[str, Any]] = {}
+    for row in projection:
+        evidence_id = str(row.get("evidence_id") or "")
+        if not evidence_id or evidence_id in projection_by_id:
+            _error(errors, f"projection_evidence_id_invalid:{evidence_id}")
+        if row.get("schema_version") != "candidate-evidence.v1":
+            _error(errors, f"projection_schema_invalid:{evidence_id}")
+        projection_by_id[evidence_id] = row
+
+    review_ids: set[str] = set()
+    selected_pairs: set[str] = set()
+    accepted_pairs: set[str] = set()
+    for row in review_rows:
+        requirement_id = str(row.get("requirement_instance_id") or "")
+        if not requirement_id or requirement_id in review_ids:
+            _error(errors, f"review_requirement_id_invalid:{requirement_id}")
+        review_ids.add(requirement_id)
+        if not str(row.get("requirement_text") or "").strip():
+            _error(errors, f"review_requirement_text_missing:{requirement_id}")
+        selected_ids = _split_ids(row.get("selected_evidence_ids"))
+        accepted_ids = _split_ids(row.get("accepted_evidence_ids"))
+        if not accepted_ids <= selected_ids:
+            _error(errors, f"accepted_not_selected:{requirement_id}")
+        if not selected_ids <= set(projection_by_id):
+            _error(errors, f"selected_not_in_projection:{requirement_id}")
+        if not accepted_ids <= set(projection_by_id):
+            _error(errors, f"accepted_not_in_projection:{requirement_id}")
+        selected_pairs.update(_public_pair_id(requirement_id, evidence_id) for evidence_id in selected_ids)
+        accepted_pairs.update(_public_pair_id(requirement_id, evidence_id) for evidence_id in accepted_ids)
+        if row.get("support_verdict") not in ORACLE_STATES:
+            _error(errors, f"support_verdict_invalid:{requirement_id}")
+        if row.get("qualifier_verdict") not in QUALIFIER_VERDICTS:
+            _error(errors, f"qualifier_verdict_invalid:{requirement_id}")
+
+    oracle_by_pair: dict[str, dict[str, Any]] = {}
+    for row in oracle:
+        requirement_id = str(row.get("requirement_instance_id") or "")
+        evidence_id = str(row.get("evidence_id") or "")
+        pair_id = str(row.get("pair_id") or _public_pair_id(requirement_id, evidence_id))
+        if not requirement_id or not evidence_id or pair_id in oracle_by_pair:
+            _error(errors, f"oracle_pair_invalid:{pair_id}")
+        if row.get("support_state") not in ORACLE_STATES:
+            _error(errors, f"oracle_state_invalid:{pair_id}")
+        if not str(row.get("adjudicator_id") or "").strip():
+            _error(errors, f"oracle_adjudicator_missing:{pair_id}")
+        if not str(row.get("reviewed_at") or "").strip():
+            _error(errors, f"oracle_reviewed_at_missing:{pair_id}")
+        if not str(row.get("source_ref") or "").strip():
+            _error(errors, f"oracle_source_ref_missing:{pair_id}")
+        if evidence_id not in projection_by_id:
+            _error(errors, f"oracle_evidence_not_in_projection:{pair_id}")
+        oracle_by_pair[pair_id] = row
+
+    thresholds = dict(acceptance_state.get("support_thresholds") or {})
+    threshold = thresholds.get("support_recall_threshold")
+    threshold_valid = isinstance(threshold, (int, float)) and not isinstance(threshold, bool) and 0.0 <= float(threshold) <= 1.0
+    if not threshold_valid:
+        _error(errors, "support_recall_threshold_missing_or_invalid")
+    status = dict(acceptance_state.get("statuses") or {})
+    if status.get("p0_b") not in {"blocked", "eligible", "promoted"}:
+        _error(errors, "p0_b_status_invalid")
+    oracle_pairs = set(oracle_by_pair)
+    oracle_requirement_ids = {
+        str(row.get("requirement_instance_id") or "")
+        for row in oracle_by_pair.values()
+    }
+    if not oracle_requirement_ids <= review_ids:
+        _error(errors, "review_requirement_set_incomplete")
+    if not selected_pairs <= oracle_pairs:
+        _error(errors, "selected_pair_not_in_oracle")
+    judged_pairs = {
+        pair_id for pair_id, row in oracle_by_pair.items()
+        if row.get("support_state") != "unjudged"
+    }
+    return {
+        "passed": not errors,
+        "errors": sorted(set(errors)),
+        "projection_rows": len(projection),
+        "review_rows": len(review_rows),
+        "review_requirements": len(review_ids),
+        "oracle_rows": len(oracle),
+        "oracle_pairs": len(oracle_pairs),
+        "oracle_coverage": len(judged_pairs) / len(oracle_pairs) if oracle_pairs else 0.0,
+        "review_completeness": (
+            len(oracle_requirement_ids & review_ids) / len(oracle_requirement_ids)
+            if oracle_requirement_ids else 0.0
+        ),
+        "projection_by_id": projection_by_id,
+        "review_ids": review_ids,
+        "selected_pairs": selected_pairs,
+        "accepted_pairs": accepted_pairs,
+        "oracle_by_pair": oracle_by_pair,
+        "support_recall_threshold": threshold,
+    }
+
+
+def evaluate_public_corpus(
+    projection_path: Path,
+    evidence_link_review_path: Path,
+    oracle_path: Path,
+    acceptance_state_path: Path = DEFAULT_ACCEPTANCE_STATE,
+) -> dict[str, Any]:
+    projection = _load_jsonl(_public_path(projection_path))
+    review_rows = _load_evidence_link_review(_public_path(evidence_link_review_path))
+    oracle = _load_jsonl(_public_path(oracle_path))
+    acceptance_state = _load_acceptance_state(acceptance_state_path)
+    validation = validate_public_inputs(projection, review_rows, oracle, acceptance_state)
+    oracle_by_pair = validation["oracle_by_pair"]
+    selected_pairs = validation["selected_pairs"]
+    judged_selected = selected_pairs & set(oracle_by_pair)
+    supported_pairs = {
+        pair_id for pair_id, row in oracle_by_pair.items()
+        if row.get("support_state") == "supported"
+    }
+    unsupported_selected = {
+        pair_id for pair_id in judged_selected
+        if oracle_by_pair[pair_id].get("support_state") == "unsupported"
+    }
+    unjudged_selected = {
+        pair_id for pair_id in judged_selected
+        if oracle_by_pair[pair_id].get("support_state") == "unjudged"
+    }
+    true_positive = len(judged_selected & supported_pairs)
+    false_negative = len(supported_pairs - judged_selected)
+    support_recall = true_positive / len(supported_pairs) if supported_pairs else None
+    threshold = validation["support_recall_threshold"]
+    thresholds = dict(acceptance_state.get("support_thresholds") or {})
+    gates = {
+        "pair_false_positives": len(unsupported_selected) <= int(thresholds.get("maximum_pair_false_positives", -1)),
+        "review_completeness": validation["review_completeness"] >= float(thresholds.get("minimum_review_completeness", 2.0)),
+        "oracle_coverage": validation["oracle_coverage"] >= float(thresholds.get("minimum_oracle_coverage", 2.0)),
+        "support_recall": support_recall is not None and isinstance(threshold, (int, float)) and support_recall >= float(threshold),
+        "no_unjudged_selected": not unjudged_selected,
+    }
+    return {
+        "schema_version": "p0b.public_source_job_evaluation.v1",
+        "validation": {key: value for key, value in validation.items() if key not in {"projection_by_id", "review_ids", "selected_pairs", "accepted_pairs", "oracle_by_pair"}},
+        "metrics": {
+            "true_positive": true_positive,
+            "false_negative": false_negative,
+            "pair_false_positive": len(unsupported_selected),
+            "unjudged_selected": len(unjudged_selected),
+            "support_recall": support_recall,
+            "relevance_recall": None,
+        },
+        "gates": gates,
+        "eligible": bool(validation["passed"] and all(gates.values())),
+        "status": "promotable" if validation["passed"] and all(gates.values()) else "not_promotable",
+    }
+
+
 def _split_ids(value: Any) -> set[str]:
     return {item.strip() for item in str(value or "").split(";") if item.strip()}
 
@@ -585,34 +769,50 @@ def evaluate_documents(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate frozen P0-B source-job relevance fixture.")
-    parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
-    parser.add_argument("--packet", type=Path, default=DEFAULT_PACKET)
-    parser.add_argument("--group-map", type=Path, default=DEFAULT_GROUP_MAP)
+    parser.add_argument("--fixture", type=Path)
+    parser.add_argument("--packet", type=Path)
+    parser.add_argument("--group-map", type=Path)
     parser.add_argument("--projection", type=Path, default=DEFAULT_PROJECTION)
     parser.add_argument("--evidence-link-review", type=Path, default=DEFAULT_EVIDENCE_LINK_REVIEW)
+    parser.add_argument("--oracle", type=Path)
+    parser.add_argument("--acceptance-state", type=Path, default=DEFAULT_ACCEPTANCE_STATE)
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
     parser.add_argument("--support-recall-threshold", type=float, default=None)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
 
-    fixture = load_json(args.fixture)
-    packet = load_json(args.packet)
-    group_map = load_json(args.group_map)
-    report = evaluate_documents(fixture, packet, group_map)
-    actual_fitcv = evaluate_actual_fitcv(
-        fixture,
-        packet,
-        group_map,
-        projection_path=args.projection,
-        evidence_link_review_path=args.evidence_link_review,
-        policy_path=args.policy,
-        support_recall_threshold=args.support_recall_threshold,
-    )
-    report["actual_fitcv"] = actual_fitcv
+    if args.oracle:
+        report = evaluate_public_corpus(
+            projection_path=args.projection,
+            evidence_link_review_path=args.evidence_link_review,
+            oracle_path=args.oracle,
+            acceptance_state_path=args.acceptance_state,
+        )
+    elif args.fixture and args.packet and args.group_map:
+        fixture = load_json(args.fixture)
+        packet = load_json(args.packet)
+        group_map = load_json(args.group_map)
+        report = evaluate_documents(fixture, packet, group_map)
+        report["actual_fitcv"] = evaluate_actual_fitcv(
+            fixture,
+            packet,
+            group_map,
+            projection_path=args.projection,
+            evidence_link_review_path=args.evidence_link_review,
+            policy_path=args.policy,
+            support_recall_threshold=args.support_recall_threshold,
+        )
+    else:
+        report = {
+            "schema_version": "p0b.public_source_job_evaluation.v1",
+            "status": "not_promotable",
+            "eligible": False,
+            "validation": {"passed": False, "errors": ["oracle_input_required"]},
+        }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0 if report["validation"]["passed"] and actual_fitcv.get("eligible") else 1
+    return 0 if report.get("eligible") else 1
 
 
 if __name__ == "__main__":

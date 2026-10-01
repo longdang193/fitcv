@@ -647,6 +647,55 @@ def test_responsibility_support_preserves_qualifier_and_requirement_boundaries()
     assert master_degree["verified_support"] is False
 
 
+def test_responsibility_support_requires_all_mandatory_constraint_facts() -> None:
+    cases = [
+        (
+            "Build reports using Python",
+            "Built reports using Excel",
+            False,
+        ),
+        (
+            "Use Claude Code for at least 3 years",
+            "Built a tool for workflow automation",
+            False,
+        ),
+        (
+            "Bachelor degree in computer science",
+            "Bachelor degree in international business",
+            False,
+        ),
+        (
+            "Build reports using Python",
+            "Built reports using Python",
+            True,
+        ),
+        (
+            "Use Claude Code for at least 3 years",
+            "Used Claude Code for 4 years",
+            True,
+        ),
+        (
+            "Bachelor degree in computer science",
+            "Bachelor degree in computer science",
+            True,
+        ),
+    ]
+
+    for requirement, evidence, expected in cases:
+        assessment = evidence_module._assess_responsibility_support(requirement, evidence)
+
+        assert set(assessment) >= {
+            "candidate_match",
+            "action_match",
+            "object_match",
+            "entity_match",
+            "duration_match",
+            "level_domain_match",
+            "verified_support",
+        }
+        assert assessment["verified_support"] is expected
+
+
 def test_project_fragment_does_not_inherit_unrelated_project_skill() -> None:
     item = evidence_module._normalise_project_entry(
         {
