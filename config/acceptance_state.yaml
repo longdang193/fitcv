@@ -1,6 +1,6 @@
 schema_version: fitcv.acceptance_state.v1
 repository: longdang193/fitcv
-source_commit: 525216b49afdca80ad15e3a6da57f1633cb9e7c0
+source_commit: 5cfd25ff31b3b620dbfda5f25e54a0718cb1cb50
 sanitizer_version: fitcv-p0-corpus-sanitizer.v1
 contract_versions:
   corpus: p0.public.v1
@@ -29,3 +29,4 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-01-fitcv-approved-p0-p1-finalization.md
   - docs/superpowers/evidence/2026-10-01-fitcv-final-p0-p1-closure.md
   - docs/superpowers/evidence/2026-10-01-fitcv-task4-oracle.md
+  - docs/superpowers/evidence/2026-10-01-fitcv-task5-7-calibration.md
