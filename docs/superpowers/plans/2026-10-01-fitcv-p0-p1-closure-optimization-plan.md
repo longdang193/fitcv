@@ -109,7 +109,7 @@ P1-A keeps current render fixtures and shell consistency. P1-B preserves `accept
 - Base commit: `525216b49afdca80ad15e3a6da57f1633cb9e7c0`
 - Expected workspace: `main` with protected untracked files preserved and unstaged
 - Next action: `Task 4 — obtain independent acceptance for draft oracle labels`
-- Blockers: draft oracle is structurally complete and threshold is `1.0`, but `123` pairs remain `unjudged` and reviewer provenance is model-only; dependent Tasks 5–9 stay blocked for promotion claims
+- Blockers: draft oracle is structurally complete and threshold is `1.0`, but `123` pairs remain `unjudged`; two independent model reviews produced zero concordant new labels, and reviewer provenance remains model-only; dependent Tasks 5–9 stay blocked for promotion claims
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |

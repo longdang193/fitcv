@@ -36,3 +36,13 @@ Observed metrics: `11` true positives, `5` unsupported selected pairs, `2` unjud
 ## Next Condition
 
 Replace draft reviewer provenance with independent accepted adjudication, resolve all `unjudged` pairs required by the cohort, rerun oracle validation, then resume Task 5 calibration.
+
+## Independent Re-review
+
+Two independent model review passes examined all `123` currently `unjudged` pairs without reading runtime verifier output:
+
+- Review 1: `3 supported`, `0 unsupported`, `120 unjudged`.
+- Review 2: `25 supported`, `0 unsupported`, `98 unjudged`.
+- Exact agreement: `95` pairs remained `unjudged`; `28` pairs disagreed; `0` new supported/unsupported labels were concordant.
+
+Fail-closed action: no draft label changed. The canonical oracle remains unchanged, and Task 5 did not start.
