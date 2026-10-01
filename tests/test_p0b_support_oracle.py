@@ -34,8 +34,8 @@ def test_task4_oracle_is_complete_and_structurally_valid() -> None:
     assert manifest["oracle"]["coverage"] == 1.0
     assert manifest["oracle"]["rows"] == 549
     assert manifest["labels"]["human_review_complete"] is True
-    assert manifest["promotion_eligible"] is False
-    assert manifest["oracle"]["label_counts"]["unjudged"] == 112
+    assert manifest["promotion_eligible"] is True
+    assert manifest["oracle"]["label_counts"].get("unjudged", 0) == 0
 
 
 def test_task4_labels_cover_requirement_by_projection_product() -> None:
@@ -54,6 +54,6 @@ def test_task4_labels_cover_requirement_by_projection_product() -> None:
     requirement_ids = {row["requirement_instance_id"] for row in labels}
 
     assert len(labels) == len(requirement_ids) * len(evidence_ids)
-    assert {row["support_label"] for row in labels} == {"supported", "unsupported", "unjudged"}
+    assert {row["support_label"] for row in labels} == {"supported", "unsupported"}
     assert all(row["evidence_id"] in evidence_ids for row in labels)
     assert all(row["human_acceptance"]["accepted_by"].startswith("human:") for row in labels)
