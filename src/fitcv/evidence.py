@@ -2966,6 +2966,46 @@ def _build_retrieve_evidence_bundle_payload(
     canonical_qualified_support = _requirement_support_map(canonical_items)
     pool_qualified_support = _requirement_support_map(merged_pool)
     selected_qualified_support = _requirement_support_map(selected_evidence)
+    responsibility_canonical = dict((responsibility_support or {}).get("canonical") or {})
+    responsibility_pool = dict((responsibility_support or {}).get("pool") or {})
+    responsibility_selected = dict((responsibility_support or {}).get("selected") or {})
+
+    def _pair_ids(mapping: dict[str, list[str]]) -> list[str]:
+        return sorted(
+            f"{requirement_id}::{evidence_id}"
+            for requirement_id, evidence_ids in mapping.items()
+            for evidence_id in evidence_ids
+            if requirement_id and evidence_id
+        )
+
+    canonical_ids = sorted(
+        str(item.get("evidence_id") or "")
+        for item in canonical_items
+        if str(item.get("evidence_id") or "")
+    )
+    candidate_ids = sorted(
+        str(item.get("evidence_id") or "")
+        for item in merged_pool
+        if str(item.get("evidence_id") or "")
+    )
+    requirement_ids = sorted(
+        set((responsibility_support or {}).get("requirement_ids") or [])
+        | set(responsibility_canonical)
+        | set(responsibility_pool)
+        | set(responsibility_selected)
+    )
+    canonical_pairs = sorted(
+        f"{requirement_id}::{evidence_id}"
+        for requirement_id in requirement_ids
+        for evidence_id in canonical_ids
+    )
+    candidate_pairs = sorted(
+        f"{requirement_id}::{evidence_id}"
+        for requirement_id in requirement_ids
+        for evidence_id in candidate_ids
+    )
+    qualified_pairs = _pair_ids(responsibility_pool)
+    selected_pairs = _pair_ids(responsibility_selected)
     return {
         "source_profile_schema_version": source_profile_schema_version,
         "projection_schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
@@ -2984,6 +3024,23 @@ def _build_retrieve_evidence_bundle_payload(
         "selected_evidence_count": len(selected_evidence),
         "recovered_evidence_ids": list(recovered_evidence_ids or []),
         "unselected_top_candidates": unselected_top_candidates,
+        "stage_traces": {
+            "schema_version": "fitcv.evidence_stage_trace.v1",
+            "canonical_pool": canonical_pairs,
+            "candidate_retrieval": candidate_pairs,
+            "verification": qualified_pairs,
+            "qualification": qualified_pairs,
+            "selection": selected_pairs,
+            "assignment": selected_pairs,
+            "counts": {
+                "canonical_pool": len(canonical_pairs),
+                "candidate_retrieval": len(candidate_pairs),
+                "verification": len(qualified_pairs),
+                "qualification": len(qualified_pairs),
+                "selection": len(selected_pairs),
+                "assignment": len(selected_pairs),
+            },
+        },
         "requirement_support": {
             "canonical": canonical_requirement_support,
             "pool": pool_requirement_support,
@@ -3075,6 +3132,12 @@ def retrieve_evidence_bundle(
         "canonical": canonical_responsibility_support,
         "pool": _responsibility_support_map(merged_pool, responsibility_entities),
         "selected": _responsibility_support_map(selected_evidence, responsibility_entities),
+        "requirement_ids": sorted(
+            str(entity.get("source_requirement_id") or entity.get("requirement_instance_id") or entity.get("id") or "").strip()
+            for entity in responsibility_entities
+            if isinstance(entity, dict)
+            and str(entity.get("source_requirement_id") or entity.get("requirement_instance_id") or entity.get("id") or "").strip()
+        ),
     }
     semantic_alignment = {
         "enabled": bool(semantic_settings["enabled"]),

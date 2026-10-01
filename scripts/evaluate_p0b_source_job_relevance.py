@@ -721,6 +721,7 @@ def evaluate_actual_fitcv(
                 ),
                 "retrieved_evidence_ids": list(bundle.get("retrieved_evidence_ids") or []),
                 "selected_evidence_count": int(bundle.get("selected_evidence_count") or 0),
+                "stage_traces": dict(bundle.get("stage_traces") or {}),
             }
         )
 

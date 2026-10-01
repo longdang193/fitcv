@@ -68,3 +68,8 @@ tmp/fitcv-local-*/
 
 # Others
 design/fitcv-coverletter/
+
+# Local review bundles and private source material
+data/fitcv_task4_oracle_bundle/
+data/p0b_task4_independent_adjudication/
+data/*.private-*.pdf

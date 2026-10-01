@@ -1904,6 +1904,21 @@ def test_retrieve_evidence_bundle_preserves_selection_and_debug_schema_contract(
         assert isinstance(sample["selection_reasons"], list)
     assert isinstance(sample["selection_score"], float)
 
+    traces = bundle["stage_traces"]
+    assert traces["schema_version"] == "fitcv.evidence_stage_trace.v1"
+    assert set(traces) == {
+        "schema_version",
+        "canonical_pool",
+        "candidate_retrieval",
+        "verification",
+        "qualification",
+        "selection",
+        "assignment",
+        "counts",
+    }
+    assert traces["selection"] == traces["assignment"]
+    assert traces["counts"]["selection"] == len(traces["selection"])
+
 
 def test_selection_policy_model_matches_public_policy_dict_defaults() -> None:
     model = evidence_module._selection_policy_model(None)
