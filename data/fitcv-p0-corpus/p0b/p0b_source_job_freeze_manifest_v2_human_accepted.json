@@ -1,0 +1,55 @@
+{
+  "schema_version": "p0b.source_job_freeze_manifest.v2.human_accepted",
+  "created_at": "2026-09-30T23:48:00+00:00",
+  "status": "human_adjudication_frozen",
+  "reviewers": {
+    "reviewer_a": {
+      "id_as_recorded": "reviewer-a",
+      "reviewed_at": "2026-09-29T16:55:03+02:00"
+    },
+    "reviewer_b": {
+      "id_as_recorded": "reviewer-b",
+      "reviewed_at": "2026-09-29T18:37:26+02:00"
+    }
+  },
+  "adjudicator": {
+    "id": "human:github:longdang193",
+    "adjudicated_at": "2026-09-30T23:48:00+00:00",
+    "scope": "71 disagreement rows",
+    "acceptance_basis": "explicit user acceptance in ChatGPT conversation"
+  },
+  "scope": {
+    "requirement_instances": 212,
+    "disagreement_rows_completed": 71,
+    "unresolved_rows": 0,
+    "unanimous_rows_preserved": 141,
+    "adjudication_source_groups": 23
+  },
+  "adjudication_distribution": {
+    "borderline": 57,
+    "relevant": 12,
+    "irrelevant": 2
+  },
+  "immutability": {
+    "source_packet_modified": false,
+    "source_queue_modified": false,
+    "requirement_instance_id_locked": true,
+    "source_record_id_locked": true,
+    "case_id_locked": true,
+    "source_group_assignment_locked_to_source_record_id": true
+  },
+  "provenance": {
+    "model_proposal_preserved": true,
+    "model_proposal_id": "model:openai:gpt-5.6-sol",
+    "human_acceptance_recorded": true
+  },
+  "sha256": {
+    "source_packet": "7d5eccd6051447a3b81ccf998fe483473e69e55680d4dd2ba1e7216eb6d353b4",
+    "source_queue": "3fcc0cac0b46353ac46ec99ad0a35b88e2e1fd26e77d1086bfb5d6a2daa1443d",
+    "human_completed_adjudication_queue": "2983c81b0671f705b072526cda8f453ef573e8b128b22ce0dbe7cf4191484242",
+    "human_adjudicated_packet": "48fc695e63988784925885895e00bef3279fed60990e6f8cec538e1c106fc8ac",
+    "final_human_frozen_v2_fixture": "6b9ab2cacd3bf72d4eec7ebb2c137c17b637a1c63ced606cd913241948e4a28c",
+    "source_group_map": "1104520765e9fce212052cbee3db52ee0d43508c346dfc8efced9a8620a05234",
+    "validation_report": "0c578f018b5aecb978855eebf13a09862b11fe09b19cf4ed1848f5f24aa1d700"
+  }
+}

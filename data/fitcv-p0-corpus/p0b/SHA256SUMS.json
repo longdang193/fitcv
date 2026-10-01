@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-09-30T23:48:00+00:00",
+  "files": {
+    "p0b_source_job_review_packet_v1_adjudication.json": {
+      "sha256": "7d5eccd6051447a3b81ccf998fe483473e69e55680d4dd2ba1e7216eb6d353b4",
+      "bytes": 452596
+    },
+    "p0b_source_job_review_packet_v1_human_adjudication_queue_v1.json": {
+      "sha256": "98ef2ab667562653e5d9ae4655c3442df2b486726bc5b162499edc8f6f0b0a90",
+      "bytes": 138127
+    },
+    "p0b_source_job_review_packet_v1_human_adjudication_completed_v2.json": {
+      "sha256": "d1ca50663c11642d940c1c5de994cdc74510deb205a7c5aa91321f8b36cf37b0",
+      "bytes": 166959
+    },
+    "p0b_source_job_review_packet_v2_human_adjudicated.json": {
+      "sha256": "48fc695e63988784925885895e00bef3279fed60990e6f8cec538e1c106fc8ac",
+      "bytes": 467228
+    },
+    "p0b_source_job_relevance_fixture_v2_human_frozen.json": {
+      "sha256": "6b9ab2cacd3bf72d4eec7ebb2c137c17b637a1c63ced606cd913241948e4a28c",
+      "bytes": 155390
+    },
+    "p0b_source_job_source_group_map_v2.json": {
+      "sha256": "20e983a8c93eba3bfa0ff39756b0afdaa0f43ec4bfa0415931105e43f8d416a9",
+      "bytes": 45162
+    },
+    "p0b_source_job_human_acceptance_validation_v2.json": {
+      "sha256": "0c578f018b5aecb978855eebf13a09862b11fe09b19cf4ed1848f5f24aa1d700",
+      "bytes": 900
+    },
+    "p0b_source_job_freeze_manifest_v2_human_accepted.json": {
+      "sha256": "96b8724bec7fa43d159e5f0e78d6ddccf967eba3c463670c914b77bbf03817ac",
+      "bytes": 2043
+    },
+    "p0b_source_job_candidate_pool_v1.jsonl": {
+      "sha256": "2ba9e06d9479dafa1bf11e6a5455fc7c37ab1676b567661d26480412bc295cf0",
+      "bytes": 124033
+    },
+    "candidate_evidence_projection_source_backed_v1.jsonl": {
+      "sha256": "39ce1ab9ad72b409131921595f9cc844a7294ef99b9a45b2eefc864bfb9ceeef",
+      "bytes": 126078
+    }
+  }
+}

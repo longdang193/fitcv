@@ -1,0 +1,25 @@
+{
+  "schema_version": "p0b.source_job_human_acceptance_validation.v2",
+  "validated_at": "2026-09-30T23:48:00+00:00",
+  "status": "human_adjudication_complete",
+  "checks": {
+    "completed_rows": 71,
+    "unresolved_rows": 0,
+    "human_adjudicator_id_present": true,
+    "human_adjudication_timestamp_present": true,
+    "final_label_counts": {
+      "borderline": 57,
+      "relevant": 12,
+      "irrelevant": 2
+    },
+    "source_packet_sha256_unchanged": "7d5eccd6051447a3b81ccf998fe483473e69e55680d4dd2ba1e7216eb6d353b4",
+    "source_queue_sha256_unchanged": "3fcc0cac0b46353ac46ec99ad0a35b88e2e1fd26e77d1086bfb5d6a2daa1443d",
+    "source_group_map_preserved": true
+  },
+  "reviewer_provenance": {
+    "reviewer_a_id_as_source": "reviewer-a",
+    "reviewer_b_id_as_source": "reviewer-b",
+    "note": "Original reviewer IDs are preserved as recorded in the source packet."
+  },
+  "errors": []
+}

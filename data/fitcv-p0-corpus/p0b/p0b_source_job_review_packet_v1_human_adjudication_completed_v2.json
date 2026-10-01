@@ -1,0 +1,3564 @@
+{
+  "schema_version": "p0b.source_job_human_adjudication_completed.v2",
+  "status": "human_adjudication_complete",
+  "generated_at": "2026-09-30T23:48:00+00:00",
+  "source_packet_sha256": "7d5eccd6051447a3b81ccf998fe483473e69e55680d4dd2ba1e7216eb6d353b4",
+  "source_queue_sha256": "3fcc0cac0b46353ac46ec99ad0a35b88e2e1fd26e77d1086bfb5d6a2daa1443d",
+  "adjudicator": {
+    "id": "human:github:longdang193",
+    "adjudicated_at": "2026-09-30T23:48:00+00:00",
+    "completed_rows": 71
+  },
+  "rows": [
+    {
+      "requirement_instance_id": "req_4447675707_04",
+      "source_record_id": "4447675707",
+      "case_id": "job-4447675707",
+      "title": "Strategy & Operations Graduate (TikTok Shop Operations) - 2027 Start",
+      "company_name": "TikTok",
+      "requirement_text": "Strong analytical curiosity and a structured approach to solving open-ended business problems.",
+      "requirement_source_span": {
+        "start_char": 2216,
+        "end_char": 2310
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong analytical curiosity and a structured approach to solving open-ended business problems."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong analytical curiosity and a structured approach to solving open-ended business problems."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4447675707_05",
+      "source_record_id": "4447675707",
+      "case_id": "job-4447675707",
+      "title": "Strategy & Operations Graduate (TikTok Shop Operations) - 2027 Start",
+      "company_name": "TikTok",
+      "requirement_text": "Confident communicating ideas clearly and working with people across different teams, functions, and cultures.",
+      "requirement_source_span": {
+        "start_char": 2314,
+        "end_char": 2424
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Confident communicating ideas clearly and working with people across different teams, functions, and cultures."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Confident communicating ideas clearly and working with people across different teams, functions, and cultures."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4450483712_04",
+      "source_record_id": "4450483712",
+      "case_id": "job-4450483712",
+      "title": "Werkstudent Human Resources (w/m/d)",
+      "company_name": "XING",
+      "requirement_text": "Kommunikationsstärke, schnelle Auffassungsgabe und sorgfältige Arbeitsweise sind gegeben",
+      "requirement_source_span": {
+        "start_char": 1294,
+        "end_char": 1382
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Kommunikationsstärke, schnelle Auffassungsgabe und sorgfältige Arbeitsweise sind gegeben"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Kommunikationsstärke, schnelle Auffassungsgabe und sorgfältige Arbeitsweise sind gegeben"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4452428248_02",
+      "source_record_id": "4452428248",
+      "case_id": "job-4452428248",
+      "title": "Online Editor (w/m/d) für Lecker.de",
+      "company_name": "Bauer Media Group",
+      "requirement_text": "Du hast ein gutes Gespür für Deine Zielgruppen und Trends und weißt, wie du Themen findest, erzählst und kanaloptimiert aufbereitest",
+      "requirement_source_span": {
+        "start_char": 1425,
+        "end_char": 1557
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du hast ein gutes Gespür für Deine Zielgruppen und Trends und weißt, wie du Themen findest, erzählst und kanaloptimiert aufbereitest"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du hast ein gutes Gespür für Deine Zielgruppen und Trends und weißt, wie du Themen findest, erzählst und kanaloptimiert aufbereitest"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4452428248_03",
+      "source_record_id": "4452428248",
+      "case_id": "job-4452428248",
+      "title": "Online Editor (w/m/d) für Lecker.de",
+      "company_name": "Bauer Media Group",
+      "requirement_text": "Du hast eine konstruktive Kreativität gepaart mit großem Gespür für Relevanz und Emotionalität unterschiedlichster Themen und Themenfelder",
+      "requirement_source_span": {
+        "start_char": 1562,
+        "end_char": 1700
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du hast eine konstruktive Kreativität gepaart mit großem Gespür für Relevanz und Emotionalität unterschiedlichster Themen und Themenfelder"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du hast eine konstruktive Kreativität gepaart mit großem Gespür für Relevanz und Emotionalität unterschiedlichster Themen und Themenfelder"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4452428248_06",
+      "source_record_id": "4452428248",
+      "case_id": "job-4452428248",
+      "title": "Online Editor (w/m/d) für Lecker.de",
+      "company_name": "Bauer Media Group",
+      "requirement_text": "Du findest Dich schnell in neue Themen ein und hast Lust, journalistische Inhalte digital weiterzudenken",
+      "requirement_source_span": {
+        "start_char": 1932,
+        "end_char": 2036
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du findest Dich schnell in neue Themen ein und hast Lust, journalistische Inhalte digital weiterzudenken"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du findest Dich schnell in neue Themen ein und hast Lust, journalistische Inhalte digital weiterzudenken"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine job expectation, but it primarily expresses motivation, attitude or behavioral preference and is weakly document-verifiable; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4452428248_07",
+      "source_record_id": "4452428248",
+      "case_id": "job-4452428248",
+      "title": "Online Editor (w/m/d) für Lecker.de",
+      "company_name": "Bauer Media Group",
+      "requirement_text": "Du bist interessiert an neuen Entwicklungen rund um die Themen KI und Automatisierung",
+      "requirement_source_span": {
+        "start_char": 2042,
+        "end_char": 2127
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du bist interessiert an neuen Entwicklungen rund um die Themen KI und Automatisierung"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du bist interessiert an neuen Entwicklungen rund um die Themen KI und Automatisierung"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine job expectation, but it primarily expresses motivation, attitude or behavioral preference and is weakly document-verifiable; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4452428248_08",
+      "source_record_id": "4452428248",
+      "case_id": "job-4452428248",
+      "title": "Online Editor (w/m/d) für Lecker.de",
+      "company_name": "Bauer Media Group",
+      "requirement_text": "Du bist offen und kommunikativ",
+      "requirement_source_span": {
+        "start_char": 2131,
+        "end_char": 2161
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du bist offen und kommunikativ"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du bist offen und kommunikativ"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4455272757_04",
+      "source_record_id": "4455272757",
+      "case_id": "job-4455272757",
+      "title": "Intern Corporate Finance",
+      "company_name": "Cloover",
+      "requirement_text": "You would rather check twice than be corrected, because in finance a number that is nearly right is wrong",
+      "requirement_source_span": {
+        "start_char": 2257,
+        "end_char": 2362
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You would rather check twice than be corrected, because in finance a number that is nearly right is wrong"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You would rather check twice than be corrected, because in finance a number that is nearly right is wrong"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4455272757_05",
+      "source_record_id": "4455272757",
+      "case_id": "job-4455272757",
+      "title": "Intern Corporate Finance",
+      "company_name": "Cloover",
+      "requirement_text": "You ask why a number moved rather than only noting that it did, and you can explain the answer to someone who did not build the model",
+      "requirement_source_span": {
+        "start_char": 2366,
+        "end_char": 2499
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You ask why a number moved rather than only noting that it did, and you can explain the answer to someone who did not build the model"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You ask why a number moved rather than only noting that it did, and you can explain the answer to someone who did not build the model"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4455272757_06",
+      "source_record_id": "4455272757",
+      "case_id": "job-4455272757",
+      "title": "Intern Corporate Finance",
+      "company_name": "Cloover",
+      "requirement_text": "You can be trusted with figures that are not public, from day one",
+      "requirement_source_span": {
+        "start_char": 2503,
+        "end_char": 2568
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You can be trusted with figures that are not public, from day one"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You can be trusted with figures that are not public, from day one"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4460763460_06",
+      "source_record_id": "4460763460",
+      "case_id": "job-4460763460",
+      "title": "Working Student - People & Culture (all genders)",
+      "company_name": "JustPlay",
+      "requirement_text": "You are highly organized, self-disciplined, reliable, and detail-oriented",
+      "requirement_source_span": {
+        "start_char": 1785,
+        "end_char": 1858
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You are highly organized, self-disciplined, reliable, and detail-oriented"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You are highly organized, self-disciplined, reliable, and detail-oriented"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4462964784_08",
+      "source_record_id": "4462964784",
+      "case_id": "job-4462964784",
+      "title": "Global Banking & Markets, Investment Banking, Classic, Technology, Media and Telecom, Munich, Analyst",
+      "company_name": "Goldman Sachs",
+      "requirement_text": "Strong team orientation and demonstrated ability to work effectively with team members in multiple groups and regions",
+      "requirement_source_span": {
+        "start_char": 4105,
+        "end_char": 4222
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong team orientation and demonstrated ability to work effectively with team members in multiple groups and regions"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong team orientation and demonstrated ability to work effectively with team members in multiple groups and regions"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4462964784_09",
+      "source_record_id": "4462964784",
+      "case_id": "job-4462964784",
+      "title": "Global Banking & Markets, Investment Banking, Classic, Technology, Media and Telecom, Munich, Analyst",
+      "company_name": "Goldman Sachs",
+      "requirement_text": "Capacity to interact and build relationships with a wide range of people and act as a point of contact",
+      "requirement_source_span": {
+        "start_char": 4226,
+        "end_char": 4328
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Capacity to interact and build relationships with a wide range of people and act as a point of contact"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Capacity to interact and build relationships with a wide range of people and act as a point of contact"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4462964784_12",
+      "source_record_id": "4462964784",
+      "case_id": "job-4462964784",
+      "title": "Global Banking & Markets, Investment Banking, Classic, Technology, Media and Telecom, Munich, Analyst",
+      "company_name": "Goldman Sachs",
+      "requirement_text": "Personal integrity, initiative and leadership qualities",
+      "requirement_source_span": {
+        "start_char": 4450,
+        "end_char": 4505
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Personal integrity, initiative and leadership qualities"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Personal integrity, initiative and leadership qualities"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4462964784_13",
+      "source_record_id": "4462964784",
+      "case_id": "job-4462964784",
+      "title": "Global Banking & Markets, Investment Banking, Classic, Technology, Media and Telecom, Munich, Analyst",
+      "company_name": "Goldman Sachs",
+      "requirement_text": "Ability to develop into a senior TMT investment banking professional",
+      "requirement_source_span": {
+        "start_char": 4509,
+        "end_char": 4577
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Ability to develop into a senior TMT investment banking professional"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Ability to develop into a senior TMT investment banking professional"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4464057127_01",
+      "source_record_id": "4464057127",
+      "case_id": "job-4464057127",
+      "title": "Customer Service Representative",
+      "company_name": "PUMA Group",
+      "requirement_text": "Erfolgreich abgeschlossene kaufmännische Ausbildung oder eine vergleichbare Qualifikation.",
+      "requirement_source_span": {
+        "start_char": 1078,
+        "end_char": 1168
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Erfolgreich abgeschlossene kaufmännische Ausbildung oder eine vergleichbare Qualifikation."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Erfolgreich abgeschlossene kaufmännische Ausbildung oder eine vergleichbare Qualifikation."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit completed commercial-vocational qualification or comparable qualification; concrete and directly document-verifiable."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4464057127_03",
+      "source_record_id": "4464057127",
+      "case_id": "job-4464057127",
+      "title": "Customer Service Representative",
+      "company_name": "PUMA Group",
+      "requirement_text": "Strukturierte, eigenverantwortliche und sorgfältige Arbeitsweise gepaart mit einer ausgeprägten Teamorientierung.",
+      "requirement_source_span": {
+        "start_char": 1314,
+        "end_char": 1427
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strukturierte, eigenverantwortliche und sorgfältige Arbeitsweise gepaart mit einer ausgeprägten Teamorientierung."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strukturierte, eigenverantwortliche und sorgfältige Arbeitsweise gepaart mit einer ausgeprägten Teamorientierung."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4464320539_04",
+      "source_record_id": "4464320539",
+      "case_id": "job-4464320539",
+      "title": "Online Marketing Manager (w/m/d)",
+      "company_name": "Deutsche Glasfaser Unternehmensgruppe",
+      "requirement_text": "Gespür für digitale Trends, Storytelling und zielgruppengerechte Kommunikation",
+      "requirement_source_span": {
+        "start_char": 1079,
+        "end_char": 1157
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Gespür für digitale Trends, Storytelling und zielgruppengerechte Kommunikation"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Gespür für digitale Trends, Storytelling und zielgruppengerechte Kommunikation"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4464320539_07",
+      "source_record_id": "4464320539",
+      "case_id": "job-4464320539",
+      "title": "Online Marketing Manager (w/m/d)",
+      "company_name": "Deutsche Glasfaser Unternehmensgruppe",
+      "requirement_text": "Gestalter mit analytischer Herangehensweise und hoher Eigenverantwortung",
+      "requirement_source_span": {
+        "start_char": 1347,
+        "end_char": 1419
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Gestalter mit analytischer Herangehensweise und hoher Eigenverantwortung"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Gestalter mit analytischer Herangehensweise und hoher Eigenverantwortung"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4464381002_04",
+      "source_record_id": "4464381002",
+      "case_id": "job-4464381002",
+      "title": "Junior Android Engineer - Payments",
+      "company_name": "N26",
+      "requirement_text": "Able to build software with a focus on testability - Test/Behaviour Driven Development, Dependency Injection",
+      "requirement_source_span": {
+        "start_char": 1328,
+        "end_char": 1436
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Able to build software with a focus on testability - Test/Behaviour Driven Development, Dependency Injection"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Able to build software with a focus on testability - Test/Behaviour Driven Development, Dependency Injection"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit software-engineering capability naming testability, Test/Behaviour Driven Development and Dependency Injection; concrete and auditable."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4464381002_07",
+      "source_record_id": "4464381002",
+      "case_id": "job-4464381002",
+      "title": "Junior Android Engineer - Payments",
+      "company_name": "N26",
+      "requirement_text": "Strong bias for action, and getting things done",
+      "requirement_source_span": {
+        "start_char": 1550,
+        "end_char": 1597
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong bias for action, and getting things done"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong bias for action, and getting things done"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine job expectation, but it primarily expresses motivation, attitude or behavioral preference and is weakly document-verifiable; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4464381002_09",
+      "source_record_id": "4464381002",
+      "case_id": "job-4464381002",
+      "title": "Junior Android Engineer - Payments",
+      "company_name": "N26",
+      "requirement_text": "Strong call to action and for getting things done",
+      "requirement_source_span": {
+        "start_char": 1680,
+        "end_char": 1729
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong call to action and for getting things done"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong call to action and for getting things done"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "irrelevant",
+        "final_relevance_grade": 0,
+        "rationale": "Near-duplicate of the same source group's earlier 'Strong bias for action, and getting things done' requirement; redundant for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4464381002_11",
+      "source_record_id": "4464381002",
+      "case_id": "job-4464381002",
+      "title": "Junior Android Engineer - Payments",
+      "company_name": "N26",
+      "requirement_text": "Give and receive open, direct and timely feedback",
+      "requirement_source_span": {
+        "start_char": 1802,
+        "end_char": 1851
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Give and receive open, direct and timely feedback"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Give and receive open, direct and timely feedback"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4466044731_03",
+      "source_record_id": "4466044731",
+      "case_id": "job-4466044731",
+      "title": "Service and Sales Assistant",
+      "company_name": "Yugo",
+      "requirement_text": "Proaktivität und Organisation: Du handelst eigenständig, erkennst Bedürfnisse frühzeitig und reagierst zuverlässig und strukturiert auf Anliegen von Studierenden und Kolleginnen und Kollegen",
+      "requirement_source_span": {
+        "start_char": 4874,
+        "end_char": 5064
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Proaktivität und Organisation: Du handelst eigenständig, erkennst Bedürfnisse frühzeitig und reagierst zuverlässig und strukturiert auf Anliegen von Studierenden und Kolleginnen und Kollegen"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Proaktivität und Organisation: Du handelst eigenständig, erkennst Bedürfnisse frühzeitig und reagierst zuverlässig und strukturiert auf Anliegen von Studierenden und Kolleginnen und Kollegen"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4466044731_06",
+      "source_record_id": "4466044731",
+      "case_id": "job-4466044731",
+      "title": "Service and Sales Assistant",
+      "company_name": "Yugo",
+      "requirement_text": "Ausgeprägte Kundenservice- und Kommunikationsfähigkeiten sowie die Fähigkeit, auf allen Ebenen professionell mit Menschen in Kontakt zu treten - mündlich und schriftlich",
+      "requirement_source_span": {
+        "start_char": 5318,
+        "end_char": 5487
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Ausgeprägte Kundenservice- und Kommunikationsfähigkeiten sowie die Fähigkeit, auf allen Ebenen professionell mit Menschen in Kontakt zu treten - mündlich und schriftlich"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Ausgeprägte Kundenservice- und Kommunikationsfähigkeiten sowie die Fähigkeit, auf allen Ebenen professionell mit Menschen in Kontakt zu treten - mündlich und schriftlich"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4466044731_07",
+      "source_record_id": "4466044731",
+      "case_id": "job-4466044731",
+      "title": "Service and Sales Assistant",
+      "company_name": "Yugo",
+      "requirement_text": "Proaktive Arbeitsweise, starke Problemlösungskompetenz und Eigeninitiative",
+      "requirement_source_span": {
+        "start_char": 5491,
+        "end_char": 5565
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Proaktive Arbeitsweise, starke Problemlösungskompetenz und Eigeninitiative"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Proaktive Arbeitsweise, starke Problemlösungskompetenz und Eigeninitiative"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4466044731_08",
+      "source_record_id": "4466044731",
+      "case_id": "job-4466044731",
+      "title": "Service and Sales Assistant",
+      "company_name": "Yugo",
+      "requirement_text": "Sehr gute Organisationsfähigkeit und die Fähigkeit, regelmäßig mehrere Aufgaben parallel zu bearbeiten",
+      "requirement_source_span": {
+        "start_char": 5569,
+        "end_char": 5671
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Sehr gute Organisationsfähigkeit und die Fähigkeit, regelmäßig mehrere Aufgaben parallel zu bearbeiten"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Sehr gute Organisationsfähigkeit und die Fähigkeit, regelmäßig mehrere Aufgaben parallel zu bearbeiten"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4466044731_10",
+      "source_record_id": "4466044731",
+      "case_id": "job-4466044731",
+      "title": "Service and Sales Assistant",
+      "company_name": "Yugo",
+      "requirement_text": "Resilienz, Anpassungsfähigkeit und ein ausgeprägtes Bewusstsein für kulturelle Vielfalt",
+      "requirement_source_span": {
+        "start_char": 5746,
+        "end_char": 5833
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Resilienz, Anpassungsfähigkeit und ein ausgeprägtes Bewusstsein für kulturelle Vielfalt"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Resilienz, Anpassungsfähigkeit und ein ausgeprägtes Bewusstsein für kulturelle Vielfalt"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4466209425_04",
+      "source_record_id": "4466209425",
+      "case_id": "job-4466209425",
+      "title": "Werkstudent (w/m/d) UX Research",
+      "company_name": "Innomotics",
+      "requirement_text": "Du arbeitest strukturiert und selbstständig, auch wenn Informationen komplex oder noch unvollständig sind.",
+      "requirement_source_span": {
+        "start_char": 2865,
+        "end_char": 2971
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du arbeitest strukturiert und selbstständig, auch wenn Informationen komplex oder noch unvollständig sind."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du arbeitest strukturiert und selbstständig, auch wenn Informationen komplex oder noch unvollständig sind."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4469955316_05",
+      "source_record_id": "4469955316",
+      "case_id": "job-4469955316",
+      "title": "Junior Product Manager (m,f,d)",
+      "company_name": "NeuroNation - Mind & Brain Health Technology",
+      "requirement_text": "You think in terms of patient or user journeys ; you naturally ask \"what is the person trying to do, and what is getting in their way?",
+      "requirement_source_span": {
+        "start_char": 2008,
+        "end_char": 2142
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You think in terms of patient or user journeys ; you naturally ask \"what is the person trying to do, and what is getting in their way?"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You think in terms of patient or user journeys ; you naturally ask \"what is the person trying to do, and what is getting in their way?"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4469955316_06",
+      "source_record_id": "4469955316",
+      "case_id": "job-4469955316",
+      "title": "Junior Product Manager (m,f,d)",
+      "company_name": "NeuroNation - Mind & Brain Health Technology",
+      "requirement_text": "You have strong problem-solving skills",
+      "requirement_source_span": {
+        "start_char": 2146,
+        "end_char": 2184
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You have strong problem-solving skills"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You have strong problem-solving skills"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4469955316_07",
+      "source_record_id": "4469955316",
+      "case_id": "job-4469955316",
+      "title": "Junior Product Manager (m,f,d)",
+      "company_name": "NeuroNation - Mind & Brain Health Technology",
+      "requirement_text": "You are well-organised and have good project management skills. You can multi-task and manage multiple tasks concurrently.",
+      "requirement_source_span": {
+        "start_char": 2188,
+        "end_char": 2310
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You are well-organised and have good project management skills. You can multi-task and manage multiple tasks concurrently."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You are well-organised and have good project management skills. You can multi-task and manage multiple tasks concurrently."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4469955316_10",
+      "source_record_id": "4469955316",
+      "case_id": "job-4469955316",
+      "title": "Junior Product Manager (m,f,d)",
+      "company_name": "NeuroNation - Mind & Brain Health Technology",
+      "requirement_text": "You are a team-player and love to help out your colleagues.",
+      "requirement_source_span": {
+        "start_char": 2430,
+        "end_char": 2489
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You are a team-player and love to help out your colleagues."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You are a team-player and love to help out your colleagues."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine job expectation, but it primarily expresses motivation, attitude or behavioral preference and is weakly document-verifiable; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4470869964_06",
+      "source_record_id": "4470869964",
+      "case_id": "job-4470869964",
+      "title": "Praktikum Recruiting / Personalwesen (m/w/d)",
+      "company_name": "ACONEXT",
+      "requirement_text": "Du gehst offen auf Menschen zu und hast keine Scheu, zum Telefon zu greifen",
+      "requirement_source_span": {
+        "start_char": 1420,
+        "end_char": 1495
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du gehst offen auf Menschen zu und hast keine Scheu, zum Telefon zu greifen"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du gehst offen auf Menschen zu und hast keine Scheu, zum Telefon zu greifen"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4470869964_07",
+      "source_record_id": "4470869964",
+      "case_id": "job-4470869964",
+      "title": "Praktikum Recruiting / Personalwesen (m/w/d)",
+      "company_name": "ACONEXT",
+      "requirement_text": "Du zeichnest dich durch hohe Einsatzbereitschaft, Flexibilität und Kommunikationsfähigkeit aus",
+      "requirement_source_span": {
+        "start_char": 1499,
+        "end_char": 1593
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du zeichnest dich durch hohe Einsatzbereitschaft, Flexibilität und Kommunikationsfähigkeit aus"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du zeichnest dich durch hohe Einsatzbereitschaft, Flexibilität und Kommunikationsfähigkeit aus"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4470869964_08",
+      "source_record_id": "4470869964",
+      "case_id": "job-4470869964",
+      "title": "Praktikum Recruiting / Personalwesen (m/w/d)",
+      "company_name": "ACONEXT",
+      "requirement_text": "Du arbeitest gerne im Team und möchtest deine theoretischen Kenntnisse in der Praxis anwenden",
+      "requirement_source_span": {
+        "start_char": 1597,
+        "end_char": 1690
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du arbeitest gerne im Team und möchtest deine theoretischen Kenntnisse in der Praxis anwenden"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 3,
+        "requirement_category": "experience",
+        "evidence_spans": [
+          "Du arbeitest gerne im Team und möchtest deine theoretischen Kenntnisse in der Praxis anwenden"
+        ],
+        "rationale": "Clearly relevant: the exact quoted span states an explicit prior experience requirement that can be checked directly against candidate evidence."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 3,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4470883325_04",
+      "source_record_id": "4470883325",
+      "case_id": "job-4470883325",
+      "title": "mehrere Ausbildungsplätze für Regierungssekretäranwärterinnen und Regierungssekretäranwärter (m/w/d) am Standort Köln oder Berlin",
+      "company_name": "Federal Office of Administration",
+      "requirement_text": "Du hast zum Zeitpunkt der Einstellung das 50. Lebensjahr noch nicht vollendet (",
+      "requirement_source_span": {
+        "start_char": 2853,
+        "end_char": 2932
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du hast zum Zeitpunkt der Einstellung das 50. Lebensjahr noch nicht vollendet ("
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du hast zum Zeitpunkt der Einstellung das 50. Lebensjahr noch nicht vollendet ("
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit age-at-hiring eligibility condition; concrete and objectively verifiable despite the trailing parenthesis fragment."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4470883325_05",
+      "source_record_id": "4470883325",
+      "case_id": "job-4470883325",
+      "title": "mehrere Ausbildungsplätze für Regierungssekretäranwärterinnen und Regierungssekretäranwärter (m/w/d) am Standort Köln oder Berlin",
+      "company_name": "Federal Office of Administration",
+      "requirement_text": "48 BHO )",
+      "requirement_source_span": {
+        "start_char": 2936,
+        "end_char": 2944
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "48 BHO )"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "48 BHO )"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "irrelevant",
+        "final_relevance_grade": 0,
+        "rationale": "Standalone legal citation fragment ('48 BHO )') rather than a usable candidate requirement; unusable for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4470883325_06",
+      "source_record_id": "4470883325",
+      "case_id": "job-4470883325",
+      "title": "mehrere Ausbildungsplätze für Regierungssekretäranwärterinnen und Regierungssekretäranwärter (m/w/d) am Standort Köln oder Berlin",
+      "company_name": "Federal Office of Administration",
+      "requirement_text": "Du verfügst über ein gutes schriftliches und mündliches Ausdrucksvermögen",
+      "requirement_source_span": {
+        "start_char": 2948,
+        "end_char": 3021
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du verfügst über ein gutes schriftliches und mündliches Ausdrucksvermögen"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du verfügst über ein gutes schriftliches und mündliches Ausdrucksvermögen"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4470883325_07",
+      "source_record_id": "4470883325",
+      "case_id": "job-4470883325",
+      "title": "mehrere Ausbildungsplätze für Regierungssekretäranwärterinnen und Regierungssekretäranwärter (m/w/d) am Standort Köln oder Berlin",
+      "company_name": "Federal Office of Administration",
+      "requirement_text": "Du bist ein Kommunikations- und Organisationstalent und arbeitest gerne im Team",
+      "requirement_source_span": {
+        "start_char": 3025,
+        "end_char": 3104
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du bist ein Kommunikations- und Organisationstalent und arbeitest gerne im Team"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du bist ein Kommunikations- und Organisationstalent und arbeitest gerne im Team"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4470883325_08",
+      "source_record_id": "4470883325",
+      "case_id": "job-4470883325",
+      "title": "mehrere Ausbildungsplätze für Regierungssekretäranwärterinnen und Regierungssekretäranwärter (m/w/d) am Standort Köln oder Berlin",
+      "company_name": "Federal Office of Administration",
+      "requirement_text": "Du zeichnest Dich durch eine gute Auffassungsgabe, Eigeninitiative, Lernbereitschaft und Zuverlässigkeit aus",
+      "requirement_source_span": {
+        "start_char": 3108,
+        "end_char": 3216
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du zeichnest Dich durch eine gute Auffassungsgabe, Eigeninitiative, Lernbereitschaft und Zuverlässigkeit aus"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du zeichnest Dich durch eine gute Auffassungsgabe, Eigeninitiative, Lernbereitschaft und Zuverlässigkeit aus"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471285859_03",
+      "source_record_id": "4471285859",
+      "case_id": "job-4471285859",
+      "title": "Intern Video Editing",
+      "company_name": "We Are Era",
+      "requirement_text": "Grundwissen zu Video-Format, -Codec und -Container sowie Basiswissen der Kameratechnik",
+      "requirement_source_span": {
+        "start_char": 1464,
+        "end_char": 1550
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Grundwissen zu Video-Format, -Codec und -Container sowie Basiswissen der Kameratechnik"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Grundwissen zu Video-Format, -Codec und -Container sowie Basiswissen der Kameratechnik"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit technical knowledge requirement covering video formats, codecs, containers and basic camera technology; directly auditable."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471285859_04",
+      "source_record_id": "4471285859",
+      "case_id": "job-4471285859",
+      "title": "Intern Video Editing",
+      "company_name": "We Are Era",
+      "requirement_text": "Sicherer Umgang mit Datentransfer von verschiedenen physischen oder virtuellen Datenträgern",
+      "requirement_source_span": {
+        "start_char": 1554,
+        "end_char": 1645
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Sicherer Umgang mit Datentransfer von verschiedenen physischen oder virtuellen Datenträgern"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Sicherer Umgang mit Datentransfer von verschiedenen physischen oder virtuellen Datenträgern"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit capability to handle data transfer across physical or virtual media; concrete and auditable from technical experience."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471285859_07",
+      "source_record_id": "4471285859",
+      "case_id": "job-4471285859",
+      "title": "Intern Video Editing",
+      "company_name": "We Are Era",
+      "requirement_text": "Teamfähigkeit, Zuverlässigkeit, Eigeninitiative",
+      "requirement_source_span": {
+        "start_char": 1769,
+        "end_char": 1816
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Teamfähigkeit, Zuverlässigkeit, Eigeninitiative"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Teamfähigkeit, Zuverlässigkeit, Eigeninitiative"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471285859_08",
+      "source_record_id": "4471285859",
+      "case_id": "job-4471285859",
+      "title": "Intern Video Editing",
+      "company_name": "We Are Era",
+      "requirement_text": "Organisationstalent mit strukturierter Arbeitsweise",
+      "requirement_source_span": {
+        "start_char": 1820,
+        "end_char": 1871
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Organisationstalent mit strukturierter Arbeitsweise"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Organisationstalent mit strukturierter Arbeitsweise"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471285859_09",
+      "source_record_id": "4471285859",
+      "case_id": "job-4471285859",
+      "title": "Intern Video Editing",
+      "company_name": "We Are Era",
+      "requirement_text": "Gespür für Ordnung",
+      "requirement_source_span": {
+        "start_char": 1875,
+        "end_char": 1893
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Gespür für Ordnung"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Gespür für Ordnung"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471296800_08",
+      "source_record_id": "4471296800",
+      "case_id": "job-4471296800",
+      "title": "Junior System Administrator (Monitoring Team)",
+      "company_name": "Jobgether",
+      "requirement_text": "Strong attention to detail and a responsible, reliable approach to operational work.",
+      "requirement_source_span": {
+        "start_char": 3103,
+        "end_char": 3187
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong attention to detail and a responsible, reliable approach to operational work."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong attention to detail and a responsible, reliable approach to operational work."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471296800_09",
+      "source_record_id": "4471296800",
+      "case_id": "job-4471296800",
+      "title": "Junior System Administrator (Monitoring Team)",
+      "company_name": "Jobgether",
+      "requirement_text": "Ability to follow established procedures while remaining capable of identifying issues and escalating them appropriately.",
+      "requirement_source_span": {
+        "start_char": 3191,
+        "end_char": 3312
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Ability to follow established procedures while remaining capable of identifying issues and escalating them appropriately."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Ability to follow established procedures while remaining capable of identifying issues and escalating them appropriately."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit operational capability to follow procedures, identify issues and escalate appropriately; concrete enough for experience-based verification."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471296800_10",
+      "source_record_id": "4471296800",
+      "case_id": "job-4471296800",
+      "title": "Junior System Administrator (Monitoring Team)",
+      "company_name": "Jobgether",
+      "requirement_text": "Willingness to learn, develop technical expertise, and take increasing ownership of monitoring and infrastructure operations.",
+      "requirement_source_span": {
+        "start_char": 3316,
+        "end_char": 3441
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Willingness to learn, develop technical expertise, and take increasing ownership of monitoring and infrastructure operations."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Willingness to learn, develop technical expertise, and take increasing ownership of monitoring and infrastructure operations."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine job expectation, but it primarily expresses motivation, attitude or behavioral preference and is weakly document-verifiable; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471524252_01",
+      "source_record_id": "4471524252",
+      "case_id": "job-4471524252",
+      "title": "Data Analyst Intern",
+      "company_name": "Ededge Groups",
+      "requirement_text": "Strong problem-solving and critical thinking abilities",
+      "requirement_source_span": {
+        "start_char": 2524,
+        "end_char": 2578
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong problem-solving and critical thinking abilities"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong problem-solving and critical thinking abilities"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471524252_04",
+      "source_record_id": "4471524252",
+      "case_id": "job-4471524252",
+      "title": "Data Analyst Intern",
+      "company_name": "Ededge Groups",
+      "requirement_text": "Ability to work independently and remotely",
+      "requirement_source_span": {
+        "start_char": 2741,
+        "end_char": 2783
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Ability to work independently and remotely"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Ability to work independently and remotely"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471900718_03",
+      "source_record_id": "4471900718",
+      "case_id": "job-4471900718",
+      "title": "Junior Project Manager",
+      "company_name": "Cumming Group UK & Europe",
+      "requirement_text": "Limited technical project management skills. More developed skills around following PM Processes: Risk, Opportunities and Issues, Change control.",
+      "requirement_source_span": {
+        "start_char": 1739,
+        "end_char": 1884
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Limited technical project management skills. More developed skills around following PM Processes: Risk, Opportunities and Issues, Change control."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Limited technical project management skills. More developed skills around following PM Processes: Risk, Opportunities and Issues, Change control."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit project-management knowledge requirement naming risk, opportunities/issues and change-control processes; concrete and auditable."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471900718_05",
+      "source_record_id": "4471900718",
+      "case_id": "job-4471900718",
+      "title": "Junior Project Manager",
+      "company_name": "Cumming Group UK & Europe",
+      "requirement_text": "Good oral and written communication and presentation skills.",
+      "requirement_source_span": {
+        "start_char": 2009,
+        "end_char": 2069
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Good oral and written communication and presentation skills."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Good oral and written communication and presentation skills."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471900718_06",
+      "source_record_id": "4471900718",
+      "case_id": "job-4471900718",
+      "title": "Junior Project Manager",
+      "company_name": "Cumming Group UK & Europe",
+      "requirement_text": "Good interpersonal skills with both client and staff.",
+      "requirement_source_span": {
+        "start_char": 2073,
+        "end_char": 2126
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Good interpersonal skills with both client and staff."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Good interpersonal skills with both client and staff."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471900718_07",
+      "source_record_id": "4471900718",
+      "case_id": "job-4471900718",
+      "title": "Junior Project Manager",
+      "company_name": "Cumming Group UK & Europe",
+      "requirement_text": "Support stakeholder management.",
+      "requirement_source_span": {
+        "start_char": 2130,
+        "end_char": 2161
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Support stakeholder management."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Support stakeholder management."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit stakeholder-management responsibility/capability; concrete enough to match against documented project experience."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4471900718_12",
+      "source_record_id": "4471900718",
+      "case_id": "job-4471900718",
+      "title": "Junior Project Manager",
+      "company_name": "Cumming Group UK & Europe",
+      "requirement_text": "A basic understanding of leadership techniques.",
+      "requirement_source_span": {
+        "start_char": 2343,
+        "end_char": 2390
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "A basic understanding of leadership techniques."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "A basic understanding of leadership techniques."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit knowledge requirement for basic leadership techniques; concrete and document-verifiable through training or experience."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472751123_03",
+      "source_record_id": "4472751123",
+      "case_id": "job-4472751123",
+      "title": "Account Specialist - Berlin",
+      "company_name": "Tebi",
+      "requirement_text": "You can juggle multiple things at once and bring structure",
+      "requirement_source_span": {
+        "start_char": 1940,
+        "end_char": 1998
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You can juggle multiple things at once and bring structure"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You can juggle multiple things at once and bring structure"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472751123_05",
+      "source_record_id": "4472751123",
+      "case_id": "job-4472751123",
+      "title": "Account Specialist - Berlin",
+      "company_name": "Tebi",
+      "requirement_text": "Good communication - you are great at proactive contact and managing expectations",
+      "requirement_source_span": {
+        "start_char": 2097,
+        "end_char": 2178
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Good communication - you are great at proactive contact and managing expectations"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Good communication - you are great at proactive contact and managing expectations"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472751123_07",
+      "source_record_id": "4472751123",
+      "case_id": "job-4472751123",
+      "title": "Account Specialist - Berlin",
+      "company_name": "Tebi",
+      "requirement_text": "Flexibility in working hours to fit our merchants’ needs",
+      "requirement_source_span": {
+        "start_char": 2285,
+        "end_char": 2341
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Flexibility in working hours to fit our merchants’ needs"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Flexibility in working hours to fit our merchants’ needs"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit availability condition requiring flexibility in working hours to meet merchant needs; concrete and directly verifiable."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472752755_06",
+      "source_record_id": "4472752755",
+      "case_id": "job-4472752755",
+      "title": "Intern (m/f/d) Asset Management (Real Estate Logistics)",
+      "company_name": "Proxity",
+      "requirement_text": "Highly organized and detail-oriented",
+      "requirement_source_span": {
+        "start_char": 1356,
+        "end_char": 1392
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Highly organized and detail-oriented"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Highly organized and detail-oriented"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472752755_07",
+      "source_record_id": "4472752755",
+      "case_id": "job-4472752755",
+      "title": "Intern (m/f/d) Asset Management (Real Estate Logistics)",
+      "company_name": "Proxity",
+      "requirement_text": "Strong communication and teamwork skills",
+      "requirement_source_span": {
+        "start_char": 1396,
+        "end_char": 1436
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong communication and teamwork skills"
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Strong communication and teamwork skills"
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472789462_03",
+      "source_record_id": "4472789462",
+      "case_id": "job-4472789462",
+      "title": "Marketing Specialist Online & Events",
+      "company_name": "Ground A",
+      "requirement_text": "Good organisational skills and attention to detail.",
+      "requirement_source_span": {
+        "start_char": 1456,
+        "end_char": 1507
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Good organisational skills and attention to detail."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Good organisational skills and attention to detail."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472789462_05",
+      "source_record_id": "4472789462",
+      "case_id": "job-4472789462",
+      "title": "Marketing Specialist Online & Events",
+      "company_name": "Ground A",
+      "requirement_text": "A practical approach and the confidence to take responsibility for your tasks.",
+      "requirement_source_span": {
+        "start_char": 1582,
+        "end_char": 1660
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "A practical approach and the confidence to take responsibility for your tasks."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "A practical approach and the confidence to take responsibility for your tasks."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472791065_03",
+      "source_record_id": "4472791065",
+      "case_id": "job-4472791065",
+      "title": "Graduate Analyst",
+      "company_name": "GradBay",
+      "requirement_text": "Analytical and detail-focused: You can organise information effectively and take pride in producing accurate, high-quality work.",
+      "requirement_source_span": {
+        "start_char": 6601,
+        "end_char": 6729
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Analytical and detail-focused: You can organise information effectively and take pride in producing accurate, high-quality work."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Analytical and detail-focused: You can organise information effectively and take pride in producing accurate, high-quality work."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472791065_04",
+      "source_record_id": "4472791065",
+      "case_id": "job-4472791065",
+      "title": "Graduate Analyst",
+      "company_name": "GradBay",
+      "requirement_text": "You may be a final-year student or recent graduate from any academic discipline.",
+      "requirement_source_span": {
+        "start_char": 7179,
+        "end_char": 7259
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You may be a final-year student or recent graduate from any academic discipline."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "You may be a final-year student or recent graduate from any academic discipline."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit education/status condition allowing final-year students or recent graduates from any discipline; concrete and directly verifiable."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472791065_08",
+      "source_record_id": "4472791065",
+      "case_id": "job-4472791065",
+      "title": "Graduate Analyst",
+      "company_name": "GradBay",
+      "requirement_text": "Willing and able to undertake an expected one-month training period in London, subject to final confirmation of the arrangements.",
+      "requirement_source_span": {
+        "start_char": 8439,
+        "end_char": 8568
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Willing and able to undertake an expected one-month training period in London, subject to final confirmation of the arrangements."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Willing and able to undertake an expected one-month training period in London, subject to final confirmation of the arrangements."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "relevant",
+        "final_relevance_grade": 2,
+        "rationale": "Explicit willingness-and-availability condition for an expected one-month London training period; concrete and directly verifiable."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472796697_04",
+      "source_record_id": "4472796697",
+      "case_id": "job-4472796697",
+      "title": "Intern Athletes & Teams Marketing",
+      "company_name": "Red Bull",
+      "requirement_text": "Du hast den Anspruch Dinge sehr gut und schnell anzupacken und zu Ende zu bringen.",
+      "requirement_source_span": {
+        "start_char": 2329,
+        "end_char": 2411
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du hast den Anspruch Dinge sehr gut und schnell anzupacken und zu Ende zu bringen."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du hast den Anspruch Dinge sehr gut und schnell anzupacken und zu Ende zu bringen."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine requirement, but its wording remains subjective or weakly auditable against candidate documents; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472796697_05",
+      "source_record_id": "4472796697",
+      "case_id": "job-4472796697",
+      "title": "Intern Athletes & Teams Marketing",
+      "company_name": "Red Bull",
+      "requirement_text": "Du bist ein absolutes Organisationstalent und lässt dich auch bei vielen offenen Themen nicht aus der Ruhe bringen.",
+      "requirement_source_span": {
+        "start_char": 2415,
+        "end_char": 2530
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du bist ein absolutes Organisationstalent und lässt dich auch bei vielen offenen Themen nicht aus der Ruhe bringen."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Du bist ein absolutes Organisationstalent und lässt dich auch bei vielen offenen Themen nicht aus der Ruhe bringen."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472796697_08",
+      "source_record_id": "4472796697",
+      "case_id": "job-4472796697",
+      "title": "Intern Athletes & Teams Marketing",
+      "company_name": "Red Bull",
+      "requirement_text": "Deine schnelle Auffassungsgabe ermöglicht es dir, kreative Ideen und Lösungen zu generieren.",
+      "requirement_source_span": {
+        "start_char": 2731,
+        "end_char": 2823
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Deine schnelle Auffassungsgabe ermöglicht es dir, kreative Ideen und Lösungen zu generieren."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Deine schnelle Auffassungsgabe ermöglicht es dir, kreative Ideen und Lösungen zu generieren."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Explicit job expectation, but the stated behavioral/soft-skill proficiency is subjective or only weakly verifiable from documentary evidence; borderline for matching."
+      }
+    },
+    {
+      "requirement_instance_id": "req_4472796697_09",
+      "source_record_id": "4472796697",
+      "case_id": "job-4472796697",
+      "title": "Intern Athletes & Teams Marketing",
+      "company_name": "Red Bull",
+      "requirement_text": "Und zu guter Letzt bringst du dich mit viel Leidenschaft, Humor und der nötigen Gelassenheit schnell in ein Team ein.",
+      "requirement_source_span": {
+        "start_char": 2827,
+        "end_char": 2944
+      },
+      "requirement_category_a": "soft_skill",
+      "requirement_category_b": "soft_skill",
+      "reviewer_a": {
+        "reviewer_id": "reviewer-a",
+        "reviewed_at": "2026-09-29T16:55:03+02:00",
+        "relevance_label": "borderline",
+        "relevance_grade": 1,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Und zu guter Letzt bringst du dich mit viel Leidenschaft, Humor und der nötigen Gelassenheit schnell in ein Team ein."
+        ],
+        "rationale": "This is an explicit behavioural or soft-skill expectation, but it is comparatively subjective to verify from documentary evidence. It is therefore graded borderline for auditable evidence retrieval."
+      },
+      "reviewer_b": {
+        "reviewer_id": "reviewer-b",
+        "reviewed_at": "2026-09-29T18:37:26+02:00",
+        "relevance_label": "relevant",
+        "relevance_grade": 2,
+        "requirement_category": "soft_skill",
+        "evidence_spans": [
+          "Und zu guter Letzt bringst du dich mit viel Leidenschaft, Humor und der nötigen Gelassenheit schnell in ein Team ein."
+        ],
+        "rationale": "Weaker relevant: the exact quoted span states a meaningful behavioural capability, but it is less objectively document-verifiable than a hard skill, credential, or experience requirement."
+      },
+      "disagreement": {
+        "status": "pending_adjudication",
+        "reviewer_a_grade": 1,
+        "reviewer_b_grade": 2,
+        "reviewer_a_label": "borderline",
+        "reviewer_b_label": "relevant"
+      },
+      "adjudication": {
+        "adjudicator_id": "human:github:longdang193",
+        "adjudicated_at": "2026-10-01T01:48:00+02:00",
+        "final_relevance_label": "borderline",
+        "final_relevance_grade": 1,
+        "rationale": "Genuine job expectation, but it primarily expresses motivation, attitude or behavioral preference and is weakly document-verifiable; borderline for matching."
+      }
+    }
+  ]
+}
