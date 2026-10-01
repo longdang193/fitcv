@@ -36,6 +36,7 @@ DEFAULT_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "requirement_support_benchm
 DEFAULT_POLICY = REPO_ROOT / "config" / "policy" / "cv_analysis.yaml"
 MEASURED_RUNS = 5
 WARMUP_RUNS = 1
+SOURCE_BACKED_V2_SCHEMA = "p0b.requirement_support.source_backed.v2"
 EXPECTED_SUPPORT_PAIRS = {
     ("required_skill:sql", "ev-broad"),
     ("required_skill:sql", "ev-a-sql"),
@@ -304,6 +305,87 @@ def _validate_fixture(fixture: dict[str, Any]) -> None:
     )
     if missing_case_refs:
         raise ValueError(f"Fixture scenarios reference missing validation cases: {', '.join(missing_case_refs)}")
+    _validate_source_backed_runtime_mappings(fixture)
+
+
+def _validate_source_backed_runtime_mappings(fixture: dict[str, Any]) -> None:
+    if fixture.get("fixture_schema_version") != SOURCE_BACKED_V2_SCHEMA:
+        return
+    acceptance_rows = fixture.get("acceptance_rows")
+    if not isinstance(acceptance_rows, dict):
+        raise ValueError("source-backed v2 fixture requires acceptance_rows")
+    scenarios = {str(item.get("scenario_id")): item for item in fixture.get("scenarios") or []}
+    errors: list[str] = []
+    total_rows = 0
+    seen_requirement_ids: set[str] = set()
+    seen_mapping_keys: set[tuple[str, str, str]] = set()
+    for scenario_id, scenario in scenarios.items():
+        rows = acceptance_rows.get(scenario_id)
+        if not isinstance(rows, list):
+            errors.append(f"{scenario_id}:acceptance_rows_missing")
+            continue
+        total_rows += len(rows)
+        context_ref = str(scenario.get("job_context_ref") or "")
+        context = fixture.get("job_contexts", {}).get(context_ref)
+        if not isinstance(context, dict):
+            errors.append(f"{scenario_id}:job_context_missing")
+            continue
+        descriptors = build_required_skill_descriptors(context)
+        by_source_id: dict[str, dict[str, Any]] = {}
+        for descriptor in descriptors:
+            source_id = str(descriptor.get("source_requirement_id") or "").strip()
+            if not source_id or source_id in by_source_id:
+                errors.append(f"{scenario_id}:descriptor_source_id_invalid")
+                continue
+            by_source_id[source_id] = descriptor
+        if len(rows) != len(by_source_id):
+            errors.append(f"{scenario_id}:runtime_mapping_count_mismatch")
+        for row in rows:
+            if not isinstance(row, dict):
+                errors.append(f"{scenario_id}:runtime_mapping_row_invalid")
+                continue
+            requirement_id = str(row.get("requirement_id") or "").strip()
+            if not requirement_id:
+                errors.append(f"{scenario_id}:requirement_id_missing")
+                continue
+            if requirement_id in seen_requirement_ids:
+                errors.append(f"{requirement_id}:duplicate_requirement_id")
+            seen_requirement_ids.add(requirement_id)
+            runtime_ref = str(row.get("runtime_descriptor_ref") or "").strip()
+            runtime_instance = str(row.get("runtime_requirement_instance_id") or "").strip()
+            if not runtime_ref:
+                errors.append(f"{requirement_id}:runtime_descriptor_ref_missing")
+            if not runtime_instance:
+                errors.append(f"{requirement_id}:runtime_requirement_instance_id_missing")
+            if row.get("mapping_source") != "source_requirement_id":
+                errors.append(f"{requirement_id}:mapping_source_invalid")
+            descriptor = by_source_id.get(requirement_id)
+            if descriptor is None:
+                errors.append(f"{requirement_id}:runtime_mapping_source_missing")
+            else:
+                expected_ref = str(descriptor.get("requirement_id") or "")
+                expected_instance = str(descriptor.get("requirement_instance_id") or expected_ref)
+                if runtime_ref != expected_ref or runtime_instance != expected_instance:
+                    errors.append(f"{requirement_id}:runtime_mapping_mismatch")
+            mapping_key = (requirement_id, runtime_ref, runtime_instance)
+            if mapping_key in seen_mapping_keys:
+                errors.append(f"{requirement_id}:duplicate_runtime_mapping")
+            seen_mapping_keys.add(mapping_key)
+            for link in row.get("minimal_sufficient_evidence") or []:
+                if not isinstance(link, dict):
+                    errors.append(f"{requirement_id}:evidence_mapping_row_invalid")
+                    continue
+                if (
+                    link.get("runtime_descriptor_ref") != runtime_ref
+                    or link.get("runtime_requirement_instance_id") != runtime_instance
+                    or link.get("mapping_source") != "source_requirement_id"
+                ):
+                    errors.append(f"{requirement_id}:evidence_runtime_mapping_mismatch")
+    expected_total = int((fixture.get("benchmark_scope") or {}).get("all_packet_requirements") or 0)
+    if expected_total and total_rows != expected_total:
+        errors.append("runtime_mapping_total_mismatch")
+    if errors:
+        raise ValueError("Invalid source-backed runtime mappings: " + ", ".join(sorted(set(errors))))
 
 
 def _resolve_scenarios(fixture: dict[str, Any]) -> list[dict[str, Any]]:
@@ -322,6 +404,7 @@ def _resolve_scenarios(fixture: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "scenario_id": str(scenario["scenario_id"]),
                 "purpose": str(scenario.get("purpose") or ""),
+                "measurement_mode": str(scenario.get("measurement_mode") or "runtime_support"),
                 "profile": copy.deepcopy(profiles[str(scenario["profile_ref"])]),
                 "job_context": copy.deepcopy(job_contexts[str(scenario["job_context_ref"])]),
                 "expected_support": {
@@ -409,6 +492,8 @@ def _analysis_bundle(analysis_record: dict[str, Any]) -> dict[str, Any]:
         "channel_counts": dict(summary.get("channel_counts") or {}),
         "merged_pool_size": int(summary.get("merged_pool_size") or 0),
         "deduped_pool_size": int(summary.get("deduped_pool_size") or 0),
+        "canonical_evidence_ids": list(summary.get("canonical_evidence_ids") or []),
+        "retrieved_evidence_ids": list(summary.get("retrieved_evidence_ids") or []),
     }
 
 
@@ -489,11 +574,34 @@ def _support_metrics(
     expected_support: dict[str, list[str]],
     *,
     explicit_requirement_links: bool = True,
+    measurement_mode: str = "runtime_support",
 ) -> dict[str, Any]:
     support = dict(bundle.get("requirement_support") or {})
-    canonical = {key: set(value or []) for key, value in dict(support.get("canonical") or {}).items()}
-    retrieved = {key: set(value or []) for key, value in dict(support.get("pool") or {}).items()}
-    selected = {key: set(value or []) for key, value in dict(support.get("selected") or {}).items()}
+    runtime_support = {
+        "canonical": {key: set(value or []) for key, value in dict(support.get("canonical") or {}).items()},
+        "retrieved": {key: set(value or []) for key, value in dict(support.get("pool") or {}).items()},
+        "selected": {key: set(value or []) for key, value in dict(support.get("selected") or {}).items()},
+    }
+    if measurement_mode == "accepted_evidence_links":
+        stage_evidence_ids = {
+            "canonical": set(str(value) for value in list(bundle.get("canonical_evidence_ids") or [])),
+            "retrieved": set(str(value) for value in list(bundle.get("retrieved_evidence_ids") or [])),
+            "selected": set(str(value) for value in list(bundle.get("selected_evidence_ids") or [])),
+        }
+        measured_support = {
+            stage: {
+                str(requirement_id): (
+                    set(str(value) for value in list(evidence_ids or [])) & stage_evidence_ids[stage]
+                )
+                for requirement_id, evidence_ids in expected_support.items()
+            }
+            for stage in stage_evidence_ids
+        }
+    else:
+        measured_support = runtime_support
+    canonical = measured_support["canonical"]
+    retrieved = measured_support["retrieved"]
+    selected = measured_support["selected"]
     requirement_ids = sorted(set(expected_support) | set(canonical) | set(retrieved) | set(selected))
     expected_pairs = _support_pairs(expected_support)
     stage_pairs = {
@@ -597,6 +705,27 @@ def _support_metrics(
         "selected_link_count": len(stage_pairs["selected"]),
         "selected_ids": selected_ids,
         "duplicate_ids": duplicate_ids,
+        "measurement_mode": measurement_mode,
+        "runtime_support": {
+            "requirement_recall": {
+                stage: (
+                    "not_applicable"
+                    if not {key for key, ids in runtime_support[stage].items() if ids}
+                    else round(
+                        len(
+                            {
+                                requirement_id
+                                for requirement_id, evidence_id in _support_pairs(runtime_support[stage]) & expected_pairs
+                                if requirement_id in positive_requirements and evidence_id
+                            }
+                        )
+                        / len(positive_requirements),
+                        6,
+                    )
+                )
+                for stage in ("canonical", "retrieved", "selected")
+            },
+        },
     }
 
 
@@ -825,6 +954,7 @@ def _run_benchmark_scenario(
         final_bundle,
         scenario["expected_support"],
         explicit_requirement_links=explicit_links,
+        measurement_mode=str(scenario.get("measurement_mode") or "runtime_support"),
     )
     return {
         "scenario_id": scenario["scenario_id"],
@@ -969,6 +1099,8 @@ def run_benchmark(
     runs: int = MEASURED_RUNS,
     warmups: int = WARMUP_RUNS,
 ) -> dict[str, Any]:
+    fixture_path = fixture_path.resolve()
+    policy_path = policy_path.resolve()
     if arm not in {
         "production", "lexical_only", "full_pool_diagnostic",
         "current", "full-pool", "current-hash", "lexical",
@@ -1139,6 +1271,7 @@ def main() -> int:
             "lexical-baseline", "lexical-ablation", "lexical-requirement-aware",
         ),
     )
+    parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
     parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)
     parser.add_argument("--warmups", type=int, default=WARMUP_RUNS)
@@ -1150,6 +1283,7 @@ def main() -> int:
         result = run_benchmark(
             arm=args.arm,
             pool_size=args.pool_size,
+            fixture_path=args.fixture,
             runs=args.runs,
             warmups=args.warmups,
         )

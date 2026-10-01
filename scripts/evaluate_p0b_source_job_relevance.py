@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ DEFAULT_FIXTURE = REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_source_job_relevance
 DEFAULT_PACKET = REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_source_job_review_packet_v2_human_adjudicated.json"
 DEFAULT_GROUP_MAP = REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_source_job_source_group_map_v2.json"
 DEFAULT_PROJECTION = REPO_ROOT / "data/fitcv-p0-corpus/p0b/candidate_evidence_projection_source_backed_v1.jsonl"
+DEFAULT_EVIDENCE_LINK_REVIEW = REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_source_job_evidence_link_review_v1.csv"
 DEFAULT_POLICY = REPO_ROOT / "config/policy/cv_analysis.yaml"
 DEFAULT_OUTPUT = REPO_ROOT / ".tmp/p0b-v2-relevance-evaluation.json"
 
@@ -237,7 +239,10 @@ def _evaluate_selected(validation: dict[str, Any], selected_by_id: dict[str, boo
             hard_negative_false_positives.append(_pair(requirement_id, gold_grade, 2))
 
         group_id = map_by_id[requirement_id]["source_group_id"]
-        stats = group_stats.setdefault(group_id, {"gold_relevant": 0, "selected_relevant": 0, "selected_total": 0})
+        stats = group_stats.setdefault(
+            group_id,
+            {"gold_relevant": 0, "selected_relevant": 0, "selected_total": 0},
+        )
         stats["gold_relevant"] += int(gold_relevant)
         stats["selected_relevant"] += int(selected and gold_relevant)
         stats["selected_total"] += int(selected)
@@ -246,11 +251,13 @@ def _evaluate_selected(validation: dict[str, Any], selected_by_id: dict[str, boo
     for group_id in sorted(group_stats):
         stats = group_stats[group_id]
         gold_relevant = stats["gold_relevant"]
-        per_group.append({
-            "source_group_id": group_id,
-            **stats,
-            "recall": stats["selected_relevant"] / gold_relevant if gold_relevant else None,
-        })
+        per_group.append(
+            {
+                "source_group_id": group_id,
+                **stats,
+                "recall": stats["selected_relevant"] / gold_relevant if gold_relevant else None,
+            }
+        )
     eligible_groups = [row for row in per_group if row["recall"] is not None]
     selected_recall = true_positive / (true_positive + false_negative) if true_positive + false_negative else 0.0
     minimum_group_recall = min((row["recall"] for row in eligible_groups), default=0.0)
@@ -290,12 +297,22 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _load_evidence_link_review(path: Path) -> list[dict[str, Any]]:
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _split_ids(value: Any) -> set[str]:
+    return {item.strip() for item in str(value or "").split(";") if item.strip()}
+
+
 def evaluate_actual_fitcv(
     fixture: dict[str, Any],
     packet: dict[str, Any],
     group_map: dict[str, Any],
     *,
     projection_path: Path = DEFAULT_PROJECTION,
+    evidence_link_review_path: Path = DEFAULT_EVIDENCE_LINK_REVIEW,
     policy_path: Path = DEFAULT_POLICY,
 ) -> dict[str, Any]:
     validation = validate_inputs(fixture, packet, group_map)
@@ -318,22 +335,106 @@ def evaluate_actual_fitcv(
         "_projected_evidence_pool": projection,
     }
     config = yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
-    selected_by_id: dict[str, bool] = {}
+    report["status"] = "comparable"
+    report["reason"] = "actual FitCV output evaluated using explicit requirement-scoped evidence assignments"
+    rows_by_source: dict[str, list[tuple[str, dict[str, Any]]]] = {}
     for requirement_id, row in validation["fixture_by_id"].items():
-        bundle = retrieve_evidence_bundle(
-            profile,
-            {
-                "responsibilities": [str(row["requirement_text"])],
-                "title": str(row.get("title") or ""),
-                "required_skills": [],
-                "required_skill_entities": [],
-            },
-            top_k=2,
-            config=config,
-        )
-        selected_by_id[requirement_id] = bool(bundle.get("selected_evidence"))
+        source_id = str(row["source_record_id"])
+        rows_by_source.setdefault(source_id, []).append((requirement_id, row))
 
-    report.update(_evaluate_selected(validation, selected_by_id))
+    job_outputs: list[dict[str, Any]] = []
+    for rows in rows_by_source.values():
+        first_row = rows[0][1]
+        requirements = [str(row["requirement_text"]) for _, row in rows]
+        job_context = {
+            "responsibilities": requirements,
+            "responsibility_entities": [
+                {
+                    "source_requirement_id": requirement_id,
+                    "text": str(row["requirement_text"]),
+                }
+                for requirement_id, row in rows
+            ],
+            "title": str(first_row.get("title") or ""),
+            "required_skills": [],
+            "required_skill_entities": [],
+        }
+        bundle = retrieve_evidence_bundle(profile, job_context, top_k=2, config=config)
+        job_outputs.append(
+            {
+                "source_record_id": str(first_row["source_record_id"]),
+                "title": str(first_row.get("title") or ""),
+                "requirement_count": len(rows),
+                "selected_evidence_ids": list(bundle.get("selected_evidence_ids") or []),
+                "selected_evidence_by_requirement": dict(
+                    (bundle.get("requirement_support") or {})
+                    .get("responsibility", {})
+                    .get("selected", {})
+                    or {}
+                ),
+                "retrieved_evidence_ids": list(bundle.get("retrieved_evidence_ids") or []),
+                "selected_evidence_count": int(bundle.get("selected_evidence_count") or 0),
+            }
+        )
+
+    report["job_outputs"] = job_outputs
+    selected_by_source = {
+        output["source_record_id"]: set(output["selected_evidence_ids"])
+        for output in job_outputs
+    }
+    selected_by_requirement = {
+        requirement_id: set(evidence_ids)
+        for output in job_outputs
+        for requirement_id, evidence_ids in output["selected_evidence_by_requirement"].items()
+    }
+    selected_by_id = {
+        requirement_id: bool(selected_by_requirement.get(requirement_id))
+        for requirement_id in validation["fixture_by_id"]
+    }
+    report["actual_metrics"] = _evaluate_selected(validation, selected_by_id)
+    review_rows = _load_evidence_link_review(evidence_link_review_path)
+    review_errors: list[str] = []
+    supported_rows = 0
+    covered_supported_rows = 0
+    accepted_pairs = 0
+    unsupported_selected_rows = 0
+    verdict_counts: dict[str, int] = {}
+    for row in review_rows:
+        requirement_id = str(row.get("requirement_instance_id") or "")
+        source_id = str(row.get("source_record_id") or "")
+        selected_ids = _split_ids(row.get("selected_evidence_ids"))
+        accepted_ids = _split_ids(row.get("accepted_evidence_ids"))
+        assigned_ids = selected_by_requirement.get(requirement_id, set())
+        verdict = str(row.get("support_verdict") or "")
+        verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
+        if requirement_id not in validation["fixture_by_id"]:
+            review_errors.append(f"review_requirement_not_in_fixture:{requirement_id}")
+        if selected_ids != selected_by_source.get(source_id, set()):
+            review_errors.append(f"review_selected_ids_mismatch:{requirement_id}")
+        if not accepted_ids <= selected_ids:
+            review_errors.append(f"review_accepted_ids_not_selected:{requirement_id}")
+        if verdict == "supported":
+            supported_rows += 1
+            covered_supported_rows += int(bool(accepted_ids & assigned_ids))
+        if verdict == "unsupported" and assigned_ids:
+            unsupported_selected_rows += 1
+        accepted_pairs += len(accepted_ids)
+    report["evidence_link_review"] = {
+        "path": str(evidence_link_review_path),
+        "rows": len(review_rows),
+        "support_verdicts": verdict_counts,
+        "accepted_pairs": accepted_pairs,
+        "supported_requirement_recall": (
+            covered_supported_rows / supported_rows if supported_rows else None
+        ),
+        "unsupported_selected_rows": unsupported_selected_rows,
+        "validation_errors": sorted(set(review_errors)),
+        "status": "clean" if not review_errors else "invalid",
+    }
+    report["eligible"] = bool(
+        report["actual_metrics"]["eligible"]
+        and report["evidence_link_review"]["status"] == "clean"
+    )
     return report
 
 
@@ -365,6 +466,7 @@ def main() -> int:
     parser.add_argument("--packet", type=Path, default=DEFAULT_PACKET)
     parser.add_argument("--group-map", type=Path, default=DEFAULT_GROUP_MAP)
     parser.add_argument("--projection", type=Path, default=DEFAULT_PROJECTION)
+    parser.add_argument("--evidence-link-review", type=Path, default=DEFAULT_EVIDENCE_LINK_REVIEW)
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
@@ -378,13 +480,14 @@ def main() -> int:
         packet,
         group_map,
         projection_path=args.projection,
+        evidence_link_review_path=args.evidence_link_review,
         policy_path=args.policy,
     )
     report["actual_fitcv"] = actual_fitcv
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0 if report["validation"]["passed"] else 1
+    return 0 if report["validation"]["passed"] and actual_fitcv.get("eligible") else 1
 
 
 if __name__ == "__main__":

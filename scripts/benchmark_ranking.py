@@ -47,6 +47,12 @@ def _fixture_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        handle.write(json.dumps(payload, indent=2) + "\n")
+
+
 def _fixture_role(data: dict[str, Any]) -> str:
     declared = str(data.get("fixture_role") or "").strip().lower()
     if declared in {"smoke", "source_backed"}:
@@ -114,24 +120,48 @@ def _split_metric_rows(
     retrieval_top_n: int,
     ranking_top_n: int,
     ndcg_top_n: int,
-) -> dict[str, dict[str, float | int]]:
-    metrics: dict[str, dict[str, float | int]] = {}
+) -> dict[str, dict[str, Any]]:
+    ordered_retrieved_ids = list(retrieved_ids) if isinstance(retrieved_ids, list) else sorted(retrieved_ids)
+    metrics: dict[str, dict[str, Any]] = {}
     for split in ("calibration", "held_out"):
         eligible = [row for row in source_rows if row.get("split") == split]
         eligible_by_id = {str(row["candidate_id"]): row for row in eligible}
-        retrieved = [eligible_by_id[item] for item in retrieved_ids if item in eligible_by_id]
-        ranked = [row for row in ranked_rows if row.get("split") == split]
-        ranked_ids = {str(row.get("candidate_id")) for row in ranked[:ranking_top_n]}
+        retrieved = [
+            eligible_by_id.get(
+                item,
+                {"candidate_id": item, "relevance_grade": 0},
+            )
+            for item in ordered_retrieved_ids[:retrieval_top_n]
+        ]
+        ranked = [
+            row if str(row.get("candidate_id")) in eligible_by_id else {"relevance_grade": 0}
+            for row in ranked_rows[:ranking_top_n]
+        ]
+        retrieved_ids_at_cutoff = {
+            item for item in ordered_retrieved_ids[:retrieval_top_n] if item in eligible_by_id
+        }
+        ranked_ids = {
+            str(row.get("candidate_id"))
+            for row in ranked_rows[:ranking_top_n]
+            if str(row.get("candidate_id")) in eligible_by_id
+        }
         metrics[split] = {
             "count": len(eligible),
-            "retrieval_recall_at_n": _recall(retrieved_ids, eligible),
-            "retrieval_precision_at_n": _precision(retrieved_ids, eligible),
-            "retrieval_mrr_at_n": _mrr(retrieved, retrieval_top_n),
-            "retrieval_ndcg_at_n": _ndcg(retrieved, eligible, ndcg_top_n),
-            "ranking_recall_at_n": _recall(ranked_ids, eligible),
-            "ranking_precision_at_n": _precision(ranked_ids, eligible),
-            "ranking_mrr_at_n": _mrr(ranked, ranking_top_n),
-            "ranking_ndcg_at_n": _ndcg(ranked, eligible, ndcg_top_n),
+            "retrieval": {
+                "cutoff": retrieval_top_n,
+                "recall": _recall(retrieved_ids_at_cutoff, eligible),
+                "precision": _precision(retrieved_ids_at_cutoff, eligible),
+                "mrr": _mrr(retrieved, retrieval_top_n),
+                "ndcg": _ndcg(retrieved, eligible, ndcg_top_n),
+            },
+            "ranking": {
+                "cutoff": ranking_top_n,
+                "ndcg_cutoff": ndcg_top_n,
+                "recall": _recall(ranked_ids, eligible),
+                "precision": _precision(ranked_ids, eligible),
+                "mrr": _mrr(ranked, ranking_top_n),
+                "ndcg": _ndcg(ranked, eligible, ndcg_top_n),
+            },
         }
     return metrics
 
@@ -376,6 +406,38 @@ def _manifest_errors(fixture_path: Path, data: dict[str, Any], fixture_sha256: s
     source_path = REPO_ROOT / source_snapshot_path
     if not source_path.is_file() or _fixture_sha256(source_path) != manifest.get("source_snapshot_sha256"):
         errors.append("source_backed:source_snapshot_file_mismatch")
+    for component in manifest.get("source_components", []):
+        if not isinstance(component, dict):
+            errors.append("source_backed:invalid_source_component")
+            continue
+        component_path = REPO_ROOT / str(component.get("path") or "")
+        if not component_path.is_file():
+            errors.append("source_backed:source_component_file_missing")
+        elif component.get("sha256") and _fixture_sha256(component_path) != component["sha256"]:
+            errors.append("source_backed:source_component_sha256_mismatch")
+    for path_key, hash_key, error_prefix in (
+        ("review_packet_path", "review_packet_sha256", "review_packet"),
+        ("score_artifact_path", "score_artifact_sha256", "score_artifact"),
+    ):
+        referenced_path = str(manifest.get(path_key) or "")
+        referenced_file = REPO_ROOT / referenced_path
+        if not referenced_path or not referenced_file.is_file():
+            errors.append(f"source_backed:{error_prefix}_file_missing")
+        elif manifest.get(hash_key) != _fixture_sha256(referenced_file):
+            errors.append(f"source_backed:{error_prefix}_sha256_mismatch")
+    reviewer_artifacts = manifest.get("reviewer_artifacts")
+    if not isinstance(reviewer_artifacts, list) or len(reviewer_artifacts) != 2:
+        errors.append("source_backed:reviewer_artifacts_incomplete")
+    else:
+        for reviewer in reviewer_artifacts:
+            if not isinstance(reviewer, dict):
+                errors.append("source_backed:invalid_reviewer_artifact")
+                continue
+            reviewer_path = REPO_ROOT / str(reviewer.get("path") or "")
+            if not reviewer_path.is_file():
+                errors.append("source_backed:reviewer_artifact_file_missing")
+            elif reviewer.get("sha256") != _fixture_sha256(reviewer_path):
+                errors.append("source_backed:reviewer_artifact_sha256_mismatch")
     profiles = data.get("profiles", {})
     rows = [row for pool in profiles.values() for row in pool.get("candidates", [])]
     if manifest.get("row_count") != len(rows):
@@ -607,8 +669,8 @@ def _run_once(
             language_rows = [row for row in source_rows if str(row.get("language") or profile_id) == language]
             language_ids = {str(row["candidate_id"]) for row in language_rows}
             language_metrics = _split_metric_rows(
-                [candidate_id for candidate_id in retrieved_ids if candidate_id in language_ids],
-                [row for row in ranked_eval if str(row.get("language") or profile_id) == language],
+                retrieved_ids,
+                ranked_eval,
                 language_rows,
                 request["top_n"],
                 ranking_top_n,
@@ -621,14 +683,21 @@ def _run_once(
         language: {
             split: {
                 "count": int(statistics.mean(item["count"] for item in values)),
-                "retrieval_recall_at_n": statistics.mean(item["retrieval_recall_at_n"] for item in values),
-                "retrieval_precision_at_n": statistics.mean(item["retrieval_precision_at_n"] for item in values),
-                "retrieval_mrr_at_n": statistics.mean(item["retrieval_mrr_at_n"] for item in values),
-                "retrieval_ndcg_at_n": statistics.mean(item["retrieval_ndcg_at_n"] for item in values),
-                "ranking_recall_at_n": statistics.mean(item["ranking_recall_at_n"] for item in values),
-                "ranking_precision_at_n": statistics.mean(item["ranking_precision_at_n"] for item in values),
-                "ranking_mrr_at_n": statistics.mean(item["ranking_mrr_at_n"] for item in values),
-                "ranking_ndcg_at_n": statistics.mean(item["ranking_ndcg_at_n"] for item in values),
+                "retrieval": {
+                    "cutoff": values[0]["retrieval"]["cutoff"],
+                    "recall": statistics.mean(item["retrieval"]["recall"] for item in values),
+                    "precision": statistics.mean(item["retrieval"]["precision"] for item in values),
+                    "mrr": statistics.mean(item["retrieval"]["mrr"] for item in values),
+                    "ndcg": statistics.mean(item["retrieval"]["ndcg"] for item in values),
+                },
+                "ranking": {
+                    "cutoff": values[0]["ranking"]["cutoff"],
+                    "ndcg_cutoff": values[0]["ranking"]["ndcg_cutoff"],
+                    "recall": statistics.mean(item["ranking"]["recall"] for item in values),
+                    "precision": statistics.mean(item["ranking"]["precision"] for item in values),
+                    "mrr": statistics.mean(item["ranking"]["mrr"] for item in values),
+                    "ndcg": statistics.mean(item["ranking"]["ndcg"] for item in values),
+                },
             }
             for split, values in splits.items()
         }
@@ -644,14 +713,21 @@ def _run_once(
             "split_metrics": {
                 split: {
                     "count": int(statistics.mean(item["count"] for item in values)),
-                    "retrieval_recall_at_n": statistics.mean(item["retrieval_recall_at_n"] for item in values),
-                    "retrieval_precision_at_n": statistics.mean(item["retrieval_precision_at_n"] for item in values),
-                    "retrieval_mrr_at_n": statistics.mean(item["retrieval_mrr_at_n"] for item in values),
-                    "retrieval_ndcg_at_n": statistics.mean(item["retrieval_ndcg_at_n"] for item in values),
-                    "ranking_recall_at_n": statistics.mean(item["ranking_recall_at_n"] for item in values),
-                    "ranking_precision_at_n": statistics.mean(item["ranking_precision_at_n"] for item in values),
-                    "ranking_mrr_at_n": statistics.mean(item["ranking_mrr_at_n"] for item in values),
-                    "ranking_ndcg_at_n": statistics.mean(item["ranking_ndcg_at_n"] for item in values),
+                    "retrieval": {
+                        "cutoff": values[0]["retrieval"]["cutoff"],
+                        "recall": statistics.mean(item["retrieval"]["recall"] for item in values),
+                        "precision": statistics.mean(item["retrieval"]["precision"] for item in values),
+                        "mrr": statistics.mean(item["retrieval"]["mrr"] for item in values),
+                        "ndcg": statistics.mean(item["retrieval"]["ndcg"] for item in values),
+                    },
+                    "ranking": {
+                        "cutoff": values[0]["ranking"]["cutoff"],
+                        "ndcg_cutoff": values[0]["ranking"]["ndcg_cutoff"],
+                        "recall": statistics.mean(item["ranking"]["recall"] for item in values),
+                        "precision": statistics.mean(item["ranking"]["precision"] for item in values),
+                        "mrr": statistics.mean(item["ranking"]["mrr"] for item in values),
+                        "ndcg": statistics.mean(item["ranking"]["ndcg"] for item in values),
+                    },
                 }
                 for split, values in split_metrics.items()
             },
@@ -728,7 +804,7 @@ def main() -> None:
                 "fixture_role": fixture_role,
                 "score_artifact": str(args.score_artifact),
             }
-            output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+            _write_json(output, result)
             print(json.dumps(result, separators=(",", ":")))
             return
     if fixture_status != "ready":
@@ -744,7 +820,7 @@ def main() -> None:
             "score_artifact": str(args.score_artifact) if args.score_artifact else None,
             "score_artifact_sha256": score_artifact_sha256,
         }
-        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        _write_json(output, result)
         print(json.dumps(result, separators=(",", ":")))
         return
     provenance_errors = []
@@ -764,7 +840,7 @@ def main() -> None:
             "score_artifact": str(args.score_artifact) if args.score_artifact else None,
             "score_artifact_sha256": score_artifact_sha256,
         }
-        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        _write_json(output, result)
         print(json.dumps(result, separators=(",", ":")))
         return
     review_errors = _source_backed_review_errors(profiles) if fixture_role == "source_backed" else []
@@ -781,7 +857,7 @@ def main() -> None:
             "score_artifact": str(args.score_artifact) if args.score_artifact else None,
             "score_artifact_sha256": score_artifact_sha256,
         }
-        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        _write_json(output, result)
         print(json.dumps(result, separators=(",", ":")))
         return
     score_errors = _source_backed_score_errors(profiles) if fixture_role == "source_backed" else []
@@ -798,7 +874,7 @@ def main() -> None:
             "score_artifact": str(args.score_artifact) if args.score_artifact else None,
             "score_artifact_sha256": score_artifact_sha256,
         }
-        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        _write_json(output, result)
         print(json.dumps(result, separators=(",", ":")))
         return
     validation_errors = _validate_evaluation_input(profiles)
@@ -813,7 +889,7 @@ def main() -> None:
             "fixture_sha256": fixture_sha256,
             "fixture_role": fixture_role,
         }
-        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        _write_json(output, result)
         print(json.dumps(result, separators=(",", ":")))
         return
     cache: set[str] = set()
@@ -839,11 +915,14 @@ def main() -> None:
             "fixture_sha256": fixture_sha256,
             "fixture_role": fixture_role,
         }
-        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        _write_json(output, result)
         print(json.dumps(result, separators=(",", ":")))
         return
 
     cache_total = cache_metrics["cache_hits"] + cache_metrics["cache_misses"]
+    held_out_metrics = quality["split_metrics"]["held_out"]
+    retrieval_metrics = held_out_metrics["retrieval"]
+    ranking_metrics = held_out_metrics["ranking"]
     result = {
         "schema_version": "ranking_benchmark_v3",
         "fixture": str(args.fixture),
@@ -868,10 +947,11 @@ def main() -> None:
                 "returned_count": observation["retrieval_returned_count"],
                 "eligible_count": observation["eligible_count"],
                 "coverage": observation["retrieval_returned_count"] / observation["eligible_count"] if observation["eligible_count"] else 0.0,
-                "recall_at_n": quality["split_metrics"]["held_out"]["retrieval_recall_at_n"],
-                "precision_at_n": quality["split_metrics"]["held_out"]["retrieval_precision_at_n"],
-                "mrr_at_n": quality["split_metrics"]["held_out"]["retrieval_mrr_at_n"],
-                "ndcg_at_n": quality["split_metrics"]["held_out"]["retrieval_ndcg_at_n"],
+                "cutoff": retrieval_metrics["cutoff"],
+                f"recall_at_{retrieval_metrics['cutoff']}": retrieval_metrics["recall"],
+                f"precision_at_{retrieval_metrics['cutoff']}": retrieval_metrics["precision"],
+                f"mrr_at_{retrieval_metrics['cutoff']}": retrieval_metrics["mrr"],
+                f"ndcg_at_{ranking_metrics['ndcg_cutoff']}": retrieval_metrics["ndcg"],
             },
             "ranking": {
                 "evaluation_scope": "held_out",
@@ -880,10 +960,11 @@ def main() -> None:
                 "returned_count": observation["ranking_returned_count"],
                 "eligible_count": observation["eligible_count"],
                 "coverage": observation["ranking_returned_count"] / observation["eligible_count"] if observation["eligible_count"] else 0.0,
-                "recall_at_n": quality["split_metrics"]["held_out"]["ranking_recall_at_n"],
-                "precision_at_n": quality["split_metrics"]["held_out"]["ranking_precision_at_n"],
-                "mrr_at_n": quality["split_metrics"]["held_out"]["ranking_mrr_at_n"],
-                "ndcg_at_n": quality["split_metrics"]["held_out"]["ranking_ndcg_at_n"],
+                "cutoff": ranking_metrics["cutoff"],
+                f"recall_at_{ranking_metrics['cutoff']}": ranking_metrics["recall"],
+                f"precision_at_{ranking_metrics['cutoff']}": ranking_metrics["precision"],
+                f"mrr_at_{ranking_metrics['cutoff']}": ranking_metrics["mrr"],
+                f"ndcg_at_{ranking_metrics['ndcg_cutoff']}": ranking_metrics["ndcg"],
                 "split_metrics": quality["split_metrics"],
                 "language_split_metrics": quality["language_split_metrics"],
                 "split_counts": observation["split_counts"],
@@ -901,7 +982,7 @@ def main() -> None:
     }
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    _write_json(output, result)
     print(json.dumps(result, separators=(",", ":")))
 
 

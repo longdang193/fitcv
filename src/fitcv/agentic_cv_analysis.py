@@ -27,6 +27,7 @@ from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
     _assess_requirement_support,
     _build_support_fragments,
+    _descriptor_requirement_ref,
     REQUIREMENT_SUPPORT_POLICY_VERSION,
     build_evidence_projection,
     build_required_skill_descriptors,
@@ -598,10 +599,7 @@ def _build_requirement_coverage(
     resolutions = _resolution_map(requirement_resolutions)
     coverage: list[dict[str, Any]] = []
     for descriptor in descriptors:
-        requirement_id = str(descriptor["requirement_id"])
-        requirement_ref = str(
-            descriptor.get("requirement_instance_id") or requirement_id
-        )
+        requirement_ref = _descriptor_requirement_ref(descriptor)
         selected_ids = list(selected_support.get(requirement_ref) or [])
         pool_ids = list(pool_support.get(requirement_ref) or [])
         if selected_ids:
@@ -765,6 +763,8 @@ def _build_evidence_selection_summary(
             "deduped_pool_size": int(evidence_bundle.get("deduped_pool_size") or 0),
             "selected_evidence_count": len(evidence),
             "selected_evidence_ids": list(evidence_bundle.get("selected_evidence_ids") or []),
+            "canonical_evidence_ids": list(evidence_bundle.get("canonical_evidence_ids") or []),
+            "retrieved_evidence_ids": list(evidence_bundle.get("retrieved_evidence_ids") or []),
             "unselected_top_candidates": list(evidence_bundle.get("unselected_top_candidates") or []),
             "requirement_support": dict(evidence_bundle.get("requirement_support") or {}),
             "selection_policy": dict(evidence_bundle.get("selection_policy") or {}),
@@ -1061,6 +1061,12 @@ def analyze_ranked_job(
                         "selected_evidence_ids": [
                             str(item.get("evidence_id") or "") for item in evidence
                         ],
+                        "canonical_evidence_ids": list(
+                            evidence_selection_summary.get("canonical_evidence_ids") or []
+                        ),
+                        "retrieved_evidence_ids": list(
+                            evidence_selection_summary.get("retrieved_evidence_ids") or []
+                        ),
                         "unselected_top_candidates": list(
                             evidence_selection_summary.get("unselected_top_candidates") or []
                         ),

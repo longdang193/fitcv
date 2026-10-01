@@ -72,6 +72,18 @@ qualified-support recall on the current fixture; promotion remains blocked by
 broader reviewed labels.
 - P0-A ranking reports include `fixture_sha256`; reports without a matching
   fixture hash are stale and must not support a fresh decision.
+- Corrected P0-A v4 artifacts bind fixture, source snapshot, score artifact,
+  review packet, reviewer files, and source-component hashes. Same-environment
+  incumbent v4 is diagnostic only (`p50=46.31 ms`, `p95=75.06 ms`). Multilingual
+  v4 is measured (`p50=150.99 ms`, `p95=293.89 ms`) but fails ranking quality
+  and latency gates. Frozen gate status is `evaluated_not_promoted`; production
+  default remains unchanged.
+- P1-A rendered page-fit proof is verified by native `pandoc`, `xelatex`,
+  `pdfinfo`, and `pdftotext` acceptance checks over compact,
+  education/skills, and long-experience fixtures. P1-B backend journey suites
+  pass. One sanitized local accepted-CV workload measured
+  `accepted_cv_effort_v1` with denominator `1`; production defaults remain
+  unchanged.
 
 ### CV Content Plan and Repair
 

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import copy
 import json
+import subprocess
+import sys
 from pathlib import Path
 
+import scripts.evaluate_p0b_source_job_relevance as evaluator
 from scripts.evaluate_p0b_source_job_relevance import evaluate_documents, evaluate_actual_fitcv
 
 
@@ -61,8 +64,70 @@ def test_actual_fitcv_output_is_evaluated_separately_from_reviewer_arms() -> Non
     report = evaluate_actual_fitcv(fixture, packet, group_map)
 
     assert report["validation"]["passed"] is True
-    assert report["predicted_selected"] == 212
-    assert report["selected_requirement_recall"] == 1.0
-    assert len(report["incorrect_pairs"]) == 2
-    assert len(report["hard_negative_false_positives"]) == 67
+    assert report["status"] == "comparable"
+    assert len(report["job_outputs"]) == 25
+    assert all("selected_evidence_ids" in output for output in report["job_outputs"])
+    actual = report["actual_metrics"]
+    assert actual["selected_requirement_recall"] == 52 / 143
+    assert actual["minimum_source_group_recall"] == 0.0
+    assert actual["gates"]["incorrect_pairs"] is True
+    assert actual["gates"]["hard_negative_false_positives"] is False
+    links = report["evidence_link_review"]
+    assert links["status"] == "clean"
+    assert links["rows"] == 212
+    assert links["accepted_pairs"] == 12
+    assert links["supported_requirement_recall"] == 2 / 3
+    assert links["unsupported_selected_rows"] == 35
     assert report["eligible"] is False
+
+
+def test_actual_fitcv_evaluation_uses_job_level_output(monkeypatch) -> None:
+    fixture, packet, group_map = _documents()
+    calls = []
+
+    def fake_retrieve(profile, job_context, top_k, config):
+        calls.append(job_context)
+        first_requirement_id = job_context["responsibility_entities"][0]["source_requirement_id"]
+        return {
+            "selected_evidence_ids": ["ev-job-output"],
+            "retrieved_evidence_ids": ["ev-job-output", "ev-other"],
+            "selected_evidence_count": 1,
+            "requirement_support": {
+                "responsibility": {
+                    "selected": {first_requirement_id: ["ev-job-output"]},
+                }
+            },
+        }
+
+    monkeypatch.setattr(evaluator, "retrieve_evidence_bundle", fake_retrieve)
+    monkeypatch.setattr(evaluator, "_load_evidence_link_review", lambda path: [])
+    report = evaluator.evaluate_actual_fitcv(fixture, packet, group_map)
+
+    assert report["validation"]["passed"] is True
+    assert len(calls) == len(group_map["source_groups"])
+    assert all(len(call["responsibilities"]) > 1 for call in calls)
+    assert all(
+        len(call["responsibility_entities"]) == len(call["responsibilities"])
+        for call in calls
+    )
+    assert len(report["job_outputs"]) == len(calls)
+    assert report["job_outputs"][0]["selected_evidence_ids"] == ["ev-job-output"]
+    assert len(report["job_outputs"][0]["selected_evidence_by_requirement"]) == 1
+    assert report["status"] == "comparable"
+    assert "selected_requirement_recall" in report["actual_metrics"]
+
+
+def test_actual_fitcv_cli_fails_when_actual_gates_fail(tmp_path) -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/evaluate_p0b_source_job_relevance.py"),
+            "--output",
+            str(tmp_path / "evaluation.json"),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1

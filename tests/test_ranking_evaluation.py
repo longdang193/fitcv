@@ -154,12 +154,12 @@ def test_retrieval_and_ranking_metrics_use_separate_id_sets() -> None:
         {"candidate_id": "c4", "split": "held_out", "relevance_grade": 0},
     ]
 
-    metrics = _split_metric_rows({"c1", "c2", "c3", "c4"}, rows, rows, 2, 2, 2)["held_out"]
+    metrics = _split_metric_rows(["c1", "c3", "c2", "c4"], rows, rows, 2, 2, 2)["held_out"]
 
-    assert metrics["retrieval_recall_at_n"] == 1.0
-    assert metrics["retrieval_precision_at_n"] == 0.5
-    assert metrics["ranking_recall_at_n"] == 0.5
-    assert metrics["ranking_precision_at_n"] == 0.5
+    assert metrics["retrieval"]["recall"] == 0.5
+    assert metrics["retrieval"]["precision"] == 0.5
+    assert metrics["ranking"]["recall"] == 0.5
+    assert metrics["ranking"]["precision"] == 0.5
 
 
 def test_retrieval_mrr_preserves_return_order() -> None:
@@ -170,7 +170,36 @@ def test_retrieval_mrr_preserves_return_order() -> None:
 
     metrics = _split_metric_rows(["bad", "good"], rows, rows, 2, 2, 2)["held_out"]
 
-    assert metrics["retrieval_mrr_at_n"] == 0.5
+    assert metrics["retrieval"]["mrr"] == 0.5
+
+
+def test_split_metrics_preserve_global_rank_after_split_filter() -> None:
+    rows = [
+        {"candidate_id": "cal-1", "split": "calibration", "relevance_grade": 0},
+        {"candidate_id": "hold-1", "split": "held_out", "relevance_grade": 0},
+        {"candidate_id": "cal-2", "split": "calibration", "relevance_grade": 0},
+        {"candidate_id": "hold-2", "split": "held_out", "relevance_grade": 2},
+    ]
+
+    metrics = _split_metric_rows(
+        [row["candidate_id"] for row in rows],
+        rows,
+        rows,
+        4,
+        4,
+        4,
+    )["held_out"]
+
+    assert metrics["retrieval"]["mrr"] == 0.25
+    assert metrics["ranking"]["mrr"] == 0.25
+
+
+def test_benchmark_json_writer_preserves_lf_bytes(tmp_path: Path) -> None:
+    output = tmp_path / "report.json"
+
+    benchmark_ranking._write_json(output, {"message": "line 1\nline 2"})
+
+    assert b"\r\n" not in output.read_bytes()
 
 
 def test_primary_metrics_exclude_borderline_grade() -> None:
@@ -181,8 +210,8 @@ def test_primary_metrics_exclude_borderline_grade() -> None:
 
     metrics = _split_metric_rows(["borderline"], rows, rows, 1, 1, 1)["held_out"]
 
-    assert metrics["retrieval_recall_at_n"] == 0.0
-    assert metrics["retrieval_mrr_at_n"] == 0.0
+    assert metrics["retrieval"]["recall"] == 0.0
+    assert metrics["retrieval"]["mrr"] == 0.0
 
 
 def test_metric_cutoffs_remain_separate() -> None:
@@ -202,8 +231,8 @@ def test_metric_cutoffs_remain_separate() -> None:
         1,
     )["held_out"]
 
-    assert metrics["retrieval_mrr_at_n"] == 0.0
-    assert metrics["ranking_mrr_at_n"] == 0.5
+    assert metrics["retrieval"]["mrr"] == 0.0
+    assert metrics["ranking"]["mrr"] == 0.5
 
 
 def test_evaluation_input_rejects_unassigned_split_and_duplicate_source() -> None:
@@ -517,9 +546,9 @@ def test_run_once_uses_retrieval_ids_for_shortlist_metrics(monkeypatch: Any) -> 
     )
 
     held_out = metrics["split_metrics"]["held_out"]
-    assert held_out["retrieval_recall_at_n"] == 1.0
-    assert held_out["ranking_recall_at_n"] == 0.25
-    assert metrics["language_split_metrics"]["profile"]["held_out"]["ranking_recall_at_n"] == 0.25
+    assert held_out["retrieval"]["recall"] == 1.0
+    assert held_out["ranking"]["recall"] == 0.25
+    assert metrics["language_split_metrics"]["profile"]["held_out"]["ranking"]["recall"] == 0.25
 
 
 def test_manifest_mismatch_blocks_source_backed_run(tmp_path: Path) -> None:
@@ -606,3 +635,60 @@ def test_benchmark_rejects_fixture_awaiting_human_labels(tmp_path: Path, monkeyp
     assert report["status"] == "not_run"
     assert report["reason"] == "fixture_not_ready"
     assert report["fixture_role"] == "source_backed"
+
+
+def test_calibration_loss_diagnostic_does_not_read_held_out_rows(tmp_path: Path, monkeypatch: Any) -> None:
+    from scripts import diagnose_ranking_loss
+
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            {
+                "profiles": {
+                    "profile": {
+                        "profile": {"preferences": {}, "skills": []},
+                        "retrieval_top_n": 2,
+                        "ranking_top_n": 1,
+                        "candidates": [
+                            {
+                                "candidate_id": "cal",
+                                "split": "calibration",
+                                "relevance_grade": 3,
+                                "baseline_fit": 0.2,
+                                "ai_score": 0.2,
+                                "job": {"job_url": "cal-url", "title": "Calibration"},
+                            },
+                            {
+                                "candidate_id": "held",
+                                "split": "held_out",
+                                "relevance_grade": 3,
+                                "baseline_fit": 0.9,
+                                "ai_score": 0.9,
+                                "job": {"job_url": "held-url", "title": "Held out"},
+                            },
+                        ],
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    seen_job_urls: list[str] = []
+
+    def fake_embed(jobs: list[dict[str, Any]], config: dict[str, Any]) -> int:
+        seen_job_urls.extend(str(job["job_url"]) for job in jobs)
+        return 0
+
+    def fake_search(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        assert args[1] == ["cal-url"]
+        return {"production_rows": [{"job_url": "cal-url", "vector_rank": 1}], "diagnostics": {}}
+
+    monkeypatch.setattr(diagnose_ranking_loss, "embed_and_store_jobs", fake_embed)
+    monkeypatch.setattr(diagnose_ranking_loss, "run_vector_search", fake_search)
+
+    report = diagnose_ranking_loss.diagnose_calibration_loss(fixture)
+
+    assert seen_job_urls == ["cal-url"]
+    assert report["scope"] == "calibration_only"
+    assert report["held_out_rows_read"] == 0
+    assert report["profiles"][0]["held_out_rows_read"] == 0

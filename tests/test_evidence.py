@@ -216,6 +216,33 @@ def test_requirement_support_reports_canonical_retrieved_and_selected_layers() -
     assert set(support["selected"]) <= set(support["pool"])
 
 
+def test_requirement_support_annotations_reach_channel_selection() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-a-distractor", ["Java"], "Java"),
+        _cached_evidence_item("ev-z-target", ["Python"], "Python"),
+    )
+    profile["_projected_evidence_pool"][0]["role"] = "Python"
+
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["Python"], "job_title": "Python"},
+        1,
+        config={
+            "cv_analysis": {
+                "semantic_alignment": {"enabled": False, "channel_pool_size": 2},
+                "selection_policy": {
+                    "channel_weights": {channel: 0.0 for channel in evidence_module.RETRIEVAL_CHANNELS},
+                    "multi_channel_bonus": 0.0,
+                    "residual_score_factor": 0.05,
+                    "requirement_gain_weight": 1.0,
+                },
+            }
+        },
+    )
+
+    assert bundle["selected_evidence_ids"] == ["ev-z-target"]
+
+
 def test_semantic_alignment_reports_actual_embedding_backend() -> None:
     profile = _cached_evidence_profile(_cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"))
     bundle = retrieve_evidence_bundle(
@@ -321,6 +348,21 @@ def test_required_skill_descriptors_ignore_incomplete_entity_rows() -> None:
     ]
 
 
+def test_required_skill_descriptors_keep_same_text_source_ids_distinct() -> None:
+    descriptors = build_required_skill_descriptors(
+        {
+            "required_skill_entities": [
+                {"raw_text": "Python", "canonical": "python", "source_requirement_id": "req-1"},
+                {"raw_text": "Python", "canonical": "python", "source_requirement_id": "req-2"},
+            ]
+        }
+    )
+
+    assert [item["source_requirement_id"] for item in descriptors] == ["req-1", "req-2"]
+    assert {item["requirement_id"] for item in descriptors} == {"required_skill:python"}
+    assert len({item["requirement_instance_id"] for item in descriptors}) == 2
+
+
 @pytest.mark.parametrize(
     ("requirement", "expected_skill", "expected_qualifiers"),
     [
@@ -417,6 +459,30 @@ def test_requirement_support_binds_qualifiers_to_one_structured_bullet() -> None
 
     assert assessment["canonical_match"] is True
     assert assessment["qualified_support"] is False
+
+
+def test_explicit_source_requirement_id_survives_support_annotation() -> None:
+    descriptors = build_required_skill_descriptors(
+        {
+            "required_skills": ["Marketing background"],
+            "required_skill_entities": [
+                {
+                    "raw_text": "Marketing background",
+                    "canonical": "marketing",
+                    "source_requirement_id": "req-1",
+                }
+            ],
+        }
+    )
+    assert descriptors[0]["source_requirement_id"] == "req-1"
+    assert evidence_module._descriptor_requirement_ref(descriptors[0]) == "req-1"
+
+    item = _cached_evidence_item("ev-marketing", ["marketing"], "Marketing background")
+    annotated = evidence_module._annotate_requirement_support(
+        [item], descriptors, None
+    )[0]
+
+    assert annotated["supported_requirement_ids"] == ["req-1"]
 
 
 def test_canonical_projection_keeps_parent_metadata_out_of_qualifier_proof() -> None:
@@ -647,7 +713,7 @@ def test_requirement_gain_preserves_global_budget_and_weight_zero_matches_baseli
     assert "ev-b-python" in treatment["selected_evidence_ids"]
     assert treatment["selection_policy"]["requirement_gain_weight"] == 0.10
 
-def test_uniform_projection_keeps_equal_cross_section_evidence_tied_by_id() -> None:
+def test_uniform_projection_does_not_select_equal_cross_section_filler() -> None:
     profile = _v2_profile()
     document_id = profile["source_documents"][0]["id"]
     source_refs = [{"document_id": document_id}]
@@ -678,8 +744,7 @@ def test_uniform_projection_keeps_equal_cross_section_evidence_tied_by_id() -> N
 
     bundle = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, 2)
 
-    assert [item["evidence_id"] for item in bundle["selected_evidence"]] == ["ev_a", "ev_b"]
-    assert bundle["selected_evidence"][0]["channel_scores"] == bundle["selected_evidence"][1]["channel_scores"]
+    assert [item["evidence_id"] for item in bundle["selected_evidence"]] == ["ev_a"]
 
 
 # ── schema and ordering ───────────────────────────────────────────────────────
@@ -1081,6 +1146,60 @@ def test_retrieve_evidence_bundle_returns_bounded_final_top_k_with_selection_rea
         assert item["selection_score"] >= 0.0
 
 
+def test_retrieve_evidence_bundle_does_not_fill_top_k_without_marginal_gain() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-sql-a", ["SQL"], "SQL reporting"),
+        _cached_evidence_item("ev-sql-b", ["SQL"], "SQL reporting"),
+    )
+
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["SQL"]},
+        top_k=2,
+        config={
+            "cv_analysis": {
+                "semantic_alignment": {"enabled": False, "channel_pool_size": 2},
+                "selection_policy": {
+                    "channel_weights": {channel: 1.0 if channel == "required_skill_support" else 0.0 for channel in evidence_module.RETRIEVAL_CHANNELS},
+                    "multi_channel_bonus": 0.0,
+                    "residual_score_factor": 0.0,
+                    "requirement_gain_weight": 0.0,
+                },
+            }
+        },
+    )
+
+    assert bundle["selected_evidence_ids"] == ["ev-sql-a"]
+
+
+def test_retrieve_evidence_bundle_emits_responsibility_scoped_selected_support() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-sql", ["SQL"], "Built SQL pipelines"),
+        _cached_evidence_item("ev-dashboard", ["dashboarding"], "Created dashboards"),
+    )
+
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {
+            "responsibilities": ["Build SQL pipelines", "Create dashboards"],
+            "responsibility_entities": [
+                {"source_requirement_id": "req-sql", "text": "Build SQL pipelines"},
+                {"source_requirement_id": "req-dashboard", "text": "Create dashboards"},
+            ],
+        },
+        top_k=2,
+        config={
+            "cv_analysis": {
+                "semantic_alignment": {"enabled": False, "channel_pool_size": 2},
+            }
+        },
+    )
+
+    selected = bundle["requirement_support"]["responsibility"]["selected"]
+    assert selected["req-sql"] == ["ev-sql"]
+    assert "req-dashboard" not in selected
+
+
 def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matches(monkeypatch) -> None:
     profile = {
         "preferences": {
@@ -1457,11 +1576,11 @@ def test_retrieve_evidence_bundle_uses_global_relevance_without_section_reservat
     selected = bundle["selected_evidence"]
 
     assert selected[0]["parent_id"] == "exp_1"
-    assert len(selected) == 2
+    assert len(selected) == 1
     assert all(item["schema_version"] == "candidate-evidence.v1" for item in selected)
-    assert bundle["selected_evidence_count"] == 2
+    assert bundle["selected_evidence_count"] == 1
     assert len(bundle["unselected_top_candidates"]) >= 1
-    assert bundle["unselected_top_candidates"][0]["source_ref"].startswith("projects/proj_1/")
+    assert bundle["unselected_top_candidates"][0]["source_ref"].startswith("experiences/exp_2/")
 
 
 def test_retrieve_evidence_bundle_contract_is_deterministic_across_repeated_runs() -> None:

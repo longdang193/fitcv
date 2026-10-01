@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from fitcv.candidate import validate_candidate_profile_v2
+from scripts.build_p0b_holdout_benchmark_fixture import build_fixture, load_json, load_raw_jobs
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -143,6 +145,88 @@ def test_fixture_validation_rejects_shared_scenario_inputs() -> None:
 
     with pytest.raises(ValueError, match="profile_ref values must be unique"):
         module._validate_fixture(fixture)
+
+
+def test_fixture_validation_rejects_invalid_runtime_requirement_mappings() -> None:
+    module = _benchmark_module()
+    packet = load_json(REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_holdout_170_human_accepted_v1.json")
+    profile = yaml.safe_load(
+        (REPO_ROOT / "data/candidate_profile.private.final.2026-09-27-reviewed-updated.yaml").read_text(encoding="utf-8")
+    )
+    jobs = load_raw_jobs(REPO_ROOT / "data/linkedin-2026-09-29-16-10-19.json")
+    fixture = build_fixture(packet, profile, jobs)
+    fixture["fixture_schema_version"] = "p0b.requirement_support.source_backed.v2"
+    rows = [row for case_rows in fixture["acceptance_rows"].values() for row in case_rows]
+
+    rows[0].pop("runtime_descriptor_ref")
+    rows[1]["mapping_source"] = "requirement_text"
+    rows[1]["runtime_descriptor_ref"] = rows[0].get("runtime_descriptor_ref", "required_skill:missing")
+    rows[1]["runtime_requirement_instance_id"] = rows[0]["runtime_requirement_instance_id"]
+
+    with pytest.raises(ValueError, match="runtime_descriptor_ref_missing|mapping_source_invalid|duplicate_runtime_mapping"):
+        module._validate_fixture(fixture)
+
+
+def test_cli_accepts_explicit_fixture_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module = _benchmark_module()
+    output = tmp_path / "benchmark.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "benchmark_requirement_support.py",
+            "--fixture",
+            str(FIXTURE_PATH),
+            "--arm",
+            "lexical_only",
+            "--warmups",
+            "0",
+            "--runs",
+            "1",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert module.main() == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["fixture"] == str(FIXTURE_PATH.relative_to(REPO_ROOT))
+    assert report["benchmark_metadata"]["warmup_runs"] == 0
+    assert report["benchmark_metadata"]["measured_runs"] == 1
+
+
+def test_benchmark_accepts_relative_fixture_path() -> None:
+    module = _benchmark_module()
+    result = module.run_benchmark(
+        arm="lexical_only",
+        fixture_path=Path("tests/fixtures/requirement_support_benchmark.json"),
+        runs=1,
+        warmups=0,
+    )
+
+    assert result["fixture"].replace("\\", "/") == "tests/fixtures/requirement_support_benchmark.json"
+
+
+def test_accepted_evidence_link_metrics_measure_ids_without_skill_assignment() -> None:
+    module = _benchmark_module()
+    metrics = module._support_metrics(
+        {
+            "canonical_evidence_ids": ["ev-accepted"],
+            "retrieved_evidence_ids": ["ev-accepted"],
+            "selected_evidence_ids": ["ev-accepted"],
+            "requirement_support": {
+                "canonical": {},
+                "pool": {},
+                "selected": {},
+            },
+        },
+        {"req-1": ["ev-accepted"]},
+        measurement_mode="accepted_evidence_links",
+    )
+
+    assert metrics["measurement_mode"] == "accepted_evidence_links"
+    assert metrics["requirement_recall"]["selected"] == 1.0
+    assert metrics["evidence_pair_recall"]["selected"] == 1.0
+    assert metrics["runtime_support"]["requirement_recall"]["selected"] == "not_applicable"
 
 
 def test_benchmark_executes_each_scenario_once_per_run() -> None:

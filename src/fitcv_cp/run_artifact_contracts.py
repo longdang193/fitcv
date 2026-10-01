@@ -30,6 +30,18 @@ RUN_ATTEMPT_SCHEMA_VERSION = "run_attempt.v1"
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
 
+def _parse_timestamp(value: Any) -> datetime.datetime | None:
+    if isinstance(value, datetime.datetime):
+        return value if value.tzinfo else value.replace(tzinfo=datetime.timezone.utc)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.timezone.utc)
+
+
 def build_accepted_cv_effort_projection(
     records: list[dict[str, Any]],
     actions: list[dict[str, Any]],
@@ -73,6 +85,21 @@ def build_accepted_cv_effort_projection(
         record = records_by_job.get(job_url, {})
         efficiency = dict(dict(record.get("cv_generation_trace") or {}).get("efficiency_summary") or {})
         related_actions = [item for item in deduplicated_actions if str(item.get("job_url") or "").strip() == job_url]
+        start = None
+        for key in ("run_started_at", "started_at", "created_at"):
+            start = _parse_timestamp(record.get(key))
+            if start is not None:
+                break
+        end = None
+        for key in ("artifact_finalized_at", "finalized_at", "created_at"):
+            end = _parse_timestamp(action.get(key))
+            if end is not None:
+                break
+        elapsed_ms = None
+        elapsed_status = "not_run"
+        if start is not None and end is not None and end >= start:
+            elapsed_ms = (end - start).total_seconds() * 1000
+            elapsed_status = "measured"
         projected.append(
             {
                 "job_url": job_url,
@@ -87,8 +114,8 @@ def build_accepted_cv_effort_projection(
                 "human_action_count": len(related_actions),
                 "token_usage": efficiency.get("token_usage"),
                 "token_usage_status": str(efficiency.get("token_usage_status") or "not_run"),
-                "elapsed_ms": None,
-                "elapsed_status": "not_run",
+                "elapsed_ms": elapsed_ms,
+                "elapsed_status": elapsed_status,
             }
         )
     return {

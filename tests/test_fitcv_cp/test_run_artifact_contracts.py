@@ -144,6 +144,27 @@ def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     assert result["records"][0]["human_action_count"] == 1
     assert result["records"][0]["elapsed_status"] == "not_run"
 
+
+def test_accepted_cv_effort_projection_measures_existing_run_to_artifact_timestamps() -> None:
+    record = {
+        "job_url": "job-1",
+        "started_at": "2026-09-29T00:00:00Z",
+        "cv_generation_trace": {"efficiency_summary": {"provider_call_count": 1}},
+    }
+    action = {
+        "job_url": "job-1",
+        "action": "approve_as_is",
+        "created_at": "2026-09-29T00:00:01Z",
+        "artifact_finalized": True,
+        "artifact_version_id": "cv-v1",
+    }
+
+    result = build_accepted_cv_effort_projection([record], [action])
+
+    assert result["status"] == "measured"
+    assert result["records"][0]["elapsed_ms"] == 1000.0
+    assert result["records"][0]["elapsed_status"] == "measured"
+
 def test_run_attempt_payload_v1_truncates_error_details_when_over_cap() -> None:
     payload = run_attempt_payload_v1(
         attempt_id="a1",

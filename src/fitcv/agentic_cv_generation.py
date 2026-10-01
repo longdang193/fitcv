@@ -35,6 +35,7 @@ from fitcv.agentic_cv_analysis import (
     extract_job_title,
     extract_job_url,
 )
+from fitcv.evidence import _descriptor_requirement_ref
 from fitcv.candidate_name_policy import is_candidate_name_placeholder, resolved_candidate_profile_name
 from fitcv.config import (
     get_cv_acceptance_policy,
@@ -161,7 +162,7 @@ def build_cv_content_plan(
     for row in coverage:
         if str(row.get("selected_support") or "").strip().lower() != "verified":
             continue
-        requirement_ref = str(row.get("requirement_instance_id") or row.get("requirement_id") or "").strip()
+        requirement_ref = _descriptor_requirement_ref(row)
         requirement_group = str(
             row.get("requirement") or row.get("canonical_skill") or row.get("requirement_id") or ""
         ).strip().casefold()

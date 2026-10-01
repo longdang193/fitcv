@@ -455,7 +455,12 @@ def _requirement_instance_id(
 
 
 def _descriptor_requirement_ref(descriptor: dict[str, Any]) -> str:
-    return str(descriptor.get("requirement_instance_id") or descriptor.get("requirement_id") or "")
+    return str(
+        descriptor.get("source_requirement_id")
+        or descriptor.get("requirement_instance_id")
+        or descriptor.get("requirement_id")
+        or ""
+    )
 
 
 def build_required_skill_descriptors(
@@ -472,7 +477,7 @@ def build_required_skill_descriptors(
         for value in list(job_context.get("required_skills_canonical") or [])
         if str(value).strip()
     ]
-    pairs: list[tuple[str, str]] = []
+    pairs: list[tuple[str, str, str]] = []
     if entities:
         pairs = [
             (
@@ -488,6 +493,7 @@ def build_required_skill_descriptors(
                     ).strip(),
                     config,
                 ),
+                str(entity.get("source_requirement_id") or "").strip(),
             )
             for entity in entities
             if str(entity.get("raw_text") or entity.get("canonical") or "").strip()
@@ -500,30 +506,39 @@ def build_required_skill_descriptors(
                     _strip_requirement_qualifiers(raw_skill) or raw_skill,
                     config,
                 ),
+                "",
             )
             for raw_skill in raw_skills
         ]
     else:
         pairs = [
-            (canonical, canonicalize_skill(canonical, config))
+            (canonical, canonicalize_skill(canonical, config), "")
             for canonical in canonical_skills
         ]
 
-    prepared: list[tuple[str, str, dict[str, Any]]] = []
-    for original, canonical in pairs:
+    prepared: list[tuple[str, str, dict[str, Any], str]] = []
+    for original, canonical, source_requirement_id in pairs:
         canonical_skill = canonicalize_skill(canonical or original, config)
         if not canonical_skill:
             continue
         requirement = original or canonical_skill
-        prepared.append((requirement, canonical_skill, _parse_requirement_qualifiers(requirement)))
+        prepared.append(
+            (
+                requirement,
+                canonical_skill,
+                _parse_requirement_qualifiers(requirement),
+                source_requirement_id,
+            )
+        )
 
-    grouped: dict[tuple[str, str, str], dict[str, Any]] = {}
-    group_order: list[tuple[str, str, str]] = []
-    for requirement, canonical_skill, qualifiers in prepared:
+    grouped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    group_order: list[tuple[str, str, str, str]] = []
+    for requirement, canonical_skill, qualifiers, source_requirement_id in prepared:
         key = (
             canonical_skill,
             _normalize_optional_text(requirement).casefold(),
             _stable_json_fingerprint(qualifiers),
+            source_requirement_id,
         )
         group = grouped.setdefault(
             key,
@@ -531,6 +546,7 @@ def build_required_skill_descriptors(
                 "requirement": requirement,
                 "canonical_skill": canonical_skill,
                 "qualifiers": qualifiers,
+                "source_requirement_id": source_requirement_id,
                 "original_requirements": [],
             },
         )
@@ -559,6 +575,8 @@ def build_required_skill_descriptors(
             "requirement_type": "required_skill",
             "requirement_priority": "must_have",
         }
+        if group["source_requirement_id"]:
+            descriptor["source_requirement_id"] = str(group["source_requirement_id"])
         if qualifiers:
             descriptor["qualifiers"] = qualifiers
         instance_id = _requirement_instance_id(
@@ -780,7 +798,7 @@ def build_cv_analysis_input_fingerprint(
             }
             for descriptor in sorted(
                 requirement_descriptors,
-                key=lambda item: str(item.get("requirement_instance_id") or item.get("requirement_id") or ""),
+                key=_descriptor_requirement_ref,
             )
         ],
     }
@@ -981,6 +999,11 @@ def _coerce_job_context(job_context: dict[str, Any] | list[str]) -> dict[str, An
         "required_skills": required_skills,
         "required_skills_canonical": required_skills,
         "required_skill_entities": list(job_context.get("required_skill_entities") or []),
+        "responsibility_entities": [
+            dict(entity)
+            for entity in list(job_context.get("responsibility_entities") or [])
+            if isinstance(entity, dict)
+        ],
         "preferred_skills": preferred_skills,
         "responsibilities": responsibilities,
     }
@@ -2295,6 +2318,34 @@ def _requirement_support_map(
     return {key: list(dict.fromkeys(value)) for key, value in support.items()}
 
 
+def _responsibility_support_map(
+    items: list[dict[str, Any]],
+    entities: list[dict[str, Any]],
+) -> dict[str, list[str]]:
+    support: dict[str, list[str]] = {}
+    for entity in entities:
+        requirement_id = str(
+            entity.get("source_requirement_id")
+            or entity.get("requirement_instance_id")
+            or entity.get("id")
+            or ""
+        ).strip()
+        requirement_text = str(
+            entity.get("text")
+            or entity.get("requirement_text")
+            or entity.get("raw_text")
+            or ""
+        ).strip()
+        if not requirement_id or not requirement_text:
+            continue
+        requirement_context = {"responsibilities": [requirement_text]}
+        for item in items:
+            evidence_id = str(item.get("evidence_id") or "").strip()
+            if evidence_id and _score_responsibility_alignment_lexical(item, requirement_context) > 0.0:
+                support.setdefault(requirement_id, []).append(evidence_id)
+    return {key: list(dict.fromkeys(value)) for key, value in support.items()}
+
+
 def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> float:
     channel_weights = dict(policy.get("channel_weights") or {})
     channel_scores = dict(item.get("channel_scores") or {})
@@ -2400,21 +2451,27 @@ def _select_final_evidence(
     covered_requirement_ids: set[str] = set()
     remaining = list(merged_pool)
     while remaining and len(selected) < top_k:
-        ranked: list[tuple[float, str, int]] = []
+        ranked: list[tuple[float, float, str, int]] = []
         for index, item in enumerate(remaining):
+            coverage_gain = _coverage_gain(
+                item,
+                covered_channel_scores,
+                covered_requirement_ids,
+                policy=policy,
+            )
             dynamic_score = (
-                _coverage_gain(
-                    item,
-                    covered_channel_scores,
-                    covered_requirement_ids,
-                    policy=policy,
-                )
+                coverage_gain
                 + (_base_selection_score(item, policy=policy) * float(policy.get("residual_score_factor", 0.0)))
             )
-            ranked.append((dynamic_score, str(item.get("evidence_id") or ""), index))
+            ranked.append((dynamic_score, coverage_gain, str(item.get("evidence_id") or ""), index))
         if not ranked:
             break
-        best_score, _, best_index = min(ranked, key=lambda value: (-value[0], value[1]))
+        best_score, best_coverage_gain, _, best_index = min(
+            ranked,
+            key=lambda value: (-value[0], -value[1], value[2]),
+        )
+        if best_coverage_gain <= 0.0:
+            break
         chosen = dict(remaining.pop(best_index))
         channel_scores = dict(chosen.get("channel_scores") or {})
         for channel in RETRIEVAL_CHANNELS:
@@ -2503,6 +2560,7 @@ def _build_retrieve_evidence_bundle_payload(
     unselected_top_candidates: list[dict[str, Any]],
     source_profile_schema_version: str,
     projection_fingerprint: str,
+    responsibility_support: dict[str, dict[str, list[str]]] | None = None,
 ) -> dict[str, Any]:
     required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
         semantic_settings,
@@ -2536,6 +2594,8 @@ def _build_retrieve_evidence_bundle_payload(
         "projection_fingerprint": projection_fingerprint,
         "selected_evidence": selected_evidence,
         "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in selected_evidence],
+        "canonical_evidence_ids": [str(item.get("evidence_id") or "") for item in canonical_items],
+        "retrieved_evidence_ids": [str(item.get("evidence_id") or "") for item in merged_pool],
         "channel_counts": {
             channel: len(channel_pools.get(channel, []))
             for channel in RETRIEVAL_CHANNELS
@@ -2554,6 +2614,7 @@ def _build_retrieve_evidence_bundle_payload(
                 "pool": pool_qualified_support,
                 "selected": selected_qualified_support,
             },
+            "responsibility": dict(responsibility_support or {}),
         },
         "hybrid_alignment": {
             "required_skill_support": {
@@ -2597,12 +2658,12 @@ def retrieve_evidence_bundle(
     base_items = copy.deepcopy(list(resolved_projection.get("items") or []))
     source_profile_schema_version = str(profile.get("schema_version") or "candidate-profile.v1")
     projection_fingerprint = str(resolved_projection.get("fingerprint") or "")
-    canonical_items = copy.deepcopy(base_items)
     _annotate_requirement_support(
-        canonical_items,
+        base_items,
         list(coerced_job_context.get("requirement_descriptors") or []),
         config,
     )
+    canonical_items = copy.deepcopy(base_items)
     selection_policy = _cv_analysis_policy_settings(config)
     semantic_settings = _semantic_alignment_settings(config)
     runtime_state = _semantic_runtime_state()
@@ -2626,6 +2687,12 @@ def retrieve_evidence_bundle(
     selection_result = selection_engine.run(channel_pools)
     merged_pool = list(selection_result["merged_pool"])
     selected_evidence = list(selection_result["selected_evidence"])
+    responsibility_entities = list(coerced_job_context.get("responsibility_entities") or [])
+    responsibility_support = {
+        "canonical": _responsibility_support_map(canonical_items, responsibility_entities),
+        "pool": _responsibility_support_map(merged_pool, responsibility_entities),
+        "selected": _responsibility_support_map(selected_evidence, responsibility_entities),
+    }
     semantic_alignment = {
         "enabled": bool(semantic_settings["enabled"]),
         "semantic_methods": _semantic_methods(bool(semantic_settings["enabled"])),
@@ -2658,6 +2725,7 @@ def retrieve_evidence_bundle(
         unselected_top_candidates=list(selection_result["unselected_top_candidates"]),
         source_profile_schema_version=source_profile_schema_version,
         projection_fingerprint=projection_fingerprint,
+        responsibility_support=responsibility_support,
     )
 
 
