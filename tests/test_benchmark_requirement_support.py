@@ -379,6 +379,41 @@ def test_support_metrics_mark_non_linking_arm_precision_not_applicable() -> None
     assert metrics["assignment_precision"] == "not_applicable"
 
 
+def test_calibration_loss_decomposition_is_disjoint_and_exhaustive() -> None:
+    module = _benchmark_module()
+    result = module._calibration_loss_decomposition(
+        {("required_skill:sql", "ev-1"), ("required_skill:sql", "ev-2")},
+        {
+            "canonical": {("required_skill:sql", "ev-1"), ("required_skill:sql", "ev-2")},
+            "retrieved": {
+                ("required_skill:sql", "ev-1"),
+                ("required_skill:sql", "ev-2"),
+                ("required_skill:sql", "ev-3"),
+            },
+            "selected": {("required_skill:sql", "ev-1"), ("required_skill:sql", "ev-3")},
+        },
+    )
+
+    assert result["counts"]["selection_loss"] == 1
+    assert result["counts"]["false_verified_pair"] == 1
+    assert result["unclassified"] == 0
+    assert result["conservation"] == {
+        "expected_error_pairs": 2,
+        "classified_pairs": 2,
+        "unclassified_pairs": 0,
+    }
+    assert result["dominant_loss"] == "false_verified_pair"
+
+
+def test_calibration_loss_decomposition_rejects_missing_stage() -> None:
+    module = _benchmark_module()
+    with pytest.raises(ValueError, match="calibration_stage_missing"):
+        module._calibration_loss_decomposition(
+            {("required_skill:sql", "ev-1")},
+            {"canonical": set(), "selected": set()},
+        )
+
+
 def test_benchmark_arm_configs_keep_comparison_questions_separate() -> None:
     module = _benchmark_module()
     base = {"cv_analysis": {"selection_policy": {"requirement_gain_weight": 0.10}}}

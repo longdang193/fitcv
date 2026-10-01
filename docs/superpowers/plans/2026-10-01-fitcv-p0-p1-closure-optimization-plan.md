@@ -108,8 +108,8 @@ P1-A keeps current render fixtures and shell consistency. P1-B preserves `accept
 - Branch: `main`
 - Base commit: `525216b49afdca80ad15e3a6da57f1633cb9e7c0`
 - Expected workspace: `main` with protected untracked files preserved and unstaged
-- Next action: `Task 5 — repair exhaustive and disjoint calibration accounting`
-- Blockers: Task 4 oracle is human-accepted, structurally complete at `549/549`, and has `0` unjudged pairs; P0-B remains blocked by measured `7` pair false positives and `0.052132701421800945` support recall against threshold `1.0`
+- Next action: `Task 8 — run one final protected corrected P0-B acceptance evaluation`
+- Blockers: no production calibration loss is measurable; P0-B remains blocked by its final protected evaluation gates if they fail. Task 7 ships no optimization because production/full-pool calibration loss is zero.
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -117,9 +117,9 @@ P1-A keeps current render fixtures and shell consistency. P1-B preserves `accept
 | Task 2 | `completed` | current | `normal` | Task 1 | mandatory-constraint regressions | `src/fitcv/evidence.py`, `tests/test_evidence.py`, `117 passed` |
 | Task 3 | `completed` | current | `normal` | Task 2 | evaluator fail-closed tests | `scripts/evaluate_p0b_source_job_relevance.py`, `tests/test_p0b_source_job_relevance_evaluator.py`, `7 passed, 4 skipped` |
 | Task 4 | `completed` | current | `normal` | Task 3 | full-pool oracle fixture | human-accepted oracle validated (`549/549`); `211` supported, `338` unsupported, `0` unjudged |
-| Task 5 | `pending` | current | `normal` | Task 4 | disjoint/exhaustive calibration | pending |
-| Task 6 | `pending` | current | `normal` | Task 5 | clean-checkout CI | pending |
-| Task 7 | `pending` | current | `normal` | Task 5, Task 6 | measured optimization baseline | pending |
+| Task 5 | `completed` | current | `normal` | Task 4 | disjoint/exhaustive calibration | conservation and disjointness checks pass; production/full-pool dominant loss is `none` |
+| Task 6 | `completed` | current | `normal` | Task 5 | clean-checkout CI | clean worktree suite passes (`57 passed`) with no private inputs |
+| Task 7 | `completed` | current | `normal` | Task 5, Task 6 | measured optimization baseline | no optimization shipped; production/full-pool loss is zero; lexical-only diagnostic has one selection loss |
 | Task 8 | `pending` | current | `normal` | Task 7 | one protected acceptance run | pending |
 | Task 9 | `pending` | current | `normal` | Task 8 | P0/P1 bounded evidence and final verification | pending |
 

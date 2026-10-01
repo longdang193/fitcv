@@ -42,6 +42,15 @@ EXPECTED_SUPPORT_PAIRS = {
     ("required_skill:sql", "ev-a-sql"),
     ("required_skill:python", "ev-b-python"),
 }
+CALIBRATION_BUCKETS = (
+    "not_in_canonical_pool",
+    "retrieval_loss",
+    "false_verified_pair",
+    "selection_loss",
+    "assignment_loss",
+    "qualifier_failure",
+    "unjudged",
+)
 
 
 def _item(evidence_id: str, skills: list[str], text: str) -> dict[str, object]:
@@ -744,14 +753,11 @@ def _calibration_loss_decomposition(
     expected_pairs: set[tuple[str, str]],
     stage_pairs: dict[str, set[tuple[str, str]]],
 ) -> dict[str, Any]:
-    bucket_names = (
-        "not_in_canonical_pool",
-        "retrieval_loss",
-        "false_verified_pair",
-        "selection_loss",
-        "assignment_loss",
-        "qualifier_failure",
-    )
+    required_stages = {"canonical", "retrieved", "selected"}
+    missing_stages = required_stages - set(stage_pairs)
+    if missing_stages:
+        raise ValueError(f"calibration_stage_missing:{','.join(sorted(missing_stages))}")
+    bucket_names = CALIBRATION_BUCKETS
     buckets = {name: [] for name in bucket_names}
     for pair in sorted(expected_pairs - stage_pairs["selected"]):
         if pair not in stage_pairs["canonical"]:
@@ -768,11 +774,33 @@ def _calibration_loss_decomposition(
             else "assignment_loss"
         )
         buckets[bucket].append(list(pair))
+    classified_pairs = {
+        tuple(pair)
+        for values in buckets.values()
+        for pair in values
+    }
+    expected_error_pairs = (expected_pairs - stage_pairs["selected"]) | (
+        stage_pairs["selected"] - expected_pairs
+    )
+    if len(classified_pairs) != sum(len(values) for values in buckets.values()):
+        raise ValueError("calibration_pairs_not_disjoint")
+    if classified_pairs != expected_error_pairs:
+        raise ValueError("calibration_pairs_not_exhaustive")
     counts = {name: len(values) for name, values in buckets.items()}
+    dominant_loss = next(
+        (name for name in bucket_names if counts[name] == max(counts.values()) and counts[name]),
+        "none",
+    )
     return {
         "counts": counts,
         "total_errors": sum(counts.values()),
         "unclassified": 0,
+        "dominant_loss": dominant_loss,
+        "conservation": {
+            "expected_error_pairs": len(expected_error_pairs),
+            "classified_pairs": len(classified_pairs),
+            "unclassified_pairs": 0,
+        },
         "pairs": buckets,
         "by_requirement_type": {
             requirement_type: sum(
@@ -791,6 +819,44 @@ def _calibration_loss_decomposition(
                 }
             )
         },
+    }
+
+
+def _aggregate_calibration_loss_buckets(
+    scenario_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    counts = {
+        name: sum(
+            int(
+                result["metrics"]
+                .get("calibration_loss_buckets", {})
+                .get("counts", {})
+                .get(name, 0)
+            )
+            for result in scenario_results
+        )
+        for name in CALIBRATION_BUCKETS
+    }
+    total_errors = sum(counts.values())
+    dominant_loss = next(
+        (name for name in CALIBRATION_BUCKETS if counts[name] == max(counts.values()) and counts[name]),
+        "none",
+    )
+    unclassified = sum(
+        int(result["metrics"].get("calibration_loss_buckets", {}).get("unclassified", 0))
+        for result in scenario_results
+    )
+    return {
+        "counts": counts,
+        "total_errors": total_errors,
+        "unclassified": unclassified,
+        "dominant_loss": dominant_loss,
+        "conservation": {
+            "expected_error_pairs": total_errors,
+            "classified_pairs": total_errors - unclassified,
+            "unclassified_pairs": unclassified,
+        },
+        "scenario_count": len(scenario_results),
     }
 
 
@@ -1101,6 +1167,7 @@ def _aggregate_scenario_metrics(scenario_results: list[dict[str, Any]]) -> dict[
         "canonical_coverage": sum(result["metrics"]["canonical_coverage"] for result in scenario_results),
         "retrieved_coverage": sum(result["metrics"]["retrieved_coverage"] for result in scenario_results),
         "selected_coverage": sum(result["metrics"]["selected_coverage"] for result in scenario_results),
+        "calibration_loss_buckets": _aggregate_calibration_loss_buckets(scenario_results),
         "incorrect_pairs": [
             [result["scenario_id"], *pair]
             for result in scenario_results
