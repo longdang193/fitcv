@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from scripts.verify_fitcv_acceptance import build_acceptance_report, format_acceptance_summary
+from scripts.benchmark_cv_efficiency import material_report_digest
+from scripts.verify_fitcv_acceptance import (
+    _run_runtime_efficiency_evidence_check,
+    build_acceptance_report,
+    format_acceptance_summary,
+)
 
 
 def _state(tmp_path: Path, *, freeze: str = "a" * 40) -> dict[str, object]:
@@ -145,6 +151,56 @@ def test_acceptance_verifier_blocks_failed_passed_priority(tmp_path: Path) -> No
 
     assert report["passed"] is False
     assert "p0_b_passed_claim_not_proven" in report["failures"]
+
+
+def test_runtime_efficiency_evidence_check_requires_canonical_v2_report(tmp_path: Path) -> None:
+    state = _state(tmp_path)
+    runtime_json = tmp_path / "runtime-efficiency.json"
+    runtime_markdown = tmp_path / "runtime-efficiency.md"
+    runtime_report = {
+        "schema_version": "fitcv_runtime_efficiency_baseline_v2",
+        "evidence_status": "canonical",
+        "workload": {"attempted_generation_job_count": 1},
+        "timing": {"generation_elapsed_ms": 100, "generation_timing_coverage": {"measured": 1, "unavailable": 0}},
+        "selection": {"run_count": 1},
+    }
+    runtime_report["material_metrics_sha256"] = material_report_digest(runtime_report)
+    runtime_json.write_text(json.dumps(runtime_report), encoding="utf-8")
+    runtime_markdown.write_text("Evidence status: `canonical`", encoding="utf-8")
+
+    result = _run_runtime_efficiency_evidence_check(state, tmp_path)
+
+    assert result["passed"] is True
+
+
+def test_runtime_efficiency_measurement_gate_blocks_measured_claim_with_incomplete_coverage(
+    tmp_path: Path,
+) -> None:
+    state = _state(tmp_path)
+    state["runtime_efficiency"]["measurement_status"] = "measured"
+    runtime_json = tmp_path / "runtime-efficiency.json"
+    runtime_markdown = tmp_path / "runtime-efficiency.md"
+    runtime_json.write_text(
+        '{"schema_version":"fitcv_runtime_efficiency_baseline_v2",'
+        '"evidence_status":"canonical",'
+        '"workload":{"attempted_generation_job_count":1},'
+        '"timing":{"generation_elapsed_ms":100,"generation_timing_coverage":{"measured":1,"unavailable":0}},'
+        '"selection":{"run_count":1},"material_metrics_sha256":"digest",'
+        '"coverage":{"attribution":{"complete":true},"cost":{"complete":true},'
+        '"timing":{"complete":true},"page_fit":{"complete":false},'
+        '"review_questions":{"complete":true},"human_actions":{"complete":true},'
+        '"resolution_reuse":{"complete":true}},'
+        '"run_job_diversity":{"run_count":1,"job_type_count":1}}',
+        encoding="utf-8",
+    )
+    runtime_markdown.write_text("Evidence status: `canonical`", encoding="utf-8")
+
+    result = _run_runtime_efficiency_evidence_check(state, tmp_path)
+
+    assert result["passed"] is False
+    assert result["measurement_eligible"] is False
+    assert "page_fit_coverage_incomplete" in result["measurement_gate_reasons"]
+    assert "runtime_efficiency_page_fit_coverage_incomplete" in result["failures"]
 
 
 def test_acceptance_summary_names_failed_priority_and_commit(tmp_path: Path) -> None:

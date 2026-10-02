@@ -76,6 +76,8 @@ def accepted_cv_artifact_event_v1(
     finalized_at: Any,
     generation_input_fingerprint: str | None = None,
     attempt_id: str | None = None,
+    page_fit_status: str | None = None,
+    render_acceptance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     normalized_artifact_id = str(artifact_id or "").strip()
     normalized_job_url = str(job_url or "").strip()
@@ -84,6 +86,14 @@ def accepted_cv_artifact_event_v1(
         raise ValueError("accepted_cv_artifact requires artifact_id and job_url")
     if normalized_mode not in {"automatic", "human_confirmed"}:
         raise ValueError("accepted_cv_artifact acceptance_mode invalid")
+    normalized_render_acceptance = (
+        dict(render_acceptance) if isinstance(render_acceptance, dict) else None
+    )
+    normalized_page_fit_status = str(page_fit_status or "").strip() or None
+    if normalized_page_fit_status is None and normalized_render_acceptance:
+        normalized_page_fit_status = str(
+            normalized_render_acceptance.get("page_fit_status") or ""
+        ).strip() or None
     return {
         "schema_version": ACCEPTED_CV_ARTIFACT_SCHEMA_VERSION,
         "event_id": stable_sha256_fingerprint(
@@ -106,6 +116,8 @@ def accepted_cv_artifact_event_v1(
         "finalized_at": finalized_at,
         "generation_input_fingerprint": str(generation_input_fingerprint or "").strip() or None,
         "attempt_id": str(attempt_id or "").strip() or None,
+        "page_fit_status": normalized_page_fit_status,
+        "render_acceptance": normalized_render_acceptance,
     }
 
 
@@ -161,6 +173,8 @@ def _normalize_trace_record(
             "job_url",
             "render_retry_count",
             "cv_content_plan",
+            "page_fit_status",
+            "render_acceptance",
             "reused_resolution_count",
             "run_started_at",
             "started_at",
@@ -181,6 +195,64 @@ def _trace_identity(trace: dict[str, Any]) -> str:
         if _lineage_value(trace, field)
     }
     return stable_sha256_fingerprint({"identity": identity, "trace": trace})
+
+
+def collect_normalized_generation_traces(
+    records: list[dict[str, Any]],
+    generation_trace_records: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    candidates: list[tuple[dict[str, Any], str]] = []
+    for trace_record in list(generation_trace_records or []):
+        if isinstance(trace_record, dict):
+            candidates.append((_normalize_trace_record(trace_record), "top_level"))
+    for record in records:
+        trace_record = record.get("cv_generation_trace")
+        if isinstance(trace_record, dict):
+            candidates.append((_normalize_trace_record(trace_record, record), "embedded"))
+
+    normalized_by_identity: dict[str, dict[str, Any]] = {}
+    source_by_identity: dict[str, str] = {}
+    conflicted_identities: set[str] = set()
+    duplicate_count = 0
+    conflict_count = 0
+    conflict_trace_ids: list[str] = []
+    for trace, source in candidates:
+        identity = _trace_identity(trace)
+        if identity in conflicted_identities:
+            continue
+        existing = normalized_by_identity.get(identity)
+        if existing is None:
+            normalized_by_identity[identity] = trace
+            source_by_identity[identity] = source
+            continue
+        if stable_json_dumps(existing) == stable_json_dumps(trace):
+            duplicate_count += 1
+            continue
+        existing_source = source_by_identity[identity]
+        if existing_source != source:
+            shared_keys = set(existing) & set(trace)
+            if all(existing[key] == trace[key] for key in shared_keys):
+                if source == "top_level":
+                    normalized_by_identity[identity] = {**existing, **trace}
+                else:
+                    normalized_by_identity[identity] = {**trace, **existing}
+                source_by_identity[identity] = "top_level"
+                duplicate_count += 1
+                continue
+        conflicted_identities.add(identity)
+        normalized_by_identity.pop(identity, None)
+        source_by_identity.pop(identity, None)
+        conflict_count += 1
+        conflict_trace_ids.append(_lineage_value(trace, "trace_id") or identity)
+
+    return {
+        "records": list(normalized_by_identity.values()),
+        "diagnostics": {
+            "duplicate_count": duplicate_count,
+            "conflict_count": conflict_count,
+            "conflict_trace_ids": sorted(conflict_trace_ids),
+        },
+    }
 
 
 def _lineage_value(item: dict[str, Any], field: str) -> str:
@@ -335,29 +407,15 @@ def build_accepted_cv_effort_projection(
                 "generation_input_fingerprint": artifact.get("generation_input_fingerprint"),
                 "attempt_id": artifact.get("attempt_id"),
                 "trace_id": artifact.get("trace_id"),
+                "page_fit_status": artifact.get("page_fit_status"),
+                "render_acceptance": artifact.get("render_acceptance"),
             }
             for artifact in deduplicated_artifacts
         ]
 
-    trace_records: list[dict[str, Any]] = []
-    seen_trace_ids: set[str] = set()
-
-    def append_trace(trace: dict[str, Any]) -> None:
-        trace_id = _trace_identity(trace)
-        if trace_id in seen_trace_ids:
-            return
-        seen_trace_ids.add(trace_id)
-        trace_records.append(trace)
-
-    for trace_record in list(generation_trace_records or []):
-        if not isinstance(trace_record, dict):
-            continue
-        append_trace(_normalize_trace_record(trace_record))
-    for record in records:
-        trace_record = record.get("cv_generation_trace")
-        if not isinstance(trace_record, dict):
-            continue
-        append_trace(_normalize_trace_record(trace_record, record))
+    normalized_traces = collect_normalized_generation_traces(records, generation_trace_records)
+    trace_records = list(normalized_traces["records"])
+    trace_diagnostics = dict(normalized_traces["diagnostics"])
 
     if not accepted_actions and not trace_records:
         return {
@@ -366,6 +424,7 @@ def build_accepted_cv_effort_projection(
             "blocker": "no_accepted_artifact_event",
             "denominator": {"accepted_cv_count": 0},
             "records": [],
+            "trace_normalization": trace_diagnostics,
         }
     projected: list[dict[str, Any]] = []
     unmatched_trace_count = 0
@@ -425,10 +484,24 @@ def build_accepted_cv_effort_projection(
         )
         token_usage = efficiency.get("token_usage")
         elapsed_from_trace = efficiency.get("elapsed_ms")
-        page_fit_status = str(
-            dict(trace.get("cv_content_plan") or {}).get("space_budget", {}).get("page_fit_status")
-            or dict(trace.get("output_summary") or {}).get("page_fit_status")
-            or "not_recorded"
+        output_summary = dict(trace.get("output_summary") or {})
+        content_plan = dict(trace.get("cv_content_plan") or {})
+        page_fit_candidates = (
+            action.get("page_fit_status"),
+            dict(action.get("render_acceptance") or {}).get("page_fit_status"),
+            output_summary.get("page_fit_status"),
+            dict(output_summary.get("render_acceptance") or {}).get("page_fit_status"),
+            trace.get("page_fit_status"),
+            dict(content_plan.get("space_budget") or {}).get("page_fit_status"),
+        )
+        page_fit_status = next(
+            (
+                str(value).strip()
+                for value in page_fit_candidates
+                if str(value or "").strip().lower()
+                not in {"", "not_recorded", "not_run", "not_applicable", "unverified"}
+            ),
+            "not_recorded",
         )
         reused_resolution_count = int(
             trace.get("reused_resolution_count")
@@ -477,6 +550,8 @@ def build_accepted_cv_effort_projection(
                 "generation_input_fingerprint": _lineage_value(action, "generation_input_fingerprint") or None,
                 "attempt_id": _lineage_value(action, "attempt_id") or None,
                 "trace_id": _lineage_value(action, "trace_id") or None,
+                "page_fit_status": action.get("page_fit_status"),
+                "render_acceptance": action.get("render_acceptance"),
                 "acceptance_mode": str(action.get("acceptance_mode") or "human_confirmed"),
                 "final_status": "accepted",
                 "attribution_status": attribution_status,
@@ -514,7 +589,7 @@ def build_accepted_cv_effort_projection(
                 "render_retry_count",
                 "review_question_count",
                 "reused_resolution_count",
-                "page_fit_status",
+            "page_fit_status",
                 "token_usage",
                 "token_total",
                 "generation_elapsed_ms",
@@ -553,6 +628,11 @@ def build_accepted_cv_effort_projection(
             or validation_summary.get("final_valid") is False
         ):
             workload_validation_failures += 1
+    generation_elapsed_values = [
+        float(row["generation_elapsed_ms"])
+        for row in projected
+        if row["generation_elapsed_ms"] is not None
+    ]
     aggregate = {
         "attempt_count": sum(row["attempt_count"] or 0 for row in projected),
         "provider_call_count": sum(row["provider_call_count"] or 0 for row in projected),
@@ -564,7 +644,11 @@ def build_accepted_cv_effort_projection(
         ),
         "human_action_count": sum(row["human_action_count"] for row in projected if isinstance(row["human_action_count"], int)),
         "reused_resolution_count": sum(row["reused_resolution_count"] or 0 for row in projected),
-        "generation_elapsed_ms": sum(row["generation_elapsed_ms"] or 0 for row in projected),
+        "generation_elapsed_ms": sum(generation_elapsed_values) if generation_elapsed_values else None,
+        "generation_timing_coverage": {
+            "measured": len(generation_elapsed_values),
+            "unavailable": sum(row["generation_elapsed_ms"] is None for row in projected),
+        },
         "elapsed_ms": sum(row["elapsed_ms"] or 0 for row in projected),
         "token_total": sum(row["token_total"] or 0 for row in projected),
         "unmatched_trace_count": unmatched_trace_count,
@@ -587,6 +671,7 @@ def build_accepted_cv_effort_projection(
         "schema_version": "accepted_cv_effort_v1",
         "status": "measured",
         "attribution_status": "complete" if not unattributed_accepted_artifact_count else "incomplete",
+        "trace_normalization": trace_diagnostics,
         "denominator": {"accepted_cv_count": len(projected)},
         "unmatched_trace_count": unmatched_trace_count,
         "unattributed_accepted_artifact_count": unattributed_accepted_artifact_count,

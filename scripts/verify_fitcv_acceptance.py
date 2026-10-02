@@ -13,8 +13,10 @@ import yaml
 
 try:
     from scripts.render_acceptance_state import _validate_state
+    from scripts.benchmark_cv_efficiency import material_report_digest
 except ModuleNotFoundError:
     from render_acceptance_state import _validate_state
+    from benchmark_cv_efficiency import material_report_digest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -95,6 +97,84 @@ def _run_runtime_check(repo_root: Path, output_path: Path, timeout_seconds: int)
         "gates": report.get("gates", {}),
         "stdout_tail": result.stdout[-1000:],
         "stderr_tail": result.stderr[-1000:],
+    }
+
+
+def _run_runtime_efficiency_evidence_check(
+    state: dict[str, Any],
+    repo_root: Path,
+) -> dict[str, Any]:
+    runtime_efficiency = dict(state.get("runtime_efficiency") or {})
+    evidence = dict(runtime_efficiency.get("baseline_evidence") or {})
+    json_path = repo_root / str(evidence.get("json") or "")
+    markdown_path = repo_root / str(evidence.get("markdown") or "")
+    failures: list[str] = []
+    report: dict[str, Any] = {}
+    if not json_path.is_file():
+        failures.append("runtime_efficiency_json_missing")
+    else:
+        try:
+            report = json.loads(json_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            failures.append("runtime_efficiency_json_invalid")
+    if not markdown_path.is_file():
+        failures.append("runtime_efficiency_markdown_missing")
+    else:
+        markdown = markdown_path.read_text(encoding="utf-8")
+        if "Evidence status: `canonical`" not in markdown:
+            failures.append("runtime_efficiency_markdown_not_canonical")
+    if isinstance(report, dict):
+        if report.get("schema_version") != "fitcv_runtime_efficiency_baseline_v2":
+            failures.append("runtime_efficiency_schema_not_v2")
+        if report.get("evidence_status") != "canonical":
+            failures.append("runtime_efficiency_json_not_canonical")
+        workload = dict(report.get("workload") or {})
+        timing = dict(report.get("timing") or {})
+        coverage = dict(timing.get("generation_timing_coverage") or {})
+        attempted = int(workload.get("attempted_generation_job_count") or 0)
+        measured = int(coverage.get("measured") or 0)
+        unavailable = int(coverage.get("unavailable") or 0)
+        if measured + unavailable != attempted:
+            failures.append("runtime_efficiency_timing_coverage_mismatch")
+        if measured == 0 and timing.get("generation_elapsed_ms") is not None:
+            failures.append("runtime_efficiency_unknown_timing_not_null")
+        if measured > 0 and timing.get("generation_elapsed_ms") is None:
+            failures.append("runtime_efficiency_measured_timing_missing")
+        if not str(report.get("material_metrics_sha256") or "").strip():
+            failures.append("runtime_efficiency_material_digest_missing")
+        elif report.get("material_metrics_sha256") != material_report_digest(report):
+            failures.append("runtime_efficiency_material_digest_mismatch")
+    coverage = dict(report.get("coverage") or {}) if isinstance(report, dict) else {}
+    diversity = dict(report.get("run_job_diversity") or {}) if isinstance(report, dict) else {}
+    measurement_gate_reasons: list[str] = []
+    for name in (
+        "attribution",
+        "cost",
+        "timing",
+        "page_fit",
+        "review_questions",
+        "human_actions",
+        "resolution_reuse",
+    ):
+        details = dict(coverage.get(name) or {})
+        if not details.get("complete"):
+            measurement_gate_reasons.append(f"{name}_coverage_incomplete")
+    if int(diversity.get("run_count") or 0) < 2:
+        measurement_gate_reasons.append("run_diversity_insufficient")
+    if int(diversity.get("job_type_count") or 0) < 2:
+        measurement_gate_reasons.append("job_type_diversity_insufficient")
+    measurement_eligible = not measurement_gate_reasons
+    if runtime_efficiency.get("measurement_status") == "measured" and not measurement_eligible:
+        failures.extend(f"runtime_efficiency_{reason}" for reason in measurement_gate_reasons)
+    return {
+        "passed": not failures,
+        "evidence_json": str(json_path),
+        "evidence_markdown": str(markdown_path),
+        "failures": failures,
+        "run_count": dict(report.get("selection") or {}).get("run_count", 0),
+        "measurement_status": runtime_efficiency.get("measurement_status"),
+        "measurement_eligible": measurement_eligible,
+        "measurement_gate_reasons": measurement_gate_reasons,
     }
 
 
@@ -206,6 +286,9 @@ def verify_acceptance(
     )
     checks["p0_b"]["passed"] = checks["p0_b"]["passed"] and runtime_check["passed"]
     checks["p0_b"]["runtime"] = runtime_check
+    efficiency_check = _run_runtime_efficiency_evidence_check(state, repo_root)
+    checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and efficiency_check["passed"]
+    checks["p1_b"]["runtime_efficiency"] = efficiency_check
     report = build_acceptance_report(
         state,
         repo_root=repo_root,
