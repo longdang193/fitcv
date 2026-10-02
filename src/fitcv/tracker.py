@@ -65,6 +65,7 @@ def create_cv_version_record(
     diagnostic_code: str | None = None,
     version_id: str | None = None,
     original_outcome: str | None = None,
+    run_job_id: str | None = None,
 ) -> dict[str, Any]:
     """Build a cv_versions record in memory.
 
@@ -99,6 +100,7 @@ def create_cv_version_record(
     return {
         "version_id": version_id,
         "run_id": str(run_id) if run_id else None,
+        "run_job_id": str(run_job_id or "").strip() or None,
         "job_url": str(job_url),
         "enrichment_version": str(enrichment_version),
         "vector_rank": int(vector_rank),

@@ -18,6 +18,10 @@ from typing import Any
 PROBES = ("P2", "P3", "P6", "P7", "P9", "P11", "P12", "P14", "P19", "P20", "P22", "P23", "P25")
 
 
+def _job_url(job: dict[str, Any]) -> str:
+    return str(job.get("job_url") or job.get("jobUrl") or job.get("url") or "")
+
+
 def _git_state(root: Path) -> dict[str, Any]:
     def run(*args: str) -> str:
         return subprocess.run(
@@ -212,8 +216,8 @@ def run(root: Path, output_path: Path) -> dict[str, Any]:
         result["fixtures"].update({"scan_a": fixture_a["scan_id"], "scan_b": fixture_b["scan_id"]})
         scan_a_jobs = json.loads(sqlite_store.get_scan_output(fixture_a["scan_id"], database_path=paths.sqlite_path)["output_json"])
         scan_b_jobs = json.loads(sqlite_store.get_scan_output(fixture_b["scan_id"], database_path=paths.sqlite_path)["output_json"])
-        scan_a_urls = {str(job.get("jobUrl") or "") for job in scan_a_jobs}
-        scan_b_urls = {str(job.get("jobUrl") or "") for job in scan_b_jobs}
+        scan_a_urls = {_job_url(job) for job in scan_a_jobs}
+        scan_b_urls = {_job_url(job) for job in scan_b_jobs}
         _record(
             result,
             "P6",
@@ -241,11 +245,11 @@ def run(root: Path, output_path: Path) -> dict[str, Any]:
                 "SELECT source_index, source_snapshot_json FROM run_jobs WHERE run_id = ? ORDER BY source_index",
                 (combined_run_id,),
             )]
-        combined_urls = [str(json.loads(row["source_snapshot_json"]).get("jobUrl") or "") for row in combined_jobs]
+        combined_urls = [_job_url(json.loads(row["source_snapshot_json"])) for row in combined_jobs]
         expected_urls = [
-            *[str(job.get("jobUrl") or "") for job in jobs],
-            *[str(job.get("jobUrl") or "") for job in scan_a_jobs],
-            *[str(job.get("jobUrl") or "") for job in scan_b_jobs],
+            *[_job_url(job) for job in jobs],
+            *[_job_url(job) for job in scan_a_jobs],
+            *[_job_url(job) for job in scan_b_jobs],
         ]
         combined_run = _run_row(paths.sqlite_path, combined_run_id)
         _record(

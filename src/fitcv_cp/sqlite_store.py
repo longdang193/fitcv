@@ -12153,6 +12153,16 @@ def list_bookmarks() -> list[dict[str, Any]]:
         for row in rows
     ]
 
+
+def list_run_job_ids_for_run(run_id: str) -> list[str]:
+    with _sqlite_connection(Path(_local_sqlite_path()), read_only=True) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT run_job_id FROM run_jobs WHERE run_id=? ORDER BY source_index",
+            (run_id,),
+        ).fetchall()
+    return [str(row["run_job_id"]) for row in rows]
+
 def _bookmark_filter_sql(
     *, search: str, stage: str | None, result: str | None
 ) -> tuple[list[str], list[Any]]:

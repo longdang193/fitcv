@@ -5290,6 +5290,19 @@ def _create_normalized_run_with_jobs(run_id: str, jobs: list[dict[str, object]])
     return list(result["run_job_ids"])
 
 
+def test_list_run_job_ids_for_run_preserves_source_order() -> None:
+    run_id = "run-job-id-order"
+    expected = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "Second", "job_url": "https://example.com/2"},
+            {"title": "First", "job_url": "https://example.com/1"},
+        ],
+    )
+
+    assert sqlite_store.list_run_job_ids_for_run(run_id) == expected
+
+
 def test_query_run_jobs_recovers_required_skills_from_source_snapshot() -> None:
     run_job_id = _create_normalized_run_with_jobs(
         "run-required-skills-fallback",
@@ -5943,6 +5956,23 @@ def test_cv_version_requires_unique_run_job_binding_when_pipeline_omits_id() -> 
 
     assert len(ambiguous_job_ids) == 2
     assert ambiguous == 0
+
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-ambiguous-explicit-1",
+            "run_id": ambiguous_run_id,
+            "run_job_id": ambiguous_job_ids[1],
+            "job_url": job_url,
+            "generation_status": "review_required",
+            "cv_markdown": "# Explicit CV\n",
+        }
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        explicit = conn.execute(
+            "SELECT run_job_id FROM cv_versions WHERE version_id=?",
+            ("cv-ambiguous-explicit-1",),
+        ).fetchone()
+    assert explicit[0] == ambiguous_job_ids[1]
 
     with pytest.raises(ValueError, match="cv_version_run_job_binding_required"):
         sqlite_store.insert_cv_version_row(

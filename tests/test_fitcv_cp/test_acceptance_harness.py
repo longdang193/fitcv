@@ -5,7 +5,17 @@ from pathlib import Path
 import pytest
 
 from fitcv_cp import sqlite_store
+from scripts.run_fitcv_local_p0_acceptance import _job_url
 from tests.test_fitcv_cp.acceptance_harness import ControlledLocalJobExecutor, create_profile_fixture, create_scan_fixture
+
+
+@pytest.mark.parametrize("job", [
+    {"jobUrl": "https://example.test/camel"},
+    {"job_url": "https://example.test/snake"},
+    {"url": "https://example.test/fallback"},
+])
+def test_acceptance_job_url_reader_accepts_runtime_key_shapes(job: dict[str, str]) -> None:
+    assert _job_url(job) == next(iter(job.values()))
 
 
 def test_controlled_executor_holds_until_release_and_captures_result() -> None:

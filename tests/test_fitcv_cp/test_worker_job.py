@@ -801,13 +801,14 @@ def test_worker_marks_succeeded_on_success():
     mock_run.cancel_requested_at = None
     with patch("fitcv_cp.worker_job.run_pipeline", return_value={
         "run_id": "r1", "total_jobs": 5, "passed_filter": 3, "ranked": 2, "cvs_generated": 1
-    }), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
+    }) as mock_run_pipeline, patch("fitcv_cp.worker_job.list_run_job_ids_for_run", return_value=["rj-1", "rj-2"]), patch("fitcv_cp.worker_job._get_bq", return_value=client), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update_status:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
     statuses = [call.args[1].value for call in mock_update_status.call_args_list if len(call.args) >= 2]
     assert "running" in statuses and "succeeded" in statuses
+    assert mock_run_pipeline.call_args.kwargs["run_job_ids"] == ["rj-1", "rj-2"]
 
 def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import fitcv_cp.app as app_module

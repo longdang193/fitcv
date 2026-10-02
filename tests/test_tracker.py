@@ -39,6 +39,25 @@ def test_create_cv_version_record() -> None:
         fit_classification="strong",
     )
     assert record["job_url"] == "https://linkedin.com/jobs/view/123"
+
+
+def test_create_cv_version_record_preserves_run_job_id() -> None:
+    record = create_cv_version_record(
+        job_url="https://linkedin.com/jobs/view/123",
+        run_id="run-1",
+        run_job_id="run-job-1",
+        enrichment_version="v1",
+        vector_rank=1,
+        ai_score=0.9,
+        final_score=0.8,
+        evidence_ids=[],
+        prompt_version="v1",
+        cv_markdown="# CV",
+        gap_summary={},
+        fit_classification="strong",
+    )
+
+    assert record["run_job_id"] == "run-job-1"
     assert "version_id" in record
     assert "generated_at" in record
 

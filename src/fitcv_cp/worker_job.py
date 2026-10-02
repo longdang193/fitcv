@@ -69,6 +69,7 @@ from fitcv_cp.sqlite_store import (
     get_synonym_automation_checkpoint,
     ingest_synonym_suggestions,
     list_requirement_resolutions,
+    list_run_job_ids_for_run,
     insert_cv_evaluation_row,
     insert_cv_review_event,
     list_runs,
@@ -2171,6 +2172,7 @@ def execute_pipeline_run(
                         )
 
             _verify_jobs_input_projection(run_record, jobs_path)
+            run_job_ids = list_run_job_ids_for_run(run_id)
 
             with observe_span(
                 "run.execute_pipeline",
@@ -2187,6 +2189,7 @@ def execute_pipeline_run(
                     reporter=reporter,
                     config=effective_config,
                     run_id=run_id,
+                    run_job_ids=run_job_ids or None,
                     cancellation_check=_cancellation_check,
                     start_stage=next_stage if run_mode == "manual_staged" else None,
                     stop_after_stage=next_stage if run_mode == "manual_staged" else None,

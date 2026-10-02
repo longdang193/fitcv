@@ -2094,6 +2094,7 @@ def _build_incomplete_description_debug_record(
     record = _build_cv_generation_debug_record(
         generation_result={
             "job_url": str(analysis_record.get("job_url") or job_snapshot.get("job_url") or ""),
+            "run_job_id": analysis_record.get("run_job_id") or job_snapshot.get("run_job_id"),
             "job_title": str(analysis_record.get("job_title") or job_snapshot.get("job_title") or job_snapshot.get("title") or ""),
             "status": CV_GENERATION_REVIEW_REQUIRED_STATUS,
             "ranking_fit_label": analysis_record.get("ranking_fit_label"),
@@ -3190,6 +3191,7 @@ def run_pipeline(
     reporter: object = None,  # Optional[PipelineReporter] — avoids circular import
     config: dict | None = None,  # If provided, skips load_config(config_path)
     run_id: str | None = None,
+    run_job_ids: list[str] | None = None,
     cancellation_check: Callable[[], bool] | None = None,
     start_stage: str | None = None,
     stop_after_stage: str | None = None,
@@ -3220,6 +3222,8 @@ def run_pipeline(
     run_id:
         Optional externally provided run ID. When present, it is treated as the
         canonical identifier for summaries, events, and persisted records.
+    run_job_ids:
+        Optional source-order control-plane identities for managed runs.
 
     Returns
     -------
@@ -3314,8 +3318,16 @@ def run_pipeline(
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("normalize"):
             with observe_span("pipeline.normalize", attributes={"run_id": run_id}):
                 raw_jobs = parse_jobs_file(jobs_path)
-                normalized = normalize_batch(raw_jobs)
-                _normalized_with_exclusions, deduplicated_jobs = normalize_batch_with_exclusions(raw_jobs)
+                normalization_jobs = raw_jobs
+                if run_job_ids is not None:
+                    if len(run_job_ids) != len(raw_jobs):
+                        raise ValueError("run_job_ids_count_mismatch")
+                    normalization_jobs = [
+                        {**job, "run_job_id": str(run_job_id)}
+                        for job, run_job_id in zip(raw_jobs, run_job_ids)
+                    ]
+                normalized = normalize_batch(normalization_jobs)
+                _normalized_with_exclusions, deduplicated_jobs = normalize_batch_with_exclusions(normalization_jobs)
                 if reporter is not None:
                     reporter.emit(  # type: ignore[union-attr]
                         "layer1_normalize",
@@ -3921,6 +3933,7 @@ def run_pipeline(
                     analyzed_records = [_analyze_cv_job(item) for item in analysis_inputs]
 
                 for (job, reusable_record), analysis_record in zip(analysis_inputs, analyzed_records):
+                    analysis_record["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
                     cv_analysis_results.append(analysis_record)
                     _emit_cv_analysis_item_observation(
                         run_id=run_id,
@@ -3956,6 +3969,7 @@ def run_pipeline(
                                 config,
                             )
                         )
+                        generation_result["run_job_id"] = analysis_record.get("run_job_id")
                         cv_generation_debug_records.append(
                             _build_cv_generation_debug_record(
                                 generation_result=generation_result,
@@ -4666,6 +4680,7 @@ def run_pipeline(
             version = create_cv_version_record(
                 job_url=str(job.get("job_url") or ""),
                 run_id=run_id,
+                run_job_id=str(job.get("run_job_id") or "").strip() or None,
                 enrichment_version=str(config.get("enrichment_version") or "v1"),
                 vector_rank=int(job.get("vector_rank") or 0),
                 ai_score=float(job.get("ai_score") or 0.0),
@@ -4744,6 +4759,7 @@ def run_pipeline(
                 config=config,
                 reusable_record=reusable_record,
             )
+            generation_result["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
             status = str(generation_result.get("status") or "generation_failed")
             fit = str(generation_result.get("fit_classification") or "skip")
             analysis_input_summary = dict(generation_result.get("analysis_input_summary") or {})
@@ -5268,7 +5284,6 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
-
 
 
 

@@ -2179,8 +2179,8 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     mock_config.return_value = config
     mock_parse.return_value = [job]
-    mock_norm.return_value = [job]
-    mock_enrich.return_value = [job]
+    mock_norm.side_effect = lambda jobs: jobs
+    mock_enrich.side_effect = lambda jobs, *args, **kwargs: jobs
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
     mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}])
@@ -2206,15 +2206,24 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     }
     canonical_result["cv_generation_trace"] = {"attempts": [{"attempt_index": 1}, {"attempt_index": 2}]}
     with (
-        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
+        patch(
+            "fitcv.pipeline.analyze_ranked_job",
+            side_effect=lambda analyzed_job, *args, **kwargs: _agentic_analysis_ready(analyzed_job),
+        ),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=canonical_result) as mock_agentic_gen,
         patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
     ):
-        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+            run_job_ids=["run-job-1"],
+        )
 
     assert result["cvs_generated"] == 1
     mock_agentic_gen.assert_called_once()
     mock_store_ver.assert_called_once()
+    assert mock_create_version.call_args.kwargs["run_job_id"] == "run-job-1"
+    assert result["cv_generation_debug_records"][0]["run_job_id"] == "run-job-1"
 
 
 @patch("fitcv.pipeline.store_cv_version")

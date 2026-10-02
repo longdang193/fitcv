@@ -1908,6 +1908,7 @@ def _finalize_review_draft_as_cv_artifact(
     version_record = create_cv_version_record(
         job_url=str(job_url),
         run_id=str(run.run_id),
+        run_job_id=str(record.get("run_job_id") or "").strip() or None,
         enrichment_version=str(row.get("enrichment_version") or record.get("enrichment_version") or "review_finalize"),
         vector_rank=int(row.get("vector_rank") or row.get("rank") or 0),
         ai_score=float(row.get("ai_score") or 0.0),
