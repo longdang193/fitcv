@@ -2117,6 +2117,31 @@ def test_retrieve_evidence_bundle_preserves_selection_and_debug_schema_contract(
     assert "embedding_counts" in telemetry
 
 
+def test_stage_trace_production_path_does_not_sort_diagnostic_pairs() -> None:
+    with patch.object(evidence_module, "sorted", side_effect=AssertionError, create=True):
+        bundle = evidence_module._build_retrieve_evidence_bundle_payload(
+            channel_pools={},
+            semantic_settings=evidence_module._semantic_alignment_settings(None),
+            semantic_alignment={},
+            selection_policy=evidence_module._cv_analysis_policy_settings(None),
+            selected_evidence=[],
+            canonical_items=[
+                {"evidence_id": "ev-1", "supported_requirement_ids": ["req-1"]}
+            ],
+            merged_pool=[
+                {"evidence_id": "ev-1", "supported_requirement_ids": ["req-1"]}
+            ],
+            unselected_top_candidates=[],
+            source_profile_schema_version="candidate-profile.v1",
+            projection_fingerprint="projection-1",
+            responsibility_support={"requirement_ids": ["req-1"]},
+            include_diagnostics=False,
+        )
+
+    assert bundle["stage_traces"]["counts"]["canonical_pool"] == 1
+    assert set(bundle["stage_traces"]) == {"schema_version", "counts"}
+
+
 def test_selection_policy_model_matches_public_policy_dict_defaults() -> None:
     model = evidence_module._selection_policy_model(None)
     policy = evidence_module._cv_analysis_policy_settings(None)

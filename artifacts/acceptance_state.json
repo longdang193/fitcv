@@ -26,7 +26,9 @@
     "docs/superpowers/evidence/2026-10-01-fitcv-p1b-historical-measurement.md",
     "docs/superpowers/evidence/2026-10-02-fitcv-p1b-live-measurement.md",
     "docs/superpowers/evidence/2026-10-02-fitcv-final-p0-p1-closure.md",
-    "docs/superpowers/evidence/2026-10-02-fitcv-p0-p1-contract-closure.md"
+    "docs/superpowers/evidence/2026-10-02-fitcv-p0-p1-contract-closure.md",
+    "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json",
+    "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
   ],
   "p0_b": {
     "explicitly_excluded_requirement_ids": [
@@ -236,6 +238,16 @@
     ]
   },
   "repository": "longdang193/fitcv",
+  "runtime_efficiency": {
+    "accepted_artifact_and_total_workload_metrics": true,
+    "baseline_evidence": {
+      "json": "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json",
+      "markdown": "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
+    },
+    "measurement_status": "incomplete",
+    "p1_c": "deferred",
+    "p2": "deferred"
+  },
   "sanitizer_version": "fitcv-p0-corpus-sanitizer.v1",
   "schema_version": "fitcv.acceptance_state.v2",
   "status_dimensions": {

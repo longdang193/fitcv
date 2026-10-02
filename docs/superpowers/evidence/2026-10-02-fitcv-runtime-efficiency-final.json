@@ -1,7 +1,7 @@
 {
   "schema_version": "fitcv_runtime_efficiency_baseline_v1",
   "status": "complete",
-  "generated_at": "2026-10-02T16:45:19.375976+00:00",
+  "generated_at": "2026-10-02T17:36:02.967093+00:00",
   "selection": {
     "ordinary_runs_only": true,
     "measurable_generation_work_only": true,
@@ -56,8 +56,8 @@
   "yield": {
     "attempted_generation_job_count": 6,
     "first_pass_acceptance_count": 2,
-    "retry_success_count": 4,
-    "retry_failure_count": 0,
+    "retry_success_count": 2,
+    "retry_failure_count": 2,
     "first_pass_acceptance_rate": 0.3333333333333333
   },
   "aggregate": {
@@ -94,8 +94,8 @@
       "yield": {
         "attempted_generation_job_count": 3,
         "first_pass_acceptance_count": 1,
-        "retry_success_count": 2,
-        "retry_failure_count": 0
+        "retry_success_count": 1,
+        "retry_failure_count": 1
       },
       "status_counts": {
         "accepted": 2,
@@ -121,6 +121,7 @@
           "review_question_count": 9,
           "human_action_count": 0,
           "reused_resolution_count": 0,
+          "generation_elapsed_ms": 50235,
           "elapsed_ms": 50235,
           "token_total": 16668,
           "unmatched_trace_count": 0,
@@ -175,6 +176,8 @@
             ],
             "token_total": 5266,
             "token_usage_status": "available",
+            "generation_elapsed_ms": 13310,
+            "generation_elapsed_status": "measured",
             "elapsed_ms": 13310,
             "elapsed_status": "measured"
           },
@@ -228,6 +231,8 @@
             ],
             "token_total": 11402,
             "token_usage_status": "available",
+            "generation_elapsed_ms": 36925,
+            "generation_elapsed_status": "measured",
             "elapsed_ms": 36925,
             "elapsed_status": "measured"
           }
@@ -244,8 +249,8 @@
       "yield": {
         "attempted_generation_job_count": 3,
         "first_pass_acceptance_count": 1,
-        "retry_success_count": 2,
-        "retry_failure_count": 0
+        "retry_success_count": 1,
+        "retry_failure_count": 1
       },
       "status_counts": {
         "accepted": 2,
@@ -271,6 +276,7 @@
           "review_question_count": 9,
           "human_action_count": 0,
           "reused_resolution_count": 0,
+          "generation_elapsed_ms": 51326,
           "elapsed_ms": 51326,
           "token_total": 16687,
           "unmatched_trace_count": 0,
@@ -327,6 +333,8 @@
             ],
             "token_total": 5312,
             "token_usage_status": "available",
+            "generation_elapsed_ms": 14331,
+            "generation_elapsed_status": "measured",
             "elapsed_ms": 14331,
             "elapsed_status": "measured"
           },
@@ -382,6 +390,8 @@
             ],
             "token_total": 11375,
             "token_usage_status": "available",
+            "generation_elapsed_ms": 36995,
+            "generation_elapsed_status": "measured",
             "elapsed_ms": 36995,
             "elapsed_status": "measured"
           }

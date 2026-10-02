@@ -57,6 +57,7 @@ ALLOWED_MEASUREMENT_STATUSES = {
     "not_run",
     "blocked",
 }
+ALLOWED_RUNTIME_MEASUREMENT_STATUSES = {"measured", "incomplete", "blocked"}
 
 
 def _require(condition: bool, message: str) -> None:
@@ -108,6 +109,27 @@ def _validate_state(state: dict[str, Any], repo_root: Path) -> dict[str, Any]:
             dimensions.get("measurement_status") in ALLOWED_MEASUREMENT_STATUSES,
             f"{priority} measurement_status invalid",
         )
+
+    runtime_efficiency = state.get("runtime_efficiency")
+    _require(isinstance(runtime_efficiency, dict), "runtime_efficiency invalid")
+    _require(
+        runtime_efficiency.get("measurement_status") in ALLOWED_RUNTIME_MEASUREMENT_STATUSES,
+        "runtime_efficiency measurement_status invalid",
+    )
+    baseline_evidence = runtime_efficiency.get("baseline_evidence")
+    _require(isinstance(baseline_evidence, dict), "runtime_efficiency baseline_evidence invalid")
+    for key in ("json", "markdown"):
+        relative_path = baseline_evidence.get(key)
+        _require(
+            isinstance(relative_path, str) and (repo_root / relative_path).is_file(),
+            f"runtime_efficiency missing reference: {key}",
+        )
+    _require(
+        runtime_efficiency.get("accepted_artifact_and_total_workload_metrics") is True,
+        "runtime_efficiency metric families invalid",
+    )
+    _require(runtime_efficiency.get("p1_c") == "deferred", "runtime_efficiency p1_c invalid")
+    _require(runtime_efficiency.get("p2") == "deferred", "runtime_efficiency p2 invalid")
 
     thresholds = state.get("support_thresholds")
     _require(isinstance(thresholds, dict), "support_thresholds invalid")

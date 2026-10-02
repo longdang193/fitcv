@@ -41,6 +41,16 @@ def _valid_state() -> dict[str, object]:
             "support_recall_threshold": None,
         },
         "evidence_paths": ["docs/evidence.md"],
+        "runtime_efficiency": {
+            "measurement_status": "incomplete",
+            "baseline_evidence": {
+                "json": "docs/runtime-efficiency.json",
+                "markdown": "docs/runtime-efficiency.md",
+            },
+            "accepted_artifact_and_total_workload_metrics": True,
+            "p1_c": "deferred",
+            "p2": "deferred",
+        },
     }
 
 
@@ -51,6 +61,8 @@ def test_render_acceptance_state_is_deterministic(tmp_path: Path) -> None:
     (tmp_path / "data/manifest.json").write_text("{}\n", encoding="utf-8")
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs/evidence.md").write_text("evidence\n", encoding="utf-8")
+    (tmp_path / "docs/runtime-efficiency.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "docs/runtime-efficiency.md").write_text("runtime\n", encoding="utf-8")
     source.write_text(json.dumps(_valid_state()), encoding="utf-8")
 
     first = render_acceptance_state(source, output, repo_root=tmp_path)
@@ -91,4 +103,27 @@ def test_render_acceptance_state_rejects_missing_references(tmp_path: Path) -> N
     source.write_text(json.dumps(state), encoding="utf-8")
 
     with pytest.raises(ValueError, match="missing reference"):
+        render_acceptance_state(source, output, repo_root=tmp_path)
+
+
+def test_render_acceptance_state_rejects_runtime_efficiency_claim_without_deferrals(tmp_path: Path) -> None:
+    source = tmp_path / "state.json"
+    output = tmp_path / "rendered.json"
+    state = _valid_state()
+    state["runtime_efficiency"] = {
+        "measurement_status": "measured",
+        "baseline_evidence": {"json": "docs/runtime-efficiency.json", "markdown": "docs/runtime-efficiency.md"},
+        "accepted_artifact_and_total_workload_metrics": True,
+        "p1_c": "complete",
+        "p2": "complete",
+    }
+    source.write_text(json.dumps(state), encoding="utf-8")
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data/manifest.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs/evidence.md").write_text("evidence\n", encoding="utf-8")
+    (tmp_path / "docs/runtime-efficiency.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "docs/runtime-efficiency.md").write_text("runtime\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="runtime_efficiency"):
         render_acceptance_state(source, output, repo_root=tmp_path)

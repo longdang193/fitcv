@@ -113,6 +113,12 @@ def build_acceptance_report(
 
     statuses = dict(state.get("statuses") or {})
     status_dimensions = dict(state.get("status_dimensions") or {})
+    runtime_efficiency = dict(state.get("runtime_efficiency") or {})
+    if (
+        runtime_efficiency.get("measurement_status") == "measured"
+        and dict(status_dimensions.get("p1_b") or {}).get("measurement_status") != "measured"
+    ):
+        failures.append("runtime_efficiency_measured_without_p1_b_measurement")
     priorities: dict[str, dict[str, Any]] = {}
     for priority in ("p0_b", "p0_c", "p1_b"):
         check = dict(checks.get(priority) or {})
@@ -156,6 +162,7 @@ def build_acceptance_report(
         "repository": state.get("repository"),
         "current_commit": current_commit,
         "evaluation_freeze_commit": state.get("evaluation_freeze_commit"),
+        "runtime_efficiency": runtime_efficiency,
         "priorities": priorities,
         "failures": sorted(set(failures)),
         "passed": not failures,

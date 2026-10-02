@@ -80,9 +80,32 @@ def _trace_records(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return [block] if block.get("attempts") else []
 
 
+def _trace_generation_elapsed_ms(trace: dict[str, Any]) -> float:
+    efficiency = dict(trace.get("efficiency_summary") or {})
+    raw_elapsed = efficiency.get("elapsed_ms")
+    if raw_elapsed is not None:
+        try:
+            return max(float(raw_elapsed), 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+    started = _timestamp(trace.get("generation_started_at") or trace.get("started_at"))
+    finished = _timestamp(trace.get("generation_finished_at") or trace.get("finished_at"))
+    if started is not None and finished is not None and finished >= started:
+        return (finished - started).total_seconds() * 1000
+    return 0.0
+
+
+def _trace_final_accepted(trace: dict[str, Any], attempts: list[dict[str, Any]]) -> bool:
+    output_summary = dict(trace.get("output_summary") or {})
+    final_status = str(output_summary.get("final_status") or trace.get("status") or "").strip().lower()
+    if final_status:
+        return final_status in {"accepted", "succeeded", "success"}
+    return bool(attempts and str(attempts[-1].get("provider_status") or "").strip().lower() == "accepted")
+
+
 def _run_snapshot(run: Any) -> dict[str, Any] | None:
     run_id = str(_value(run, "run_id", "") or "").strip()
-    if not run_id or _status(run) != "succeeded":
+    if not run_id:
         return None
     payload = _run_payload(run)
     if not payload:
@@ -101,6 +124,22 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         artifacts,
         generation_trace_records=traces,
     )
+    if projection.get("status") == "not_run":
+        return None
+    generation_elapsed_ms = sum(_trace_generation_elapsed_ms(trace) for trace in traces)
+    first_pass_acceptance_count = 0
+    retry_success_count = 0
+    retry_failure_count = 0
+    for trace in traces:
+        attempts = [item for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
+        final_accepted = _trace_final_accepted(trace, attempts)
+        if len(attempts) == 1 and final_accepted:
+            first_pass_acceptance_count += 1
+        elif len(attempts) > 1:
+            if final_accepted:
+                retry_success_count += 1
+            else:
+                retry_failure_count += 1
     created_at = _timestamp(_value(run, "created_at"))
     started_at = _timestamp(_value(run, "started_at"))
     finished_at = _timestamp(_value(run, "finished_at"))
@@ -114,6 +153,13 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         "started_at": started_at.isoformat() if started_at else None,
         "finished_at": finished_at.isoformat() if finished_at else None,
         "elapsed_wall_ms": elapsed_wall_ms,
+        "generation_elapsed_ms": generation_elapsed_ms,
+        "yield": {
+            "attempted_generation_job_count": len(traces),
+            "first_pass_acceptance_count": first_pass_acceptance_count,
+            "retry_success_count": retry_success_count,
+            "retry_failure_count": retry_failure_count,
+        },
         "status_counts": dict(sorted(status_counts.items())),
         "accepted_record_count": status_counts.get("accepted", 0),
         "projection": projection,
@@ -168,6 +214,24 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
     )
     unattributed_count += max(accepted_record_count - accepted_count, 0)
     workload = _sum_workload(snapshots)
+    workload["generation_elapsed_ms"] = sum(
+        float(snapshot.get("generation_elapsed_ms") or 0) for snapshot in snapshots
+    )
+    aggregate_end_to_end_wall = sum(float(snapshot.get("elapsed_wall_ms") or 0) for snapshot in snapshots)
+    yield_totals = {
+        field: sum(int(dict(snapshot.get("yield") or {}).get(field) or 0) for snapshot in snapshots)
+        for field in (
+            "attempted_generation_job_count",
+            "first_pass_acceptance_count",
+            "retry_success_count",
+            "retry_failure_count",
+        )
+    }
+    yield_totals["first_pass_acceptance_rate"] = (
+        yield_totals["first_pass_acceptance_count"] / yield_totals["attempted_generation_job_count"]
+        if yield_totals["attempted_generation_job_count"]
+        else None
+    )
     aggregate_provider_calls = sum(
         int(dict(snapshot["projection"].get("aggregate") or {}).get("provider_call_count") or 0)
         for snapshot in snapshots
@@ -176,8 +240,20 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
         int(dict(snapshot["projection"].get("aggregate") or {}).get("token_total") or 0)
         for snapshot in snapshots
     )
+    aggregate_regenerations = sum(
+        int(dict(snapshot["projection"].get("aggregate") or {}).get("regeneration_count") or 0)
+        for snapshot in snapshots
+    )
+    aggregate_validation_failures = sum(
+        int(dict(snapshot["projection"].get("aggregate") or {}).get("validation_failure_count") or 0)
+        for snapshot in snapshots
+    )
     aggregate_elapsed = sum(
         float(dict(snapshot["projection"].get("aggregate") or {}).get("elapsed_ms") or 0)
+        for snapshot in snapshots
+    )
+    aggregate_generation_elapsed = sum(
+        float(dict(snapshot["projection"].get("aggregate") or {}).get("generation_elapsed_ms") or 0)
         for snapshot in snapshots
     )
     complete = (
@@ -188,12 +264,27 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
     )
     status = "complete" if complete else "incomplete" if snapshots else "not_available"
     per_accepted = None
+    total_workload_per_accepted = None
     if complete and accepted_count:
         per_accepted = {
             "provider_call_count": aggregate_provider_calls / accepted_count,
             "token_total": aggregate_tokens / accepted_count,
+            "regeneration_count": aggregate_regenerations / accepted_count,
+            "validation_failure_count": aggregate_validation_failures / accepted_count,
+            "generation_elapsed_ms": aggregate_generation_elapsed / accepted_count,
             "elapsed_ms": aggregate_elapsed / accepted_count,
         }
+        total_workload_per_accepted = {
+            field: workload[field] / accepted_count
+            for field in (
+                "provider_call_count",
+                "token_total",
+                "regeneration_count",
+                "validation_failure_count",
+                "generation_elapsed_ms",
+            )
+        }
+        total_workload_per_accepted["end_to_end_wall_ms"] = aggregate_end_to_end_wall / accepted_count
     generation_status_counts: Counter[str] = Counter()
     for snapshot in snapshots:
         generation_status_counts.update(snapshot["status_counts"])
@@ -203,7 +294,7 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "selection": {
             "ordinary_runs_only": True,
-            "required_status": "succeeded",
+            "measurable_generation_work_only": True,
             "run_count": len(snapshots),
             "run_ids": [snapshot["run_id"] for snapshot in snapshots],
             "exclusions": dict(sorted(exclusions.items())),
@@ -213,14 +304,21 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
             "count": accepted_count,
             "recorded_acceptance_count": accepted_record_count,
             "cost_per_accepted_cv": per_accepted,
+            "accepted_artifact_cost_per_accepted_cv": per_accepted,
+            "total_workload_cost_per_accepted_cv": total_workload_per_accepted,
         },
         "attribution": {
             "unmatched_trace_count": unmatched_trace_count,
             "unattributed_accepted_artifact_count": unattributed_count,
         },
+        "yield": yield_totals,
         "aggregate": {
             "provider_call_count": aggregate_provider_calls,
             "token_total": aggregate_tokens,
+            "regeneration_count": aggregate_regenerations,
+            "validation_failure_count": aggregate_validation_failures,
+            "generation_elapsed_ms": aggregate_generation_elapsed,
+            "end_to_end_wall_ms": aggregate_end_to_end_wall,
             "elapsed_ms": aggregate_elapsed,
         },
         "outcomes": {
@@ -256,9 +354,12 @@ def _markdown(report: dict[str, Any]) -> str:
             f"- Render retries: `{workload.get('render_retry_count', 0)}`",
             f"- Unmatched traces: `{attribution.get('unmatched_trace_count', 0)}`",
             f"- Unattributed accepted artifacts: `{attribution.get('unattributed_accepted_artifact_count', 0)}`",
-            f"- Cost per accepted CV: `{accepted.get('cost_per_accepted_cv')}`",
+            f"- Accepted-artifact cost per accepted CV: `{accepted.get('accepted_artifact_cost_per_accepted_cv')}`",
+            f"- Total-workload cost per accepted CV: `{accepted.get('total_workload_cost_per_accepted_cv')}`",
+            f"- First-pass acceptance rate: `{dict(report.get('yield') or {}).get('first_pass_acceptance_rate')}`",
+            f"- Retry success/failure: `{dict(report.get('yield') or {}).get('retry_success_count', 0)}` / `{dict(report.get('yield') or {}).get('retry_failure_count', 0)}`",
             "",
-            "Per-accepted-CV cost stays null unless attribution is complete.",
+            "Accepted-artifact and total-workload per-CV metrics stay null unless attribution is complete.",
         ]
     ) + "\n"
 

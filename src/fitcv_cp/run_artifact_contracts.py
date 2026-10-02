@@ -47,7 +47,8 @@ _TRACE_IDENTITY_FIELDS = (
     "attempt_id",
     "job_url",
 )
-_LEGACY_MATCH_FIELDS = ("run_job_id", "generation_input_fingerprint", "job_url")
+_LEGACY_STRONG_MATCH_FIELDS = ("run_job_id", "generation_input_fingerprint", "attempt_id")
+_LEGACY_MATCH_FIELDS = _LEGACY_STRONG_MATCH_FIELDS + ("job_url",)
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
 
@@ -227,20 +228,42 @@ def match_trace_record(
     run_id = _lineage_value(artifact, "run_id")
     if not run_id:
         return None, "unmatched"
-    for field in _LEGACY_MATCH_FIELDS:
-        value = _lineage_value(artifact, field)
-        if not value:
-            continue
-        matches = [
-            trace
-            for trace in traces
-            if _lineage_value(trace, "run_id") == run_id
-            and _lineage_value(trace, field) == value
+    run_traces = [trace for trace in traces if _lineage_value(trace, "run_id") == run_id]
+    if not run_traces:
+        return None, "unmatched"
+    artifact_strong = {
+        field: _lineage_value(artifact, field)
+        for field in _LEGACY_STRONG_MATCH_FIELDS
+    }
+    artifact_has_strong = any(artifact_strong.values())
+    compatible: list[dict[str, Any]] = []
+    conflict_found = False
+    for trace in run_traces:
+        trace_strong = {
+            field: _lineage_value(trace, field)
+            for field in _LEGACY_STRONG_MATCH_FIELDS
+        }
+        shared_fields = [
+            field
+            for field in _LEGACY_STRONG_MATCH_FIELDS
+            if artifact_strong[field] and trace_strong[field]
         ]
-        if len(matches) == 1:
-            return matches[0], "matched"
-        if len(matches) > 1:
-            return None, "ambiguous"
+        if any(artifact_strong[field] != trace_strong[field] for field in shared_fields):
+            conflict_found = True
+            continue
+        if shared_fields:
+            compatible.append(trace)
+            continue
+        if artifact_has_strong or any(trace_strong.values()):
+            continue
+        if _lineage_value(artifact, "job_url") and _lineage_value(artifact, "job_url") == _lineage_value(trace, "job_url"):
+            compatible.append(trace)
+    if len(compatible) == 1:
+        return compatible[0], "matched"
+    if len(compatible) > 1:
+        return None, "ambiguous"
+    if conflict_found:
+        return None, "conflict"
     return None, "unmatched"
 
 
@@ -432,6 +455,11 @@ def build_accepted_cv_effort_projection(
         elif elapsed_from_trace is not None:
             elapsed_ms = _nonnegative_int(elapsed_from_trace)
             elapsed_status = "measured"
+        generation_elapsed_ms = None
+        generation_elapsed_status = "not_run"
+        if elapsed_from_trace is not None:
+            generation_elapsed_ms = _nonnegative_int(elapsed_from_trace)
+            generation_elapsed_status = "measured"
         attempt_rows = [
             {
                 "attempt_index": item.get("attempt_index"),
@@ -470,6 +498,8 @@ def build_accepted_cv_effort_projection(
                 "token_usage": token_usage,
                 "token_total": _token_total(token_usage),
                 "token_usage_status": str(efficiency.get("token_usage_status") or "not_run"),
+                "generation_elapsed_ms": generation_elapsed_ms,
+                "generation_elapsed_status": generation_elapsed_status,
                 "elapsed_ms": elapsed_ms,
                 "elapsed_status": elapsed_status,
             }
@@ -487,9 +517,11 @@ def build_accepted_cv_effort_projection(
                 "page_fit_status",
                 "token_usage",
                 "token_total",
+                "generation_elapsed_ms",
                 "elapsed_ms",
             ):
                 row[field] = None
+            row["generation_elapsed_status"] = "unmatched"
             row["elapsed_status"] = "unmatched"
         projected.append(row)
     workload_records = trace_records or [
@@ -532,6 +564,7 @@ def build_accepted_cv_effort_projection(
         ),
         "human_action_count": sum(row["human_action_count"] for row in projected if isinstance(row["human_action_count"], int)),
         "reused_resolution_count": sum(row["reused_resolution_count"] or 0 for row in projected),
+        "generation_elapsed_ms": sum(row["generation_elapsed_ms"] or 0 for row in projected),
         "elapsed_ms": sum(row["elapsed_ms"] or 0 for row in projected),
         "token_total": sum(row["token_total"] or 0 for row in projected),
         "unmatched_trace_count": unmatched_trace_count,
