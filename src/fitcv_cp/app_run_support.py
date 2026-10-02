@@ -24,6 +24,7 @@ from fitcv_cp.review_identity import (
     normalize_review_resolution_status,
 )
 from fitcv_cp.run_artifact_contracts import (
+    _lineage_matches,
     build_accepted_cv_effort_projection,
     decode_json_object_or_none,
 )
@@ -51,16 +52,24 @@ def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | 
         for item in list(dict(copied.get("cv_generation_trace") or {}).get("records") or [])
         if isinstance(item, dict)
     ]
-    trace_by_job = {
-        str(item.get("scope_key") or item.get("record_id") or "").strip(): item
-        for item in trace_records
-        if str(item.get("scope_key") or item.get("record_id") or "").strip()
-    }
     run_id_value = str(getattr(run, "run_id", "") or payload.get("run_id") or "")
     for index, record in enumerate(records):
         row = dict(record)
         if not isinstance(row.get("cv_generation_trace"), dict):
-            trace = trace_by_job.get(str(row.get("job_url") or "").strip())
+            trace = next(
+                (item for item in trace_records if _lineage_matches(row, item)),
+                None,
+            )
+            if trace is None:
+                job_url = str(row.get("job_url") or "").strip()
+                trace = next(
+                    (
+                        item
+                        for item in trace_records
+                        if str(item.get("scope_key") or item.get("record_id") or "").strip() == job_url
+                    ),
+                    None,
+                )
             if trace is not None:
                 row["cv_generation_trace"] = trace
         if str(row.get("status") or "").strip() == "review_required":

@@ -12,7 +12,10 @@ from typing import Any
 import yaml
 
 from fitcv.evidence import retrieve_evidence_bundle
-from scripts.render_acceptance_state import ALLOWED_STATUSES
+try:
+    from scripts.render_acceptance_state import ALLOWED_STATUSES
+except ModuleNotFoundError:
+    from render_acceptance_state import ALLOWED_STATUSES
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -460,12 +463,23 @@ def validate_public_inputs(
         str(row.get("requirement_instance_id") or "")
         for row in oracle_by_pair.values()
     }
+    explicitly_excluded_requirement_ids = {
+        str(requirement_id).strip()
+        for requirement_id in list(
+            dict(acceptance_state.get("p0_b") or {}).get(
+                "explicitly_excluded_requirement_ids",
+                [],
+            )
+        )
+        if str(requirement_id).strip()
+    }
     if not oracle_requirement_ids <= review_ids:
         _error(errors, "review_requirement_set_incomplete")
-    oracle_requirement_ids = {
-        str(row.get("requirement_instance_id") or "")
-        for row in oracle_by_pair.values()
-    }
+    unexpected_runtime_requirement_ids = sorted(
+        review_ids - oracle_requirement_ids - explicitly_excluded_requirement_ids
+    )
+    for requirement_id in unexpected_runtime_requirement_ids:
+        _error(errors, f"unexpected_runtime_requirement_ids:{requirement_id}")
     evaluated_requirement_ids = {
         str(row.get("requirement_instance_id") or "")
         for row in oracle_by_pair.values()
@@ -502,6 +516,7 @@ def validate_public_inputs(
             if pair_id.split("::", 1)[0] in evaluated_requirement_ids
         },
         "oracle_by_pair": oracle_by_pair,
+        "explicitly_excluded_requirement_ids": sorted(explicitly_excluded_requirement_ids),
         "support_recall_threshold": threshold,
     }
 
@@ -553,7 +568,10 @@ def _runtime_requirement_metrics(
     oracle_by_pair: dict[str, dict[str, Any]],
     candidate_support: dict[str, set[str]],
     selected_support: dict[str, set[str]],
+    *,
+    explicitly_excluded_requirement_ids: set[str] | None = None,
 ) -> dict[str, Any]:
+    explicitly_excluded_requirement_ids = set(explicitly_excluded_requirement_ids or ())
     supported_by_requirement: dict[str, set[str]] = {}
     for pair_id, row in oracle_by_pair.items():
         if _oracle_state(row) != "supported":
@@ -577,10 +595,17 @@ def _runtime_requirement_metrics(
         str(row.get("requirement_instance_id") or "")
         for row in oracle_by_pair.values()
     }
-    selected_pairs = {
+    selected_pairs = all_selected_pairs & set(oracle_by_pair)
+    excluded_pairs = {
         pair_id
         for pair_id in all_selected_pairs
-        if pair_id.split("::", 1)[0] in evaluated_requirements
+        if pair_id.split("::", 1)[0] in explicitly_excluded_requirement_ids
+    }
+    unexpected_pairs = {
+        pair_id
+        for pair_id in all_selected_pairs
+        if pair_id.split("::", 1)[0] not in evaluated_requirements
+        and pair_id not in excluded_pairs
     }
     unscoped_selected_pairs = {
         pair_id
@@ -603,12 +628,18 @@ def _runtime_requirement_metrics(
         ),
         "selected_pairs": len(selected_pairs),
         "unscoped_selected_pairs": len(unscoped_selected_pairs),
+        "explicitly_excluded_assignment_count": len(excluded_pairs),
+        "unexpected_assignment_count": len(unexpected_pairs),
+        "unexpected_requirement_ids": sorted(
+            {pair_id.split("::", 1)[0] for pair_id in unexpected_pairs}
+        ),
         "supported_selected_pairs": len(selected_pairs & supported_pairs),
         "assignment_precision": (
             len(selected_pairs & supported_pairs) / len(selected_pairs)
             if selected_pairs else None
         ),
-        "unsupported_or_unknown_assignments": len(unsupported_selected),
+        "unsupported_assignment_count": len(unsupported_selected),
+        "unsupported_or_unknown_assignments": len(unsupported_selected) + len(unexpected_pairs),
     }
 
 
@@ -706,7 +737,12 @@ def evaluate_runtime_corpus(
             "stage_traces": dict(bundle.get("stage_traces") or {}),
             "runtime_telemetry": dict(bundle.get("runtime_telemetry") or {}),
         })
-    metrics = _runtime_requirement_metrics(validation["oracle_by_pair"], candidate_support, selected_support)
+    metrics = _runtime_requirement_metrics(
+        validation["oracle_by_pair"],
+        candidate_support,
+        selected_support,
+        explicitly_excluded_requirement_ids=set(validation["explicitly_excluded_requirement_ids"]),
+    )
     telemetry = _runtime_telemetry_summary(
         [dict(output.get("runtime_telemetry") or {}) for output in job_outputs]
     )
@@ -717,7 +753,8 @@ def evaluate_runtime_corpus(
         "candidate_requirement_recall": metrics["candidate_requirement_recall"] is not None and metrics["candidate_requirement_recall"] >= threshold,
         "selected_requirement_coverage": metrics["selected_requirement_coverage"] is not None and metrics["selected_requirement_coverage"] >= threshold,
         "assignment_precision": metrics["assignment_precision"] == 1.0,
-        "unsupported_assignments": metrics["unsupported_or_unknown_assignments"] == 0,
+        "unsupported_assignments": metrics["unsupported_assignment_count"] == 0,
+        "unexpected_assignments": metrics["unexpected_assignment_count"] == 0,
         "top_k": top_k == 2,
     }
     return {

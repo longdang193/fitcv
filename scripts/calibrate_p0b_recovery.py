@@ -11,7 +11,10 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-import scripts.evaluate_p0b_source_job_relevance as evaluator
+try:
+    import scripts.evaluate_p0b_source_job_relevance as evaluator
+except ModuleNotFoundError:
+    import evaluate_p0b_source_job_relevance as evaluator
 
 
 STAGE_ORDER = (

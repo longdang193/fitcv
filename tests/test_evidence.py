@@ -716,6 +716,39 @@ def test_responsibility_support_rejects_essential_qualifier_mismatches() -> None
         assert assessment["verified_support"] is False
 
 
+def test_degree_domain_alternatives_match_complete_concepts_only() -> None:
+    cases = [
+        (
+            "a bachelor's degree or higher in computer science",
+            "Bachelor's Degree in Political Science",
+            False,
+        ),
+        (
+            "a bachelor's degree or higher in computer science",
+            "Bachelor's Degree in International Business",
+            False,
+        ),
+        (
+            "a bachelor's degree or higher in economics, finance, data science",
+            "Bachelor's Degree in Finance",
+            True,
+        ),
+        (
+            "a bachelor's degree or higher in economics or a related field",
+            "Bachelor's Degree in International Business",
+            True,
+        ),
+    ]
+
+    for requirement, evidence, expected in cases:
+        assessment = evidence_module._assess_responsibility_support(
+            requirement,
+            evidence,
+            {"source_section": "education", "role": evidence},
+        )
+        assert assessment["verified_support"] is expected
+
+
 def test_responsibility_support_does_not_promote_generic_essential_evidence() -> None:
     generic_tool = evidence_module._assess_responsibility_support(
         "Use Claude Code daily",
@@ -1511,6 +1544,41 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matche
     assert bundle["semantic_alignment"]["embedding_counts"]["candidate_evidence"]["fresh"] >= 1
     assert bundle["semantic_alignment"]["embedding_counts"]["job_context"]["fresh"] >= 1
     assert isinstance(bundle["unselected_top_candidates"], list)
+
+
+def test_candidate_embedding_cache_reuses_across_runtime_calls(monkeypatch) -> None:
+    evidence_module._CANDIDATE_EMBEDDING_CACHE.clear()
+    calls = 0
+
+    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> list[float]:
+        nonlocal calls
+        del text, runtime_config, model_name
+        calls += 1
+        return [1.0]
+
+    monkeypatch.setattr(evidence_module, "generate_embedding", fake_generate_embedding)
+    first_state = evidence_module._semantic_runtime_state()
+    second_state = evidence_module._semantic_runtime_state()
+
+    evidence_module._embed_text_cached(
+        "Candidate text",
+        config={},
+        model_name="text-embedding-005",
+        runtime_state=first_state,
+        cache_namespace="candidate",
+    )
+    evidence_module._embed_text_cached(
+        "Candidate text",
+        config={},
+        model_name="text-embedding-005",
+        runtime_state=second_state,
+        cache_namespace="candidate",
+    )
+
+    assert calls == 1
+    assert first_state["candidate_embedding_fresh_count"] == 1
+    assert second_state["candidate_embedding_reused_count"] == 1
+    evidence_module._CANDIDATE_EMBEDDING_CACHE.clear()
 
 
 def test_retrieve_evidence_bundle_uses_semantic_alignment_for_required_skill_support(monkeypatch) -> None:

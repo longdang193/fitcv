@@ -33,8 +33,10 @@ import math
 import os
 import re
 import sqlite3
+import threading
 import time
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -128,6 +130,9 @@ DEFAULT_ACHIEVEMENT_TOP_K = 1
 DEFAULT_BULLETS_PER_EXPERIENCE = 2
 DEFAULT_HIGHLIGHTS_PER_PROJECT = 2
 DEFAULT_STACK_LINES_PER_PROJECT = 2
+_CANDIDATE_EMBEDDING_CACHE_MAX = 512
+_CANDIDATE_EMBEDDING_CACHE: OrderedDict[str, list[float]] = OrderedDict()
+_CANDIDATE_EMBEDDING_CACHE_LOCK = threading.Lock()
 _STOPWORDS = {
     "a",
     "an",
@@ -928,9 +933,25 @@ def _embed_text_cached(
                 runtime_state.get("job_embedding_reused_count") or 0
             ) + 1
         return list(cached)
+    if cache_namespace == "candidate":
+        with _CANDIDATE_EMBEDDING_CACHE_LOCK:
+            cached = _CANDIDATE_EMBEDDING_CACHE.get(cache_key)
+            if cached is not None:
+                _CANDIDATE_EMBEDDING_CACHE.move_to_end(cache_key)
+        if cached is not None:
+            embedding_cache[cache_key] = list(cached)
+            runtime_state["candidate_embedding_reused_count"] = int(
+                runtime_state.get("candidate_embedding_reused_count") or 0
+            ) + 1
+            return list(cached)
     vector = list(generate_embedding(normalized_text, config, model_name=model_name))
     embedding_cache[cache_key] = vector
     if cache_namespace == "candidate":
+        with _CANDIDATE_EMBEDDING_CACHE_LOCK:
+            _CANDIDATE_EMBEDDING_CACHE[cache_key] = list(vector)
+            _CANDIDATE_EMBEDDING_CACHE.move_to_end(cache_key)
+            while len(_CANDIDATE_EMBEDDING_CACHE) > _CANDIDATE_EMBEDDING_CACHE_MAX:
+                _CANDIDATE_EMBEDDING_CACHE.popitem(last=False)
         runtime_state["candidate_embedding_fresh_count"] = int(
             runtime_state.get("candidate_embedding_fresh_count") or 0
         ) + 1
@@ -2247,6 +2268,7 @@ def _responsibility_constraints(text: str) -> dict[str, Any]:
     duration = _parse_duration_qualifier(normalized)
     entity_tokens: set[str] = set()
     domain_tokens: set[str] = set()
+    domain_concepts: list[set[str]] = []
     tail_stops = {
         "and", "at", "daily", "for", "in", "least", "more", "no", "or",
         "prior", "recently", "than", "the", "to", "with", "without",
@@ -2257,6 +2279,24 @@ def _responsibility_constraints(text: str) -> dict[str, Any]:
             token == "in" and index > 0 and tokens[index - 1] == "experience"
         )
         if not is_entity_marker and not is_degree_domain:
+            continue
+        if is_degree_domain:
+            degree_tail = re.search(r"\bdegree\b.*?\bin\s+(.+?)(?:;|$)", normalized)
+            alternatives = re.split(
+                r"\s*(?:,|\bor\b|\band\b)\s*",
+                degree_tail.group(1) if degree_tail else "",
+            )
+            for alternative in alternatives:
+                concept = {
+                    _responsibility_stem(value)
+                    for value in re.findall(r"[a-z0-9]+", alternative)
+                    if value not in _STOPWORDS
+                    and value not in _RESPONSIBILITY_GRAMMAR_WORDS
+                    and value not in {"related", "field"}
+                }
+                if concept:
+                    domain_concepts.append(concept)
+                    domain_tokens.update(concept)
             continue
         tail = tokens[index + 1 :]
         cut = next(
@@ -2269,10 +2309,7 @@ def _responsibility_constraints(text: str) -> dict[str, Any]:
             if value not in _STOPWORDS
             and value not in _RESPONSIBILITY_GRAMMAR_WORDS
         }
-        if is_degree_domain:
-            domain_tokens.update(target)
-        else:
-            entity_tokens.update(target)
+        entity_tokens.update(target)
     if duration and not entity_tokens:
         entity_tokens.update(objects)
     level = _parse_requirement_qualifiers(normalized).get("level", {}).get("value")
@@ -2283,6 +2320,7 @@ def _responsibility_constraints(text: str) -> dict[str, Any]:
         "qualifiers": qualifiers,
         "entity_tokens": entity_tokens,
         "domain_tokens": domain_tokens,
+        "domain_concepts": domain_concepts,
         "level_tokens": level_tokens,
         "duration": duration,
     }
@@ -2290,7 +2328,7 @@ def _responsibility_constraints(text: str) -> dict[str, Any]:
 
 def _related_education_domain_match(
     requirement_text: str,
-    domain_tokens: set[str],
+    domain_concepts: list[set[str]],
     evidence_tokens: set[str],
 ) -> bool:
     if "related field" not in _normalize_optional_text(requirement_text).casefold():
@@ -2299,7 +2337,11 @@ def _related_education_domain_match(
         {"business", "busines", "economic", "finance", "account", "commerce", "management"},
         {"data", "science", "engineer", "mathematic", "statistic", "computer", "technology", "informatics"},
     )
-    return any(domain_tokens & group and evidence_tokens & group for group in related_groups)
+    return any(
+        concept & group and evidence_tokens & group
+        for concept in domain_concepts
+        for group in related_groups
+    )
 
 
 def _responsibility_term_aliases(term: str) -> tuple[str, ...]:
@@ -2374,6 +2416,7 @@ def _assess_responsibility_support(
     qualifier_status = "satisfied" if qualifiers <= evidence_tokens else "unverified"
     entity_tokens = set(constraints["entity_tokens"])
     domain_tokens = set(constraints["domain_tokens"])
+    domain_concepts = list(constraints["domain_concepts"])
     level_tokens = set(constraints["level_tokens"])
     entity_match = not entity_tokens or entity_tokens <= evidence_tokens
     requirement_normalized = _normalize_optional_text(requirement_text).casefold()
@@ -2382,16 +2425,18 @@ def _assess_responsibility_support(
         requirement_normalized,
     ):
         entity_match = not entity_tokens or bool(entity_tokens & evidence_tokens)
-    level_domain_match = (
-        (not domain_tokens or domain_tokens <= evidence_tokens)
-        and (not level_tokens or level_tokens <= evidence_tokens)
+    domain_match = (
+        not domain_concepts
+        or any(concept <= evidence_tokens for concept in domain_concepts)
     )
-    if not level_domain_match and str((evidence_metadata or {}).get("source_section") or "") == "education":
-        level_domain_match = _related_education_domain_match(
+    if not domain_match and str((evidence_metadata or {}).get("source_section") or "") == "education":
+        domain_match = _related_education_domain_match(
             requirement_text,
-            domain_tokens,
+            domain_concepts,
             evidence_tokens,
         )
+    level_match = not level_tokens or level_tokens <= evidence_tokens
+    level_domain_match = domain_match and level_match
     duration = constraints["duration"]
     evidence_duration = _parse_duration_qualifier(evidence_text)
     duration_match = (

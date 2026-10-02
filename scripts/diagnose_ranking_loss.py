@@ -23,7 +23,10 @@ from fitcv.embeddings import (
 )
 from fitcv.ranking import rank_jobs
 from fitcv.vector_search import VECTOR_RETRIEVAL_STRATEGY, run_vector_search
-from scripts.benchmark_ranking import build_retrieval_request
+try:
+    from scripts.benchmark_ranking import build_retrieval_request
+except ModuleNotFoundError:
+    from benchmark_ranking import build_retrieval_request
 
 
 def _fixture_sha256(path: Path) -> str:

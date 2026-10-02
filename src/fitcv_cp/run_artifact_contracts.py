@@ -37,6 +37,7 @@ ACCEPTED_CV_FAILURE_CATEGORIES = (
     "provider_failure",
     "other",
 )
+_LINEAGE_FIELDS = ("run_id", "artifact_id", "generation_input_fingerprint", "attempt_id")
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
 
@@ -61,6 +62,7 @@ def accepted_cv_artifact_event_v1(
     accepted_at: Any,
     finalized_at: Any,
     generation_input_fingerprint: str | None = None,
+    attempt_id: str | None = None,
 ) -> dict[str, Any]:
     normalized_artifact_id = str(artifact_id or "").strip()
     normalized_job_url = str(job_url or "").strip()
@@ -75,6 +77,8 @@ def accepted_cv_artifact_event_v1(
             {
                 "artifact_id": normalized_artifact_id,
                 "acceptance_mode": normalized_mode,
+                "generation_input_fingerprint": generation_input_fingerprint,
+                "attempt_id": attempt_id,
             }
         ),
         "artifact_id": normalized_artifact_id,
@@ -84,6 +88,7 @@ def accepted_cv_artifact_event_v1(
         "accepted_at": accepted_at,
         "finalized_at": finalized_at,
         "generation_input_fingerprint": str(generation_input_fingerprint or "").strip() or None,
+        "attempt_id": str(attempt_id or "").strip() or None,
     }
 
 
@@ -128,6 +133,34 @@ def _trace_attempts(trace: dict[str, Any]) -> list[dict[str, Any]]:
     return [dict(item) for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
 
 
+def _lineage_value(item: dict[str, Any], field: str) -> str:
+    aliases = {
+        "artifact_id": ("artifact_id", "artifact_version_id"),
+        "job_url": ("job_url", "scope_key", "record_id"),
+    }
+    for key in aliases.get(field, (field,)):
+        value = str(item.get(key) or "").strip()
+        if value:
+            return value
+    trace = item.get("cv_generation_trace")
+    if isinstance(trace, dict):
+        return _lineage_value(trace, field)
+    return ""
+
+
+def _lineage_matches(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    compared = [
+        field
+        for field in _LINEAGE_FIELDS
+        if _lineage_value(left, field) and _lineage_value(right, field)
+    ]
+    if compared:
+        return all(_lineage_value(left, field) == _lineage_value(right, field) for field in compared)
+    left_job = _lineage_value(left, "job_url")
+    right_job = _lineage_value(right, "job_url")
+    return bool(left_job and left_job == right_job)
+
+
 def _token_total(token_usage: Any) -> int:
     total = 0
     for usage in list(token_usage or []):
@@ -153,7 +186,16 @@ def build_accepted_cv_effort_projection(
         action_key = stable_sha256_fingerprint(
             {
                 key: action.get(key)
-                for key in ("review_item_id", "job_url", "action", "created_at", "artifact_version_id")
+                for key in (
+                    "review_item_id",
+                    "job_url",
+                    "action",
+                    "created_at",
+                    "artifact_version_id",
+                    "run_id",
+                    "generation_input_fingerprint",
+                    "attempt_id",
+                )
             }
         )
         if action_key in seen_actions:
@@ -181,11 +223,46 @@ def build_accepted_cv_effort_projection(
                 "artifact_finalized": True,
                 "artifact_finalized_at": artifact.get("finalized_at") or artifact.get("accepted_at"),
                 "acceptance_mode": artifact.get("acceptance_mode"),
+                "run_id": artifact.get("run_id"),
+                "generation_input_fingerprint": artifact.get("generation_input_fingerprint"),
+                "attempt_id": artifact.get("attempt_id"),
             }
             for artifact in deduplicated_artifacts
         ]
 
-    if not accepted_actions:
+    trace_records: list[dict[str, Any]] = []
+    seen_trace_ids: set[str] = set()
+    for trace_record in list(generation_trace_records or []):
+        if not isinstance(trace_record, dict):
+            continue
+        trace = dict(trace_record)
+        trace_id = stable_sha256_fingerprint(trace)
+        if trace_id not in seen_trace_ids:
+            seen_trace_ids.add(trace_id)
+            trace_records.append(trace)
+    for record in records:
+        trace_record = record.get("cv_generation_trace")
+        if not isinstance(trace_record, dict):
+            continue
+        trace = dict(trace_record)
+        for field in (
+            *_LINEAGE_FIELDS,
+            "job_url",
+            "render_retry_count",
+            "cv_content_plan",
+            "reused_resolution_count",
+            "run_started_at",
+            "started_at",
+            "created_at",
+        ):
+            if field not in trace and record.get(field) is not None:
+                trace[field] = record.get(field)
+        trace_id = stable_sha256_fingerprint(trace)
+        if trace_id not in seen_trace_ids:
+            seen_trace_ids.add(trace_id)
+            trace_records.append(trace)
+
+    if not accepted_actions and not trace_records:
         return {
             "schema_version": "accepted_cv_effort_v1",
             "status": "not_run",
@@ -193,36 +270,26 @@ def build_accepted_cv_effort_projection(
             "denominator": {"accepted_cv_count": 0},
             "records": [],
         }
-
-    trace_records = [
-        dict(item) for item in list(generation_trace_records or []) if isinstance(item, dict)
-    ]
-    trace_by_job = {
-        str(item.get("scope_key") or item.get("record_id") or "").strip(): item
-        for item in trace_records
-        if str(item.get("scope_key") or item.get("record_id") or "").strip()
-    }
-    records_by_job = {
-        str(record.get("job_url") or "").strip(): record
-        for record in records
-        if str(record.get("job_url") or "").strip()
-    }
-    for job_url, trace_record in trace_by_job.items():
-        if job_url not in records_by_job:
-            records_by_job[job_url] = {"job_url": job_url, "cv_generation_trace": trace_record}
-        elif not isinstance(records_by_job[job_url].get("cv_generation_trace"), dict):
-            records_by_job[job_url] = {
-                **records_by_job[job_url],
-                "cv_generation_trace": trace_record,
-            }
     projected: list[dict[str, Any]] = []
     for action in accepted_actions:
-        job_url = str(action.get("job_url") or "").strip()
-        record = records_by_job.get(job_url, {})
-        efficiency = dict(dict(record.get("cv_generation_trace") or {}).get("efficiency_summary") or {})
-        related_actions = [item for item in deduplicated_actions if str(item.get("job_url") or "").strip() == job_url]
-        trace = dict(record.get("cv_generation_trace") or {})
-        attempts = _trace_attempts(trace)
+        job_url = _lineage_value(action, "job_url")
+        matched_traces = [trace for trace in trace_records if _lineage_matches(action, trace)]
+        if not matched_traces:
+            matched_traces = [
+                trace for trace in trace_records
+                if _lineage_value(trace, "job_url") == job_url
+            ]
+        trace = matched_traces[0] if matched_traces else {}
+        efficiency = dict(dict(trace.get("efficiency_summary") or {}))
+        related_actions = [item for item in deduplicated_actions if _lineage_matches(action, item)]
+        attempts: list[dict[str, Any]] = []
+        seen_attempts: set[str] = set()
+        for matched_trace in matched_traces:
+            for attempt in _trace_attempts(matched_trace):
+                attempt_id = stable_sha256_fingerprint(attempt)
+                if attempt_id not in seen_attempts:
+                    seen_attempts.add(attempt_id)
+                    attempts.append(attempt)
         attempt_categories = [
             category
             for category in (_attempt_failure_category(item) for item in attempts)
@@ -251,7 +318,6 @@ def build_accepted_cv_effort_projection(
         render_retry_count = max(
             _nonnegative_int(efficiency.get("render_retry_count")),
             _nonnegative_int(trace.get("render_retry_count")),
-            _nonnegative_int(record.get("render_retry_count")),
         )
         provider_call_count = max(_nonnegative_int(efficiency.get("provider_call_count")), len(attempts))
         regeneration_count = max(
@@ -262,12 +328,12 @@ def build_accepted_cv_effort_projection(
         token_usage = efficiency.get("token_usage")
         elapsed_from_trace = efficiency.get("elapsed_ms")
         page_fit_status = str(
-            dict(record.get("cv_content_plan") or {}).get("space_budget", {}).get("page_fit_status")
+            dict(trace.get("cv_content_plan") or {}).get("space_budget", {}).get("page_fit_status")
             or dict(trace.get("output_summary") or {}).get("page_fit_status")
             or "not_recorded"
         )
         reused_resolution_count = int(
-            record.get("reused_resolution_count")
+            trace.get("reused_resolution_count")
             or sum(
                 str(item.get("resolution_status") or "").strip().startswith("reused")
                 for item in related_actions
@@ -275,7 +341,7 @@ def build_accepted_cv_effort_projection(
         )
         start = None
         for key in ("run_started_at", "started_at", "created_at"):
-            start = _parse_timestamp(record.get(key))
+            start = _parse_timestamp(trace.get(key))
             if start is not None:
                 break
         end = None
@@ -304,6 +370,9 @@ def build_accepted_cv_effort_projection(
             {
                 "job_url": job_url,
                 "artifact_version_id": str(action.get("artifact_version_id") or "").strip(),
+                "run_id": _lineage_value(action, "run_id") or None,
+                "generation_input_fingerprint": _lineage_value(action, "generation_input_fingerprint") or None,
+                "attempt_id": _lineage_value(action, "attempt_id") or None,
                 "acceptance_mode": str(action.get("acceptance_mode") or "human_confirmed"),
                 "final_status": "accepted",
                 "attempt_count": max(len(attempts), provider_call_count),

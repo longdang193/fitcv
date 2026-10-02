@@ -15431,6 +15431,48 @@ def test_load_run_cv_generation_debug_payload_derives_review_item_id_for_legacy_
     assert len(records) == 1
     assert str(records[0].get("review_item_id") or "").startswith("ri_")
 
+
+def test_load_run_cv_generation_debug_payload_matches_same_job_by_lineage() -> None:
+    from types import SimpleNamespace
+
+    run = SimpleNamespace(
+        run_id="run-1",
+        cv_generation_debug_json=json.dumps(
+            {
+                "run_id": "run-1",
+                "debug_records": [
+                    {"job_url": "job-1", "run_id": "run-1", "artifact_id": "cv-1"},
+                    {"job_url": "job-1", "run_id": "run-2", "artifact_id": "cv-2"},
+                ],
+                "cv_generation_trace": {
+                    "records": [
+                        {
+                            "scope_key": "job-1",
+                            "run_id": "run-1",
+                            "artifact_id": "cv-1",
+                            "efficiency_summary": {"provider_call_count": 1},
+                        },
+                        {
+                            "scope_key": "job-1",
+                            "run_id": "run-2",
+                            "artifact_id": "cv-2",
+                            "efficiency_summary": {"provider_call_count": 3},
+                        },
+                    ]
+                },
+            }
+        ),
+    )
+
+    payload = _load_run_cv_generation_debug_payload(run)
+    records = list(payload["debug_records"])
+
+    assert [row["cv_generation_trace"]["run_id"] for row in records] == ["run-1", "run-2"]
+    assert [
+        row["cv_generation_trace"]["efficiency_summary"]["provider_call_count"]
+        for row in records
+    ] == [1, 3]
+
 def test_is_hitl_resolution_pending_uses_terminal_status_set() -> None:
     assert _is_hitl_resolution_pending("pending") is True
     assert _is_hitl_resolution_pending("regeneration_requested") is True

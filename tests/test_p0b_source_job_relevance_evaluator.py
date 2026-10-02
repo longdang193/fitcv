@@ -415,3 +415,84 @@ def test_runtime_metrics_count_all_negative_requirements_in_assignment_precision
     assert metrics["supported_selected_pairs"] == 1
     assert metrics["assignment_precision"] == 0.5
     assert metrics["unsupported_or_unknown_assignments"] == 1
+
+def test_runtime_metrics_classify_unknown_assignments_as_unexpected() -> None:
+    oracle = {
+        "req-supported::ev-good": {
+            "requirement_instance_id": "req-supported",
+            "evidence_id": "ev-good",
+            "support_state": "supported",
+        },
+    }
+
+    metrics = evaluator._runtime_requirement_metrics(
+        oracle,
+        {"req-supported": {"ev-good"}, "req-unknown": {"ev-unknown"}},
+        {"req-supported": {"ev-good"}, "req-unknown": {"ev-unknown"}},
+    )
+
+    assert metrics["selected_pairs"] == 1
+    assert metrics["unexpected_assignment_count"] == 1
+    assert metrics["unexpected_requirement_ids"] == ["req-unknown"]
+    assert metrics["assignment_precision"] == 1.0
+
+
+def test_runtime_metrics_allow_only_explicitly_excluded_assignments_outside_oracle() -> None:
+    oracle = {
+        "req-supported::ev-good": {
+            "requirement_instance_id": "req-supported",
+            "evidence_id": "ev-good",
+            "support_state": "supported",
+        },
+    }
+
+    metrics = evaluator._runtime_requirement_metrics(
+        oracle,
+        {"req-supported": {"ev-good"}, "req-excluded": {"ev-excluded"}},
+        {"req-supported": {"ev-good"}, "req-excluded": {"ev-excluded"}},
+        explicitly_excluded_requirement_ids={"req-excluded"},
+    )
+
+    assert metrics["unexpected_assignment_count"] == 0
+    assert metrics["explicitly_excluded_assignment_count"] == 1
+    assert metrics["assignment_precision"] == 1.0
+
+
+def test_validate_public_inputs_rejects_unknown_runtime_requirement_id() -> None:
+    state = copy.deepcopy(evaluator._load_acceptance_state())
+    validation = evaluator.validate_public_inputs(
+        [{"evidence_id": "ev-unknown", "schema_version": "candidate-evidence.v1"}],
+        [{
+            "requirement_instance_id": "req-unknown",
+            "requirement_text": "Unknown requirement",
+            "selected_evidence_ids": "ev-unknown",
+            "accepted_evidence_ids": "",
+            "support_verdict": "supported",
+            "qualifier_verdict": "satisfied",
+        }],
+        [],
+        state,
+    )
+
+    assert "unexpected_runtime_requirement_ids:req-unknown" in validation["errors"]
+    assert validation["passed"] is False
+
+
+def test_validate_public_inputs_accepts_declared_excluded_requirement_id() -> None:
+    state = copy.deepcopy(evaluator._load_acceptance_state())
+    state["p0_b"] = {"explicitly_excluded_requirement_ids": ["req-excluded"]}
+    validation = evaluator.validate_public_inputs(
+        [{"evidence_id": "ev-excluded", "schema_version": "candidate-evidence.v1"}],
+        [{
+            "requirement_instance_id": "req-excluded",
+            "requirement_text": "Excluded requirement",
+            "selected_evidence_ids": "ev-excluded",
+            "accepted_evidence_ids": "",
+            "support_verdict": "supported",
+            "qualifier_verdict": "satisfied",
+        }],
+        [],
+        state,
+    )
+
+    assert "unexpected_runtime_requirement_ids:req-excluded" not in validation["errors"]

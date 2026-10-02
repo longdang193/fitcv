@@ -167,6 +167,32 @@ jobs:
       - name: Run full pytest suite
         run: python -m pytest -q -m "not render_acceptance"
 
+  acceptance-verifier:
+    name: FitCV Acceptance Verifier
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path requirements.txt) {
+            python -m pip install -r requirements.txt
+          }
+          python -m pip install pytest pytest-httpx
+          if ((Test-Path pyproject.toml) -or (Test-Path setup.py)) {
+            python -m pip install -e ".[local]"
+          }
+
+      - name: Verify FitCV acceptance claims
+        run: python scripts/verify_fitcv_acceptance.py --output .tmp/fitcv-acceptance-report.json
+
   render-acceptance:
     name: Render Acceptance
     runs-on: ubuntu-24.04
