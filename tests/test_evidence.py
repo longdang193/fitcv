@@ -659,9 +659,14 @@ def test_responsibility_support_accepts_bounded_or_compound_requirement_proof() 
             {"source_section": "experiences", "skills": ["microsoft excel", "microsoft powerpoint"]},
         ),
         (
-            "a bachelor’s degree or higher in economics, econometrics, finance, data engineering, data science, applied mathematics or a related field;",
-            "Strategic Management",
-            {"source_section": "education", "role": "Bachelor's Degree International Business"},
+            "a bachelor’s degree or higher in data science;",
+            "Bachelor's Degree in Data Science",
+            {"source_section": "education", "role": "Bachelor's Degree in Data Science"},
+        ),
+        (
+            "a bachelor’s degree or higher in economics, finance, data science or a related field;",
+            "Bachelor's Degree in International Business",
+            {"source_section": "education", "role": "Bachelor's Degree in International Business"},
         ),
         (
             "Previous experience in executive search, recruitment, research or another professional environment would be beneficial but is not essential.",
@@ -676,6 +681,39 @@ def test_responsibility_support_accepts_bounded_or_compound_requirement_proof() 
             evidence,
             metadata,
         )["verified_support"] is True
+
+
+def test_responsibility_support_rejects_essential_qualifier_mismatches() -> None:
+    cases = [
+        (
+            "a bachelor's degree or higher in computer science",
+            "Bachelor's Degree in International Business",
+            {"source_section": "education", "role": "Bachelor's Degree in International Business"},
+        ),
+        (
+            "Use Claude Code daily",
+            "Used a generic coding tool daily",
+            {"source_section": "experiences"},
+        ),
+        (
+            "Experience in executive search",
+            "Conducted generic market research",
+            {"source_section": "experiences"},
+        ),
+        (
+            "Deploy Kubernetes in production for 3 years",
+            "Deployed Kubernetes in production for 1 year",
+            {"source_section": "experiences"},
+        ),
+    ]
+
+    for requirement, evidence, metadata in cases:
+        assessment = evidence_module._assess_responsibility_support(
+            requirement,
+            evidence,
+            metadata,
+        )
+        assert assessment["verified_support"] is False
 
 
 def test_responsibility_support_does_not_promote_generic_essential_evidence() -> None:

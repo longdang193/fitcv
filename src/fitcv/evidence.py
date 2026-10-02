@@ -2288,6 +2288,20 @@ def _responsibility_constraints(text: str) -> dict[str, Any]:
     }
 
 
+def _related_education_domain_match(
+    requirement_text: str,
+    domain_tokens: set[str],
+    evidence_tokens: set[str],
+) -> bool:
+    if "related field" not in _normalize_optional_text(requirement_text).casefold():
+        return False
+    related_groups = (
+        {"business", "busines", "economic", "finance", "account", "commerce", "management"},
+        {"data", "science", "engineer", "mathematic", "statistic", "computer", "technology", "informatics"},
+    )
+    return any(domain_tokens & group and evidence_tokens & group for group in related_groups)
+
+
 def _responsibility_term_aliases(term: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys((term, f"{term}ing", f"{term}ed", f"{term}s")))
 
@@ -2372,6 +2386,12 @@ def _assess_responsibility_support(
         (not domain_tokens or domain_tokens <= evidence_tokens)
         and (not level_tokens or level_tokens <= evidence_tokens)
     )
+    if not level_domain_match and str((evidence_metadata or {}).get("source_section") or "") == "education":
+        level_domain_match = _related_education_domain_match(
+            requirement_text,
+            domain_tokens,
+            evidence_tokens,
+        )
     duration = constraints["duration"]
     evidence_duration = _parse_duration_qualifier(evidence_text)
     duration_match = (
@@ -2380,8 +2400,6 @@ def _assess_responsibility_support(
         else _duration_satisfies(duration, evidence_duration or {}) is True
     )
     rule_support = _responsibility_rule_support(requirement_text, evidence_text, evidence_metadata)
-    if rule_support["candidate_match"] and str((evidence_metadata or {}).get("source_section") or "") == "education":
-        level_domain_match = True
     action_match = action_match or bool(rule_support["action_match"])
     if rule_support["candidate_match"]:
         object_match = bool(rule_support["object_match"])

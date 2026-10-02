@@ -46,9 +46,23 @@ def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | 
         if isinstance(item, dict)
     ]
     normalized_records: list[dict[str, Any]] = []
+    trace_records = [
+        item
+        for item in list(dict(copied.get("cv_generation_trace") or {}).get("records") or [])
+        if isinstance(item, dict)
+    ]
+    trace_by_job = {
+        str(item.get("scope_key") or item.get("record_id") or "").strip(): item
+        for item in trace_records
+        if str(item.get("scope_key") or item.get("record_id") or "").strip()
+    }
     run_id_value = str(getattr(run, "run_id", "") or payload.get("run_id") or "")
     for index, record in enumerate(records):
         row = dict(record)
+        if not isinstance(row.get("cv_generation_trace"), dict):
+            trace = trace_by_job.get(str(row.get("job_url") or "").strip())
+            if trace is not None:
+                row["cv_generation_trace"] = trace
         if str(row.get("status") or "").strip() == "review_required":
             ensure_review_item_id(
                 run_id=run_id_value,
@@ -69,6 +83,8 @@ def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | 
     copied["accepted_cv_effort"] = build_accepted_cv_effort_projection(
         normalized_records,
         [item for item in list(copied.get("hitl_review_actions") or []) if isinstance(item, dict)],
+        [item for item in list(copied.get("accepted_artifact_events") or []) if isinstance(item, dict)],
+        generation_trace_records=trace_records,
     )
     return copied
 

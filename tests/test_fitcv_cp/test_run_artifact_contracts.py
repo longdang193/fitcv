@@ -27,6 +27,7 @@ from fitcv_cp.run_artifact_contracts import (
     schema_version_or_none,
     stable_sha256_fingerprint,
     build_accepted_cv_effort_projection,
+    accepted_cv_artifact_event_v1,
 )
 
 
@@ -167,6 +168,138 @@ def test_accepted_cv_effort_projection_measures_existing_run_to_artifact_timesta
     assert result["status"] == "measured"
     assert result["records"][0]["elapsed_ms"] == 1000.0
     assert result["records"][0]["elapsed_status"] == "measured"
+
+
+def test_accepted_cv_effort_projection_uses_idempotent_automatic_and_hitl_events() -> None:
+    records = [
+        {
+            "job_url": "job-auto",
+            "run_started_at": "2026-10-02T00:00:00Z",
+            "cv_generation_trace": {"efficiency_summary": {"provider_call_count": 2}},
+        },
+        {
+            "job_url": "job-hitl",
+            "run_started_at": "2026-10-02T00:00:00Z",
+            "cv_generation_trace": {"efficiency_summary": {"provider_call_count": 1}},
+        },
+    ]
+    automatic = accepted_cv_artifact_event_v1(
+        artifact_id="cv-auto",
+        job_url="job-auto",
+        run_id="run-1",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+    human = accepted_cv_artifact_event_v1(
+        artifact_id="cv-hitl",
+        job_url="job-hitl",
+        run_id="run-1",
+        acceptance_mode="human_confirmed",
+        accepted_at="2026-10-02T00:02:00Z",
+        finalized_at="2026-10-02T00:02:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection(
+        records,
+        [],
+        [automatic, dict(automatic), human],
+    )
+
+    assert result["denominator"] == {"accepted_cv_count": 2}
+    assert {row["acceptance_mode"] for row in result["records"]} == {"automatic", "human_confirmed"}
+    assert {row["artifact_version_id"] for row in result["records"]} == {"cv-auto", "cv-hitl"}
+
+
+def test_accepted_cv_effort_projection_keeps_all_attempts_and_failure_taxonomy() -> None:
+    record = {
+        "job_url": "job-1",
+        "cv_generation_trace": {
+            "attempts": [
+                {"attempt_index": 1, "attempt_type": "initial_generation", "provider_status": "accepted"},
+                {"attempt_index": 2, "attempt_type": "repair_retry", "provider_status": "accepted"},
+                {"attempt_index": 3, "attempt_type": "repair_retry", "provider_status": "error", "error_stage": "provider_timeout"},
+            ],
+            "validation_summary": {"initial_valid": False, "final_valid": True},
+            "efficiency_summary": {
+                "provider_call_count": 3,
+                "regeneration_count": 2,
+                "review_question_count": 2,
+                "render_retry_count": 1,
+                "token_usage": [{"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}],
+                "elapsed_ms": 123,
+            },
+        },
+    }
+    event = accepted_cv_artifact_event_v1(
+        artifact_id="cv-1",
+        job_url="job-1",
+        run_id="run-1",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection([record], [], [event])
+    row = result["records"][0]
+
+    assert row["attempt_count"] == 3
+    assert row["provider_call_count"] == 3
+    assert row["validation_failure_count"] == 1
+    assert row["render_retry_count"] == 1
+    assert row["token_total"] == 15
+    assert row["failure_category_counts"] == {"provider_failure": 1}
+    assert result["aggregate"]["attempt_count"] == 3
+
+
+def test_accepted_cv_effort_projection_preserves_workload_attempt_baseline() -> None:
+    trace_records = []
+    accepted_artifacts = []
+    for index in range(17):
+        accepted = index < 11
+        regeneration_count = 1 if index < 9 else 0
+        trace_records.append(
+            {
+                "scope_key": f"job-{index}",
+                "status": "accepted" if accepted else "validation_failed",
+                "output_summary": {"final_status": "accepted" if accepted else "validation_failed"},
+                "validation_summary": {"final_valid": accepted},
+                "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+                "efficiency_summary": {
+                    "provider_call_count": 1,
+                    "regeneration_count": regeneration_count,
+                    "token_usage": [{"total_tokens": 10}],
+                },
+            }
+        )
+        if accepted:
+            accepted_artifacts.append(
+                accepted_cv_artifact_event_v1(
+                    artifact_id=f"cv-{index}",
+                    job_url=f"job-{index}",
+                    run_id="run-1",
+                    acceptance_mode="automatic",
+                    accepted_at="2026-10-02T00:01:00Z",
+                    finalized_at="2026-10-02T00:01:00Z",
+                )
+            )
+
+    result = build_accepted_cv_effort_projection(
+        [],
+        [],
+        accepted_artifacts,
+        generation_trace_records=trace_records,
+    )
+
+    assert result["denominator"] == {"accepted_cv_count": 11}
+    assert result["aggregate"]["workload"] == {
+        "attempted_generation_job_count": 17,
+        "validation_failure_count": 6,
+        "provider_call_count": 17,
+        "regeneration_count": 9,
+        "render_retry_count": 0,
+        "token_total": 170,
+    }
 
 def test_run_attempt_payload_v1_truncates_error_details_when_over_cap() -> None:
     payload = run_attempt_payload_v1(

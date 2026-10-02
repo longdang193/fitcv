@@ -10,9 +10,9 @@ from scripts.render_acceptance_state import render_acceptance_state
 
 def _valid_state() -> dict[str, object]:
     return {
-        "schema_version": "fitcv.acceptance_state.v1",
+        "schema_version": "fitcv.acceptance_state.v2",
         "repository": "longdang193/fitcv",
-        "source_commit": "a" * 40,
+        "evaluation_freeze_commit": "a" * 40,
         "sanitizer_version": "fitcv-p0-corpus-sanitizer.v1",
         "contract_versions": {"corpus": "p0.public.v1"},
         "corpus_manifests": ["data/manifest.json"],
@@ -50,13 +50,13 @@ def test_render_acceptance_state_is_deterministic(tmp_path: Path) -> None:
 
     assert first == second
     assert first_bytes == output.read_bytes()
-    assert first["source_commit"] == "a" * 40
+    assert first["evaluation_freeze_commit"] == "a" * 40
 
 
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("source_commit", ""),
+        ("evaluation_freeze_commit", ""),
         ("repository", "other/repo"),
         ("statuses", {"p0_a": "unknown"}),
     ],

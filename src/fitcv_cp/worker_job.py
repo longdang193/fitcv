@@ -113,6 +113,7 @@ from fitcv_cp.synonym_policy_io import (
 from fitcv_cp.review_identity import ensure_review_item_id, is_review_resolution_pending
 from fitcv_cp.retry_policy import classify_exception_for_retry
 from fitcv_cp.run_artifact_contracts import (
+    accepted_cv_artifact_event_v1,
     encode_json_object,
     iso_or_none,
     decode_json_object_or_none,
@@ -1024,6 +1025,27 @@ def _build_cv_generation_debug_payload(
         if reranker_fit_label is None and ranking_fit_label is not None:
             record["reranker_fit_label"] = ranking_fit_label
     debug_records = json_safe(debug_records)
+    accepted_artifact_events = [
+        accepted_cv_artifact_event_v1(
+            artifact_id=str(record.get("cv_version_id") or ""),
+            job_url=str(record.get("job_url") or ""),
+            run_id=run_id,
+            acceptance_mode="automatic",
+            accepted_at=record.get("accepted_at") or record.get("generated_at") or finished_at.isoformat(),
+            finalized_at=record.get("finalized_at") or record.get("generated_at") or finished_at.isoformat(),
+            generation_input_fingerprint=record.get("cv_generation_input_fingerprint"),
+        )
+        for record in debug_records
+        if str(record.get("status") or "").strip() == "accepted"
+        and str(record.get("cv_version_id") or "").strip()
+    ]
+    existing_events = [
+        item for item in list(summary.get("accepted_artifact_events") or [])
+        if isinstance(item, dict)
+    ]
+    by_artifact = {str(item.get("artifact_id") or ""): item for item in existing_events}
+    for event in accepted_artifact_events:
+        by_artifact[str(event["artifact_id"])] = event
     ranked_jobs_total = int(summary.get("ranked", 0))
     attempted_generation_jobs_total = sum(
         1
@@ -1067,6 +1089,7 @@ def _build_cv_generation_debug_payload(
         "omission_reason_counts": omission_reason_counts,
         "snapshot_complete": len(debug_records) == ranked_jobs_total,
         "debug_records": debug_records,
+        "accepted_artifact_events": list(by_artifact.values()),
     }
     if isinstance(summary.get("cv_generation_trace"), dict):
         payload["cv_generation_trace"] = dict(summary["cv_generation_trace"])
@@ -2963,7 +2986,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

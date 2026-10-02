@@ -27,6 +27,16 @@ RUN_MODE_LABELS = {
 }
 
 RUN_ATTEMPT_SCHEMA_VERSION = "run_attempt.v1"
+ACCEPTED_CV_ARTIFACT_SCHEMA_VERSION = "accepted_cv_artifact.v1"
+ACCEPTED_CV_FAILURE_CATEGORIES = (
+    "unsupported_claim",
+    "missing_requirement_evidence",
+    "generation_format_defect",
+    "page_overflow",
+    "render_failure",
+    "provider_failure",
+    "other",
+)
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
 
@@ -42,9 +52,100 @@ def _parse_timestamp(value: Any) -> datetime.datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.timezone.utc)
 
 
+def accepted_cv_artifact_event_v1(
+    *,
+    artifact_id: str,
+    job_url: str,
+    run_id: str | None,
+    acceptance_mode: str,
+    accepted_at: Any,
+    finalized_at: Any,
+    generation_input_fingerprint: str | None = None,
+) -> dict[str, Any]:
+    normalized_artifact_id = str(artifact_id or "").strip()
+    normalized_job_url = str(job_url or "").strip()
+    normalized_mode = str(acceptance_mode or "").strip()
+    if not normalized_artifact_id or not normalized_job_url:
+        raise ValueError("accepted_cv_artifact requires artifact_id and job_url")
+    if normalized_mode not in {"automatic", "human_confirmed"}:
+        raise ValueError("accepted_cv_artifact acceptance_mode invalid")
+    return {
+        "schema_version": ACCEPTED_CV_ARTIFACT_SCHEMA_VERSION,
+        "event_id": stable_sha256_fingerprint(
+            {
+                "artifact_id": normalized_artifact_id,
+                "acceptance_mode": normalized_mode,
+            }
+        ),
+        "artifact_id": normalized_artifact_id,
+        "job_url": normalized_job_url,
+        "run_id": str(run_id or "").strip() or None,
+        "acceptance_mode": normalized_mode,
+        "accepted_at": accepted_at,
+        "finalized_at": finalized_at,
+        "generation_input_fingerprint": str(generation_input_fingerprint or "").strip() or None,
+    }
+
+
+def _nonnegative_int(value: Any) -> int:
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _failure_category(value: Any) -> str:
+    normalized = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized in ACCEPTED_CV_FAILURE_CATEGORIES:
+        return normalized
+    if "unsupported" in normalized or "grounding" in normalized or "claim" in normalized:
+        return "unsupported_claim"
+    if "requirement" in normalized and ("missing" in normalized or "evidence" in normalized):
+        return "missing_requirement_evidence"
+    if any(token in normalized for token in ("format", "schema", "parse", "section")):
+        return "generation_format_defect"
+    if any(token in normalized for token in ("overflow", "page_fit", "page_count")):
+        return "page_overflow"
+    if any(token in normalized for token in ("render", "pdf", "pandoc", "xelatex", "latex")):
+        return "render_failure"
+    if any(token in normalized for token in ("provider", "timeout", "transport", "llm", "rate_limit")):
+        return "provider_failure"
+    return "other"
+
+
+def _attempt_failure_category(attempt: dict[str, Any]) -> str | None:
+    explicit = attempt.get("failure_category") or attempt.get("failure_reason")
+    if explicit:
+        return _failure_category(explicit)
+    if str(attempt.get("provider_status") or "").strip().lower() in {"error", "failed", "failure"}:
+        return _failure_category(attempt.get("error_message") or attempt.get("error_stage") or "provider_failure")
+    if attempt.get("error_message") or attempt.get("error_stage"):
+        return _failure_category(attempt.get("error_message") or attempt.get("error_stage"))
+    return None
+
+
+def _trace_attempts(trace: dict[str, Any]) -> list[dict[str, Any]]:
+    return [dict(item) for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
+
+
+def _token_total(token_usage: Any) -> int:
+    total = 0
+    for usage in list(token_usage or []):
+        if not isinstance(usage, dict):
+            continue
+        total += _nonnegative_int(
+            usage.get("total_tokens")
+            or (_nonnegative_int(usage.get("input_tokens")) + _nonnegative_int(usage.get("output_tokens")))
+        )
+    return total
+
+
 def build_accepted_cv_effort_projection(
     records: list[dict[str, Any]],
     actions: list[dict[str, Any]],
+    accepted_artifacts: list[dict[str, Any]] | None = None,
+    *,
+    generation_trace_records: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     deduplicated_actions: list[dict[str, Any]] = []
     seen_actions: set[str] = set()
@@ -64,21 +165,56 @@ def build_accepted_cv_effort_projection(
         for action in deduplicated_actions
         if bool(action.get("artifact_finalized")) and str(action.get("artifact_version_id") or "").strip()
     ]
+    deduplicated_artifacts: list[dict[str, Any]] = []
+    seen_artifacts: set[str] = set()
+    for artifact in list(accepted_artifacts or []):
+        artifact_id = str(artifact.get("artifact_id") or artifact.get("artifact_version_id") or "").strip()
+        if not artifact_id or artifact_id in seen_artifacts:
+            continue
+        seen_artifacts.add(artifact_id)
+        deduplicated_artifacts.append(artifact)
+    if deduplicated_artifacts:
+        accepted_actions = [
+            {
+                "job_url": artifact.get("job_url"),
+                "artifact_version_id": artifact.get("artifact_id") or artifact.get("artifact_version_id"),
+                "artifact_finalized": True,
+                "artifact_finalized_at": artifact.get("finalized_at") or artifact.get("accepted_at"),
+                "acceptance_mode": artifact.get("acceptance_mode"),
+            }
+            for artifact in deduplicated_artifacts
+        ]
 
     if not accepted_actions:
         return {
             "schema_version": "accepted_cv_effort_v1",
             "status": "not_run",
-            "blocker": "no_accepted_artifact_action",
+            "blocker": "no_accepted_artifact_event",
             "denominator": {"accepted_cv_count": 0},
             "records": [],
         }
 
+    trace_records = [
+        dict(item) for item in list(generation_trace_records or []) if isinstance(item, dict)
+    ]
+    trace_by_job = {
+        str(item.get("scope_key") or item.get("record_id") or "").strip(): item
+        for item in trace_records
+        if str(item.get("scope_key") or item.get("record_id") or "").strip()
+    }
     records_by_job = {
         str(record.get("job_url") or "").strip(): record
         for record in records
         if str(record.get("job_url") or "").strip()
     }
+    for job_url, trace_record in trace_by_job.items():
+        if job_url not in records_by_job:
+            records_by_job[job_url] = {"job_url": job_url, "cv_generation_trace": trace_record}
+        elif not isinstance(records_by_job[job_url].get("cv_generation_trace"), dict):
+            records_by_job[job_url] = {
+                **records_by_job[job_url],
+                "cv_generation_trace": trace_record,
+            }
     projected: list[dict[str, Any]] = []
     for action in accepted_actions:
         job_url = str(action.get("job_url") or "").strip()
@@ -86,6 +222,45 @@ def build_accepted_cv_effort_projection(
         efficiency = dict(dict(record.get("cv_generation_trace") or {}).get("efficiency_summary") or {})
         related_actions = [item for item in deduplicated_actions if str(item.get("job_url") or "").strip() == job_url]
         trace = dict(record.get("cv_generation_trace") or {})
+        attempts = _trace_attempts(trace)
+        attempt_categories = [
+            category
+            for category in (_attempt_failure_category(item) for item in attempts)
+            if category
+        ]
+        validation_summary = dict(trace.get("validation_summary") or {})
+        validation_failure_count = _nonnegative_int(efficiency.get("validation_failure_count"))
+        if validation_failure_count == 0 and validation_summary.get("initial_valid") is False:
+            validation_failure_count = 1
+        if validation_failure_count == 0 and validation_summary.get("final_valid") is False:
+            validation_failure_count = 1
+        if validation_failure_count and not attempt_categories:
+            if validation_summary.get("initial_grounding_violation_count") or validation_summary.get(
+                "final_grounding_violation_count"
+            ):
+                attempt_categories.append("unsupported_claim")
+            elif validation_summary.get("initial_missing_fields") or validation_summary.get("final_missing_fields"):
+                attempt_categories.append("generation_format_defect")
+            else:
+                attempt_categories.append("other")
+        error_summary = trace.get("error_summary")
+        if isinstance(error_summary, dict) and not attempt_categories:
+            attempt_categories.append(
+                _failure_category(error_summary.get("failure_category") or error_summary.get("error_stage"))
+            )
+        render_retry_count = max(
+            _nonnegative_int(efficiency.get("render_retry_count")),
+            _nonnegative_int(trace.get("render_retry_count")),
+            _nonnegative_int(record.get("render_retry_count")),
+        )
+        provider_call_count = max(_nonnegative_int(efficiency.get("provider_call_count")), len(attempts))
+        regeneration_count = max(
+            _nonnegative_int(efficiency.get("regeneration_count")),
+            max(len(attempts) - 1, 0),
+            sum(str(item.get("action") or "") == "regenerate_once" for item in related_actions),
+        )
+        token_usage = efficiency.get("token_usage")
+        elapsed_from_trace = efficiency.get("elapsed_ms")
         page_fit_status = str(
             dict(record.get("cv_content_plan") or {}).get("space_budget", {}).get("page_fit_status")
             or dict(trace.get("output_summary") or {}).get("page_fit_status")
@@ -113,31 +288,107 @@ def build_accepted_cv_effort_projection(
         if start is not None and end is not None and end >= start:
             elapsed_ms = (end - start).total_seconds() * 1000
             elapsed_status = "measured"
+        elif elapsed_from_trace is not None:
+            elapsed_ms = _nonnegative_int(elapsed_from_trace)
+            elapsed_status = "measured"
+        attempt_rows = [
+            {
+                "attempt_index": item.get("attempt_index"),
+                "attempt_type": item.get("attempt_type"),
+                "provider_status": item.get("provider_status"),
+                "failure_category": _attempt_failure_category(item),
+            }
+            for item in attempts
+        ]
         projected.append(
             {
                 "job_url": job_url,
                 "artifact_version_id": str(action.get("artifact_version_id") or "").strip(),
+                "acceptance_mode": str(action.get("acceptance_mode") or "human_confirmed"),
                 "final_status": "accepted",
-                "provider_call_count": int(efficiency.get("provider_call_count") or 0),
-                "regeneration_count": max(
-                    int(efficiency.get("regeneration_count") or 0),
-                    sum(str(item.get("action") or "") == "regenerate_once" for item in related_actions),
-                ),
+                "attempt_count": max(len(attempts), provider_call_count),
+                "attempts": attempt_rows,
+                "provider_call_count": provider_call_count,
+                "regeneration_count": regeneration_count,
+                "validation_failure_count": validation_failure_count,
+                "failure_category_counts": {
+                    category: attempt_categories.count(category) for category in ACCEPTED_CV_FAILURE_CATEGORIES
+                    if category in attempt_categories
+                },
+                "render_retry_count": render_retry_count,
                 "review_question_count": efficiency.get("review_question_count", "not_run"),
                 "human_action_count": len(related_actions),
                 "reused_resolution_count": reused_resolution_count,
                 "page_fit_status": page_fit_status,
                 "accepted_outcome": True,
-                "token_usage": efficiency.get("token_usage"),
+                "token_usage": token_usage,
+                "token_total": _token_total(token_usage),
                 "token_usage_status": str(efficiency.get("token_usage_status") or "not_run"),
                 "elapsed_ms": elapsed_ms,
                 "elapsed_status": elapsed_status,
             }
         )
+    workload_records = trace_records or [
+        dict(record.get("cv_generation_trace") or {})
+        for record in records
+        if isinstance(record.get("cv_generation_trace"), dict)
+    ]
+    workload_attempted_jobs = len(workload_records)
+    workload_validation_failures = 0
+    workload_provider_calls = 0
+    workload_regenerations = 0
+    workload_render_retries = 0
+    workload_token_total = 0
+    for trace_record in workload_records:
+        trace = trace_record
+        efficiency = dict(trace.get("efficiency_summary") or {})
+        attempts = _trace_attempts(trace)
+        workload_provider_calls += max(_nonnegative_int(efficiency.get("provider_call_count")), len(attempts))
+        workload_regenerations += max(_nonnegative_int(efficiency.get("regeneration_count")), max(len(attempts) - 1, 0))
+        workload_render_retries += max(
+            _nonnegative_int(efficiency.get("render_retry_count")),
+            _nonnegative_int(trace.get("render_retry_count")),
+        )
+        workload_token_total += _token_total(efficiency.get("token_usage"))
+        output_summary = dict(trace.get("output_summary") or {})
+        validation_summary = dict(trace.get("validation_summary") or {})
+        if (
+            str(output_summary.get("final_status") or trace.get("status") or "").strip() == "validation_failed"
+            or validation_summary.get("final_valid") is False
+        ):
+            workload_validation_failures += 1
+    aggregate = {
+        "attempt_count": sum(row["attempt_count"] for row in projected),
+        "provider_call_count": sum(row["provider_call_count"] for row in projected),
+        "regeneration_count": sum(row["regeneration_count"] for row in projected),
+        "validation_failure_count": sum(row["validation_failure_count"] for row in projected),
+        "render_retry_count": sum(row["render_retry_count"] for row in projected),
+        "review_question_count": sum(
+            value for value in (_nonnegative_int(row["review_question_count"]) for row in projected)
+        ),
+        "human_action_count": sum(row["human_action_count"] for row in projected if isinstance(row["human_action_count"], int)),
+        "reused_resolution_count": sum(row["reused_resolution_count"] for row in projected),
+        "elapsed_ms": sum(row["elapsed_ms"] or 0 for row in projected),
+        "token_total": sum(row["token_total"] for row in projected),
+        "failure_category_counts": {
+            category: sum(row["failure_category_counts"].get(category, 0) for row in projected)
+            for category in ACCEPTED_CV_FAILURE_CATEGORIES
+            if any(row["failure_category_counts"].get(category, 0) for row in projected)
+        },
+        "workload": {
+            "attempted_generation_job_count": workload_attempted_jobs,
+            "validation_failure_count": workload_validation_failures,
+            "provider_call_count": workload_provider_calls,
+            "regeneration_count": workload_regenerations,
+            "render_retry_count": workload_render_retries,
+            "token_total": workload_token_total,
+        },
+    }
     return {
         "schema_version": "accepted_cv_effort_v1",
         "status": "measured",
         "denominator": {"accepted_cv_count": len(projected)},
+        "aggregate": aggregate,
         "records": projected,
     }
 

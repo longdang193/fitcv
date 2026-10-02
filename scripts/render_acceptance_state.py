@@ -9,7 +9,7 @@ from typing import Any
 import yaml
 
 
-SCHEMA_VERSION = "fitcv.acceptance_state.v1"
+SCHEMA_VERSION = "fitcv.acceptance_state.v2"
 REPOSITORY = "longdang193/fitcv"
 REQUIRED_STATUSES = {
     "p0_a",
@@ -39,10 +39,11 @@ def _require(condition: bool, message: str) -> None:
 def _validate_state(state: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     _require(state.get("schema_version") == SCHEMA_VERSION, "schema_version invalid")
     _require(state.get("repository") == REPOSITORY, "repository invalid")
-    source_commit = state.get("source_commit")
+    evaluation_freeze_commit = state.get("evaluation_freeze_commit")
     _require(
-        isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}", source_commit) is not None,
-        "source_commit invalid",
+        isinstance(evaluation_freeze_commit, str)
+        and re.fullmatch(r"[0-9a-f]{40}", evaluation_freeze_commit) is not None,
+        "evaluation_freeze_commit invalid",
     )
     sanitizer_version = state.get("sanitizer_version")
     _require(isinstance(sanitizer_version, str) and sanitizer_version.strip(), "sanitizer_version invalid")

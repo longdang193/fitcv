@@ -12,6 +12,7 @@ from typing import Any
 import yaml
 
 from fitcv.evidence import retrieve_evidence_bundle
+from scripts.render_acceptance_state import ALLOWED_STATUSES
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +25,39 @@ DEFAULT_POLICY = REPO_ROOT / "config/policy/cv_analysis.yaml"
 DEFAULT_OUTPUT = REPO_ROOT / ".tmp/p0b-v2-relevance-evaluation.json"
 DEFAULT_ACCEPTANCE_STATE = REPO_ROOT / "config/acceptance_state.yaml"
 DEFAULT_ORACLE_MANIFEST = REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1_manifest.json"
+
+
+def _evaluated_commit() -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    value = result.stdout.strip()
+    return value if value else None
+
+
+def _evaluation_provenance() -> dict[str, Any]:
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--quiet", "HEAD", "--"],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+        )
+        dirty = result.returncode != 0
+    except OSError:
+        dirty = True
+    return {
+        "evaluated_commit": _evaluated_commit(),
+        "evaluated_worktree_dirty": dirty,
+    }
+
 
 THRESHOLDS = {
     "selected_requirement_recall": 0.80,
@@ -419,7 +453,7 @@ def validate_public_inputs(
     if not threshold_valid:
         _error(errors, "support_recall_threshold_missing_or_invalid")
     status = dict(acceptance_state.get("statuses") or {})
-    if status.get("p0_b") not in {"blocked", "eligible", "promoted"}:
+    if status.get("p0_b") not in ALLOWED_STATUSES:
         _error(errors, "p0_b_status_invalid")
     oracle_pairs = set(oracle_by_pair)
     oracle_requirement_ids = {
@@ -432,10 +466,14 @@ def validate_public_inputs(
         str(row.get("requirement_instance_id") or "")
         for row in oracle_by_pair.values()
     }
+    evaluated_requirement_ids = {
+        str(row.get("requirement_instance_id") or "")
+        for row in oracle_by_pair.values()
+    }
     scoped_selected_pairs = {
         pair_id
         for pair_id in selected_pairs
-        if pair_id.split("::", 1)[0] in oracle_requirement_ids
+        if pair_id.split("::", 1)[0] in evaluated_requirement_ids
     }
     if not scoped_selected_pairs <= oracle_pairs:
         _error(errors, "selected_pair_not_in_oracle")
@@ -461,7 +499,7 @@ def validate_public_inputs(
         "selected_pairs": scoped_selected_pairs,
         "accepted_pairs": {
             pair_id for pair_id in accepted_pairs
-            if pair_id.split("::", 1)[0] in oracle_requirement_ids
+            if pair_id.split("::", 1)[0] in evaluated_requirement_ids
         },
         "oracle_by_pair": oracle_by_pair,
         "support_recall_threshold": threshold,
@@ -535,10 +573,19 @@ def _runtime_requirement_metrics(
         for requirement_id, evidence_ids in selected_support.items()
         for evidence_id in evidence_ids
     }
+    evaluated_requirements = {
+        str(row.get("requirement_instance_id") or "")
+        for row in oracle_by_pair.values()
+    }
     selected_pairs = {
         pair_id
         for pair_id in all_selected_pairs
-        if pair_id.split("::", 1)[0] in supported_requirements
+        if pair_id.split("::", 1)[0] in evaluated_requirements
+    }
+    unscoped_selected_pairs = {
+        pair_id
+        for pair_id in all_selected_pairs
+        if pair_id.split("::", 1)[0] not in supported_requirements
     }
     supported_pairs = {
         pair_id for pair_id, row in oracle_by_pair.items() if _oracle_state(row) == "supported"
@@ -555,7 +602,7 @@ def _runtime_requirement_metrics(
             if supported_requirements else None
         ),
         "selected_pairs": len(selected_pairs),
-        "unscoped_selected_pairs": len(all_selected_pairs - selected_pairs),
+        "unscoped_selected_pairs": len(unscoped_selected_pairs),
         "supported_selected_pairs": len(selected_pairs & supported_pairs),
         "assignment_precision": (
             len(selected_pairs & supported_pairs) / len(selected_pairs)
@@ -612,6 +659,7 @@ def evaluate_runtime_corpus(
     if not validation["passed"]:
         return {
             "schema_version": "p0b.runtime_acceptance.v2",
+            **_evaluation_provenance(),
             "prediction_source": "fitcv.retrieve_evidence_bundle",
             "validation": {key: value for key, value in validation.items() if key not in {"projection_by_id", "review_ids", "selected_pairs", "accepted_pairs", "oracle_by_pair"}},
             "eligible": False,
@@ -674,6 +722,7 @@ def evaluate_runtime_corpus(
     }
     return {
         "schema_version": "p0b.runtime_acceptance.v2",
+        **_evaluation_provenance(),
         "prediction_source": "fitcv.retrieve_evidence_bundle",
         "code_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, cwd=REPO_ROOT).strip(),
         "policy_sha256": _sha256_file(policy_path),
@@ -729,6 +778,7 @@ def evaluate_public_corpus(
     }
     return {
         "schema_version": "p0b.public_source_job_evaluation.v1",
+        **_evaluation_provenance(),
         "validation": {key: value for key, value in validation.items() if key not in {"projection_by_id", "review_ids", "selected_pairs", "accepted_pairs", "oracle_by_pair"}},
         "metrics": {
             "true_positive": true_positive,

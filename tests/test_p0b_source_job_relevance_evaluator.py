@@ -97,6 +97,32 @@ def test_actual_fitcv_output_is_evaluated_separately_from_reviewer_arms() -> Non
     assert report["eligible"] is False
 
 
+def test_runtime_validator_loads_committed_acceptance_state() -> None:
+    state = evaluator._load_acceptance_state()
+    assert state["schema_version"] == "fitcv.acceptance_state.v2"
+    assert state["evaluation_freeze_commit"] == "5cfd25ff31b3b620dbfda5f25e54a0718cb1cb50"
+    assert state["statuses"]["p0_b"] == "passed"
+
+    validation = evaluator.validate_public_inputs([], [], [], state)
+
+    assert "p0_b_status_invalid" not in validation["errors"]
+
+
+def test_evaluation_provenance_marks_dirty_tracked_worktree(monkeypatch) -> None:
+    monkeypatch.setattr(evaluator, "_evaluated_commit", lambda: "a" * 40)
+
+    def fake_run(command, **kwargs):
+        assert command == ["git", "diff", "--quiet", "HEAD", "--"]
+        return subprocess.CompletedProcess(command, 1)
+
+    monkeypatch.setattr(evaluator.subprocess, "run", fake_run)
+
+    assert evaluator._evaluation_provenance() == {
+        "evaluated_commit": "a" * 40,
+        "evaluated_worktree_dirty": True,
+    }
+
+
 def test_actual_fitcv_evaluation_uses_job_level_output(monkeypatch) -> None:
     fixture, packet, group_map = _documents()
     calls = []
@@ -357,4 +383,35 @@ def test_runtime_metrics_use_runtime_assignments_not_historical_selection() -> N
 
     assert metrics["selected_pairs"] == 1
     assert metrics["supported_selected_pairs"] == 0
+    assert metrics["unsupported_or_unknown_assignments"] == 1
+
+
+def test_runtime_metrics_count_all_negative_requirements_in_assignment_precision() -> None:
+    oracle = {
+        "req-supported::ev-good": {
+            "requirement_instance_id": "req-supported",
+            "evidence_id": "ev-good",
+            "support_state": "supported",
+        },
+        "req-negative::ev-generic": {
+            "requirement_instance_id": "req-negative",
+            "evidence_id": "ev-generic",
+            "support_state": "unsupported",
+        },
+    }
+
+    metrics = evaluator._runtime_requirement_metrics(
+        oracle,
+        {"req-supported": {"ev-good"}},
+        {
+            "req-supported": {"ev-good"},
+            "req-negative": {"ev-generic"},
+        },
+    )
+
+    assert metrics["supportable_requirements"] == 1
+    assert metrics["selected_pairs"] == 2
+    assert metrics["unscoped_selected_pairs"] == 1
+    assert metrics["supported_selected_pairs"] == 1
+    assert metrics["assignment_precision"] == 0.5
     assert metrics["unsupported_or_unknown_assignments"] == 1

@@ -1,10 +1,10 @@
-schema_version: fitcv.acceptance_state.v1
+schema_version: fitcv.acceptance_state.v2
 repository: longdang193/fitcv
-source_commit: 5cfd25ff31b3b620dbfda5f25e54a0718cb1cb50
+evaluation_freeze_commit: 5cfd25ff31b3b620dbfda5f25e54a0718cb1cb50
 sanitizer_version: fitcv-p0-corpus-sanitizer.v1
 contract_versions:
   corpus: p0.public.v1
-  acceptance: fitcv.acceptance_state.v1
+  acceptance: fitcv.acceptance_state.v2
   support_oracle: p0b.source_job_support_oracle.v1
   runtime_acceptance: p0b.runtime_acceptance.v2
   efficiency_measurement: accepted_cv_effort_v1
@@ -17,7 +17,7 @@ corpus_manifests:
 statuses:
   p0_a: rejected
   p0_b: passed
-  p0_c: protected
+  p0_c: passed
   p1_a: maintenance_only
   p1_b: passed
   p1_c: deferred
@@ -38,3 +38,4 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-01-fitcv-p0-p1-execution.md
   - docs/superpowers/evidence/2026-10-01-fitcv-p1b-historical-measurement.md
   - docs/superpowers/evidence/2026-10-02-fitcv-p1b-live-measurement.md
+  - docs/superpowers/evidence/2026-10-02-fitcv-final-p0-p1-closure.md

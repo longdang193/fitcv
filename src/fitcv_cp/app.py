@@ -171,6 +171,7 @@ from fitcv_cp.run_lifecycle import (
     timeout_transition_for_run,
 )
 from fitcv_cp.run_artifact_contracts import (
+    accepted_cv_artifact_event_v1,
     decode_json_object_or_none,
     pretty_json_string,
     pretty_json_string_or_fallback,
@@ -1941,6 +1942,34 @@ def _finalize_review_draft_as_cv_artifact(
     if errors:
         return (False, "persist_failed", None)
     return (True, "finalized", str(version_record.get("version_id") or ""))
+
+
+def _append_accepted_artifact_event(
+    payload: dict[str, Any],
+    *,
+    run_id: str,
+    job_url: str,
+    artifact_id: str | None,
+    record: dict[str, Any] | None,
+    finalized_at: str,
+) -> None:
+    if not artifact_id:
+        return
+    events = [item for item in list(payload.get("accepted_artifact_events") or []) if isinstance(item, dict)]
+    if any(str(item.get("artifact_id") or "") == artifact_id for item in events):
+        return
+    events.append(
+        accepted_cv_artifact_event_v1(
+            artifact_id=artifact_id,
+            job_url=job_url,
+            run_id=run_id,
+            acceptance_mode="human_confirmed",
+            accepted_at=finalized_at,
+            finalized_at=finalized_at,
+            generation_input_fingerprint=(record or {}).get("cv_generation_input_fingerprint"),
+        )
+    )
+    payload["accepted_artifact_events"] = events
 
 def _build_hitl_review_audit_payload(run: PipelineRun) -> dict[str, Any]:
     queue = _build_hitl_review_queue(run)
@@ -14638,6 +14667,14 @@ def create_app(
             review_actions = [item for item in list(debug_payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
             review_actions.append(action_entry)
             debug_payload["hitl_review_actions"] = review_actions
+            _append_accepted_artifact_event(
+                debug_payload,
+                run_id=run_id,
+                job_url=target_job_url,
+                artifact_id=finalized_version_id,
+                record=target_record,
+                finalized_at=now.isoformat(),
+            )
             update_run_cv_generation_debug(
                 run_id,
                 _json.dumps(debug_payload, ensure_ascii=False),
@@ -14959,6 +14996,14 @@ def create_app(
                 latest_action_by_review_item_id[target_review_item_id] = action_entry
             if target_job_url:
                 latest_action_by_job[target_job_url] = action_entry
+            _append_accepted_artifact_event(
+                debug_payload,
+                run_id=run_id,
+                job_url=target_job_url,
+                artifact_id=finalized_version_id,
+                record=target_record,
+                finalized_at=now.isoformat(),
+            )
             applied += 1
 
         debug_payload["hitl_review_actions"] = review_actions

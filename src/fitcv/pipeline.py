@@ -4402,6 +4402,7 @@ def run_pipeline(
             latency_ms: int,
             run_id: str,
             cv_generation_input_fingerprint: str | None,
+            artifact_version_id: str,
             generation_status: str = "accepted",
         ) -> None:
             job = cast(dict[str, Any], state["job"])
@@ -4423,6 +4424,8 @@ def run_pipeline(
                 cv_prompt_template_path=cv_prompt_template_path_value,
                 attempt_count=generation_attempt_count,
             )
+            accepted_debug_record["cv_version_id"] = artifact_version_id
+            accepted_debug_record["accepted_at"] = str(state.get("generation_finished_at_iso") or "") or None
             cv_generation_debug_records.append(accepted_debug_record)
             _emit_cv_generation_item_observation(
                 run_id=run_id,
@@ -4721,6 +4724,7 @@ def run_pipeline(
                 latency_ms=latency_ms,
                 run_id=run_id,
                 cv_generation_input_fingerprint=cv_generation_input_fingerprint,
+                artifact_version_id=str(version["version_id"]),
                 generation_status=str(canonical_result.get("status") or "accepted"),
             )
             logger.info("[run_id=%s] CV generated for %s (fit=%s)", run_id, job.get("job_url"), fit)
