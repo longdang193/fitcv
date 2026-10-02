@@ -559,6 +559,9 @@ def execute_cv_regenerate_once(
                 "cv_structured_json": generation.get("structured_cv_final"),
                 "cv_generation_input_fingerprint": generation.get("cv_generation_input_fingerprint"),
                 "cv_generation_reuse_status": generation.get("cv_generation_reuse_status"),
+                "quality_warnings_json": {
+                    "trace_id": str(generation.get("trace_id") or "").strip() or None,
+                },
             },
             error_code=(str((generation.get("error") or {}).get("stage") or "") or None),
             error_message=(str((generation.get("error") or {}).get("message") or "") or None),
@@ -1036,6 +1039,7 @@ def _build_cv_generation_debug_payload(
             accepted_at=record.get("accepted_at") or record.get("generated_at") or finished_at.isoformat(),
             finalized_at=record.get("finalized_at") or record.get("generated_at") or finished_at.isoformat(),
             generation_input_fingerprint=record.get("cv_generation_input_fingerprint"),
+            trace_id=record.get("trace_id"),
         )
         for record in debug_records
         if str(record.get("status") or "").strip() == "accepted"
@@ -2990,7 +2994,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

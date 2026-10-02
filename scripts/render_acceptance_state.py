@@ -29,6 +29,34 @@ ALLOWED_STATUSES = {
     "deferred",
     "passed",
 }
+STATUS_DIMENSION_FIELDS = {
+    "implementation_status",
+    "acceptance_status",
+    "measurement_status",
+}
+ALLOWED_IMPLEMENTATION_STATUSES = {
+    "verified",
+    "unverified",
+    "not_in_scope",
+    "maintenance_only",
+    "deferred",
+    "rejected",
+}
+ALLOWED_ACCEPTANCE_STATUSES = {
+    "passed",
+    "blocked",
+    "maintenance_only",
+    "deferred",
+    "rejected",
+}
+ALLOWED_MEASUREMENT_STATUSES = {
+    "frozen_scope_only",
+    "measured",
+    "incomplete",
+    "not_applicable",
+    "not_run",
+    "blocked",
+}
 
 
 def _require(condition: bool, message: str) -> None:
@@ -61,6 +89,25 @@ def _validate_state(state: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     _require(isinstance(statuses, dict), "statuses invalid")
     _require(set(statuses) == REQUIRED_STATUSES, "statuses keys invalid")
     _require(all(value in ALLOWED_STATUSES for value in statuses.values()), "status value invalid")
+
+    status_dimensions = state.get("status_dimensions")
+    _require(isinstance(status_dimensions, dict), "status_dimensions invalid")
+    _require(set(status_dimensions) == REQUIRED_STATUSES, "status_dimensions keys invalid")
+    for priority, dimensions in status_dimensions.items():
+        _require(isinstance(dimensions, dict), f"{priority} status_dimensions invalid")
+        _require(set(dimensions) == STATUS_DIMENSION_FIELDS, f"{priority} status_dimensions fields invalid")
+        _require(
+            dimensions.get("implementation_status") in ALLOWED_IMPLEMENTATION_STATUSES,
+            f"{priority} implementation_status invalid",
+        )
+        _require(
+            dimensions.get("acceptance_status") in ALLOWED_ACCEPTANCE_STATUSES,
+            f"{priority} acceptance_status invalid",
+        )
+        _require(
+            dimensions.get("measurement_status") in ALLOWED_MEASUREMENT_STATUSES,
+            f"{priority} measurement_status invalid",
+        )
 
     thresholds = state.get("support_thresholds")
     _require(isinstance(thresholds, dict), "support_thresholds invalid")

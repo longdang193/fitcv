@@ -1,0 +1,290 @@
+"""Report CV runtime efficiency from persisted ordinary pipeline runs."""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import json
+import os
+import platform
+import sys
+from collections import Counter
+from pathlib import Path
+from typing import Any, Iterable
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from fitcv_cp import sqlite_store
+from fitcv_cp.run_artifact_contracts import build_accepted_cv_effort_projection
+
+DEFAULT_JSON = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json"
+DEFAULT_MARKDOWN = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
+
+
+def _value(run: Any, field: str, default: Any = None) -> Any:
+    if isinstance(run, dict):
+        return run.get(field, default)
+    return getattr(run, field, default)
+
+
+def _status(run: Any) -> str:
+    value = _value(run, "status", "")
+    return str(getattr(value, "value", value) or "").strip().lower()
+
+
+def _json_object(raw: Any) -> dict[str, Any]:
+    if isinstance(raw, dict):
+        return dict(raw)
+    if not isinstance(raw, str) or not raw.strip():
+        return {}
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _timestamp(value: Any) -> datetime.datetime | None:
+    if isinstance(value, datetime.datetime):
+        return value if value.tzinfo else value.replace(tzinfo=datetime.timezone.utc)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.timezone.utc)
+
+
+def _run_payload(run: Any) -> dict[str, Any]:
+    for field in ("cv_generation_debug_json", "results_export_json"):
+        payload = _json_object(_value(run, field))
+        if payload:
+            return payload
+    compatibility = _json_object(_value(run, "compatibility_json"))
+    for field in ("cv_generation_debug_json", "results_export_json"):
+        payload = _json_object(compatibility.get(field))
+        if payload:
+            return payload
+    return {}
+
+
+def _trace_records(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    block = payload.get("cv_generation_trace")
+    if not isinstance(block, dict):
+        return []
+    records = [item for item in list(block.get("records") or []) if isinstance(item, dict)]
+    if records:
+        return records
+    return [block] if block.get("attempts") else []
+
+
+def _run_snapshot(run: Any) -> dict[str, Any] | None:
+    run_id = str(_value(run, "run_id", "") or "").strip()
+    if not run_id or _status(run) != "succeeded":
+        return None
+    payload = _run_payload(run)
+    if not payload:
+        return None
+    records = [
+        item
+        for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
+        if isinstance(item, dict)
+    ]
+    traces = _trace_records(payload)
+    actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+    artifacts = [item for item in list(payload.get("accepted_artifact_events") or []) if isinstance(item, dict)]
+    projection = build_accepted_cv_effort_projection(
+        records,
+        actions,
+        artifacts,
+        generation_trace_records=traces,
+    )
+    created_at = _timestamp(_value(run, "created_at"))
+    started_at = _timestamp(_value(run, "started_at"))
+    finished_at = _timestamp(_value(run, "finished_at"))
+    elapsed_wall_ms = None
+    if started_at and finished_at and finished_at >= started_at:
+        elapsed_wall_ms = (finished_at - started_at).total_seconds() * 1000
+    status_counts = Counter(str(item.get("status") or "unknown") for item in records)
+    return {
+        "run_id": run_id,
+        "created_at": created_at.isoformat() if created_at else None,
+        "started_at": started_at.isoformat() if started_at else None,
+        "finished_at": finished_at.isoformat() if finished_at else None,
+        "elapsed_wall_ms": elapsed_wall_ms,
+        "status_counts": dict(sorted(status_counts.items())),
+        "accepted_record_count": status_counts.get("accepted", 0),
+        "projection": projection,
+    }
+
+
+def _sum_workload(snapshots: list[dict[str, Any]]) -> dict[str, int]:
+    fields = (
+        "attempted_generation_job_count",
+        "validation_failure_count",
+        "provider_call_count",
+        "regeneration_count",
+        "render_retry_count",
+        "token_total",
+    )
+    return {
+        field: sum(
+            int(dict(snapshot["projection"].get("aggregate") or {}).get("workload", {}).get(field) or 0)
+            for snapshot in snapshots
+        )
+        for field in fields
+    }
+
+
+def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
+    snapshots = []
+    exclusions: Counter[str] = Counter()
+    seen_run_ids: set[str] = set()
+    for run in runs:
+        run_id = str(_value(run, "run_id", "") or "").strip()
+        if run_id in seen_run_ids:
+            exclusions["duplicate_run_id"] += 1
+            continue
+        seen_run_ids.add(run_id)
+        snapshot = _run_snapshot(run)
+        if snapshot is None:
+            exclusions[_status(run) or "missing_run_id_or_payload"] += 1
+            continue
+        snapshots.append(snapshot)
+
+    accepted_count = sum(
+        int(dict(snapshot["projection"].get("denominator") or {}).get("accepted_cv_count") or 0)
+        for snapshot in snapshots
+    )
+    accepted_record_count = sum(int(snapshot.get("accepted_record_count") or 0) for snapshot in snapshots)
+    unmatched_trace_count = sum(
+        int(snapshot["projection"].get("unmatched_trace_count") or 0) for snapshot in snapshots
+    )
+    unattributed_count = sum(
+        int(snapshot["projection"].get("unattributed_accepted_artifact_count") or 0)
+        for snapshot in snapshots
+    )
+    unattributed_count += max(accepted_record_count - accepted_count, 0)
+    workload = _sum_workload(snapshots)
+    aggregate_provider_calls = sum(
+        int(dict(snapshot["projection"].get("aggregate") or {}).get("provider_call_count") or 0)
+        for snapshot in snapshots
+    )
+    aggregate_tokens = sum(
+        int(dict(snapshot["projection"].get("aggregate") or {}).get("token_total") or 0)
+        for snapshot in snapshots
+    )
+    aggregate_elapsed = sum(
+        float(dict(snapshot["projection"].get("aggregate") or {}).get("elapsed_ms") or 0)
+        for snapshot in snapshots
+    )
+    complete = (
+        bool(snapshots)
+        and accepted_count == accepted_record_count
+        and unmatched_trace_count == 0
+        and unattributed_count == 0
+    )
+    status = "complete" if complete else "incomplete" if snapshots else "not_available"
+    per_accepted = None
+    if complete and accepted_count:
+        per_accepted = {
+            "provider_call_count": aggregate_provider_calls / accepted_count,
+            "token_total": aggregate_tokens / accepted_count,
+            "elapsed_ms": aggregate_elapsed / accepted_count,
+        }
+    generation_status_counts: Counter[str] = Counter()
+    for snapshot in snapshots:
+        generation_status_counts.update(snapshot["status_counts"])
+    return {
+        "schema_version": "fitcv_runtime_efficiency_baseline_v1",
+        "status": status,
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "selection": {
+            "ordinary_runs_only": True,
+            "required_status": "succeeded",
+            "run_count": len(snapshots),
+            "run_ids": [snapshot["run_id"] for snapshot in snapshots],
+            "exclusions": dict(sorted(exclusions.items())),
+        },
+        "workload": workload,
+        "accepted_cv": {
+            "count": accepted_count,
+            "recorded_acceptance_count": accepted_record_count,
+            "cost_per_accepted_cv": per_accepted,
+        },
+        "attribution": {
+            "unmatched_trace_count": unmatched_trace_count,
+            "unattributed_accepted_artifact_count": unattributed_count,
+        },
+        "aggregate": {
+            "provider_call_count": aggregate_provider_calls,
+            "token_total": aggregate_tokens,
+            "elapsed_ms": aggregate_elapsed,
+        },
+        "outcomes": {
+            "generation_status_counts": dict(sorted(generation_status_counts.items())),
+            "render_retry_count": workload["render_retry_count"],
+            "compiler_outcome_counts": {},
+            "render_outcome_counts": {},
+        },
+        "environment": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+        },
+        "runs": snapshots,
+    }
+
+
+def _markdown(report: dict[str, Any]) -> str:
+    workload = dict(report.get("workload") or {})
+    accepted = dict(report.get("accepted_cv") or {})
+    attribution = dict(report.get("attribution") or {})
+    return "\n".join(
+        [
+            "# FitCV Runtime Efficiency Baseline",
+            "",
+            f"- Status: `{report.get('status')}`",
+            f"- Persisted ordinary runs: `{report.get('selection', {}).get('run_count', 0)}`",
+            f"- Accepted CVs: `{accepted.get('count', 0)}`",
+            f"- Recorded accepted generation outcomes: `{accepted.get('recorded_acceptance_count', 0)}`",
+            f"- Attempted generation jobs: `{workload.get('attempted_generation_job_count', 0)}`",
+            f"- Provider calls: `{workload.get('provider_call_count', 0)}`",
+            f"- Tokens: `{workload.get('token_total', 0)}`",
+            f"- Regenerations: `{workload.get('regeneration_count', 0)}`",
+            f"- Render retries: `{workload.get('render_retry_count', 0)}`",
+            f"- Unmatched traces: `{attribution.get('unmatched_trace_count', 0)}`",
+            f"- Unattributed accepted artifacts: `{attribution.get('unattributed_accepted_artifact_count', 0)}`",
+            f"- Cost per accepted CV: `{accepted.get('cost_per_accepted_cv')}`",
+            "",
+            "Per-accepted-CV cost stays null unless attribution is complete.",
+        ]
+    ) + "\n"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--database", type=Path, default=None, help="SQLite control-plane database path")
+    parser.add_argument("--run-id", action="append", dest="run_ids", help="Restrict selection to run ID")
+    parser.add_argument("--limit", type=int, default=100, help="Maximum persisted runs to inspect")
+    parser.add_argument("--output-json", type=Path, default=DEFAULT_JSON)
+    parser.add_argument("--output-markdown", type=Path, default=DEFAULT_MARKDOWN)
+    args = parser.parse_args()
+    if args.database:
+        os.environ["FITCV_CP_SQLITE_PATH"] = str(args.database)
+    runs = sqlite_store.list_runs(limit=max(args.limit, 1), include_archived=True)
+    if args.run_ids:
+        selected = set(args.run_ids)
+        runs = [run for run in runs if str(run.run_id) in selected]
+    report = build_baseline(runs)
+    args.output_json.parent.mkdir(parents=True, exist_ok=True)
+    args.output_markdown.parent.mkdir(parents=True, exist_ok=True)
+    args.output_json.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    args.output_markdown.write_text(_markdown(report), encoding="utf-8")
+    print(json.dumps({"status": report["status"], "run_count": report["selection"]["run_count"]}))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

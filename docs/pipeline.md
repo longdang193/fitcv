@@ -25,7 +25,7 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 ## Stage Responsibilities
 
 - `normalize`: canonicalize incoming jobs and preserve provider-native `source_location` evidence
-- `enrich`: derive structured job fields, canonical `actual_location`, canonical `language_requirements`, and reuse-aware metadata
+- `enrich`: derive structured job fields, preserve run-scoped `run_job_id`, canonical `actual_location`, canonical `language_requirements`, and reuse-aware metadata
 - `rule_filter`: evaluate symmetric location/language factors, project policy modes, and apply deterministic gating before expensive steps
 - `shortlist`: deterministic cosine retrieval over eligible jobs with valid embeddings; production rows use real vector evidence only
 - `ranking`: authoritative fit scoring and decision labels
@@ -61,7 +61,8 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - profile-scoped resolutions reuse only when candidate identity/revision, source fingerprint, resolution key, and requirement instance match; otherwise pipeline asks again.
 - resolution actions enqueue one bounded re-analysis through the existing CV regeneration entrypoint; refreshed analysis/generation replaces the prior debug record before closure.
 
-P0-A and P0-B remain benchmark-only. The 2026-09-28 source-backed P0-A run
+P0-A remains rejected and P0-B remains accepted only within its frozen oracle
+scope. The 2026-09-28 source-backed P0-A run
 measured incumbent, lexical, and multilingual arms on identical DE/EN fixture
 bytes. Multilingual uses optional `sentence-transformers==6.1.0` and
 `torch==2.14.0` with pinned model revision
@@ -82,8 +83,9 @@ broader reviewed labels.
   `pdfinfo`, and `pdftotext` acceptance checks over compact,
   education/skills, and long-experience fixtures. P1-B backend journey suites
   pass. One sanitized local accepted-CV workload measured
-  `accepted_cv_effort_v1` with denominator `1`; production defaults remain
-  unchanged.
+  `accepted_cv_effort_v1`; post-fix accepted records, artifacts, and
+  `cv_versions` rows have complete `run_job_id` and `trace_id` attribution;
+  production defaults remain unchanged.
 - Responsibility support now requires direct fragment evidence, feeds one shared
   support map into requirement coverage and bounded selection recovery, and does
   not expand global evidence-pool limits. P0-C qualifier behavior remains
@@ -94,6 +96,7 @@ broader reviewed labels.
 - generation builds `cv_content_plan_v1` from verified requirement coverage and selected evidence; unsupported requirements remain omitted rather than receiving Cartesian evidence assignments.
 - plan fingerprints participate in CV-generation reuse. Writer prompts receive approved claim IDs, protected numbers/dates, section targets, and space limits.
 - targeted repair replaces only requested structured section keys, then renders and validates the complete merged CV once; unknown section keys fail closed.
+- requirement support is annotated once per retrieval bundle and reused by channel selection, recovery, export, and diagnostics.
 
 ### CV-analysis Retrieval Diagnostics
 

@@ -66,6 +66,7 @@ def create_cv_version_record(
     version_id: str | None = None,
     original_outcome: str | None = None,
     run_job_id: str | None = None,
+    trace_id: str | None = None,
 ) -> dict[str, Any]:
     """Build a cv_versions record in memory.
 
@@ -97,6 +98,9 @@ def create_cv_version_record(
         "outcome": outcome.get("kind"),
         "warnings": list(outcome.get("quality_warnings") or []),
     }
+    normalized_trace_id = str(trace_id or "").strip() or None
+    if normalized_trace_id:
+        envelope["trace_id"] = normalized_trace_id
     return {
         "version_id": version_id,
         "run_id": str(run_id) if run_id else None,
@@ -237,7 +241,6 @@ def store_application_status(record: dict[str, Any], config: dict[str, Any]) -> 
     )
     if errors:
         raise RuntimeError(f"SQLite insert errors for application_tracker: {errors}")
-
 
 
 

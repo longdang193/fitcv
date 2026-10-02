@@ -136,11 +136,13 @@ def test_create_cv_version_record_includes_structured_cv_and_generation_metadata
         cv_structured=structured_cv,
         cv_generation_model="cx/gpt-5.5",
         cv_prompt_version="cv_prompt_v3",
+        trace_id="trace-1",
     )
     assert json.loads(record["cv_structured_json"]) == structured_cv
     assert record["cv_schema_version"] == "cv_doc_v1"
     assert record["cv_generation_model"] == "cx/gpt-5.5"
     assert record["cv_prompt_version"] == "cv_prompt_v3"
+    assert json.loads(record["quality_warnings_json"])["trace_id"] == "trace-1"
 
 
 def test_create_cv_version_record_preserves_failed_original_outcome_without_diagnostic() -> None:
@@ -233,4 +235,3 @@ def test_update_application_status_has_tracker_id_and_timestamp() -> None:
     assert "tracker_id" in record
     assert "updated_at" in record
     uuid.UUID(record["tracker_id"])  # raises if invalid UUID
-

@@ -112,6 +112,7 @@ def build_acceptance_report(
         failures.append(f"acceptance_state_invalid:{exc}")
 
     statuses = dict(state.get("statuses") or {})
+    status_dimensions = dict(state.get("status_dimensions") or {})
     priorities: dict[str, dict[str, Any]] = {}
     for priority in ("p0_b", "p0_c", "p1_b"):
         check = dict(checks.get(priority) or {})
@@ -124,17 +125,28 @@ def build_acceptance_report(
         priorities[priority] = {
             "implementation_status": "verified" if passed else "unverified",
             "acceptance_status": "passed" if claimed == "passed" and passed else "blocked",
-            "measurement_status": str(check.get("measurement_status") or "not_run"),
+            "measurement_status": str(
+                check.get("measurement_status")
+                or dict(status_dimensions.get(priority) or {}).get("measurement_status")
+                or "not_run"
+            ),
             "evidence_paths": list(check.get("evidence_paths") or []),
             "failure_reasons": sorted(set(reasons)),
         }
 
     for priority in ("p0_a", "p1_a", "p1_c", "p2"):
         status = statuses.get(priority)
+        declared = dict(status_dimensions.get(priority) or {})
         priorities[priority] = {
-            "implementation_status": "not_in_scope" if status in {"rejected", "deferred"} else status,
-            "acceptance_status": status,
-            "measurement_status": "not_applicable" if status in {"rejected", "deferred"} else "not_run",
+            "implementation_status": declared.get(
+                "implementation_status",
+                "not_in_scope" if status in {"rejected", "deferred"} else status,
+            ),
+            "acceptance_status": declared.get("acceptance_status", status),
+            "measurement_status": declared.get(
+                "measurement_status",
+                "not_applicable" if status in {"rejected", "deferred"} else "not_run",
+            ),
             "evidence_paths": [],
             "failure_reasons": [],
         }

@@ -1174,6 +1174,8 @@ def test_generate_from_analysis_direct_path_has_canonical_trace(
     assert observation["evidence"]["provenance"]["adapter"] == "direct"
     assert observation["evidence"]["provenance"]["runtime_path"] == "fitcv_llm_direct"
     trace = result["cv_generation_trace"]
+    assert result["trace_id"]
+    assert trace["trace_id"] == result["trace_id"]
     assert trace["trace_status"] == "completed"
     assert trace["trace_family"] == "stage_execution_trace"
     assert trace["step_id"] == "cv_generation"

@@ -2978,11 +2978,6 @@ class _EvidenceSelectionEngine:
 
     def run(self, channel_pools: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
         merged_pool = _merge_channel_pools(channel_pools)
-        _annotate_requirement_support(
-            merged_pool,
-            list(self.job_context.get("requirement_descriptors") or []),
-            self.job_context.get("config"),
-        )
         selected_evidence = _select_final_evidence(
             merged_pool,
             top_k=self.top_k,
