@@ -378,3 +378,4 @@ def test_baseline_keeps_generation_elapsed_separate_from_artifact_elapsed() -> N
     accepted_cost = report["accepted_cv"]["accepted_artifact_cost_per_accepted_cv"]
     assert accepted_cost["generation_elapsed_ms"] == 100.0
     assert accepted_cost["elapsed_ms"] == 3_600_000.0
+    assert report["aggregate"]["generation_elapsed_ms"] == 100.0

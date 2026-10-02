@@ -96,7 +96,7 @@ P1-C remains offline-only future work based on imported requirements and verifie
 | Task 7 | `completed` | current | `codex` | Task 6 | same-workload acceptance and correctness comparison | rejected; no candidate retained without broader provider-backed workload |
 | Task 8 | `completed` | current | `codex` | Task 7 | diagnostics parity tests | `130 passed`; production pair sorting removed |
 | Task 9 | `completed` | current | `codex` | Task 8 | cumulative SSOT generation and validation | `20 passed`; acceptance state and verifier reconciled |
-| Task 10 | `completed` | current | `codex` | Task 9 | fresh final verification | `verified`; PR review fixes covered validation-failed yield and generation/artifact clock separation; full proof passed |
+| Task 10 | `completed` | current | `codex` | Task 9 | fresh final verification | `verified`; PR review fixes covered validation-failed yield, accepted-artifact/generation clocks, and aggregate clock; full proof passed |
 
 ## Task Breakdown
 

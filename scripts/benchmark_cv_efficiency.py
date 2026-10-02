@@ -317,7 +317,7 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
             "token_total": aggregate_tokens,
             "regeneration_count": aggregate_regenerations,
             "validation_failure_count": aggregate_validation_failures,
-            "generation_elapsed_ms": aggregate_elapsed,
+            "generation_elapsed_ms": aggregate_generation_elapsed,
             "end_to_end_wall_ms": aggregate_end_to_end_wall,
             "elapsed_ms": aggregate_elapsed,
         },
