@@ -22,6 +22,35 @@ statuses:
   p1_b: passed
   p1_c: deferred
   p2: deferred
+status_dimensions:
+  p0_a:
+    implementation_status: rejected
+    acceptance_status: rejected
+    measurement_status: not_applicable
+  p0_b:
+    implementation_status: verified
+    acceptance_status: passed
+    measurement_status: frozen_scope_only
+  p0_c:
+    implementation_status: verified
+    acceptance_status: passed
+    measurement_status: frozen_scope_only
+  p1_a:
+    implementation_status: maintenance_only
+    acceptance_status: maintenance_only
+    measurement_status: not_applicable
+  p1_b:
+    implementation_status: verified
+    acceptance_status: passed
+    measurement_status: incomplete
+  p1_c:
+    implementation_status: deferred
+    acceptance_status: deferred
+    measurement_status: not_applicable
+  p2:
+    implementation_status: deferred
+    acceptance_status: deferred
+    measurement_status: not_applicable
 support_thresholds:
   maximum_pair_false_positives: 0
   minimum_review_completeness: 1.0

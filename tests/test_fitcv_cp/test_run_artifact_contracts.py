@@ -198,6 +198,7 @@ def test_accepted_cv_effort_projection_deduplicates_top_level_and_embedded_trace
     trace = {
         "scope_key": "job-1",
         "run_id": "run-1",
+        "trace_id": "trace-1",
         "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
         "efficiency_summary": {"provider_call_count": 1},
     }
@@ -209,6 +210,7 @@ def test_accepted_cv_effort_projection_deduplicates_top_level_and_embedded_trace
                 artifact_id="cv-1",
                 job_url="job-1",
                 run_id="run-1",
+                trace_id="trace-1",
                 acceptance_mode="automatic",
                 accepted_at="2026-10-02T00:01:00Z",
                 finalized_at="2026-10-02T00:01:00Z",
@@ -218,6 +220,53 @@ def test_accepted_cv_effort_projection_deduplicates_top_level_and_embedded_trace
     )
 
     assert result["aggregate"]["workload"]["attempted_generation_job_count"] == 1
+
+
+def test_accepted_cv_artifact_event_preserves_trace_id() -> None:
+    event = accepted_cv_artifact_event_v1(
+        artifact_id="cv-1",
+        job_url="job-1",
+        run_id="run-1",
+        trace_id="trace-1",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    assert event["trace_id"] == "trace-1"
+    assert event["event_id"]
+
+
+def test_accepted_cv_effort_projection_marks_ambiguous_legacy_trace_unmatched() -> None:
+    traces = [
+        {
+            "run_id": "run-1",
+            "job_url": "same-url",
+            "efficiency_summary": {"provider_call_count": 2},
+        },
+        {
+            "run_id": "run-1",
+            "job_url": "same-url",
+            "efficiency_summary": {"provider_call_count": 3},
+        },
+    ]
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-ambiguous",
+        job_url="same-url",
+        run_id="run-1",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection([], [], [artifact], generation_trace_records=traces)
+
+    row = result["records"][0]
+    assert row["attribution_status"] == "ambiguous"
+    assert row["provider_call_count"] is None
+    assert result["aggregate"]["workload"]["provider_call_count"] == 5
+    assert result["unmatched_trace_count"] == 1
+    assert result["unattributed_accepted_artifact_count"] == 1
 
 
 def test_accepted_cv_effort_projection_requires_job_identity_within_run() -> None:
@@ -287,13 +336,16 @@ def test_accepted_cv_effort_projection_does_not_fallback_across_run_or_job() -> 
         [], [], [artifact], generation_trace_records=[trace]
     )
 
-    assert result["records"][0]["provider_call_count"] == 0
-    assert result["records"][0]["attempt_count"] == 0
+    assert result["records"][0]["provider_call_count"] is None
+    assert result["records"][0]["attribution_status"] == "unmatched"
+    assert result["unattributed_accepted_artifact_count"] == 1
+    assert result["records"][0]["attempt_count"] is None
 
 
 def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     record = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "cv_generation_trace": {
             "efficiency_summary": {
                 "provider_call_count": 2,
@@ -305,6 +357,7 @@ def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     }
     action = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "action": "approve_as_is",
         "created_at": "2026-09-29T00:00:00Z",
         "artifact_finalized": True,
@@ -326,11 +379,13 @@ def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
 def test_accepted_cv_effort_projection_measures_existing_run_to_artifact_timestamps() -> None:
     record = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "started_at": "2026-09-29T00:00:00Z",
         "cv_generation_trace": {"efficiency_summary": {"provider_call_count": 1}},
     }
     action = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "action": "approve_as_is",
         "created_at": "2026-09-29T00:00:01Z",
         "artifact_finalized": True,
@@ -388,6 +443,7 @@ def test_accepted_cv_effort_projection_uses_idempotent_automatic_and_hitl_events
 def test_accepted_cv_effort_projection_keeps_all_attempts_and_failure_taxonomy() -> None:
     record = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "cv_generation_trace": {
             "attempts": [
                 {"attempt_index": 1, "attempt_type": "initial_generation", "provider_status": "accepted"},

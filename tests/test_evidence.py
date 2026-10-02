@@ -16,6 +16,7 @@ tags:
 import ast
 import copy
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -164,6 +165,19 @@ def test_uniform_projection_supports_education_only_and_is_deterministic() -> No
     assert {item["source_section"] for item in first["selected_evidence"]} == {"education"}
     assert profile == before
     assert canonical_candidate_checksum(profile) == checksum
+
+
+def test_retrieve_evidence_bundle_annotates_requirement_support_once() -> None:
+    profile = _v2_profile()
+
+    with patch.object(
+        evidence_module,
+        "_annotate_requirement_support",
+        wraps=evidence_module._annotate_requirement_support,
+    ) as annotate:
+        retrieve_evidence_bundle(profile, {"required_skills": ["Python"]}, 3)
+
+    assert annotate.call_count == 1
 
 
 def test_requirement_support_uses_explicit_canonical_skill_links() -> None:

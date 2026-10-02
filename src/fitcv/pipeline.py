@@ -4695,6 +4695,7 @@ def run_pipeline(
                 cv_prompt_version=cv_prompt_version_value,
                 cv_generation_input_fingerprint=cv_generation_input_fingerprint,
                 cv_generation_reuse_status=cv_generation_reuse_status,
+                trace_id=str(canonical_result.get("trace_id") or "").strip() or None,
                 quality_warnings=list(canonical_result.get("quality_warnings") or []),
                 validation_result=validation,
                 diagnostic_code=(canonical_result.get("error") or {}).get("code")
@@ -4722,6 +4723,7 @@ def run_pipeline(
                 "fit_classification": fit,
                 "cv_generation_reuse_status": cv_generation_reuse_status,
                 "cv_generation_input_fingerprint": cv_generation_input_fingerprint,
+                "trace_id": str(canonical_result.get("trace_id") or "").strip() or None,
                 "reuse_decision": reuse_decision,
             })
             _handle_cv_generation_accepted_debug_and_events(
@@ -5284,7 +5286,6 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
-
 
 
 

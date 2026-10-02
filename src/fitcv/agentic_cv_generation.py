@@ -25,6 +25,7 @@ from pathlib import Path
 import os
 import re
 import time
+import uuid
 from typing import Any, Callable, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
@@ -411,8 +412,10 @@ def _augmented_gap_summary_from_analysis(analysis_record: dict[str, Any]) -> dic
 def _empty_cv_generation_trace(
     *,
     template_path: str | None,
+    trace_id: str,
 ) -> dict[str, Any]:
     return {
+        "trace_id": str(trace_id),
         "trace_schema_version": _LIVE_TRACE_SCHEMA_VERSION,
         "trace_family": _LIVE_TRACE_FAMILY,
         "step_id": _LIVE_TRACE_STEP_ID,
@@ -1304,6 +1307,7 @@ def _finalize_generation_result(
     fingerprint_result: dict[str, Any],
     reuse_status: str,
     reuse_reason_code: str,
+    trace_id: str,
     reused_cv_version_id: str | None = None,
 ) -> CvGenerationResult:
     finalized = deepcopy(result)
@@ -1320,6 +1324,12 @@ def _finalize_generation_result(
         source_artifact_type="cv_generation",
     )
     finalized["reused_cv_version_id"] = reused_cv_version_id
+    finalized["trace_id"] = str(trace_id)
+    if isinstance(finalized.get("cv_generation_trace"), dict):
+        finalized["cv_generation_trace"] = {
+            **dict(finalized["cv_generation_trace"]),
+            "trace_id": str(trace_id),
+        }
     status = str(finalized.get("status") or "")
     if status == ACCEPTED_STATUS:
         review_reason = _review_required_reason(analysis_record, finalized, config)
@@ -1508,8 +1518,11 @@ def _generate_fresh_from_analysis(
     analysis_record: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
+    *,
+    trace_id: str | None = None,
 ) -> CvGenerationResult:
     started_at = time.monotonic()
+    trace_id = str(trace_id or uuid.uuid4())
     analysis_record = dict(analysis_record)
     job = dict(analysis_record.get("job_snapshot") or {})
     if not job:
@@ -1577,6 +1590,7 @@ def _generate_fresh_from_analysis(
     runtime_evidence: list[dict[str, Any]] = []
     trace_payload = _empty_cv_generation_trace(
         template_path=str(_resolve_template_path(config)),
+        trace_id=trace_id,
     )
     provider_generator = _build_fallback_provider_generator(
         job=job,
@@ -1777,6 +1791,7 @@ def generate_from_analysis(
     if not isinstance(analysis_record, dict) or not isinstance(profile, dict) or not isinstance(config, dict):
         raise TypeError("analysis_record, profile, and config must be mappings")
     analysis_record = dict(analysis_record)
+    trace_id = str(uuid.uuid4())
     job = dict(analysis_record.get("job_snapshot") or {})
     analysis_record.setdefault(
         "content_plan",
@@ -1799,9 +1814,10 @@ def generate_from_analysis(
                 fingerprint_result=fingerprint_result,
                 reuse_status="reused_exact_match",
                 reuse_reason_code="exact_fingerprint_match",
+                trace_id=trace_id,
                 reused_cv_version_id=str((reusable_record or {}).get("version_id") or "") or None,
             )
-    fresh = _generate_fresh_from_analysis(analysis_record, profile, config)
+    fresh = _generate_fresh_from_analysis(analysis_record, profile, config, trace_id=trace_id)
     reuse_reason = "candidate_rejected" if reusable_record is not None else "fresh_compute_required"
     return _finalize_generation_result(
         fresh,
@@ -1810,4 +1826,5 @@ def generate_from_analysis(
         fingerprint_result=fingerprint_result,
         reuse_status="fresh_compute",
         reuse_reason_code=reuse_reason,
+        trace_id=trace_id,
     )

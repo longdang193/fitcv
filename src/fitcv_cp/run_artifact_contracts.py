@@ -37,14 +37,17 @@ ACCEPTED_CV_FAILURE_CATEGORIES = (
     "provider_failure",
     "other",
 )
-_LINEAGE_FIELDS = ("run_id", "run_job_id", "artifact_id", "generation_input_fingerprint", "attempt_id")
+_LINEAGE_FIELDS = ("run_id", "run_job_id", "artifact_id", "generation_input_fingerprint", "attempt_id", "trace_id")
 _TRACE_IDENTITY_FIELDS = (
+    "trace_id",
+    "run_id",
     "run_job_id",
     "artifact_id",
     "generation_input_fingerprint",
     "attempt_id",
     "job_url",
 )
+_LEGACY_MATCH_FIELDS = ("run_job_id", "generation_input_fingerprint", "job_url")
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
 
@@ -65,6 +68,7 @@ def accepted_cv_artifact_event_v1(
     artifact_id: str,
     job_url: str,
     run_id: str | None,
+    trace_id: str | None = None,
     run_job_id: str | None = None,
     acceptance_mode: str,
     accepted_at: Any,
@@ -84,6 +88,7 @@ def accepted_cv_artifact_event_v1(
         "event_id": stable_sha256_fingerprint(
             {
                 "artifact_id": normalized_artifact_id,
+                "trace_id": trace_id,
                 "run_job_id": run_job_id,
                 "acceptance_mode": normalized_mode,
                 "generation_input_fingerprint": generation_input_fingerprint,
@@ -93,6 +98,7 @@ def accepted_cv_artifact_event_v1(
         "artifact_id": normalized_artifact_id,
         "job_url": normalized_job_url,
         "run_id": str(run_id or "").strip() or None,
+        "trace_id": str(trace_id or "").strip() or None,
         "run_job_id": str(run_job_id or "").strip() or None,
         "acceptance_mode": normalized_mode,
         "accepted_at": accepted_at,
@@ -165,12 +171,15 @@ def _normalize_trace_record(
 
 
 def _trace_identity(trace: dict[str, Any]) -> str:
+    explicit_trace_id = _lineage_value(trace, "trace_id")
+    if explicit_trace_id:
+        return stable_sha256_fingerprint({"trace_id": explicit_trace_id})
     identity = {
         field: _lineage_value(trace, field)
         for field in _TRACE_IDENTITY_FIELDS
         if _lineage_value(trace, field)
     }
-    return stable_sha256_fingerprint(identity or trace)
+    return stable_sha256_fingerprint({"identity": identity, "trace": trace})
 
 
 def _lineage_value(item: dict[str, Any], field: str) -> str:
@@ -189,19 +198,50 @@ def _lineage_value(item: dict[str, Any], field: str) -> str:
 
 
 def _lineage_matches(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    left_trace_id = _lineage_value(left, "trace_id")
+    right_trace_id = _lineage_value(right, "trace_id")
+    if left_trace_id or right_trace_id:
+        return bool(left_trace_id and right_trace_id and left_trace_id == right_trace_id)
     left_run = _lineage_value(left, "run_id")
     right_run = _lineage_value(right, "run_id")
-    if left_run and right_run and left_run != right_run:
+    if not left_run or not right_run or left_run != right_run:
         return False
-    compared = [
-        field
-        for field in _TRACE_IDENTITY_FIELDS
-        if _lineage_value(left, field) and _lineage_value(right, field)
-    ]
-    return bool(compared) and all(
-        _lineage_value(left, field) == _lineage_value(right, field)
-        for field in compared
-    )
+    for field in _LEGACY_MATCH_FIELDS:
+        left_value = _lineage_value(left, field)
+        right_value = _lineage_value(right, field)
+        if left_value or right_value:
+            return bool(left_value and right_value and left_value == right_value)
+    return False
+
+
+def match_trace_record(
+    artifact: dict[str, Any],
+    traces: list[dict[str, Any]],
+) -> tuple[dict[str, Any] | None, str]:
+    """Match accepted artifact to one trace without widening legacy identity."""
+    trace_id = _lineage_value(artifact, "trace_id")
+    if trace_id:
+        matches = [trace for trace in traces if _lineage_value(trace, "trace_id") == trace_id]
+        return (matches[0], "matched") if len(matches) == 1 else (None, "unmatched")
+
+    run_id = _lineage_value(artifact, "run_id")
+    if not run_id:
+        return None, "unmatched"
+    for field in _LEGACY_MATCH_FIELDS:
+        value = _lineage_value(artifact, field)
+        if not value:
+            continue
+        matches = [
+            trace
+            for trace in traces
+            if _lineage_value(trace, "run_id") == run_id
+            and _lineage_value(trace, field) == value
+        ]
+        if len(matches) == 1:
+            return matches[0], "matched"
+        if len(matches) > 1:
+            return None, "ambiguous"
+    return None, "unmatched"
 
 
 def _token_total(token_usage: Any) -> int:
@@ -271,6 +311,7 @@ def build_accepted_cv_effort_projection(
                 "run_job_id": artifact.get("run_job_id"),
                 "generation_input_fingerprint": artifact.get("generation_input_fingerprint"),
                 "attempt_id": artifact.get("attempt_id"),
+                "trace_id": artifact.get("trace_id"),
             }
             for artifact in deduplicated_artifacts
         ]
@@ -304,10 +345,16 @@ def build_accepted_cv_effort_projection(
             "records": [],
         }
     projected: list[dict[str, Any]] = []
+    unmatched_trace_count = 0
+    unattributed_accepted_artifact_count = 0
     for action in accepted_actions:
         job_url = _lineage_value(action, "job_url")
-        matched_traces = [trace for trace in trace_records if _lineage_matches(action, trace)]
-        trace = matched_traces[0] if matched_traces else {}
+        trace, attribution_status = match_trace_record(action, trace_records)
+        matched_traces = [trace] if trace is not None else []
+        if trace is None:
+            unmatched_trace_count += 1
+            unattributed_accepted_artifact_count += 1
+        trace = trace or {}
         efficiency = dict(dict(trace.get("efficiency_summary") or {}))
         related_actions = [item for item in deduplicated_actions if _lineage_matches(action, item)]
         attempts: list[dict[str, Any]] = []
@@ -394,16 +441,17 @@ def build_accepted_cv_effort_projection(
             }
             for item in attempts
         ]
-        projected.append(
-            {
+        row = {
                 "job_url": job_url,
                 "artifact_version_id": str(action.get("artifact_version_id") or "").strip(),
                 "run_id": _lineage_value(action, "run_id") or None,
                 "run_job_id": _lineage_value(action, "run_job_id") or None,
                 "generation_input_fingerprint": _lineage_value(action, "generation_input_fingerprint") or None,
                 "attempt_id": _lineage_value(action, "attempt_id") or None,
+                "trace_id": _lineage_value(action, "trace_id") or None,
                 "acceptance_mode": str(action.get("acceptance_mode") or "human_confirmed"),
                 "final_status": "accepted",
+                "attribution_status": attribution_status,
                 "attempt_count": max(len(attempts), provider_call_count),
                 "attempts": attempt_rows,
                 "provider_call_count": provider_call_count,
@@ -425,7 +473,25 @@ def build_accepted_cv_effort_projection(
                 "elapsed_ms": elapsed_ms,
                 "elapsed_status": elapsed_status,
             }
-        )
+        if attribution_status != "matched":
+            for field in (
+                "attempt_count",
+                "attempts",
+                "provider_call_count",
+                "regeneration_count",
+                "validation_failure_count",
+                "failure_category_counts",
+                "render_retry_count",
+                "review_question_count",
+                "reused_resolution_count",
+                "page_fit_status",
+                "token_usage",
+                "token_total",
+                "elapsed_ms",
+            ):
+                row[field] = None
+            row["elapsed_status"] = "unmatched"
+        projected.append(row)
     workload_records = trace_records or [
         dict(record.get("cv_generation_trace") or {})
         for record in records
@@ -456,22 +522,24 @@ def build_accepted_cv_effort_projection(
         ):
             workload_validation_failures += 1
     aggregate = {
-        "attempt_count": sum(row["attempt_count"] for row in projected),
-        "provider_call_count": sum(row["provider_call_count"] for row in projected),
-        "regeneration_count": sum(row["regeneration_count"] for row in projected),
-        "validation_failure_count": sum(row["validation_failure_count"] for row in projected),
-        "render_retry_count": sum(row["render_retry_count"] for row in projected),
+        "attempt_count": sum(row["attempt_count"] or 0 for row in projected),
+        "provider_call_count": sum(row["provider_call_count"] or 0 for row in projected),
+        "regeneration_count": sum(row["regeneration_count"] or 0 for row in projected),
+        "validation_failure_count": sum(row["validation_failure_count"] or 0 for row in projected),
+        "render_retry_count": sum(row["render_retry_count"] or 0 for row in projected),
         "review_question_count": sum(
             value for value in (_nonnegative_int(row["review_question_count"]) for row in projected)
         ),
         "human_action_count": sum(row["human_action_count"] for row in projected if isinstance(row["human_action_count"], int)),
-        "reused_resolution_count": sum(row["reused_resolution_count"] for row in projected),
+        "reused_resolution_count": sum(row["reused_resolution_count"] or 0 for row in projected),
         "elapsed_ms": sum(row["elapsed_ms"] or 0 for row in projected),
-        "token_total": sum(row["token_total"] for row in projected),
+        "token_total": sum(row["token_total"] or 0 for row in projected),
+        "unmatched_trace_count": unmatched_trace_count,
+        "unattributed_accepted_artifact_count": unattributed_accepted_artifact_count,
         "failure_category_counts": {
-            category: sum(row["failure_category_counts"].get(category, 0) for row in projected)
-            for category in ACCEPTED_CV_FAILURE_CATEGORIES
-            if any(row["failure_category_counts"].get(category, 0) for row in projected)
+                category: sum((row["failure_category_counts"] or {}).get(category, 0) for row in projected)
+                for category in ACCEPTED_CV_FAILURE_CATEGORIES
+                if any((row["failure_category_counts"] or {}).get(category, 0) for row in projected)
         },
         "workload": {
             "attempted_generation_job_count": workload_attempted_jobs,
@@ -485,7 +553,10 @@ def build_accepted_cv_effort_projection(
     return {
         "schema_version": "accepted_cv_effort_v1",
         "status": "measured",
+        "attribution_status": "complete" if not unattributed_accepted_artifact_count else "incomplete",
         "denominator": {"accepted_cv_count": len(projected)},
+        "unmatched_trace_count": unmatched_trace_count,
+        "unattributed_accepted_artifact_count": unattributed_accepted_artifact_count,
         "aggregate": aggregate,
         "records": projected,
     }

@@ -27,6 +27,15 @@ def _state(tmp_path: Path, *, freeze: str = "a" * 40) -> dict[str, object]:
             "p1_c": "deferred",
             "p2": "deferred",
         },
+        "status_dimensions": {
+            "p0_a": {"implementation_status": "rejected", "acceptance_status": "rejected", "measurement_status": "not_applicable"},
+            "p0_b": {"implementation_status": "verified", "acceptance_status": "passed", "measurement_status": "frozen_scope_only"},
+            "p0_c": {"implementation_status": "verified", "acceptance_status": "passed", "measurement_status": "frozen_scope_only"},
+            "p1_a": {"implementation_status": "maintenance_only", "acceptance_status": "maintenance_only", "measurement_status": "not_applicable"},
+            "p1_b": {"implementation_status": "verified", "acceptance_status": "passed", "measurement_status": "incomplete"},
+            "p1_c": {"implementation_status": "deferred", "acceptance_status": "deferred", "measurement_status": "not_applicable"},
+            "p2": {"implementation_status": "deferred", "acceptance_status": "deferred", "measurement_status": "not_applicable"},
+        },
         "support_thresholds": {
             "maximum_pair_false_positives": 0,
             "minimum_review_completeness": 1.0,
@@ -56,6 +65,21 @@ def test_acceptance_verifier_accepts_frozen_input_commit_different_from_head(
     assert report["passed"] is True
     assert "evaluation_freeze_commit_stale" not in report["failures"]
     assert report["priorities"]["p0_b"]["acceptance_status"] == "passed"
+
+
+def test_acceptance_verifier_uses_declared_measurement_status_when_check_does_not_report_one(
+    tmp_path: Path,
+) -> None:
+    checks = {priority: {"passed": True} for priority in ("p0_b", "p0_c", "p1_b")}
+
+    report = build_acceptance_report(
+        _state(tmp_path),
+        repo_root=tmp_path,
+        current_commit="b" * 40,
+        checks=checks,
+    )
+
+    assert report["priorities"]["p1_b"]["measurement_status"] == "incomplete"
 
 
 def test_acceptance_verifier_rejects_missing_manifest(tmp_path: Path) -> None:

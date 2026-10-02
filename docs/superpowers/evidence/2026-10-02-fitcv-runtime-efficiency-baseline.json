@@ -1,0 +1,245 @@
+{
+  "schema_version": "fitcv_runtime_efficiency_baseline_v1",
+  "status": "incomplete",
+  "generated_at": "2026-10-02T13:49:30.581061+00:00",
+  "selection": {
+    "ordinary_runs_only": true,
+    "required_status": "succeeded",
+    "run_count": 4,
+    "run_ids": [
+      "p1b-live-4-696a6df403",
+      "p1b-live-3-c5009eef24",
+      "p1b-live-2-2006d7fe2a",
+      "p1b-live-5561c8ee5af7"
+    ],
+    "exclusions": {
+      "failed": 1
+    }
+  },
+  "workload": {
+    "attempted_generation_job_count": 34,
+    "validation_failure_count": 12,
+    "provider_call_count": 64,
+    "regeneration_count": 30,
+    "render_retry_count": 0,
+    "token_total": 293762
+  },
+  "accepted_cv": {
+    "count": 0,
+    "recorded_acceptance_count": 11,
+    "cost_per_accepted_cv": null
+  },
+  "attribution": {
+    "unmatched_trace_count": 0,
+    "unattributed_accepted_artifact_count": 11
+  },
+  "aggregate": {
+    "provider_call_count": 0,
+    "token_total": 0,
+    "elapsed_ms": 0.0
+  },
+  "outcomes": {
+    "generation_status_counts": {
+      "accepted": 11,
+      "blocked_by_reranker_fit": 43,
+      "validation_failed": 6
+    },
+    "render_retry_count": 0,
+    "compiler_outcome_counts": {},
+    "render_outcome_counts": {}
+  },
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Windows-10-10.0.19045-SP0"
+  },
+  "runs": [
+    {
+      "run_id": "p1b-live-4-696a6df403",
+      "created_at": "2026-10-02T00:06:39.967984+00:00",
+      "started_at": "2026-10-02T00:06:40.156041+00:00",
+      "finished_at": "2026-10-02T00:08:37.246581+00:00",
+      "elapsed_wall_ms": 117090.54000000001,
+      "status_counts": {
+        "accepted": 3,
+        "blocked_by_reranker_fit": 11,
+        "validation_failed": 1
+      },
+      "accepted_record_count": 3,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "denominator": {
+          "accepted_cv_count": 0
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 0,
+          "provider_call_count": 0,
+          "regeneration_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 0,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "elapsed_ms": 0,
+          "token_total": 0,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "failure_category_counts": {},
+          "workload": {
+            "attempted_generation_job_count": 8,
+            "validation_failure_count": 2,
+            "provider_call_count": 16,
+            "regeneration_count": 8,
+            "render_retry_count": 0,
+            "token_total": 77246
+          }
+        },
+        "records": []
+      }
+    },
+    {
+      "run_id": "p1b-live-3-c5009eef24",
+      "created_at": "2026-10-02T00:04:03.597705+00:00",
+      "started_at": "2026-10-02T00:04:03.690799+00:00",
+      "finished_at": "2026-10-02T00:06:11.824046+00:00",
+      "elapsed_wall_ms": 128133.24700000002,
+      "status_counts": {
+        "accepted": 1,
+        "blocked_by_reranker_fit": 13,
+        "validation_failed": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "denominator": {
+          "accepted_cv_count": 0
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 0,
+          "provider_call_count": 0,
+          "regeneration_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 0,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "elapsed_ms": 0,
+          "token_total": 0,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "failure_category_counts": {},
+          "workload": {
+            "attempted_generation_job_count": 4,
+            "validation_failure_count": 2,
+            "provider_call_count": 8,
+            "regeneration_count": 4,
+            "render_retry_count": 0,
+            "token_total": 34164
+          }
+        },
+        "records": []
+      }
+    },
+    {
+      "run_id": "p1b-live-2-2006d7fe2a",
+      "created_at": "2026-10-02T00:01:46.542620+00:00",
+      "started_at": "2026-10-02T00:01:46.720410+00:00",
+      "finished_at": "2026-10-02T00:04:01.896090+00:00",
+      "elapsed_wall_ms": 135175.68,
+      "status_counts": {
+        "accepted": 3,
+        "blocked_by_reranker_fit": 11,
+        "validation_failed": 1
+      },
+      "accepted_record_count": 3,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "denominator": {
+          "accepted_cv_count": 0
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 0,
+          "provider_call_count": 0,
+          "regeneration_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 0,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "elapsed_ms": 0,
+          "token_total": 0,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "failure_category_counts": {},
+          "workload": {
+            "attempted_generation_job_count": 8,
+            "validation_failure_count": 2,
+            "provider_call_count": 16,
+            "regeneration_count": 8,
+            "render_retry_count": 0,
+            "token_total": 76566
+          }
+        },
+        "records": []
+      }
+    },
+    {
+      "run_id": "p1b-live-5561c8ee5af7",
+      "created_at": "2026-10-01T23:58:02.335347+00:00",
+      "started_at": "2026-10-01T23:58:02.603118+00:00",
+      "finished_at": "2026-10-02T00:00:18.756481+00:00",
+      "elapsed_wall_ms": 136153.363,
+      "status_counts": {
+        "accepted": 4,
+        "blocked_by_reranker_fit": 8,
+        "validation_failed": 3
+      },
+      "accepted_record_count": 4,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "denominator": {
+          "accepted_cv_count": 0
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 0,
+          "provider_call_count": 0,
+          "regeneration_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 0,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "elapsed_ms": 0,
+          "token_total": 0,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "failure_category_counts": {},
+          "workload": {
+            "attempted_generation_job_count": 14,
+            "validation_failure_count": 6,
+            "provider_call_count": 24,
+            "regeneration_count": 10,
+            "render_retry_count": 0,
+            "token_total": 105786
+          }
+        },
+        "records": []
+      }
+    }
+  ]
+}
