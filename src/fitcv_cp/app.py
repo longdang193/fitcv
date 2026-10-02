@@ -1964,6 +1964,7 @@ def _append_accepted_artifact_event(
             artifact_id=artifact_id,
             job_url=job_url,
             run_id=run_id,
+            run_job_id=(record or {}).get("run_job_id"),
             acceptance_mode="human_confirmed",
             accepted_at=finalized_at,
             finalized_at=finalized_at,

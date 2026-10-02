@@ -37,7 +37,14 @@ ACCEPTED_CV_FAILURE_CATEGORIES = (
     "provider_failure",
     "other",
 )
-_LINEAGE_FIELDS = ("run_id", "artifact_id", "generation_input_fingerprint", "attempt_id")
+_LINEAGE_FIELDS = ("run_id", "run_job_id", "artifact_id", "generation_input_fingerprint", "attempt_id")
+_TRACE_IDENTITY_FIELDS = (
+    "run_job_id",
+    "artifact_id",
+    "generation_input_fingerprint",
+    "attempt_id",
+    "job_url",
+)
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
 
@@ -58,6 +65,7 @@ def accepted_cv_artifact_event_v1(
     artifact_id: str,
     job_url: str,
     run_id: str | None,
+    run_job_id: str | None = None,
     acceptance_mode: str,
     accepted_at: Any,
     finalized_at: Any,
@@ -76,6 +84,7 @@ def accepted_cv_artifact_event_v1(
         "event_id": stable_sha256_fingerprint(
             {
                 "artifact_id": normalized_artifact_id,
+                "run_job_id": run_job_id,
                 "acceptance_mode": normalized_mode,
                 "generation_input_fingerprint": generation_input_fingerprint,
                 "attempt_id": attempt_id,
@@ -84,6 +93,7 @@ def accepted_cv_artifact_event_v1(
         "artifact_id": normalized_artifact_id,
         "job_url": normalized_job_url,
         "run_id": str(run_id or "").strip() or None,
+        "run_job_id": str(run_job_id or "").strip() or None,
         "acceptance_mode": normalized_mode,
         "accepted_at": accepted_at,
         "finalized_at": finalized_at,
@@ -133,6 +143,36 @@ def _trace_attempts(trace: dict[str, Any]) -> list[dict[str, Any]]:
     return [dict(item) for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
 
 
+def _normalize_trace_record(
+    trace: dict[str, Any],
+    record: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    normalized = dict(trace)
+    if record:
+        for field in (
+            *_LINEAGE_FIELDS,
+            "job_url",
+            "render_retry_count",
+            "cv_content_plan",
+            "reused_resolution_count",
+            "run_started_at",
+            "started_at",
+            "created_at",
+        ):
+            if field not in normalized and record.get(field) is not None:
+                normalized[field] = record.get(field)
+    return normalized
+
+
+def _trace_identity(trace: dict[str, Any]) -> str:
+    identity = {
+        field: _lineage_value(trace, field)
+        for field in _TRACE_IDENTITY_FIELDS
+        if _lineage_value(trace, field)
+    }
+    return stable_sha256_fingerprint(identity or trace)
+
+
 def _lineage_value(item: dict[str, Any], field: str) -> str:
     aliases = {
         "artifact_id": ("artifact_id", "artifact_version_id"),
@@ -149,16 +189,19 @@ def _lineage_value(item: dict[str, Any], field: str) -> str:
 
 
 def _lineage_matches(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    left_run = _lineage_value(left, "run_id")
+    right_run = _lineage_value(right, "run_id")
+    if left_run and right_run and left_run != right_run:
+        return False
     compared = [
         field
-        for field in _LINEAGE_FIELDS
+        for field in _TRACE_IDENTITY_FIELDS
         if _lineage_value(left, field) and _lineage_value(right, field)
     ]
-    if compared:
-        return all(_lineage_value(left, field) == _lineage_value(right, field) for field in compared)
-    left_job = _lineage_value(left, "job_url")
-    right_job = _lineage_value(right, "job_url")
-    return bool(left_job and left_job == right_job)
+    return bool(compared) and all(
+        _lineage_value(left, field) == _lineage_value(right, field)
+        for field in compared
+    )
 
 
 def _token_total(token_usage: Any) -> int:
@@ -193,6 +236,7 @@ def build_accepted_cv_effort_projection(
                     "created_at",
                     "artifact_version_id",
                     "run_id",
+                    "run_job_id",
                     "generation_input_fingerprint",
                     "attempt_id",
                 )
@@ -224,6 +268,7 @@ def build_accepted_cv_effort_projection(
                 "artifact_finalized_at": artifact.get("finalized_at") or artifact.get("accepted_at"),
                 "acceptance_mode": artifact.get("acceptance_mode"),
                 "run_id": artifact.get("run_id"),
+                "run_job_id": artifact.get("run_job_id"),
                 "generation_input_fingerprint": artifact.get("generation_input_fingerprint"),
                 "attempt_id": artifact.get("attempt_id"),
             }
@@ -232,35 +277,23 @@ def build_accepted_cv_effort_projection(
 
     trace_records: list[dict[str, Any]] = []
     seen_trace_ids: set[str] = set()
+
+    def append_trace(trace: dict[str, Any]) -> None:
+        trace_id = _trace_identity(trace)
+        if trace_id in seen_trace_ids:
+            return
+        seen_trace_ids.add(trace_id)
+        trace_records.append(trace)
+
     for trace_record in list(generation_trace_records or []):
         if not isinstance(trace_record, dict):
             continue
-        trace = dict(trace_record)
-        trace_id = stable_sha256_fingerprint(trace)
-        if trace_id not in seen_trace_ids:
-            seen_trace_ids.add(trace_id)
-            trace_records.append(trace)
+        append_trace(_normalize_trace_record(trace_record))
     for record in records:
         trace_record = record.get("cv_generation_trace")
         if not isinstance(trace_record, dict):
             continue
-        trace = dict(trace_record)
-        for field in (
-            *_LINEAGE_FIELDS,
-            "job_url",
-            "render_retry_count",
-            "cv_content_plan",
-            "reused_resolution_count",
-            "run_started_at",
-            "started_at",
-            "created_at",
-        ):
-            if field not in trace and record.get(field) is not None:
-                trace[field] = record.get(field)
-        trace_id = stable_sha256_fingerprint(trace)
-        if trace_id not in seen_trace_ids:
-            seen_trace_ids.add(trace_id)
-            trace_records.append(trace)
+        append_trace(_normalize_trace_record(trace_record, record))
 
     if not accepted_actions and not trace_records:
         return {
@@ -274,11 +307,6 @@ def build_accepted_cv_effort_projection(
     for action in accepted_actions:
         job_url = _lineage_value(action, "job_url")
         matched_traces = [trace for trace in trace_records if _lineage_matches(action, trace)]
-        if not matched_traces:
-            matched_traces = [
-                trace for trace in trace_records
-                if _lineage_value(trace, "job_url") == job_url
-            ]
         trace = matched_traces[0] if matched_traces else {}
         efficiency = dict(dict(trace.get("efficiency_summary") or {}))
         related_actions = [item for item in deduplicated_actions if _lineage_matches(action, item)]
@@ -371,6 +399,7 @@ def build_accepted_cv_effort_projection(
                 "job_url": job_url,
                 "artifact_version_id": str(action.get("artifact_version_id") or "").strip(),
                 "run_id": _lineage_value(action, "run_id") or None,
+                "run_job_id": _lineage_value(action, "run_job_id") or None,
                 "generation_input_fingerprint": _lineage_value(action, "generation_input_fingerprint") or None,
                 "attempt_id": _lineage_value(action, "attempt_id") or None,
                 "acceptance_mode": str(action.get("acceptance_mode") or "human_confirmed"),

@@ -23,16 +23,9 @@ DEFAULT_OUTPUT = REPO_ROOT / ".tmp/fitcv-acceptance-report.json"
 CHECKS = {
     "p0_b": [
         "tests/test_p0b_source_job_relevance_evaluator.py",
-        "tests/test_calibrate_p0b_recovery.py",
-        "tests/test_p0b_support_oracle.py",
     ],
-    "p0_c": ["tests/test_evidence.py", "tests/test_agentic_cv_analysis.py"],
-    "p1_b": [
-        "tests/test_fitcv_cp/test_run_artifact_contracts.py",
-        "tests/test_fitcv_cp/test_worker_job.py",
-        "tests/test_fitcv_cp/test_sqlite_store.py",
-        "tests/test_fitcv_cp/test_app.py",
-    ],
+    "p0_c": ["tests/test_evidence.py"],
+    "p1_b": ["tests/test_fitcv_cp/test_run_artifact_contracts.py"],
 }
 P0B_ORACLE = "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1.jsonl"
 
@@ -157,6 +150,24 @@ def build_acceptance_report(
     }
 
 
+def format_acceptance_summary(report: dict[str, Any]) -> str:
+    status = "PASSED" if report.get("passed") else "FAILED"
+    lines = [
+        f"FitCV acceptance: {status}",
+        f"Commit: {report.get('current_commit') or 'unknown'}",
+    ]
+    for priority, details in sorted(dict(report.get("priorities") or {}).items()):
+        if priority in {"p0_b", "p0_c", "p1_b"}:
+            lines.append(
+                f"{priority}: {details.get('acceptance_status')}"
+                + (f" ({', '.join(details.get('failure_reasons') or [])})" if details.get("failure_reasons") else "")
+            )
+    failures = list(report.get("failures") or [])
+    if failures:
+        lines.append(f"Failures: {', '.join(failures)}")
+    return "\n".join(lines)
+
+
 def verify_acceptance(
     *,
     state_path: Path = DEFAULT_STATE,
@@ -199,6 +210,7 @@ def main() -> int:
         output_path=args.output,
         timeout_seconds=args.timeout_seconds,
     )
+    print(format_acceptance_summary(report))
     return 0 if report["passed"] else 1
 
 

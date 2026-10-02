@@ -729,6 +729,11 @@ def test_degree_domain_alternatives_match_complete_concepts_only() -> None:
             False,
         ),
         (
+            "a bachelor's degree or higher in computer science or a related field",
+            "Bachelor's Degree in Political Science",
+            False,
+        ),
+        (
             "a bachelor's degree or higher in economics, finance, data science",
             "Bachelor's Degree in Finance",
             True,

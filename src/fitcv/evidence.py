@@ -2335,7 +2335,7 @@ def _related_education_domain_match(
         return False
     related_groups = (
         {"business", "busines", "economic", "finance", "account", "commerce", "management"},
-        {"data", "science", "engineer", "mathematic", "statistic", "computer", "technology", "informatics"},
+        {"data", "engineer", "mathematic", "statistic", "computer", "technology", "informatics"},
     )
     return any(
         concept & group and evidence_tokens & group

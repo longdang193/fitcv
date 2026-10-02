@@ -194,6 +194,103 @@ def test_accepted_cv_effort_projection_keeps_same_job_lineage_distinct() -> None
     assert by_artifact["cv-2"]["provider_call_count"] == 3
 
 
+def test_accepted_cv_effort_projection_deduplicates_top_level_and_embedded_trace() -> None:
+    trace = {
+        "scope_key": "job-1",
+        "run_id": "run-1",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"provider_call_count": 1},
+    }
+    result = build_accepted_cv_effort_projection(
+        [{"job_url": "job-1", "run_id": "run-1", "cv_generation_trace": trace}],
+        [],
+        [
+            accepted_cv_artifact_event_v1(
+                artifact_id="cv-1",
+                job_url="job-1",
+                run_id="run-1",
+                acceptance_mode="automatic",
+                accepted_at="2026-10-02T00:01:00Z",
+                finalized_at="2026-10-02T00:01:00Z",
+            )
+        ],
+        generation_trace_records=[trace],
+    )
+
+    assert result["aggregate"]["workload"]["attempted_generation_job_count"] == 1
+
+
+def test_accepted_cv_effort_projection_requires_job_identity_within_run() -> None:
+    traces = [
+        {
+            "run_id": "run-1",
+            "run_job_id": "job-1",
+            "job_url": "same-url",
+            "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+            "efficiency_summary": {"provider_call_count": 1},
+        },
+        {
+            "run_id": "run-1",
+            "run_job_id": "job-2",
+            "job_url": "same-url",
+            "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+            "efficiency_summary": {"provider_call_count": 3},
+        },
+    ]
+    artifacts = [
+        accepted_cv_artifact_event_v1(
+            artifact_id="cv-1",
+            job_url="same-url",
+            run_id="run-1",
+            run_job_id="job-1",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+        ),
+        accepted_cv_artifact_event_v1(
+            artifact_id="cv-2",
+            job_url="same-url",
+            run_id="run-1",
+            run_job_id="job-2",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:02:00Z",
+            finalized_at="2026-10-02T00:02:00Z",
+        ),
+    ]
+
+    result = build_accepted_cv_effort_projection([], [], artifacts, generation_trace_records=traces)
+    by_artifact = {row["artifact_version_id"]: row for row in result["records"]}
+
+    assert by_artifact["cv-1"]["provider_call_count"] == 1
+    assert by_artifact["cv-2"]["provider_call_count"] == 3
+
+
+def test_accepted_cv_effort_projection_does_not_fallback_across_run_or_job() -> None:
+    trace = {
+        "run_id": "run-2",
+        "run_job_id": "job-2",
+        "job_url": "same-url",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"provider_call_count": 99},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-1",
+        job_url="same-url",
+        run_id="run-1",
+        run_job_id="job-1",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection(
+        [], [], [artifact], generation_trace_records=[trace]
+    )
+
+    assert result["records"][0]["provider_call_count"] == 0
+    assert result["records"][0]["attempt_count"] == 0
+
+
 def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     record = {
         "job_url": "job-1",

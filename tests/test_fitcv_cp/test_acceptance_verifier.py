@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.verify_fitcv_acceptance import build_acceptance_report
+from scripts.verify_fitcv_acceptance import build_acceptance_report, format_acceptance_summary
 
 
 def _state(tmp_path: Path, *, freeze: str = "a" * 40) -> dict[str, object]:
@@ -97,3 +97,18 @@ def test_acceptance_verifier_blocks_failed_passed_priority(tmp_path: Path) -> No
 
     assert report["passed"] is False
     assert "p0_b_passed_claim_not_proven" in report["failures"]
+
+
+def test_acceptance_summary_names_failed_priority_and_commit(tmp_path: Path) -> None:
+    report = build_acceptance_report(
+        _state(tmp_path, freeze="b" * 40),
+        repo_root=tmp_path,
+        current_commit="c" * 40,
+        checks=_checks(False),
+    )
+
+    summary = format_acceptance_summary(report)
+
+    assert "FitCV acceptance: FAILED" in summary
+    assert "Commit: " + "c" * 40 in summary
+    assert "p0_b: blocked" in summary
