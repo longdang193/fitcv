@@ -28,6 +28,7 @@ from fitcv.cv_generator import (
     build_generation_prompt,
     build_live_structured_cv_response_schema,
     build_structured_generation_prompt,
+    final_artifact_acceptance_passes,
     generate_cv,
     project_authorized_profile,
     render_cv_markdown,
@@ -36,6 +37,24 @@ from fitcv.cv_generator import (
     select_template_variant,
     validate_structured_cv,
 )
+
+
+def test_final_artifact_acceptance_requires_native_one_page_proof() -> None:
+    assert final_artifact_acceptance_passes(
+        content_acceptance=True,
+        page_fit_status="pass",
+        render_acceptance={"page_count": 1, "page_fit_status": "pass"},
+    ) is True
+    assert final_artifact_acceptance_passes(
+        content_acceptance=True,
+        page_fit_status="fail",
+        render_acceptance={"page_count": 2, "page_fit_status": "fail"},
+    ) is False
+    assert final_artifact_acceptance_passes(
+        content_acceptance=True,
+        page_fit_status="pass",
+        render_acceptance=None,
+    ) is False
 
 
 def test_project_authorized_profile_keeps_identity_and_selected_records() -> None:
@@ -1594,3 +1613,25 @@ def test_build_structured_generation_prompt_uses_full_replacement(
 
     assert prompt.count("Keep bullets concise.") == 1
     assert prompt.index("Keep bullets concise.") < prompt.index("## Structured JSON Schema")
+
+
+def test_build_structured_generation_prompt_states_deterministic_one_page_contract() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"evidence_id": "ev-1", "text": "Built SQL pipelines", "source_section": "experiences"}],
+        gap={"matched": ["SQL"]},
+        template="# Candidate\n## Summary\n...",
+        profile={"name": "Test Candidate"},
+        config={"cv": {"composition": {}}},
+        content_plan={
+            "space_budget": {
+                "max_summary_lines": 3,
+                "section_claim_limits": {"experience": 6, "projects": 4},
+                "enabled_sections": ["Summary", "Experience"],
+            }
+        },
+    )
+
+    assert "Target exactly one rendered page" in prompt
+    assert "Do not add unsupported filler" in prompt
+    assert "Omit optional sections deterministically when space is constrained" in prompt

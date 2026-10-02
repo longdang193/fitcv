@@ -30,6 +30,7 @@ import yaml
 from fitcv.decision_feedback import build_decision_feedback_source
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.agentic_cv_generation import generate_from_analysis
+from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv.evidence import build_evidence_projection
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
@@ -541,6 +542,12 @@ def execute_cv_regenerate_once(
             "generation_failed": "generation_failed",
             "persistence_failed": "persistence_failed",
         }.get(str(generation.get("status") or ""), "generation_failed")
+        if generation_status == "generated" and not final_artifact_acceptance_passes(
+            content_acceptance=True,
+            page_fit_status=generation.get("page_fit_status"),
+            render_acceptance=generation.get("render_acceptance"),
+        ):
+            generation_status = "review_required"
         markdown = str(generation.get("markdown_final") or "")
         content = markdown.encode("utf-8") if generation_status in {"generated", "review_required"} else None
         terminal = update_cv_version(
@@ -561,6 +568,9 @@ def execute_cv_regenerate_once(
                 "cv_generation_reuse_status": generation.get("cv_generation_reuse_status"),
                 "quality_warnings_json": {
                     "trace_id": str(generation.get("trace_id") or "").strip() or None,
+                    "page_fit_status": generation.get("page_fit_status"),
+                    "render_acceptance": generation.get("render_acceptance"),
+                    "trim_count": generation.get("trim_count", 0),
                 },
             },
             error_code=(str((generation.get("error") or {}).get("stage") or "") or None),
@@ -1046,6 +1056,11 @@ def _build_cv_generation_debug_payload(
         for record in debug_records
         if str(record.get("status") or "").strip() == "accepted"
         and str(record.get("cv_version_id") or "").strip()
+        and final_artifact_acceptance_passes(
+            content_acceptance=True,
+            page_fit_status=record.get("page_fit_status"),
+            render_acceptance=record.get("render_acceptance"),
+        )
     ]
     existing_events = [
         item for item in list(summary.get("accepted_artifact_events") or [])
@@ -2996,7 +3011,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

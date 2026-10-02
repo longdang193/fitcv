@@ -68,6 +68,7 @@ from fitcv.agentic_cv_generation import (
     hitl_review_reason_for_case as _hitl_review_reason_for_agentic_case,
     transition_cv_generation_persistence_failed,
 )
+from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv.candidate import (
     flatten_skills,
     infer_effective_preferences,
@@ -1679,7 +1680,11 @@ _CV_REVIEW_BLOCKING_VALIDATION_FIELDS = (
 def _is_persistable_cv_generation_result(generation_result: dict[str, Any]) -> bool:
     status = str(generation_result.get("status") or "").strip()
     if status == "accepted":
-        return True
+        return final_artifact_acceptance_passes(
+            content_acceptance=True,
+            page_fit_status=generation_result.get("page_fit_status"),
+            render_acceptance=generation_result.get("render_acceptance"),
+        )
     if status != CV_GENERATION_REVIEW_REQUIRED_STATUS:
         return False
     if not isinstance(generation_result.get("structured_cv_final"), dict):
@@ -5298,7 +5303,6 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
-
 
 
 

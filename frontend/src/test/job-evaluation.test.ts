@@ -127,8 +127,10 @@ describe("job evaluation slice and api", () => {
   it("renders FitEvidenceDrawer with user-facing factor labels and status wording", () => {
     const mockJob: RunJobItem = {
       run_job_id: "job-1",
+      job_id: "job-1",
       title: "Senior Backend Engineer",
       company: "Acme Corp",
+      current_stage_id: "ranking",
       status: "rejected",
       result_bucket: "rejected",
       reason_code: "reranker_fit_below_threshold",

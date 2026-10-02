@@ -274,6 +274,7 @@ class ReviewRequiredReasonCode(str, Enum):
     MARKDOWN_STRUCTURE_VIOLATION = "markdown_structure_violation"
     POST_VALIDATION_FAILED = "post_validation_failed"
     PERSISTENCE_FAILED = "persistence_failed"
+    FINAL_ARTIFACT_ACCEPTANCE_FAILED = "final_artifact_acceptance_failed"
 
     POLICY_REQUIRED_RATIO_FAIL = "policy_required_ratio_fail"
     POLICY_MISSING_REQUIRED_FAIL = "policy_missing_required_fail"

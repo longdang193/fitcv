@@ -15,9 +15,13 @@ lifecycle:
   - status: active
 """
 
+import hashlib
 import json
 import re
+import shutil
+import subprocess
 import textwrap
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -87,6 +91,38 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
     "not provided",
     "unknown",
 }
+
+
+def final_artifact_acceptance_passes(
+    *,
+    content_acceptance: bool,
+    page_fit_status: str | None,
+    render_acceptance: dict[str, Any] | None,
+) -> bool:
+    if not content_acceptance or not isinstance(render_acceptance, dict):
+        return False
+    return (
+        render_acceptance.get("page_count") == 1
+        and str(page_fit_status or render_acceptance.get("page_fit_status") or "").strip().lower() == "pass"
+        and str(render_acceptance.get("page_fit_status") or "").strip().lower() == "pass"
+    )
+
+
+def trim_structured_cv_for_page_fit(
+    structured_cv: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
+    """Drop lowest-priority optional sections once before final rendering."""
+    trimmed = deepcopy(structured_cv)
+    sections = trimmed.get("sections")
+    if not isinstance(sections, dict):
+        return trimmed, []
+    changes: list[str] = []
+    for section_key in ("publications", "certifications", "languages", "projects"):
+        items = sections.get(section_key)
+        if isinstance(items, list) and items:
+            sections[section_key] = []
+            changes.append(f"removed_{section_key}")
+    return trimmed, changes
 
 def select_template_variant(jd: dict[str, Any]) -> str:
     """Return a template variant name for the given enriched job description.
@@ -738,6 +774,21 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
             + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
+        )
+        space_budget = dict(content_plan.get("space_budget") or {})
+        max_summary_lines = space_budget.get("max_summary_lines")
+        section_limits = dict(space_budget.get("section_claim_limits") or {})
+        if max_summary_lines is not None:
+            constraint_lines.append(f"Target exactly one rendered page; keep Summary at most {int(max_summary_lines)} lines.")
+        if section_limits:
+            constraint_lines.append(
+                "Keep each section within these claim budgets: "
+                + ", ".join(f"{section}={limit}" for section, limit in sorted(section_limits.items()))
+                + "."
+            )
+        constraint_lines.append("Do not add unsupported filler or duplicate claims.")
+        constraint_lines.append(
+            "Omit optional sections deterministically when space is constrained: publications, certifications, languages, then projects."
         )
     if target_sections:
         normalized_targets = [str(item).strip().lower() for item in target_sections if str(item).strip()]
@@ -1819,6 +1870,74 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
     return _normalize_cv_markdown(rendered)
 
 
+def render_cv_native_acceptance(
+    structured_cv: dict[str, Any],
+    config: dict[str, Any],
+    *,
+    output_dir: Path | None = None,
+) -> dict[str, Any]:
+    required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
+    missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
+    if missing_tools:
+        return {
+            "renderer_status": "render_unavailable",
+            "missing_tools": missing_tools,
+            "page_count": None,
+            "page_fit_status": "unresolved",
+            "artifact_checksum": None,
+        }
+
+    temporary_dir = tempfile.TemporaryDirectory() if output_dir is None else None
+    render_dir = Path(temporary_dir.name) if temporary_dir is not None else Path(output_dir)
+    render_dir.mkdir(parents=True, exist_ok=True)
+    markdown_path = render_dir / "cv.md"
+    pdf_path = render_dir / "cv.pdf"
+    try:
+        markdown_path.write_text(render_cv_markdown(structured_cv, config), encoding="utf-8", newline="\n")
+        subprocess.run(
+            ["pandoc", str(markdown_path), "-o", str(pdf_path), "--pdf-engine=xelatex"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        page_info = subprocess.run(
+            ["pdfinfo", str(pdf_path)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout
+        page_match = re.search(r"^Pages:\s+(\d+)$", page_info, re.MULTILINE)
+        if page_match is None:
+            raise RuntimeError("native render did not report page count")
+        page_count = int(page_match.group(1))
+        subprocess.run(
+            ["pdftotext", str(pdf_path), "-"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return {
+            "renderer_status": "rendered",
+            "page_count": page_count,
+            "page_fit_status": "pass" if page_count == 1 else "fail",
+            "artifact_checksum": hashlib.sha256(pdf_path.read_bytes()).hexdigest(),
+        }
+    except (OSError, RuntimeError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        return {
+            "renderer_status": "render_failed",
+            "page_count": None,
+            "page_fit_status": "unresolved",
+            "artifact_checksum": None,
+            "error": str(exc),
+        }
+    finally:
+        if temporary_dir is not None:
+            temporary_dir.cleanup()
+
+
 def _execute_cv_generation_runtime(
     jd: dict[str, Any],
     evidence: list[dict[str, Any]],
@@ -1985,9 +2104,5 @@ def generate_cv(
             max_output_tokens=max_output_tokens,
         )
     )
-
-
-
-
 
 

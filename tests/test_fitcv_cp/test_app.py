@@ -6784,6 +6784,8 @@ def test_admin_run_cv_review_action_retries_approve_as_is_without_duplicate_arti
                         "job_title": "Senior Data Engineer",
                         "status": "review_required",
                         "markdown_full": "# Grounded CV",
+                        "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     }
                 ]
             }
@@ -6867,6 +6869,8 @@ def test_review_finalize_replaces_same_artifact_identity_in_sqlite(tmp_path, mon
         "job_url": "https://example.com/job-1",
         "status": "review_required",
         "markdown_full": "# Grounded CV",
+        "page_fit_status": "pass",
+        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
     }
 
     first = _finalize_review_draft_as_cv_artifact(
@@ -7217,6 +7221,8 @@ def test_admin_run_cv_review_action_approve_as_is_finalizes_cv_artifact() -> Non
                         "status": "review_required",
                         "fit_classification": "stretch",
                         "markdown_final": "# Candidate\n\nDraft",
+                        "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     }
                 ]
             }
@@ -7292,6 +7298,8 @@ def test_admin_run_cv_review_action_approve_as_is_uses_markdown_full_precedence(
                         "fit_classification": "stretch",
                         "markdown_full": "# Candidate\n\nFull draft",
                         "markdown_final": "# Candidate\n\nLegacy draft",
+                        "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     }
                 ]
             }
@@ -7561,6 +7569,8 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
                         "job_title": "DE1",
                         "status": "review_required",
                         "markdown_final": "# DE1\n\nAccepted draft",
+                        "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     },
                     {"job_url": "https://example.com/job-2", "job_title": "DE2", "status": "review_required"},
                 ],
@@ -7854,6 +7864,8 @@ def test_admin_run_cv_review_batch_action_finalize_path_no_longer_needs_zero_cv_
                         "job_title": "DE1",
                         "status": "review_required",
                         "markdown_final": "# DE1\n\nAccepted draft",
+                        "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     },
                 ],
             }
