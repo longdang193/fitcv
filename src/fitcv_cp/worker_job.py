@@ -1031,6 +1031,7 @@ def _build_cv_generation_debug_payload(
             artifact_id=str(record.get("cv_version_id") or ""),
             job_url=str(record.get("job_url") or ""),
             run_id=run_id,
+            run_job_id=record.get("run_job_id"),
             acceptance_mode="automatic",
             accepted_at=record.get("accepted_at") or record.get("generated_at") or finished_at.isoformat(),
             finalized_at=record.get("finalized_at") or record.get("generated_at") or finished_at.isoformat(),
@@ -2989,7 +2990,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

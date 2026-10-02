@@ -591,10 +591,6 @@ def _runtime_requirement_metrics(
         for requirement_id, evidence_ids in selected_support.items()
         for evidence_id in evidence_ids
     }
-    evaluated_requirements = {
-        str(row.get("requirement_instance_id") or "")
-        for row in oracle_by_pair.values()
-    }
     selected_pairs = all_selected_pairs & set(oracle_by_pair)
     excluded_pairs = {
         pair_id
@@ -604,7 +600,7 @@ def _runtime_requirement_metrics(
     unexpected_pairs = {
         pair_id
         for pair_id in all_selected_pairs
-        if pair_id.split("::", 1)[0] not in evaluated_requirements
+        if pair_id not in oracle_by_pair
         and pair_id not in excluded_pairs
     }
     unscoped_selected_pairs = {
@@ -633,6 +629,7 @@ def _runtime_requirement_metrics(
         "unexpected_requirement_ids": sorted(
             {pair_id.split("::", 1)[0] for pair_id in unexpected_pairs}
         ),
+        "unexpected_assignment_pairs": sorted(unexpected_pairs),
         "supported_selected_pairs": len(selected_pairs & supported_pairs),
         "assignment_precision": (
             len(selected_pairs & supported_pairs) / len(selected_pairs)
