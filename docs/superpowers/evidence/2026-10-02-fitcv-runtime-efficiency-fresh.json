@@ -1,4 +1,5 @@
 {
+  "evidence_status": "historical_superseded",
   "schema_version": "fitcv_runtime_efficiency_baseline_v1",
   "status": "complete",
   "generated_at": "2026-10-02T15:12:56.451322+00:00",

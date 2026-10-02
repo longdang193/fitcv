@@ -1040,6 +1040,8 @@ def _build_cv_generation_debug_payload(
             finalized_at=record.get("finalized_at") or record.get("generated_at") or finished_at.isoformat(),
             generation_input_fingerprint=record.get("cv_generation_input_fingerprint"),
             trace_id=record.get("trace_id"),
+            page_fit_status=record.get("page_fit_status"),
+            render_acceptance=record.get("render_acceptance"),
         )
         for record in debug_records
         if str(record.get("status") or "").strip() == "accepted"
@@ -2994,7 +2996,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

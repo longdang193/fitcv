@@ -6685,6 +6685,34 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
     assert sample["structured_cv_final"] == {"schema_version": "cv_doc_v1"}
 
 
+def test_cv_generation_trace_summary_preserves_run_and_artifact_lineage() -> None:
+    from fitcv.pipeline import _build_cv_generation_trace_summary
+
+    summary = _build_cv_generation_trace_summary(
+        run_id="run-1",
+        cv_generation_debug_records=[
+            {
+                "status": "accepted",
+                "job_url": "https://example.com/job-1",
+                "run_job_id": "run-job-1",
+                "cv_version_id": "cv-version-1",
+                "trace_id": "trace-1",
+                "page_fit_status": "pass",
+                "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
+                "cv_generation_trace": {"attempts": [{"provider_status": "accepted"}]},
+            }
+        ],
+    )
+
+    record = summary["records"][0]
+    assert record["run_id"] == "run-1"
+    assert record["run_job_id"] == "run-job-1"
+    assert record["cv_version_id"] == "cv-version-1"
+    assert record["trace_id"] == "trace-1"
+    assert record["page_fit_status"] == "pass"
+    assert record["render_acceptance"] == {"page_count": 1, "page_fit_status": "pass"}
+
+
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")

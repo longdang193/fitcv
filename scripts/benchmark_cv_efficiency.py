@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import platform
@@ -16,7 +17,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from fitcv_cp import sqlite_store
-from fitcv_cp.run_artifact_contracts import build_accepted_cv_effort_projection
+from fitcv_cp.run_artifact_contracts import (
+    build_accepted_cv_effort_projection,
+    collect_normalized_generation_traces,
+)
 
 DEFAULT_JSON = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json"
 DEFAULT_MARKDOWN = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
@@ -80,19 +84,19 @@ def _trace_records(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return [block] if block.get("attempts") else []
 
 
-def _trace_generation_elapsed_ms(trace: dict[str, Any]) -> float:
+def _trace_generation_elapsed_ms(trace: dict[str, Any]) -> float | None:
     efficiency = dict(trace.get("efficiency_summary") or {})
     raw_elapsed = efficiency.get("elapsed_ms")
     if raw_elapsed is not None:
         try:
             return max(float(raw_elapsed), 0.0)
         except (TypeError, ValueError):
-            return 0.0
+            return None
     started = _timestamp(trace.get("generation_started_at") or trace.get("started_at"))
     finished = _timestamp(trace.get("generation_finished_at") or trace.get("finished_at"))
     if started is not None and finished is not None and finished >= started:
         return (finished - started).total_seconds() * 1000
-    return 0.0
+    return None
 
 
 def _trace_final_accepted(trace: dict[str, Any], attempts: list[dict[str, Any]]) -> bool:
@@ -101,6 +105,20 @@ def _trace_final_accepted(trace: dict[str, Any], attempts: list[dict[str, Any]])
     if final_status:
         return final_status in {"accepted", "succeeded", "success"}
     return bool(attempts and str(attempts[-1].get("provider_status") or "").strip().lower() == "accepted")
+
+
+def _is_recorded(value: Any) -> bool:
+    return value not in {None, "", "not_recorded", "not_run", "not_applicable", "unverified"}
+
+
+def _coverage(values: list[Any]) -> dict[str, Any]:
+    measured = sum(_is_recorded(value) for value in values)
+    return {
+        "measured": measured,
+        "unavailable": len(values) - measured,
+        "total": len(values),
+        "rate": measured / len(values) if values else 0.0,
+    }
 
 
 def _run_snapshot(run: Any) -> dict[str, Any] | None:
@@ -115,7 +133,9 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
         if isinstance(item, dict)
     ]
-    traces = _trace_records(payload)
+    raw_traces = _trace_records(payload)
+    normalized_traces = collect_normalized_generation_traces(records, raw_traces)
+    traces = list(normalized_traces["records"])
     actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
     artifacts = [item for item in list(payload.get("accepted_artifact_events") or []) if isinstance(item, dict)]
     projection = build_accepted_cv_effort_projection(
@@ -126,7 +146,15 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     )
     if projection.get("status") == "not_run":
         return None
-    generation_elapsed_ms = sum(_trace_generation_elapsed_ms(trace) for trace in traces)
+    projected_records = [
+        item for item in list(projection.get("records") or []) if isinstance(item, dict)
+    ]
+    generation_elapsed_values = [
+        elapsed
+        for elapsed in (_trace_generation_elapsed_ms(trace) for trace in traces)
+        if elapsed is not None
+    ]
+    generation_elapsed_ms = sum(generation_elapsed_values) if generation_elapsed_values else None
     first_pass_acceptance_count = 0
     retry_success_count = 0
     retry_failure_count = 0
@@ -147,6 +175,16 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     if started_at and finished_at and finished_at >= started_at:
         elapsed_wall_ms = (finished_at - started_at).total_seconds() * 1000
     status_counts = Counter(str(item.get("status") or "unknown") for item in records)
+    page_fit_values = [item.get("page_fit_status") for item in projected_records]
+    review_question_values = [item.get("review_question_count") for item in projected_records]
+    human_action_values = [item.get("human_action_count") for item in projected_records]
+    resolution_values = [item.get("reused_resolution_count") for item in projected_records]
+    token_status_values = [item.get("token_usage_status") for item in projected_records]
+    job_types = {
+        str(trace.get("job_type") or "").strip()
+        for trace in traces
+        if str(trace.get("job_type") or "").strip()
+    }
     return {
         "run_id": run_id,
         "created_at": created_at.isoformat() if created_at else None,
@@ -154,6 +192,13 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         "finished_at": finished_at.isoformat() if finished_at else None,
         "elapsed_wall_ms": elapsed_wall_ms,
         "generation_elapsed_ms": generation_elapsed_ms,
+        "timing": {
+            "generation_elapsed_ms": generation_elapsed_ms,
+            "generation_timing_coverage": {
+                "measured": len(generation_elapsed_values),
+                "unavailable": len(traces) - len(generation_elapsed_values),
+            },
+        },
         "yield": {
             "attempted_generation_job_count": len(traces),
             "first_pass_acceptance_count": first_pass_acceptance_count,
@@ -163,10 +208,35 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         "status_counts": dict(sorted(status_counts.items())),
         "accepted_record_count": status_counts.get("accepted", 0),
         "projection": projection,
+        "_trace_records_for_diversity": traces,
+        "coverage": {
+            "attribution": {
+                "matched": sum(item.get("attribution_status") == "matched" for item in projected_records),
+                "unmatched": sum(item.get("attribution_status") != "matched" for item in projected_records),
+                "total": len(projected_records),
+            },
+            "cost": _coverage(token_status_values),
+            "timing": {
+                "measured": len(generation_elapsed_values),
+                "unavailable": len(traces) - len(generation_elapsed_values),
+                "total": len(traces),
+                "rate": len(generation_elapsed_values) / len(traces) if traces else 0.0,
+            },
+            "page_fit": _coverage(page_fit_values),
+            "review_questions": _coverage(review_question_values),
+            "human_actions": _coverage(human_action_values),
+            "resolution_reuse": _coverage(resolution_values),
+            "run_job_diversity": {
+                "run_count": 1,
+                "job_count": len(traces),
+                "job_type_count": len(job_types),
+                "job_types": sorted(job_types),
+            },
+        },
     }
 
 
-def _sum_workload(snapshots: list[dict[str, Any]]) -> dict[str, int]:
+def _sum_workload(snapshots: list[dict[str, Any]]) -> dict[str, Any]:
     fields = (
         "attempted_generation_job_count",
         "validation_failure_count",
@@ -184,7 +254,68 @@ def _sum_workload(snapshots: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
-def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
+def _source_job_type(source_snapshot: Any) -> str | None:
+    if not isinstance(source_snapshot, dict):
+        return None
+    for field in (
+        "job_type",
+        "jobType",
+        "contract_type",
+        "contractType",
+        "work_type",
+        "workType",
+        "employment_type",
+        "employmentType",
+    ):
+        value = str(source_snapshot.get(field) or "").strip()
+        if value:
+            return value
+    return None
+
+
+def _run_job_types(traces: Iterable[dict[str, Any]], run_jobs: Iterable[Any]) -> set[str]:
+    by_run_job_id: dict[str, dict[str, Any]] = {}
+    by_job_url: dict[str, dict[str, Any]] = {}
+    for item in run_jobs:
+        if not isinstance(item, dict):
+            continue
+        source_snapshot = item.get("source_snapshot")
+        if not isinstance(source_snapshot, dict):
+            source_snapshot = item
+        row = {"source_snapshot": source_snapshot, **item}
+        run_job_id = str(item.get("run_job_id") or source_snapshot.get("run_job_id") or "").strip()
+        job_url = str(
+            item.get("source_url")
+            or source_snapshot.get("job_url")
+            or source_snapshot.get("jobUrl")
+            or source_snapshot.get("url")
+            or ""
+        ).strip()
+        if run_job_id:
+            by_run_job_id[run_job_id] = row
+        if job_url:
+            by_job_url[job_url] = row
+    job_types: set[str] = set()
+    for trace in traces:
+        if not isinstance(trace, dict):
+            continue
+        run_job_id = str(trace.get("run_job_id") or "").strip()
+        job_url = str(trace.get("job_url") or trace.get("scope_key") or trace.get("record_id") or "").strip()
+        row = by_run_job_id.get(run_job_id) or by_job_url.get(job_url)
+        if row is None:
+            continue
+        source_snapshot = row["source_snapshot"]
+        job_type = _source_job_type(source_snapshot)
+        if job_type:
+            job_types.add(job_type)
+    return job_types
+
+
+def build_baseline(
+    runs: Iterable[Any],
+    *,
+    run_jobs_by_run_id: dict[str, Iterable[Any]] | None = None,
+) -> dict[str, Any]:
     snapshots = []
     exclusions: Counter[str] = Counter()
     seen_run_ids: set[str] = set()
@@ -198,6 +329,12 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
         if snapshot is None:
             exclusions[_status(run) or "missing_run_id_or_payload"] += 1
             continue
+        source_job_types = _run_job_types(
+            snapshot.pop("_trace_records_for_diversity", []),
+            (run_jobs_by_run_id or {}).get(run_id, []),
+        )
+        if source_job_types:
+            snapshot["coverage"]["run_job_diversity"]["job_types"] = sorted(source_job_types)
         snapshots.append(snapshot)
 
     accepted_count = sum(
@@ -214,9 +351,61 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
     )
     unattributed_count += max(accepted_record_count - accepted_count, 0)
     workload = _sum_workload(snapshots)
-    workload["generation_elapsed_ms"] = sum(
-        float(snapshot.get("generation_elapsed_ms") or 0) for snapshot in snapshots
+    generation_elapsed_values = [
+        float(snapshot["generation_elapsed_ms"])
+        for snapshot in snapshots
+        if snapshot.get("generation_elapsed_ms") is not None
+    ]
+    workload["generation_elapsed_ms"] = sum(generation_elapsed_values) if generation_elapsed_values else None
+    generation_timing_coverage = {
+        "measured": sum(
+            int(dict(snapshot.get("timing") or {}).get("generation_timing_coverage", {}).get("measured") or 0)
+            for snapshot in snapshots
+        ),
+        "unavailable": sum(
+            int(dict(snapshot.get("timing") or {}).get("generation_timing_coverage", {}).get("unavailable") or 0)
+            for snapshot in snapshots
+        ),
+    }
+    coverage_names = (
+        "attribution",
+        "cost",
+        "timing",
+        "page_fit",
+        "review_questions",
+        "human_actions",
+        "resolution_reuse",
     )
+    coverage: dict[str, Any] = {}
+    for name in coverage_names:
+        values = [dict(snapshot.get("coverage") or {}).get(name) or {} for snapshot in snapshots]
+        total = sum(int(item.get("total") or 0) for item in values)
+        measured = sum(int(item.get("measured") or item.get("matched") or 0) for item in values)
+        unavailable = sum(int(item.get("unavailable") or item.get("unmatched") or 0) for item in values)
+        coverage[name] = {
+            "measured": measured,
+            "unavailable": unavailable,
+            "total": total,
+            "rate": measured / total if total else 0.0,
+            "complete": bool(total and measured == total),
+        }
+    coverage["attribution"]["matched"] = sum(
+        int(dict(snapshot.get("coverage") or {}).get("attribution", {}).get("matched") or 0)
+        for snapshot in snapshots
+    )
+    coverage["attribution"]["unmatched"] = sum(
+        int(dict(snapshot.get("coverage") or {}).get("attribution", {}).get("unmatched") or 0)
+        for snapshot in snapshots
+    )
+    coverage["attribution"]["complete"] = bool(
+        coverage["attribution"]["total"]
+        and coverage["attribution"]["unmatched"] == 0
+    )
+    run_types = sorted({
+        job_type
+        for snapshot in snapshots
+        for job_type in dict(snapshot.get("coverage") or {}).get("run_job_diversity", {}).get("job_types", [])
+    })
     aggregate_end_to_end_wall = sum(float(snapshot.get("elapsed_wall_ms") or 0) for snapshot in snapshots)
     yield_totals = {
         field: sum(int(dict(snapshot.get("yield") or {}).get(field) or 0) for snapshot in snapshots)
@@ -252,9 +441,13 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
         float(dict(snapshot["projection"].get("aggregate") or {}).get("elapsed_ms") or 0)
         for snapshot in snapshots
     )
-    aggregate_generation_elapsed = sum(
-        float(dict(snapshot["projection"].get("aggregate") or {}).get("generation_elapsed_ms") or 0)
+    accepted_generation_elapsed_values = [
+        float(dict(snapshot["projection"].get("aggregate") or {}).get("generation_elapsed_ms"))
         for snapshot in snapshots
+        if dict(snapshot["projection"].get("aggregate") or {}).get("generation_elapsed_ms") is not None
+    ]
+    aggregate_generation_elapsed = (
+        sum(accepted_generation_elapsed_values) if accepted_generation_elapsed_values else None
     )
     complete = (
         bool(snapshots)
@@ -271,11 +464,15 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
             "token_total": aggregate_tokens / accepted_count,
             "regeneration_count": aggregate_regenerations / accepted_count,
             "validation_failure_count": aggregate_validation_failures / accepted_count,
-            "generation_elapsed_ms": aggregate_generation_elapsed / accepted_count,
+            "generation_elapsed_ms": (
+                aggregate_generation_elapsed / accepted_count
+                if aggregate_generation_elapsed is not None
+                else None
+            ),
             "elapsed_ms": aggregate_elapsed / accepted_count,
         }
         total_workload_per_accepted = {
-            field: workload[field] / accepted_count
+            field: workload[field] / accepted_count if workload[field] is not None else None
             for field in (
                 "provider_call_count",
                 "token_total",
@@ -289,7 +486,7 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
     for snapshot in snapshots:
         generation_status_counts.update(snapshot["status_counts"])
     return {
-        "schema_version": "fitcv_runtime_efficiency_baseline_v1",
+        "schema_version": "fitcv_runtime_efficiency_baseline_v2",
         "status": status,
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "selection": {
@@ -300,6 +497,19 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
             "exclusions": dict(sorted(exclusions.items())),
         },
         "workload": workload,
+        "timing": {
+            "generation_elapsed_ms": workload["generation_elapsed_ms"],
+            "generation_timing_coverage": generation_timing_coverage,
+            "artifact_acceptance_latency_ms": aggregate_elapsed,
+            "run_wall_ms": aggregate_end_to_end_wall,
+        },
+        "coverage": coverage,
+        "run_job_diversity": {
+            "run_count": len(snapshots),
+            "job_count": workload["attempted_generation_job_count"],
+            "job_type_count": len(run_types),
+            "job_types": run_types,
+        },
         "accepted_cv": {
             "count": accepted_count,
             "recorded_acceptance_count": accepted_record_count,
@@ -335,14 +545,47 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
     }
 
 
+def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
+    return {
+        field: report.get(field)
+        for field in (
+            "schema_version",
+            "status",
+            "selection",
+            "workload",
+            "accepted_cv",
+            "attribution",
+            "yield",
+            "timing",
+            "coverage",
+            "run_job_diversity",
+            "aggregate",
+            "outcomes",
+            "runs",
+        )
+    }
+
+
+def material_report_digest(report: dict[str, Any]) -> str:
+    payload = json.dumps(
+        material_report_metrics(report),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _markdown(report: dict[str, Any]) -> str:
     workload = dict(report.get("workload") or {})
     accepted = dict(report.get("accepted_cv") or {})
     attribution = dict(report.get("attribution") or {})
+    timing = dict(report.get("timing") or {})
     return "\n".join(
         [
             "# FitCV Runtime Efficiency Baseline",
             "",
+            f"- Evidence status: `{report.get('evidence_status', 'generated')}`",
             f"- Status: `{report.get('status')}`",
             f"- Persisted ordinary runs: `{report.get('selection', {}).get('run_count', 0)}`",
             f"- Accepted CVs: `{accepted.get('count', 0)}`",
@@ -358,7 +601,14 @@ def _markdown(report: dict[str, Any]) -> str:
             f"- Total-workload cost per accepted CV: `{accepted.get('total_workload_cost_per_accepted_cv')}`",
             f"- First-pass acceptance rate: `{dict(report.get('yield') or {}).get('first_pass_acceptance_rate')}`",
             f"- Retry success/failure: `{dict(report.get('yield') or {}).get('retry_success_count', 0)}` / `{dict(report.get('yield') or {}).get('retry_failure_count', 0)}`",
+            f"- Generation duration aggregate: `{timing.get('generation_elapsed_ms')}`",
+            f"- Generation timing coverage: `{timing.get('generation_timing_coverage')}`",
+            f"- Artifact acceptance latency aggregate: `{timing.get('artifact_acceptance_latency_ms')}`",
+            f"- Run wall-clock aggregate: `{timing.get('run_wall_ms')}`",
+            f"- Measurement coverage: `{report.get('coverage', {})}`",
+            f"- Run/job diversity: `{report.get('run_job_diversity', {})}`",
             "",
+            "Generation duration, artifact acceptance latency, and run wall-clock time are separate metrics.",
             "Accepted-artifact and total-workload per-CV metrics stay null unless attribution is complete.",
         ]
     ) + "\n"
@@ -378,7 +628,12 @@ def main() -> int:
     if args.run_ids:
         selected = set(args.run_ids)
         runs = [run for run in runs if str(run.run_id) in selected]
-    report = build_baseline(runs)
+    run_jobs_by_run_id = {
+        str(run.run_id): list(sqlite_store.iter_run_jobs_for_export(str(run.run_id)))
+        for run in runs
+    }
+    report = build_baseline(runs, run_jobs_by_run_id=run_jobs_by_run_id)
+    report["material_metrics_sha256"] = material_report_digest(report)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     args.output_markdown.parent.mkdir(parents=True, exist_ok=True)
     args.output_json.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

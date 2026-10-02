@@ -6889,6 +6889,29 @@ def test_review_finalize_replaces_same_artifact_identity_in_sqlite(tmp_path, mon
     assert [row["version_id"] for row in rows] == [first[2]]
 
 
+def test_hitl_artifact_event_preserves_render_acceptance() -> None:
+    from fitcv_cp.app import _append_accepted_artifact_event
+
+    payload: dict[str, object] = {}
+    _append_accepted_artifact_event(
+        payload,
+        run_id="run-review-render",
+        job_url="https://example.com/job-rendered",
+        artifact_id="cv-rendered-1",
+        record={
+            "trace_id": "trace-rendered-1",
+            "run_job_id": "run-review-render-job-1",
+            "page_fit_status": "pass",
+            "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
+        },
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    event = payload["accepted_artifact_events"][0]
+    assert event["page_fit_status"] == "pass"
+    assert event["render_acceptance"]["page_count"] == 1
+
+
 def test_admin_run_cv_review_action_reconciles_historical_checkpoint_idempotently() -> None:
     from datetime import datetime, timezone
 

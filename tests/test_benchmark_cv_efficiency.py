@@ -1,6 +1,11 @@
 import json
 
-from scripts.benchmark_cv_efficiency import _markdown, build_baseline
+from scripts.benchmark_cv_efficiency import (
+    _markdown,
+    build_baseline,
+    material_report_digest,
+    material_report_metrics,
+)
 from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1
 
 
@@ -155,6 +160,185 @@ def test_baseline_separates_accepted_artifact_and_total_workload_cost() -> None:
     markdown = _markdown(report)
     assert "Accepted-artifact cost per accepted CV" in markdown
     assert "Total-workload cost per accepted CV" in markdown
+
+
+def test_baseline_counts_embedded_only_trace_for_timing_and_yield() -> None:
+    trace = {
+        "trace_id": "trace-embedded-only",
+        "run_id": "run-embedded-only",
+        "job_url": "job-embedded-only",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "output_summary": {"final_status": "accepted"},
+        "efficiency_summary": {"provider_call_count": 1, "elapsed_ms": 100},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-embedded-only",
+        job_url="job-embedded-only",
+        run_id="run-embedded-only",
+        trace_id="trace-embedded-only",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline(
+        [
+            _run(
+                "run-embedded-only",
+                {
+                    "debug_records": [{"status": "accepted", "job_url": "job-embedded-only", "cv_generation_trace": trace}],
+                    "accepted_artifact_events": [artifact],
+                },
+            )
+        ]
+    )
+
+    assert report["workload"]["attempted_generation_job_count"] == 1
+    assert report["workload"]["generation_elapsed_ms"] == 100.0
+    assert report["yield"]["first_pass_acceptance_count"] == 1
+
+
+def test_baseline_deduplicates_duplicate_top_level_trace_for_timing_and_yield() -> None:
+    trace = {
+        "trace_id": "trace-duplicate",
+        "run_id": "run-duplicate",
+        "job_url": "job-duplicate",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "output_summary": {"final_status": "accepted"},
+        "efficiency_summary": {"provider_call_count": 1, "elapsed_ms": 100},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-duplicate",
+        job_url="job-duplicate",
+        run_id="run-duplicate",
+        trace_id="trace-duplicate",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline(
+        [
+            _run(
+                "run-duplicate",
+                {
+                    "cv_generation_trace": {"records": [trace, dict(trace)]},
+                    "debug_records": [{"status": "accepted", "job_url": "job-duplicate"}],
+                    "accepted_artifact_events": [artifact],
+                },
+            )
+        ]
+    )
+
+    assert report["workload"]["attempted_generation_job_count"] == 1
+    assert report["workload"]["generation_elapsed_ms"] == 100.0
+    assert report["yield"]["first_pass_acceptance_count"] == 1
+
+
+def test_baseline_merges_enriched_top_level_and_embedded_trace_for_timing_and_yield() -> None:
+    embedded = {
+        "trace_id": "trace-enriched-duplicate",
+        "run_id": "run-enriched-duplicate",
+        "scope_key": "job-enriched-duplicate",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "output_summary": {"final_status": "accepted"},
+        "efficiency_summary": {"provider_call_count": 1, "elapsed_ms": 100},
+    }
+    top_level = {
+        **embedded,
+        "record_id": "job-enriched-duplicate",
+        "status": "accepted",
+        "artifact_refs": {"stage_artifact": "cv_generation.json"},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-enriched-duplicate",
+        job_url="job-enriched-duplicate",
+        run_id="run-enriched-duplicate",
+        trace_id="trace-enriched-duplicate",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline(
+        [
+            _run(
+                "run-enriched-duplicate",
+                {
+                    "cv_generation_trace": {"records": [top_level]},
+                    "debug_records": [
+                        {
+                            "status": "accepted",
+                            "job_url": "job-enriched-duplicate",
+                            "cv_generation_trace": embedded,
+                        }
+                    ],
+                    "accepted_artifact_events": [artifact],
+                },
+            )
+        ]
+    )
+
+    assert report["workload"]["attempted_generation_job_count"] == 1
+    assert report["workload"]["generation_elapsed_ms"] == 100.0
+    assert report["yield"]["first_pass_acceptance_count"] == 1
+    assert report["runs"][0]["projection"]["trace_normalization"] == {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+    }
+
+
+def test_baseline_does_not_turn_missing_generation_timing_into_zero() -> None:
+    trace = {
+        "trace_id": "trace-no-timing",
+        "run_id": "run-no-timing",
+        "job_url": "job-no-timing",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "output_summary": {"final_status": "accepted"},
+        "efficiency_summary": {"provider_call_count": 1},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-no-timing",
+        job_url="job-no-timing",
+        run_id="run-no-timing",
+        trace_id="trace-no-timing",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline(
+        [
+            _run(
+                "run-no-timing",
+                {
+                    "cv_generation_trace": {"records": [trace]},
+                    "debug_records": [{"status": "accepted", "job_url": "job-no-timing"}],
+                    "accepted_artifact_events": [artifact],
+                },
+            )
+        ]
+    )
+
+    assert report["timing"]["generation_elapsed_ms"] is None
+    assert report["timing"]["generation_timing_coverage"] == {"measured": 0, "unavailable": 1}
+
+
+def test_material_report_metrics_ignore_volatile_report_fields() -> None:
+    first = {"generated_at": "2026-10-02T00:00:00Z", "environment": {"python": "3.13"}, "status": "complete"}
+    second = {"generated_at": "2026-10-02T01:00:00Z", "environment": {"python": "3.14"}, "status": "complete"}
+
+    assert material_report_metrics(first) == material_report_metrics(second)
+
+
+def test_material_report_digest_changes_only_for_material_metrics() -> None:
+    first = {"generated_at": "2026-10-02T00:00:00Z", "status": "complete"}
+    second = {"generated_at": "2026-10-02T01:00:00Z", "status": "complete"}
+    changed = {"generated_at": "2026-10-02T01:00:00Z", "status": "incomplete"}
+
+    assert material_report_digest(first) == material_report_digest(second)
+    assert material_report_digest(first) != material_report_digest(changed)
 
 
 def test_baseline_reports_first_pass_and_retry_yield() -> None:
@@ -379,3 +563,105 @@ def test_baseline_keeps_generation_elapsed_separate_from_artifact_elapsed() -> N
     assert accepted_cost["generation_elapsed_ms"] == 100.0
     assert accepted_cost["elapsed_ms"] == 3_600_000.0
     assert report["aggregate"]["generation_elapsed_ms"] == 100.0
+
+
+def test_baseline_reports_measurement_coverage_without_fabricating_page_fit() -> None:
+    trace = {
+        "trace_id": "trace-coverage",
+        "run_id": "run-coverage",
+        "job_url": "job-coverage",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {
+            "provider_call_count": 1,
+            "elapsed_ms": 100,
+            "token_usage": [{"total_tokens": 10}],
+            "review_question_count": 1,
+            "human_action_count": 0,
+        },
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-coverage",
+        job_url="job-coverage",
+        run_id="run-coverage",
+        trace_id="trace-coverage",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline([
+        _run(
+            "run-coverage",
+            {
+                "debug_records": [{"status": "accepted", "job_url": "job-coverage"}],
+                "cv_generation_trace": {"records": [trace]},
+                "accepted_artifact_events": [artifact],
+            },
+        )
+    ])
+
+    assert report["coverage"]["attribution"]["complete"] is True
+    assert report["coverage"]["page_fit"]["measured"] == 0
+    assert report["coverage"]["page_fit"]["complete"] is False
+    assert report["run_job_diversity"]["run_count"] == 1
+
+
+def test_baseline_uses_canonical_run_job_types_not_scope_type() -> None:
+    traces = [
+        {
+            "trace_id": "trace-job-type-1",
+            "run_id": "run-job-types",
+            "run_job_id": "run-job-types-1",
+            "job_url": "job-type-1",
+            "scope_type": "job",
+            "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+            "efficiency_summary": {"provider_call_count": 1, "elapsed_ms": 100, "token_usage": [{"total_tokens": 10}]},
+        },
+        {
+            "trace_id": "trace-job-type-2",
+            "run_id": "run-job-types",
+            "run_job_id": "run-job-types-2",
+            "job_url": "job-type-2",
+            "scope_type": "job",
+            "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+            "efficiency_summary": {"provider_call_count": 1, "elapsed_ms": 100, "token_usage": [{"total_tokens": 10}]},
+        },
+    ]
+    artifacts = [
+        accepted_cv_artifact_event_v1(
+            artifact_id=f"cv-job-type-{index}",
+            job_url=f"job-type-{index}",
+            run_id="run-job-types",
+            run_job_id=f"run-job-types-{index}",
+            trace_id=f"trace-job-type-{index}",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+        )
+        for index in (1, 2)
+    ]
+
+    report = build_baseline(
+        [
+            _run(
+                "run-job-types",
+                {
+                    "debug_records": [
+                        {"status": "accepted", "job_url": "job-type-1"},
+                        {"status": "accepted", "job_url": "job-type-2"},
+                    ],
+                    "cv_generation_trace": {"records": traces},
+                    "accepted_artifact_events": artifacts,
+                },
+            )
+        ],
+        run_jobs_by_run_id={
+            "run-job-types": [
+                {"run_job_id": "run-job-types-1", "source_snapshot": {"contractType": "Part-time"}},
+                {"run_job_id": "run-job-types-2", "source_snapshot": {"contractType": "Internship"}},
+            ]
+        },
+    )
+
+    assert report["run_job_diversity"]["job_type_count"] == 2
+    assert report["run_job_diversity"]["job_types"] == ["Internship", "Part-time"]

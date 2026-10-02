@@ -2239,6 +2239,18 @@ def _build_cv_generation_trace_summary(
             continue
         trace_record = dict(raw_trace)
         job_url = str(record.get("job_url") or "").strip()
+        trace_record.setdefault("run_id", run_id)
+        for field in (
+            "run_job_id",
+            "cv_version_id",
+            "trace_id",
+            "page_fit_status",
+            "render_acceptance",
+            "render_retry_count",
+            "cv_content_plan",
+        ):
+            if field not in trace_record and record.get(field) is not None:
+                trace_record[field] = record[field]
         trace_record.setdefault("record_id", job_url or str(record.get("job_title") or "").strip())
         trace_record.setdefault("scope_type", "job")
         trace_record.setdefault("scope_key", job_url)

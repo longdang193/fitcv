@@ -74,6 +74,17 @@ Approved residuals: historical attribution remains incomplete; P1-C and P2 remai
 
 Only measured support-pass reduction retained. P1-C and P2 stay deferred. Plan closure verified.
 
+## Canonical lineage fix
+
+- Root cause: `_build_cv_generation_trace_summary()` copied embedded trace payloads without restoring run and artifact lineage from the owning debug record.
+- Patch: preserve `run_id`, `run_job_id`, `cv_version_id`, `trace_id`, and render fields before projection or benchmark matching.
+- Regression: `tests/test_pipeline.py::test_cv_generation_trace_summary_preserves_run_and_artifact_lineage`.
+- Fresh workload: run `4f5a73bc-52b7-4221-9aca-0c18642e6005`; 6 accepted artifacts, 0 unmatched traces, 0 unattributed artifacts, 3 canonical job types.
+- Canonical evidence pair regenerated at `docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.json` and `docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.md`.
+- Measurement promoted to `measured`: 2 ordinary runs, 3 canonical job types, complete attribution/cost/timing/page-fit/review/human-action/reuse coverage.
+- Combined workload: 18 attempted generation jobs, 11 accepted artifacts, 0 unmatched traces, 0 unattributed artifacts.
+- P1-C and P2 remain deferred.
+
 ## Verification already available
 
 - Relevant suite: `1644 passed, 1 skipped`.

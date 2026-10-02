@@ -27,8 +27,8 @@
     "docs/superpowers/evidence/2026-10-02-fitcv-p1b-live-measurement.md",
     "docs/superpowers/evidence/2026-10-02-fitcv-final-p0-p1-closure.md",
     "docs/superpowers/evidence/2026-10-02-fitcv-p0-p1-contract-closure.md",
-    "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json",
-    "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
+    "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.json",
+    "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.md"
   ],
   "p0_b": {
     "explicitly_excluded_requirement_ids": [
@@ -241,10 +241,10 @@
   "runtime_efficiency": {
     "accepted_artifact_and_total_workload_metrics": true,
     "baseline_evidence": {
-      "json": "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json",
-      "markdown": "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
+      "json": "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.json",
+      "markdown": "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.md"
     },
-    "measurement_status": "incomplete",
+    "measurement_status": "measured",
     "p1_c": "deferred",
     "p2": "deferred"
   },
@@ -274,7 +274,7 @@
     "p1_b": {
       "acceptance_status": "passed",
       "implementation_status": "verified",
-      "measurement_status": "incomplete"
+      "measurement_status": "measured"
     },
     "p1_c": {
       "acceptance_status": "deferred",

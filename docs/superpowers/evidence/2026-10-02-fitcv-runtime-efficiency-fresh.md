@@ -1,5 +1,6 @@
 # FitCV Runtime Efficiency Baseline
 
+- Evidence status: `historical_superseded`
 - Status: `complete`
 - Persisted ordinary runs: `1`
 - Accepted CVs: `2`

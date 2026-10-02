@@ -1971,6 +1971,8 @@ def _append_accepted_artifact_event(
             accepted_at=finalized_at,
             finalized_at=finalized_at,
             generation_input_fingerprint=(record or {}).get("cv_generation_input_fingerprint"),
+            page_fit_status=(record or {}).get("page_fit_status"),
+            render_acceptance=(record or {}).get("render_acceptance"),
         )
     )
     payload["accepted_artifact_events"] = events

@@ -28,6 +28,7 @@ from fitcv_cp.run_artifact_contracts import (
     stable_sha256_fingerprint,
     build_accepted_cv_effort_projection,
     accepted_cv_artifact_event_v1,
+    collect_normalized_generation_traces,
 )
 
 
@@ -222,6 +223,72 @@ def test_accepted_cv_effort_projection_deduplicates_top_level_and_embedded_trace
     assert result["aggregate"]["workload"]["attempted_generation_job_count"] == 1
 
 
+def test_collect_normalized_generation_traces_merges_embedded_and_top_level_once() -> None:
+    trace = {
+        "trace_id": "trace-1",
+        "run_id": "run-1",
+        "scope_key": "job-1",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+    }
+
+    result = collect_normalized_generation_traces(
+        [{"run_id": "run-1", "cv_generation_trace": trace}],
+        [trace],
+    )
+
+    assert len(result["records"]) == 1
+    assert result["diagnostics"] == {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+    }
+
+
+def test_collect_normalized_generation_traces_merges_enriched_top_level_duplicate() -> None:
+    embedded = {
+        "trace_id": "trace-enriched-duplicate",
+        "run_id": "run-1",
+        "scope_key": "job-1",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"elapsed_ms": 100},
+        "output_summary": {"final_status": "accepted"},
+    }
+    top_level = {
+        **embedded,
+        "record_id": "job-1",
+        "status": "accepted",
+        "artifact_refs": {"stage_artifact": "cv_generation.json"},
+    }
+
+    result = collect_normalized_generation_traces(
+        [{"run_id": "run-1", "cv_generation_trace": embedded}],
+        [top_level],
+    )
+
+    assert len(result["records"]) == 1
+    assert result["records"][0]["status"] == "accepted"
+    assert result["records"][0]["artifact_refs"] == {"stage_artifact": "cv_generation.json"}
+    assert result["diagnostics"] == {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+    }
+
+
+def test_collect_normalized_generation_traces_excludes_conflicting_identity() -> None:
+    first = {"trace_id": "trace-1", "run_id": "run-1", "scope_key": "job-1"}
+    second = {"trace_id": "trace-1", "run_id": "run-1", "scope_key": "job-1", "status": "failed"}
+
+    result = collect_normalized_generation_traces([], [first, second])
+
+    assert result["records"] == []
+    assert result["diagnostics"] == {
+        "duplicate_count": 0,
+        "conflict_count": 1,
+        "conflict_trace_ids": ["trace-1"],
+    }
+
+
 def test_accepted_cv_artifact_event_preserves_trace_id() -> None:
     event = accepted_cv_artifact_event_v1(
         artifact_id="cv-1",
@@ -235,6 +302,22 @@ def test_accepted_cv_artifact_event_preserves_trace_id() -> None:
 
     assert event["trace_id"] == "trace-1"
     assert event["event_id"]
+
+
+def test_accepted_cv_artifact_event_preserves_render_acceptance() -> None:
+    event = accepted_cv_artifact_event_v1(
+        artifact_id="cv-rendered",
+        job_url="job-rendered",
+        run_id="run-rendered",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        page_fit_status="pass",
+        render_acceptance={"page_count": 1, "page_fit_status": "pass"},
+    )
+
+    assert event["page_fit_status"] == "pass"
+    assert event["render_acceptance"] == {"page_count": 1, "page_fit_status": "pass"}
 
 
 def test_accepted_cv_effort_projection_marks_ambiguous_legacy_trace_unmatched() -> None:
@@ -406,6 +489,53 @@ def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     assert result["records"][0]["page_fit_status"] == "not_recorded"
     assert result["records"][0]["accepted_outcome"] is True
     assert result["records"][0]["elapsed_status"] == "not_run"
+
+
+def test_accepted_cv_effort_projection_prefers_finalized_page_fit_over_plan_default() -> None:
+    record = {
+        "job_url": "job-page-fit",
+        "run_id": "run-page-fit",
+        "cv_generation_trace": {
+            "output_summary": {"page_fit_status": "one_page"},
+            "cv_content_plan": {"space_budget": {"page_fit_status": "unverified"}},
+            "efficiency_summary": {"provider_call_count": 1},
+        },
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-page-fit",
+        job_url="job-page-fit",
+        run_id="run-page-fit",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection([record], [], [artifact])
+
+    assert result["records"][0]["page_fit_status"] == "one_page"
+
+
+def test_accepted_cv_effort_projection_prefers_artifact_render_acceptance() -> None:
+    trace = {
+        "job_url": "job-page-fit-artifact",
+        "run_id": "run-page-fit-artifact",
+        "cv_content_plan": {"space_budget": {"page_fit_status": "unverified"}},
+        "efficiency_summary": {"provider_call_count": 1},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-page-fit-artifact",
+        job_url="job-page-fit-artifact",
+        run_id="run-page-fit-artifact",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        page_fit_status="pass",
+        render_acceptance={"page_count": 1, "page_fit_status": "pass"},
+    )
+
+    result = build_accepted_cv_effort_projection([], [], [artifact], generation_trace_records=[trace])
+
+    assert result["records"][0]["page_fit_status"] == "pass"
 
 
 def test_accepted_cv_effort_projection_measures_existing_run_to_artifact_timestamps() -> None:
