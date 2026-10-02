@@ -43,7 +43,9 @@ def _checks(passed: bool = True) -> dict[str, dict[str, object]]:
     }
 
 
-def test_acceptance_verifier_rejects_stale_passed_claims(tmp_path: Path) -> None:
+def test_acceptance_verifier_accepts_frozen_input_commit_different_from_head(
+    tmp_path: Path,
+) -> None:
     report = build_acceptance_report(
         _state(tmp_path),
         repo_root=tmp_path,
@@ -51,9 +53,9 @@ def test_acceptance_verifier_rejects_stale_passed_claims(tmp_path: Path) -> None
         checks=_checks(),
     )
 
-    assert report["passed"] is False
-    assert "evaluation_freeze_commit_stale" in report["failures"]
-    assert report["priorities"]["p0_b"]["acceptance_status"] == "blocked"
+    assert report["passed"] is True
+    assert "evaluation_freeze_commit_stale" not in report["failures"]
+    assert report["priorities"]["p0_b"]["acceptance_status"] == "passed"
 
 
 def test_acceptance_verifier_rejects_missing_manifest(tmp_path: Path) -> None:

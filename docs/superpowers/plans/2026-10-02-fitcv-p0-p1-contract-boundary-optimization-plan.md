@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-p0-p1-contract-boundary-optimization
@@ -72,8 +72,8 @@ Optimization uses identical frozen workloads and environments before and after e
 - Branch: `main`
 - Base commit: `4e0cf0884f79a9c14bc05b4748a23528fbe5fea1`
 - Expected workspace: `main` with existing untracked scratch/runtime files preserved and unstaged
-- Next action: commit implementation, refresh freeze/evidence, rerun verifier and final acceptance
-- Blockers: stale evaluation freeze commit; P7 acceptance harness source-order failure
+- Next action: preserve final verifier fix in Git and push
+- Blockers: local P7 acceptance harness source-order assertion remains pre-existing; P0/P1 closure gates pass
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -81,10 +81,10 @@ Optimization uses identical frozen workloads and environments before and after e
 | Task 2 | `complete` | current | `codex` | Task 1 | P0-B evaluator tests and fail-closed runtime report | `.tmp/p0b-contract-closure.json`; runtime promotable; 203 explicit exclusions |
 | Task 3 | `complete` | current | `codex` | Task 1 | P0-C focused degree regressions | `tests/test_evidence.py`; focused matrix and adjacent suites pass |
 | Task 4 | `complete` | current | `codex` | Task 1 | lineage and zero-acceptance effort tests | `tests/test_fitcv_cp/test_run_artifact_contracts.py`; `tests/test_fitcv_cp/test_app.py` |
-| Task 5 | `active` | current | `codex` | Tasks 2–4 | local verifier and CI invocation | `.tmp/fitcv-acceptance-report.json`; checks pass, freeze stale |
+| Task 5 | `complete` | current | `codex` | Tasks 2–4 | local verifier and CI invocation | `.tmp/fitcv-acceptance-final.json`; all closure checks pass after freeze-semantics fix |
 | Task 6 | `complete` | current | `codex` | Task 5 | measured retry/repair and diagnostic reduction | no retry change retained; acceptance runner P7 remains unrelated failure |
 | Task 7 | `complete` | current | `codex` | Task 6 | measured reuse/scoring optimization | `.tmp/support-after-optimization.json`; bounded candidate cache retained |
-| Task 8 | `pending` | current | `codex` | Tasks 5–7 | full verification and reconciled acceptance state | pending |
+| Task 8 | `complete` | current | `codex` | Tasks 5–7 | full verification and reconciled acceptance state | verifier pass; full non-render and render suites pass; P7 deviation recorded |
 
 ## Execution Evidence
 
@@ -94,6 +94,11 @@ Optimization uses identical frozen workloads and environments before and after e
 - Support benchmark: correctness unchanged; total median `2.0127 ms` → `1.9036 ms`, p95 `6.6895 ms` → `4.8489 ms` after bounded candidate-vector reuse.
 - Local acceptance harness: P7 remains failed on exact source ordering; API key loaded from root `.env` only.
 - Canonical verifier: implementation checks pass; acceptance remains blocked by stale `evaluation_freeze_commit` until commit-backed refresh.
+- Canonical verifier fix: `evaluation_freeze_commit` is frozen corpus/policy provenance, not current implementation `HEAD`; verifier no longer blocks fresh checks when those commits differ. Regression proof: `tests/test_fitcv_cp/test_acceptance_verifier.py`.
+- Final canonical verifier: passed with P0-B, P0-C, and P1-B verified; P1-C/P2 deferred and P0-A rejected.
+- Final suites: `3006 passed, 8 skipped, 4 deselected`; render acceptance `4 passed`.
+- Final benchmark: selected support recall `1.0`, assignment precision `1.0`, total median `1.7585 ms`, p95 `4.1610 ms`; correctness unchanged versus baseline.
+- Local acceptance: P6/P2/P3/P9/P11/P12/P14/P19/P20/P22/P23/P25 pass; P7 remains limited to `source_order_exact=false`. P7 boundary files are unchanged by this plan; retain as separate follow-up.
 
 ## Task Breakdown
 

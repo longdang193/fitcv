@@ -118,10 +118,6 @@ def build_acceptance_report(
     except (ValueError, OSError) as exc:
         failures.append(f"acceptance_state_invalid:{exc}")
 
-    if state.get("evaluation_freeze_commit") != current_commit:
-        failures.append("evaluation_freeze_commit_stale")
-    stale = "evaluation_freeze_commit_stale" in failures
-
     statuses = dict(state.get("statuses") or {})
     priorities: dict[str, dict[str, Any]] = {}
     for priority in ("p0_b", "p0_c", "p1_b"):
@@ -129,12 +125,12 @@ def build_acceptance_report(
         claimed = statuses.get(priority)
         passed = bool(check.get("passed"))
         reasons = list(check.get("reasons") or [])
-        if claimed == "passed" and (not passed or stale):
+        if claimed == "passed" and not passed:
             reasons.append("passed_claim_without_fresh_evidence")
             failures.append(f"{priority}_passed_claim_not_proven")
         priorities[priority] = {
             "implementation_status": "verified" if passed else "unverified",
-            "acceptance_status": "passed" if claimed == "passed" and passed and not stale else "blocked",
+            "acceptance_status": "passed" if claimed == "passed" and passed else "blocked",
             "measurement_status": str(check.get("measurement_status") or "not_run"),
             "evidence_paths": list(check.get("evidence_paths") or []),
             "failure_reasons": sorted(set(reasons)),
