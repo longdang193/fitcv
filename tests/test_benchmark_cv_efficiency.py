@@ -308,3 +308,73 @@ def test_baseline_includes_failed_and_cancelled_runs_with_measurable_generation_
     assert report["workload"]["token_total"] == 50
     assert report["accepted_cv"]["count"] == 0
     assert report["accepted_cv"]["cost_per_accepted_cv"] is None
+
+
+def test_baseline_counts_validation_failed_retry_as_failure_even_if_provider_accepted() -> None:
+    report = build_baseline(
+        [
+            _run(
+                "run-validation-failed",
+                {
+                    "cv_generation_trace": {
+                        "records": [
+                            {
+                                "run_id": "run-validation-failed",
+                                "job_url": "job-validation-failed",
+                                "attempts": [
+                                    {"attempt_index": 1, "provider_status": "validation_failed"},
+                                    {"attempt_index": 2, "provider_status": "accepted"},
+                                ],
+                                "output_summary": {"final_status": "validation_failed"},
+                                "efficiency_summary": {"provider_call_count": 2},
+                            }
+                        ]
+                    }
+                },
+            )
+        ]
+    )
+
+    assert report["yield"]["retry_success_count"] == 0
+    assert report["yield"]["retry_failure_count"] == 1
+
+
+def test_baseline_keeps_generation_elapsed_separate_from_artifact_elapsed() -> None:
+    trace = {
+        "trace_id": "trace-latency",
+        "run_id": "run-latency",
+        "job_url": "job-latency",
+        "run_started_at": "2026-10-02T00:00:00Z",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {
+            "provider_call_count": 1,
+            "elapsed_ms": 100,
+            "token_usage": [{"total_tokens": 10}],
+        },
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-latency",
+        job_url="job-latency",
+        run_id="run-latency",
+        trace_id="trace-latency",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T01:00:00Z",
+        finalized_at="2026-10-02T01:00:00Z",
+    )
+
+    report = build_baseline(
+        [
+            _run(
+                "run-latency",
+                {
+                    "debug_records": [{"status": "accepted", "job_url": "job-latency"}],
+                    "cv_generation_trace": {"records": [trace]},
+                    "accepted_artifact_events": [artifact],
+                },
+            )
+        ]
+    )
+
+    accepted_cost = report["accepted_cv"]["accepted_artifact_cost_per_accepted_cv"]
+    assert accepted_cost["generation_elapsed_ms"] == 100.0
+    assert accepted_cost["elapsed_ms"] == 3_600_000.0

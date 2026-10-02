@@ -98,8 +98,8 @@ def _trace_generation_elapsed_ms(trace: dict[str, Any]) -> float:
 def _trace_final_accepted(trace: dict[str, Any], attempts: list[dict[str, Any]]) -> bool:
     output_summary = dict(trace.get("output_summary") or {})
     final_status = str(output_summary.get("final_status") or trace.get("status") or "").strip().lower()
-    if final_status in {"accepted", "succeeded", "success"}:
-        return True
+    if final_status:
+        return final_status in {"accepted", "succeeded", "success"}
     return bool(attempts and str(attempts[-1].get("provider_status") or "").strip().lower() == "accepted")
 
 
@@ -252,6 +252,10 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
         float(dict(snapshot["projection"].get("aggregate") or {}).get("elapsed_ms") or 0)
         for snapshot in snapshots
     )
+    aggregate_generation_elapsed = sum(
+        float(dict(snapshot["projection"].get("aggregate") or {}).get("generation_elapsed_ms") or 0)
+        for snapshot in snapshots
+    )
     complete = (
         bool(snapshots)
         and accepted_count == accepted_record_count
@@ -267,7 +271,7 @@ def build_baseline(runs: Iterable[Any]) -> dict[str, Any]:
             "token_total": aggregate_tokens / accepted_count,
             "regeneration_count": aggregate_regenerations / accepted_count,
             "validation_failure_count": aggregate_validation_failures / accepted_count,
-            "generation_elapsed_ms": aggregate_elapsed / accepted_count,
+            "generation_elapsed_ms": aggregate_generation_elapsed / accepted_count,
             "elapsed_ms": aggregate_elapsed / accepted_count,
         }
         total_workload_per_accepted = {

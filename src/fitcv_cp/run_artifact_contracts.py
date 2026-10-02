@@ -455,6 +455,11 @@ def build_accepted_cv_effort_projection(
         elif elapsed_from_trace is not None:
             elapsed_ms = _nonnegative_int(elapsed_from_trace)
             elapsed_status = "measured"
+        generation_elapsed_ms = None
+        generation_elapsed_status = "not_run"
+        if elapsed_from_trace is not None:
+            generation_elapsed_ms = _nonnegative_int(elapsed_from_trace)
+            generation_elapsed_status = "measured"
         attempt_rows = [
             {
                 "attempt_index": item.get("attempt_index"),
@@ -493,6 +498,8 @@ def build_accepted_cv_effort_projection(
                 "token_usage": token_usage,
                 "token_total": _token_total(token_usage),
                 "token_usage_status": str(efficiency.get("token_usage_status") or "not_run"),
+                "generation_elapsed_ms": generation_elapsed_ms,
+                "generation_elapsed_status": generation_elapsed_status,
                 "elapsed_ms": elapsed_ms,
                 "elapsed_status": elapsed_status,
             }
@@ -510,9 +517,11 @@ def build_accepted_cv_effort_projection(
                 "page_fit_status",
                 "token_usage",
                 "token_total",
+                "generation_elapsed_ms",
                 "elapsed_ms",
             ):
                 row[field] = None
+            row["generation_elapsed_status"] = "unmatched"
             row["elapsed_status"] = "unmatched"
         projected.append(row)
     workload_records = trace_records or [
@@ -555,6 +564,7 @@ def build_accepted_cv_effort_projection(
         ),
         "human_action_count": sum(row["human_action_count"] for row in projected if isinstance(row["human_action_count"], int)),
         "reused_resolution_count": sum(row["reused_resolution_count"] or 0 for row in projected),
+        "generation_elapsed_ms": sum(row["generation_elapsed_ms"] or 0 for row in projected),
         "elapsed_ms": sum(row["elapsed_ms"] or 0 for row in projected),
         "token_total": sum(row["token_total"] or 0 for row in projected),
         "unmatched_trace_count": unmatched_trace_count,
