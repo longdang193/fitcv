@@ -85,6 +85,19 @@ def build_accepted_cv_effort_projection(
         record = records_by_job.get(job_url, {})
         efficiency = dict(dict(record.get("cv_generation_trace") or {}).get("efficiency_summary") or {})
         related_actions = [item for item in deduplicated_actions if str(item.get("job_url") or "").strip() == job_url]
+        trace = dict(record.get("cv_generation_trace") or {})
+        page_fit_status = str(
+            dict(record.get("cv_content_plan") or {}).get("space_budget", {}).get("page_fit_status")
+            or dict(trace.get("output_summary") or {}).get("page_fit_status")
+            or "not_recorded"
+        )
+        reused_resolution_count = int(
+            record.get("reused_resolution_count")
+            or sum(
+                str(item.get("resolution_status") or "").strip().startswith("reused")
+                for item in related_actions
+            )
+        )
         start = None
         for key in ("run_started_at", "started_at", "created_at"):
             start = _parse_timestamp(record.get(key))
@@ -112,6 +125,9 @@ def build_accepted_cv_effort_projection(
                 ),
                 "review_question_count": efficiency.get("review_question_count", "not_run"),
                 "human_action_count": len(related_actions),
+                "reused_resolution_count": reused_resolution_count,
+                "page_fit_status": page_fit_status,
+                "accepted_outcome": True,
                 "token_usage": efficiency.get("token_usage"),
                 "token_usage_status": str(efficiency.get("token_usage_status") or "not_run"),
                 "elapsed_ms": elapsed_ms,

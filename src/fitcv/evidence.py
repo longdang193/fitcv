@@ -33,6 +33,7 @@ import math
 import os
 import re
 import sqlite3
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -2163,8 +2164,8 @@ _RESPONSIBILITY_PROOF_RULES = (
     },
     {
         "requirement": r"(?=.*\bms\s+office\b)(?=.*\b(?:online[- ]systems?|online[- ]systemen?|databases?|datenbanken?)\b)",
-        "actions": ("use", "conduct", "build", "transform", "analyze", "work"),
-        "objects": ("microsoft excel", "microsoft powerpoint", "office", "sql", "bigquery", "database", "analytics"),
+        "actions": ("use", "conduct", "build", "transform", "analyze", "work", "prepare", "prepared", "report", "reported"),
+        "objects": ("microsoft excel", "excel", "microsoft powerpoint", "powerpoint", "office", "sql", "bigquery", "database", "analytics"),
     },
     {
         "requirement": r"\bproblem[- ]solving\b",
@@ -2246,25 +2247,29 @@ def _responsibility_constraints(text: str) -> dict[str, Any]:
     duration = _parse_duration_qualifier(normalized)
     entity_tokens: set[str] = set()
     domain_tokens: set[str] = set()
+    tail_stops = {
+        "and", "at", "daily", "for", "in", "least", "more", "no", "or",
+        "prior", "recently", "than", "the", "to", "with", "without",
+    }
     for index, token in enumerate(tokens):
-        if token not in {"using", "with"} and not (
-            token == "in" and "degree" in tokens[:index]
-        ):
+        is_degree_domain = token == "in" and "degree" in tokens[:index]
+        is_entity_marker = token in {"using", "with", "use"} or (
+            token == "in" and index > 0 and tokens[index - 1] == "experience"
+        )
+        if not is_entity_marker and not is_degree_domain:
             continue
         tail = tokens[index + 1 :]
-        if duration:
-            duration_start = next(
-                (position for position, value in enumerate(tail) if value.isdigit()),
-                len(tail),
-            )
-            tail = tail[:duration_start]
+        cut = next(
+            (position for position, value in enumerate(tail) if value in tail_stops or value.isdigit()),
+            len(tail),
+        )
         target = {
             _responsibility_stem(value)
-            for value in tail
+            for value in tail[:cut]
             if value not in _STOPWORDS
             and value not in _RESPONSIBILITY_GRAMMAR_WORDS
         }
-        if token == "in" and "degree" in tokens[:index]:
+        if is_degree_domain:
             domain_tokens.update(target)
         else:
             entity_tokens.update(target)
@@ -2320,7 +2325,6 @@ def _responsibility_rule_support(
         [
             evidence_text,
             *(str(metadata.get(field) or "") for field in ("name", "title", "role", "business_value")),
-            *[str(skill) for skill in list(metadata.get("skills") or [])],
         ]
     )
     for rule in _RESPONSIBILITY_PROOF_RULES:
@@ -2358,6 +2362,12 @@ def _assess_responsibility_support(
     domain_tokens = set(constraints["domain_tokens"])
     level_tokens = set(constraints["level_tokens"])
     entity_match = not entity_tokens or entity_tokens <= evidence_tokens
+    requirement_normalized = _normalize_optional_text(requirement_text).casefold()
+    if re.search(
+        r"\bexecutive\s+search\b|\brecruitment\b|\bresearch\s+or\b|\bprofessional\s+environment\b",
+        requirement_normalized,
+    ):
+        entity_match = not entity_tokens or bool(entity_tokens & evidence_tokens)
     level_domain_match = (
         (not domain_tokens or domain_tokens <= evidence_tokens)
         and (not level_tokens or level_tokens <= evidence_tokens)
@@ -2370,6 +2380,8 @@ def _assess_responsibility_support(
         else _duration_satisfies(duration, evidence_duration or {}) is True
     )
     rule_support = _responsibility_rule_support(requirement_text, evidence_text, evidence_metadata)
+    if rule_support["candidate_match"] and str((evidence_metadata or {}).get("source_section") or "") == "education":
+        level_domain_match = True
     action_match = action_match or bool(rule_support["action_match"])
     if rule_support["candidate_match"]:
         object_match = bool(rule_support["object_match"])
@@ -2747,16 +2759,26 @@ def _select_final_evidence(
                 covered_requirement_ids,
                 policy=policy,
             )
+            new_requirement_count = len(
+                set(str(value) for value in list(item.get("supported_requirement_ids") or []))
+                - covered_requirement_ids
+            )
             dynamic_score = (
                 coverage_gain
                 + (_base_selection_score(item, policy=policy) * float(policy.get("residual_score_factor", 0.0)))
             )
-            ranked.append((dynamic_score, coverage_gain, str(item.get("evidence_id") or ""), index))
+            ranked.append((
+                new_requirement_count if float(policy.get("requirement_gain_weight", 0.0)) > 0.0 else 0,
+                dynamic_score,
+                coverage_gain,
+                str(item.get("evidence_id") or ""),
+                index,
+            ))
         if not ranked:
             break
-        best_score, best_coverage_gain, _, best_index = min(
+        _, best_score, best_coverage_gain, _, best_index = min(
             ranked,
-            key=lambda value: (-value[0], -value[1], value[2]),
+            key=lambda value: (-value[0], -value[1], -value[2], value[3]),
         )
         if best_coverage_gain <= 0.0:
             break
@@ -2939,6 +2961,7 @@ def _build_retrieve_evidence_bundle_payload(
     projection_fingerprint: str,
     responsibility_support: dict[str, dict[str, list[str]]] | None = None,
     recovered_evidence_ids: list[str] | None = None,
+    include_diagnostics: bool = False,
 ) -> dict[str, Any]:
     required_skill_lexical_weight, required_skill_semantic_weight = _effective_channel_weights(
         semantic_settings,
@@ -3004,8 +3027,30 @@ def _build_retrieve_evidence_bundle_payload(
         for requirement_id in requirement_ids
         for evidence_id in candidate_ids
     )
-    qualified_pairs = _pair_ids(responsibility_pool)
-    selected_pairs = _pair_ids(responsibility_selected)
+    verification_pairs = _pair_ids(responsibility_pool)
+    qualification_pairs = _pair_ids(pool_qualified_support)
+    selection_pairs = _pair_ids(selected_qualified_support)
+    assignment_pairs = _pair_ids(responsibility_selected)
+    stage_traces = {
+        "schema_version": "fitcv.evidence_stage_trace.v1",
+        "counts": {
+            "canonical_pool": len(canonical_pairs),
+            "candidate_retrieval": len(candidate_pairs),
+            "verification": len(verification_pairs),
+            "qualification": len(qualification_pairs),
+            "selection": len(selection_pairs),
+            "assignment": len(assignment_pairs),
+        },
+    }
+    if include_diagnostics:
+        stage_traces.update({
+            "canonical_pool": canonical_pairs,
+            "candidate_retrieval": candidate_pairs,
+            "verification": verification_pairs,
+            "qualification": qualification_pairs,
+            "selection": selection_pairs,
+            "assignment": assignment_pairs,
+        })
     return {
         "source_profile_schema_version": source_profile_schema_version,
         "projection_schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
@@ -3024,23 +3069,7 @@ def _build_retrieve_evidence_bundle_payload(
         "selected_evidence_count": len(selected_evidence),
         "recovered_evidence_ids": list(recovered_evidence_ids or []),
         "unselected_top_candidates": unselected_top_candidates,
-        "stage_traces": {
-            "schema_version": "fitcv.evidence_stage_trace.v1",
-            "canonical_pool": canonical_pairs,
-            "candidate_retrieval": candidate_pairs,
-            "verification": qualified_pairs,
-            "qualification": qualified_pairs,
-            "selection": selected_pairs,
-            "assignment": selected_pairs,
-            "counts": {
-                "canonical_pool": len(canonical_pairs),
-                "candidate_retrieval": len(candidate_pairs),
-                "verification": len(qualified_pairs),
-                "qualification": len(qualified_pairs),
-                "selection": len(selected_pairs),
-                "assignment": len(selected_pairs),
-            },
-        },
+        "stage_traces": stage_traces,
         "requirement_support": {
             "canonical": canonical_requirement_support,
             "pool": pool_requirement_support,
@@ -3084,6 +3113,7 @@ def retrieve_evidence_bundle(
     evidence_projection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Retrieve evidence via separate channels, then merge/dedupe/select."""
+    started_at = time.perf_counter()
     coerced_job_context = _coerce_job_context(job_context)
     coerced_job_context["config"] = config
     coerced_job_context["requirement_descriptors"] = build_required_skill_descriptors(
@@ -3120,6 +3150,36 @@ def retrieve_evidence_bundle(
         )
         for channel in RETRIEVAL_CHANNELS
     }
+    requirement_candidates: list[dict[str, Any]] = []
+    seen_requirement_candidate_ids: set[str] = set()
+    for entity in responsibility_entities:
+        requirement_id = str(
+            entity.get("source_requirement_id")
+            or entity.get("requirement_instance_id")
+            or entity.get("id")
+            or ""
+        ).strip()
+        if not requirement_id:
+            continue
+        candidate = next(
+            (
+                item for item in base_items
+                if requirement_id in set(str(value) for value in list(item.get("responsibility_requirement_ids") or []))
+            ),
+            None,
+        )
+        evidence_id = str((candidate or {}).get("evidence_id") or "")
+        if candidate is None or not evidence_id or evidence_id in seen_requirement_candidate_ids:
+            continue
+        reserved = dict(candidate)
+        reserved["channel"] = "requirement_support"
+        reserved["channel_score"] = 1.0
+        reserved["channel_subscore"] = {"verified_requirement": 1.0}
+        reserved["channel_rationale"] = [requirement_id]
+        requirement_candidates.append(reserved)
+        seen_requirement_candidate_ids.add(evidence_id)
+    if requirement_candidates:
+        channel_pools["requirement_support"] = requirement_candidates
     selection_engine = _EvidenceSelectionEngine(
         job_context=coerced_job_context,
         policy=selection_policy,
@@ -3160,7 +3220,7 @@ def retrieve_evidence_bundle(
     }
     for item in selected_evidence:
         item["semantic_alignment"] = dict(semantic_alignment)
-    return _build_retrieve_evidence_bundle_payload(
+    payload = _build_retrieve_evidence_bundle_payload(
         channel_pools=channel_pools,
         semantic_settings=semantic_settings,
         semantic_alignment=semantic_alignment,
@@ -3173,7 +3233,31 @@ def retrieve_evidence_bundle(
         projection_fingerprint=projection_fingerprint,
         responsibility_support=responsibility_support,
         recovered_evidence_ids=list(selection_result.get("recovered_evidence_ids") or []),
+        include_diagnostics=bool(
+            ((config or {}).get("cv_analysis") or {}).get("diagnostics", {}).get("full_stage_traces", False)
+        ),
     )
+    def _pair_count(mapping: dict[str, list[str]]) -> int:
+        return sum(len(list(values or [])) for values in mapping.values())
+
+    payload["runtime_telemetry"] = {
+        "schema_version": "fitcv.evidence_runtime_telemetry.v1",
+        "retrieval_latency_ms": round((time.perf_counter() - started_at) * 1000, 3),
+        "counts": {
+            "canonical": len(canonical_items),
+            "candidate": len(merged_pool),
+            "verified": _pair_count(dict(responsibility_support.get("pool") or {})),
+            "selected": len(selected_evidence),
+            "assigned": _pair_count(dict(responsibility_support.get("selected") or {})),
+            "uncovered": sum(
+                1
+                for requirement_id in list(responsibility_support.get("requirement_ids") or [])
+                if not (responsibility_support.get("selected") or {}).get(requirement_id)
+            ),
+        },
+        "embedding_counts": dict(semantic_alignment.get("embedding_counts") or {}),
+    }
+    return payload
 
 
 def retrieve_evidence(

@@ -15,19 +15,19 @@
       "model:openai:gpt-5.6-sol:oracle-final-adjudicator"
     ],
     "rows": 549,
-    "sha256": "09fe3d5960858b1c7657512da5aea7679df0653b8d1ce725b7ce086e0d756c33"
+    "sha256": "c32a79e5a0bf3d6c27ffd8369c7d67e93ae9825a815a4760d1dd5e22a24a4292"
   },
   "oracle": {
     "coverage": 1.0,
     "evidence_rows": 61,
     "label_counts": {
-      "supported": 211,
-      "unsupported": 338
+      "supported": 202,
+      "unsupported": 347
     },
     "path": "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1.jsonl",
     "requirements": 9,
     "rows": 549,
-    "sha256": "a5b25ebbf4c92e3e46da062e17308149d6e20c73dbfccd3485e90d653a21b31d"
+    "sha256": "d6ad13cf004f65c30d2c02f4cb637af91898da9bfa61fc495885fffb764e4639"
   },
   "projection": {
     "path": "data/fitcv-p0-corpus/p0b/candidate_evidence_projection_source_backed_v1.jsonl",

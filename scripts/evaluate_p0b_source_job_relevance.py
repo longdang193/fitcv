@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
+import statistics
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +23,7 @@ DEFAULT_EVIDENCE_LINK_REVIEW = REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_source_
 DEFAULT_POLICY = REPO_ROOT / "config/policy/cv_analysis.yaml"
 DEFAULT_OUTPUT = REPO_ROOT / ".tmp/p0b-v2-relevance-evaluation.json"
 DEFAULT_ACCEPTANCE_STATE = REPO_ROOT / "config/acceptance_state.yaml"
+DEFAULT_ORACLE_MANIFEST = REPO_ROOT / "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1_manifest.json"
 
 THRESHOLDS = {
     "selected_requirement_recall": 0.80,
@@ -464,6 +468,227 @@ def validate_public_inputs(
     }
 
 
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _validate_oracle_manifest(oracle_path: Path, manifest_path: Path, oracle: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    try:
+        manifest = load_json(manifest_path)
+    except (OSError, json.JSONDecodeError):
+        return ["oracle_manifest_unreadable"]
+    oracle_meta = dict(manifest.get("oracle") or {})
+    labels_meta = dict(manifest.get("labels") or {})
+    if manifest.get("schema_version") != "p0b.source_job_support_oracle_manifest.v1":
+        errors.append("oracle_manifest_schema_invalid")
+    if oracle_meta.get("path") and Path(str(oracle_meta["path"])).name != oracle_path.name:
+        errors.append("oracle_manifest_path_mismatch")
+    if oracle_meta.get("sha256") != _sha256_file(oracle_path):
+        errors.append("oracle_manifest_hash_mismatch")
+    if int(oracle_meta.get("rows") or -1) != len(oracle):
+        errors.append("oracle_manifest_row_count_mismatch")
+    requirement_ids = {str(row.get("requirement_instance_id") or "") for row in oracle}
+    evidence_ids = {str(row.get("evidence_id") or "") for row in oracle}
+    if int(oracle_meta.get("requirements") or -1) != len(requirement_ids):
+        errors.append("oracle_manifest_requirement_count_mismatch")
+    if int(oracle_meta.get("evidence_rows") or -1) != len(evidence_ids):
+        errors.append("oracle_manifest_evidence_count_mismatch")
+    expected_rows = len(requirement_ids) * len(evidence_ids)
+    if len(oracle) != expected_rows:
+        errors.append(f"oracle_expected_pair_count_mismatch:{len(oracle)}/{expected_rows}")
+    counts: dict[str, int] = {}
+    for row in oracle:
+        state = _oracle_state(row)
+        counts[state] = counts.get(state, 0) + 1
+    if oracle_meta.get("label_counts") != dict(sorted(counts.items())):
+        errors.append("oracle_manifest_label_counts_mismatch")
+    if int(labels_meta.get("rows") or -1) != len(oracle):
+        errors.append("oracle_label_row_count_mismatch")
+    if bool(manifest.get("promotion_eligible")) and (not bool(labels_meta.get("human_review_complete")) or counts.get("unjudged", 0)):
+        errors.append("oracle_manifest_promotion_provenance_invalid")
+    return errors
+
+
+def _runtime_requirement_metrics(
+    oracle_by_pair: dict[str, dict[str, Any]],
+    candidate_support: dict[str, set[str]],
+    selected_support: dict[str, set[str]],
+) -> dict[str, Any]:
+    supported_by_requirement: dict[str, set[str]] = {}
+    for pair_id, row in oracle_by_pair.items():
+        if _oracle_state(row) != "supported":
+            continue
+        requirement_id = str(row.get("requirement_instance_id") or "")
+        evidence_id = str(row.get("evidence_id") or "")
+        supported_by_requirement.setdefault(requirement_id, set()).add(evidence_id)
+    supported_requirements = set(supported_by_requirement)
+    candidate_requirements = {
+        requirement_id for requirement_id, evidence_ids in candidate_support.items() if evidence_ids
+    }
+    selected_requirements = {
+        requirement_id for requirement_id, evidence_ids in selected_support.items() if evidence_ids
+    }
+    all_selected_pairs = {
+        f"{requirement_id}::{evidence_id}"
+        for requirement_id, evidence_ids in selected_support.items()
+        for evidence_id in evidence_ids
+    }
+    selected_pairs = {
+        pair_id
+        for pair_id in all_selected_pairs
+        if pair_id.split("::", 1)[0] in supported_requirements
+    }
+    supported_pairs = {
+        pair_id for pair_id, row in oracle_by_pair.items() if _oracle_state(row) == "supported"
+    }
+    unsupported_selected = selected_pairs - supported_pairs
+    return {
+        "supportable_requirements": len(supported_requirements),
+        "candidate_requirement_recall": (
+            len(candidate_requirements & supported_requirements) / len(supported_requirements)
+            if supported_requirements else None
+        ),
+        "selected_requirement_coverage": (
+            len(selected_requirements & supported_requirements) / len(supported_requirements)
+            if supported_requirements else None
+        ),
+        "selected_pairs": len(selected_pairs),
+        "unscoped_selected_pairs": len(all_selected_pairs - selected_pairs),
+        "supported_selected_pairs": len(selected_pairs & supported_pairs),
+        "assignment_precision": (
+            len(selected_pairs & supported_pairs) / len(selected_pairs)
+            if selected_pairs else None
+        ),
+        "unsupported_or_unknown_assignments": len(unsupported_selected),
+    }
+
+
+def _runtime_telemetry_summary(job_telemetry: list[dict[str, Any]]) -> dict[str, Any]:
+    latencies = sorted(
+        float(item.get("retrieval_latency_ms") or 0.0)
+        for item in job_telemetry
+        if isinstance(item, dict)
+    )
+    counts = {key: 0 for key in ("canonical", "candidate", "verified", "selected", "assigned", "uncovered")}
+    embedding_counts: dict[str, dict[str, int]] = {}
+    for telemetry in job_telemetry:
+        for key in counts:
+            counts[key] += int(dict(telemetry.get("counts") or {}).get(key) or 0)
+        for namespace, values in dict(telemetry.get("embedding_counts") or {}).items():
+            target = embedding_counts.setdefault(namespace, {"fresh": 0, "reused": 0})
+            for state in target:
+                target[state] += int(dict(values or {}).get(state) or 0)
+    p95_index = max(0, min(len(latencies) - 1, int(len(latencies) * 0.95) - 1)) if latencies else None
+    return {
+        "jobs": len(job_telemetry),
+        "retrieval_latency_ms": {
+            "p50": round(statistics.median(latencies), 3) if latencies else None,
+            "p95": round(latencies[p95_index], 3) if p95_index is not None else None,
+        },
+        "counts": counts,
+        "embedding_counts": embedding_counts,
+    }
+
+
+def evaluate_runtime_corpus(
+    projection_path: Path,
+    evidence_link_review_path: Path,
+    oracle_path: Path,
+    acceptance_state_path: Path = DEFAULT_ACCEPTANCE_STATE,
+    oracle_manifest_path: Path = DEFAULT_ORACLE_MANIFEST,
+    policy_path: Path = DEFAULT_POLICY,
+    top_k: int = 2,
+) -> dict[str, Any]:
+    projection = _load_jsonl(_public_path(projection_path))
+    review_rows = _load_evidence_link_review(_public_path(evidence_link_review_path))
+    oracle = _load_jsonl(_public_path(oracle_path))
+    acceptance_state = _load_acceptance_state(acceptance_state_path)
+    validation = validate_public_inputs(projection, review_rows, oracle, acceptance_state)
+    manifest_errors = _validate_oracle_manifest(oracle_path, oracle_manifest_path, oracle)
+    validation["errors"] = sorted(set([*validation["errors"], *manifest_errors]))
+    validation["passed"] = not validation["errors"]
+    if not validation["passed"]:
+        return {
+            "schema_version": "p0b.runtime_acceptance.v2",
+            "prediction_source": "fitcv.retrieve_evidence_bundle",
+            "validation": {key: value for key, value in validation.items() if key not in {"projection_by_id", "review_ids", "selected_pairs", "accepted_pairs", "oracle_by_pair"}},
+            "eligible": False,
+            "status": "not_promotable",
+        }
+
+    config = yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
+    profile = {"schema_version": "candidate-profile.v1", "_projected_evidence_pool": projection}
+    rows_by_source: dict[str, list[dict[str, Any]]] = {}
+    for row in review_rows:
+        rows_by_source.setdefault(str(row.get("source_record_id") or ""), []).append(row)
+    job_outputs: list[dict[str, Any]] = []
+    candidate_support: dict[str, set[str]] = {}
+    selected_support: dict[str, set[str]] = {}
+    for source_record_id, rows in sorted(rows_by_source.items()):
+        job_context = {
+            "responsibilities": [str(row.get("requirement_text") or "") for row in rows],
+            "responsibility_entities": [
+                {
+                    "source_requirement_id": str(row.get("requirement_instance_id") or ""),
+                    "text": str(row.get("requirement_text") or ""),
+                }
+                for row in rows
+            ],
+            "title": "",
+            "required_skills": [],
+            "required_skill_entities": [],
+        }
+        bundle = retrieve_evidence_bundle(profile, job_context, top_k=top_k, config=config)
+        responsibility = dict((bundle.get("requirement_support") or {}).get("responsibility") or {})
+        pool = {key: set(value) for key, value in dict(responsibility.get("pool") or {}).items()}
+        selected = {key: set(value) for key, value in dict(responsibility.get("selected") or {}).items()}
+        for requirement_id, evidence_ids in pool.items():
+            candidate_support.setdefault(requirement_id, set()).update(evidence_ids)
+        for requirement_id, evidence_ids in selected.items():
+            selected_support.setdefault(requirement_id, set()).update(evidence_ids)
+        job_outputs.append({
+            "source_record_id": source_record_id,
+            "requirement_count": len(rows),
+            "candidate_evidence_ids": list(bundle.get("retrieved_evidence_ids") or []),
+            "selected_evidence_ids": list(bundle.get("selected_evidence_ids") or []),
+            "candidate_support": {key: sorted(value) for key, value in pool.items()},
+            "selected_support": {key: sorted(value) for key, value in selected.items()},
+            "stage_traces": dict(bundle.get("stage_traces") or {}),
+            "runtime_telemetry": dict(bundle.get("runtime_telemetry") or {}),
+        })
+    metrics = _runtime_requirement_metrics(validation["oracle_by_pair"], candidate_support, selected_support)
+    telemetry = _runtime_telemetry_summary(
+        [dict(output.get("runtime_telemetry") or {}) for output in job_outputs]
+    )
+    thresholds = dict(acceptance_state.get("support_thresholds") or {})
+    threshold = float(thresholds.get("support_recall_threshold") or 1.0)
+    gates = {
+        "oracle_integrity": not manifest_errors,
+        "candidate_requirement_recall": metrics["candidate_requirement_recall"] is not None and metrics["candidate_requirement_recall"] >= threshold,
+        "selected_requirement_coverage": metrics["selected_requirement_coverage"] is not None and metrics["selected_requirement_coverage"] >= threshold,
+        "assignment_precision": metrics["assignment_precision"] == 1.0,
+        "unsupported_assignments": metrics["unsupported_or_unknown_assignments"] == 0,
+        "top_k": top_k == 2,
+    }
+    return {
+        "schema_version": "p0b.runtime_acceptance.v2",
+        "prediction_source": "fitcv.retrieve_evidence_bundle",
+        "code_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, cwd=REPO_ROOT).strip(),
+        "policy_sha256": _sha256_file(policy_path),
+        "projection_sha256": _sha256_file(projection_path),
+        "oracle_manifest_sha256": _sha256_file(oracle_manifest_path),
+        "top_k": top_k,
+        "validation": {key: value for key, value in validation.items() if key not in {"projection_by_id", "review_ids", "selected_pairs", "accepted_pairs", "oracle_by_pair"}},
+        "metrics": metrics,
+        "telemetry": telemetry,
+        "gates": gates,
+        "job_outputs": job_outputs,
+        "eligible": bool(validation["passed"] and all(gates.values())),
+        "status": "promotable" if validation["passed"] and all(gates.values()) else "not_promotable",
+    }
+
 def evaluate_public_corpus(
     projection_path: Path,
     evidence_link_review_path: Path,
@@ -796,6 +1021,9 @@ def main() -> int:
     parser.add_argument("--projection", type=Path, default=DEFAULT_PROJECTION)
     parser.add_argument("--evidence-link-review", type=Path, default=DEFAULT_EVIDENCE_LINK_REVIEW)
     parser.add_argument("--oracle", type=Path)
+    parser.add_argument("--oracle-manifest", type=Path, default=DEFAULT_ORACLE_MANIFEST)
+    parser.add_argument("--top-k", type=int, default=2)
+    parser.add_argument("--historical-review", action="store_true")
     parser.add_argument("--acceptance-state", type=Path, default=DEFAULT_ACCEPTANCE_STATE)
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
     parser.add_argument("--support-recall-threshold", type=float, default=None)
@@ -803,12 +1031,16 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.oracle:
-        report = evaluate_public_corpus(
-            projection_path=args.projection,
-            evidence_link_review_path=args.evidence_link_review,
-            oracle_path=args.oracle,
-            acceptance_state_path=args.acceptance_state,
-        )
+        evaluator = evaluate_public_corpus if args.historical_review else evaluate_runtime_corpus
+        kwargs = {
+            "projection_path": args.projection,
+            "evidence_link_review_path": args.evidence_link_review,
+            "oracle_path": args.oracle,
+            "acceptance_state_path": args.acceptance_state,
+        }
+        if not args.historical_review:
+            kwargs.update({"oracle_manifest_path": args.oracle_manifest, "policy_path": args.policy, "top_k": args.top_k})
+        report = evaluator(**kwargs)
     elif args.fixture and args.packet and args.group_map:
         fixture = load_json(args.fixture)
         packet = load_json(args.packet)

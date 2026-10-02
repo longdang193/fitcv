@@ -1,3 +1,13 @@
+---
+geometry: margin=0.55in
+fontsize: 10pt
+header-includes:
+  - |
+    \usepackage{enumitem}
+    \setlist{nosep,leftmargin=*}
+    \setlength{\parskip}{0pt}
+---
+
 # {{ candidate.name }}
 **{{ headline }}**
 

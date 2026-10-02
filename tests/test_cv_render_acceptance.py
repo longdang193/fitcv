@@ -149,3 +149,20 @@ def test_representative_cv_artifacts_fit_one_page_and_retain_protected_requireme
     ):
         assert marker in extracted_text
     assert re.fullmatch(r"[0-9a-f]{64}", hashlib.sha256(pdf_path.read_bytes()).hexdigest())
+
+
+def test_dense_skill_list_fits_one_page(tmp_path: Path) -> None:
+    document = _build_fixture(experience_count=2, bullets_per_experience=2, include_optional=True)
+    document["sections"]["skills"] = {
+        "groups": [
+            {
+                "label": "Core",
+                "items": [f"Skill {index}" for index in range(32)],
+            }
+        ]
+    }
+
+    pdf_path, _ = _render_pdf(render_cv_markdown(document, CONFIG), tmp_path, "dense-skills")
+
+    page_info = subprocess.run(["pdfinfo", str(pdf_path)], check=True, capture_output=True, text=True).stdout
+    assert int(re.search(r"^Pages:\s+(\d+)$", page_info, re.MULTILINE).group(1)) == 1

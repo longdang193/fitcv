@@ -176,7 +176,28 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         oracle,
         acceptance_state,
     )
+    manifest_path = evaluator.DEFAULT_ORACLE_MANIFEST
+    manifest_errors = evaluator._validate_oracle_manifest(args.oracle, manifest_path, oracle)
+    public_validation["errors"] = sorted(set([*public_validation["errors"], *manifest_errors]))
+    public_validation["passed"] = not public_validation["errors"]
     config = evaluator.yaml.safe_load(args.policy.read_text(encoding="utf-8")) or {}
+    config.setdefault("cv_analysis", {}).setdefault("diagnostics", {})["full_stage_traces"] = True
+    if not public_validation["passed"]:
+        return {
+            "schema_version": "p0b.recovery_calibration.v1",
+            "source": "current_runtime_stage_traces_against_accepted_oracle",
+            "protected_result_reused": False,
+            "validation": {
+                "public_inputs_passed": False,
+                "public_input_errors": list(public_validation["errors"]),
+                "review_rows": len(review_rows),
+                "source_jobs": 0,
+                "classification_errors": [],
+            },
+            "stage_counts": {stage: 0 for stage in STAGE_ORDER},
+            "classification": {"counts": {}, "errors": list(public_validation["errors"])},
+            "dominant_loss": "validation_failure",
+        }
     profile = {
         "schema_version": "candidate-profile.v1",
         "_projected_evidence_pool": projection,
@@ -260,7 +281,7 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0 if not report["validation"]["classification_errors"] else 1
+    return 0 if report["validation"]["public_inputs_passed"] and not report["validation"]["classification_errors"] else 1
 
 
 if __name__ == "__main__":

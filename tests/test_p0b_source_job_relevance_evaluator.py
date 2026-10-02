@@ -291,3 +291,70 @@ def test_public_evaluator_rejects_dangling_and_private_inputs() -> None:
 
     with pytest.raises(ValueError, match="private_or_external_input"):
         evaluator._public_path(Path("C:/private/oracle.json"))
+
+
+def _manifest_for(path: Path, rows: list[dict]) -> dict:
+    labels = {}
+    for row in rows:
+        state = evaluator._oracle_state(row)
+        labels[state] = labels.get(state, 0) + 1
+    requirements = {str(row["requirement_instance_id"]) for row in rows}
+    evidence = {str(row["evidence_id"]) for row in rows}
+    return {
+        "schema_version": "p0b.source_job_support_oracle_manifest.v1",
+        "oracle": {
+            "path": path.name,
+            "sha256": evaluator._sha256_file(path),
+            "rows": len(rows),
+            "requirements": len(requirements),
+            "evidence_rows": len(evidence),
+            "label_counts": dict(sorted(labels.items())),
+        },
+        "labels": {"rows": len(rows), "human_review_complete": True},
+        "promotion_eligible": True,
+    }
+
+
+def test_oracle_manifest_rejects_truncated_oracle_before_metrics(tmp_path: Path) -> None:
+    rows = _public_inputs()[2]
+    oracle_path = tmp_path / "oracle.jsonl"
+    oracle_path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(_manifest_for(oracle_path, rows)), encoding="utf-8")
+
+    truncated = rows[:-1]
+    errors = evaluator._validate_oracle_manifest(oracle_path, manifest_path, truncated)
+
+    assert "oracle_manifest_row_count_mismatch" in errors
+    assert "oracle_manifest_hash_mismatch" not in errors
+
+
+def test_oracle_manifest_rejects_hash_mismatch(tmp_path: Path) -> None:
+    rows = _public_inputs()[2]
+    oracle_path = tmp_path / "oracle.jsonl"
+    oracle_path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+    manifest_path = tmp_path / "manifest.json"
+    manifest = _manifest_for(oracle_path, rows)
+    oracle_path.write_text(oracle_path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    errors = evaluator._validate_oracle_manifest(oracle_path, manifest_path, rows)
+
+    assert "oracle_manifest_hash_mismatch" in errors
+
+
+def test_runtime_metrics_use_runtime_assignments_not_historical_selection() -> None:
+    oracle = {
+        "req-1::ev-good": {"requirement_instance_id": "req-1", "evidence_id": "ev-good", "support_state": "supported"},
+        "req-1::ev-bad": {"requirement_instance_id": "req-1", "evidence_id": "ev-bad", "support_state": "unsupported"},
+    }
+
+    metrics = evaluator._runtime_requirement_metrics(
+        oracle,
+        {"req-1": {"ev-bad"}},
+        {"req-1": {"ev-bad"}},
+    )
+
+    assert metrics["selected_pairs"] == 1
+    assert metrics["supported_selected_pairs"] == 0
+    assert metrics["unsupported_or_unknown_assignments"] == 1

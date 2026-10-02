@@ -38,7 +38,11 @@ from fitcv.ranking import compute_title_relevance
 
 def _stable_contract_view(value: object) -> object:
     if isinstance(value, dict):
-        return {str(key): _stable_contract_view(value[key]) for key in sorted(value)}
+        return {
+            str(key): _stable_contract_view(value[key])
+            for key in sorted(value)
+            if key != "runtime_telemetry"
+        }
     if isinstance(value, list):
         return [_stable_contract_view(item) for item in value]
     return value
@@ -645,6 +649,59 @@ def test_responsibility_support_preserves_qualifier_and_requirement_boundaries()
     assert missing_context["verified_support"] is False
     assert advanced_office["verified_support"] is False
     assert master_degree["verified_support"] is False
+
+
+def test_responsibility_support_accepts_bounded_or_compound_requirement_proof() -> None:
+    cases = [
+        (
+            "Sicherer Umgang mit MS Office sowie Online-Systemen und Datenbanken",
+            "Prepared recurring analysis and reporting materials in Excel and PowerPoint.",
+            {"source_section": "experiences", "skills": ["microsoft excel", "microsoft powerpoint"]},
+        ),
+        (
+            "a bachelor’s degree or higher in economics, econometrics, finance, data engineering, data science, applied mathematics or a related field;",
+            "Strategic Management",
+            {"source_section": "education", "role": "Bachelor's Degree International Business"},
+        ),
+        (
+            "Previous experience in executive search, recruitment, research or another professional environment would be beneficial but is not essential.",
+            "Managed end-to-end new product development from market research and concept validation to launch.",
+            {"source_section": "experiences", "role": "R&D Staff"},
+        ),
+    ]
+
+    for requirement, evidence, metadata in cases:
+        assert evidence_module._assess_responsibility_support(
+            requirement,
+            evidence,
+            metadata,
+        )["verified_support"] is True
+
+
+def test_responsibility_support_does_not_promote_generic_essential_evidence() -> None:
+    generic_tool = evidence_module._assess_responsibility_support(
+        "Use Claude Code daily",
+        "Used a generic tool daily",
+    )
+    generic_domain = evidence_module._assess_responsibility_support(
+        "Experience in executive search",
+        "Conducted product-market research",
+    )
+    exact_tool = evidence_module._assess_responsibility_support(
+        "Use Claude Code daily",
+        "Used Claude Code daily",
+    )
+    exact_domain = evidence_module._assess_responsibility_support(
+        "Experience in executive search",
+        "Conducted executive search research",
+    )
+
+    assert generic_tool["candidate_match"] is True
+    assert generic_tool["verified_support"] is False
+    assert generic_domain["candidate_match"] is True
+    assert generic_domain["verified_support"] is False
+    assert exact_tool["verified_support"] is True
+    assert exact_domain["verified_support"] is True
 
 
 def test_responsibility_support_requires_all_mandatory_constraint_facts() -> None:
@@ -1906,7 +1963,17 @@ def test_retrieve_evidence_bundle_preserves_selection_and_debug_schema_contract(
 
     traces = bundle["stage_traces"]
     assert traces["schema_version"] == "fitcv.evidence_stage_trace.v1"
-    assert set(traces) == {
+    assert set(traces) == {"schema_version", "counts"}
+    assert traces["counts"]["selection"] >= traces["counts"]["assignment"]
+
+    diagnostic_bundle = evidence_module.retrieve_evidence_bundle(
+        profile,
+        job,
+        top_k=2,
+        config={"cv_analysis": {"diagnostics": {"full_stage_traces": True}}},
+    )
+    diagnostic_traces = diagnostic_bundle["stage_traces"]
+    assert set(diagnostic_traces) == {
         "schema_version",
         "canonical_pool",
         "candidate_retrieval",
@@ -1916,8 +1983,13 @@ def test_retrieve_evidence_bundle_preserves_selection_and_debug_schema_contract(
         "assignment",
         "counts",
     }
-    assert traces["selection"] == traces["assignment"]
-    assert traces["counts"]["selection"] == len(traces["selection"])
+    assert diagnostic_traces["counts"]["selection"] == len(diagnostic_traces["selection"])
+    telemetry = diagnostic_bundle["runtime_telemetry"]
+    assert telemetry["schema_version"] == "fitcv.evidence_runtime_telemetry.v1"
+    assert telemetry["retrieval_latency_ms"] >= 0
+    assert telemetry["counts"]["canonical"] >= telemetry["counts"]["candidate"]
+    assert telemetry["counts"]["selected"] == bundle["selected_evidence_count"]
+    assert "embedding_counts" in telemetry
 
 
 def test_selection_policy_model_matches_public_policy_dict_defaults() -> None:

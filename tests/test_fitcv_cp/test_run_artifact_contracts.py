@@ -142,6 +142,9 @@ def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     assert result["denominator"] == {"accepted_cv_count": 1}
     assert result["records"][0]["provider_call_count"] == 2
     assert result["records"][0]["human_action_count"] == 1
+    assert result["records"][0]["reused_resolution_count"] == 0
+    assert result["records"][0]["page_fit_status"] == "not_recorded"
+    assert result["records"][0]["accepted_outcome"] is True
     assert result["records"][0]["elapsed_status"] == "not_run"
 
 
