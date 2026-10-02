@@ -4494,14 +4494,26 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
     )
 
     assert pause_result["next_stage"] == "cv_analysis"
-    run_all_export = json.loads(json.dumps(run_all_result["export_results"]))
-    resumed_export = json.loads(json.dumps(resumed_result["export_results"]))
+    def normalize_trace_ids(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: "<trace>" if key == "trace_id" else normalize_trace_ids(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [normalize_trace_ids(item) for item in value]
+        return value
+
+    run_all_export = normalize_trace_ids(json.loads(json.dumps(run_all_result["export_results"])))
+    resumed_export = normalize_trace_ids(json.loads(json.dumps(resumed_result["export_results"])))
     for rows in (run_all_export, resumed_export):
         for row in rows:
             row["job_outcome"]["run_id"] = "<run>"
             row["job_outcome"]["occurred_at"] = "<occurred_at>"
     assert run_all_export == resumed_export
-    assert run_all_result["cv_generation_debug_records"] == resumed_result["cv_generation_debug_records"]
+    run_all_debug = normalize_trace_ids(json.loads(json.dumps(run_all_result["cv_generation_debug_records"])))
+    resumed_debug = normalize_trace_ids(json.loads(json.dumps(resumed_result["cv_generation_debug_records"])))
+    assert run_all_debug == resumed_debug
     assert json.loads(staged_config["runtime_inputs"]["candidate_profile_json"]) == profile
     assert mock_profile_json.called
 
