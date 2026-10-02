@@ -314,6 +314,38 @@ def test_accepted_cv_effort_projection_requires_job_identity_within_run() -> Non
     assert by_artifact["cv-2"]["provider_call_count"] == 3
 
 
+def test_accepted_cv_effort_projection_rejects_conflicting_shared_legacy_identity() -> None:
+    trace = {
+        "run_id": "run-1",
+        "run_job_id": "job-1",
+        "generation_input_fingerprint": "old-input",
+        "job_url": "same-url",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"provider_call_count": 7},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-conflict",
+        job_url="same-url",
+        run_id="run-1",
+        run_job_id="job-1",
+        generation_input_fingerprint="new-input",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection(
+        [], [], [artifact], generation_trace_records=[trace]
+    )
+
+    row = result["records"][0]
+    assert row["attribution_status"] == "conflict"
+    assert row["provider_call_count"] is None
+    assert row["attempt_count"] is None
+    assert result["unmatched_trace_count"] == 1
+    assert result["unattributed_accepted_artifact_count"] == 1
+
+
 def test_accepted_cv_effort_projection_does_not_fallback_across_run_or_job() -> None:
     trace = {
         "run_id": "run-2",

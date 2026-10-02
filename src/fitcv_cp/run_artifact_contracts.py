@@ -47,7 +47,8 @@ _TRACE_IDENTITY_FIELDS = (
     "attempt_id",
     "job_url",
 )
-_LEGACY_MATCH_FIELDS = ("run_job_id", "generation_input_fingerprint", "job_url")
+_LEGACY_STRONG_MATCH_FIELDS = ("run_job_id", "generation_input_fingerprint", "attempt_id")
+_LEGACY_MATCH_FIELDS = _LEGACY_STRONG_MATCH_FIELDS + ("job_url",)
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
 
@@ -227,20 +228,42 @@ def match_trace_record(
     run_id = _lineage_value(artifact, "run_id")
     if not run_id:
         return None, "unmatched"
-    for field in _LEGACY_MATCH_FIELDS:
-        value = _lineage_value(artifact, field)
-        if not value:
-            continue
-        matches = [
-            trace
-            for trace in traces
-            if _lineage_value(trace, "run_id") == run_id
-            and _lineage_value(trace, field) == value
+    run_traces = [trace for trace in traces if _lineage_value(trace, "run_id") == run_id]
+    if not run_traces:
+        return None, "unmatched"
+    artifact_strong = {
+        field: _lineage_value(artifact, field)
+        for field in _LEGACY_STRONG_MATCH_FIELDS
+    }
+    artifact_has_strong = any(artifact_strong.values())
+    compatible: list[dict[str, Any]] = []
+    conflict_found = False
+    for trace in run_traces:
+        trace_strong = {
+            field: _lineage_value(trace, field)
+            for field in _LEGACY_STRONG_MATCH_FIELDS
+        }
+        shared_fields = [
+            field
+            for field in _LEGACY_STRONG_MATCH_FIELDS
+            if artifact_strong[field] and trace_strong[field]
         ]
-        if len(matches) == 1:
-            return matches[0], "matched"
-        if len(matches) > 1:
-            return None, "ambiguous"
+        if any(artifact_strong[field] != trace_strong[field] for field in shared_fields):
+            conflict_found = True
+            continue
+        if shared_fields:
+            compatible.append(trace)
+            continue
+        if artifact_has_strong or any(trace_strong.values()):
+            continue
+        if _lineage_value(artifact, "job_url") and _lineage_value(artifact, "job_url") == _lineage_value(trace, "job_url"):
+            compatible.append(trace)
+    if len(compatible) == 1:
+        return compatible[0], "matched"
+    if len(compatible) > 1:
+        return None, "ambiguous"
+    if conflict_found:
+        return None, "conflict"
     return None, "unmatched"
 
 

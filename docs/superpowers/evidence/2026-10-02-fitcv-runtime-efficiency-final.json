@@ -1,7 +1,7 @@
 {
   "schema_version": "fitcv_runtime_efficiency_baseline_v1",
   "status": "complete",
-  "generated_at": "2026-10-02T16:45:19.375976+00:00",
+  "generated_at": "2026-10-02T16:59:09.789197+00:00",
   "selection": {
     "ordinary_runs_only": true,
     "measurable_generation_work_only": true,

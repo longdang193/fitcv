@@ -8,8 +8,12 @@ from scripts.verify_fitcv_acceptance import build_acceptance_report, format_acce
 def _state(tmp_path: Path, *, freeze: str = "a" * 40) -> dict[str, object]:
     manifest = tmp_path / "manifest.json"
     evidence = tmp_path / "evidence.md"
+    runtime_json = tmp_path / "runtime-efficiency.json"
+    runtime_markdown = tmp_path / "runtime-efficiency.md"
     manifest.write_text("{}", encoding="utf-8")
     evidence.write_text("evidence", encoding="utf-8")
+    runtime_json.write_text("{}", encoding="utf-8")
+    runtime_markdown.write_text("runtime", encoding="utf-8")
     return {
         "schema_version": "fitcv.acceptance_state.v2",
         "repository": "longdang193/fitcv",
@@ -18,6 +22,13 @@ def _state(tmp_path: Path, *, freeze: str = "a" * 40) -> dict[str, object]:
         "contract_versions": {"corpus": "p0.public.v1"},
         "corpus_manifests": ["manifest.json"],
         "evidence_paths": ["evidence.md"],
+        "runtime_efficiency": {
+            "measurement_status": "incomplete",
+            "baseline_evidence": {"json": "runtime-efficiency.json", "markdown": "runtime-efficiency.md"},
+            "accepted_artifact_and_total_workload_metrics": True,
+            "p1_c": "deferred",
+            "p2": "deferred",
+        },
         "statuses": {
             "p0_a": "rejected",
             "p0_b": "passed",
@@ -80,6 +91,19 @@ def test_acceptance_verifier_uses_declared_measurement_status_when_check_does_no
     )
 
     assert report["priorities"]["p1_b"]["measurement_status"] == "incomplete"
+
+
+def test_acceptance_verifier_surfaces_runtime_efficiency_status_and_deferrals(tmp_path: Path) -> None:
+    report = build_acceptance_report(
+        _state(tmp_path),
+        repo_root=tmp_path,
+        current_commit="b" * 40,
+        checks=_checks(),
+    )
+
+    assert report["runtime_efficiency"]["measurement_status"] == "incomplete"
+    assert report["runtime_efficiency"]["p1_c"] == "deferred"
+    assert report["runtime_efficiency"]["p2"] == "deferred"
 
 
 def test_acceptance_verifier_rejects_missing_manifest(tmp_path: Path) -> None:
