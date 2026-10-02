@@ -307,11 +307,6 @@ def build_accepted_cv_effort_projection(
     for action in accepted_actions:
         job_url = _lineage_value(action, "job_url")
         matched_traces = [trace for trace in trace_records if _lineage_matches(action, trace)]
-        if not matched_traces:
-            matched_traces = [
-                trace for trace in trace_records
-                if _lineage_value(trace, "job_url") == job_url
-            ]
         trace = matched_traces[0] if matched_traces else {}
         efficiency = dict(dict(trace.get("efficiency_summary") or {}))
         related_actions = [item for item in deduplicated_actions if _lineage_matches(action, item)]
