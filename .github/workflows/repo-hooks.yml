@@ -191,7 +191,7 @@ jobs:
           }
 
       - name: Verify FitCV acceptance claims
-        run: python scripts/verify_fitcv_acceptance.py --output .tmp/fitcv-acceptance-report.json
+        run: python scripts/verify_fitcv_acceptance.py --timeout-seconds 300 --output .tmp/fitcv-acceptance-report.json
 
   render-acceptance:
     name: Render Acceptance
