@@ -190,7 +190,10 @@ def test_render_item_provenance_does_not_cross_match_required_claims_on_generic_
         structured_cv=structured_cv,
     )
 
-    by_name = {item["canonical_item_key"].split(":", 1)[1].split(" ", 1)[0]: item for item in provenance["items"]}
+    by_name = {
+        item["canonical_item_key"].split(":", 1)[1].split(" ", 1)[0]: item
+        for item in provenance["items"]
+    }
     assert by_name["sql"]["supported_requirement_ids"] == ["required_skill:sql"]
     assert by_name["python"]["supported_requirement_ids"] == ["required_skill:python"]
 
@@ -238,6 +241,95 @@ def test_render_item_provenance_preserves_one_character_requirement_tokens() -> 
     assert by_name["python"]["supported_requirement_ids"] == ["required_skill:python"]
 
 
+def test_render_item_provenance_uses_canonical_source_identity_for_confusable_projects() -> None:
+    content_plan = {
+        "approved_claims": [
+            {
+                "claim_id": "ev-production-python",
+                "evidence_id": "ev-production-python",
+                "claim": "Built Python pipelines in production.",
+                "supports_requirements": ["required_skill:python"],
+                "target_section": "projects",
+                "source_section": "projects",
+                "source_ref": "projects/project-production",
+                "canonical_source_id": "project:production",
+                "canonical_source_label": "Production Scoring Platform",
+            },
+            {
+                "claim_id": "ev-classroom-python",
+                "evidence_id": "ev-classroom-python",
+                "claim": "Built Python pipelines in coursework.",
+                "supports_requirements": ["required_skill:python"],
+                "target_section": "projects",
+                "source_section": "projects",
+                "source_ref": "projects/project-classroom",
+                "canonical_source_id": "project:classroom",
+                "canonical_source_label": "Python Coursework",
+            },
+        ]
+    }
+    structured_cv = {
+        "sections": {
+            "projects": [
+                {"name": "Production Scoring Platform", "bullets": ["Deployed Python scoring for live transactions."]},
+                {"name": "Python Coursework", "bullets": ["Built Python pipelines in a classroom exercise."]},
+            ]
+        }
+    }
+
+    provenance = build_render_item_provenance_v1(
+        content_plan=content_plan,
+        evidence_payload=[],
+        requirement_coverage=[],
+        structured_cv=structured_cv,
+    )
+
+    by_name = {item["canonical_item_key"].split(":", 1)[1].split(" ", 1)[0]: item for item in provenance["items"]}
+    assert by_name["production"]["evidence_ids"] == ["ev-production-python"]
+    assert by_name["production"]["supported_requirement_ids"] == ["required_skill:python"]
+    assert by_name["production"]["attribution_status"] == "resolved"
+    classroom = next(item for item in provenance["items"] if "python coursework" in item["canonical_item_key"])
+    assert classroom["evidence_ids"] == ["ev-classroom-python"]
+    assert classroom["supported_requirement_ids"] == ["required_skill:python"]
+
+
+def test_render_item_provenance_fails_closed_when_canonical_source_is_ambiguous() -> None:
+    content_plan = {
+        "approved_claims": [
+            {
+                "claim_id": "ev-python-a",
+                "evidence_id": "ev-python-a",
+                "claim": "Built Python pipelines.",
+                "supports_requirements": ["required_skill:python"],
+                "target_section": "projects",
+                "canonical_source_id": "project:a",
+                "canonical_source_label": "Python Platform",
+            },
+            {
+                "claim_id": "ev-python-b",
+                "evidence_id": "ev-python-b",
+                "claim": "Built Python pipelines.",
+                "supports_requirements": ["required_skill:python"],
+                "target_section": "projects",
+                "canonical_source_id": "project:b",
+                "canonical_source_label": "Python Platform",
+            },
+        ]
+    }
+    provenance = build_render_item_provenance_v1(
+        content_plan=content_plan,
+        evidence_payload=[],
+        requirement_coverage=[],
+        structured_cv={"sections": {"projects": [{"name": "Python Platform", "bullets": ["Built Python pipelines."]}]}},
+    )
+
+    item = provenance["items"][0]
+    assert item["attribution_status"] == "ambiguous"
+    assert item["evidence_ids"] == []
+    assert item["supported_requirement_ids"] == []
+    assert item["protected"] is True
+
+
 def test_final_artifact_proof_rejects_changed_markdown_when_structured_identity_matches() -> None:
     config = _minimal_config()
     config["cv"]["final_artifact_acceptance"] = {"enabled": True}
@@ -282,7 +374,14 @@ def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
     analysis = {
         "analysis_input_fingerprint": "analysis-1",
         "evidence_payload": [
-            {"evidence_id": "ev-sql", "text": "Built SQL pipelines", "source_section": "experiences"},
+            {
+                "evidence_id": "ev-sql",
+                "text": "Built SQL pipelines",
+                "source_section": "experiences",
+                "source_ref": "experiences/exp-1",
+                "parent_id": "experience:exp-1",
+                "parent_title": "Data Engineer at ACME",
+            },
             {"evidence_id": "ev-python", "text": "Built Python service", "source_section": "projects"},
         ],
         "requirement_coverage": [
@@ -306,6 +405,10 @@ def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
     assert plan["schema_version"] == "cv_content_plan_v1"
     assert plan["approved_evidence_ids"] == ["ev-sql"]
     assert plan["approved_claims"][0]["supports_requirements"] == ["required_skill:sql"]
+    assert plan["approved_claims"][0]["source_section"] == "experiences"
+    assert plan["approved_claims"][0]["source_ref"] == "experiences/exp-1"
+    assert plan["approved_claims"][0]["canonical_source_id"] == "experience:exp-1"
+    assert plan["approved_claims"][0]["canonical_source_label"] == "Data Engineer at ACME"
     assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-python"}
 
 
@@ -1718,6 +1821,7 @@ def test_generate_from_analysis_reuses_exact_canonical_result(
 
     fresh = generate_from_analysis(analysis_record, _minimal_profile(), config)
     mock_generate_cv.reset_mock()
+    mock_render_cv_native_acceptance.reset_mock()
     reused = generate_from_analysis(
         analysis_record,
         _minimal_profile(),
@@ -1726,7 +1830,7 @@ def test_generate_from_analysis_reuses_exact_canonical_result(
     )
 
     mock_generate_cv.assert_not_called()
-    assert mock_render_cv_native_acceptance.call_count == 1
+    mock_render_cv_native_acceptance.assert_not_called()
     assert reused["status"] == "accepted"
     assert reused["cv_generation_reuse_status"] == "reused_exact_match"
     assert reused["reused_cv_version_id"] == "cv-version-1"
@@ -1840,6 +1944,82 @@ def test_reuse_with_missing_render_proof_rerenders_without_provider_call(
     mock_generate_cv.assert_not_called()
     mock_render_cv_native_acceptance.assert_called_once()
     assert reused["status"] == "accepted"
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={},
+)
+def test_reuse_with_failed_rerender_is_review_required_without_provider_call(
+    mock_render_cv_native_acceptance: MagicMock,
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+    }
+    markdown = mock_generate_cv.return_value["markdown"]
+    mock_render_cv_native_acceptance.return_value = {
+        "render_status": "pass",
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "template_sha256": generation_module._template_sha256(config),
+        "render_config_fingerprint": generation_module._render_config_fingerprint(config),
+        "renderer_contract_version": "fitcv_native_render_v1",
+    }
+
+    fresh = generate_from_analysis(analysis_record, _minimal_profile(), config)
+    mock_generate_cv.reset_mock()
+    mock_render_cv_native_acceptance.reset_mock()
+    mock_render_cv_native_acceptance.return_value = {
+        "render_status": "render_failed",
+        "renderer_status": "render_failed",
+        "page_count": None,
+        "page_fit_status": "unresolved",
+        "artifact_checksum": None,
+        "content_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "template_sha256": generation_module._template_sha256(config),
+        "render_config_fingerprint": generation_module._render_config_fingerprint(config),
+        "renderer_contract_version": "fitcv_native_render_v1",
+    }
+    reused = generate_from_analysis(
+        analysis_record,
+        _minimal_profile(),
+        config,
+        reusable_record={
+            **fresh,
+            "render_acceptance": None,
+            "page_fit_status": None,
+            "version_id": "cv-version-failed-rerender",
+        },
+    )
+
+    mock_generate_cv.assert_not_called()
+    mock_render_cv_native_acceptance.assert_called_once()
+    assert reused["status"] == "review_required"
+    assert reused["structured_cv_final"] == _minimal_structured_cv()
+    assert reused["error"]["code"] == "reusable_render_proof_failed"
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")

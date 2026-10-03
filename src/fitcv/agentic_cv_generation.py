@@ -315,6 +315,17 @@ def build_cv_content_plan(
                 "claim": str(item.get("text") or item.get("name") or "").strip(),
                 "supports_requirements": requirement_ids,
                 "target_section": target_section,
+                "source_section": str(item.get("source_section") or "").strip().lower() or None,
+                "source_ref": str(item.get("source_ref") or "").strip() or None,
+                "canonical_source_id": str(
+                    item.get("canonical_source_id")
+                    or item.get("parent_id")
+                    or item.get("source_ref")
+                    or evidence_id
+                ).strip(),
+                "canonical_source_label": str(
+                    item.get("parent_title") or item.get("name") or item.get("title") or ""
+                ).strip() or None,
                 "protected_numbers_dates": _protected_numbers_dates(item),
             }
         )
@@ -421,8 +432,48 @@ def build_render_item_provenance_v1(
                     for value in list(claim.get("supports_requirements") or [])
                     if str(value).strip()
                 ],
+                "source_section": str(claim.get("source_section") or "").strip().lower(),
+                "source_ref": str(claim.get("source_ref") or "").strip(),
+                "canonical_source_id": str(claim.get("canonical_source_id") or "").strip(),
+                "canonical_source_label": str(claim.get("canonical_source_label") or "").strip(),
             }
         )
+
+    strict_source_claims = any(
+        claim["canonical_source_id"] or claim["canonical_source_label"]
+        for claim in claim_entries
+    )
+
+    def _identity(value: Any) -> str:
+        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold())).strip()
+
+    def _claim_identity_keys(claim: dict[str, Any]) -> set[str]:
+        keys = {
+            value
+            for value in (
+                claim.get("canonical_source_id"),
+                claim.get("source_ref"),
+                claim.get("canonical_source_label"),
+            )
+            if str(value or "").strip()
+        }
+        return {_identity(value) for value in keys if _identity(value)}
+
+    def _item_identity_keys(section: str, item: dict[str, Any]) -> set[str]:
+        values = [item.get("canonical_source_id"), item.get("source_ref"), item.get("evidence_id")]
+        if section == "experience":
+            values.extend((item.get("role"), item.get("company"), item.get("name")))
+        elif section == "projects":
+            values.append(item.get("name"))
+        elif section == "education":
+            values.extend((item.get("degree"), item.get("institution"), item.get("name")))
+        elif section == "certifications":
+            values.extend((item.get("name"), item.get("title"), item.get("issuer")))
+        elif section == "languages":
+            values.append(item.get("name"))
+        else:
+            values.extend((item.get("name"), item.get("title")))
+        return {_identity(value) for value in values if _identity(value)}
 
     items: list[dict[str, Any]] = []
     sections = structured_cv.get("sections") if isinstance(structured_cv, dict) else None
@@ -482,21 +533,44 @@ def build_render_item_provenance_v1(
                 " ".join(str(value) for value in item.values()),
                 minimum_length=1,
             )
-            matches = [
-                claim
-                for claim in claim_entries
-                if claim["section"] == section and _claim_matches_item(claim, item_tokens)
-            ]
-            if not matches:
-                if len(section_items) == 1 and len(section_claims) == 1:
-                    matches = section_claims
-            supported_ids = sorted({value for match in matches for value in match["supported_requirement_ids"]})
-            evidence_ids = sorted({value for match in matches for value in match["evidence_ids"]})
-            ambiguous = len(matches) > 1
+            if strict_source_claims:
+                item_identity_keys = _item_identity_keys(section, item)
+                source_matches = [
+                    claim
+                    for claim in claim_entries
+                    if claim["section"] == section
+                    and item_identity_keys.intersection(_claim_identity_keys(claim))
+                ]
+                matched_source_ids = {
+                    claim["canonical_source_id"] or claim["source_ref"] or claim["evidence_ids"][0]
+                    for claim in source_matches
+                }
+                ambiguous = len(matched_source_ids) > 1
+                matches = [] if ambiguous else source_matches
+                attribution_status = (
+                    "ambiguous"
+                    if ambiguous
+                    else "resolved"
+                    if matches
+                    else "unmatched"
+                )
+            else:
+                matches = [
+                    claim
+                    for claim in claim_entries
+                    if claim["section"] == section and _claim_matches_item(claim, item_tokens)
+                ]
+                if not matches:
+                    if len(section_items) == 1 and len(section_claims) == 1:
+                        matches = section_claims
+                ambiguous = len(matches) > 1
+                attribution_status = "ambiguous" if ambiguous else "resolved" if matches else "unmatched"
             unresolved_required = any(
                 id(claim) not in section_matched_required_claims for claim in section_claims
             )
-            if section == "languages":
+            supported_ids = sorted({value for match in matches for value in match["supported_requirement_ids"]})
+            evidence_ids = sorted({value for match in matches for value in match["evidence_ids"]})
+            if section == "languages" and not strict_source_claims:
                 language_name = str(item.get("name") or "").strip().casefold()
                 for requirement_ref in verified_by_requirement:
                     if language_name and language_name in requirement_ref.casefold():
@@ -511,7 +585,13 @@ def build_render_item_provenance_v1(
                     "evidence_ids": sorted(set(evidence_ids)),
                     "supported_requirement_ids": supported_ids,
                     "requirement_priority": "primary" if supported_ids else "none",
-                    "protected": ambiguous or bool(supported_ids) or unresolved_required,
+                    "attribution_status": attribution_status,
+                    "protected": (
+                        ambiguous
+                        or bool(supported_ids)
+                        or unresolved_required
+                        or (strict_source_claims and bool(section_claims) and attribution_status == "unmatched")
+                    ),
                 }
             )
     return {"schema_version": "render_item_provenance_v1", "items": items}
@@ -1811,10 +1891,7 @@ def _reusable_result_or_none(
     render_acceptance = reusable_record.get("render_acceptance")
     page_fit_status = reusable_record.get("page_fit_status")
     if not _render_acceptance_matches_final_content(structured_cv, markdown, config, render_acceptance):
-        render_acceptance = {
-            **render_cv_native_acceptance(structured_cv, config),
-            **build_render_proof_identity(structured_cv, config),
-        }
+        render_acceptance = render_cv_native_acceptance(structured_cv, config)
         page_fit_status = render_acceptance.get("page_fit_status")
     if _native_final_artifact_enabled(config) and not final_artifact_acceptance_passes(
         content_acceptance=bool(validation.get("valid")),

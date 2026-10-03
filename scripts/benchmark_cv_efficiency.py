@@ -27,6 +27,16 @@ from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
 
 DEFAULT_JSON = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json"
 DEFAULT_MARKDOWN = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
+STAGE_NAMES = (
+    "analysis",
+    "retrieval",
+    "content_planning",
+    "provider_generation",
+    "validation",
+    "render",
+    "repair",
+    "persistence",
+)
 
 
 def _value(run: Any, field: str, default: Any = None) -> Any:
@@ -124,6 +134,75 @@ def _coverage(values: list[Any]) -> dict[str, Any]:
     }
 
 
+def _numeric_values(values: Any) -> list[float]:
+    if not isinstance(values, list):
+        values = [values]
+    result: list[float] = []
+    for value in values:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed >= 0:
+            result.append(parsed)
+    return result
+
+
+def _percentile(values: list[float], quantile: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * quantile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
+
+
+def _stage_latency_samples(payload: dict[str, Any], traces: list[dict[str, Any]]) -> dict[str, list[float]]:
+    samples = {stage: [] for stage in STAGE_NAMES}
+
+    def add(stage: str, values: Any) -> None:
+        if stage in samples:
+            samples[stage].extend(_numeric_values(values))
+
+    for stage, values in dict(payload.get("stage_timings_ms") or {}).items():
+        add(str(stage), values)
+    for trace in traces:
+        for stage, values in dict(trace.get("stage_timings_ms") or {}).items():
+            add(str(stage), values)
+        for attempt in list(trace.get("attempts") or []):
+            if not isinstance(attempt, dict):
+                continue
+            for stage, values in dict(attempt.get("stage_timings_ms") or {}).items():
+                add(str(stage), values)
+            provenance = dict(dict(attempt.get("llm_runtime_evidence") or {}).get("provenance") or {})
+            add("provider_generation", provenance.get("latency_ms"))
+        for field, stage in (
+            ("analysis_elapsed_ms", "analysis"),
+            ("retrieval_elapsed_ms", "retrieval"),
+            ("content_planning_elapsed_ms", "content_planning"),
+            ("validation_elapsed_ms", "validation"),
+            ("render_elapsed_ms", "render"),
+            ("repair_elapsed_ms", "repair"),
+            ("persistence_elapsed_ms", "persistence"),
+        ):
+            add(stage, trace.get(field))
+    return samples
+
+
+def _stage_latency_report(samples: dict[str, list[float]]) -> dict[str, dict[str, Any]]:
+    return {
+        stage: {
+            "p50_ms": _percentile(list(samples.get(stage) or []), 0.50),
+            "p95_ms": _percentile(list(samples.get(stage) or []), 0.95),
+            "measured": len(list(samples.get(stage) or [])),
+            "coverage": bool(samples.get(stage)),
+        }
+        for stage in STAGE_NAMES
+    }
+
+
 def _run_snapshot(run: Any) -> dict[str, Any] | None:
     run_id = str(_value(run, "run_id", "") or "").strip()
     if not run_id:
@@ -139,6 +218,7 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     raw_traces = _trace_records(payload)
     normalized_traces = collect_normalized_generation_traces(records, raw_traces)
     traces = list(normalized_traces["records"])
+    stage_latency_samples = _stage_latency_samples(payload, traces)
     actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
     artifacts = [item for item in list(payload.get("accepted_artifact_events") or []) if isinstance(item, dict)]
     projection = build_accepted_cv_effort_projection(
@@ -219,7 +299,9 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
                 "measured": len(generation_elapsed_values),
                 "unavailable": len(traces) - len(generation_elapsed_values),
             },
+            "stage_latency_ms": _stage_latency_report(stage_latency_samples),
         },
+        "stage_latency_samples_ms": stage_latency_samples,
         "yield": {
             "attempted_generation_job_count": len(traces),
             "first_pass_acceptance_count": first_pass_acceptance_count,
@@ -549,6 +631,11 @@ def build_baseline(
     aggregate_generation_elapsed = (
         sum(accepted_generation_elapsed_values) if accepted_generation_elapsed_values else None
     )
+    aggregate_stage_latency_samples = {stage: [] for stage in STAGE_NAMES}
+    for snapshot in snapshots:
+        for stage, values in dict(snapshot.get("stage_latency_samples_ms") or {}).items():
+            if stage in aggregate_stage_latency_samples:
+                aggregate_stage_latency_samples[stage].extend(_numeric_values(values))
     complete = (
         bool(snapshots)
         and accepted_count == accepted_record_count
@@ -629,6 +716,7 @@ def build_baseline(
             "generation_timing_coverage": generation_timing_coverage,
             "artifact_acceptance_latency_ms": aggregate_elapsed,
             "run_wall_ms": aggregate_end_to_end_wall,
+            "stage_latency_ms": _stage_latency_report(aggregate_stage_latency_samples),
         },
         "coverage": coverage,
         "run_job_diversity": {
@@ -752,6 +840,7 @@ def _markdown(report: dict[str, Any]) -> str:
             f"- Measurement coverage: `{report.get('coverage', {})}`",
             f"- Run/job diversity: `{report.get('run_job_diversity', {})}`",
             "",
+            "Stage latency p50/p95 is reported from explicit stage samples; missing stages stay unavailable.",
             "Generation duration, artifact acceptance latency, and run wall-clock time are separate metrics.",
             "Accepted-artifact and total-workload per-CV metrics stay null unless attribution is complete.",
         ]

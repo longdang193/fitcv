@@ -1783,6 +1783,27 @@ def test_render_proof_binds_exact_content_and_render_inputs() -> None:
     assert not render_proof_matches(document, {"cv": {"preset": "europass"}}, {**proof, "page_count": 1, "page_fit_status": "pass"})
 
 
+def test_render_proof_matches_native_acceptance_with_full_render_config() -> None:
+    config = {
+        "cv": {
+            "preset": "europass",
+            "composition": {"summary": {"enabled": True}},
+            "style": {"font_size": "10pt"},
+        },
+        "required_cv_sections": ["Summary"],
+    }
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config=config,
+        fit_classification="strong",
+    )
+
+    acceptance = render_cv_native_acceptance(document, config)
+
+    assert render_proof_matches(document, config, acceptance)
+
+
 def test_page_fit_trim_preserves_unique_project_and_required_language_evidence() -> None:
     document = build_empty_structured_cv(
         jd={"title": "Analyst"}, profile={"name": "Test Candidate"}, config={"cv": {"preset": "europass"}}, fit_classification="strong"
