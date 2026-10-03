@@ -1278,7 +1278,17 @@ def test_cv_generation_fingerprint_ignores_mode_labels_and_mutable_job_url() -> 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_returns_complete_canonical_result(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
@@ -1340,7 +1350,17 @@ def test_generate_from_analysis_returns_complete_canonical_result(
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_persists_review_required_as_quality_warning(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
@@ -1403,7 +1423,17 @@ def test_review_required_with_valid_content_is_persistable_only_without_validati
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_reuses_exact_canonical_result(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
