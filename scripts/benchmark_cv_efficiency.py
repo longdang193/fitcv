@@ -18,9 +18,12 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from fitcv_cp import sqlite_store
 from fitcv_cp.run_artifact_contracts import (
+    FINAL_ARTIFACT_CONTRACT_VERSION,
+    TRACE_CONTRACT_VERSION,
     build_accepted_cv_effort_projection,
     collect_normalized_generation_traces,
 )
+from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
 
 DEFAULT_JSON = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json"
 DEFAULT_MARKDOWN = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
@@ -179,6 +182,17 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     page_fit_success_values = [
         item.get("accepted_final_one_page") for item in projected_records
     ]
+    current_contract_records = [
+        item
+        for item in projected_records
+        if item.get("final_artifact_contract_version") == FINAL_ARTIFACT_CONTRACT_VERSION
+        and item.get("trace_contract_version") == TRACE_CONTRACT_VERSION
+    ]
+    page_fit_success_measured = [
+        value for value in page_fit_success_values if _is_recorded(value)
+    ]
+    page_fit_success_pass = sum(value is True for value in page_fit_success_measured)
+    page_fit_success_fail = sum(value is False for value in page_fit_success_measured)
     review_question_values = [item.get("review_question_count") for item in projected_records]
     human_action_values = [item.get("human_action_count") for item in projected_records]
     resolution_values = [item.get("reused_resolution_count") for item in projected_records]
@@ -211,6 +225,12 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         "status_counts": dict(sorted(status_counts.items())),
         "accepted_record_count": status_counts.get("accepted", 0),
         "projection": projection,
+        "contract_coverage": {
+            "current": len(current_contract_records),
+            "historical": len(projected_records) - len(current_contract_records),
+            "total": len(projected_records),
+            "complete": bool(projected_records and len(current_contract_records) == len(projected_records)),
+        },
         "trace_normalization": dict(normalized_traces.get("diagnostics") or {}),
         "_trace_records_for_diversity": traces,
         "coverage": {
@@ -229,14 +249,19 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
             "page_fit": _coverage(page_fit_values),
             "page_fit_coverage": _coverage(page_fit_values),
             "page_fit_success": {
-                "measured": sum(bool(value) for value in page_fit_success_values),
-                "unavailable": sum(not bool(value) for value in page_fit_success_values),
+                "measured": len(page_fit_success_measured),
+                "unavailable": len(page_fit_success_values) - len(page_fit_success_measured),
                 "total": len(page_fit_success_values),
                 "rate": (
-                    sum(bool(value) for value in page_fit_success_values) / len(page_fit_success_values)
+                    page_fit_success_pass / len(page_fit_success_values)
                     if page_fit_success_values else 0.0
                 ),
-                "complete": bool(page_fit_success_values and all(page_fit_success_values)),
+                "pass": page_fit_success_pass,
+                "fail": page_fit_success_fail,
+                "complete": bool(
+                    page_fit_success_values
+                    and len(page_fit_success_measured) == len(page_fit_success_values)
+                ),
             },
             "review_questions": _coverage(review_question_values),
             "human_actions": _coverage(human_action_values),
@@ -392,15 +417,6 @@ def build_baseline(
             for snapshot in snapshots
         ),
     }
-    page_fit_success_measured = sum(
-        int(dict(snapshot.get("coverage") or {}).get("page_fit_success", {}).get("measured") or 0)
-        for snapshot in snapshots
-    )
-    page_fit_success_total = sum(
-        int(dict(snapshot.get("coverage") or {}).get("page_fit_success", {}).get("total") or 0)
-        for snapshot in snapshots
-    )
-    accepted_non_one_page_count = page_fit_success_total - page_fit_success_measured
     generation_elapsed_values = [
         float(snapshot["generation_elapsed_ms"])
         for snapshot in snapshots
@@ -451,6 +467,27 @@ def build_baseline(
         coverage["attribution"]["total"]
         and coverage["attribution"]["unmatched"] == 0
     )
+    page_fit_success_values = [
+        value
+        for snapshot in snapshots
+        for value in [
+            item.get("accepted_final_one_page")
+            for item in list(dict(snapshot.get("projection") or {}).get("records") or [])
+            if isinstance(item, dict)
+        ]
+    ]
+    page_fit_success_measured = [value for value in page_fit_success_values if _is_recorded(value)]
+    page_fit_success_pass = sum(value is True for value in page_fit_success_measured)
+    page_fit_success_fail = sum(value is False for value in page_fit_success_measured)
+    page_fit_success_total = len(page_fit_success_values)
+    accepted_non_one_page_count = page_fit_success_fail
+    coverage["page_fit_success"] = {
+        "measured": len(page_fit_success_measured),
+        "unavailable": page_fit_success_total - len(page_fit_success_measured),
+        "total": page_fit_success_total,
+        "rate": page_fit_success_pass / page_fit_success_total if page_fit_success_total else 0.0,
+        "complete": bool(page_fit_success_total and len(page_fit_success_measured) == page_fit_success_total),
+    }
     run_types = sorted({
         job_type
         for snapshot in snapshots
@@ -514,6 +551,10 @@ def build_baseline(
         and unattributed_count == 0
         and trace_normalization["conflict_count"] == 0
         and accepted_non_one_page_count == 0
+        and bool(coverage.get("page_fit", {}).get("complete"))
+        and bool(coverage.get("page_fit_success", {}).get("complete"))
+        and page_fit_success_fail == 0
+        and sum(int(snapshot.get("contract_coverage", {}).get("historical") or 0) for snapshot in snapshots) == 0
     )
     status = "complete" if complete else "incomplete" if snapshots else "not_available"
     per_accepted = None
@@ -549,12 +590,30 @@ def build_baseline(
         generation_status_counts.update(snapshot["status_counts"])
     return {
         "schema_version": "fitcv_runtime_efficiency_baseline_v3",
+        "contract_versions": {
+            "final_artifact": FINAL_ARTIFACT_CONTRACT_VERSION,
+            "trace": TRACE_CONTRACT_VERSION,
+            "efficiency": EFFICIENCY_CONTRACT_VERSION,
+        },
         "status": status,
         "trace_normalization": trace_normalization,
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "selection": {
             "ordinary_runs_only": True,
             "measurable_generation_work_only": True,
+            "contract_versions": {
+                "final_artifact": FINAL_ARTIFACT_CONTRACT_VERSION,
+                "trace": TRACE_CONTRACT_VERSION,
+                "efficiency": EFFICIENCY_CONTRACT_VERSION,
+            },
+            "current_contract_record_count": sum(
+                int(snapshot.get("contract_coverage", {}).get("current") or 0)
+                for snapshot in snapshots
+            ),
+            "historical_record_count": sum(
+                int(snapshot.get("contract_coverage", {}).get("historical") or 0)
+                for snapshot in snapshots
+            ),
             "run_count": len(snapshots),
             "run_ids": [snapshot["run_id"] for snapshot in snapshots],
             "exclusions": dict(sorted(exclusions.items())),
@@ -581,8 +640,11 @@ def build_baseline(
             "total_workload_cost_per_accepted_cv": total_workload_per_accepted,
             "accepted_non_one_page_count": accepted_non_one_page_count,
             "page_fit_success": {
-                "count": page_fit_success_measured,
+                "count": page_fit_success_pass,
+                "pass": page_fit_success_pass,
+                "fail": page_fit_success_fail,
                 "total": page_fit_success_total,
+                "rate": page_fit_success_pass / page_fit_success_total if page_fit_success_total else 0.0,
             },
         },
         "attribution": {
@@ -604,6 +666,12 @@ def build_baseline(
         },
         "outcomes": {
             "generation_status_counts": dict(sorted(generation_status_counts.items())),
+            "page_fit": {
+                "pass": page_fit_success_pass,
+                "fail": page_fit_success_fail,
+                "total": page_fit_success_total,
+                "rate": page_fit_success_pass / page_fit_success_total if page_fit_success_total else 0.0,
+            },
             "render_retry_count": workload["render_retry_count"],
             "compiler_outcome_counts": {},
             "render_outcome_counts": {},

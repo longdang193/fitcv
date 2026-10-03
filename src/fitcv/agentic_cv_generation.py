@@ -44,16 +44,19 @@ from fitcv.config import (
     get_cv_generation_prompt_version,
     get_cv_generation_structured_prompt_id,
 )
+from fitcv.contracts import FINAL_ARTIFACT_CONTRACT_VERSION, TRACE_CONTRACT_VERSION
 from fitcv.runtime_routing import resolve_cv_generation_routing_snapshot
 from fitcv.cv_generator import (
     _execute_cv_generation_runtime,
     _get_enabled_section_names,
     _resolve_template_path,
     build_live_structured_cv_response_schema as _canonical_live_structured_cv_response_schema,
+    build_render_proof_identity,
     final_artifact_acceptance_passes,
     generate_cv,
     render_cv_markdown,
     render_cv_native_acceptance,
+    render_proof_matches,
     trim_structured_cv_for_page_fit,
 )
 from fitcv.late_stage_contract import (
@@ -176,6 +179,7 @@ class ErrorPayload(TypedDict, total=False):
 
 class CvGenerationResult(TypedDict, total=False):
     result_contract_version: str
+    final_artifact_contract_version: str
     raw_job_fingerprint: str
     job_url: str
     job_title: str
@@ -207,6 +211,10 @@ class CvGenerationResult(TypedDict, total=False):
     page_fit_status: str | None
     render_acceptance: dict[str, Any] | None
     trim_count: int
+    trimmed_claim_ids: list[str]
+    trim_reason: str | None
+    post_trim_validation_status: str
+    post_trim_missing_requirements: list[str]
     llm_runtime_observations: list[dict[str, Any]]
     cv_generation_trace: dict[str, Any]
     content_plan: dict[str, Any]
@@ -481,6 +489,7 @@ def _empty_cv_generation_trace(
     return {
         "trace_id": str(trace_id),
         "trace_schema_version": _LIVE_TRACE_SCHEMA_VERSION,
+        "trace_contract_version": TRACE_CONTRACT_VERSION,
         "trace_family": _LIVE_TRACE_FAMILY,
         "step_id": _LIVE_TRACE_STEP_ID,
         "trace_status": "completed",
@@ -1484,6 +1493,39 @@ def _reusable_result_or_none(
     )
     if not validation.get("valid"):
         return None
+    render_acceptance = reusable_record.get("render_acceptance")
+    page_fit_status = reusable_record.get("page_fit_status")
+    if not render_proof_matches(structured_cv, config, render_acceptance):
+        render_acceptance = {
+            **render_cv_native_acceptance(structured_cv, config),
+            **build_render_proof_identity(structured_cv, config),
+        }
+        page_fit_status = render_acceptance.get("page_fit_status")
+    if not final_artifact_acceptance_passes(
+        content_acceptance=bool(validation.get("valid")),
+        page_fit_status=str(page_fit_status or "").strip() or None,
+        render_acceptance=render_acceptance,
+    ):
+        return _build_result(
+            analysis_record=analysis_record,
+            job=job,
+            status="review_required",
+            fit_classification=_coerce_fit_classification(analysis_record.get("fit_classification")),
+            structured_cv_initial=structured_cv,
+            validation_initial=_build_validation_snapshot(validation),
+            repair_attempt=_empty_repair_attempt(),
+            structured_cv_final=structured_cv,
+            markdown_final=markdown,
+            validation=validation,
+            error={
+                "stage": "final_artifact_acceptance",
+                "code": "reusable_render_proof_failed",
+                "message": "Reusable CV artifact lacks native one-page render proof.",
+            },
+            llm_runtime_evidence=[],
+            page_fit_status=str(page_fit_status or "").strip() or None,
+            render_acceptance=render_acceptance if isinstance(render_acceptance, dict) else None,
+        )
     return _build_result(
         analysis_record=analysis_record,
         job=job,
@@ -1497,6 +1539,8 @@ def _reusable_result_or_none(
         validation=validation,
         error=None,
         llm_runtime_evidence=[],
+        page_fit_status=str(page_fit_status or "").strip() or None,
+        render_acceptance=render_acceptance if isinstance(render_acceptance, dict) else None,
     )
 
 
@@ -1537,6 +1581,10 @@ def _build_result(
     page_fit_status: str | None = None,
     render_acceptance: dict[str, Any] | None = None,
     trim_count: int = 0,
+    trimmed_claim_ids: list[str] | None = None,
+    trim_reason: str | None = None,
+    post_trim_validation_status: str = "not_run",
+    post_trim_missing_requirements: list[str] | None = None,
 ) -> CvGenerationResult:
     evidence_payload = list(analysis_record.get("evidence_payload") or [])
     evidence_used = list(analysis_record.get("evidence_used") or [])
@@ -1551,6 +1599,7 @@ def _build_result(
         cv_status = "not_attempted"
 
     result: CvGenerationResult = {
+        "final_artifact_contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
         "job_url": extract_job_url(job),
         "job_title": extract_job_title(job),
         "status": status,
@@ -1583,6 +1632,10 @@ def _build_result(
         "page_fit_status": page_fit_status,
         "render_acceptance": dict(render_acceptance) if isinstance(render_acceptance, dict) else None,
         "trim_count": int(trim_count),
+        "trimmed_claim_ids": list(trimmed_claim_ids or []),
+        "trim_reason": trim_reason,
+        "post_trim_validation_status": post_trim_validation_status,
+        "post_trim_missing_requirements": list(post_trim_missing_requirements or []),
     }
     runtime_evidence = [dict(item) for item in (llm_runtime_evidence or []) if isinstance(item, dict)]
     if runtime_evidence:
@@ -1773,23 +1826,49 @@ def _generate_fresh_from_analysis(
         page_fit_status: str | None = None
         render_acceptance: dict[str, Any] | None = None
         trim_count = 0
+        trimmed_claim_ids: list[str] = []
+        trim_reason: str | None = None
+        post_trim_validation_status = "not_run"
+        post_trim_missing_requirements: list[str] = []
         if result_status == ACCEPTED_STATUS:
-            render_acceptance = render_cv_native_acceptance(structured_cv, config)
+            render_acceptance = {
+                **render_cv_native_acceptance(structured_cv, config),
+                **build_render_proof_identity(structured_cv, config),
+            }
             page_fit_status = str(render_acceptance.get("page_fit_status") or "").strip() or None
             if not final_artifact_acceptance_passes(
                 content_acceptance=True,
                 page_fit_status=page_fit_status,
                 render_acceptance=render_acceptance,
             ) and render_acceptance.get("page_count") not in {None, 1}:
-                trimmed_cv, trim_changes = trim_structured_cv_for_page_fit(structured_cv)
+                trimmed_cv, trim_changes = trim_structured_cv_for_page_fit(
+                    structured_cv,
+                    content_plan=dict(analysis_record.get("content_plan") or {}),
+                )
                 if trim_changes:
                     trim_count = 1
+                    trim_reason = "page_overflow"
+                    trimmed_claim_ids = [str(change) for change in trim_changes]
                     structured_cv_final = trimmed_cv
                     markdown_final = render_cv_markdown(trimmed_cv, config)
-                    render_acceptance = render_cv_native_acceptance(trimmed_cv, config)
+                    validation = run_all_validations(
+                        markdown_final,
+                        profile,
+                        config,
+                        structured_cv=trimmed_cv,
+                        analysis_grounding=analysis_grounding,
+                    )
+                    post_trim_validation_status = "passed" if validation.get("valid") else "failed"
+                    post_trim_missing_requirements = [
+                        str(item) for item in list(validation.get("missing_sections") or [])
+                    ]
+                    render_acceptance = {
+                        **render_cv_native_acceptance(trimmed_cv, config),
+                        **build_render_proof_identity(trimmed_cv, config),
+                    }
                     page_fit_status = str(render_acceptance.get("page_fit_status") or "").strip() or None
             if not final_artifact_acceptance_passes(
-                content_acceptance=True,
+                content_acceptance=bool(validation.get("valid")),
                 page_fit_status=page_fit_status,
                 render_acceptance=render_acceptance,
             ):
@@ -1827,6 +1906,10 @@ def _generate_fresh_from_analysis(
                 "page_fit_status": page_fit_status,
                 "render_acceptance": dict(render_acceptance or {}),
                 "trim_count": trim_count,
+                "trimmed_claim_ids": list(trimmed_claim_ids),
+                "trim_reason": trim_reason,
+                "post_trim_validation_status": post_trim_validation_status,
+                "post_trim_missing_requirements": list(post_trim_missing_requirements),
             }
             _update_efficiency_summary(
                 trace_payload,
@@ -1853,6 +1936,10 @@ def _generate_fresh_from_analysis(
             page_fit_status=page_fit_status,
             render_acceptance=render_acceptance,
             trim_count=trim_count,
+            trimmed_claim_ids=trimmed_claim_ids,
+            trim_reason=trim_reason,
+            post_trim_validation_status=post_trim_validation_status,
+            post_trim_missing_requirements=post_trim_missing_requirements,
         )
     except Exception as exc:
         runtime_failure_evidence = getattr(exc, "llm_runtime_evidence", None)
