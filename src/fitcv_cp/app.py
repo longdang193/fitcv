@@ -1906,8 +1906,6 @@ def _finalize_review_draft_as_cv_artifact(
     content_valid = bool(record.get("content_acceptance"))
     if not content_valid and isinstance(validation, dict):
         content_valid = bool(validation.get("valid"))
-    if not content_valid:
-        content_valid = bool(markdown.strip())
     effective_config = _load_run_effective_config_snapshot(run)
     render_acceptance = render_cv_native_acceptance(markdown, effective_config)
     if not final_artifact_acceptance_passes(

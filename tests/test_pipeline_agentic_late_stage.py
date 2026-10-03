@@ -13,6 +13,7 @@ tags:
   - ci-safe
 """
 
+import hashlib
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -31,11 +32,12 @@ from fitcv.agentic_cv_generation import (
     build_generation_preflight,
     generate_from_analysis,
     merge_repaired_section,
+    trim_structured_cv_for_page_fit,
     transition_cv_generation_persistence_failed,
 )
 
 
-def test_render_item_provenance_is_host_managed_and_fails_closed_on_ambiguity() -> None:
+def test_render_item_provenance_protects_ambiguous_support_but_allows_unmatched_optional_trim() -> None:
     content_plan = {
         "approved_claims": [
             {
@@ -77,7 +79,10 @@ def test_render_item_provenance_is_host_managed_and_fails_closed_on_ambiguity() 
     optional_item = next(item for item in provenance["items"] if item["canonical_item_key"].startswith("projects:optional"))
     assert sql_item["protected"] is True
     assert sql_item["supported_requirement_ids"] == ["required_skill:sql"]
-    assert optional_item["protected"] is True
+    assert optional_item["protected"] is False
+
+    trimmed = trim_structured_cv_for_page_fit(structured_cv, provenance)
+    assert [item["name"] for item in trimmed["sections"]["projects"]] == ["SQL Platform"]
 
 
 def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
@@ -1487,6 +1492,8 @@ def test_generate_from_analysis_reuses_exact_canonical_result(
     analysis_record = _minimal_analysis_record()
     analysis_record["analysis_input_fingerprint"] = "analysis::reuse"
     config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    markdown = "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL"
     validation = {
         "valid": True,
         "missing_sections": [],
@@ -1502,7 +1509,18 @@ def test_generate_from_analysis_reuses_exact_canonical_result(
     mock_run_all_validations.return_value = validation
     mock_generate_cv.return_value = {
         "structured_cv": _minimal_structured_cv(),
-        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+        "markdown": markdown,
+    }
+    mock_render_cv_native_acceptance.return_value = {
+        "render_status": "pass",
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "template_sha256": generation_module._template_sha256(config),
+        "render_config_fingerprint": generation_module._render_config_fingerprint(config),
+        "renderer_contract_version": "fitcv_native_render_v1",
     }
 
     fresh = generate_from_analysis(analysis_record, _minimal_profile(), config)
@@ -1515,6 +1533,7 @@ def test_generate_from_analysis_reuses_exact_canonical_result(
     )
 
     mock_generate_cv.assert_not_called()
+    assert mock_render_cv_native_acceptance.call_count == 1
     assert reused["status"] == "accepted"
     assert reused["cv_generation_reuse_status"] == "reused_exact_match"
     assert reused["reused_cv_version_id"] == "cv-version-1"

@@ -435,7 +435,7 @@ def build_render_item_provenance_v1(
             ]
             supported_ids = sorted({value for match in matches for value in match["supported_requirement_ids"]})
             evidence_ids = sorted({value for match in matches for value in match["evidence_ids"]})
-            ambiguous = len(matches) != 1
+            ambiguous = len(matches) > 1
             if section == "languages":
                 language_name = str(item.get("name") or "").strip().casefold()
                 for requirement_ref in verified_by_requirement:
@@ -1592,6 +1592,22 @@ def _native_final_artifact_enabled(config: dict[str, Any]) -> bool:
     )
 
 
+def _render_acceptance_matches_final_content(
+    structured_cv: dict[str, Any],
+    markdown: str,
+    config: dict[str, Any],
+    render_acceptance: dict[str, Any] | None,
+) -> bool:
+    if render_proof_matches(structured_cv, config, render_acceptance):
+        return True
+    return render_proof_matches(
+        render_acceptance,
+        content_sha256=hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        template_sha256=_template_sha256(config),
+        render_config_fingerprint=_render_config_fingerprint(config),
+    )
+
+
 def _apply_final_artifact_contract(
     result: CvGenerationResult,
     *,
@@ -1624,12 +1640,11 @@ def _apply_final_artifact_contract(
         return finalized
 
     render_acceptance = finalized.get("render_acceptance")
-    expected_content_sha256 = hashlib.sha256(markdown.encode("utf-8")).hexdigest()
-    if not isinstance(render_acceptance, dict) or not render_proof_matches(
+    if not isinstance(render_acceptance, dict) or not _render_acceptance_matches_final_content(
+        structured_cv,
+        markdown,
+        config,
         render_acceptance,
-        content_sha256=expected_content_sha256,
-        template_sha256=_template_sha256(config),
-        render_config_fingerprint=_render_config_fingerprint(config),
     ):
         render_acceptance = render_cv_native_acceptance(markdown, config)
     final_ok = final_artifact_acceptance_passes(content_valid=content_valid, render_acceptance=render_acceptance)
@@ -1737,7 +1752,7 @@ def _reusable_result_or_none(
         return None
     render_acceptance = reusable_record.get("render_acceptance")
     page_fit_status = reusable_record.get("page_fit_status")
-    if not render_proof_matches(structured_cv, config, render_acceptance):
+    if not _render_acceptance_matches_final_content(structured_cv, markdown, config, render_acceptance):
         render_acceptance = {
             **render_cv_native_acceptance(structured_cv, config),
             **build_render_proof_identity(structured_cv, config),

@@ -157,8 +157,10 @@ def test_render_proof_match_requires_exact_content_and_renderer_inputs() -> None
 
 def test_native_render_acceptance_reports_one_page(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("fitcv.cv_generator.shutil.which", lambda tool: f"/fake/{tool}")
+    timeouts = []
 
-    def fake_run(command, **_kwargs):
+    def fake_run(command, **kwargs):
+        timeouts.append(kwargs.get("timeout"))
         if command[0] == "pandoc":
             output_path = Path(command[command.index("-o") + 1])
             output_path.write_bytes(b"fake-pdf")
@@ -186,6 +188,7 @@ def test_native_render_acceptance_reports_one_page(tmp_path: Path, monkeypatch: 
     assert result["page_count"] == 1
     assert result["page_fit_status"] == "pass"
     assert len(result["artifact_checksum"]) == 64
+    assert timeouts == [120, 30, 30]
 
 
 def test_project_authorized_profile_keeps_identity_and_selected_records() -> None:

@@ -1961,6 +1961,7 @@ def render_cv_native_acceptance(
                 capture_output=True,
                 text=True,
                 cwd=work_dir,
+                timeout=120,
             )
             page_info = subprocess.run(
                 ["pdfinfo", str(pdf_path)],
@@ -1968,6 +1969,7 @@ def render_cv_native_acceptance(
                 capture_output=True,
                 text=True,
                 cwd=work_dir,
+                timeout=30,
             ).stdout
             page_match = re.search(r"^Pages:\s+(\d+)$", page_info, re.MULTILINE)
             if page_match is None:
@@ -1979,6 +1981,7 @@ def render_cv_native_acceptance(
                 capture_output=True,
                 text=True,
                 cwd=work_dir,
+                timeout=30,
             )
             checksum = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
             result.update(
@@ -2013,7 +2016,7 @@ def render_proof_matches(
         proof = value
         expected = {
             "content_sha256": content_sha256,
-            "template_sha256": str(template_sha256 or ""),
+            "template_sha256": template_sha256,
             "render_config_fingerprint": str(render_config_fingerprint or ""),
             "renderer_contract_version": NATIVE_RENDER_CONTRACT_VERSION,
         }

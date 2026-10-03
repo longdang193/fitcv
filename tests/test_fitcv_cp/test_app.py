@@ -6797,6 +6797,7 @@ def test_admin_run_cv_review_action_retries_approve_as_is_without_duplicate_arti
                         "job_title": "Senior Data Engineer",
                         "status": "review_required",
                         "markdown_full": "# Grounded CV",
+                        "content_acceptance": True,
                         "page_fit_status": "pass",
                 "render_acceptance": {
                     "render_status": "pass",
@@ -6893,6 +6894,7 @@ def test_review_finalize_replaces_same_artifact_identity_in_sqlite(tmp_path, mon
         "job_url": "https://example.com/job-1",
         "status": "review_required",
         "markdown_full": "# Grounded CV",
+        "content_acceptance": True,
         "page_fit_status": "pass",
         "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
     }
@@ -7252,9 +7254,10 @@ def test_admin_run_cv_review_action_approve_as_is_finalizes_cv_artifact() -> Non
                         "job_url": "https://example.com/job-1",
                         "job_title": "Senior Data Engineer",
                         "status": "review_required",
-                        "fit_classification": "stretch",
-                        "markdown_final": "# Candidate\n\nDraft",
-                        "page_fit_status": "pass",
+                            "fit_classification": "stretch",
+                            "markdown_final": "# Candidate\n\nDraft",
+                            "content_acceptance": True,
+                            "page_fit_status": "pass",
                         "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     }
                 ]
@@ -7329,10 +7332,11 @@ def test_admin_run_cv_review_action_approve_as_is_uses_markdown_full_precedence(
                         "job_url": "https://example.com/job-1",
                         "job_title": "Senior Data Engineer",
                         "status": "review_required",
-                        "fit_classification": "stretch",
-                        "markdown_full": "# Candidate\n\nFull draft",
-                        "markdown_final": "# Candidate\n\nLegacy draft",
-                        "page_fit_status": "pass",
+                            "fit_classification": "stretch",
+                            "markdown_full": "# Candidate\n\nFull draft",
+                            "markdown_final": "# Candidate\n\nLegacy draft",
+                            "content_acceptance": True,
+                            "page_fit_status": "pass",
                         "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     }
                 ]
@@ -7604,6 +7608,7 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
                         "job_title": "DE1",
                         "status": "review_required",
                         "markdown_final": "# DE1\n\nAccepted draft",
+                        "content_acceptance": True,
                         "page_fit_status": "pass",
                         "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     },
@@ -7900,6 +7905,7 @@ def test_admin_run_cv_review_batch_action_finalize_path_no_longer_needs_zero_cv_
                         "job_title": "DE1",
                         "status": "review_required",
                         "markdown_final": "# DE1\n\nAccepted draft",
+                        "content_acceptance": True,
                         "page_fit_status": "pass",
                         "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     },
@@ -8041,6 +8047,36 @@ def test_review_finalize_rejects_missing_native_one_page_proof() -> None:
         finalized, reason, version_id = _finalize_review_draft_as_cv_artifact(
             run=run,
             job_url="https://example.com/job-proof-required",
+            record=record,
+            client=MagicMock(),
+        )
+
+    assert finalized is False
+    assert reason == "final_artifact_unverified"
+    assert version_id is None
+    mock_insert.assert_not_called()
+
+
+def test_review_finalize_rejects_explicitly_invalid_content_even_if_markdown_is_nonempty() -> None:
+    from types import SimpleNamespace
+
+    run = SimpleNamespace(
+        run_id="run-review-invalid-content",
+        effective_settings_json=json.dumps({}),
+        config_path=".env.yaml",
+        results_export_json="[]",
+    )
+    record = {
+        "status": "review_required",
+        "markdown_final": "# CV\n\nInvalid draft",
+        "content_acceptance": False,
+        "validation": {"valid": False, "errors": ["missing required evidence"]},
+    }
+    with patch("fitcv_cp.app.render_cv_native_acceptance", return_value=_native_one_page_render_acceptance()), \
+         patch("fitcv_cp.app.insert_cv_version_row") as mock_insert:
+        finalized, reason, version_id = _finalize_review_draft_as_cv_artifact(
+            run=run,
+            job_url="https://example.com/job-invalid-content",
             record=record,
             client=MagicMock(),
         )
