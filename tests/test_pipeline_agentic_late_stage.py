@@ -26,6 +26,7 @@ from fitcv.agentic_cv_generation import (
     _shallow_section_repair_targets,
     build_cv_generation_input_fingerprint,
     build_cv_content_plan,
+    build_generation_preflight,
     generate_from_analysis,
     merge_repaired_section,
     transition_cv_generation_persistence_failed,
@@ -61,6 +62,41 @@ def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
     assert plan["approved_evidence_ids"] == ["ev-sql"]
     assert plan["approved_claims"][0]["supports_requirements"] == ["required_skill:sql"]
     assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-python"}
+
+
+def test_generation_preflight_reports_grounding_budget_and_impossible_requirements() -> None:
+    analysis = {
+        "evidence_payload": [
+            {"evidence_id": "ev-sql", "text": "Built SQL pipelines", "source_section": "experiences"},
+        ],
+        "requirement_coverage": [
+            {
+                "requirement_instance_id": "required_skill:sql",
+                "requirement": "SQL",
+                "selected_support": "verified",
+                "supporting_evidence_ids": ["ev-sql"],
+            },
+            {
+                "requirement_instance_id": "required_skill:python",
+                "requirement": "Python",
+                "selected_support": "verified",
+                "supporting_evidence_ids": [],
+            },
+        ],
+    }
+
+    plan = build_cv_content_plan(analysis, {}, {})
+    preflight = build_generation_preflight(analysis, plan)
+
+    assert preflight["status"] == "review"
+    assert preflight["provider_call_count_effect"] == 0
+    assert preflight["checks"] == {
+        "evidence_available": True,
+        "section_budget": True,
+        "grounded_high_value_claims": True,
+        "impossible_requirements": False,
+    }
+    assert preflight["blocking_reasons"] == ["impossible_requirement_support:required_skill:python"]
 
 
 def test_content_plan_orders_claims_and_applies_one_page_section_budget() -> None:
@@ -826,6 +862,8 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
         "repair_attempt": {"performed": False, "missing_sections": []},
         "structured_cv_final": {"sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
+        "page_fit_status": "pass",
+        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
         "error": None,
         "llm_runtime_observations": [_minimal_runtime_observation()],
         "cv_generation_trace": _minimal_cv_generation_trace(),
@@ -1240,7 +1278,17 @@ def test_cv_generation_fingerprint_ignores_mode_labels_and_mutable_job_url() -> 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_returns_complete_canonical_result(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
@@ -1302,7 +1350,17 @@ def test_generate_from_analysis_returns_complete_canonical_result(
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_persists_review_required_as_quality_warning(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
@@ -1365,7 +1423,17 @@ def test_review_required_with_valid_content_is_persistable_only_without_validati
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_reuses_exact_canonical_result(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:

@@ -153,12 +153,12 @@ def test_acceptance_verifier_blocks_failed_passed_priority(tmp_path: Path) -> No
     assert "p0_b_passed_claim_not_proven" in report["failures"]
 
 
-def test_runtime_efficiency_evidence_check_requires_canonical_v2_report(tmp_path: Path) -> None:
+def test_runtime_efficiency_evidence_check_requires_canonical_v3_report(tmp_path: Path) -> None:
     state = _state(tmp_path)
     runtime_json = tmp_path / "runtime-efficiency.json"
     runtime_markdown = tmp_path / "runtime-efficiency.md"
     runtime_report = {
-        "schema_version": "fitcv_runtime_efficiency_baseline_v2",
+        "schema_version": "fitcv_runtime_efficiency_baseline_v3",
         "evidence_status": "canonical",
         "workload": {"attempted_generation_job_count": 1},
         "timing": {"generation_elapsed_ms": 100, "generation_timing_coverage": {"measured": 1, "unavailable": 0}},
@@ -181,13 +181,14 @@ def test_runtime_efficiency_measurement_gate_blocks_measured_claim_with_incomple
     runtime_json = tmp_path / "runtime-efficiency.json"
     runtime_markdown = tmp_path / "runtime-efficiency.md"
     runtime_json.write_text(
-        '{"schema_version":"fitcv_runtime_efficiency_baseline_v2",'
+        '{"schema_version":"fitcv_runtime_efficiency_baseline_v3",'
         '"evidence_status":"canonical",'
         '"workload":{"attempted_generation_job_count":1},'
         '"timing":{"generation_elapsed_ms":100,"generation_timing_coverage":{"measured":1,"unavailable":0}},'
         '"selection":{"run_count":1},"material_metrics_sha256":"digest",'
         '"coverage":{"attribution":{"complete":true},"cost":{"complete":true},'
         '"timing":{"complete":true},"page_fit":{"complete":false},'
+        '"page_fit_success":{"complete":true},'
         '"review_questions":{"complete":true},"human_actions":{"complete":true},'
         '"resolution_reuse":{"complete":true}},'
         '"run_job_diversity":{"run_count":1,"job_type_count":1}}',

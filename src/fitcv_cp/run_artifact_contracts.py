@@ -94,6 +94,12 @@ def accepted_cv_artifact_event_v1(
         normalized_page_fit_status = str(
             normalized_render_acceptance.get("page_fit_status") or ""
         ).strip() or None
+    if normalized_render_acceptance:
+        render_page_fit_status = str(
+            normalized_render_acceptance.get("page_fit_status") or normalized_page_fit_status or ""
+        ).strip().lower()
+        if normalized_render_acceptance.get("page_count") != 1 or render_page_fit_status != "pass":
+            raise ValueError("accepted_cv_artifact final artifact acceptance failed")
     return {
         "schema_version": ACCEPTED_CV_ARTIFACT_SCHEMA_VERSION,
         "event_id": stable_sha256_fingerprint(
@@ -251,6 +257,8 @@ def collect_normalized_generation_traces(
             "duplicate_count": duplicate_count,
             "conflict_count": conflict_count,
             "conflict_trace_ids": sorted(conflict_trace_ids),
+            "source_candidate_count": len(candidates),
+            "normalized_trace_count": len(normalized_by_identity),
         },
     }
 
@@ -356,7 +364,7 @@ def build_accepted_cv_effort_projection(
     actions: list[dict[str, Any]],
     accepted_artifacts: list[dict[str, Any]] | None = None,
     *,
-    generation_trace_records: list[dict[str, Any]] | None = None,
+    generation_trace_records: list[dict[str, Any]] | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     deduplicated_actions: list[dict[str, Any]] = []
     seen_actions: set[str] = set()
@@ -413,7 +421,12 @@ def build_accepted_cv_effort_projection(
             for artifact in deduplicated_artifacts
         ]
 
-    normalized_traces = collect_normalized_generation_traces(records, generation_trace_records)
+    if isinstance(generation_trace_records, dict) and isinstance(
+        generation_trace_records.get("records"), list
+    ):
+        normalized_traces = generation_trace_records
+    else:
+        normalized_traces = collect_normalized_generation_traces(records, generation_trace_records)
     trace_records = list(normalized_traces["records"])
     trace_diagnostics = dict(normalized_traces["diagnostics"])
 
@@ -559,6 +572,7 @@ def build_accepted_cv_effort_projection(
                 "attempts": attempt_rows,
                 "provider_call_count": provider_call_count,
                 "regeneration_count": regeneration_count,
+                "validation_failure_event_count": validation_failure_count,
                 "validation_failure_count": validation_failure_count,
                 "failure_category_counts": {
                     category: attempt_categories.count(category) for category in ACCEPTED_CV_FAILURE_CATEGORIES
@@ -569,6 +583,11 @@ def build_accepted_cv_effort_projection(
                 "human_action_count": len(related_actions),
                 "reused_resolution_count": reused_resolution_count,
                 "page_fit_status": page_fit_status,
+                "render_page_count": dict(action.get("render_acceptance") or {}).get("page_count"),
+                "accepted_final_one_page": (
+                    dict(action.get("render_acceptance") or {}).get("page_count") == 1
+                    and str(page_fit_status).strip().lower() == "pass"
+                ),
                 "accepted_outcome": True,
                 "token_usage": token_usage,
                 "token_total": _token_total(token_usage),
@@ -637,7 +656,8 @@ def build_accepted_cv_effort_projection(
         "attempt_count": sum(row["attempt_count"] or 0 for row in projected),
         "provider_call_count": sum(row["provider_call_count"] or 0 for row in projected),
         "regeneration_count": sum(row["regeneration_count"] or 0 for row in projected),
-        "validation_failure_count": sum(row["validation_failure_count"] or 0 for row in projected),
+        "validation_failure_event_count": sum(row["validation_failure_event_count"] or 0 for row in projected),
+        "validation_failure_count": sum(row["validation_failure_event_count"] or 0 for row in projected),
         "render_retry_count": sum(row["render_retry_count"] or 0 for row in projected),
         "review_question_count": sum(
             value for value in (_nonnegative_int(row["review_question_count"]) for row in projected)
@@ -660,6 +680,7 @@ def build_accepted_cv_effort_projection(
         },
         "workload": {
             "attempted_generation_job_count": workload_attempted_jobs,
+            "terminal_validation_failed_job_count": workload_validation_failures,
             "validation_failure_count": workload_validation_failures,
             "provider_call_count": workload_provider_calls,
             "regeneration_count": workload_regenerations,

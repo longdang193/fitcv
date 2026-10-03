@@ -140,6 +140,7 @@ def test_accepted_cv_effort_projection_measures_zero_acceptance_workload() -> No
     assert result["denominator"] == {"accepted_cv_count": 0}
     assert result["aggregate"]["workload"] == {
         "attempted_generation_job_count": 1,
+        "terminal_validation_failed_job_count": 1,
         "validation_failure_count": 1,
         "provider_call_count": 1,
         "regeneration_count": 0,
@@ -241,6 +242,8 @@ def test_collect_normalized_generation_traces_merges_embedded_and_top_level_once
         "duplicate_count": 1,
         "conflict_count": 0,
         "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1,
     }
 
 
@@ -272,6 +275,8 @@ def test_collect_normalized_generation_traces_merges_enriched_top_level_duplicat
         "duplicate_count": 1,
         "conflict_count": 0,
         "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1,
     }
 
 
@@ -286,6 +291,8 @@ def test_collect_normalized_generation_traces_excludes_conflicting_identity() ->
         "duplicate_count": 0,
         "conflict_count": 1,
         "conflict_trace_ids": ["trace-1"],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 0,
     }
 
 
@@ -318,6 +325,20 @@ def test_accepted_cv_artifact_event_preserves_render_acceptance() -> None:
 
     assert event["page_fit_status"] == "pass"
     assert event["render_acceptance"] == {"page_count": 1, "page_fit_status": "pass"}
+
+
+def test_accepted_cv_artifact_event_rejects_non_one_page_render() -> None:
+    with pytest.raises(ValueError, match="final artifact acceptance"):
+        accepted_cv_artifact_event_v1(
+            artifact_id="cv-two-page",
+            job_url="job-two-page",
+            run_id="run-two-page",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+            page_fit_status="fail",
+            render_acceptance={"page_count": 2, "page_fit_status": "fail"},
+        )
 
 
 def test_accepted_cv_effort_projection_marks_ambiguous_legacy_trace_unmatched() -> None:
@@ -686,6 +707,7 @@ def test_accepted_cv_effort_projection_preserves_workload_attempt_baseline() -> 
     assert result["denominator"] == {"accepted_cv_count": 11}
     assert result["aggregate"]["workload"] == {
         "attempted_generation_job_count": 17,
+        "terminal_validation_failed_job_count": 6,
         "validation_failure_count": 6,
         "provider_call_count": 17,
         "regeneration_count": 9,

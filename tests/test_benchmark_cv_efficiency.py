@@ -6,7 +6,13 @@ from scripts.benchmark_cv_efficiency import (
     material_report_digest,
     material_report_metrics,
 )
-from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1
+from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1
+
+
+def accepted_cv_artifact_event_v1(**kwargs):
+    kwargs.setdefault("page_fit_status", "pass")
+    kwargs.setdefault("render_acceptance", {"page_count": 1, "page_fit_status": "pass"})
+    return _accepted_cv_artifact_event_v1(**kwargs)
 
 
 def _run(run_id: str, payload: dict, status: str = "succeeded") -> dict:
@@ -286,6 +292,8 @@ def test_baseline_merges_enriched_top_level_and_embedded_trace_for_timing_and_yi
         "duplicate_count": 1,
         "conflict_count": 0,
         "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1,
     }
 
 
@@ -454,6 +462,55 @@ def test_baseline_keeps_unattributed_cost_null_and_workload_totals_visible() -> 
     assert report["attribution"]["unattributed_accepted_artifact_count"] == 1
 
 
+def test_baseline_fails_closed_when_failed_trace_identity_conflicts() -> None:
+    accepted_trace = {
+        "trace_id": "trace-accepted",
+        "run_id": "run-1",
+        "job_url": "job-accepted",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"provider_call_count": 2, "token_usage": [{"total_tokens": 20}]},
+    }
+    failed_trace_a = {
+        "trace_id": "trace-failed",
+        "run_id": "run-1",
+        "job_url": "job-failed",
+        "attempts": [{"attempt_index": 1, "provider_status": "failed"}],
+        "efficiency_summary": {"provider_call_count": 3, "token_usage": [{"total_tokens": 30}]},
+    }
+    failed_trace_b = {
+        **failed_trace_a,
+        "efficiency_summary": {"provider_call_count": 4, "token_usage": [{"total_tokens": 40}]},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-1",
+        job_url="job-accepted",
+        run_id="run-1",
+        trace_id="trace-accepted",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline(
+        [
+            _run(
+                "run-1",
+                {
+                    "debug_records": [{"status": "accepted", "job_url": "job-accepted"}],
+                    "cv_generation_trace": {
+                        "records": [accepted_trace, failed_trace_a, failed_trace_b]
+                    },
+                    "accepted_artifact_events": [artifact],
+                },
+            )
+        ]
+    )
+
+    assert report["status"] == "incomplete"
+    assert report["accepted_cv"]["total_workload_cost_per_accepted_cv"] is None
+    assert report["trace_normalization"]["conflict_trace_ids"] == ["trace-failed"]
+
+
 def test_baseline_marks_missing_persisted_runs_unavailable() -> None:
     report = build_baseline([{"run_id": "failed", "status": "failed"}])
 
@@ -579,7 +636,7 @@ def test_baseline_reports_measurement_coverage_without_fabricating_page_fit() ->
             "human_action_count": 0,
         },
     }
-    artifact = accepted_cv_artifact_event_v1(
+    artifact = _accepted_cv_artifact_event_v1(
         artifact_id="cv-coverage",
         job_url="job-coverage",
         run_id="run-coverage",

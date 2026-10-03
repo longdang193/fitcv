@@ -177,6 +177,7 @@ from fitcv_cp.run_artifact_contracts import (
     pretty_json_string_or_fallback,
     run_mode_label,
 )
+from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv_cp.scan_contracts import (
     ScanCreateRequest,
     ScanDeletePreviewRequest,
@@ -1900,6 +1901,12 @@ def _finalize_review_draft_as_cv_artifact(
     lowered_markdown = markdown.lower()
     if any(lowered_markdown.endswith(sentinel) for sentinel in _TRUNCATED_MARKDOWN_SENTINELS):
         return (False, "truncated_draft_blocked", None)
+    if not final_artifact_acceptance_passes(
+        content_acceptance=True,
+        page_fit_status=record.get("page_fit_status"),
+        render_acceptance=record.get("render_acceptance"),
+    ):
+        return (False, "final_artifact_acceptance_required", None)
     rows = _results_export_rows(run)
     row = next((item for item in rows if str(item.get("job_url") or "").strip() == str(job_url or "").strip()), {})
     effective_settings = _effective_settings_dict(run)
@@ -1956,6 +1963,12 @@ def _append_accepted_artifact_event(
     finalized_at: str,
 ) -> None:
     if not artifact_id:
+        return
+    if not final_artifact_acceptance_passes(
+        content_acceptance=True,
+        page_fit_status=(record or {}).get("page_fit_status"),
+        render_acceptance=(record or {}).get("render_acceptance"),
+    ):
         return
     events = [item for item in list(payload.get("accepted_artifact_events") or []) if isinstance(item, dict)]
     if any(str(item.get("artifact_id") or "") == artifact_id for item in events):
