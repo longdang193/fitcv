@@ -2014,11 +2014,14 @@ def render_proof_matches(
 ) -> bool:
     if content_sha256 is not None:
         proof = value
+        proof_contract_version = str((proof or {}).get("renderer_contract_version") or NATIVE_RENDER_CONTRACT_VERSION) if isinstance(proof, dict) else NATIVE_RENDER_CONTRACT_VERSION
+        if proof_contract_version not in {NATIVE_RENDER_CONTRACT_VERSION, _RENDER_CONTRACT_VERSION}:
+            return False
         expected = {
             "content_sha256": content_sha256,
             "template_sha256": template_sha256,
             "render_config_fingerprint": str(render_config_fingerprint or ""),
-            "renderer_contract_version": NATIVE_RENDER_CONTRACT_VERSION,
+            "renderer_contract_version": proof_contract_version,
         }
     else:
         proof = render_acceptance

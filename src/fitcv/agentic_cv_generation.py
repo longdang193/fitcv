@@ -433,6 +433,14 @@ def build_render_item_provenance_v1(
                 for claim in claim_entries
                 if claim["section"] == section and claim["tokens"] and len(item_tokens & claim["tokens"]) >= 2
             ]
+            if not matches:
+                section_claims = [
+                    claim
+                    for claim in claim_entries
+                    if claim["section"] == section and claim["supported_requirement_ids"]
+                ]
+                if len(section_items) == 1 and len(section_claims) == 1:
+                    matches = section_claims
             supported_ids = sorted({value for match in matches for value in match["supported_requirement_ids"]})
             evidence_ids = sorted({value for match in matches for value in match["evidence_ids"]})
             ambiguous = len(matches) > 1
@@ -1598,8 +1606,6 @@ def _render_acceptance_matches_final_content(
     config: dict[str, Any],
     render_acceptance: dict[str, Any] | None,
 ) -> bool:
-    if render_proof_matches(structured_cv, config, render_acceptance):
-        return True
     return render_proof_matches(
         render_acceptance,
         content_sha256=hashlib.sha256(markdown.encode("utf-8")).hexdigest(),

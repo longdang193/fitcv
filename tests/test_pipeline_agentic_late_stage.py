@@ -85,6 +85,80 @@ def test_render_item_provenance_protects_ambiguous_support_but_allows_unmatched_
     assert [item["name"] for item in trimmed["sections"]["projects"]] == ["SQL Platform"]
 
 
+def test_render_item_provenance_keeps_unmatched_sole_required_item_protected() -> None:
+    content_plan = {
+        "approved_claims": [
+            {
+                "claim_id": "ev-sql",
+                "evidence_id": "ev-sql",
+                "claim": "Built SQL pipelines",
+                "supports_requirements": ["required_skill:sql"],
+                "target_section": "projects",
+            }
+        ]
+    }
+    structured_cv = {
+        "sections": {
+            "projects": [
+                {"name": "Platform Delivery", "context": "", "bullets": ["Improved operations."]},
+            ]
+        }
+    }
+
+    provenance = build_render_item_provenance_v1(
+        content_plan=content_plan,
+        evidence_payload=[{"evidence_id": "ev-sql", "text": "Built SQL pipelines"}],
+        requirement_coverage=[],
+        structured_cv=structured_cv,
+    )
+
+    item = provenance["items"][0]
+    assert item["protected"] is True
+    assert item["supported_requirement_ids"] == ["required_skill:sql"]
+    trimmed = trim_structured_cv_for_page_fit(structured_cv, provenance)
+    assert len(trimmed["sections"]["projects"]) == 1
+
+
+def test_final_artifact_proof_rejects_changed_markdown_when_structured_identity_matches() -> None:
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    structured_cv = _minimal_structured_cv()
+    original_markdown = "# Original CV"
+    changed_markdown = "# Changed CV"
+    render_acceptance = {
+        **generation_module.build_render_proof_identity(structured_cv, config),
+        "render_status": "pass",
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": hashlib.sha256(original_markdown.encode("utf-8")).hexdigest(),
+    }
+    replacement_proof = {
+        **render_acceptance,
+        "content_sha256": hashlib.sha256(changed_markdown.encode("utf-8")).hexdigest(),
+    }
+    analysis_record = _minimal_analysis_record()
+    result = {
+        "status": "accepted",
+        "structured_cv_final": structured_cv,
+        "markdown_final": changed_markdown,
+        "validation": {"valid": True},
+        "render_acceptance": render_acceptance,
+    }
+
+    with patch("fitcv.agentic_cv_generation.render_cv_native_acceptance", return_value=replacement_proof) as mock_render:
+        finalized = generation_module._apply_final_artifact_contract(
+            result,
+            analysis_record=analysis_record,
+            profile=_minimal_profile(),
+            config=config,
+        )
+
+    mock_render.assert_called_once()
+    assert finalized["render_acceptance"]["content_sha256"] == replacement_proof["content_sha256"]
+
+
 def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
     analysis = {
         "analysis_input_fingerprint": "analysis-1",
