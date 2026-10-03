@@ -609,7 +609,7 @@ def test_load_config_includes_cv_defaults() -> None:
     assert cfg["cv"]["generation"]["model"] == "cx/gpt-5.6-luna"
     assert cfg["cv"]["preset"] == "europass"
     assert cfg["cv"]["composition"]["summary"]["enabled"] is True
-    assert cfg["cv"]["validation"]["max_pages"] == 2
+    assert cfg["cv"]["validation"]["max_pages"] == 1
     assert cfg["cv"]["generation"]["prompt_version"] == "v1"
 
 

@@ -11,7 +11,20 @@ from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1 as _ac
 
 def accepted_cv_artifact_event_v1(**kwargs):
     kwargs.setdefault("page_fit_status", "pass")
-    kwargs.setdefault("render_acceptance", {"page_count": 1, "page_fit_status": "pass"})
+    kwargs.setdefault(
+        "render_acceptance",
+        {
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": "b" * 64,
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
+    )
     return _accepted_cv_artifact_event_v1(**kwargs)
 
 

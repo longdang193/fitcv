@@ -178,7 +178,11 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     if started_at and finished_at and finished_at >= started_at:
         elapsed_wall_ms = (finished_at - started_at).total_seconds() * 1000
     status_counts = Counter(str(item.get("status") or "unknown") for item in records)
-    page_fit_values = [item.get("page_fit_status") for item in projected_records]
+    page_fit_values = [
+        item.get("page_fit_status") if bool(item.get("page_fit_verified")) else None
+        for item in projected_records
+    ]
+    page_fit_reported_values = [item.get("page_fit_status") for item in projected_records]
     page_fit_success_values = [
         item.get("accepted_final_one_page") for item in projected_records
     ]
@@ -247,6 +251,7 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
                 "rate": len(generation_elapsed_values) / len(traces) if traces else 0.0,
             },
             "page_fit": _coverage(page_fit_values),
+            "page_fit_reported": _coverage(page_fit_reported_values),
             "page_fit_coverage": _coverage(page_fit_values),
             "page_fit_success": {
                 "measured": len(page_fit_success_measured),

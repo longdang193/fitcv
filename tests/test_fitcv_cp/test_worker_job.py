@@ -3818,7 +3818,17 @@ def test_build_cv_generation_debug_payload_persists_render_acceptance_on_artifac
                         "job_url": "https://example.com/job-rendered",
                         "cv_version_id": "cv-rendered-1",
                         "page_fit_status": "pass",
-                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
+                        "render_acceptance": {
+                            "render_status": "pass",
+                            "renderer_status": "rendered",
+                            "page_count": 1,
+                            "page_fit_status": "pass",
+                            "artifact_checksum": "a" * 64,
+                            "content_sha256": "b" * 64,
+                            "template_sha256": "c" * 64,
+                            "render_config_fingerprint": "d" * 64,
+                            "renderer_contract_version": "fitcv_native_render_v1",
+                        },
                     }
                 ],
             },

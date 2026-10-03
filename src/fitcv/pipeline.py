@@ -1677,9 +1677,17 @@ _CV_REVIEW_BLOCKING_VALIDATION_FIELDS = (
 )
 
 
-def _is_persistable_cv_generation_result(generation_result: dict[str, Any]) -> bool:
+def _is_persistable_cv_generation_result(
+    generation_result: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> bool:
     status = str(generation_result.get("status") or "").strip()
     if status == "accepted":
+        native_final_artifact_enabled = bool(
+            ((config or {}).get("cv") or {}).get("final_artifact_acceptance", {}).get("enabled")
+        )
+        if not native_final_artifact_enabled:
+            return True
         return final_artifact_acceptance_passes(
             content_acceptance=True,
             page_fit_status=generation_result.get("page_fit_status"),
@@ -4668,10 +4676,6 @@ def run_pipeline(
             analysis_input_summary: dict[str, Any],
             cv_generation_input_fingerprint: str | None,
         ) -> tuple[bool, dict[str, Any] | None, str | None]:
-            _emit_cv_generation_invoked_event(
-                state=generation_state,
-                cv_generation_model_value=job_cv_generation_model_value,
-            )
             latency_ms = int((time.monotonic() - cv_generation_started_monotonic) * 1000)
             canonical_result = cast(dict[str, Any], generation_state.get("canonical_result") or {})
             cv_generation_input_fingerprint = str(
@@ -4768,6 +4772,7 @@ def run_pipeline(
             *,
             analysis_record: dict[str, Any],
             job: dict[str, Any],
+            generation_state: dict[str, Any],
             generation_worker_slot: int,
             generation_started_at_iso: str,
             reusable_record: dict[str, Any] | None,
@@ -4777,6 +4782,13 @@ def run_pipeline(
                 profile=profile,
                 config=config,
                 reusable_record=reusable_record,
+            )
+            _emit_cv_generation_invoked_event(
+                state=generation_state,
+                cv_generation_model_value=_resolved_cv_generation_model(
+                    cv_generation_model_value,
+                    list(generation_result.get("llm_runtime_observations") or []),
+                ),
             )
             generation_result["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
             status = str(generation_result.get("status") or "generation_failed")
@@ -4847,7 +4859,7 @@ def run_pipeline(
                         artifact_refs={"stage_id": "cv_generation"},
                     ),
                 }
-            if not _is_persistable_cv_generation_result(generation_result):
+            if not _is_persistable_cv_generation_result(generation_result, config):
                 debug_record = _build_cv_generation_debug_record(
                     generation_result=generation_result,
                     enabled_sections=enabled_cv_sections,
@@ -4890,6 +4902,7 @@ def run_pipeline(
             *,
             analysis_record: dict[str, Any],
             job: dict[str, Any],
+            generation_state: dict[str, Any],
             generation_worker_slot: int,
             generation_started_at_iso: str,
             reusable_record: dict[str, Any] | None,
@@ -4897,6 +4910,7 @@ def run_pipeline(
             return _run_canonical_cv_generation(
                 analysis_record=analysis_record,
                 job=job,
+                generation_state=generation_state,
                 generation_worker_slot=generation_worker_slot,
                 generation_started_at_iso=generation_started_at_iso,
                 reusable_record=reusable_record,
@@ -4918,6 +4932,7 @@ def run_pipeline(
             return _compute_cv_generation_outcome(
                 analysis_record=cast(dict[str, Any], runtime["analysis_record"]),
                 job=cast(dict[str, Any], runtime["job"]),
+                generation_state=cast(dict[str, Any], runtime["generation_state"]),
                 generation_worker_slot=int(runtime["generation_worker_slot"]),
                 generation_started_at_iso=str(runtime["generation_started_at_iso"]),
                 reusable_record=reusable_record,
@@ -5303,9 +5318,6 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
-
-
-
 
 
 
