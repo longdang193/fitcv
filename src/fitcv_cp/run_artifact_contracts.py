@@ -22,6 +22,11 @@ import json as _json
 import re
 from typing import Any
 
+from fitcv.contracts import (
+    FINAL_ARTIFACT_CONTRACT_VERSION,
+    TRACE_CONTRACT_VERSION,
+)
+
 RUN_MODE_LABELS = {
     "run_all": "Run All",
     "manual_staged": "Stage by Stage",
@@ -79,6 +84,7 @@ def accepted_cv_artifact_event_v1(
     attempt_id: str | None = None,
     page_fit_status: str | None = None,
     render_acceptance: dict[str, Any] | None = None,
+    final_artifact_contract_version: str | None = None,
 ) -> dict[str, Any]:
     normalized_artifact_id = str(artifact_id or "").strip()
     normalized_job_url = str(job_url or "").strip()
@@ -95,8 +101,18 @@ def accepted_cv_artifact_event_v1(
         normalized_page_fit_status = str(
             normalized_render_acceptance.get("page_fit_status") or ""
         ).strip() or None
+    if not normalized_render_acceptance:
+        raise ValueError("accepted_cv_artifact final artifact render proof required")
+    render_page_fit_status = str(
+        normalized_render_acceptance.get("page_fit_status") or normalized_page_fit_status or ""
+    ).strip().lower()
+    if normalized_render_acceptance.get("page_count") != 1 or render_page_fit_status != "pass":
+        raise ValueError("accepted_cv_artifact final artifact acceptance failed")
     return {
         "schema_version": ACCEPTED_CV_ARTIFACT_SCHEMA_VERSION,
+        "final_artifact_contract_version": (
+            str(final_artifact_contract_version or FINAL_ARTIFACT_CONTRACT_VERSION).strip()
+        ),
         "event_id": stable_sha256_fingerprint(
             {
                 "artifact_id": normalized_artifact_id,
@@ -272,6 +288,8 @@ def collect_normalized_generation_traces(
             "duplicate_count": duplicate_count,
             "conflict_count": conflict_count,
             "conflict_trace_ids": sorted(conflict_trace_ids),
+            "source_candidate_count": len(candidates),
+            "normalized_trace_count": len(normalized_by_identity),
         },
     }
 
@@ -377,7 +395,7 @@ def build_accepted_cv_effort_projection(
     actions: list[dict[str, Any]],
     accepted_artifacts: list[dict[str, Any]] | None = None,
     *,
-    generation_trace_records: list[dict[str, Any]] | None = None,
+    generation_trace_records: list[dict[str, Any]] | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     deduplicated_actions: list[dict[str, Any]] = []
     seen_actions: set[str] = set()
@@ -428,13 +446,19 @@ def build_accepted_cv_effort_projection(
                 "generation_input_fingerprint": artifact.get("generation_input_fingerprint"),
                 "attempt_id": artifact.get("attempt_id"),
                 "trace_id": artifact.get("trace_id"),
+                "final_artifact_contract_version": artifact.get("final_artifact_contract_version"),
                 "page_fit_status": artifact.get("page_fit_status"),
                 "render_acceptance": artifact.get("render_acceptance"),
             }
             for artifact in deduplicated_artifacts
         ]
 
-    normalized_traces = collect_normalized_generation_traces(records, generation_trace_records)
+    if isinstance(generation_trace_records, dict) and isinstance(
+        generation_trace_records.get("records"), list
+    ):
+        normalized_traces = generation_trace_records
+    else:
+        normalized_traces = collect_normalized_generation_traces(records, generation_trace_records)
     trace_records = list(normalized_traces["records"])
     trace_diagnostics = dict(normalized_traces["diagnostics"])
 
@@ -510,8 +534,8 @@ def build_accepted_cv_effort_projection(
         artifact_render_acceptance = dict(action.get("render_acceptance") or {})
         artifact_render_verified = _render_acceptance_is_verified(artifact_render_acceptance)
         page_fit_candidates = (
-            artifact_render_acceptance.get("page_fit_status"),
-            action.get("page_fit_status"),
+            artifact_render_acceptance.get("page_fit_status") if artifact_render_verified else None,
+            action.get("page_fit_status") if artifact_render_verified else None,
             output_summary.get("page_fit_status"),
             dict(output_summary.get("render_acceptance") or {}).get("page_fit_status"),
             trace.get("page_fit_status"),
@@ -575,7 +599,9 @@ def build_accepted_cv_effort_projection(
                 "generation_input_fingerprint": _lineage_value(action, "generation_input_fingerprint") or None,
                 "attempt_id": _lineage_value(action, "attempt_id") or None,
                 "trace_id": _lineage_value(action, "trace_id") or None,
-                "page_fit_status": action.get("page_fit_status"),
+                "final_artifact_contract_version": action.get("final_artifact_contract_version"),
+                "trace_contract_version": trace.get("trace_contract_version"),
+                "page_fit_status": page_fit_status,
                 "render_acceptance": action.get("render_acceptance"),
                 "acceptance_mode": str(action.get("acceptance_mode") or "human_confirmed"),
                 "final_status": "accepted",
@@ -584,6 +610,7 @@ def build_accepted_cv_effort_projection(
                 "attempts": attempt_rows,
                 "provider_call_count": provider_call_count,
                 "regeneration_count": regeneration_count,
+                "validation_failure_event_count": validation_failure_count,
                 "validation_failure_count": validation_failure_count,
                 "failure_category_counts": {
                     category: attempt_categories.count(category) for category in ACCEPTED_CV_FAILURE_CATEGORIES
@@ -596,6 +623,13 @@ def build_accepted_cv_effort_projection(
                 "page_fit_status": page_fit_status,
                 "page_fit_verified": artifact_render_verified,
                 "page_fit_source": page_fit_source,
+                "render_page_count": dict(action.get("render_acceptance") or {}).get("page_count"),
+                "accepted_final_one_page": (
+                    artifact_render_verified
+                    and
+                    dict(action.get("render_acceptance") or {}).get("page_count") == 1
+                    and str(page_fit_status).strip().lower() == "pass"
+                ),
                 "accepted_outcome": True,
                 "token_usage": token_usage,
                 "token_total": _token_total(token_usage),
@@ -666,7 +700,8 @@ def build_accepted_cv_effort_projection(
         "attempt_count": sum(row["attempt_count"] or 0 for row in projected),
         "provider_call_count": sum(row["provider_call_count"] or 0 for row in projected),
         "regeneration_count": sum(row["regeneration_count"] or 0 for row in projected),
-        "validation_failure_count": sum(row["validation_failure_count"] or 0 for row in projected),
+        "validation_failure_event_count": sum(row["validation_failure_event_count"] or 0 for row in projected),
+        "validation_failure_count": sum(row["validation_failure_event_count"] or 0 for row in projected),
         "render_retry_count": sum(row["render_retry_count"] or 0 for row in projected),
         "review_question_count": sum(
             value for value in (_nonnegative_int(row["review_question_count"]) for row in projected)
@@ -700,6 +735,7 @@ def build_accepted_cv_effort_projection(
         "workload_status": "complete" if not unmatched_trace_count and not unattributed_accepted_artifact_count else "incomplete",
         "workload": {
             "attempted_generation_job_count": workload_attempted_jobs,
+            "terminal_validation_failed_job_count": workload_validation_failures,
             "validation_failure_count": workload_validation_failures,
             "provider_call_count": workload_provider_calls,
             "regeneration_count": workload_regenerations,

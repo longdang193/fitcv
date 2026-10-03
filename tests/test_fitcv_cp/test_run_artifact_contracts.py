@@ -27,9 +27,15 @@ from fitcv_cp.run_artifact_contracts import (
     schema_version_or_none,
     stable_sha256_fingerprint,
     build_accepted_cv_effort_projection,
-    accepted_cv_artifact_event_v1,
+    accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1,
     collect_normalized_generation_traces,
 )
+
+
+def accepted_cv_artifact_event_v1(**kwargs):
+    kwargs.setdefault("page_fit_status", "pass")
+    kwargs.setdefault("render_acceptance", {"page_count": 1, "page_fit_status": "pass"})
+    return _accepted_cv_artifact_event_v1(**kwargs)
 
 
 def test_normalized_run_mode_defaults_unknown_values_to_run_all() -> None:
@@ -140,6 +146,7 @@ def test_accepted_cv_effort_projection_measures_zero_acceptance_workload() -> No
     assert result["denominator"] == {"accepted_cv_count": 0}
     assert result["aggregate"]["workload"] == {
         "attempted_generation_job_count": 1,
+        "terminal_validation_failed_job_count": 1,
         "validation_failure_count": 1,
         "provider_call_count": 1,
         "regeneration_count": 0,
@@ -241,6 +248,8 @@ def test_collect_normalized_generation_traces_merges_embedded_and_top_level_once
         "duplicate_count": 1,
         "conflict_count": 0,
         "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1,
     }
 
 
@@ -272,6 +281,8 @@ def test_collect_normalized_generation_traces_merges_enriched_top_level_duplicat
         "duplicate_count": 1,
         "conflict_count": 0,
         "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1,
     }
 
 
@@ -286,6 +297,8 @@ def test_collect_normalized_generation_traces_excludes_conflicting_identity() ->
         "duplicate_count": 0,
         "conflict_count": 1,
         "conflict_trace_ids": ["trace-1"],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 0,
     }
 
 
@@ -298,9 +311,21 @@ def test_accepted_cv_artifact_event_preserves_trace_id() -> None:
         acceptance_mode="automatic",
         accepted_at="2026-10-02T00:01:00Z",
         finalized_at="2026-10-02T00:01:00Z",
+        render_acceptance={
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": "b" * 64,
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
     )
 
     assert event["trace_id"] == "trace-1"
+    assert event["final_artifact_contract_version"] == "fitcv.final_artifact.v1"
     assert event["event_id"]
 
 
@@ -337,6 +362,7 @@ def test_accepted_cv_effort_projection_does_not_use_content_plan_page_fit() -> N
         acceptance_mode="automatic",
         accepted_at="2026-10-02T00:01:00Z",
         finalized_at="2026-10-02T00:01:00Z",
+        render_acceptance={"page_count": 1, "page_fit_status": "pass"},
     )
 
     result = build_accepted_cv_effort_projection([record], [], [artifact])
@@ -386,6 +412,33 @@ def test_accepted_cv_effort_projection_counts_only_verified_render_proof() -> No
     assert result["records"][0]["page_fit_verified"] is True
     assert result["aggregate"]["page_fit_coverage"] == {"verified": 1, "eligible": 1}
     assert result["aggregate"]["page_fit_success"] == {"verified_one_page": 1}
+
+
+def test_accepted_cv_artifact_event_rejects_non_one_page_render() -> None:
+    with pytest.raises(ValueError, match="final artifact acceptance"):
+        accepted_cv_artifact_event_v1(
+            artifact_id="cv-two-page",
+            job_url="job-two-page",
+            run_id="run-two-page",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+            page_fit_status="fail",
+            render_acceptance={"page_count": 2, "page_fit_status": "fail"},
+        )
+
+
+def test_accepted_cv_artifact_event_requires_native_render_proof() -> None:
+    with pytest.raises(ValueError, match="render proof required"):
+        _accepted_cv_artifact_event_v1(
+            artifact_id="cv-unproven",
+            job_url="job-unproven",
+            run_id="run-unproven",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+            page_fit_status="pass",
+        )
 
 
 def test_accepted_cv_effort_projection_marks_ambiguous_legacy_trace_unmatched() -> None:
@@ -576,11 +629,22 @@ def test_accepted_cv_effort_projection_prefers_finalized_page_fit_over_plan_defa
         acceptance_mode="automatic",
         accepted_at="2026-10-02T00:01:00Z",
         finalized_at="2026-10-02T00:01:00Z",
+        render_acceptance={
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": "b" * 64,
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
     )
 
     result = build_accepted_cv_effort_projection([record], [], [artifact])
 
-    assert result["records"][0]["page_fit_status"] == "one_page"
+    assert result["records"][0]["page_fit_status"] == "pass"
 
 
 def test_accepted_cv_effort_projection_prefers_artifact_render_acceptance() -> None:
@@ -598,7 +662,17 @@ def test_accepted_cv_effort_projection_prefers_artifact_render_acceptance() -> N
         accepted_at="2026-10-02T00:01:00Z",
         finalized_at="2026-10-02T00:01:00Z",
         page_fit_status="pass",
-        render_acceptance={"page_count": 1, "page_fit_status": "pass"},
+        render_acceptance={
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": "b" * 64,
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
     )
 
     result = build_accepted_cv_effort_projection([], [], [artifact], generation_trace_records=[trace])
@@ -754,6 +828,7 @@ def test_accepted_cv_effort_projection_preserves_workload_attempt_baseline() -> 
     assert result["denominator"] == {"accepted_cv_count": 11}
     assert result["aggregate"]["workload"] == {
         "attempted_generation_job_count": 17,
+        "terminal_validation_failed_job_count": 6,
         "validation_failure_count": 6,
         "provider_call_count": 17,
         "regeneration_count": 9,

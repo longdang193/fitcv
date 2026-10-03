@@ -29,6 +29,9 @@ from fitcv.cv_generator import (
     build_live_structured_cv_response_schema,
     build_structured_generation_prompt,
     final_artifact_acceptance_passes,
+    build_render_proof_identity,
+    render_proof_matches,
+    trim_structured_cv_for_page_fit,
     generate_cv,
     project_authorized_profile,
     render_cv_markdown,
@@ -1741,3 +1744,66 @@ def test_build_structured_generation_prompt_uses_full_replacement(
 
     assert prompt.count("Keep bullets concise.") == 1
     assert prompt.index("Keep bullets concise.") < prompt.index("## Structured JSON Schema")
+
+
+def test_build_structured_generation_prompt_states_deterministic_one_page_contract() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"evidence_id": "ev-1", "text": "Built SQL pipelines", "source_section": "experiences"}],
+        gap={"matched": ["SQL"]},
+        template="# Candidate\n## Summary\n...",
+        profile={"name": "Test Candidate"},
+        config={"cv": {"composition": {}}},
+        content_plan={
+            "space_budget": {
+                "max_summary_lines": 3,
+                "section_claim_limits": {"experience": 6, "projects": 4},
+                "enabled_sections": ["Summary", "Experience"],
+            }
+        },
+    )
+
+    assert "Target exactly one rendered page" in prompt
+    assert "Do not add unsupported filler" in prompt
+    assert "Omit optional sections deterministically when space is constrained" in prompt
+
+
+def test_render_proof_binds_exact_content_and_render_inputs() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"}, profile={"name": "Test Candidate"}, config={"cv": {"preset": "europass"}}, fit_classification="strong"
+    )
+    proof = build_render_proof_identity(document, {"cv": {"preset": "europass"}})
+
+    assert proof["final_artifact_contract_version"] == "fitcv.final_artifact.v1"
+    assert render_proof_matches(document, {"cv": {"preset": "europass"}}, {**proof, "page_count": 1, "page_fit_status": "pass"})
+    document["sections"]["summary"] = {"text": "Changed content"}
+    assert not render_proof_matches(document, {"cv": {"preset": "europass"}}, {**proof, "page_count": 1, "page_fit_status": "pass"})
+
+
+def test_page_fit_trim_preserves_unique_project_and_required_language_evidence() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"}, profile={"name": "Test Candidate"}, config={"cv": {"preset": "europass"}}, fit_classification="strong"
+    )
+    document["sections"]["projects"] = [
+        {"evidence_id": "project-keep", "name": "Unique Platform", "bullets": ["Built SQL platform"]},
+        {"evidence_id": "project-drop", "name": "Duplicate Project", "bullets": ["Used SQL"]},
+    ]
+    document["sections"]["languages"] = [
+        {"evidence_id": "lang-required", "name": "German", "level": "C1", "required": True},
+        {"evidence_id": "lang-optional", "name": "French", "level": "A2"},
+    ]
+    plan = {
+        "schema_version": "cv_content_plan_v1",
+        "approved_claims": [
+            {"claim_id": "project-keep", "supports_requirements": ["required_skill:sql"]},
+            {"claim_id": "lang-required", "supports_requirements": ["required_language:german"]},
+        ],
+    }
+
+    trimmed, changes = trim_structured_cv_for_page_fit(document, content_plan=plan)
+
+    assert changes
+    assert trimmed["sections"]["projects"]
+    assert trimmed["sections"]["projects"][0]["evidence_id"] == "project-keep"
+    assert trimmed["sections"]["languages"]
+    assert trimmed["sections"]["languages"][0]["evidence_id"] == "lang-required"

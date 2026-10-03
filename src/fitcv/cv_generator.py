@@ -15,12 +15,14 @@ lifecycle:
   - status: active
 """
 
+import hashlib
 import json
 import hashlib
 import re
 import shutil
 import subprocess
 import textwrap
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -44,6 +46,7 @@ from fitcv.config import (
 from fitcv.contracts import (
     ANALYSIS_CHANNEL_DEFINITIONS,
     DOMAIN_ALIGNMENT_CHANNEL,
+    FINAL_ARTIFACT_CONTRACT_VERSION,
     REQUIRED_SKILL_SUPPORT_CHANNEL,
     RESPONSIBILITY_ALIGNMENT_CHANNEL,
     ROLE_ALIGNMENT_CHANNEL,
@@ -92,6 +95,102 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
     "not provided",
     "unknown",
 }
+
+
+_RENDER_CONTRACT_VERSION = "cv_native_render_v2"
+
+
+def _stable_render_fingerprint(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str).encode("utf-8")
+    ).hexdigest()
+
+
+def build_render_proof_identity(structured_cv: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    template_path = Path(_resolve_template_path(config))
+    try:
+        template_sha256 = hashlib.sha256(template_path.read_bytes()).hexdigest()
+    except OSError:
+        template_sha256 = ""
+    render_config = {
+        "preset": str(((config.get("cv") or {}).get("preset") or "")),
+        "composition": dict(((config.get("cv") or {}).get("composition") or {})),
+        "required_cv_sections": sorted(str(item) for item in list(config.get("required_cv_sections") or [])),
+    }
+    return {
+        "final_artifact_contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
+        "artifact_content_sha256": _stable_render_fingerprint(structured_cv),
+        "template_sha256": template_sha256,
+        "render_config_fingerprint": _stable_render_fingerprint(render_config),
+        "renderer_contract_version": _RENDER_CONTRACT_VERSION,
+    }
+
+
+def render_proof_matches(structured_cv: dict[str, Any], config: dict[str, Any], render_acceptance: dict[str, Any] | None) -> bool:
+    if not isinstance(render_acceptance, dict):
+        return False
+    expected = build_render_proof_identity(structured_cv, config)
+    return all(render_acceptance.get(key) == value for key, value in expected.items())
+
+
+def final_artifact_acceptance_passes(
+    *,
+    content_acceptance: bool,
+    page_fit_status: str | None,
+    render_acceptance: dict[str, Any] | None,
+) -> bool:
+    if not content_acceptance or not isinstance(render_acceptance, dict):
+        return False
+    return (
+        render_acceptance.get("page_count") == 1
+        and str(page_fit_status or render_acceptance.get("page_fit_status") or "").strip().lower() == "pass"
+        and str(render_acceptance.get("page_fit_status") or "").strip().lower() == "pass"
+    )
+
+
+def _trim_item_identity(item: Any) -> str:
+    if not isinstance(item, dict):
+        return str(item or "").strip().casefold()
+    for key in ("evidence_id", "claim_id", "id", "name", "title"):
+        value = str(item.get(key) or "").strip()
+        if value:
+            return value.casefold()
+    return _stable_render_fingerprint(item)
+
+
+def trim_structured_cv_for_page_fit(
+    structured_cv: dict[str, Any],
+    *,
+    content_plan: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    trimmed = deepcopy(structured_cv)
+    sections = trimmed.get("sections")
+    if not isinstance(sections, dict):
+        return trimmed, []
+    approved_claims = [item for item in list((content_plan or {}).get("approved_claims") or []) if isinstance(item, dict)]
+    protected_ids = {
+        str(item.get("claim_id") or item.get("evidence_id") or "").strip().casefold()
+        for item in approved_claims
+        if str(item.get("claim_id") or item.get("evidence_id") or "").strip() and list(item.get("supports_requirements") or [])
+    }
+    changes: list[str] = []
+    for section_key in ("publications", "certifications", "languages", "projects"):
+        items = list(sections.get(section_key) or [])
+        if len(items) <= 1:
+            continue
+        candidates = [
+            (index, item)
+            for index, item in enumerate(items)
+            if _trim_item_identity(item) not in protected_ids
+            and not (isinstance(item, dict) and bool(item.get("required")))
+        ]
+        if not candidates:
+            continue
+        index, item = min(candidates, key=lambda pair: (_trim_item_identity(pair[1]), pair[0]))
+        items.pop(index)
+        sections[section_key] = items
+        changes.append(f"removed_{section_key}:{_trim_item_identity(item)}")
+    return trimmed, changes
 
 def select_template_variant(jd: dict[str, Any]) -> str:
     """Return a template variant name for the given enriched job description.
@@ -743,6 +842,21 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
             + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
+        )
+        space_budget = dict(content_plan.get("space_budget") or {})
+        max_summary_lines = space_budget.get("max_summary_lines")
+        section_limits = dict(space_budget.get("section_claim_limits") or {})
+        if max_summary_lines is not None:
+            constraint_lines.append(f"Target exactly one rendered page; keep Summary at most {int(max_summary_lines)} lines.")
+        if section_limits:
+            constraint_lines.append(
+                "Keep each section within these claim budgets: "
+                + ", ".join(f"{section}={limit}" for section, limit in sorted(section_limits.items()))
+                + "."
+            )
+        constraint_lines.append("Do not add unsupported filler or duplicate claims.")
+        constraint_lines.append(
+            "Omit optional sections deterministically when space is constrained: publications, certifications, languages, then projects."
         )
     if target_sections:
         normalized_targets = [str(item).strip().lower() for item in target_sections if str(item).strip()]
@@ -1862,13 +1976,15 @@ def _template_sha256(config: dict[str, Any]) -> str | None:
 
 
 def render_cv_native_acceptance(
-    markdown: str,
+    content: dict[str, Any] | str,
     config: dict[str, Any],
     *,
     output_dir: str | Path | None = None,
     artifact_name: str = "cv",
 ) -> dict[str, Any]:
     """Render exact markdown through native tools and return final proof."""
+    structured_cv = content if isinstance(content, dict) else None
+    markdown = render_cv_markdown(structured_cv, config) if structured_cv is not None else str(content or "")
     required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
     missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
     base = Path(output_dir) if output_dir is not None else None
@@ -1877,9 +1993,13 @@ def render_cv_native_acceptance(
         markdown_path = work_dir / f"{artifact_name}.md"
         pdf_path = work_dir / f"{artifact_name}.pdf"
         markdown_path.write_text(str(markdown or ""), encoding="utf-8", newline="\n")
+        proof_identity = build_render_proof_identity(structured_cv, config) if structured_cv is not None else {}
+        render_status = "render_unavailable" if missing_tools else "render_failed"
         result: dict[str, Any] = {
-            "renderer_contract_version": NATIVE_RENDER_CONTRACT_VERSION,
-            "render_status": "render_unavailable" if missing_tools else "render_failed",
+            **proof_identity,
+            "renderer_contract_version": proof_identity.get("renderer_contract_version", NATIVE_RENDER_CONTRACT_VERSION),
+            "render_status": render_status,
+            "renderer_status": render_status,
             "page_count": None,
             "page_fit_status": "unresolved",
             "artifact_checksum": None,
@@ -1920,6 +2040,7 @@ def render_cv_native_acceptance(
             result.update(
                 {
                     "render_status": "pass",
+                    "renderer_status": "rendered",
                     "page_count": page_count,
                     "page_fit_status": "pass" if page_count == 1 else "fail",
                     "artifact_checksum": checksum,
@@ -1936,33 +2057,46 @@ def render_cv_native_acceptance(
 
 
 def render_proof_matches(
-    proof: dict[str, Any] | None,
+    value: dict[str, Any] | None,
+    config: dict[str, Any] | None = None,
+    render_acceptance: dict[str, Any] | None = None,
     *,
-    content_sha256: str,
-    template_sha256: str | None,
-    render_config_fingerprint: str,
+    content_sha256: str | None = None,
+    template_sha256: str | None = None,
+    render_config_fingerprint: str | None = None,
 ) -> bool:
+    if content_sha256 is not None:
+        proof = value
+        expected = {
+            "content_sha256": content_sha256,
+            "template_sha256": str(template_sha256 or ""),
+            "render_config_fingerprint": str(render_config_fingerprint or ""),
+            "renderer_contract_version": NATIVE_RENDER_CONTRACT_VERSION,
+        }
+    else:
+        proof = render_acceptance
+        if not isinstance(value, dict) or not isinstance(config, dict):
+            return False
+        expected = build_render_proof_identity(value, config)
     if not isinstance(proof, dict):
         return False
-    return (
-        str(proof.get("content_sha256") or "") == str(content_sha256)
-        and str(proof.get("template_sha256") or "") == str(template_sha256 or "")
-        and str(proof.get("render_config_fingerprint") or "") == str(render_config_fingerprint)
-        and str(proof.get("renderer_contract_version") or "") == NATIVE_RENDER_CONTRACT_VERSION
-    )
+    return all(proof.get(key) == expected_value for key, expected_value in expected.items())
 
 
 def final_artifact_acceptance_passes(
     *,
-    content_valid: bool,
-    render_acceptance: dict[str, Any] | None,
+    content_valid: bool | None = None,
+    render_acceptance: dict[str, Any] | None = None,
+    content_acceptance: bool | None = None,
+    page_fit_status: str | None = None,
 ) -> bool:
-    if not content_valid or not isinstance(render_acceptance, dict):
+    if not (content_valid if content_valid is not None else content_acceptance) or not isinstance(render_acceptance, dict):
         return False
+    render_status = str(render_acceptance.get("render_status") or render_acceptance.get("renderer_status") or "").strip().lower()
     return (
-        str(render_acceptance.get("render_status") or "") == "pass"
+        render_status in {"pass", "rendered"}
         and int(render_acceptance.get("page_count") or 0) == 1
-        and str(render_acceptance.get("page_fit_status") or "") == "pass"
+        and str(page_fit_status or render_acceptance.get("page_fit_status") or "").strip().lower() == "pass"
         and bool(re.fullmatch(r"[0-9a-f]{64}", str(render_acceptance.get("artifact_checksum") or "")))
     )
 
@@ -2016,8 +2150,38 @@ def render_item_requirement_support(
 
 def trim_structured_cv_for_page_fit(
     structured_cv: dict[str, Any],
-    provenance: list[dict[str, Any]] | None,
-) -> dict[str, Any]:
+    provenance: list[dict[str, Any]] | None = None,
+    *,
+    content_plan: dict[str, Any] | None = None,
+) -> dict[str, Any] | tuple[dict[str, Any], list[str]]:
+    if content_plan is not None:
+        trimmed = deepcopy(structured_cv)
+        sections = trimmed.get("sections")
+        if not isinstance(sections, dict):
+            return trimmed, []
+        approved_claims = [item for item in list(content_plan.get("approved_claims") or []) if isinstance(item, dict)]
+        protected_ids = {
+            str(item.get("claim_id") or item.get("evidence_id") or "").strip().casefold()
+            for item in approved_claims
+            if str(item.get("claim_id") or item.get("evidence_id") or "").strip()
+            and list(item.get("supports_requirements") or [])
+        }
+        changes: list[str] = []
+        for section_key in ("publications", "certifications", "languages", "projects"):
+            items = list(sections.get(section_key) or [])
+            candidates = [
+                (index, item)
+                for index, item in enumerate(items)
+                if _trim_item_identity(item) not in protected_ids
+                and not (isinstance(item, dict) and bool(item.get("required")))
+            ]
+            if not candidates:
+                continue
+            index, item = min(candidates, key=lambda pair: (_trim_item_identity(pair[1]), pair[0]))
+            items.pop(index)
+            sections[section_key] = items
+            changes.append(f"removed_{section_key}:{_trim_item_identity(item)}")
+        return trimmed, changes
     """Remove only unprotected, optional content in deterministic order."""
     trimmed = deepcopy(structured_cv)
     by_key = _provenance_by_key(provenance)
@@ -2215,6 +2379,3 @@ def generate_cv(
             max_output_tokens=max_output_tokens,
         )
     )
-
-
-

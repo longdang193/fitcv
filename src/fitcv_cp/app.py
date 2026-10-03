@@ -178,6 +178,7 @@ from fitcv_cp.run_artifact_contracts import (
     pretty_json_string_or_fallback,
     run_mode_label,
 )
+from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv_cp.scan_contracts import (
     ScanCreateRequest,
     ScanDeletePreviewRequest,
@@ -1973,6 +1974,12 @@ def _append_accepted_artifact_event(
     finalized_at: str,
 ) -> None:
     if not artifact_id:
+        return
+    if not final_artifact_acceptance_passes(
+        content_acceptance=True,
+        page_fit_status=(record or {}).get("page_fit_status"),
+        render_acceptance=(record or {}).get("render_acceptance"),
+    ):
         return
     events = [item for item in list(payload.get("accepted_artifact_events") or []) if isinstance(item, dict)]
     if any(str(item.get("artifact_id") or "") == artifact_id for item in events):

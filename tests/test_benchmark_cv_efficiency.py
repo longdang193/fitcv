@@ -6,10 +6,36 @@ from scripts.benchmark_cv_efficiency import (
     material_report_digest,
     material_report_metrics,
 )
-from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1
+from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1
+
+
+def accepted_cv_artifact_event_v1(**kwargs):
+    kwargs.setdefault("page_fit_status", "pass")
+    kwargs.setdefault(
+        "render_acceptance",
+        {
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": "b" * 64,
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
+    )
+    return _accepted_cv_artifact_event_v1(**kwargs)
 
 
 def _run(run_id: str, payload: dict, status: str = "succeeded") -> dict:
+    trace_block = payload.get("cv_generation_trace")
+    if isinstance(trace_block, dict):
+        for trace in list(trace_block.get("records") or []):
+            if isinstance(trace, dict):
+                trace.setdefault("trace_contract_version", "fitcv.trace.v1")
+        if trace_block.get("attempts"):
+            trace_block.setdefault("trace_contract_version", "fitcv.trace.v1")
     return {
         "run_id": run_id,
         "status": status,
@@ -20,6 +46,7 @@ def _run(run_id: str, payload: dict, status: str = "succeeded") -> dict:
 def test_baseline_reads_debug_payload_from_compatibility_snapshot() -> None:
     trace = {
         "trace_id": "trace-compat",
+        "trace_contract_version": "fitcv.trace.v1",
         "run_id": "run-compat",
         "job_url": "job-compat",
         "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
@@ -286,6 +313,8 @@ def test_baseline_merges_enriched_top_level_and_embedded_trace_for_timing_and_yi
         "duplicate_count": 1,
         "conflict_count": 0,
         "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1,
     }
 
 
@@ -454,6 +483,55 @@ def test_baseline_keeps_unattributed_cost_null_and_workload_totals_visible() -> 
     assert report["attribution"]["unattributed_accepted_artifact_count"] == 1
 
 
+def test_baseline_fails_closed_when_failed_trace_identity_conflicts() -> None:
+    accepted_trace = {
+        "trace_id": "trace-accepted",
+        "run_id": "run-1",
+        "job_url": "job-accepted",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"provider_call_count": 2, "token_usage": [{"total_tokens": 20}]},
+    }
+    failed_trace_a = {
+        "trace_id": "trace-failed",
+        "run_id": "run-1",
+        "job_url": "job-failed",
+        "attempts": [{"attempt_index": 1, "provider_status": "failed"}],
+        "efficiency_summary": {"provider_call_count": 3, "token_usage": [{"total_tokens": 30}]},
+    }
+    failed_trace_b = {
+        **failed_trace_a,
+        "efficiency_summary": {"provider_call_count": 4, "token_usage": [{"total_tokens": 40}]},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-1",
+        job_url="job-accepted",
+        run_id="run-1",
+        trace_id="trace-accepted",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline(
+        [
+            _run(
+                "run-1",
+                {
+                    "debug_records": [{"status": "accepted", "job_url": "job-accepted"}],
+                    "cv_generation_trace": {
+                        "records": [accepted_trace, failed_trace_a, failed_trace_b]
+                    },
+                    "accepted_artifact_events": [artifact],
+                },
+            )
+        ]
+    )
+
+    assert report["status"] == "incomplete"
+    assert report["accepted_cv"]["total_workload_cost_per_accepted_cv"] is None
+    assert report["trace_normalization"]["conflict_trace_ids"] == ["trace-failed"]
+
+
 def test_baseline_marks_missing_persisted_runs_unavailable() -> None:
     report = build_baseline([{"run_id": "failed", "status": "failed"}])
 
@@ -579,15 +657,15 @@ def test_baseline_reports_measurement_coverage_without_fabricating_page_fit() ->
             "human_action_count": 0,
         },
     }
-    artifact = accepted_cv_artifact_event_v1(
-        artifact_id="cv-coverage",
-        job_url="job-coverage",
-        run_id="run-coverage",
-        trace_id="trace-coverage",
-        acceptance_mode="automatic",
-        accepted_at="2026-10-02T00:01:00Z",
-        finalized_at="2026-10-02T00:01:00Z",
-    )
+    artifact = {
+        "artifact_id": "cv-coverage",
+        "job_url": "job-coverage",
+        "run_id": "run-coverage",
+        "trace_id": "trace-coverage",
+        "acceptance_mode": "automatic",
+        "accepted_at": "2026-10-02T00:01:00Z",
+        "finalized_at": "2026-10-02T00:01:00Z",
+    }
 
     report = build_baseline([
         _run(
@@ -604,6 +682,83 @@ def test_baseline_reports_measurement_coverage_without_fabricating_page_fit() ->
     assert report["coverage"]["page_fit"]["measured"] == 0
     assert report["coverage"]["page_fit"]["complete"] is False
     assert report["run_job_diversity"]["run_count"] == 1
+
+
+def test_baseline_counts_measured_page_fit_failure_as_failure_not_unavailable() -> None:
+    trace = {
+        "trace_id": "trace-page-fit-fail",
+        "run_id": "run-page-fit-fail",
+        "job_url": "job-page-fit-fail",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "output_summary": {"final_status": "accepted"},
+        "efficiency_summary": {"provider_call_count": 1, "elapsed_ms": 100},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-page-fit-fail",
+        job_url="job-page-fit-fail",
+        run_id="run-page-fit-fail",
+        trace_id="trace-page-fit-fail",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+    artifact["page_fit_status"] = "fail"
+    artifact["render_acceptance"] = {"page_count": 2, "page_fit_status": "fail"}
+
+    report = build_baseline([
+        _run(
+            "run-page-fit-fail",
+            {
+                "debug_records": [{"status": "accepted", "job_url": "job-page-fit-fail"}],
+                "cv_generation_trace": {"records": [trace]},
+                "accepted_artifact_events": [artifact],
+            },
+        )
+    ])
+
+    success = report["runs"][0]["coverage"]["page_fit_success"]
+    assert success["measured"] == 1
+    assert success["unavailable"] == 0
+    assert success["fail"] == 1
+    assert success["complete"] is True
+    assert report["outcomes"]["page_fit"]["fail"] == 1
+    assert report["status"] == "incomplete"
+
+
+def test_baseline_marks_pre_contract_records_historical() -> None:
+    trace = {
+        "trace_id": "trace-historical",
+        "run_id": "run-historical",
+        "job_url": "job-historical",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "output_summary": {"final_status": "accepted"},
+        "efficiency_summary": {"provider_call_count": 1, "elapsed_ms": 100},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-historical",
+        job_url="job-historical",
+        run_id="run-historical",
+        trace_id="trace-historical",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+    artifact.pop("final_artifact_contract_version")
+
+    report = build_baseline([
+        _run(
+            "run-historical",
+            {
+                "debug_records": [{"status": "accepted", "job_url": "job-historical"}],
+                "cv_generation_trace": {"records": [trace]},
+                "accepted_artifact_events": [artifact],
+            },
+        )
+    ])
+
+    assert report["selection"]["current_contract_record_count"] == 0
+    assert report["selection"]["historical_record_count"] == 1
+    assert report["status"] == "incomplete"
 
 
 def test_baseline_uses_canonical_run_job_types_not_scope_type() -> None:

@@ -14,6 +14,7 @@ tags:
 """
 
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -27,6 +28,7 @@ from fitcv.agentic_cv_generation import (
     build_cv_generation_input_fingerprint,
     build_cv_content_plan,
     build_render_item_provenance_v1,
+    build_generation_preflight,
     generate_from_analysis,
     merge_repaired_section,
     transition_cv_generation_persistence_failed,
@@ -107,6 +109,41 @@ def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:
     assert plan["approved_evidence_ids"] == ["ev-sql"]
     assert plan["approved_claims"][0]["supports_requirements"] == ["required_skill:sql"]
     assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-python"}
+
+
+def test_generation_preflight_reports_grounding_budget_and_impossible_requirements() -> None:
+    analysis = {
+        "evidence_payload": [
+            {"evidence_id": "ev-sql", "text": "Built SQL pipelines", "source_section": "experiences"},
+        ],
+        "requirement_coverage": [
+            {
+                "requirement_instance_id": "required_skill:sql",
+                "requirement": "SQL",
+                "selected_support": "verified",
+                "supporting_evidence_ids": ["ev-sql"],
+            },
+            {
+                "requirement_instance_id": "required_skill:python",
+                "requirement": "Python",
+                "selected_support": "verified",
+                "supporting_evidence_ids": [],
+            },
+        ],
+    }
+
+    plan = build_cv_content_plan(analysis, {}, {})
+    preflight = build_generation_preflight(analysis, plan)
+
+    assert preflight["status"] == "review"
+    assert preflight["provider_call_count_effect"] == 0
+    assert preflight["checks"] == {
+        "evidence_available": True,
+        "section_budget": True,
+        "grounded_high_value_claims": True,
+        "impossible_requirements": False,
+    }
+    assert preflight["blocking_reasons"] == ["impossible_requirement_support:required_skill:python"]
 
 
 def test_content_plan_orders_claims_and_applies_one_page_section_budget() -> None:
@@ -872,6 +909,8 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
         "repair_attempt": {"performed": False, "missing_sections": []},
         "structured_cv_final": {"sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
+        "page_fit_status": "pass",
+        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
         "error": None,
         "llm_runtime_observations": [_minimal_runtime_observation()],
         "cv_generation_trace": _minimal_cv_generation_trace(),
@@ -1286,7 +1325,17 @@ def test_cv_generation_fingerprint_ignores_mode_labels_and_mutable_job_url() -> 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_returns_complete_canonical_result(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
@@ -1348,7 +1397,17 @@ def test_generate_from_analysis_returns_complete_canonical_result(
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_persists_review_required_as_quality_warning(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
@@ -1411,7 +1470,17 @@ def test_review_required_with_valid_content_is_persistable_only_without_validati
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
 @patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
 def test_generate_from_analysis_reuses_exact_canonical_result(
+    mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
 ) -> None:
@@ -1509,3 +1578,94 @@ def test_unknown_ranking_score_blocks_analysis_with_stable_reason() -> None:
     assert record["fit_classification"] is None
     assert record["outcome_reason"]["stage"] == "ranking"
     assert "ranking_unavailable" in record["outcome_reason"]["message"]
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
+def test_reuse_with_missing_render_proof_rerenders_without_provider_call(
+    mock_render_cv_native_acceptance: MagicMock,
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    validation = {
+        "valid": True, "missing_sections": [], "grounding_violations": [],
+        "deterministic_grounding_violations": [], "semantic_grounding_violations": [],
+        "skill_violations": [], "warnings": [], "support_source_summary": {},
+        "markdown_quality_blocking_issues": [], "markdown_quality_review_flags": [],
+    }
+    mock_run_all_validations.return_value = validation
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+    }
+    fresh = generate_from_analysis(analysis_record, _minimal_profile(), config)
+    mock_generate_cv.reset_mock()
+    mock_render_cv_native_acceptance.reset_mock()
+
+    reused = generate_from_analysis(
+        analysis_record,
+        _minimal_profile(),
+        config,
+        reusable_record={
+            **fresh,
+            "render_acceptance": None,
+            "page_fit_status": None,
+            "version_id": "cv-version-stale-proof",
+        },
+    )
+
+    mock_generate_cv.assert_not_called()
+    mock_render_cv_native_acceptance.assert_called_once()
+    assert reused["status"] == "accepted"
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch("fitcv.agentic_cv_generation.render_cv_native_acceptance")
+@patch("fitcv.agentic_cv_generation.trim_structured_cv_for_page_fit")
+def test_trimmed_content_is_revalidated_before_acceptance(
+    mock_trim: MagicMock,
+    mock_render: MagicMock,
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    structured = _minimal_structured_cv()
+    mock_generate_cv.return_value = {
+        "structured_cv": structured,
+        "markdown": "# Test Candidate\n## Experience\nGrounded work.",
+    }
+    valid = {
+        "valid": True, "missing_sections": [], "grounding_violations": [],
+        "deterministic_grounding_violations": [], "semantic_grounding_violations": [],
+        "skill_violations": [], "warnings": [], "support_source_summary": {},
+        "markdown_quality_blocking_issues": [], "markdown_quality_review_flags": [],
+    }
+    invalid = {**valid, "valid": False, "grounding_violations": ["removed_unique_claim"]}
+    mock_run_all_validations.side_effect = [valid, invalid]
+    mock_render.side_effect = [
+        {"renderer_status": "rendered", "page_count": 2, "page_fit_status": "fail", "artifact_checksum": "a" * 64},
+        {"renderer_status": "rendered", "page_count": 1, "page_fit_status": "pass", "artifact_checksum": "b" * 64},
+    ]
+    trimmed = deepcopy(structured)
+    trimmed["sections"]["summary"]["text"] = "Trimmed grounded summary"
+    mock_trim.return_value = trimmed
+
+    result = generate_from_analysis(analysis_record, _minimal_profile(), config)
+
+    assert result["status"] == "review_required"
+    assert mock_run_all_validations.call_count == 2
+    assert result["render_acceptance"]["artifact_checksum"] == "a" * 64

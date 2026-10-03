@@ -18,6 +18,12 @@ except ModuleNotFoundError:
     from render_acceptance_state import _validate_state
     from benchmark_cv_efficiency import material_report_digest
 
+from fitcv_cp.run_artifact_contracts import (
+    FINAL_ARTIFACT_CONTRACT_VERSION,
+    TRACE_CONTRACT_VERSION,
+)
+from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE = REPO_ROOT / "config/acceptance_state.yaml"
@@ -124,8 +130,8 @@ def _run_runtime_efficiency_evidence_check(
         if "Evidence status: `canonical`" not in markdown:
             failures.append("runtime_efficiency_markdown_not_canonical")
     if isinstance(report, dict):
-        if report.get("schema_version") != "fitcv_runtime_efficiency_baseline_v2":
-            failures.append("runtime_efficiency_schema_not_v2")
+        if report.get("schema_version") != "fitcv_runtime_efficiency_baseline_v3":
+            failures.append("runtime_efficiency_schema_not_v3")
         if report.get("evidence_status") != "canonical":
             failures.append("runtime_efficiency_json_not_canonical")
         workload = dict(report.get("workload") or {})
@@ -145,25 +151,61 @@ def _run_runtime_efficiency_evidence_check(
         elif report.get("material_metrics_sha256") != material_report_digest(report):
             failures.append("runtime_efficiency_material_digest_mismatch")
     coverage = dict(report.get("coverage") or {}) if isinstance(report, dict) else {}
+    accepted_cv = dict(report.get("accepted_cv") or {}) if isinstance(report, dict) else {}
+    attribution = dict(report.get("attribution") or {}) if isinstance(report, dict) else {}
+    normalization = dict(report.get("trace_normalization") or {}) if isinstance(report, dict) else {}
     diversity = dict(report.get("run_job_diversity") or {}) if isinstance(report, dict) else {}
+    outcomes = dict(report.get("outcomes") or {}) if isinstance(report, dict) else {}
     measurement_gate_reasons: list[str] = []
-    for name in (
-        "attribution",
-        "cost",
-        "timing",
-        "page_fit",
-        "review_questions",
-        "human_actions",
-        "resolution_reuse",
+    for name, reason in (
+        ("attribution", "attribution_coverage_incomplete"),
+        ("cost", "cost_coverage_incomplete"),
+        ("timing", "timing_coverage_incomplete"),
+        ("page_fit_coverage", "page_fit_coverage_incomplete"),
+        ("page_fit_success", "page_fit_success_coverage_incomplete"),
+        ("review_questions", "review_questions_coverage_incomplete"),
+        ("human_actions", "human_actions_coverage_incomplete"),
+        ("resolution_reuse", "resolution_reuse_coverage_incomplete"),
     ):
         details = dict(coverage.get(name) or {})
+        if name == "page_fit_coverage" and not details:
+            details = dict(coverage.get("page_fit") or {})
         if not details.get("complete"):
-            measurement_gate_reasons.append(f"{name}_coverage_incomplete")
+            measurement_gate_reasons.append(reason)
     if int(diversity.get("run_count") or 0) < 2:
         measurement_gate_reasons.append("run_diversity_insufficient")
     if int(diversity.get("job_type_count") or 0) < 2:
         measurement_gate_reasons.append("job_type_diversity_insufficient")
+    if int(normalization.get("conflict_count") or 0):
+        measurement_gate_reasons.append("trace_conflicts_present")
+    if int(attribution.get("unmatched_trace_count") or 0):
+        measurement_gate_reasons.append("unmatched_traces_present")
+    if int(attribution.get("unattributed_accepted_artifact_count") or 0):
+        measurement_gate_reasons.append("unattributed_accepted_artifacts_present")
+    selection = dict(report.get("selection") or {}) if isinstance(report, dict) else {}
+    if int(selection.get("historical_record_count") or 0):
+        measurement_gate_reasons.append("historical_contract_records_present")
+    if int(selection.get("current_contract_record_count") or 0) == 0:
+        measurement_gate_reasons.append("current_contract_records_missing")
+    if int(accepted_cv.get("accepted_non_one_page_count") or 0):
+        measurement_gate_reasons.append("accepted_non_one_page_artifacts_present")
+    page_fit_success = dict(coverage.get("page_fit_success") or {})
+    page_fit_outcome = dict(outcomes.get("page_fit") or {})
+    if page_fit_success.get("complete") and int(page_fit_success.get("total") or 0) > 0:
+        if int(page_fit_outcome.get("fail") or page_fit_success.get("fail") or 0) > 0:
+            measurement_gate_reasons.append("page_fit_success_not_perfect")
+        elif int(page_fit_outcome.get("pass") or page_fit_success.get("pass") or 0) != int(page_fit_success.get("total") or 0):
+            measurement_gate_reasons.append("page_fit_success_outcome_mismatch")
     measurement_eligible = not measurement_gate_reasons
+    if runtime_efficiency.get("measurement_status") == "measured":
+        expected_versions = {
+            "final_artifact": FINAL_ARTIFACT_CONTRACT_VERSION,
+            "trace": TRACE_CONTRACT_VERSION,
+            "efficiency": EFFICIENCY_CONTRACT_VERSION,
+        }
+        if dict(report.get("contract_versions") or {}) != expected_versions:
+            measurement_gate_reasons.append("current_contract_versions_missing_or_mismatched")
+            measurement_eligible = False
     if runtime_efficiency.get("measurement_status") == "measured" and not measurement_eligible:
         failures.extend(f"runtime_efficiency_{reason}" for reason in measurement_gate_reasons)
     return {
@@ -297,7 +339,11 @@ def verify_acceptance(
     )
     report["checks"] = checks
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     return report
 
 

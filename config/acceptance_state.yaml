@@ -7,7 +7,10 @@ contract_versions:
   acceptance: fitcv.acceptance_state.v2
   support_oracle: p0b.source_job_support_oracle.v1
   runtime_acceptance: p0b.runtime_acceptance.v2
-  efficiency_measurement: accepted_cv_effort_v1
+  efficiency_measurement: fitcv_runtime_efficiency_baseline_v3
+  final_artifact: fitcv.final_artifact.v1
+  trace: fitcv.trace.v1
+  efficiency: fitcv.efficiency.v1
 corpus_manifests:
 - data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_manifest.json
 - data/fitcv-p0-corpus/p0b/projection_manifest.json
@@ -18,8 +21,8 @@ statuses:
   p0_a: rejected
   p0_b: passed
   p0_c: passed
-  p1_a: maintenance_only
-  p1_b: passed
+  p1_a: blocked
+  p1_b: blocked
   p1_c: deferred
   p2: deferred
 status_dimensions:
@@ -36,13 +39,13 @@ status_dimensions:
     acceptance_status: passed
     measurement_status: frozen_scope_only
   p1_a:
-    implementation_status: maintenance_only
-    acceptance_status: maintenance_only
-    measurement_status: not_applicable
+    implementation_status: verified
+    acceptance_status: blocked
+    measurement_status: blocked
   p1_b:
     implementation_status: verified
-    acceptance_status: passed
-    measurement_status: measured
+    acceptance_status: blocked
+    measurement_status: incomplete
   p1_c:
     implementation_status: deferred
     acceptance_status: deferred
@@ -71,12 +74,20 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-02-fitcv-p0-p1-contract-closure.md
   - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.json
   - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.md
+  - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json
+  - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md
+  - docs/superpowers/evidence/2026-10-02-fitcv-first-pass-experiment.md
+  - docs/superpowers/evidence/2026-10-03-fitcv-final-artifact-integration-optimization.md
 runtime_efficiency:
-  measurement_status: measured
+  measurement_status: incomplete
   baseline_evidence:
-    json: docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.json
-    markdown: docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.md
+    json: docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json
+    markdown: docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md
   accepted_artifact_and_total_workload_metrics: true
+  blocked_reasons:
+    - ordinary_workload_has_non_one_page_accepted_artifact
+    - accepted_artifact_attribution_incomplete
+    - first_pass_experiment_no_observed_lift
   p1_c: deferred
   p2: deferred
 p0_b:

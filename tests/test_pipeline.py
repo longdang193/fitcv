@@ -2687,6 +2687,12 @@ def _agentic_generation_result(
             }
         ],
         "cv_generation_trace": {},
+        "page_fit_status": "pass" if status in {"accepted", "review_required", "persistence_failed"} else None,
+        "render_acceptance": (
+            {"page_count": 1, "page_fit_status": "pass"}
+            if status in {"accepted", "review_required", "persistence_failed"}
+            else None
+        ),
         "error": error,
     }
     result["validation_evidence_fingerprint"] = build_validation_evidence_fingerprint(
@@ -4497,7 +4503,13 @@ def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for
     def normalize_trace_ids(value: Any) -> Any:
         if isinstance(value, dict):
             return {
-                key: "<trace>" if key == "trace_id" else normalize_trace_ids(item)
+                key: (
+                    "<trace>"
+                    if key == "trace_id"
+                    else "<elapsed_ms>"
+                    if key == "elapsed_ms"
+                    else normalize_trace_ids(item)
+                )
                 for key, item in value.items()
             }
         if isinstance(value, list):
