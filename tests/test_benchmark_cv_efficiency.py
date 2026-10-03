@@ -189,6 +189,65 @@ def test_baseline_separates_accepted_artifact_and_total_workload_cost() -> None:
     assert "Total-workload cost per accepted CV" in markdown
 
 
+def test_baseline_reports_lossless_stage_latency_percentiles() -> None:
+    trace = {
+        "trace_id": "trace-stage-latency",
+        "run_id": "run-stage-latency",
+        "job_url": "job-stage-latency",
+        "stage_timings_ms": {"analysis": [10, 20], "render": [30]},
+        "attempts": [
+            {
+                "attempt_index": 1,
+                "provider_status": "accepted",
+                "llm_runtime_evidence": {"provenance": {"latency_ms": 100}},
+            },
+            {
+                "attempt_index": 2,
+                "provider_status": "accepted",
+                "llm_runtime_evidence": {"provenance": {"latency_ms": 200}},
+            },
+        ],
+        "efficiency_summary": {
+            "provider_call_count": 2,
+            "elapsed_ms": 300,
+            "token_usage": [{"total_tokens": 20}],
+        },
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-stage-latency",
+        job_url="job-stage-latency",
+        run_id="run-stage-latency",
+        trace_id="trace-stage-latency",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline([
+        _run(
+            "run-stage-latency",
+            {
+                "debug_records": [{"status": "accepted", "job_url": "job-stage-latency"}],
+                "cv_generation_trace": {"records": [trace]},
+                "accepted_artifact_events": [artifact],
+            },
+        )
+    ])
+
+    stage_latency = report["timing"]["stage_latency_ms"]
+    assert stage_latency["analysis"] == {
+        "p50_ms": 15.0,
+        "p95_ms": 19.5,
+        "measured": 2,
+        "coverage": True,
+    }
+    assert stage_latency["provider_generation"]["p50_ms"] == 150.0
+    assert stage_latency["provider_generation"]["p95_ms"] == 195.0
+    assert stage_latency["render"]["p50_ms"] == 30.0
+    assert stage_latency["validation"]["p50_ms"] is None
+    assert stage_latency["validation"]["coverage"] is False
+
+
 def test_baseline_counts_embedded_only_trace_for_timing_and_yield() -> None:
     trace = {
         "trace_id": "trace-embedded-only",

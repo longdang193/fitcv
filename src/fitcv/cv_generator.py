@@ -107,21 +107,11 @@ def _stable_render_fingerprint(value: Any) -> str:
 
 
 def build_render_proof_identity(structured_cv: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-    template_path = Path(_resolve_template_path(config))
-    try:
-        template_sha256 = hashlib.sha256(template_path.read_bytes()).hexdigest()
-    except OSError:
-        template_sha256 = ""
-    render_config = {
-        "preset": str(((config.get("cv") or {}).get("preset") or "")),
-        "composition": dict(((config.get("cv") or {}).get("composition") or {})),
-        "required_cv_sections": sorted(str(item) for item in list(config.get("required_cv_sections") or [])),
-    }
     return {
         "final_artifact_contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
         "artifact_content_sha256": _stable_render_fingerprint(structured_cv),
-        "template_sha256": template_sha256,
-        "render_config_fingerprint": _stable_render_fingerprint(render_config),
+        "template_sha256": _template_sha256(config) or "",
+        "render_config_fingerprint": _render_config_fingerprint(config),
         "renderer_contract_version": _RENDER_CONTRACT_VERSION,
     }
 
