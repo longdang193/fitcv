@@ -126,28 +126,6 @@ def build_render_proof_identity(structured_cv: dict[str, Any], config: dict[str,
     }
 
 
-def render_proof_matches(structured_cv: dict[str, Any], config: dict[str, Any], render_acceptance: dict[str, Any] | None) -> bool:
-    if not isinstance(render_acceptance, dict):
-        return False
-    expected = build_render_proof_identity(structured_cv, config)
-    return all(render_acceptance.get(key) == value for key, value in expected.items())
-
-
-def final_artifact_acceptance_passes(
-    *,
-    content_acceptance: bool,
-    page_fit_status: str | None,
-    render_acceptance: dict[str, Any] | None,
-) -> bool:
-    if not content_acceptance or not isinstance(render_acceptance, dict):
-        return False
-    return (
-        render_acceptance.get("page_count") == 1
-        and str(page_fit_status or render_acceptance.get("page_fit_status") or "").strip().lower() == "pass"
-        and str(render_acceptance.get("page_fit_status") or "").strip().lower() == "pass"
-    )
-
-
 def _trim_item_identity(item: Any) -> str:
     if not isinstance(item, dict):
         return str(item or "").strip().casefold()
@@ -157,40 +135,6 @@ def _trim_item_identity(item: Any) -> str:
             return value.casefold()
     return _stable_render_fingerprint(item)
 
-
-def trim_structured_cv_for_page_fit(
-    structured_cv: dict[str, Any],
-    *,
-    content_plan: dict[str, Any] | None = None,
-) -> tuple[dict[str, Any], list[str]]:
-    trimmed = deepcopy(structured_cv)
-    sections = trimmed.get("sections")
-    if not isinstance(sections, dict):
-        return trimmed, []
-    approved_claims = [item for item in list((content_plan or {}).get("approved_claims") or []) if isinstance(item, dict)]
-    protected_ids = {
-        str(item.get("claim_id") or item.get("evidence_id") or "").strip().casefold()
-        for item in approved_claims
-        if str(item.get("claim_id") or item.get("evidence_id") or "").strip() and list(item.get("supports_requirements") or [])
-    }
-    changes: list[str] = []
-    for section_key in ("publications", "certifications", "languages", "projects"):
-        items = list(sections.get(section_key) or [])
-        if len(items) <= 1:
-            continue
-        candidates = [
-            (index, item)
-            for index, item in enumerate(items)
-            if _trim_item_identity(item) not in protected_ids
-            and not (isinstance(item, dict) and bool(item.get("required")))
-        ]
-        if not candidates:
-            continue
-        index, item = min(candidates, key=lambda pair: (_trim_item_identity(pair[1]), pair[0]))
-        items.pop(index)
-        sections[section_key] = items
-        changes.append(f"removed_{section_key}:{_trim_item_identity(item)}")
-    return trimmed, changes
 
 def select_template_variant(jd: dict[str, Any]) -> str:
     """Return a template variant name for the given enriched job description.
