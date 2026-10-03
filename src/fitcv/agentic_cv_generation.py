@@ -376,11 +376,11 @@ def build_render_item_provenance_v1(
                 if str(value).strip()
             }
 
-    def _text_tokens(value: Any) -> set[str]:
+    def _text_tokens(value: Any, *, minimum_length: int = 3) -> set[str]:
         return {
             token
             for token in re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold()).split()
-            if len(token) > 2
+            if len(token) >= minimum_length
         }
 
     requirement_namespace_tokens = {
@@ -412,7 +412,8 @@ def build_render_item_provenance_v1(
                 "section": str(claim.get("target_section") or "summary").strip().lower(),
                 "tokens": _text_tokens(f"{claim_text} {evidence_text}"),
                 "support_tokens": _text_tokens(
-                    " ".join(str(value) for value in list(claim.get("supports_requirements") or []))
+                    " ".join(str(value) for value in list(claim.get("supports_requirements") or [])),
+                    minimum_length=1,
                 ) - requirement_namespace_tokens,
                 "evidence_ids": [evidence_id] if evidence_id else [],
                 "supported_requirement_ids": [
@@ -460,7 +461,10 @@ def build_render_item_provenance_v1(
         for candidate in section_items:
             if not isinstance(candidate, dict):
                 continue
-            candidate_tokens = _text_tokens(" ".join(str(value) for value in candidate.values()))
+            candidate_tokens = _text_tokens(
+                " ".join(str(value) for value in candidate.values()),
+                minimum_length=1,
+            )
             section_matched_required_claims.update(
                 id(claim)
                     for claim in claim_entries
@@ -474,7 +478,10 @@ def build_render_item_provenance_v1(
             if not isinstance(item, dict):
                 continue
             canonical_key = _canonical_render_item_key(section, item)
-            item_tokens = _text_tokens(" ".join(str(value) for value in item.values()))
+            item_tokens = _text_tokens(
+                " ".join(str(value) for value in item.values()),
+                minimum_length=1,
+            )
             matches = [
                 claim
                 for claim in claim_entries

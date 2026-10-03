@@ -195,6 +195,49 @@ def test_render_item_provenance_does_not_cross_match_required_claims_on_generic_
     assert by_name["python"]["supported_requirement_ids"] == ["required_skill:python"]
 
 
+def test_render_item_provenance_preserves_one_character_requirement_tokens() -> None:
+    content_plan = {
+        "approved_claims": [
+            {
+                "claim_id": "ev-r",
+                "evidence_id": "ev-r",
+                "claim": "Built R pipelines",
+                "supports_requirements": ["required_skill:r"],
+                "target_section": "projects",
+            },
+            {
+                "claim_id": "ev-python",
+                "evidence_id": "ev-python",
+                "claim": "Built Python pipelines",
+                "supports_requirements": ["required_skill:python"],
+                "target_section": "projects",
+            },
+        ]
+    }
+    structured_cv = {
+        "sections": {
+            "projects": [
+                {"name": "R Project", "context": "", "bullets": ["Built R pipelines."]},
+                {"name": "Python Project", "context": "", "bullets": ["Built Python pipelines."]},
+            ]
+        }
+    }
+
+    provenance = build_render_item_provenance_v1(
+        content_plan=content_plan,
+        evidence_payload=[
+            {"evidence_id": "ev-r", "text": "Built R pipelines"},
+            {"evidence_id": "ev-python", "text": "Built Python pipelines"},
+        ],
+        requirement_coverage=[],
+        structured_cv=structured_cv,
+    )
+
+    by_name = {item["canonical_item_key"].split(":", 1)[1].split(" ", 1)[0]: item for item in provenance["items"]}
+    assert by_name["r"]["supported_requirement_ids"] == ["required_skill:r"]
+    assert by_name["python"]["supported_requirement_ids"] == ["required_skill:python"]
+
+
 def test_final_artifact_proof_rejects_changed_markdown_when_structured_identity_matches() -> None:
     config = _minimal_config()
     config["cv"]["final_artifact_acceptance"] = {"enabled": True}
