@@ -115,6 +115,7 @@ from fitcv_cp.review_identity import ensure_review_item_id, is_review_resolution
 from fitcv_cp.retry_policy import classify_exception_for_retry
 from fitcv_cp.run_artifact_contracts import (
     accepted_cv_artifact_event_v1,
+    build_final_cv_evidence_envelope,
     encode_json_object,
     iso_or_none,
     decode_json_object_or_none,
@@ -543,6 +544,14 @@ def execute_cv_regenerate_once(
         }.get(str(generation.get("status") or ""), "generation_failed")
         markdown = str(generation.get("markdown_final") or "")
         content = markdown.encode("utf-8") if generation_status in {"generated", "review_required"} else None
+        evidence_envelope = build_final_cv_evidence_envelope(
+            artifact_version_id=reserved_version_id,
+            run_job_id=run_job_id,
+            run_id=run_id,
+            content_checksum=hashlib.sha256(content).hexdigest() if content is not None else None,
+            generation=generation,
+            trace=dict(generation.get("cv_generation_trace") or {}),
+        )
         terminal = update_cv_version(
             reserved_version_id,
             generation_status=generation_status,
@@ -559,6 +568,7 @@ def execute_cv_regenerate_once(
                 "cv_structured_json": generation.get("structured_cv_final"),
                 "cv_generation_input_fingerprint": generation.get("cv_generation_input_fingerprint"),
                 "cv_generation_reuse_status": generation.get("cv_generation_reuse_status"),
+                "quality_warnings_json": evidence_envelope,
             },
             error_code=(str((generation.get("error") or {}).get("stage") or "") or None),
             error_message=(str((generation.get("error") or {}).get("message") or "") or None),
@@ -2989,7 +2999,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

@@ -32,7 +32,8 @@ import { setJobBookmark, clearJobBookmark, setJobInterest, clearJobInterest } fr
 import { getInterestRatingDisabledReason, InterestRating } from "../job-evaluation/components/InterestRating";
 import { PipelineOutcome } from "../job-evaluation/components/PipelineOutcome";
 import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawer";
-import { fetchCvPreview, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
+import { applyCvReviewAction, fetchCvPreview, fetchCvReviewResource, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
+import { CvReviewAction, CvReviewResource } from "../cv-review/types";
 import { notificationStore } from "../../lib/notifications";
 import { EventConsole } from "./components/EventConsole";
 import { FilterTabs } from "./components/FilterTabs";
@@ -121,6 +122,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const [regenerating, setRegenerating] = useState(false);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [inspectingJob, setInspectingJob] = useState<RunJobItem | null>(null);
+  const [cvReviewJob, setCvReviewJob] = useState<RunJobItem | null>(null);
+  const [cvReview, setCvReview] = useState<CvReviewResource | null>(null);
+  const [cvReviewLoading, setCvReviewLoading] = useState(false);
+  const [cvReviewError, setCvReviewError] = useState<string | null>(null);
+  const [cvReviewAnswer, setCvReviewAnswer] = useState("");
+  const [cvReviewSubmitting, setCvReviewSubmitting] = useState(false);
 
   const handleInspect = (job: RunJobItem) => {
     const rawAttrs = (job.attributes || {}) as Record<string, any>;
@@ -137,6 +144,47 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       },
     };
     setInspectingJob(projectedJob);
+  };
+
+  const handleOpenCvReview = async (job: RunJobItem) => {
+    setCvReviewJob(job);
+    setCvReview(null);
+    setCvReviewError(null);
+    setCvReviewAnswer("");
+    setCvReviewLoading(true);
+    try {
+      setCvReview(await fetchCvReviewResource(runId, job.run_job_id));
+    } catch (err: any) {
+      setCvReviewError(err.message || "Failed to load CV review.");
+    } finally {
+      setCvReviewLoading(false);
+    }
+  };
+
+  const handleCvReviewAction = async (action: CvReviewAction) => {
+    if (!cvReviewJob || !cvReview) return;
+    if (action === "RESOLVE_WITH_ANSWER" && !cvReviewAnswer.trim()) {
+      setCvReviewError("Answer required for this action.");
+      return;
+    }
+    setCvReviewSubmitting(true);
+    setCvReviewError(null);
+    try {
+      const refreshed = await applyCvReviewAction(runId, cvReviewJob.run_job_id, {
+        review_item_id: cvReview.review_item_id,
+        uncertainty_id: cvReview.uncertainties[0]?.uncertainty_id,
+        resolution_key: cvReview.resolution_key || cvReview.uncertainties[0]?.resolution_key,
+        action,
+        answer_text: action === "RESOLVE_WITH_ANSWER" ? cvReviewAnswer.trim() : null,
+      });
+      setCvReview(refreshed);
+      await loadJobs(jobsPage, jobsPageSize, true);
+      setCvReviewAnswer("");
+    } catch (err: any) {
+      setCvReviewError(err.message || "CV review action failed.");
+    } finally {
+      setCvReviewSubmitting(false);
+    }
   };
 
   // Jobs state & filters
@@ -1347,6 +1395,16 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                     >
                                       Evidence
                                     </Button>
+                                    {hasCv && (
+                                      <Button
+                                        size="compact"
+                                        variant="secondary"
+                                        onClick={() => handleOpenCvReview(item)}
+                                        aria-label={`Review CV evidence for ${item.title || "Job"}`}
+                                      >
+                                        CV Review
+                                      </Button>
+                                    )}
                                   </div>
 
                                   {/* CV Actions */}
@@ -1526,6 +1584,64 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           >
             {previewContent}
           </pre>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={cvReviewJob !== null}
+        onClose={() => setCvReviewJob(null)}
+        title={cvReviewJob ? `CV Review · ${cvReviewJob.title || "Job"}` : "CV Review"}
+        description="Backend-owned lifecycle, uncertainty, and final-artifact evidence."
+        footer={<Button variant="primary" onClick={() => setCvReviewJob(null)}>Close</Button>}
+      >
+        {cvReviewLoading && <LoadingState message="Loading CV review..." />}
+        {cvReviewError && <div className="notice error" role="alert">{cvReviewError}</div>}
+        {!cvReviewLoading && cvReview && (
+          <div style={{ display: "grid", gap: 12 }}>
+            <div role="status" aria-live="polite"><strong>Status: </strong>{cvReview.status}</div>
+            {cvReview.final_artifact_evidence && (
+              <div role="status" aria-label="Final artifact proof">
+                <strong>Final artifact: </strong>
+                {cvReview.final_artifact_evidence.evidence_state === "passed"
+                  ? "verified · 1 page · native render passed"
+                  : "proof unavailable or not accepted"}
+              </div>
+            )}
+            {cvReview.uncertainties.length > 0 && (
+              <section aria-label="Qualification evidence">
+                <strong>Qualification evidence</strong>
+                <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
+                  {cvReview.uncertainties.map((uncertainty, index) => (
+                    <li key={uncertainty.uncertainty_id || `${uncertainty.resolution_key}-${index}`}>
+                      {uncertainty.message || uncertainty.qualifier || uncertainty.resolution_key || "Unresolved requirement"}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {cvReview.allowed_actions.includes("RESOLVE_WITH_ANSWER") && (
+              <Field
+                label="Answer"
+                value={cvReviewAnswer}
+                onChange={(event) => setCvReviewAnswer(event.target.value)}
+                placeholder="Provide evidence-backed answer"
+                disabled={cvReviewSubmitting}
+              />
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {cvReview.allowed_actions.map((action) => (
+                <Button
+                  key={action}
+                  variant={action === "OVERRIDE_BLOCK" ? "danger" : "secondary"}
+                  onClick={() => handleCvReviewAction(action)}
+                  loading={cvReviewSubmitting}
+                  disabled={cvReviewSubmitting}
+                >
+                  {action === "RESOLVE_WITH_ANSWER" ? "Resolve with answer" : action === "CONFIRM_OMIT" ? "Confirm omit" : "Override block"}
+                </Button>
+              ))}
+            </div>
+          </div>
         )}
       </Dialog>
 

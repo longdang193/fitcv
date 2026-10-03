@@ -23,6 +23,8 @@ function getStatusVariant(status: string): StatusVariant {
     case "generation_failed":
     case "validation_failed":
     case "persistence_failed":
+    case "rejected":
+    case "cancelled":
     case "failed":
       return "danger";
     default:
@@ -107,6 +109,11 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
                     {ver.quality_warnings.warnings.length} quality warning{ver.quality_warnings.warnings.length === 1 ? "" : "s"}
                   </div>
                 )}
+                <div role="status" style={{ fontSize: 11, color: "var(--muted)" }}>
+                  {ver.quality_warnings?.evidence_state === "passed"
+                    ? "Final artifact verified · 1 page · native render passed"
+                    : "Final artifact proof unavailable"}
+                </div>
               </button>
             </li>
           );

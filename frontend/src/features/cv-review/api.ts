@@ -3,9 +3,15 @@ import {
   CvVersionResource,
   CvPreviewResult,
   CvRegenerateResponseData,
-  CvReviewDecisionPayload,
-  CvReviewMutationResult,
+  CvReviewActionRequest,
+  CvReviewResource,
 } from "./types";
+
+function unwrapData<T>(payload: T | { data: T }): T {
+  return payload && typeof payload === "object" && "data" in payload
+    ? (payload as { data: T }).data
+    : payload as T;
+}
 
 /**
  * Fetch ordered list of CV versions for a specific run job
@@ -17,10 +23,7 @@ export async function fetchCvVersions(
   const res = await apiClient.get<{ data: CvVersionResource[] } | CvVersionResource[]>(
     `/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(runJobId)}/cvs`
   );
-  const payload = res.data;
-  if (payload && typeof payload === "object" && "data" in payload && Array.isArray((payload as any).data)) {
-    return (payload as any).data;
-  }
+  const payload = unwrapData(res.data);
   return Array.isArray(payload) ? payload : [];
 }
 
@@ -125,40 +128,36 @@ export async function regenerateCvVersion(
     { parent_cv_version_id: parentCvVersionId || null },
     { idempotencyKey: key }
   );
-  const payload = res.data;
-  if (payload && typeof payload === "object" && "data" in payload && (payload as any).data) {
-    return (payload as any).data;
-  }
-  return payload as CvRegenerateResponseData;
+  return unwrapData(res.data);
 }
 
 /**
  * Submit review decision and notes for a CV version with CAS ETag support.
  * Preserves and returns updated ETag for optimistic concurrency.
  */
-export async function submitCvReviewDecision(
+export async function fetchCvReviewResource(
+  runId: string,
+  runJobId: string
+): Promise<CvReviewResource> {
+  const res = await apiClient.get<{ data: CvReviewResource } | CvReviewResource>(
+    `/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(runJobId)}/cv-review`
+  );
+  return unwrapData(res.data);
+}
+
+export async function applyCvReviewAction(
   runId: string,
   runJobId: string,
-  versionId: string,
-  decision: CvReviewDecisionPayload,
-  ifMatch?: string | null
-): Promise<CvReviewMutationResult> {
-  const options: Record<string, any> = {};
-  if (ifMatch) {
-    options.ifMatch = ifMatch;
-  }
-  const res = await apiClient.post<{ data: CvVersionResource } | CvVersionResource>(
-    `/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(runJobId)}/cvs/${encodeURIComponent(versionId)}/review`,
-    decision,
-    options
+  action: CvReviewActionRequest,
+  idempotencyKey?: string
+): Promise<CvReviewResource & { action_id?: string; regeneration_job_id?: string | null }> {
+  const res = await apiClient.post<
+    { data: CvReviewResource & { action_id?: string; regeneration_job_id?: string | null } }
+    | (CvReviewResource & { action_id?: string; regeneration_job_id?: string | null })
+  >(
+    `/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(runJobId)}/cv-review/actions`,
+    action,
+    { idempotencyKey: idempotencyKey || crypto.randomUUID() }
   );
-  const payload = res.data;
-  const version = (payload && typeof payload === "object" && "data" in payload)
-    ? (payload as any).data
-    : payload;
-  const returnedEtag = res.etag || (version as any)?.content_checksum || ifMatch || null;
-  return {
-    version: version as CvVersionResource,
-    etag: returnedEtag,
-  };
+  return unwrapData(res.data);
 }

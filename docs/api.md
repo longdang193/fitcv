@@ -396,6 +396,28 @@ uses `text/csv`, `Content-Disposition: attachment`, and
 Returns ordered version history with generation metadata, capabilities,
 evaluation, and review state.
 
+### `GET /runs/{run_id}/jobs/{run_job_id}/cv-review`
+
+Returns backend-owned CV review truth: lifecycle `status`, `review_item_id`,
+`reason_code`, unresolved `uncertainties`, `resolution_key`, allowed
+resolution actions, current resolution status, selected CV version, and
+`final_artifact_evidence`. Clients must render only actions listed in
+`allowed_actions`; qualification evidence is separate from pipeline outcome.
+
+### `POST /runs/{run_id}/jobs/{run_job_id}/cv-review/actions`
+
+Requires `Idempotency-Key`. Body supports one of
+`RESOLVE_WITH_ANSWER`, `CONFIRM_OMIT`, or `OVERRIDE_BLOCK` and may include
+`review_item_id`, `uncertainty_id`, `resolution_key`, `answer_text`, `note`,
+and `actor`. `RESOLVE_WITH_ANSWER` requires non-empty `answer_text`.
+
+The server validates the current review identity, persists the profile/source
+scoped resolution, enqueues at most one impacted-job reanalysis, and returns
+`202` with refreshed review resource data. Reusing an idempotency key with the
+same request replays the original response; using it for another request
+returns `409 idempotency_conflict`. Stale review items return
+`409 review_resource_stale`.
+
 ### `GET /cv-versions/{version_id}/download`
 
 Returns the persisted CV bytes after checksum verification. Headers include

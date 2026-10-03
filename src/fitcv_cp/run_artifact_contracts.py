@@ -37,6 +37,7 @@ ACCEPTED_CV_FAILURE_CATEGORIES = (
     "provider_failure",
     "other",
 )
+FINAL_CV_EVIDENCE_CONTRACT_VERSION = "final_cv_evidence.v1"
 _LINEAGE_FIELDS = ("run_id", "artifact_id", "generation_input_fingerprint", "attempt_id")
 _DEFAULT_ERROR_DETAILS_MAX_CHARS = 2048
 
@@ -51,6 +52,95 @@ def _parse_timestamp(value: Any) -> datetime.datetime | None:
     except ValueError:
         return None
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.timezone.utc)
+
+
+def build_final_cv_evidence_envelope(
+    *,
+    artifact_version_id: str,
+    run_job_id: str,
+    run_id: str | None,
+    content_checksum: str | None,
+    generation: dict[str, Any] | None = None,
+    trace: dict[str, Any] | None = None,
+    existing: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build one identity-bound projection for final CV acceptance evidence."""
+    generation = dict(generation or {})
+    trace = dict(trace or {})
+    existing = dict(existing or {})
+    output_summary = dict(trace.get("output_summary") or generation.get("output_summary") or {})
+    render_proof = dict(
+        existing.get("render_proof")
+        or generation.get("render_proof")
+        or generation.get("render_acceptance")
+        or trace.get("render_proof")
+        or trace.get("render_acceptance")
+        or output_summary.get("render_proof")
+        or output_summary.get("render_acceptance")
+        or {}
+    )
+
+    def first(*values: Any) -> Any:
+        for value in values:
+            if value not in (None, ""):
+                return value
+        return None
+
+    normalized_version_id = str(artifact_version_id or "").strip()
+    normalized_run_job_id = str(run_job_id or "").strip()
+    normalized_checksum = str(content_checksum or "").strip() or None
+    page_count = first(render_proof.get("page_count"), output_summary.get("page_count"), generation.get("page_count"))
+    page_fit_status = str(
+        first(
+            render_proof.get("page_fit_status"),
+            output_summary.get("page_fit_status"),
+            generation.get("page_fit_status"),
+            dict(generation.get("cv_content_plan") or {}).get("space_budget", {}).get("page_fit_status"),
+            "unverified",
+        )
+    ).strip().lower()
+    render_acceptance_value = first(
+        render_proof.get("render_acceptance"),
+        render_proof.get("render_status"),
+        render_proof.get("renderer_status"),
+        output_summary.get("render_acceptance"),
+        output_summary.get("render_status"),
+        generation.get("render_acceptance"),
+        generation.get("render_status"),
+    )
+    render_acceptance = (
+        render_acceptance_value.get("render_acceptance")
+        or render_acceptance_value.get("render_status")
+        or render_acceptance_value.get("renderer_status")
+        if isinstance(render_acceptance_value, dict)
+        else render_acceptance_value
+    )
+    render_passed = (
+        page_count == 1
+        and page_fit_status in {"pass", "passed"}
+        and render_acceptance in {True, "pass", "passed", "accepted"}
+    )
+    identity_bound = bool(normalized_version_id and normalized_run_job_id and normalized_checksum)
+    evidence_state = "passed" if identity_bound and render_passed else "missing"
+    warnings: list[str] = []
+    if not identity_bound:
+        warnings.append("final_artifact_identity_unbound")
+    if not render_passed:
+        warnings.append("native_one_page_render_unverified")
+    return {
+        "contract_version": FINAL_CV_EVIDENCE_CONTRACT_VERSION,
+        "artifact_version_id": normalized_version_id or None,
+        "content_checksum": normalized_checksum,
+        "run_id": str(run_id or "").strip() or None,
+        "run_job_id": normalized_run_job_id or None,
+        "page_count": page_count,
+        "page_fit_status": page_fit_status,
+        "render_acceptance": render_acceptance,
+        "render_proof": render_proof or None,
+        "evidence_state": evidence_state,
+        "outcome": "passed" if evidence_state == "passed" else "missing",
+        "warnings": warnings,
+    }
 
 
 def accepted_cv_artifact_event_v1(
@@ -326,6 +416,8 @@ def build_accepted_cv_effort_projection(
             sum(str(item.get("action") or "") == "regenerate_once" for item in related_actions),
         )
         token_usage = efficiency.get("token_usage")
+        stage_timings_ms = dict(efficiency.get("stage_timings_ms") or {})
+        reuse_metrics = dict(efficiency.get("reuse_metrics") or {})
         elapsed_from_trace = efficiency.get("elapsed_ms")
         page_fit_status = str(
             dict(trace.get("cv_content_plan") or {}).get("space_budget", {}).get("page_fit_status")
@@ -393,6 +485,11 @@ def build_accepted_cv_effort_projection(
                 "token_usage": token_usage,
                 "token_total": _token_total(token_usage),
                 "token_usage_status": str(efficiency.get("token_usage_status") or "not_run"),
+                "stage_timings_ms": stage_timings_ms,
+                "provider_duration_ms": efficiency.get("provider_duration_ms"),
+                "artifact_acceptance_latency_ms": efficiency.get("artifact_acceptance_latency_ms"),
+                "whole_run_latency_ms": efficiency.get("whole_run_latency_ms", elapsed_ms),
+                "reuse_metrics": reuse_metrics,
                 "elapsed_ms": elapsed_ms,
                 "elapsed_status": elapsed_status,
             }
@@ -439,6 +536,31 @@ def build_accepted_cv_effort_projection(
         "reused_resolution_count": sum(row["reused_resolution_count"] for row in projected),
         "elapsed_ms": sum(row["elapsed_ms"] or 0 for row in projected),
         "token_total": sum(row["token_total"] for row in projected),
+        "stage_timings_ms": {
+            stage: sum(
+                float(dict(row.get("stage_timings_ms") or {}).get(stage) or 0)
+                for row in projected
+            ) if any(dict(row.get("stage_timings_ms") or {}).get(stage) is not None for row in projected) else None
+            for stage in (
+                "analysis", "retrieval", "content_plan", "provider", "validation",
+                "render", "repair", "persistence",
+            )
+        },
+        "provider_duration_ms": sum(
+            float(row["provider_duration_ms"])
+            for row in projected
+            if isinstance(row.get("provider_duration_ms"), (int, float))
+        ) or None,
+        "artifact_acceptance_latency_ms": sum(
+            float(row["artifact_acceptance_latency_ms"])
+            for row in projected
+            if isinstance(row.get("artifact_acceptance_latency_ms"), (int, float))
+        ) or None,
+        "whole_run_latency_ms": sum(
+            float(row["whole_run_latency_ms"])
+            for row in projected
+            if isinstance(row.get("whole_run_latency_ms"), (int, float))
+        ) or None,
         "failure_category_counts": {
             category: sum(row["failure_category_counts"].get(category, 0) for row in projected)
             for category in ACCEPTED_CV_FAILURE_CATEGORIES

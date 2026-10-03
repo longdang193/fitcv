@@ -13,6 +13,7 @@ tags:
   - ci-safe
 """
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -1403,6 +1404,115 @@ def test_generate_from_analysis_reuses_exact_canonical_result(
     assert reused["reused_cv_version_id"] == "cv-version-1"
     assert reused["structured_cv_final"] == fresh["structured_cv_final"]
     assert reused["markdown_final"] == fresh["markdown_final"]
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_reuse_with_stale_render_proof_rerenders_without_provider_call(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    validation = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+    mock_run_all_validations.return_value = validation
+    analysis_record["content_plan"] = build_cv_content_plan(analysis_record, {}, config)
+    fingerprint = build_cv_generation_input_fingerprint(analysis_record, config)
+    stale_record = {
+        "status": "accepted",
+        "cv_generation_input_fingerprint": fingerprint["fingerprint"],
+        "cv_generation_input_components": fingerprint["payload"],
+        "structured_cv_final": _minimal_structured_cv(),
+        "markdown_final": "# Cached CV",
+        "render_acceptance": {
+            "content_sha256": "stale-content",
+            "template_sha256": "stale-template",
+            "render_config_fingerprint": "stale-config",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "render_status": "pass",
+            "artifact_checksum": "a" * 64,
+        },
+        "version_id": "cv-version-stale-proof",
+    }
+    rerender_proof = {
+        "content_sha256": hashlib.sha256(b"# Cached CV").hexdigest(),
+        "template_sha256": generation_module._template_sha256(config),
+        "render_config_fingerprint": generation_module._render_config_fingerprint(config),
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "render_status": "pass",
+        "artifact_checksum": "b" * 64,
+    }
+
+    with patch.object(
+        generation_module,
+        "render_cv_native_acceptance",
+        create=True,
+        return_value=rerender_proof,
+    ) as mock_rerender:
+        reused = generate_from_analysis(
+            analysis_record,
+            _minimal_profile(),
+            config,
+            reusable_record=stale_record,
+        )
+
+    mock_generate_cv.assert_not_called()
+    mock_rerender.assert_called_once()
+    assert reused["status"] == "accepted"
+    assert reused["render_acceptance"] == rerender_proof
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_failed_cached_rerender_stays_review_required_without_provider_call(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    mock_run_all_validations.return_value = {"valid": True, "missing_sections": []}
+    analysis_record["content_plan"] = build_cv_content_plan(analysis_record, {}, config)
+    fingerprint = build_cv_generation_input_fingerprint(analysis_record, config)
+    stale_record = {
+        "status": "accepted",
+        "cv_generation_input_fingerprint": fingerprint["fingerprint"],
+        "cv_generation_input_components": fingerprint["payload"],
+        "structured_cv_final": _minimal_structured_cv(),
+        "markdown_final": "# Cached CV",
+        "render_acceptance": {"content_sha256": "stale"},
+    }
+
+    with patch.object(generation_module, "render_cv_native_acceptance", create=True, return_value={}):
+        reused = generate_from_analysis(
+            analysis_record,
+            _minimal_profile(),
+            config,
+            reusable_record=stale_record,
+        )
+
+    mock_generate_cv.assert_not_called()
+    assert reused["status"] == "review_required"
+    assert reused["error"]["stage"] == "final_artifact_acceptance"
+    assert reused["error"]["code"] == "reusable_render_proof_failed"
+    assert reused["structured_cv_final"] == stale_record["structured_cv_final"]
+    assert reused["markdown_final"] == stale_record["markdown_final"]
+    assert reused["render_acceptance"]["render_status"] == "failed"
+    assert reused["final_artifact_acceptance"]["status"] == "review_required"
 
 
 def test_persistence_failure_transition_preserves_accepted_artifacts() -> None:

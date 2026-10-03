@@ -28,7 +28,56 @@ from fitcv_cp.run_artifact_contracts import (
     stable_sha256_fingerprint,
     build_accepted_cv_effort_projection,
     accepted_cv_artifact_event_v1,
+    build_final_cv_evidence_envelope,
 )
+
+
+def test_build_final_cv_evidence_envelope_requires_bound_native_one_page_proof() -> None:
+    missing = build_final_cv_evidence_envelope(
+        artifact_version_id="cv-1",
+        run_job_id="job-1",
+        run_id="run-1",
+        content_checksum="sha-1",
+        generation={},
+    )
+    assert missing["evidence_state"] == "missing"
+    assert "native_one_page_render_unverified" in missing["warnings"]
+
+    passed = build_final_cv_evidence_envelope(
+        artifact_version_id="cv-1",
+        run_job_id="job-1",
+        run_id="run-1",
+        content_checksum="sha-1",
+        generation={
+            "render_proof": {
+                "page_count": 1,
+                "page_fit_status": "pass",
+                "render_acceptance": "passed",
+            }
+        },
+    )
+    assert passed["evidence_state"] == "passed"
+    assert passed["warnings"] == []
+
+
+def test_build_final_cv_evidence_envelope_accepts_generation_render_acceptance() -> None:
+    envelope = build_final_cv_evidence_envelope(
+        artifact_version_id="cv-2",
+        run_job_id="job-2",
+        run_id="run-2",
+        content_checksum="sha-2",
+        generation={
+            "page_fit_status": "pass",
+            "render_acceptance": {
+                "render_status": "pass",
+                "page_count": 1,
+                "page_fit_status": "pass",
+            },
+        },
+    )
+
+    assert envelope["evidence_state"] == "passed"
+    assert envelope["page_count"] == 1
 
 
 def test_normalized_run_mode_defaults_unknown_values_to_run_all() -> None:

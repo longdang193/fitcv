@@ -48,9 +48,14 @@ from fitcv.cv_generator import (
     _execute_cv_generation_runtime,
     _get_enabled_section_names,
     _resolve_template_path,
+    _render_config_fingerprint,
+    _template_sha256,
     build_live_structured_cv_response_schema as _canonical_live_structured_cv_response_schema,
+    final_artifact_acceptance_passes,
     generate_cv,
+    render_cv_native_acceptance,
     render_cv_markdown,
+    render_proof_matches,
 )
 from fitcv.late_stage_contract import (
     CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS as BLOCKED_BY_RERANKER_STATUS,
@@ -451,6 +456,19 @@ def _empty_cv_generation_trace(
             "schema_version": "accepted_cv_efficiency_v1",
             "status": "not_run",
             "elapsed_ms": None,
+            "whole_run_latency_ms": None,
+            "provider_duration_ms": None,
+            "artifact_acceptance_latency_ms": None,
+            "stage_timings_ms": {
+                "analysis": None,
+                "retrieval": None,
+                "content_plan": None,
+                "provider": None,
+                "validation": None,
+                "render": None,
+                "repair": None,
+                "persistence": None,
+            },
             "provider_call_count": 0,
             "token_usage": None,
             "token_usage_status": "not_run",
@@ -459,6 +477,16 @@ def _empty_cv_generation_trace(
             "regeneration_count": 0,
             "review_question_count": "not_applicable",
             "human_action_count": "not_applicable",
+            "reuse_metrics": {
+                "reuse_candidate": None,
+                "reuse_hit": None,
+                "render_proof_reused": None,
+                "local_rerender_performed": None,
+                "provider_calls_avoided": None,
+                "renders_avoided": None,
+                "tokens_avoided": None,
+                "repeated_questions_avoided": None,
+            },
         },
         "error_summary": None,
     }
@@ -500,6 +528,23 @@ def _update_efficiency_summary(
             "human_action_count": "not_applicable",
         }
     )
+    summary["whole_run_latency_ms"] = summary["elapsed_ms"]
+    stage_timings = dict(summary.get("stage_timings_ms") or {})
+    provider_duration = None
+    for attempt in attempts:
+        for source in (attempt, dict(attempt.get("llm_runtime_evidence") or {})):
+            for key in ("duration_ms", "latency_ms", "elapsed_ms"):
+                value = source.get(key)
+                if isinstance(value, (int, float)) and value >= 0:
+                    provider_duration = (provider_duration or 0) + int(value)
+                    break
+            else:
+                continue
+            break
+    summary["provider_duration_ms"] = provider_duration
+    stage_timings["provider"] = provider_duration
+    summary["stage_timings_ms"] = stage_timings
+    summary["artifact_acceptance_latency_ms"] = summary["elapsed_ms"] if status == ACCEPTED_STATUS else None
     trace_payload["efficiency_summary"] = summary
 
 def _error_code_from_message(message: str) -> str | None:
@@ -1320,6 +1365,15 @@ def _finalize_generation_result(
         source_artifact_type="cv_generation",
     )
     finalized["reused_cv_version_id"] = reused_cv_version_id
+    trace_payload = finalized.get("cv_generation_trace")
+    if isinstance(trace_payload, dict):
+        efficiency = dict(trace_payload.get("efficiency_summary") or {})
+        reuse_metrics = dict(efficiency.get("reuse_metrics") or {})
+        reuse_metrics["reuse_candidate"] = reuse_status == "reused_exact_match" or reuse_reason_code == "candidate_rejected"
+        reuse_metrics["reuse_hit"] = reuse_status == "reused_exact_match"
+        efficiency["reuse_metrics"] = reuse_metrics
+        trace_payload["efficiency_summary"] = efficiency
+        finalized["cv_generation_trace"] = trace_payload
     status = str(finalized.get("status") or "")
     if status == ACCEPTED_STATUS:
         review_reason = _review_required_reason(analysis_record, finalized, config)
@@ -1351,6 +1405,93 @@ def _finalize_generation_result(
     error = finalized.get("error")
     if isinstance(error, dict) and not error.get("code"):
         error["code"] = status or str(error.get("stage") or "failure")
+    return finalized
+
+
+def _native_final_artifact_enabled(config: dict[str, Any]) -> bool:
+    return bool(((config.get("cv") or {}).get("final_artifact_acceptance") or {}).get("enabled"))
+
+
+def _render_acceptance_matches_final_content(
+    markdown: str,
+    config: dict[str, Any],
+    render_acceptance: dict[str, Any] | None,
+) -> bool:
+    return render_proof_matches(
+        render_acceptance,
+        content_sha256=hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        template_sha256=_template_sha256(config),
+        render_config_fingerprint=_render_config_fingerprint(config),
+    )
+
+
+def _apply_final_artifact_contract(
+    result: CvGenerationResult,
+    *,
+    config: dict[str, Any],
+) -> CvGenerationResult:
+    finalized = cast(CvGenerationResult, deepcopy(result))
+    structured_cv = finalized.get("structured_cv_final")
+    markdown = finalized.get("markdown_final")
+    content_valid = bool((finalized.get("validation") or {}).get("valid"))
+    if not isinstance(structured_cv, dict) or not isinstance(markdown, str) or not markdown:
+        finalized["content_acceptance"] = content_valid
+        finalized["final_artifact_acceptance"] = {"status": "not_applicable"}
+        return finalized
+    if not _native_final_artifact_enabled(config):
+        finalized["content_acceptance"] = content_valid
+        finalized["final_artifact_acceptance"] = {"status": "not_required", "content_valid": content_valid}
+        return finalized
+    render_acceptance = finalized.get("render_acceptance")
+    failed_proof_already_recorded = (
+        str(finalized.get("status") or "") == "review_required"
+        and str((finalized.get("final_artifact_acceptance") or {}).get("status") or "") == "review_required"
+        and isinstance(render_acceptance, dict)
+        and str(render_acceptance.get("render_status") or "") == "failed"
+    )
+    if not failed_proof_already_recorded and (
+        not isinstance(render_acceptance, dict)
+        or not _render_acceptance_matches_final_content(markdown, config, render_acceptance)
+    ):
+        render_acceptance = render_cv_native_acceptance(markdown, config)
+    final_ok = final_artifact_acceptance_passes(
+        content_valid=content_valid,
+        render_acceptance=render_acceptance,
+    )
+    finalized["render_acceptance"] = render_acceptance
+    finalized["page_fit_status"] = render_acceptance.get("page_fit_status")
+    finalized["artifact_checksum"] = render_acceptance.get("artifact_checksum")
+    finalized["content_acceptance"] = content_valid
+    finalized["final_artifact_acceptance"] = {
+        "status": "accepted" if final_ok else "review_required",
+        "content_valid": content_valid,
+        "page_fit_status": finalized["page_fit_status"],
+    }
+    if not final_ok and str(finalized.get("status") or "") == ACCEPTED_STATUS:
+        finalized["status"] = "review_required"
+        finalized["error"] = {
+            "stage": "final_artifact_acceptance",
+            "code": str(render_acceptance.get("render_status") or "render_unverified"),
+            "message": "Final CV artifact lacks verified native one-page render proof.",
+        }
+        finalized["structured_cv_final"] = None
+        finalized["markdown_final"] = None
+    trace = finalized.get("cv_generation_trace")
+    if isinstance(trace, dict):
+        trace = dict(trace)
+        output_summary = dict(trace.get("output_summary") or {})
+        output_summary.update(
+            {
+                "accepted_output_present": final_ok,
+                "final_status": finalized.get("status"),
+                "page_fit_status": finalized["page_fit_status"],
+                "render_acceptance": render_acceptance,
+            }
+        )
+        trace["output_summary"] = output_summary
+        trace["render_acceptance"] = render_acceptance
+        trace["page_fit_status"] = finalized["page_fit_status"]
+        finalized["cv_generation_trace"] = trace
     return finalized
 
 
@@ -1388,7 +1529,47 @@ def _reusable_result_or_none(
     )
     if not validation.get("valid"):
         return None
-    return _build_result(
+    render_acceptance = reusable_record.get("render_acceptance")
+    if _native_final_artifact_enabled(config) and not _render_acceptance_matches_final_content(
+        markdown,
+        config,
+        render_acceptance if isinstance(render_acceptance, dict) else None,
+    ):
+        render_acceptance = render_cv_native_acceptance(structured_cv, config)
+    if _native_final_artifact_enabled(config) and not final_artifact_acceptance_passes(
+        content_valid=True,
+        render_acceptance=render_acceptance if isinstance(render_acceptance, dict) else None,
+    ):
+        failed_render_acceptance = dict(render_acceptance) if isinstance(render_acceptance, dict) else {}
+        failed_render_acceptance.setdefault("render_status", "failed")
+        failed_render_acceptance.setdefault("page_fit_status", "review_required")
+        blocked = _build_result(
+            analysis_record=analysis_record,
+            job=job,
+            status="review_required",
+            fit_classification=_coerce_fit_classification(analysis_record.get("fit_classification")),
+            structured_cv_initial=structured_cv,
+            validation_initial=_build_validation_snapshot(validation),
+            repair_attempt=_empty_repair_attempt(),
+            structured_cv_final=structured_cv,
+            markdown_final=markdown,
+            validation=validation,
+            error={
+                "stage": "final_artifact_acceptance",
+                "code": "reusable_render_proof_failed",
+                "message": "Cached CV content is valid, but native one-page render proof could not be verified locally.",
+            },
+            llm_runtime_evidence=[],
+        )
+        blocked["render_acceptance"] = failed_render_acceptance
+        blocked["page_fit_status"] = failed_render_acceptance.get("page_fit_status")
+        blocked["final_artifact_acceptance"] = {
+            "status": "review_required",
+            "content_valid": True,
+            "page_fit_status": blocked["page_fit_status"],
+        }
+        return blocked
+    reused = _build_result(
         analysis_record=analysis_record,
         job=job,
         status=ACCEPTED_STATUS,
@@ -1402,6 +1583,10 @@ def _reusable_result_or_none(
         error=None,
         llm_runtime_evidence=[],
     )
+    if isinstance(render_acceptance, dict):
+        reused["render_acceptance"] = render_acceptance
+        reused["page_fit_status"] = render_acceptance.get("page_fit_status")
+    return reused
 
 
 def transition_cv_generation_persistence_failed(
@@ -1792,7 +1977,8 @@ def generate_from_analysis(
             fingerprint_result=fingerprint_result,
         )
         if reused is not None:
-            return _finalize_generation_result(
+            return _apply_final_artifact_contract(
+                _finalize_generation_result(
                 reused,
                 analysis_record=analysis_record,
                 config=config,
@@ -1800,14 +1986,19 @@ def generate_from_analysis(
                 reuse_status="reused_exact_match",
                 reuse_reason_code="exact_fingerprint_match",
                 reused_cv_version_id=str((reusable_record or {}).get("version_id") or "") or None,
+                ),
+                config=config,
             )
     fresh = _generate_fresh_from_analysis(analysis_record, profile, config)
     reuse_reason = "candidate_rejected" if reusable_record is not None else "fresh_compute_required"
-    return _finalize_generation_result(
-        fresh,
-        analysis_record=analysis_record,
+    return _apply_final_artifact_contract(
+        _finalize_generation_result(
+            fresh,
+            analysis_record=analysis_record,
+            config=config,
+            fingerprint_result=fingerprint_result,
+            reuse_status="fresh_compute",
+            reuse_reason_code=reuse_reason,
+        ),
         config=config,
-        fingerprint_result=fingerprint_result,
-        reuse_status="fresh_compute",
-        reuse_reason_code=reuse_reason,
     )

@@ -71,7 +71,7 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
         {/* Reasons block */}
         <div>
           <h4 style={{ margin: "0 0 6px", fontSize: 13, textTransform: "uppercase", color: "var(--muted)" }}>
-            Qualification Evidence & Reasons
+            Qualification Evidence
           </h4>
           {reasons.length > 0 ? (
             <ul style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 4 }}>

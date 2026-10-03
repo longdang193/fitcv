@@ -15,11 +15,15 @@ lifecycle:
   - status: active
 """
 
+import hashlib
 import json
 import re
+import shutil
+import subprocess
 import textwrap
 from copy import deepcopy
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from jinja2 import BaseLoader, Environment, TemplateError
@@ -77,6 +81,8 @@ _DEFAULT_VARIANT = "standard"
 DEFAULT_CV_LOCALE = "en"
 DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE = 1
 LEGACY_MARKDOWN_PROMPT_ID = "cv_generation.write.v1"
+NATIVE_RENDER_CONTRACT_VERSION = "fitcv_native_render_v1"
+_RENDER_CONTRACT_VERSION = "cv_native_render_v2"
 _EDUCATION_PLACEHOLDER_TOKENS = {
     "",
     "none",
@@ -1819,6 +1825,140 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
     return _normalize_cv_markdown(rendered)
 
 
+def _render_config_fingerprint(config: dict[str, Any]) -> str:
+    payload = {
+        "cv": dict(config.get("cv") or {}),
+        "cv_template_path": str(config.get("cv_template_path") or ""),
+        "template_path": str(config.get("_template_path") or ""),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+
+
+def _template_sha256(config: dict[str, Any]) -> str | None:
+    try:
+        return hashlib.sha256(Path(_resolve_template_path(config)).read_bytes()).hexdigest()
+    except (OSError, TypeError, ValueError):
+        return None
+
+
+def render_cv_native_acceptance(
+    content: dict[str, Any] | str,
+    config: dict[str, Any],
+    *,
+    output_dir: str | Path | None = None,
+    artifact_name: str = "cv",
+) -> dict[str, Any]:
+    """Render exact CV content through native tools and return proof."""
+    structured_cv = content if isinstance(content, dict) else None
+    markdown = render_cv_markdown(structured_cv, config) if structured_cv is not None else str(content or "")
+    missing_tools = [
+        tool for tool in ("pandoc", "xelatex", "pdfinfo", "pdftotext") if shutil.which(tool) is None
+    ]
+    base = Path(output_dir) if output_dir is not None else None
+    with TemporaryDirectory(dir=str(base) if base else None) as temporary_dir:
+        work_dir = Path(temporary_dir)
+        markdown_path = work_dir / f"{artifact_name}.md"
+        pdf_path = work_dir / f"{artifact_name}.pdf"
+        markdown_path.write_text(markdown, encoding="utf-8", newline="\n")
+        result: dict[str, Any] = {
+            "renderer_contract_version": _RENDER_CONTRACT_VERSION,
+            "render_status": "render_unavailable" if missing_tools else "render_failed",
+            "renderer_status": "render_unavailable" if missing_tools else "render_failed",
+            "page_count": None,
+            "page_fit_status": "unresolved",
+            "artifact_checksum": None,
+            "template_sha256": _template_sha256(config),
+            "render_config_fingerprint": _render_config_fingerprint(config),
+            "content_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+            "missing_tools": missing_tools,
+        }
+        if missing_tools:
+            return result
+        try:
+            subprocess.run(
+                ["pandoc", str(markdown_path), "-o", str(pdf_path), "--pdf-engine=xelatex"],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=work_dir,
+                timeout=120,
+            )
+            page_info = subprocess.run(
+                ["pdfinfo", str(pdf_path)],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=work_dir,
+                timeout=30,
+            ).stdout
+            page_match = re.search(r"^Pages:\s+(\d+)$", page_info, re.MULTILINE)
+            if page_match is None:
+                return result
+            page_count = int(page_match.group(1))
+            subprocess.run(
+                ["pdftotext", str(pdf_path), "-"],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=work_dir,
+                timeout=30,
+            )
+            result.update(
+                {
+                    "render_status": "pass",
+                    "renderer_status": "rendered",
+                    "page_count": page_count,
+                    "page_fit_status": "pass" if page_count == 1 else "fail",
+                    "artifact_checksum": hashlib.sha256(pdf_path.read_bytes()).hexdigest(),
+                }
+            )
+            if output_dir is not None:
+                destination = Path(output_dir)
+                destination.mkdir(parents=True, exist_ok=True)
+                (destination / f"{artifact_name}.md").write_text(markdown, encoding="utf-8")
+                (destination / f"{artifact_name}.pdf").write_bytes(pdf_path.read_bytes())
+            return result
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return result
+
+
+def render_proof_matches(
+    value: dict[str, Any] | None,
+    *,
+    content_sha256: str,
+    template_sha256: str | None,
+    render_config_fingerprint: str,
+) -> bool:
+    if not isinstance(value, dict):
+        return False
+    return all(
+        value.get(key) == expected
+        for key, expected in {
+            "content_sha256": content_sha256,
+            "template_sha256": template_sha256,
+            "render_config_fingerprint": render_config_fingerprint,
+        }.items()
+    )
+
+
+def final_artifact_acceptance_passes(
+    *,
+    content_valid: bool,
+    render_acceptance: dict[str, Any] | None,
+) -> bool:
+    if not content_valid or not isinstance(render_acceptance, dict):
+        return False
+    return (
+        str(render_acceptance.get("render_status") or render_acceptance.get("renderer_status") or "").lower()
+        in {"pass", "rendered"}
+        and int(render_acceptance.get("page_count") or 0) == 1
+        and str(render_acceptance.get("page_fit_status") or "").lower() == "pass"
+        and bool(re.fullmatch(r"[0-9a-f]{64}", str(render_acceptance.get("artifact_checksum") or "")))
+    )
+
+
 def _execute_cv_generation_runtime(
     jd: dict[str, Any],
     evidence: list[dict[str, Any]],
@@ -1985,9 +2125,6 @@ def generate_cv(
             max_output_tokens=max_output_tokens,
         )
     )
-
-
-
 
 
 

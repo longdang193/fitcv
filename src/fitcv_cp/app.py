@@ -6836,6 +6836,16 @@ class CvReviewActionRequest(BaseModel):
     answer_text: str | None = None
     resolution_action: str | None = None
 
+
+class CanonicalCvReviewActionRequest(BaseModel):
+    review_item_id: str | None = None
+    uncertainty_id: str | None = None
+    resolution_key: str | None = None
+    action: Literal["RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"]
+    actor: str = "local_operator"
+    note: str | None = None
+    answer_text: str | None = None
+
 class SynonymBatchDecision(BaseModel):
     proposal_id: str
     action: str
@@ -11882,6 +11892,201 @@ def create_app(
     def get_canonical_cv_versions(run_id: str, run_job_id: str) -> dict[str, Any]:
         _require_canonical_run_job(run_id, run_job_id)
         return _data_response(_resolve_run_store().list_cv_versions(run_job_id))
+
+    def _canonical_cv_review_resource(run_id: str, run_job_id: str) -> dict[str, Any]:
+        job = _require_canonical_run_job(run_id, run_job_id)
+        store = _resolve_run_store()
+        run = store.get_run(run_id)
+        if run is None:
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        queue = _build_hitl_review_queue(run)
+        job_url = str(job.get("job_url") or job.get("source_url") or "").strip()
+        item = next(
+            (
+                value
+                for value in list(queue.get("queue_items") or [])
+                if str(value.get("job_url") or "").strip() == job_url
+            ),
+            None,
+        )
+        versions = list(store.list_cv_versions(run_job_id) or [])
+        current_version = max(versions, key=lambda value: int(value.get("ordinal") or 0)) if versions else None
+        status = str((item or {}).get("resolution_status") or "").strip()
+        if item is not None:
+            status = "review_required" if bool(item.get("pending")) else status or "resolved"
+        elif current_version is not None:
+            status = str(current_version.get("outcome_status") or current_version.get("generation_status") or "pending")
+        else:
+            status = "pending"
+        uncertainties = [value for value in list((item or {}).get("uncertainties") or []) if isinstance(value, dict)]
+        pending = bool((item or {}).get("pending"))
+        return {
+            "run_id": run_id,
+            "run_job_id": run_job_id,
+            "job_url": job_url,
+            "cv_version_id": (current_version or {}).get("version_id"),
+            "status": status,
+            "review_item_id": (item or {}).get("review_item_id"),
+            "reason_code": (item or {}).get("reason_code") or (item or {}).get("reason"),
+            "uncertainties": uncertainties,
+            "resolution_key": next(
+                (str(value.get("resolution_key") or "").strip() for value in uncertainties if value.get("resolution_key")),
+                None,
+            ),
+            "allowed_actions": (
+                ["RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"]
+                if pending and uncertainties
+                else []
+            ),
+            "resolution_status": (item or {}).get("resolution_status"),
+            "final_artifact_evidence": (current_version or {}).get("quality_warnings"),
+            "cv_version": current_version,
+            "refresh_required": bool((item or {}).get("regeneration_job_id")),
+        }
+
+    @app.get("/runs/{run_id}/jobs/{run_job_id}/cv-review")
+    def get_canonical_cv_review(run_id: str, run_job_id: str) -> dict[str, Any]:
+        return _data_response(_canonical_cv_review_resource(run_id, run_job_id))
+
+    @app.post("/runs/{run_id}/jobs/{run_job_id}/cv-review/actions")
+    def apply_canonical_cv_review_action(
+        run_id: str,
+        run_job_id: str,
+        body: CanonicalCvReviewActionRequest,
+        request: Request,
+    ) -> JSONResponse:
+        job = _require_canonical_run_job(run_id, run_job_id)
+        store = _resolve_run_store()
+        run = store.get_run(run_id)
+        if run is None:
+            raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
+        idempotency_key = _required_idempotency_key(request)
+        job_url = str(job.get("job_url") or job.get("source_url") or "").strip()
+        resource = _canonical_cv_review_resource(run_id, run_job_id)
+        if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
+            raise ApiError(409, "review_resource_stale", "Review item changed.", action="Refresh CV review.")
+        if body.action not in set(resource.get("allowed_actions") or []):
+            raise ApiError(409, "review_action_not_allowed", "Review action is not allowed for current state.", action="Refresh CV review.")
+        if body.action == "RESOLVE_WITH_ANSWER" and not str(body.answer_text or "").strip():
+            raise ApiError(422, "answer_required", "answer_text is required for RESOLVE_WITH_ANSWER.", action="Provide an answer and retry.")
+
+        request_fingerprint = _request_fingerprint(
+            {
+                "run_id": run_id,
+                "run_job_id": run_job_id,
+                "review_item_id": body.review_item_id,
+                "uncertainty_id": body.uncertainty_id,
+                "resolution_key": body.resolution_key,
+                "action": body.action,
+                "actor": body.actor,
+                "note": body.note,
+                "answer_text": body.answer_text,
+            }
+        )
+        try:
+            idempotent_action = store.reserve_idempotent_action(
+                f"cv.review_resolution:{run_job_id}",
+                idempotency_key,
+                request_fingerprint,
+            )
+        except ValueError as exc:
+            if str(exc) == "idempotency_conflict":
+                raise ApiError(
+                    409,
+                    "idempotency_conflict",
+                    "Idempotency-Key was already used for a different review action.",
+                    action="Refresh review and retry with a new Idempotency-Key.",
+                ) from exc
+            raise
+        if isinstance(idempotent_action, dict) and idempotent_action.get("replayed") and idempotent_action.get("response") is not None:
+            return JSONResponse(status_code=202, content=_data_response(idempotent_action["response"]))
+
+        debug_payload = _load_run_cv_generation_debug_payload(run)
+        if not isinstance(debug_payload, dict):
+            raise ApiError(409, "review_unavailable", "No CV review payload is available.", action="Refresh Run.")
+        records = list(debug_payload.get("debug_records") or debug_payload.get("cv_generation_debug_records") or [])
+        target_record = next(
+            (
+                value for value in records
+                if isinstance(value, dict)
+                and str(value.get("status") or "").strip() == "review_required"
+                and str(value.get("job_url") or "").strip() == job_url
+                and (not body.review_item_id or str(value.get("review_item_id") or "").strip() == body.review_item_id)
+            ),
+            None,
+        )
+        if target_record is None:
+            raise ApiError(404, "review_item_not_found", "Review-required item was not found.", action="Refresh CV review.")
+        uncertainties = [value for value in list(target_record.get("uncertainties") or []) if isinstance(value, dict)]
+        target_uncertainty = next(
+            (
+                value for value in uncertainties
+                if (not body.uncertainty_id or str(value.get("uncertainty_id") or "") == body.uncertainty_id)
+                and (not body.resolution_key or str(value.get("resolution_key") or "") == body.resolution_key)
+            ),
+            None,
+        )
+        if target_uncertainty is None:
+            raise ApiError(422, "uncertainty_not_found", "Uncertainty was not found for resolution.", action="Refresh CV review.")
+        resolution_key = str(body.resolution_key or target_uncertainty.get("resolution_key") or "").strip()
+        resolution_row = sqlite_store_module.save_requirement_resolution(
+            {
+                "candidate_profile_id": str(target_record.get("candidate_profile_id") or target_uncertainty.get("candidate_profile_id") or ""),
+                "candidate_profile_revision": str(target_record.get("candidate_profile_revision") or target_uncertainty.get("candidate_profile_revision") or ""),
+                "source_profile_fingerprint": str(target_record.get("source_profile_fingerprint") or target_uncertainty.get("source_profile_fingerprint") or ""),
+                "resolution_key": resolution_key,
+                "requirement_instance_id": str(target_uncertainty.get("requirement_instance_id") or ""),
+                "resolution_action": body.action,
+                "resolution_payload": {"answer_text": str(body.answer_text or "").strip()},
+                "actor": body.actor or "local_operator",
+            }
+        )
+        resolution_id = str(resolution_row.get("resolution_id") or "")
+        regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
+            run_id=run_id,
+            job_url=job_url,
+            actor=body.actor or "local_operator",
+            note=body.note,
+            idempotency_key=f"requirement-resolution:{resolution_id}",
+            action_id=f"requirement-resolution:{resolution_id}",
+            redis_url=redis_url,
+        )
+        target_uncertainty["resolution_action"] = body.action
+        target_uncertainty["resolution_payload"] = {"answer_text": str(body.answer_text or "").strip()}
+        target_uncertainty["resolution_id"] = resolution_id
+        actions = [value for value in list(debug_payload.get("hitl_review_actions") or []) if isinstance(value, dict)]
+        actions.append(
+            {
+                "review_item_id": str(target_record.get("review_item_id") or "").strip() or None,
+                "job_url": job_url,
+                "action": body.action,
+                "resolution_status": _normalize_hitl_resolution_status(body.action, None),
+                "actor": body.actor or "local_operator",
+                "note": body.note,
+                "uncertainty_id": body.uncertainty_id,
+                "resolution_key": resolution_key,
+                "answer_text": str(body.answer_text or "").strip() or None,
+                "resolution_action": body.action,
+                "regeneration_job_id": regeneration_job_id,
+                "idempotency_key": idempotency_key,
+                "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
+        )
+        debug_payload["hitl_review_actions"] = actions
+        update_run_cv_generation_debug(run_id, _json.dumps(debug_payload, ensure_ascii=False), client=client)
+        refreshed = _canonical_cv_review_resource(run_id, run_job_id)
+        response = {
+            **refreshed,
+            "action_id": f"requirement-resolution:{resolution_id}",
+            "regeneration_job_id": regeneration_job_id,
+            "status": "queued",
+        }
+        if isinstance(idempotent_action, dict) and idempotent_action.get("action_id"):
+            store.complete_idempotent_action(str(idempotent_action["action_id"]), response)
+        return JSONResponse(
+            status_code=202,
+            content=_data_response(response),
+        )
 
     @app.get("/cv-versions/{cv_version_id}/download")
     def download_canonical_cv(cv_version_id: str) -> Response:
