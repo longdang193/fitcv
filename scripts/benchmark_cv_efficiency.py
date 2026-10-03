@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import platform
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -37,6 +38,7 @@ STAGE_NAMES = (
     "repair",
     "persistence",
 )
+SANITIZER_VERSION = "fitcv-evidence-sanitizer.v1"
 
 
 def _value(run: Any, field: str, default: Any = None) -> Any:
@@ -203,6 +205,126 @@ def _stage_latency_report(samples: dict[str, list[float]]) -> dict[str, dict[str
     }
 
 
+def _optimization_scorecard(snapshots: list[dict[str, Any]]) -> dict[str, Any]:
+    failure_categories: Counter[str] = Counter()
+    reuse_hits = 0
+    human_actions = 0
+    resolution_reuse = 0
+    optional_fields = {
+        "proof_reuse": [],
+        "provider_calls_avoided": [],
+        "renders_avoided": [],
+        "tokens_avoided": [],
+    }
+    for snapshot in snapshots:
+        projection = dict(snapshot.get("projection") or {})
+        for record in list(projection.get("records") or []):
+            if not isinstance(record, dict):
+                continue
+            failure_categories.update(
+                {
+                    str(key): int(value or 0)
+                    for key, value in dict(record.get("failure_category_counts") or {}).items()
+                    if int(value or 0) > 0
+                }
+            )
+            reuse_hits += int(record.get("reuse_hit_count") or 0)
+            human_actions += int(record.get("human_action_count") or 0)
+            resolution_reuse += int(record.get("reused_resolution_count") or 0)
+            for field in optional_fields:
+                value = record.get(field)
+                if value is not None and value != "" and value != "unavailable":
+                    optional_fields[field].append(value)
+
+    unavailable = {
+        field: {
+            "status": "unavailable",
+            "measured": 0,
+            "reason": "current trace contract does not persist this field",
+        }
+        for field, values in optional_fields.items()
+        if not values
+    }
+    return {
+        "regeneration_causes": dict(sorted(failure_categories.items())),
+        "reuse_hits": {"status": "measured", "count": reuse_hits},
+        "human_actions": {"status": "measured", "count": human_actions},
+        "resolution_reuse": {"status": "measured", "count": resolution_reuse},
+        **unavailable,
+    }
+
+
+def _attempted_outcomes(
+    traces: list[dict[str, Any]],
+    projected_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    projected_by_trace = {
+        str(record.get("trace_id")): record
+        for record in projected_records
+        if str(record.get("trace_id") or "").strip()
+    }
+    outcomes: list[dict[str, Any]] = []
+    for trace in traces:
+        attempts = [item for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
+        output_summary = dict(trace.get("output_summary") or {})
+        status = str(output_summary.get("final_status") or trace.get("status") or "unknown").strip().lower()
+        record = projected_by_trace.get(str(trace.get("trace_id") or ""), {})
+        outcome = {
+            "trace_id": str(trace.get("trace_id") or ""),
+            "job_url": str(trace.get("job_url") or trace.get("scope_key") or ""),
+            "status": status,
+            "attempt_count": len(attempts),
+            "attempt_types": [str(item.get("attempt_type") or "unknown") for item in attempts],
+            "failure_category_counts": dict(record.get("failure_category_counts") or {}),
+            "accepted_final_one_page": record.get("accepted_final_one_page"),
+        }
+        outcomes.append(outcome)
+    return outcomes
+
+
+def _sanitize_evidence_object(value: Any, *, key: str = "") -> Any:
+    if isinstance(value, dict):
+        blocked = {
+            "api_key",
+            "credential",
+            "credential_account",
+            "database_path",
+            "fixture_path",
+            "source_fixture",
+            "workspace_path",
+        }
+        return {
+            name: _sanitize_evidence_object(item, key=name)
+            for name, item in value.items()
+            if name not in blocked
+        }
+    if isinstance(value, list):
+        return [_sanitize_evidence_object(item, key=key) for item in value]
+    return value
+
+
+def build_canonical_evidence(
+    report: dict[str, Any],
+    *,
+    source_commit: str,
+    fixture_sha256: str,
+    source_fixture_sha256: str,
+) -> dict[str, Any]:
+    evidence = _sanitize_evidence_object(report)
+    evidence.pop("environment", None)
+    evidence.update(
+        {
+            "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
+            "evidence_status": "canonical",
+            "sanitizer_version": SANITIZER_VERSION,
+            "source_commit": source_commit,
+            "fixture_sha256": fixture_sha256,
+            "source_fixture_sha256": source_fixture_sha256,
+        }
+    )
+    return evidence
+
+
 def _run_snapshot(run: Any) -> dict[str, Any] | None:
     run_id = str(_value(run, "run_id", "") or "").strip()
     if not run_id:
@@ -232,6 +354,7 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     projected_records = [
         item for item in list(projection.get("records") or []) if isinstance(item, dict)
     ]
+    attempted_outcomes = _attempted_outcomes(traces, projected_records)
     generation_elapsed_values = [
         elapsed
         for elapsed in (_trace_generation_elapsed_ms(trace) for trace in traces)
@@ -311,6 +434,7 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         "status_counts": dict(sorted(status_counts.items())),
         "accepted_record_count": status_counts.get("accepted", 0),
         "projection": projection,
+        "attempted_outcomes": attempted_outcomes,
         "contract_coverage": {
             "current": len(current_contract_records),
             "historical": len(projected_records) - len(current_contract_records),
@@ -769,11 +893,17 @@ def build_baseline(
             "compiler_outcome_counts": {},
             "render_outcome_counts": {},
         },
+        "optimization_scorecard": _optimization_scorecard(snapshots),
         "environment": {
             "python": platform.python_version(),
             "platform": platform.platform(),
         },
         "runs": snapshots,
+        "attempted_outcomes": [
+            outcome
+            for snapshot in snapshots
+            for outcome in list(snapshot.get("attempted_outcomes") or [])
+        ],
     }
 
 
@@ -793,7 +923,9 @@ def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
             "run_job_diversity",
             "aggregate",
             "outcomes",
+            "optimization_scorecard",
             "runs",
+            "attempted_outcomes",
         )
     }
 
@@ -818,11 +950,16 @@ def _markdown(report: dict[str, Any]) -> str:
             "# FitCV Runtime Efficiency Baseline",
             "",
             f"- Evidence status: `{report.get('evidence_status', 'generated')}`",
+            f"- Evidence schema: `{report.get('evidence_schema_version', 'runtime-report')}`",
+            f"- Source commit: `{report.get('source_commit', 'not_recorded')}`",
+            f"- Fixture SHA-256: `{report.get('fixture_sha256', 'not_recorded')}`",
+            f"- Source fixture SHA-256: `{report.get('source_fixture_sha256', 'not_recorded')}`",
             f"- Status: `{report.get('status')}`",
             f"- Persisted ordinary runs: `{report.get('selection', {}).get('run_count', 0)}`",
             f"- Accepted CVs: `{accepted.get('count', 0)}`",
             f"- Recorded accepted generation outcomes: `{accepted.get('recorded_acceptance_count', 0)}`",
             f"- Attempted generation jobs: `{workload.get('attempted_generation_job_count', 0)}`",
+            f"- Attempted outcome records: `{len(list(report.get('attempted_outcomes') or []))}`",
             f"- Provider calls: `{workload.get('provider_call_count', 0)}`",
             f"- Tokens: `{workload.get('token_total', 0)}`",
             f"- Regenerations: `{workload.get('regeneration_count', 0)}`",
@@ -832,12 +969,14 @@ def _markdown(report: dict[str, Any]) -> str:
             f"- Accepted-artifact cost per accepted CV: `{accepted.get('accepted_artifact_cost_per_accepted_cv')}`",
             f"- Total-workload cost per accepted CV: `{accepted.get('total_workload_cost_per_accepted_cv')}`",
             f"- First-pass acceptance rate: `{dict(report.get('yield') or {}).get('first_pass_acceptance_rate')}`",
+            f"- Accepted final one-page: `{accepted.get('page_fit_success')}`",
             f"- Retry success/failure: `{dict(report.get('yield') or {}).get('retry_success_count', 0)}` / `{dict(report.get('yield') or {}).get('retry_failure_count', 0)}`",
             f"- Generation duration aggregate: `{timing.get('generation_elapsed_ms')}`",
             f"- Generation timing coverage: `{timing.get('generation_timing_coverage')}`",
             f"- Artifact acceptance latency aggregate: `{timing.get('artifact_acceptance_latency_ms')}`",
             f"- Run wall-clock aggregate: `{timing.get('run_wall_ms')}`",
             f"- Measurement coverage: `{report.get('coverage', {})}`",
+            f"- Optimization scorecard: `{report.get('optimization_scorecard', {})}`",
             f"- Run/job diversity: `{report.get('run_job_diversity', {})}`",
             "",
             "Stage latency p50/p95 is reported from explicit stage samples; missing stages stay unavailable.",
@@ -854,6 +993,11 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=100, help="Maximum persisted runs to inspect")
     parser.add_argument("--output-json", type=Path, default=DEFAULT_JSON)
     parser.add_argument("--output-markdown", type=Path, default=DEFAULT_MARKDOWN)
+    parser.add_argument("--canonical-evidence-json", type=Path)
+    parser.add_argument("--canonical-evidence-markdown", type=Path)
+    parser.add_argument("--source-commit")
+    parser.add_argument("--fixture-sha256")
+    parser.add_argument("--source-fixture-sha256")
     args = parser.parse_args()
     if args.database:
         os.environ["FITCV_CP_SQLITE_PATH"] = str(args.database)
@@ -875,6 +1019,28 @@ def main() -> int:
         newline="\n",
     )
     args.output_markdown.write_text(_markdown(report), encoding="utf-8", newline="\n")
+    if args.canonical_evidence_json or args.canonical_evidence_markdown:
+        if not (args.canonical_evidence_json and args.canonical_evidence_markdown):
+            parser.error("canonical evidence requires both JSON and Markdown outputs")
+        if not args.fixture_sha256 or not args.source_fixture_sha256:
+            parser.error("canonical evidence requires fixture hashes")
+        source_commit = args.source_commit or subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True
+        ).strip()
+        evidence = build_canonical_evidence(
+            report,
+            source_commit=source_commit,
+            fixture_sha256=args.fixture_sha256,
+            source_fixture_sha256=args.source_fixture_sha256,
+        )
+        args.canonical_evidence_json.parent.mkdir(parents=True, exist_ok=True)
+        args.canonical_evidence_markdown.parent.mkdir(parents=True, exist_ok=True)
+        args.canonical_evidence_json.write_text(
+            json.dumps(evidence, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        args.canonical_evidence_markdown.write_text(_markdown(evidence), encoding="utf-8", newline="\n")
     print(json.dumps({"status": report["status"], "run_count": report["selection"]["run_count"]}))
     return 0
 

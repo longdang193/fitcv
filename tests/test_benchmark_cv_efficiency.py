@@ -2,6 +2,7 @@ import json
 
 from scripts.benchmark_cv_efficiency import (
     _markdown,
+    build_canonical_evidence,
     build_baseline,
     material_report_digest,
     material_report_metrics,
@@ -427,6 +428,39 @@ def test_material_report_digest_changes_only_for_material_metrics() -> None:
 
     assert material_report_digest(first) == material_report_digest(second)
     assert material_report_digest(first) != material_report_digest(changed)
+
+
+def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
+    report = {
+        "schema_version": "fitcv_runtime_efficiency_baseline_v3",
+        "status": "complete",
+        "environment": {"platform": "Windows"},
+        "run": {
+            "database_path": r"C:\Users\private\fitcv.sqlite3",
+            "fixture_path": r"C:\Users\private\fixture.json",
+            "api_key": "secret-canary",
+            "accepted": 1,
+        },
+    }
+
+    evidence = build_canonical_evidence(
+        report,
+        source_commit="a" * 40,
+        fixture_sha256="b" * 64,
+        source_fixture_sha256="c" * 64,
+    )
+
+    assert evidence["evidence_status"] == "canonical"
+    assert evidence["source_commit"] == "a" * 40
+    assert evidence["run"] == {"accepted": 1}
+    assert "environment" not in evidence
+
+
+def test_baseline_reports_unavailable_avoidance_fields_without_inventing_zeroes() -> None:
+    report = build_baseline([])
+
+    assert report["optimization_scorecard"]["provider_calls_avoided"]["status"] == "unavailable"
+    assert report["optimization_scorecard"]["renders_avoided"]["status"] == "unavailable"
 
 
 def test_baseline_reports_first_pass_and_retry_yield() -> None:

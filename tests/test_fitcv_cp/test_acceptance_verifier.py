@@ -5,6 +5,7 @@ from pathlib import Path
 
 from scripts.benchmark_cv_efficiency import material_report_digest
 from scripts.verify_fitcv_acceptance import (
+    _run_current_contract_evidence_check,
     _run_runtime_efficiency_evidence_check,
     build_acceptance_report,
     format_acceptance_summary,
@@ -169,6 +170,74 @@ def test_runtime_efficiency_evidence_check_requires_canonical_v3_report(tmp_path
     runtime_markdown.write_text("Evidence status: `canonical`", encoding="utf-8")
 
     result = _run_runtime_efficiency_evidence_check(state, tmp_path)
+
+    assert result["passed"] is True
+
+
+def test_current_contract_evidence_rejects_dropped_attempted_outcome(tmp_path: Path) -> None:
+    evidence_json = tmp_path / "current.json"
+    evidence_markdown = tmp_path / "current.md"
+    evidence_sha = tmp_path / "current.sha256"
+    evidence = {
+        "evidence_status": "canonical",
+        "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
+        "source_commit": "a" * 40,
+        "fixture_sha256": "b" * 64,
+        "source_fixture_sha256": "c" * 64,
+        "selection": {"current_contract_record_count": 1, "historical_record_count": 0},
+        "workload": {"attempted_generation_job_count": 2},
+        "attempted_outcomes": [{"trace_id": "one"}],
+        "accepted_cv": {"count": 1, "accepted_non_one_page_count": 0, "page_fit_success": {"fail": 0}},
+        "coverage": {"page_fit": {"complete": True}, "page_fit_success": {"complete": True}},
+        "attribution": {"unattributed_accepted_artifact_count": 0},
+    }
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_markdown.write_text("Evidence status: `canonical`", encoding="utf-8")
+    import hashlib
+
+    evidence_sha.write_text(
+        f"{hashlib.sha256(evidence_json.read_bytes()).hexdigest()}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+
+    result = _run_current_contract_evidence_check(
+        {"current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}},
+        tmp_path,
+    )
+
+    assert result["passed"] is False
+    assert "current_contract_evidence_outcomes_incomplete" in result["failures"]
+
+
+def test_current_contract_evidence_digest_accepts_crlf_checkout(tmp_path: Path) -> None:
+    evidence_json = tmp_path / "current.json"
+    evidence_markdown = tmp_path / "current.md"
+    evidence_sha = tmp_path / "current.sha256"
+    evidence = {
+        "evidence_status": "canonical",
+        "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
+        "source_commit": "a" * 40,
+        "fixture_sha256": "b" * 64,
+        "source_fixture_sha256": "c" * 64,
+        "selection": {"current_contract_record_count": 1, "historical_record_count": 0},
+        "workload": {"attempted_generation_job_count": 1},
+        "attempted_outcomes": [{"trace_id": "one"}],
+        "accepted_cv": {"count": 1, "accepted_non_one_page_count": 0, "page_fit_success": {"fail": 0}},
+        "coverage": {"page_fit": {"complete": True}, "page_fit_success": {"complete": True}},
+        "attribution": {"unattributed_accepted_artifact_count": 0},
+    }
+    payload = (json.dumps(evidence, indent=2) + "\n").replace("\n", "\r\n").encode("utf-8")
+    evidence_json.write_bytes(payload)
+    evidence_markdown.write_text("Evidence status: `canonical`", encoding="utf-8")
+    import hashlib
+
+    normalized_digest = hashlib.sha256(payload.replace(b"\r\n", b"\n")).hexdigest()
+    evidence_sha.write_text(f"{normalized_digest}  {evidence_json.name}\n", encoding="utf-8")
+
+    result = _run_current_contract_evidence_check(
+        {"current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}},
+        tmp_path,
+    )
 
     assert result["passed"] is True
 
