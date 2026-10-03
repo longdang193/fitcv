@@ -135,7 +135,11 @@ def run(root: Path, output_path: Path) -> dict[str, Any]:
     from fitcv_cp.env_defaults import load_dotenv_defaults
     from fitcv_cp.local_storage import activate_local_storage, migrate_packaged_local_integration_state, write_controller_overlay
     from fitcv_cp import local_routes
-    from tests.test_fitcv_cp.acceptance_harness import ControlledLocalJobExecutor, create_scan_fixture
+    from tests.test_fitcv_cp.acceptance_harness import (
+        ControlledLocalJobExecutor,
+        configure_local_provider_credential_from_env,
+        create_scan_fixture,
+    )
 
     result: dict[str, Any] = {
         "result": "BLOCKED",
@@ -180,11 +184,7 @@ def run(root: Path, output_path: Path) -> dict[str, Any]:
     )
     sqlite_store.initialize_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
     migrate_packaged_local_integration_state(paths)
-    api_key = str(os.environ.get("FITCV_LLM_API_KEY") or "").strip()
-    if api_key:
-        from fitcv_cp.local_credentials import set_credential
-
-        set_credential("openai_compatible", api_key)
+    configure_local_provider_credential_from_env("openai_compatible")
     acceptance_canonical = yaml.safe_load(
         (root / "data" / "candidate_profile.yaml").read_text(encoding="utf-8")
     )

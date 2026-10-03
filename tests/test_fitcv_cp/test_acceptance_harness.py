@@ -6,7 +6,12 @@ import pytest
 
 from fitcv_cp import sqlite_store
 from scripts.run_fitcv_local_p0_acceptance import _job_url
-from tests.test_fitcv_cp.acceptance_harness import ControlledLocalJobExecutor, create_profile_fixture, create_scan_fixture
+from tests.test_fitcv_cp.acceptance_harness import (
+    ControlledLocalJobExecutor,
+    configure_local_provider_credential_from_env,
+    create_profile_fixture,
+    create_scan_fixture,
+)
 
 
 @pytest.mark.parametrize("job", [
@@ -55,6 +60,29 @@ def test_controlled_executor_can_inject_one_local_failure() -> None:
         executor.release()
         with pytest.raises(RuntimeError, match="acceptance injected failure"):
             executor.result()
+
+
+def test_configure_local_provider_credential_from_env_persists_loaded_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str]] = []
+    monkeypatch.setenv("FITCV_LLM_API_KEY", "dotenv-secret")
+    monkeypatch.setattr(
+        "fitcv_cp.local_credentials.set_credential",
+        lambda provider_id, api_key: calls.append((provider_id, api_key)),
+    )
+
+    assert configure_local_provider_credential_from_env("openai_compatible") is True
+    assert calls == [("openai_compatible", "dotenv-secret")]
+
+
+def test_configure_local_provider_credential_from_env_rejects_missing_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FITCV_LLM_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="FITCV_LLM_API_KEY is required"):
+        configure_local_provider_credential_from_env("openai_compatible")
 
 
 def test_scan_fixture_is_disposable_and_run_eligible(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
