@@ -36,6 +36,10 @@ CHECKS = {
     "p0_c": ["tests/test_evidence.py"],
     "p1_b": ["tests/test_fitcv_cp/test_run_artifact_contracts.py"],
 }
+
+
+def _canonical_file_digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 P0B_ORACLE = "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1.jsonl"
 
 
@@ -246,7 +250,7 @@ def _run_current_contract_evidence_check(
         failures.append("current_contract_evidence_digest_missing")
     else:
         digest_line = digest_path.read_text(encoding="utf-8").strip().split()
-        actual_digest = hashlib.sha256(json_path.read_bytes()).hexdigest() if json_path.is_file() else ""
+        actual_digest = _canonical_file_digest(json_path) if json_path.is_file() else ""
         if len(digest_line) != 2 or digest_line[0] != actual_digest or digest_line[1] != json_path.name:
             failures.append("current_contract_evidence_digest_mismatch")
     if isinstance(evidence, dict):
