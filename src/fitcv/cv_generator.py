@@ -16,10 +16,14 @@ lifecycle:
 """
 
 import json
+import hashlib
 import re
+import shutil
+import subprocess
 import textwrap
 from copy import deepcopy
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from jinja2 import BaseLoader, Environment, TemplateError
@@ -77,6 +81,7 @@ _DEFAULT_VARIANT = "standard"
 DEFAULT_CV_LOCALE = "en"
 DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE = 1
 LEGACY_MARKDOWN_PROMPT_ID = "cv_generation.write.v1"
+NATIVE_RENDER_CONTRACT_VERSION = "fitcv_native_render_v1"
 _EDUCATION_PLACEHOLDER_TOKENS = {
     "",
     "none",
@@ -1819,6 +1824,231 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
     return _normalize_cv_markdown(rendered)
 
 
+def _canonical_render_item_key(section: str, item: dict[str, Any]) -> str:
+    section_name = str(section or "").strip().lower()
+    if section_name == "languages":
+        raw = str(item.get("name") or "")
+    elif section_name == "projects":
+        raw = " ".join(
+            [
+                str(item.get("name") or ""),
+                str(item.get("context") or ""),
+                *[str(value) for value in list(item.get("bullets") or [])],
+            ]
+        )
+    else:
+        raw = " ".join(str(value) for value in item.values())
+    normalized = re.sub(r"[^a-z0-9]+", " ", raw.casefold()).strip()
+    normalized = re.sub(r"\s+", " ", normalized)
+    return f"{section_name}:{normalized}"
+
+
+def _render_config_fingerprint(config: dict[str, Any]) -> str:
+    payload = {
+        "cv": dict(config.get("cv") or {}),
+        "cv_template_path": str(config.get("cv_template_path") or ""),
+        "template_path": str(config.get("_template_path") or ""),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+
+
+def _template_sha256(config: dict[str, Any]) -> str | None:
+    try:
+        return hashlib.sha256(Path(_resolve_template_path(config)).read_bytes()).hexdigest()
+    except (OSError, TypeError, ValueError):
+        return None
+
+
+def render_cv_native_acceptance(
+    markdown: str,
+    config: dict[str, Any],
+    *,
+    output_dir: str | Path | None = None,
+    artifact_name: str = "cv",
+) -> dict[str, Any]:
+    """Render exact markdown through native tools and return final proof."""
+    required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
+    missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
+    base = Path(output_dir) if output_dir is not None else None
+    with TemporaryDirectory(dir=str(base) if base else None) as temporary_dir:
+        work_dir = Path(temporary_dir)
+        markdown_path = work_dir / f"{artifact_name}.md"
+        pdf_path = work_dir / f"{artifact_name}.pdf"
+        markdown_path.write_text(str(markdown or ""), encoding="utf-8", newline="\n")
+        result: dict[str, Any] = {
+            "renderer_contract_version": NATIVE_RENDER_CONTRACT_VERSION,
+            "render_status": "render_unavailable" if missing_tools else "render_failed",
+            "page_count": None,
+            "page_fit_status": "unresolved",
+            "artifact_checksum": None,
+            "template_sha256": _template_sha256(config),
+            "render_config_fingerprint": _render_config_fingerprint(config),
+            "content_sha256": hashlib.sha256(str(markdown or "").encode("utf-8")).hexdigest(),
+            "missing_tools": missing_tools,
+        }
+        if missing_tools:
+            return result
+        try:
+            subprocess.run(
+                ["pandoc", str(markdown_path), "-o", str(pdf_path), "--pdf-engine=xelatex"],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=work_dir,
+            )
+            page_info = subprocess.run(
+                ["pdfinfo", str(pdf_path)],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=work_dir,
+            ).stdout
+            page_match = re.search(r"^Pages:\s+(\d+)$", page_info, re.MULTILINE)
+            if page_match is None:
+                return result
+            page_count = int(page_match.group(1))
+            subprocess.run(
+                ["pdftotext", str(pdf_path), "-"],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=work_dir,
+            )
+            checksum = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
+            result.update(
+                {
+                    "render_status": "pass",
+                    "page_count": page_count,
+                    "page_fit_status": "pass" if page_count == 1 else "fail",
+                    "artifact_checksum": checksum,
+                }
+            )
+            if output_dir is not None:
+                destination = Path(output_dir)
+                destination.mkdir(parents=True, exist_ok=True)
+                (destination / f"{artifact_name}.md").write_text(markdown_path.read_text(encoding="utf-8"), encoding="utf-8")
+                (destination / f"{artifact_name}.pdf").write_bytes(pdf_path.read_bytes())
+            return result
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return result
+
+
+def render_proof_matches(
+    proof: dict[str, Any] | None,
+    *,
+    content_sha256: str,
+    template_sha256: str | None,
+    render_config_fingerprint: str,
+) -> bool:
+    if not isinstance(proof, dict):
+        return False
+    return (
+        str(proof.get("content_sha256") or "") == str(content_sha256)
+        and str(proof.get("template_sha256") or "") == str(template_sha256 or "")
+        and str(proof.get("render_config_fingerprint") or "") == str(render_config_fingerprint)
+        and str(proof.get("renderer_contract_version") or "") == NATIVE_RENDER_CONTRACT_VERSION
+    )
+
+
+def final_artifact_acceptance_passes(
+    *,
+    content_valid: bool,
+    render_acceptance: dict[str, Any] | None,
+) -> bool:
+    if not content_valid or not isinstance(render_acceptance, dict):
+        return False
+    return (
+        str(render_acceptance.get("render_status") or "") == "pass"
+        and int(render_acceptance.get("page_count") or 0) == 1
+        and str(render_acceptance.get("page_fit_status") or "") == "pass"
+        and bool(re.fullmatch(r"[0-9a-f]{64}", str(render_acceptance.get("artifact_checksum") or "")))
+    )
+
+
+def _provenance_by_key(provenance: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    if isinstance(provenance, dict):
+        provenance = provenance.get("items")
+    entries: dict[str, dict[str, Any]] = {}
+    for item in list(provenance or []):
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("canonical_item_key") or "").strip()
+        if key:
+            entries[key] = item
+    return entries
+
+
+def _render_item_provenance_for(
+    by_key: dict[str, dict[str, Any]],
+    section: str,
+    item: dict[str, Any],
+) -> dict[str, Any] | None:
+    exact = by_key.get(_canonical_render_item_key(section, item))
+    if exact is not None:
+        return exact
+    name_key = f"{section}:{re.sub(r'[^a-z0-9]+', ' ', str(item.get('name') or '').casefold()).strip()}"
+    return by_key.get(name_key)
+
+
+def render_item_requirement_support(
+    structured_cv: dict[str, Any],
+    provenance: list[dict[str, Any]] | None,
+) -> set[str]:
+    by_key = _provenance_by_key(provenance)
+    supported: set[str] = set()
+    sections = structured_cv.get("sections") if isinstance(structured_cv, dict) else None
+    if not isinstance(sections, dict):
+        return supported
+    for section in ("experience", "projects", "education", "certifications", "publications", "languages"):
+        items = sections.get(section)
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            metadata = _render_item_provenance_for(by_key, section, item)
+            if isinstance(metadata, dict):
+                supported.update(str(value) for value in list(metadata.get("supported_requirement_ids") or []) if str(value))
+    return supported
+
+
+def trim_structured_cv_for_page_fit(
+    structured_cv: dict[str, Any],
+    provenance: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Remove only unprotected, optional content in deterministic order."""
+    trimmed = deepcopy(structured_cv)
+    by_key = _provenance_by_key(provenance)
+    sections = trimmed.get("sections")
+    if not isinstance(sections, dict) or not by_key:
+        return trimmed
+    candidates: list[tuple[str, int, int]] = []
+    for section in ("experience", "projects", "education", "certifications", "publications", "languages"):
+        items = sections.get(section)
+        if not isinstance(items, list):
+            continue
+        for index, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            metadata = _render_item_provenance_for(by_key, section, item)
+            if metadata is None or bool(metadata.get("protected", True)):
+                continue
+            candidates.append((section, index, len(list(item.get("bullets") or []))))
+    for section, index, bullet_count in sorted(candidates, key=lambda value: (-value[2], value[0], -value[1])):
+        items = sections.get(section)
+        if not isinstance(items, list) or index >= len(items):
+            continue
+        item = items[index]
+        if bullet_count > 1:
+            item["bullets"] = list(item.get("bullets") or [])[:-1]
+            return trimmed
+        del items[index]
+        return trimmed
+    return trimmed
+
+
 def _execute_cv_generation_runtime(
     jd: dict[str, Any],
     evidence: list[dict[str, Any]],
@@ -1985,9 +2215,6 @@ def generate_cv(
             max_output_tokens=max_output_tokens,
         )
     )
-
-
-
 
 
 

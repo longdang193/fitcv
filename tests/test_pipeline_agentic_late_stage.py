@@ -26,10 +26,56 @@ from fitcv.agentic_cv_generation import (
     _shallow_section_repair_targets,
     build_cv_generation_input_fingerprint,
     build_cv_content_plan,
+    build_render_item_provenance_v1,
     generate_from_analysis,
     merge_repaired_section,
     transition_cv_generation_persistence_failed,
 )
+
+
+def test_render_item_provenance_is_host_managed_and_fails_closed_on_ambiguity() -> None:
+    content_plan = {
+        "approved_claims": [
+            {
+                "claim_id": "ev-sql-1",
+                "evidence_id": "ev-sql-1",
+                "claim": "Built SQL pipelines",
+                "supports_requirements": ["required_skill:sql"],
+                "target_section": "projects",
+            },
+            {
+                "claim_id": "ev-sql-2",
+                "evidence_id": "ev-sql-2",
+                "claim": "Built SQL pipelines",
+                "supports_requirements": ["required_skill:sql"],
+                "target_section": "projects",
+            },
+        ]
+    }
+    structured_cv = {
+        "sections": {
+            "projects": [
+                {"name": "SQL Platform", "context": "", "bullets": ["Built SQL pipelines."]},
+                {"name": "Optional", "context": "", "bullets": ["Other work."]},
+            ]
+        }
+    }
+
+    provenance = build_render_item_provenance_v1(
+        content_plan=content_plan,
+        evidence_payload=[
+            {"evidence_id": "ev-sql-1", "text": "Built SQL pipelines"},
+            {"evidence_id": "ev-sql-2", "text": "Built SQL pipelines"},
+        ],
+        requirement_coverage=[],
+        structured_cv=structured_cv,
+    )
+
+    sql_item = next(item for item in provenance["items"] if item["canonical_item_key"].startswith("projects:sql platform"))
+    optional_item = next(item for item in provenance["items"] if item["canonical_item_key"].startswith("projects:optional"))
+    assert sql_item["protected"] is True
+    assert sql_item["supported_requirement_ids"] == ["required_skill:sql"]
+    assert optional_item["protected"] is True
 
 
 def test_content_plan_keeps_requirement_support_evidence_scoped() -> None:

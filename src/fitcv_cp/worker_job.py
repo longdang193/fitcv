@@ -243,6 +243,13 @@ def _persist_resolution_reanalysis(
             "markdown_final": generation.get("markdown_final"),
             "structured_cv_final": generation.get("structured_cv_final"),
             "validation": generation.get("validation"),
+            "render_item_provenance": generation.get("render_item_provenance"),
+            "content_acceptance": generation.get("content_acceptance"),
+            "final_artifact_acceptance": generation.get("final_artifact_acceptance"),
+            "render_acceptance": generation.get("render_acceptance"),
+            "page_fit_status": generation.get("page_fit_status"),
+            "artifact_checksum": generation.get("artifact_checksum"),
+            "trim_attempt_count": generation.get("trim_attempt_count"),
             "review_required_reason_code": generation.get("review_required_reason_code"),
             "resolution_reanalysis_job_id": resolution_job_id,
             "resolution_reanalysis_completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -2996,7 +3003,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
 
 
 

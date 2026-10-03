@@ -49,9 +49,17 @@ from fitcv.cv_generator import (
     _execute_cv_generation_runtime,
     _get_enabled_section_names,
     _resolve_template_path,
+    _canonical_render_item_key,
+    _render_config_fingerprint,
+    _template_sha256,
     build_live_structured_cv_response_schema as _canonical_live_structured_cv_response_schema,
+    final_artifact_acceptance_passes,
     generate_cv,
     render_cv_markdown,
+    render_cv_native_acceptance,
+    render_item_requirement_support,
+    render_proof_matches,
+    trim_structured_cv_for_page_fit,
 )
 from fitcv.late_stage_contract import (
     CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS as BLOCKED_BY_RERANKER_STATUS,
@@ -148,6 +156,13 @@ class CvGenerationResult(TypedDict, total=False):
     cv_generation_trace: dict[str, Any]
     content_plan: dict[str, Any]
     uncertainties: list[dict[str, Any]]
+    render_item_provenance: list[dict[str, Any]]
+    content_acceptance: bool
+    final_artifact_acceptance: dict[str, Any]
+    render_acceptance: dict[str, Any]
+    page_fit_status: str | None
+    artifact_checksum: str | None
+    trim_attempt_count: int
 
 
 def build_cv_content_plan(
@@ -263,6 +278,115 @@ def build_cv_content_plan(
         json.dumps(plan, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
     return plan
+
+
+def build_render_item_provenance_v1(
+    *,
+    content_plan: dict[str, Any],
+    evidence_payload: list[dict[str, Any]],
+    requirement_coverage: list[dict[str, Any]],
+    structured_cv: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build host-owned trim metadata without changing provider output schema."""
+    evidence_by_id = {
+        str(item.get("evidence_id") or item.get("claim_id") or "").strip(): item
+        for item in evidence_payload
+        if isinstance(item, dict) and str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+    }
+    approved_claims = [
+        item for item in list(content_plan.get("approved_claims") or []) if isinstance(item, dict)
+    ]
+    verified_by_requirement: dict[str, set[str]] = {}
+    for row in requirement_coverage:
+        if not isinstance(row, dict) or str(row.get("selected_support") or "").strip().lower() != "verified":
+            continue
+        requirement_ref = _descriptor_requirement_ref(row)
+        if requirement_ref:
+            verified_by_requirement[requirement_ref] = {
+                str(value).strip()
+                for value in list(row.get("supporting_evidence_ids") or [])
+                if str(value).strip()
+            }
+
+    def _text_tokens(value: Any) -> set[str]:
+        return {
+            token
+            for token in re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold()).split()
+            if len(token) > 2
+        }
+
+    claim_entries: list[dict[str, Any]] = []
+    for claim in approved_claims:
+        evidence_id = str(claim.get("evidence_id") or claim.get("claim_id") or "").strip()
+        claim_text = str(claim.get("claim") or "").strip()
+        evidence_text = str((evidence_by_id.get(evidence_id) or {}).get("text") or "").strip()
+        claim_entries.append(
+            {
+                "section": str(claim.get("target_section") or "summary").strip().lower(),
+                "tokens": _text_tokens(f"{claim_text} {evidence_text}"),
+                "evidence_ids": [evidence_id] if evidence_id else [],
+                "supported_requirement_ids": [
+                    str(value).strip()
+                    for value in list(claim.get("supports_requirements") or [])
+                    if str(value).strip()
+                ],
+            }
+        )
+
+    items: list[dict[str, Any]] = []
+    sections = structured_cv.get("sections") if isinstance(structured_cv, dict) else None
+    if not isinstance(sections, dict):
+        for claim in claim_entries:
+            canonical_key = f"{claim['section']}:{' '.join(sorted(claim['tokens']))}"
+            items.append(
+                {
+                    "item_id": hashlib.sha256(canonical_key.encode("utf-8")).hexdigest(),
+                    "section": claim["section"],
+                    "canonical_item_key": canonical_key,
+                    "evidence_ids": claim["evidence_ids"],
+                    "supported_requirement_ids": claim["supported_requirement_ids"],
+                    "requirement_priority": "primary" if claim["supported_requirement_ids"] else "none",
+                    "protected": bool(claim["supported_requirement_ids"]),
+                }
+            )
+        return {"schema_version": "render_item_provenance_v1", "items": items}
+
+    for section in ("experience", "projects", "education", "certifications", "publications", "languages"):
+        section_items = sections.get(section)
+        if not isinstance(section_items, list):
+            continue
+        for item in section_items:
+            if not isinstance(item, dict):
+                continue
+            canonical_key = _canonical_render_item_key(section, item)
+            item_tokens = _text_tokens(" ".join(str(value) for value in item.values()))
+            matches = [
+                claim
+                for claim in claim_entries
+                if claim["section"] == section and claim["tokens"] and len(item_tokens & claim["tokens"]) >= 2
+            ]
+            supported_ids = sorted({value for match in matches for value in match["supported_requirement_ids"]})
+            evidence_ids = sorted({value for match in matches for value in match["evidence_ids"]})
+            ambiguous = len(matches) != 1
+            if section == "languages":
+                language_name = str(item.get("name") or "").strip().casefold()
+                for requirement_ref in verified_by_requirement:
+                    if language_name and language_name in requirement_ref.casefold():
+                        supported_ids.append(requirement_ref)
+                        evidence_ids.extend(sorted(verified_by_requirement[requirement_ref]))
+            supported_ids = sorted(set(supported_ids))
+            items.append(
+                {
+                    "item_id": hashlib.sha256(canonical_key.encode("utf-8")).hexdigest(),
+                    "section": section,
+                    "canonical_item_key": canonical_key,
+                    "evidence_ids": sorted(set(evidence_ids)),
+                    "supported_requirement_ids": supported_ids,
+                    "requirement_priority": "primary" if supported_ids else "none",
+                    "protected": ambiguous or bool(supported_ids),
+                }
+            )
+    return {"schema_version": "render_item_provenance_v1", "items": items}
 
 
 def _protected_numbers_dates(item: dict[str, Any]) -> list[str]:
@@ -1308,9 +1432,16 @@ def _finalize_generation_result(
     reuse_status: str,
     reuse_reason_code: str,
     trace_id: str,
+    profile: dict[str, Any],
     reused_cv_version_id: str | None = None,
 ) -> CvGenerationResult:
     finalized = deepcopy(result)
+    finalized = _apply_final_artifact_contract(
+        finalized,
+        analysis_record=analysis_record,
+        profile=profile,
+        config=config,
+    )
     finalized["result_contract_version"] = _CV_GENERATION_RESULT_CONTRACT_VERSION
     finalized["raw_job_fingerprint"] = str(analysis_record.get("raw_job_fingerprint") or "")
     finalized["analysis_input_fingerprint"] = str(analysis_record.get("analysis_input_fingerprint") or "")
@@ -1364,6 +1495,121 @@ def _finalize_generation_result(
     return finalized
 
 
+def _native_final_artifact_enabled(config: dict[str, Any]) -> bool:
+    return bool(
+        ((config.get("cv") or {}).get("final_artifact_acceptance") or {}).get("enabled")
+    )
+
+
+def _apply_final_artifact_contract(
+    result: CvGenerationResult,
+    *,
+    analysis_record: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+) -> CvGenerationResult:
+    finalized = cast(CvGenerationResult, deepcopy(result))
+    structured_cv = finalized.get("structured_cv_final")
+    markdown = finalized.get("markdown_final")
+    content_valid = bool(finalized.get("validation", {}).get("valid")) if isinstance(finalized.get("validation"), dict) else False
+    if not isinstance(structured_cv, dict) or not isinstance(markdown, str) or not markdown:
+        finalized["content_acceptance"] = content_valid
+        finalized["final_artifact_acceptance"] = {"status": "not_applicable"}
+        finalized["trim_attempt_count"] = 0
+        return finalized
+    evidence_payload = [item for item in list(analysis_record.get("evidence_payload") or []) if isinstance(item, dict)]
+    requirement_coverage = [item for item in list(analysis_record.get("requirement_coverage") or []) if isinstance(item, dict)]
+    provenance = build_render_item_provenance_v1(
+        content_plan=dict(analysis_record.get("content_plan") or finalized.get("content_plan") or {}),
+        evidence_payload=evidence_payload,
+        requirement_coverage=requirement_coverage,
+        structured_cv=structured_cv,
+    )
+    finalized["render_item_provenance"] = provenance
+    finalized["content_acceptance"] = content_valid
+    finalized["trim_attempt_count"] = 0
+    if not _native_final_artifact_enabled(config):
+        finalized["final_artifact_acceptance"] = {"status": "not_required", "content_valid": content_valid}
+        return finalized
+
+    render_acceptance = finalized.get("render_acceptance")
+    expected_content_sha256 = hashlib.sha256(markdown.encode("utf-8")).hexdigest()
+    if not isinstance(render_acceptance, dict) or not render_proof_matches(
+        render_acceptance,
+        content_sha256=expected_content_sha256,
+        template_sha256=_template_sha256(config),
+        render_config_fingerprint=_render_config_fingerprint(config),
+    ):
+        render_acceptance = render_cv_native_acceptance(markdown, config)
+    final_ok = final_artifact_acceptance_passes(content_valid=content_valid, render_acceptance=render_acceptance)
+    if not final_ok and content_valid and str(render_acceptance.get("page_fit_status") or "") == "fail":
+        before_support = render_item_requirement_support(structured_cv, provenance)
+        trimmed = trim_structured_cv_for_page_fit(structured_cv, provenance)
+        trimmed_markdown = render_cv_markdown(trimmed, config)
+        grounding = _build_validation_grounding_payload(
+            analysis_record,
+            dict(analysis_record.get("job_snapshot") or {}),
+            evidence_payload,
+            list(analysis_record.get("evidence_used") or []),
+        )
+        trimmed_validation = run_all_validations(
+            trimmed_markdown,
+            profile,
+            config,
+            structured_cv=trimmed,
+            analysis_grounding=grounding,
+        )
+        after_support = render_item_requirement_support(trimmed, provenance)
+        if trimmed_validation.get("valid") and before_support == after_support and trimmed != structured_cv:
+            trimmed_render = render_cv_native_acceptance(trimmed_markdown, config)
+            finalized["trim_attempt_count"] = 1
+            if final_artifact_acceptance_passes(content_valid=True, render_acceptance=trimmed_render):
+                structured_cv = trimmed
+                markdown = trimmed_markdown
+                finalized["structured_cv_final"] = structured_cv
+                finalized["markdown_final"] = markdown
+                finalized["validation"] = trimmed_validation
+                content_valid = True
+                render_acceptance = trimmed_render
+                final_ok = True
+    finalized["render_acceptance"] = render_acceptance
+    finalized["page_fit_status"] = render_acceptance.get("page_fit_status") if isinstance(render_acceptance, dict) else None
+    finalized["artifact_checksum"] = render_acceptance.get("artifact_checksum") if isinstance(render_acceptance, dict) else None
+    finalized["final_artifact_acceptance"] = {
+        "status": "accepted" if final_ok else "review_required",
+        "content_valid": content_valid,
+        "page_fit_status": finalized.get("page_fit_status"),
+        "trim_attempt_count": finalized["trim_attempt_count"],
+    }
+    if not final_ok and str(finalized.get("status") or "") == ACCEPTED_STATUS:
+        finalized["status"] = "review_required"
+        finalized["error"] = {
+            "stage": "render",
+            "code": str((render_acceptance or {}).get("render_status") or "render_unverified"),
+            "message": "Final CV artifact lacks verified native one-page render proof.",
+        }
+        finalized["structured_cv_final"] = None
+        finalized["markdown_final"] = None
+    trace = finalized.get("cv_generation_trace")
+    if isinstance(trace, dict):
+        trace = dict(trace)
+        output_summary = dict(trace.get("output_summary") or {})
+        output_summary.update(
+            {
+                "accepted_output_present": final_ok,
+                "final_status": finalized.get("status"),
+                "page_fit_status": finalized.get("page_fit_status"),
+                "render_acceptance": render_acceptance,
+            }
+        )
+        trace["output_summary"] = output_summary
+        trace["render_acceptance"] = render_acceptance
+        trace["page_fit_status"] = finalized.get("page_fit_status")
+        trace["render_item_provenance"] = provenance
+        finalized["cv_generation_trace"] = trace
+    return finalized
+
+
 def _reusable_result_or_none(
     *,
     analysis_record: dict[str, Any],
@@ -1398,7 +1644,7 @@ def _reusable_result_or_none(
     )
     if not validation.get("valid"):
         return None
-    return _build_result(
+    reusable_result = _build_result(
         analysis_record=analysis_record,
         job=job,
         status=ACCEPTED_STATUS,
@@ -1412,6 +1658,9 @@ def _reusable_result_or_none(
         error=None,
         llm_runtime_evidence=[],
     )
+    if isinstance(reusable_record.get("render_acceptance"), dict):
+        reusable_result["render_acceptance"] = dict(reusable_record["render_acceptance"])
+    return reusable_result
 
 
 def transition_cv_generation_persistence_failed(
@@ -1815,6 +2064,7 @@ def generate_from_analysis(
                 reuse_status="reused_exact_match",
                 reuse_reason_code="exact_fingerprint_match",
                 trace_id=trace_id,
+                profile=profile,
                 reused_cv_version_id=str((reusable_record or {}).get("version_id") or "") or None,
             )
     fresh = _generate_fresh_from_analysis(analysis_record, profile, config, trace_id=trace_id)
@@ -1827,4 +2077,5 @@ def generate_from_analysis(
         reuse_status="fresh_compute",
         reuse_reason_code=reuse_reason,
         trace_id=trace_id,
+        profile=profile,
     )

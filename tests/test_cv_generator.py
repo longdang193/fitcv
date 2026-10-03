@@ -28,14 +28,161 @@ from fitcv.cv_generator import (
     build_generation_prompt,
     build_live_structured_cv_response_schema,
     build_structured_generation_prompt,
+    final_artifact_acceptance_passes,
     generate_cv,
     project_authorized_profile,
     render_cv_markdown,
+    render_cv_native_acceptance,
+    render_proof_matches,
+    trim_structured_cv_for_page_fit,
     _normalize_structured_cv,
     render_cv_template,
     select_template_variant,
     validate_structured_cv,
 )
+
+
+def test_production_normalization_drops_unsupported_provenance_fields() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Data Engineer"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"composition": {}}},
+        fit_classification="strong",
+    )
+    document["sections"]["projects"] = [
+        {
+            "name": "SQL Platform",
+            "context": "Built data platform",
+            "bullets": ["Reduced reporting time."],
+            "evidence_id": "ev-sql",
+            "claim_id": "claim-sql",
+            "required": True,
+        }
+    ]
+    normalized = _normalize_structured_cv(
+        document,
+        jd={"title": "Data Engineer"},
+        evidence=[],
+        profile={"name": "Jane Doe"},
+        config={"cv": {"composition": {}}},
+        fit_classification="strong",
+    )
+
+    assert normalized["sections"]["projects"] == [
+        {
+            "name": "SQL Platform",
+            "context": "Built data platform",
+            "bullets": ["Reduced reporting time."],
+        }
+    ]
+
+
+def test_trim_preserves_protected_requirement_item_and_removes_optional_item() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Data Engineer"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"composition": {}}},
+        fit_classification="strong",
+    )
+    document["sections"]["projects"] = [
+        {"name": "SQL Platform", "context": "", "bullets": ["Built SQL pipelines."]},
+        {"name": "Side Project", "context": "", "bullets": ["Optional detail."]},
+    ]
+    provenance = [
+        {
+            "item_id": "protected",
+            "section": "projects",
+            "canonical_item_key": "projects:sql platform",
+            "evidence_ids": ["ev-sql"],
+            "supported_requirement_ids": ["required_skill:sql"],
+            "requirement_priority": "primary",
+            "protected": True,
+        },
+        {
+            "item_id": "optional",
+            "section": "projects",
+            "canonical_item_key": "projects:side project",
+            "evidence_ids": [],
+            "supported_requirement_ids": [],
+            "requirement_priority": "none",
+            "protected": False,
+        },
+    ]
+
+    trimmed = trim_structured_cv_for_page_fit(document, provenance)
+
+    assert [item["name"] for item in trimmed["sections"]["projects"]] == ["SQL Platform"]
+
+
+def test_final_artifact_acceptance_requires_native_one_page_proof() -> None:
+    assert not final_artifact_acceptance_passes(
+        content_valid=True,
+        render_acceptance={"render_status": "pass", "page_count": 2, "page_fit_status": "fail"},
+    )
+    assert final_artifact_acceptance_passes(
+        content_valid=True,
+        render_acceptance={
+            "render_status": "pass",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+        },
+    )
+
+
+def test_render_proof_match_requires_exact_content_and_renderer_inputs() -> None:
+    proof = {
+        "content_sha256": "c" * 64,
+        "template_sha256": "t" * 64,
+        "render_config_fingerprint": "r" * 64,
+        "renderer_contract_version": "fitcv_native_render_v1",
+    }
+
+    assert render_proof_matches(
+        proof,
+        content_sha256="c" * 64,
+        template_sha256="t" * 64,
+        render_config_fingerprint="r" * 64,
+    )
+    assert not render_proof_matches(
+        proof,
+        content_sha256="x" * 64,
+        template_sha256="t" * 64,
+        render_config_fingerprint="r" * 64,
+    )
+
+
+def test_native_render_acceptance_reports_one_page(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("fitcv.cv_generator.shutil.which", lambda tool: f"/fake/{tool}")
+
+    def fake_run(command, **_kwargs):
+        if command[0] == "pandoc":
+            output_path = Path(command[command.index("-o") + 1])
+            output_path.write_bytes(b"fake-pdf")
+            return types.SimpleNamespace(stdout="")
+        if command[0] == "pdfinfo":
+            return types.SimpleNamespace(stdout="Pages: 1\n")
+        return types.SimpleNamespace(stdout="")
+
+    monkeypatch.setattr("fitcv.cv_generator.subprocess.run", fake_run)
+    document = build_empty_structured_cv(
+        jd={"title": "Data Engineer"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"composition": {}}},
+        fit_classification="strong",
+    )
+    document["sections"]["summary"] = {"text": "SQL and Python data engineering."}
+    document["sections"]["skills"] = {"groups": [{"label": "Core", "items": ["SQL", "Python"]}]}
+    result = render_cv_native_acceptance(
+        render_cv_markdown(document, {"cv": {"composition": {}}}),
+        {"cv": {"composition": {}}},
+        output_dir=tmp_path,
+    )
+
+    assert result["render_status"] == "pass"
+    assert result["page_count"] == 1
+    assert result["page_fit_status"] == "pass"
+    assert len(result["artifact_checksum"]) == 64
 
 
 def test_project_authorized_profile_keeps_identity_and_selected_records() -> None:

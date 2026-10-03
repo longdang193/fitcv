@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json as _json
+import re
 from typing import Any
 
 RUN_MODE_LABELS = {
@@ -118,7 +119,25 @@ def accepted_cv_artifact_event_v1(
         "attempt_id": str(attempt_id or "").strip() or None,
         "page_fit_status": normalized_page_fit_status,
         "render_acceptance": normalized_render_acceptance,
+        "render_proof_status": (
+            "verified" if _render_acceptance_is_verified(normalized_render_acceptance) else "incomplete"
+        ),
     }
+
+
+def _render_acceptance_is_verified(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    return (
+        str(value.get("render_status") or "").strip() == "pass"
+        and int(value.get("page_count") or 0) == 1
+        and str(value.get("page_fit_status") or "").strip() == "pass"
+        and bool(re.fullmatch(r"[0-9a-f]{64}", str(value.get("artifact_checksum") or "")))
+        and bool(str(value.get("content_sha256") or "").strip())
+        and bool(str(value.get("template_sha256") or "").strip())
+        and bool(str(value.get("render_config_fingerprint") or "").strip())
+        and bool(str(value.get("renderer_contract_version") or "").strip())
+    )
 
 
 def _nonnegative_int(value: Any) -> int:
@@ -174,6 +193,8 @@ def _normalize_trace_record(
             "render_retry_count",
             "cv_content_plan",
             "page_fit_status",
+            "page_fit_verified",
+            "page_fit_source",
             "render_acceptance",
             "reused_resolution_count",
             "run_started_at",
@@ -486,13 +507,14 @@ def build_accepted_cv_effort_projection(
         elapsed_from_trace = efficiency.get("elapsed_ms")
         output_summary = dict(trace.get("output_summary") or {})
         content_plan = dict(trace.get("cv_content_plan") or {})
+        artifact_render_acceptance = dict(action.get("render_acceptance") or {})
+        artifact_render_verified = _render_acceptance_is_verified(artifact_render_acceptance)
         page_fit_candidates = (
+            artifact_render_acceptance.get("page_fit_status"),
             action.get("page_fit_status"),
-            dict(action.get("render_acceptance") or {}).get("page_fit_status"),
             output_summary.get("page_fit_status"),
             dict(output_summary.get("render_acceptance") or {}).get("page_fit_status"),
             trace.get("page_fit_status"),
-            dict(content_plan.get("space_budget") or {}).get("page_fit_status"),
         )
         page_fit_status = next(
             (
@@ -542,6 +564,9 @@ def build_accepted_cv_effort_projection(
             }
             for item in attempts
         ]
+        page_fit_source = "artifact_render_acceptance" if artifact_render_verified else (
+            "trace_unverified" if page_fit_status != "not_recorded" else "not_recorded"
+        )
         row = {
                 "job_url": job_url,
                 "artifact_version_id": str(action.get("artifact_version_id") or "").strip(),
@@ -569,6 +594,8 @@ def build_accepted_cv_effort_projection(
                 "human_action_count": len(related_actions),
                 "reused_resolution_count": reused_resolution_count,
                 "page_fit_status": page_fit_status,
+                "page_fit_verified": artifact_render_verified,
+                "page_fit_source": page_fit_source,
                 "accepted_outcome": True,
                 "token_usage": token_usage,
                 "token_total": _token_total(token_usage),
@@ -590,6 +617,8 @@ def build_accepted_cv_effort_projection(
                 "review_question_count",
                 "reused_resolution_count",
             "page_fit_status",
+                "page_fit_verified",
+                "page_fit_source",
                 "token_usage",
                 "token_total",
                 "generation_elapsed_ms",
@@ -653,11 +682,22 @@ def build_accepted_cv_effort_projection(
         "token_total": sum(row["token_total"] or 0 for row in projected),
         "unmatched_trace_count": unmatched_trace_count,
         "unattributed_accepted_artifact_count": unattributed_accepted_artifact_count,
+        "page_fit_coverage": {
+            "verified": sum(bool(row.get("page_fit_verified")) for row in projected),
+            "eligible": len(projected),
+        },
+        "page_fit_success": {
+            "verified_one_page": sum(
+                bool(row.get("page_fit_verified")) and row.get("page_fit_status") == "pass"
+                for row in projected
+            ),
+        },
         "failure_category_counts": {
                 category: sum((row["failure_category_counts"] or {}).get(category, 0) for row in projected)
                 for category in ACCEPTED_CV_FAILURE_CATEGORIES
                 if any((row["failure_category_counts"] or {}).get(category, 0) for row in projected)
         },
+        "workload_status": "complete" if not unmatched_trace_count and not unattributed_accepted_artifact_count else "incomplete",
         "workload": {
             "attempted_generation_job_count": workload_attempted_jobs,
             "validation_failure_count": workload_validation_failures,

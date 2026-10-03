@@ -175,7 +175,11 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     if started_at and finished_at and finished_at >= started_at:
         elapsed_wall_ms = (finished_at - started_at).total_seconds() * 1000
     status_counts = Counter(str(item.get("status") or "unknown") for item in records)
-    page_fit_values = [item.get("page_fit_status") for item in projected_records]
+    page_fit_values = [
+        item.get("page_fit_status") if bool(item.get("page_fit_verified")) else None
+        for item in projected_records
+    ]
+    page_fit_reported_values = [item.get("page_fit_status") for item in projected_records]
     review_question_values = [item.get("review_question_count") for item in projected_records]
     human_action_values = [item.get("human_action_count") for item in projected_records]
     resolution_values = [item.get("reused_resolution_count") for item in projected_records]
@@ -223,6 +227,7 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
                 "rate": len(generation_elapsed_values) / len(traces) if traces else 0.0,
             },
             "page_fit": _coverage(page_fit_values),
+            "page_fit_reported": _coverage(page_fit_reported_values),
             "review_questions": _coverage(review_question_values),
             "human_actions": _coverage(human_action_values),
             "resolution_reuse": _coverage(resolution_values),

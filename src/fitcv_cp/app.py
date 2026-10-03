@@ -60,6 +60,7 @@ from fitcv.config import (
     parse_skill_synonym_overlay_yaml,
     resolve_cv_generation_runtime_expectation,
 )
+from fitcv.cv_generator import final_artifact_acceptance_passes, render_cv_native_acceptance
 from fitcv.contracts import (
     MAPPING_SUGGESTIONS_AGGREGATE_SCHEMA_VERSION,
     STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION,
@@ -1900,6 +1901,22 @@ def _finalize_review_draft_as_cv_artifact(
     lowered_markdown = markdown.lower()
     if any(lowered_markdown.endswith(sentinel) for sentinel in _TRUNCATED_MARKDOWN_SENTINELS):
         return (False, "truncated_draft_blocked", None)
+    validation = record.get("validation")
+    content_valid = bool(record.get("content_acceptance"))
+    if not content_valid and isinstance(validation, dict):
+        content_valid = bool(validation.get("valid"))
+    if not content_valid:
+        content_valid = bool(markdown.strip())
+    effective_config = _load_run_effective_config_snapshot(run)
+    render_acceptance = render_cv_native_acceptance(markdown, effective_config)
+    if not final_artifact_acceptance_passes(
+        content_valid=content_valid,
+        render_acceptance=render_acceptance,
+    ):
+        return (False, "final_artifact_unverified", None)
+    record["render_acceptance"] = render_acceptance
+    record["page_fit_status"] = render_acceptance.get("page_fit_status")
+    record["artifact_checksum"] = render_acceptance.get("artifact_checksum")
     rows = _results_export_rows(run)
     row = next((item for item in rows if str(item.get("job_url") or "").strip() == str(job_url or "").strip()), {})
     effective_settings = _effective_settings_dict(run)
@@ -14928,6 +14945,7 @@ def create_app(
         failed_missing_draft = 0
         failed_persist = 0
         failed_truncated_draft = 0
+        failed_final_artifact = 0
         now = datetime.datetime.now(datetime.timezone.utc)
         for selector_type, selector_value in selected_selectors:
             target_record = None
@@ -14969,6 +14987,8 @@ def create_app(
                         failed_persist += 1
                     elif finalized_reason == "truncated_draft_blocked":
                         failed_truncated_draft += 1
+                    elif finalized_reason == "final_artifact_unverified":
+                        failed_final_artifact += 1
                     continue
                 finalized += 1
             elif action == "regenerate_once":
@@ -15029,7 +15049,7 @@ def create_app(
                     level="info",
                     message=(
                         "CV review batch action applied: "
-                        f"action={action}, applied={applied}, skipped={skipped}, failed={failed}, finalized={finalized}, missing_draft={failed_missing_draft}, persist_failed={failed_persist}, truncated_draft={failed_truncated_draft}"
+                        f"action={action}, applied={applied}, skipped={skipped}, failed={failed}, finalized={finalized}, missing_draft={failed_missing_draft}, persist_failed={failed_persist}, truncated_draft={failed_truncated_draft}, final_artifact_unverified={failed_final_artifact}"
                     ),
                     created_at=now,
                     payload_json=_json.dumps(
@@ -15043,6 +15063,7 @@ def create_app(
                             "failed_missing_draft": failed_missing_draft,
                             "failed_persist": failed_persist,
                             "failed_truncated_draft": failed_truncated_draft,
+                            "failed_final_artifact": failed_final_artifact,
                             "selected_count": len(selected_selectors),
                         },
                         ensure_ascii=False,

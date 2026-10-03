@@ -318,6 +318,74 @@ def test_accepted_cv_artifact_event_preserves_render_acceptance() -> None:
 
     assert event["page_fit_status"] == "pass"
     assert event["render_acceptance"] == {"page_count": 1, "page_fit_status": "pass"}
+    assert event["render_proof_status"] == "incomplete"
+
+
+def test_accepted_cv_effort_projection_does_not_use_content_plan_page_fit() -> None:
+    record = {
+        "job_url": "job-unverified-page-fit",
+        "run_id": "run-unverified-page-fit",
+        "cv_generation_trace": {
+            "cv_content_plan": {"space_budget": {"page_fit_status": "one_page"}},
+            "efficiency_summary": {"provider_call_count": 1},
+        },
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-unverified-page-fit",
+        job_url="job-unverified-page-fit",
+        run_id="run-unverified-page-fit",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection([record], [], [artifact])
+
+    row = result["records"][0]
+    assert row["page_fit_status"] == "not_recorded"
+    assert row["page_fit_verified"] is False
+    assert result["aggregate"]["page_fit_coverage"] == {"verified": 0, "eligible": 1}
+
+
+def test_accepted_cv_effort_projection_counts_only_verified_render_proof() -> None:
+    proof = {
+        "render_status": "pass",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": "b" * 64,
+        "template_sha256": "c" * 64,
+        "render_config_fingerprint": "d" * 64,
+        "renderer_contract_version": "fitcv_native_render_v1",
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-verified-page-fit",
+        job_url="job-verified-page-fit",
+        run_id="run-verified-page-fit",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        page_fit_status="pass",
+        render_acceptance=proof,
+    )
+
+    result = build_accepted_cv_effort_projection(
+        [],
+        [],
+        [artifact],
+        generation_trace_records=[
+            {
+                "run_id": "run-verified-page-fit",
+                "job_url": "job-verified-page-fit",
+                "efficiency_summary": {"provider_call_count": 1},
+            }
+        ],
+    )
+
+    assert artifact["render_proof_status"] == "verified"
+    assert result["records"][0]["page_fit_verified"] is True
+    assert result["aggregate"]["page_fit_coverage"] == {"verified": 1, "eligible": 1}
+    assert result["aggregate"]["page_fit_success"] == {"verified_one_page": 1}
 
 
 def test_accepted_cv_effort_projection_marks_ambiguous_legacy_trace_unmatched() -> None:
