@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -14,6 +15,17 @@ from typing import Any, Callable, TypeVar
 from fitcv_cp import sqlite_store
 
 _Result = TypeVar("_Result")
+
+
+def configure_local_provider_credential_from_env(provider_id: str) -> bool:
+    """Persist loaded test credentials through the same local boundary as production."""
+    api_key = str(os.environ.get("FITCV_LLM_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError("FITCV_LLM_API_KEY is required for local acceptance.")
+    from fitcv_cp.local_credentials import set_credential
+
+    set_credential(provider_id, api_key)
+    return True
 
 
 class ControlledLocalJobExecutor:
