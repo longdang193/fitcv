@@ -392,6 +392,7 @@ def build_render_item_provenance_v1(
             {
                 "section": str(claim.get("target_section") or "summary").strip().lower(),
                 "tokens": _text_tokens(f"{claim_text} {evidence_text}"),
+                "support_tokens": _text_tokens(" ".join(str(value) for value in list(claim.get("supports_requirements") or []))),
                 "evidence_ids": [evidence_id] if evidence_id else [],
                 "supported_requirement_ids": [
                     str(value).strip()
@@ -419,6 +420,12 @@ def build_render_item_provenance_v1(
             )
         return {"schema_version": "render_item_provenance_v1", "items": items}
 
+    def _claim_matches_item(claim: dict[str, Any], item_tokens: set[str]) -> bool:
+        if not claim["tokens"] or len(item_tokens & claim["tokens"]) < 2:
+            return False
+        support_tokens = set(claim.get("support_tokens") or [])
+        return not support_tokens or bool(item_tokens & support_tokens)
+
     for section in ("experience", "projects", "education", "certifications", "publications", "languages"):
         section_items = sections.get(section)
         if not isinstance(section_items, list):
@@ -435,11 +442,10 @@ def build_render_item_provenance_v1(
             candidate_tokens = _text_tokens(" ".join(str(value) for value in candidate.values()))
             section_matched_required_claims.update(
                 id(claim)
-                for claim in claim_entries
-                if claim["section"] == section
-                and claim["supported_requirement_ids"]
-                and claim["tokens"]
-                and len(candidate_tokens & claim["tokens"]) >= 2
+                    for claim in claim_entries
+                    if claim["section"] == section
+                    and claim["supported_requirement_ids"]
+                    and _claim_matches_item(claim, candidate_tokens)
             )
         if len(section_items) == 1 and len(section_claims) == 1 and not section_matched_required_claims:
             section_matched_required_claims.add(id(section_claims[0]))
@@ -451,7 +457,7 @@ def build_render_item_provenance_v1(
             matches = [
                 claim
                 for claim in claim_entries
-                if claim["section"] == section and claim["tokens"] and len(item_tokens & claim["tokens"]) >= 2
+                if claim["section"] == section and _claim_matches_item(claim, item_tokens)
             ]
             if not matches:
                 if len(section_items) == 1 and len(section_claims) == 1:
