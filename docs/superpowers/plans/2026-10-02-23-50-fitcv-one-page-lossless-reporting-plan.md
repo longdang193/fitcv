@@ -135,8 +135,8 @@ grounding, one-page finalization, or reporting integrity.
 - Branch: `codex/fitcv-one-page-lossless-reporting` created from `origin/main` at activation
 - Base commit: `039a5ee625799f44734fe7dc3e732b7659c126c5`
 - Expected workspace: `current checkout contains preserved untracked .tmp/, .venv/, scratch scripts, and local data; no cleanup or discard`
-- Next action: `rerun same-workload incumbent/candidate experiment after FITCV_LLM_API_KEY is available; refresh evidence after legacy non-one-page/unattributed records are resolved`
-- Blockers: `P1-A ordinary-workload page-fit gate remains blocked by one historical non-one-page accepted record; P1-B measurement remains incomplete with unattributed accepted artifacts; Task 6 live comparison is blocked by missing FITCV_LLM_API_KEY; P1-C and P2 are intentional deferrals`
+- Next action: `run fresh verification after final-artifact proof gate patch; historical evidence remains excluded from current measurement`
+- Blockers: `P1-A/P1-B remain blocked by stale historical non-one-page/attribution records; fixed-cohort optimization shows no first-pass lift; P1-C and P2 are intentional deferrals`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -145,8 +145,8 @@ grounding, one-page finalization, or reporting integrity.
 | Task 3 | `completed` | isolated worktree | `codex` | Task 2 | one-page lifecycle regression | render, trim, and final-gate tests pass |
 | Task 4 | `completed` | isolated worktree | `codex` | Task 3 | persistence and HITL boundary tests | persistence, worker, and HITL tests pass |
 | Task 5 | `completed` | isolated worktree | `codex` | Task 2, Task 4 | report/verifier contract tests | report/verifier tests pass; P1-B remains incomplete |
-| Task 6 | `blocked` | isolated worktree | `codex` | Task 5 | same-workload experiment evidence | blocked before provider execution; `FITCV_LLM_API_KEY` absent |
-| Task 7 | `blocked` | isolated worktree | `codex` | Task 6 | full verification and reconciled state | frontend typecheck, `328` frontend tests, build, and audit passed; backend suite `3063 passed, 10 skipped`; verifier passed; promotion gates remain blocked only by evidence/API-key gates |
+| Task 6 | `completed` | isolated worktree | `codex` | Task 5 | same-workload experiment evidence | fixed five-job cohort records equal `4` attempted generations per arm, `0/4` first-pass in both arms, `1` accepted artifact per arm, and no optimization lift |
+| Task 7 | `blocked` | isolated worktree | `codex` | Task 6 | full verification and reconciled state | final-artifact proof regression fixed; focused contract suite `65 passed`, finalization/backend suite `890 passed`; full `3070 passed, 10 skipped`; acceptance verifier passed; historical non-one-page/attribution records still block closure |
 
 ## Task Breakdown
 
@@ -496,10 +496,12 @@ No promotion occurs without same-workload comparison and all hard gates.
 - [x] Page-fit coverage and page-fit success are separate report fields.
 - [x] Acceptance verifier rejects false `measured` status for conflicts or
   accepted non-one-page artifacts.
-- [ ] First-pass experiment uses identical workload and preserves frozen P0
-  gates. Live comparison blocked before provider execution by missing API key.
+- [x] First-pass experiment includes a fixed-size common cohort with identical
+  fixture, profile, model, config, and inline submission path; both arms record
+  `0/4` first-pass, `1` accepted artifact, zero conflicts, and zero
+  unattributed artifacts. Candidate shows no lift and is not promoted.
 - [x] P1-C and P2 remain explicitly deferred.
-- [x] Fresh verification returns `verified` before any branch publication or
+- [ ] Fresh verification returns `verified` before any branch publication or
   merge action.
 
 ## Non-Goals And Deferred Work

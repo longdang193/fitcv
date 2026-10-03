@@ -1531,3 +1531,91 @@ def test_unknown_ranking_score_blocks_analysis_with_stable_reason() -> None:
     assert record["fit_classification"] is None
     assert record["outcome_reason"]["stage"] == "ranking"
     assert "ranking_unavailable" in record["outcome_reason"]["message"]
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch(
+    "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+    return_value={
+        "renderer_status": "rendered",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "fixture-render-proof",
+    },
+)
+def test_reuse_with_missing_render_proof_rerenders_without_provider_call(
+    mock_render_cv_native_acceptance: MagicMock,
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    validation = {
+        "valid": True, "missing_sections": [], "grounding_violations": [],
+        "deterministic_grounding_violations": [], "semantic_grounding_violations": [],
+        "skill_violations": [], "warnings": [], "support_source_summary": {},
+        "markdown_quality_blocking_issues": [], "markdown_quality_review_flags": [],
+    }
+    mock_run_all_validations.return_value = validation
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.\n## Skills\nSQL",
+    }
+    fresh = generate_from_analysis(analysis_record, _minimal_profile(), config)
+    mock_generate_cv.reset_mock()
+    mock_render_cv_native_acceptance.reset_mock()
+
+    reused = generate_from_analysis(
+        analysis_record,
+        _minimal_profile(),
+        config,
+        reusable_record={
+            **fresh,
+            "render_acceptance": None,
+            "page_fit_status": None,
+            "version_id": "cv-version-stale-proof",
+        },
+    )
+
+    mock_generate_cv.assert_not_called()
+    mock_render_cv_native_acceptance.assert_called_once()
+    assert reused["status"] == "accepted"
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch("fitcv.agentic_cv_generation.render_cv_native_acceptance")
+@patch("fitcv.agentic_cv_generation.trim_structured_cv_for_page_fit")
+def test_trimmed_content_is_revalidated_before_acceptance(
+    mock_trim: MagicMock,
+    mock_render: MagicMock,
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    structured = _minimal_structured_cv()
+    mock_generate_cv.return_value = {
+        "structured_cv": structured,
+        "markdown": "# Test Candidate\n## Experience\nGrounded work.",
+    }
+    valid = {
+        "valid": True, "missing_sections": [], "grounding_violations": [],
+        "deterministic_grounding_violations": [], "semantic_grounding_violations": [],
+        "skill_violations": [], "warnings": [], "support_source_summary": {},
+        "markdown_quality_blocking_issues": [], "markdown_quality_review_flags": [],
+    }
+    invalid = {**valid, "valid": False, "grounding_violations": ["removed_unique_claim"]}
+    mock_run_all_validations.side_effect = [valid, invalid]
+    mock_render.side_effect = [
+        {"renderer_status": "rendered", "page_count": 2, "page_fit_status": "fail", "artifact_checksum": "two-page"},
+        {"renderer_status": "rendered", "page_count": 1, "page_fit_status": "pass", "artifact_checksum": "trimmed-one-page"},
+    ]
+    mock_trim.return_value = (structured, ["removed_project_item"])
+
+    result = generate_from_analysis(analysis_record, _minimal_profile(), config)
+
+    assert result["status"] == "review_required"
+    assert mock_run_all_validations.call_count == 2
+    assert result["render_acceptance"]["artifact_checksum"] == "trimmed-one-page"

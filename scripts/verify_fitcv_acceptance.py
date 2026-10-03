@@ -18,6 +18,12 @@ except ModuleNotFoundError:
     from render_acceptance_state import _validate_state
     from benchmark_cv_efficiency import material_report_digest
 
+from fitcv_cp.run_artifact_contracts import (
+    FINAL_ARTIFACT_CONTRACT_VERSION,
+    TRACE_CONTRACT_VERSION,
+)
+from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE = REPO_ROOT / "config/acceptance_state.yaml"
@@ -149,6 +155,7 @@ def _run_runtime_efficiency_evidence_check(
     attribution = dict(report.get("attribution") or {}) if isinstance(report, dict) else {}
     normalization = dict(report.get("trace_normalization") or {}) if isinstance(report, dict) else {}
     diversity = dict(report.get("run_job_diversity") or {}) if isinstance(report, dict) else {}
+    outcomes = dict(report.get("outcomes") or {}) if isinstance(report, dict) else {}
     measurement_gate_reasons: list[str] = []
     for name, reason in (
         ("attribution", "attribution_coverage_incomplete"),
@@ -175,9 +182,30 @@ def _run_runtime_efficiency_evidence_check(
         measurement_gate_reasons.append("unmatched_traces_present")
     if int(attribution.get("unattributed_accepted_artifact_count") or 0):
         measurement_gate_reasons.append("unattributed_accepted_artifacts_present")
+    selection = dict(report.get("selection") or {}) if isinstance(report, dict) else {}
+    if int(selection.get("historical_record_count") or 0):
+        measurement_gate_reasons.append("historical_contract_records_present")
+    if int(selection.get("current_contract_record_count") or 0) == 0:
+        measurement_gate_reasons.append("current_contract_records_missing")
     if int(accepted_cv.get("accepted_non_one_page_count") or 0):
         measurement_gate_reasons.append("accepted_non_one_page_artifacts_present")
+    page_fit_success = dict(coverage.get("page_fit_success") or {})
+    page_fit_outcome = dict(outcomes.get("page_fit") or {})
+    if page_fit_success.get("complete") and int(page_fit_success.get("total") or 0) > 0:
+        if int(page_fit_outcome.get("fail") or page_fit_success.get("fail") or 0) > 0:
+            measurement_gate_reasons.append("page_fit_success_not_perfect")
+        elif int(page_fit_outcome.get("pass") or page_fit_success.get("pass") or 0) != int(page_fit_success.get("total") or 0):
+            measurement_gate_reasons.append("page_fit_success_outcome_mismatch")
     measurement_eligible = not measurement_gate_reasons
+    if runtime_efficiency.get("measurement_status") == "measured":
+        expected_versions = {
+            "final_artifact": FINAL_ARTIFACT_CONTRACT_VERSION,
+            "trace": TRACE_CONTRACT_VERSION,
+            "efficiency": EFFICIENCY_CONTRACT_VERSION,
+        }
+        if dict(report.get("contract_versions") or {}) != expected_versions:
+            measurement_gate_reasons.append("current_contract_versions_missing_or_mismatched")
+            measurement_eligible = False
     if runtime_efficiency.get("measurement_status") == "measured" and not measurement_eligible:
         failures.extend(f"runtime_efficiency_{reason}" for reason in measurement_gate_reasons)
     return {

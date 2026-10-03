@@ -21,6 +21,11 @@ import hashlib
 import json as _json
 from typing import Any
 
+from fitcv.contracts import (
+    FINAL_ARTIFACT_CONTRACT_VERSION,
+    TRACE_CONTRACT_VERSION,
+)
+
 RUN_MODE_LABELS = {
     "run_all": "Run All",
     "manual_staged": "Stage by Stage",
@@ -78,6 +83,7 @@ def accepted_cv_artifact_event_v1(
     attempt_id: str | None = None,
     page_fit_status: str | None = None,
     render_acceptance: dict[str, Any] | None = None,
+    final_artifact_contract_version: str | None = None,
 ) -> dict[str, Any]:
     normalized_artifact_id = str(artifact_id or "").strip()
     normalized_job_url = str(job_url or "").strip()
@@ -94,14 +100,18 @@ def accepted_cv_artifact_event_v1(
         normalized_page_fit_status = str(
             normalized_render_acceptance.get("page_fit_status") or ""
         ).strip() or None
-    if normalized_render_acceptance:
-        render_page_fit_status = str(
-            normalized_render_acceptance.get("page_fit_status") or normalized_page_fit_status or ""
-        ).strip().lower()
-        if normalized_render_acceptance.get("page_count") != 1 or render_page_fit_status != "pass":
-            raise ValueError("accepted_cv_artifact final artifact acceptance failed")
+    if not normalized_render_acceptance:
+        raise ValueError("accepted_cv_artifact final artifact render proof required")
+    render_page_fit_status = str(
+        normalized_render_acceptance.get("page_fit_status") or normalized_page_fit_status or ""
+    ).strip().lower()
+    if normalized_render_acceptance.get("page_count") != 1 or render_page_fit_status != "pass":
+        raise ValueError("accepted_cv_artifact final artifact acceptance failed")
     return {
         "schema_version": ACCEPTED_CV_ARTIFACT_SCHEMA_VERSION,
+        "final_artifact_contract_version": (
+            str(final_artifact_contract_version or FINAL_ARTIFACT_CONTRACT_VERSION).strip()
+        ),
         "event_id": stable_sha256_fingerprint(
             {
                 "artifact_id": normalized_artifact_id,
@@ -415,6 +425,7 @@ def build_accepted_cv_effort_projection(
                 "generation_input_fingerprint": artifact.get("generation_input_fingerprint"),
                 "attempt_id": artifact.get("attempt_id"),
                 "trace_id": artifact.get("trace_id"),
+                "final_artifact_contract_version": artifact.get("final_artifact_contract_version"),
                 "page_fit_status": artifact.get("page_fit_status"),
                 "render_acceptance": artifact.get("render_acceptance"),
             }
@@ -563,6 +574,8 @@ def build_accepted_cv_effort_projection(
                 "generation_input_fingerprint": _lineage_value(action, "generation_input_fingerprint") or None,
                 "attempt_id": _lineage_value(action, "attempt_id") or None,
                 "trace_id": _lineage_value(action, "trace_id") or None,
+                "final_artifact_contract_version": action.get("final_artifact_contract_version"),
+                "trace_contract_version": trace.get("trace_contract_version"),
                 "page_fit_status": action.get("page_fit_status"),
                 "render_acceptance": action.get("render_acceptance"),
                 "acceptance_mode": str(action.get("acceptance_mode") or "human_confirmed"),

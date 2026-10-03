@@ -27,9 +27,15 @@ from fitcv_cp.run_artifact_contracts import (
     schema_version_or_none,
     stable_sha256_fingerprint,
     build_accepted_cv_effort_projection,
-    accepted_cv_artifact_event_v1,
+    accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1,
     collect_normalized_generation_traces,
 )
+
+
+def accepted_cv_artifact_event_v1(**kwargs):
+    kwargs.setdefault("page_fit_status", "pass")
+    kwargs.setdefault("render_acceptance", {"page_count": 1, "page_fit_status": "pass"})
+    return _accepted_cv_artifact_event_v1(**kwargs)
 
 
 def test_normalized_run_mode_defaults_unknown_values_to_run_all() -> None:
@@ -308,6 +314,7 @@ def test_accepted_cv_artifact_event_preserves_trace_id() -> None:
     )
 
     assert event["trace_id"] == "trace-1"
+    assert event["final_artifact_contract_version"] == "fitcv.final_artifact.v1"
     assert event["event_id"]
 
 
@@ -338,6 +345,19 @@ def test_accepted_cv_artifact_event_rejects_non_one_page_render() -> None:
             finalized_at="2026-10-02T00:01:00Z",
             page_fit_status="fail",
             render_acceptance={"page_count": 2, "page_fit_status": "fail"},
+        )
+
+
+def test_accepted_cv_artifact_event_requires_native_render_proof() -> None:
+    with pytest.raises(ValueError, match="render proof required"):
+        _accepted_cv_artifact_event_v1(
+            artifact_id="cv-unproven",
+            job_url="job-unproven",
+            run_id="run-unproven",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+            page_fit_status="pass",
         )
 
 
@@ -533,7 +553,7 @@ def test_accepted_cv_effort_projection_prefers_finalized_page_fit_over_plan_defa
 
     result = build_accepted_cv_effort_projection([record], [], [artifact])
 
-    assert result["records"][0]["page_fit_status"] == "one_page"
+    assert result["records"][0]["page_fit_status"] == "pass"
 
 
 def test_accepted_cv_effort_projection_prefers_artifact_render_acceptance() -> None:

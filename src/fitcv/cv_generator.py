@@ -44,6 +44,7 @@ from fitcv.config import (
 from fitcv.contracts import (
     ANALYSIS_CHANNEL_DEFINITIONS,
     DOMAIN_ALIGNMENT_CHANNEL,
+    FINAL_ARTIFACT_CONTRACT_VERSION,
     REQUIRED_SKILL_SUPPORT_CHANNEL,
     RESPONSIBILITY_ALIGNMENT_CHANNEL,
     ROLE_ALIGNMENT_CHANNEL,
@@ -93,6 +94,42 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 }
 
 
+_RENDER_CONTRACT_VERSION = "cv_native_render_v2"
+
+
+def _stable_render_fingerprint(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str).encode("utf-8")
+    ).hexdigest()
+
+
+def build_render_proof_identity(structured_cv: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    template_path = Path(_resolve_template_path(config))
+    try:
+        template_sha256 = hashlib.sha256(template_path.read_bytes()).hexdigest()
+    except OSError:
+        template_sha256 = ""
+    render_config = {
+        "preset": str(((config.get("cv") or {}).get("preset") or "")),
+        "composition": dict(((config.get("cv") or {}).get("composition") or {})),
+        "required_cv_sections": sorted(str(item) for item in list(config.get("required_cv_sections") or [])),
+    }
+    return {
+        "final_artifact_contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
+        "artifact_content_sha256": _stable_render_fingerprint(structured_cv),
+        "template_sha256": template_sha256,
+        "render_config_fingerprint": _stable_render_fingerprint(render_config),
+        "renderer_contract_version": _RENDER_CONTRACT_VERSION,
+    }
+
+
+def render_proof_matches(structured_cv: dict[str, Any], config: dict[str, Any], render_acceptance: dict[str, Any] | None) -> bool:
+    if not isinstance(render_acceptance, dict):
+        return False
+    expected = build_render_proof_identity(structured_cv, config)
+    return all(render_acceptance.get(key) == value for key, value in expected.items())
+
+
 def final_artifact_acceptance_passes(
     *,
     content_acceptance: bool,
@@ -108,20 +145,48 @@ def final_artifact_acceptance_passes(
     )
 
 
+def _trim_item_identity(item: Any) -> str:
+    if not isinstance(item, dict):
+        return str(item or "").strip().casefold()
+    for key in ("evidence_id", "claim_id", "id", "name", "title"):
+        value = str(item.get(key) or "").strip()
+        if value:
+            return value.casefold()
+    return _stable_render_fingerprint(item)
+
+
 def trim_structured_cv_for_page_fit(
     structured_cv: dict[str, Any],
+    *,
+    content_plan: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
-    """Drop lowest-priority optional sections once before final rendering."""
     trimmed = deepcopy(structured_cv)
     sections = trimmed.get("sections")
     if not isinstance(sections, dict):
         return trimmed, []
+    approved_claims = [item for item in list((content_plan or {}).get("approved_claims") or []) if isinstance(item, dict)]
+    protected_ids = {
+        str(item.get("claim_id") or item.get("evidence_id") or "").strip().casefold()
+        for item in approved_claims
+        if str(item.get("claim_id") or item.get("evidence_id") or "").strip() and list(item.get("supports_requirements") or [])
+    }
     changes: list[str] = []
     for section_key in ("publications", "certifications", "languages", "projects"):
-        items = sections.get(section_key)
-        if isinstance(items, list) and items:
-            sections[section_key] = []
-            changes.append(f"removed_{section_key}")
+        items = list(sections.get(section_key) or [])
+        if len(items) <= 1:
+            continue
+        candidates = [
+            (index, item)
+            for index, item in enumerate(items)
+            if _trim_item_identity(item) not in protected_ids
+            and not (isinstance(item, dict) and bool(item.get("required")))
+        ]
+        if not candidates:
+            continue
+        index, item = min(candidates, key=lambda pair: (_trim_item_identity(pair[1]), pair[0]))
+        items.pop(index)
+        sections[section_key] = items
+        changes.append(f"removed_{section_key}:{_trim_item_identity(item)}")
     return trimmed, changes
 
 def select_template_variant(jd: dict[str, Any]) -> str:
@@ -1880,6 +1945,7 @@ def render_cv_native_acceptance(
     missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
     if missing_tools:
         return {
+            **build_render_proof_identity(structured_cv, config),
             "renderer_status": "render_unavailable",
             "missing_tools": missing_tools,
             "page_count": None,
@@ -1920,6 +1986,7 @@ def render_cv_native_acceptance(
             timeout=30,
         )
         return {
+            **build_render_proof_identity(structured_cv, config),
             "renderer_status": "rendered",
             "page_count": page_count,
             "page_fit_status": "pass" if page_count == 1 else "fail",
@@ -1927,6 +1994,7 @@ def render_cv_native_acceptance(
         }
     except (OSError, RuntimeError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         return {
+            **build_render_proof_identity(structured_cv, config),
             "renderer_status": "render_failed",
             "page_count": None,
             "page_fit_status": "unresolved",
@@ -2104,5 +2172,4 @@ def generate_cv(
             max_output_tokens=max_output_tokens,
         )
     )
-
 

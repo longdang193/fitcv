@@ -2,9 +2,12 @@
   "contract_versions": {
     "acceptance": "fitcv.acceptance_state.v2",
     "corpus": "p0.public.v1",
+    "efficiency": "fitcv.efficiency.v1",
     "efficiency_measurement": "fitcv_runtime_efficiency_baseline_v3",
+    "final_artifact": "fitcv.final_artifact.v1",
     "runtime_acceptance": "p0b.runtime_acceptance.v2",
-    "support_oracle": "p0b.source_job_support_oracle.v1"
+    "support_oracle": "p0b.source_job_support_oracle.v1",
+    "trace": "fitcv.trace.v1"
   },
   "corpus_manifests": [
     "data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_manifest.json",
@@ -31,7 +34,8 @@
     "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.md",
     "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json",
     "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md",
-    "docs/superpowers/evidence/2026-10-02-fitcv-first-pass-experiment.md"
+    "docs/superpowers/evidence/2026-10-02-fitcv-first-pass-experiment.md",
+    "docs/superpowers/evidence/2026-10-03-fitcv-final-artifact-integration-optimization.md"
   ],
   "p0_b": {
     "explicitly_excluded_requirement_ids": [
@@ -250,7 +254,7 @@
     "blocked_reasons": [
       "ordinary_workload_has_non_one_page_accepted_artifact",
       "accepted_artifact_attribution_incomplete",
-      "first_pass_experiment_blocked_missing_fitcv_llm_api_key"
+      "first_pass_experiment_no_observed_lift"
     ],
     "measurement_status": "incomplete",
     "p1_c": "deferred",
