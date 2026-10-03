@@ -21,8 +21,8 @@ statuses:
   p0_a: rejected
   p0_b: passed
   p0_c: passed
-  p1_a: blocked
-  p1_b: blocked
+  p1_a: passed
+  p1_b: passed
   p1_c: deferred
   p2: deferred
 status_dimensions:
@@ -40,12 +40,12 @@ status_dimensions:
     measurement_status: frozen_scope_only
   p1_a:
     implementation_status: verified
-    acceptance_status: blocked
-    measurement_status: blocked
+    acceptance_status: passed
+    measurement_status: measured
   p1_b:
     implementation_status: verified
-    acceptance_status: blocked
-    measurement_status: incomplete
+    acceptance_status: passed
+    measurement_status: measured
   p1_c:
     implementation_status: deferred
     acceptance_status: deferred
@@ -78,16 +78,27 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md
   - docs/superpowers/evidence/2026-10-02-fitcv-first-pass-experiment.md
   - docs/superpowers/evidence/2026-10-03-fitcv-final-artifact-integration-optimization.md
+  - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
+  - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
+  - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256
+current_contract_evidence:
+  json: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
+  markdown: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
+  sha256: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256
+optimization_result:
+  experiment: complete
+  promotion: rejected
+  production_default: unchanged
+  evidence:
+    - docs/superpowers/evidence/2026-10-03-fitcv-first-pass-experiment.json
+    - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
 runtime_efficiency:
-  measurement_status: incomplete
+  measurement_status: measured
   baseline_evidence:
-    json: docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json
-    markdown: docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md
+    json: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
+    markdown: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
   accepted_artifact_and_total_workload_metrics: true
-  blocked_reasons:
-    - ordinary_workload_has_non_one_page_accepted_artifact
-    - accepted_artifact_attribution_incomplete
-    - first_pass_experiment_no_observed_lift
+  blocked_reasons: []
   p1_c: deferred
   p2: deferred
 p0_b:

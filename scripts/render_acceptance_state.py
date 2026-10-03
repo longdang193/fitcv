@@ -58,6 +58,12 @@ ALLOWED_MEASUREMENT_STATUSES = {
     "blocked",
 }
 ALLOWED_RUNTIME_MEASUREMENT_STATUSES = {"measured", "incomplete", "blocked"}
+OPTIMIZATION_RESULT_FIELDS = {
+    "experiment",
+    "promotion",
+    "production_default",
+    "evidence",
+}
 
 
 def _require(condition: bool, message: str) -> None:
@@ -85,6 +91,30 @@ def _validate_state(state: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     _require(isinstance(evidence_paths, list) and evidence_paths and all(isinstance(item, str) for item in evidence_paths), "evidence_paths invalid")
     for relative_path in [*manifests, *evidence_paths]:
         _require((repo_root / relative_path).is_file(), f"missing reference: {relative_path}")
+
+    current_evidence = state.get("current_contract_evidence")
+    if current_evidence is not None:
+        _require(isinstance(current_evidence, dict), "current_contract_evidence invalid")
+        for key in ("json", "markdown", "sha256"):
+            relative_path = current_evidence.get(key)
+            _require(
+                isinstance(relative_path, str) and (repo_root / relative_path).is_file(),
+                f"current_contract_evidence missing reference: {key}",
+            )
+        digest_text = (repo_root / str(current_evidence["sha256"])).read_text(encoding="utf-8").strip()
+        _require(
+            re.fullmatch(r"[0-9a-f]{64}\s+\S+", digest_text) is not None,
+            "current_contract_evidence digest invalid",
+        )
+
+    optimization_result = state.get("optimization_result")
+    if optimization_result is not None:
+        _require(isinstance(optimization_result, dict), "optimization_result invalid")
+        _require(set(optimization_result) == OPTIMIZATION_RESULT_FIELDS, "optimization_result fields invalid")
+        _require(optimization_result.get("experiment") == "complete", "optimization experiment invalid")
+        _require(optimization_result.get("promotion") == "rejected", "optimization promotion invalid")
+        _require(optimization_result.get("production_default") == "unchanged", "optimization default invalid")
+        _require(isinstance(optimization_result.get("evidence"), list), "optimization evidence invalid")
 
     statuses = state.get("statuses")
     _require(isinstance(statuses, dict), "statuses invalid")

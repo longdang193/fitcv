@@ -18,19 +18,19 @@
 
 ## Cohort Result
 
-Current cohort evidence: `docs/superpowers/evidence/2026-10-03-fitcv-current-cohort-b.json`.
+Current-contract evidence: `docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json`.
 
-- `3` accepted final CVs from `5` attempted generation jobs.
-- Accepted final one-page rate: `100%`.
-- Native proof, attribution, cost, timing, and page-fit reporting coverage: `100%` on recorded accepted artifacts.
-- Trace conflicts, unattributed accepted artifacts, and verified provenance loss: `0`.
-- First-pass acceptance: `0%`; no promotion claim.
+- Source commit: `11732c6a72e6e816a19c0fc0e5efdae2fbd103e0`.
+- Fixed cohort: `167` input jobs across two comparable runs (`b81204c1-8e5a-43c0-81f1-8263205d6ff0`, `70629b36-c725-4243-bfba-55845c9d319b`); `23` attempted generation jobs; `13` accepted final CVs.
+- Accepted final one-page rate: `13 / 13 = 100%`, with native render proof for every accepted artifact.
+- First-pass acceptance: `0 / 23 = 0%`; `13` retry successes and `10` retry failures.
+- Trace conflicts: `0`; unattributed accepted artifacts: `0`; timing, cost, attribution, and page-fit coverage: `100%`.
 - Historical `5/5` evidence remains rejected as non-current-contract evidence.
 
 ## Reporting And Optimization
 
-`benchmark_cv_efficiency.py` now reports explicit stage p50/p95 values from lossless trace samples. Missing stage instrumentation stays unavailable instead of being inferred. Current provider-generation latency is p50 `13295.5 ms`, p95 `14367.15 ms`; analysis, retrieval, content planning, validation, render, repair, and persistence remain unmeasured in this cohort.
+`benchmark_cv_efficiency.py` reports explicit stage p50/p95 values from lossless trace samples. Missing stage instrumentation stays unavailable instead of being inferred. Across both runs, provider-generation latency is p50 `12779.5 ms`, p95 `16329.25 ms`; other stages remain unmeasured. Aggregate provider calls: `46`; tokens: `218203`; regenerations: `23`. Regeneration causes are recorded separately from reuse hits, human actions, and resolution reuse. Proof reuse and avoided provider/render/token work remain explicitly unavailable because current trace contracts do not persist them.
 
-Bounded optimization accepted: canonical render-proof cache fast path. No retrieval, provider, model, retry-policy, or production configuration change was made. First-pass optimization rejected pending a comparable current cohort.
+Optimization result: `experiment: complete`, `promotion: rejected`, `production_default: unchanged`. No retrieval, provider, model, retry-policy, or production configuration change was made. Two-run measurement now closes the evidence blocker; first-pass optimization remains rejected until a measured change improves the approved target without violating final-artifact gates.
 
 P1-C and P2 remain deferred.

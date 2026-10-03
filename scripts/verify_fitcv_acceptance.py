@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -220,6 +221,77 @@ def _run_runtime_efficiency_evidence_check(
     }
 
 
+def _run_current_contract_evidence_check(
+    state: dict[str, Any],
+    repo_root: Path,
+) -> dict[str, Any]:
+    references = dict(state.get("current_contract_evidence") or {})
+    json_path = repo_root / str(references.get("json") or "")
+    markdown_path = repo_root / str(references.get("markdown") or "")
+    digest_path = repo_root / str(references.get("sha256") or "")
+    failures: list[str] = []
+    evidence: dict[str, Any] = {}
+    if not json_path.is_file():
+        failures.append("current_contract_evidence_json_missing")
+    else:
+        try:
+            evidence = json.loads(json_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            failures.append("current_contract_evidence_json_invalid")
+    if not markdown_path.is_file():
+        failures.append("current_contract_evidence_markdown_missing")
+    elif "Evidence status: `canonical`" not in markdown_path.read_text(encoding="utf-8"):
+        failures.append("current_contract_evidence_markdown_not_canonical")
+    if not digest_path.is_file():
+        failures.append("current_contract_evidence_digest_missing")
+    else:
+        digest_line = digest_path.read_text(encoding="utf-8").strip().split()
+        actual_digest = hashlib.sha256(json_path.read_bytes()).hexdigest() if json_path.is_file() else ""
+        if len(digest_line) != 2 or digest_line[0] != actual_digest or digest_line[1] != json_path.name:
+            failures.append("current_contract_evidence_digest_mismatch")
+    if isinstance(evidence, dict):
+        if evidence.get("evidence_status") != "canonical":
+            failures.append("current_contract_evidence_not_canonical")
+        if evidence.get("evidence_schema_version") != "fitcv.p1_ab.current_contract.v1":
+            failures.append("current_contract_evidence_schema_invalid")
+        if not isinstance(evidence.get("source_commit"), str) or len(evidence["source_commit"]) != 40:
+            failures.append("current_contract_evidence_source_commit_invalid")
+        for name in ("fixture_sha256", "source_fixture_sha256"):
+            if not isinstance(evidence.get(name), str) or len(evidence[name]) != 64:
+                failures.append(f"current_contract_evidence_{name}_invalid")
+        selection = dict(evidence.get("selection") or {})
+        if int(selection.get("current_contract_record_count") or 0) <= 0:
+            failures.append("current_contract_evidence_has_no_current_records")
+        if int(selection.get("historical_record_count") or 0):
+            failures.append("current_contract_evidence_contains_historical_records")
+        workload = dict(evidence.get("workload") or {})
+        outcomes = [record for record in list(evidence.get("attempted_outcomes") or []) if isinstance(record, dict)]
+        if int(workload.get("attempted_generation_job_count") or 0) != len(outcomes):
+            failures.append("current_contract_evidence_outcomes_incomplete")
+        accepted = dict(evidence.get("accepted_cv") or {})
+        page_fit = dict(accepted.get("page_fit_success") or {})
+        coverage = dict(evidence.get("coverage") or {})
+        if int(accepted.get("count") or 0) <= 0:
+            failures.append("current_contract_evidence_no_accepted_cv")
+        if not bool(coverage.get("page_fit", {}).get("complete")):
+            failures.append("current_contract_evidence_page_fit_coverage_incomplete")
+        if not bool(coverage.get("page_fit_success", {}).get("complete")):
+            failures.append("current_contract_evidence_page_fit_success_incomplete")
+        if int(page_fit.get("fail") or 0) != 0 or int(accepted.get("accepted_non_one_page_count") or 0) != 0:
+            failures.append("current_contract_evidence_non_one_page_accepted")
+        attribution = dict(evidence.get("attribution") or {})
+        if int(attribution.get("unattributed_accepted_artifact_count") or 0) != 0:
+            failures.append("current_contract_evidence_unattributed_acceptance")
+    return {
+        "passed": not failures,
+        "evidence_json": str(json_path),
+        "evidence_markdown": str(markdown_path),
+        "evidence_digest": str(digest_path),
+        "failures": failures,
+        "accepted_count": int(dict(evidence.get("accepted_cv") or {}).get("count") or 0) if isinstance(evidence, dict) else 0,
+    }
+
+
 def build_acceptance_report(
     state: dict[str, Any],
     *,
@@ -242,7 +314,7 @@ def build_acceptance_report(
     ):
         failures.append("runtime_efficiency_measured_without_p1_b_measurement")
     priorities: dict[str, dict[str, Any]] = {}
-    for priority in ("p0_b", "p0_c", "p1_b"):
+    for priority in ("p0_b", "p0_c", "p1_a", "p1_b"):
         check = dict(checks.get(priority) or {})
         claimed = statuses.get(priority)
         passed = bool(check.get("passed"))
@@ -262,7 +334,7 @@ def build_acceptance_report(
             "failure_reasons": sorted(set(reasons)),
         }
 
-    for priority in ("p0_a", "p1_a", "p1_c", "p2"):
+    for priority in ("p0_a", "p1_c", "p2"):
         status = statuses.get(priority)
         declared = dict(status_dimensions.get(priority) or {})
         priorities[priority] = {
@@ -298,7 +370,7 @@ def format_acceptance_summary(report: dict[str, Any]) -> str:
         f"Commit: {report.get('current_commit') or 'unknown'}",
     ]
     for priority, details in sorted(dict(report.get("priorities") or {}).items()):
-        if priority in {"p0_b", "p0_c", "p1_b"}:
+        if priority in {"p0_b", "p0_c", "p1_a", "p1_b"}:
             lines.append(
                 f"{priority}: {details.get('acceptance_status')}"
                 + (f" ({', '.join(details.get('failure_reasons') or [])})" if details.get("failure_reasons") else "")
@@ -321,6 +393,8 @@ def verify_acceptance(
         priority: _run_check(repo_root, paths, timeout_seconds)
         for priority, paths in CHECKS.items()
     }
+    current_contract_check = _run_current_contract_evidence_check(state, repo_root)
+    checks["p1_a"] = current_contract_check
     runtime_check = _run_runtime_check(
         repo_root,
         output_path.parent / "p0b-runtime-acceptance-verifier.json",
