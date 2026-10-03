@@ -119,6 +119,39 @@ def test_render_item_provenance_keeps_unmatched_sole_required_item_protected() -
     assert len(trimmed["sections"]["projects"]) == 1
 
 
+def test_render_item_provenance_fails_closed_for_unmatched_required_support_in_multi_item_section() -> None:
+    content_plan = {
+        "approved_claims": [
+            {
+                "claim_id": "ev-sql",
+                "evidence_id": "ev-sql",
+                "claim": "Built SQL pipelines",
+                "supports_requirements": ["required_skill:sql"],
+                "target_section": "projects",
+            }
+        ]
+    }
+    structured_cv = {
+        "sections": {
+            "projects": [
+                {"name": "Optional Project", "context": "", "bullets": ["Improved operations."]},
+                {"name": "Required Project", "context": "", "bullets": ["Delivered platform work."]},
+            ]
+        }
+    }
+
+    provenance = build_render_item_provenance_v1(
+        content_plan=content_plan,
+        evidence_payload=[{"evidence_id": "ev-sql", "text": "Built SQL pipelines"}],
+        requirement_coverage=[],
+        structured_cv=structured_cv,
+    )
+
+    assert all(item["protected"] is True for item in provenance["items"])
+    trimmed = trim_structured_cv_for_page_fit(structured_cv, provenance)
+    assert len(trimmed["sections"]["projects"]) == 2
+
+
 def test_final_artifact_proof_rejects_changed_markdown_when_structured_identity_matches() -> None:
     config = _minimal_config()
     config["cv"]["final_artifact_acceptance"] = {"enabled": True}

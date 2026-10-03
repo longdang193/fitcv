@@ -423,6 +423,26 @@ def build_render_item_provenance_v1(
         section_items = sections.get(section)
         if not isinstance(section_items, list):
             continue
+        section_claims = [
+            claim
+            for claim in claim_entries
+            if claim["section"] == section and claim["supported_requirement_ids"]
+        ]
+        section_matched_required_claims: set[int] = set()
+        for candidate in section_items:
+            if not isinstance(candidate, dict):
+                continue
+            candidate_tokens = _text_tokens(" ".join(str(value) for value in candidate.values()))
+            section_matched_required_claims.update(
+                id(claim)
+                for claim in claim_entries
+                if claim["section"] == section
+                and claim["supported_requirement_ids"]
+                and claim["tokens"]
+                and len(candidate_tokens & claim["tokens"]) >= 2
+            )
+        if len(section_items) == 1 and len(section_claims) == 1 and not section_matched_required_claims:
+            section_matched_required_claims.add(id(section_claims[0]))
         for item in section_items:
             if not isinstance(item, dict):
                 continue
@@ -434,16 +454,14 @@ def build_render_item_provenance_v1(
                 if claim["section"] == section and claim["tokens"] and len(item_tokens & claim["tokens"]) >= 2
             ]
             if not matches:
-                section_claims = [
-                    claim
-                    for claim in claim_entries
-                    if claim["section"] == section and claim["supported_requirement_ids"]
-                ]
                 if len(section_items) == 1 and len(section_claims) == 1:
                     matches = section_claims
             supported_ids = sorted({value for match in matches for value in match["supported_requirement_ids"]})
             evidence_ids = sorted({value for match in matches for value in match["evidence_ids"]})
             ambiguous = len(matches) > 1
+            unresolved_required = any(
+                id(claim) not in section_matched_required_claims for claim in section_claims
+            )
             if section == "languages":
                 language_name = str(item.get("name") or "").strip().casefold()
                 for requirement_ref in verified_by_requirement:
@@ -459,7 +477,7 @@ def build_render_item_provenance_v1(
                     "evidence_ids": sorted(set(evidence_ids)),
                     "supported_requirement_ids": supported_ids,
                     "requirement_priority": "primary" if supported_ids else "none",
-                    "protected": ambiguous or bool(supported_ids),
+                    "protected": ambiguous or bool(supported_ids) or unresolved_required,
                 }
             )
     return {"schema_version": "render_item_provenance_v1", "items": items}
