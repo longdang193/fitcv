@@ -383,6 +383,25 @@ def build_render_item_provenance_v1(
             if len(token) > 2
         }
 
+    requirement_namespace_tokens = {
+        "required",
+        "preferred",
+        "optional",
+        "skill",
+        "skills",
+        "language",
+        "languages",
+        "experience",
+        "year",
+        "years",
+        "level",
+        "requirement",
+        "requirements",
+        "instance",
+        "support",
+        "supports",
+    }
+
     claim_entries: list[dict[str, Any]] = []
     for claim in approved_claims:
         evidence_id = str(claim.get("evidence_id") or claim.get("claim_id") or "").strip()
@@ -392,7 +411,9 @@ def build_render_item_provenance_v1(
             {
                 "section": str(claim.get("target_section") or "summary").strip().lower(),
                 "tokens": _text_tokens(f"{claim_text} {evidence_text}"),
-                "support_tokens": _text_tokens(" ".join(str(value) for value in list(claim.get("supports_requirements") or []))),
+                "support_tokens": _text_tokens(
+                    " ".join(str(value) for value in list(claim.get("supports_requirements") or []))
+                ) - requirement_namespace_tokens,
                 "evidence_ids": [evidence_id] if evidence_id else [],
                 "supported_requirement_ids": [
                     str(value).strip()

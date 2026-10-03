@@ -175,7 +175,7 @@ def test_render_item_provenance_does_not_cross_match_required_claims_on_generic_
         "sections": {
             "projects": [
                 {"name": "SQL Project", "context": "", "bullets": ["Built SQL pipelines."]},
-                {"name": "Python Project", "context": "", "bullets": ["Built Python pipelines."]},
+                {"name": "Python Project", "context": "", "bullets": ["Built Python pipelines for skill development."]},
             ]
         }
     }
