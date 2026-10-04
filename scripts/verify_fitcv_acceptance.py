@@ -389,6 +389,7 @@ def _run_experiment_report_check(
     experiment_json: Path | None,
     experiment_markdown: Path | None,
     repo_root: Path,
+    peer_experiment_json: Path | None = None,
 ) -> dict[str, Any]:
     if experiment_json is None and experiment_markdown is None:
         return {"passed": True, "status": "not_requested", "failures": []}
@@ -408,6 +409,8 @@ def _run_experiment_report_check(
         for heading in ("CORRECTNESS", "PRODUCT PARITY", "EFFICIENCY", "HUMAN EFFORT"):
             if f"## {heading}" not in text:
                 failures.append(f"experiment_markdown_missing_{heading.lower().replace(' ', '_')}")
+    if not isinstance(report, dict):
+        failures.append("experiment_json_object_required")
     if isinstance(report, dict):
         selection = dict(report.get("selection") or {})
         if str(report.get("status") or "") != "complete":
@@ -445,8 +448,37 @@ def _run_experiment_report_check(
             failures.append("experiment_fixture_hash_missing")
         if not manifest.get("arm"):
             failures.append("experiment_arm_missing")
+        manifest_path = manifest.get("path")
+        if not manifest_path:
+            failures.append("experiment_manifest_path_missing")
+        else:
+            manifest_file = Path(str(manifest_path))
+            if not manifest_file.is_absolute():
+                manifest_file = repo_root / manifest_file
+            try:
+                persisted_manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                failures.append("experiment_manifest_unreadable")
+            else:
+                for field in ("fixture_sha256", "declared_input_fingerprint", "arm", "repeat_count", "database_path", "declared_model", "resolved_models"):
+                    if persisted_manifest.get(field) != manifest.get(field):
+                        failures.append(f"experiment_manifest_{field}_mismatch")
+                if set(str(value) for value in persisted_manifest.get("run_ids") or []) != set(manifest_run_ids):
+                    failures.append("experiment_manifest_run_ids_mismatch")
+                if set(str(value) for value in selection.get("run_ids") or []) != set(manifest_run_ids):
+                    failures.append("experiment_selection_run_ids_mismatch")
         if report.get("material_metrics_sha256") != material_report_digest(report):
             failures.append("experiment_material_digest_mismatch")
+        if peer_experiment_json is not None:
+            try:
+                peer_report = json.loads(peer_experiment_json.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                failures.append("experiment_peer_json_invalid")
+            else:
+                if not isinstance(peer_report, dict):
+                    failures.append("experiment_peer_json_object_required")
+                elif report.get("analysis_input_identity") != peer_report.get("analysis_input_identity"):
+                    failures.append("experiment_analysis_inputs_not_identical")
     return {
         "passed": not failures,
         "status": "checked",
@@ -464,6 +496,7 @@ def verify_acceptance(
     timeout_seconds: int = 180,
     experiment_json: Path | None = None,
     experiment_markdown: Path | None = None,
+    experiment_peer_json: Path | None = None,
 ) -> dict[str, Any]:
     state = yaml.safe_load(state_path.read_text(encoding="utf-8")) or {}
     checks = {
@@ -482,7 +515,12 @@ def verify_acceptance(
     efficiency_check = _run_runtime_efficiency_evidence_check(state, repo_root)
     checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and efficiency_check["passed"]
     checks["p1_b"]["runtime_efficiency"] = efficiency_check
-    experiment_check = _run_experiment_report_check(experiment_json, experiment_markdown, repo_root)
+    experiment_check = _run_experiment_report_check(
+        experiment_json,
+        experiment_markdown,
+        repo_root,
+        experiment_peer_json,
+    )
     checks["p1_b"]["experiment"] = experiment_check
     checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and experiment_check["passed"]
     report = build_acceptance_report(
@@ -508,6 +546,7 @@ def main() -> int:
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--experiment-json", type=Path)
     parser.add_argument("--experiment-markdown", type=Path)
+    parser.add_argument("--experiment-peer-json", type=Path)
     args = parser.parse_args()
     report = verify_acceptance(
         state_path=args.state,
@@ -515,6 +554,7 @@ def main() -> int:
         timeout_seconds=args.timeout_seconds,
         experiment_json=args.experiment_json,
         experiment_markdown=args.experiment_markdown,
+        experiment_peer_json=args.experiment_peer_json,
     )
     print(format_acceptance_summary(report))
     return 0 if report["passed"] else 1

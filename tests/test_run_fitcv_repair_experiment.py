@@ -8,9 +8,11 @@ import pytest
 from scripts import run_fitcv_repair_experiment as experiment
 from scripts.run_fitcv_repair_experiment import (
     _disable_cross_run_reuse,
+    _enable_frozen_upstream_reuse,
     _experiment_jobs,
     _require_fresh_path,
     _response_run_id,
+    _stabilize_experiment_llm_configuration,
     _validate_job_types_against_exclusions,
 )
 
@@ -19,6 +21,12 @@ def test_experiment_jobs_keep_each_declared_job_type() -> None:
     jobs = _experiment_jobs(["Internship", "Part-time"])
 
     assert [job["contractType"] for job in jobs] == ["Internship", "Part-time"]
+    assert len({job["jobUrl"] for job in jobs}) == 2
+
+
+def test_experiment_job_identity_does_not_collide_across_repeated_submissions() -> None:
+    jobs = [*_experiment_jobs(["Contract"]), *_experiment_jobs(["Part-time"])]
+
     assert len({job["jobUrl"] for job in jobs}) == 2
 
 
@@ -44,6 +52,62 @@ def test_experiment_settings_disable_cross_run_reuse_without_dropping_other_sett
         for stage in ("enrich", "ranking", "cv_analysis", "cv_generation", "synonym_triage")
     )
     assert settings["reuse"]["cv_generation"]["enabled"] is True
+
+
+def test_experiment_settings_freeze_upstream_analysis_but_not_generation() -> None:
+    settings = {
+        "reuse": {"cv_generation": {"enabled": True}},
+        "pipeline": {"final_top_n": 3},
+    }
+
+    frozen = _enable_frozen_upstream_reuse(settings)
+
+    assert frozen["pipeline"] == settings["pipeline"]
+    assert all(
+        frozen["reuse"][stage]["enabled"] is (stage != "cv_generation")
+        for stage in ("enrich", "ranking", "cv_analysis", "cv_generation", "synonym_triage")
+    )
+    assert frozen["experiment_reuse_policy"] == "frozen_upstream_analysis_v1"
+    assert settings["reuse"]["cv_generation"]["enabled"] is True
+
+
+def test_llm_configuration_stabilization_is_idempotent_for_seeded_cohort(tmp_path: Path) -> None:
+    database = tmp_path / "cohort.sqlite3"
+    resource = {
+        "tasks": {
+            "enrich_extraction": {"temperature": 0.4},
+            "ranking_ai_score": {"temperature": 0.2},
+        }
+    }
+    import sqlite3
+
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE configuration_resources (resource_name TEXT PRIMARY KEY, resource_json TEXT, revision INTEGER, updated_at TEXT)"
+        )
+        connection.execute(
+            "INSERT INTO configuration_resources VALUES (?, ?, ?, ?)",
+            ("llm_configuration", json.dumps(resource), 7, "before"),
+        )
+        connection.commit()
+
+    _stabilize_experiment_llm_configuration(database)
+    with sqlite3.connect(database) as connection:
+        first = connection.execute(
+            "SELECT resource_json, revision FROM configuration_resources WHERE resource_name = ?",
+            ("llm_configuration",),
+        ).fetchone()
+
+    _stabilize_experiment_llm_configuration(database)
+    with sqlite3.connect(database) as connection:
+        second = connection.execute(
+            "SELECT resource_json, revision FROM configuration_resources WHERE resource_name = ?",
+            ("llm_configuration",),
+        ).fetchone()
+
+    assert first is not None and second is not None
+    assert json.loads(first[0]) == json.loads(second[0])
+    assert first[1] == second[1] == 8
 
 
 def test_fixture_rejects_job_types_excluded_by_candidate_profile() -> None:
@@ -111,3 +175,12 @@ def test_manifest_rejects_changed_frozen_input_identity(monkeypatch, tmp_path: P
             run_ids=[f"run-{index}" for index in range(10)],
             frozen_input_identity=frozen,
         )
+
+
+def test_declared_inputs_cover_private_profile_and_analysis_generation_runtime_store() -> None:
+    assert {
+        "data/candidate_profile.private.yaml",
+        "src/fitcv/agentic_cv_analysis.py",
+        "src/fitcv/cv_generator.py",
+        "src/fitcv_cp/sqlite_store.py",
+    }.issubset(experiment.DECLARED_INPUTS)

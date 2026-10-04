@@ -351,6 +351,7 @@ def build_canonical_evidence(
             "source_fixture_sha256": source_fixture_sha256,
         }
     )
+    evidence["material_metrics_sha256"] = material_report_digest(evidence)
     return evidence
 
 
@@ -438,6 +439,17 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         for trace in traces
         if str(trace.get("job_type") or "").strip()
     }
+    analysis_input_fingerprints = {
+        str(record.get("analysis_input_fingerprint") or record.get("content_plan", {}).get("analysis_input_fingerprint") or "").strip()
+        for record in records
+        if str(record.get("analysis_input_fingerprint") or record.get("content_plan", {}).get("analysis_input_fingerprint") or "").strip()
+    }
+    selected_evidence_ids = {
+        str(evidence_id).strip()
+        for record in records
+        for evidence_id in list(dict(record.get("evidence_selection_summary") or {}).get("selected_evidence_ids") or [])
+        if str(evidence_id).strip()
+    }
     return {
         "run_id": run_id,
         "created_at": created_at.isoformat() if created_at else None,
@@ -471,6 +483,11 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
             "complete": bool(projected_records and len(current_contract_records) == len(projected_records)),
         },
         "trace_normalization": dict(normalized_traces.get("diagnostics") or {}),
+        "analysis_input_identity": {
+            "fingerprints": sorted(analysis_input_fingerprints),
+            "selected_evidence_ids": sorted(selected_evidence_ids),
+            "job_types": sorted(job_types),
+        },
         "_trace_records_for_diversity": traces,
         "coverage": {
             "attribution": {
@@ -933,6 +950,10 @@ def build_baseline(
             for snapshot in snapshots
             for outcome in list(snapshot.get("attempted_outcomes") or [])
         ],
+        "analysis_input_identity": [
+            dict(snapshot.get("analysis_input_identity") or {})
+            for snapshot in snapshots
+        ],
     }
 
 
@@ -955,6 +976,7 @@ def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
             "optimization_scorecard",
             "runs",
             "attempted_outcomes",
+            "input_manifest",
         )
     }
 
@@ -1105,6 +1127,8 @@ def main() -> int:
             "fixture_sha256": manifest.get("fixture_sha256"),
             "declared_input_fingerprint": manifest.get("declared_input_fingerprint"),
             "arm": manifest.get("arm"),
+            "declared_model": manifest.get("declared_model"),
+            "resolved_models": list(manifest.get("resolved_models") or []),
         }
         report = _apply_manifest_measurement_gate(report, manifest)
     report["material_metrics_sha256"] = material_report_digest(report)

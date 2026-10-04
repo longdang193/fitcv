@@ -84,10 +84,13 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-04-fitcv-contract-convergence.md
   - docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.json
   - docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.md
+  - docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.json
+  - docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.md
+  - docs/superpowers/evidence/2026-10-04-fitcv-p1ab-provider-backed-convergence.json
 current_contract_evidence:
-  json: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
-  markdown: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
-  sha256: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256
+  json: docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.json
+  markdown: docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.md
+  sha256: docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.sha256
 optimization_result:
   experiment: complete
   promotion: rejected
@@ -99,8 +102,8 @@ optimization_result:
 runtime_efficiency:
   measurement_status: measured
   baseline_evidence:
-    json: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
-    markdown: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
+    json: docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.json
+    markdown: docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.md
   accepted_artifact_and_total_workload_metrics: true
   blocked_reasons: []
   p1_c: deferred

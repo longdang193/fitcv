@@ -6,9 +6,12 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
+import sqlite3
 import subprocess
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -27,10 +30,15 @@ DECLARED_INPUTS = (
     "scripts/serve_fitcv_review_e2e.py",
     "tests/fixtures/fitcv-p1ab-repair-experiment.json",
     "data/candidate_profile.yaml",
+    "data/candidate_profile.private.yaml",
     "src/fitcv/agentic_cv_generation.py",
+    "src/fitcv/agentic_cv_analysis.py",
     "src/fitcv/config.py",
+    "src/fitcv/cv_generator.py",
     "src/fitcv/pipeline.py",
     "src/fitcv_cp/app.py",
+    "src/fitcv_cp/sqlite_store.py",
+    "src/fitcv_cp/settings_store.py",
     "src/fitcv_cp/worker_job.py",
     "tests/test_fitcv_cp/acceptance_harness.py",
     "config/runtime/control_plane.yaml",
@@ -125,6 +133,32 @@ def capture_input_identity(fixture: Path) -> dict[str, Any]:
     }
 
 
+def _resolved_models(database: Path, run_ids: list[str]) -> list[str]:
+    if not database.is_file() or not run_ids:
+        return []
+    placeholders = ",".join("?" for _ in run_ids)
+    with sqlite3.connect(database) as connection:
+        rows = connection.execute(
+            f"SELECT settings_used_json FROM pipeline_runs WHERE run_id IN ({placeholders})",
+            run_ids,
+        ).fetchall()
+    models: set[str] = set()
+    for (raw,) in rows:
+        try:
+            payload = json.loads(raw or "{}")
+        except json.JSONDecodeError:
+            continue
+        settings = dict(payload.get("effective_settings") or payload)
+        model = str(
+            dict(dict(settings.get("cv") or {}).get("generation") or {}).get("model")
+            or settings.get("cv_generation_model")
+            or ""
+        ).strip()
+        if model:
+            models.add(model)
+    return sorted(models)
+
+
 def build_manifest(
     *,
     fixture: Path,
@@ -145,6 +179,7 @@ def build_manifest(
     input_identity = capture_input_identity(fixture)
     if frozen_input_identity is not None and input_identity != frozen_input_identity:
         raise ValueError("input_identity_changed_after_cohort")
+    resolved_models = _resolved_models(database, run_ids)
     return {
         "schema_version": "fitcv.p1ab.repair_experiment_manifest.v1",
         "fixture": str(fixture.resolve()),
@@ -156,7 +191,9 @@ def build_manifest(
         "source_commit": input_identity["source_commit"],
         "working_tree_diff_sha256": input_identity["working_tree_diff_sha256"],
         "declared_input_fingerprint": input_identity["declared_input_fingerprint"],
-        "model": input_identity["model"],
+        "model": resolved_models[0] if len(resolved_models) == 1 else input_identity["model"],
+        "declared_model": input_identity["model"],
+        "resolved_models": resolved_models,
         "runtime": input_identity["runtime"],
         "job_types": input_identity["job_types"],
         "cache_policy": "isolated_per_arm",
@@ -176,7 +213,10 @@ def _experiment_jobs(job_types: list[str]) -> list[dict[str, Any]]:
             "location": "Remote",
             "postedTime": "1 day ago",
             "publishedAt": "2026-10-01",
-            "jobUrl": f"https://fitcv.example/repair-experiment/{ordinal}",
+            "jobUrl": (
+                "https://fitcv.example/repair-experiment/"
+                f"{re.sub(r'[^a-z0-9]+', '-', job_type.casefold()).strip('-') or ordinal}"
+            ),
             "companyName": "FitCV Experiment Fixture",
                 "description": (
                     "Build BigQuery ecommerce analytics pipelines and Azure ML "
@@ -223,6 +263,62 @@ def _disable_cross_run_reuse(settings: dict[str, Any]) -> dict[str, Any]:
     return isolated
 
 
+def _enable_frozen_upstream_reuse(settings: dict[str, Any]) -> dict[str, Any]:
+    frozen = dict(settings)
+    reuse = {
+        str(stage): dict(policy)
+        for stage, policy in dict(settings.get("reuse") or {}).items()
+        if isinstance(policy, dict)
+    }
+    for stage in REUSE_STAGES:
+        policy = dict(reuse.get(stage) or {})
+        policy["enabled"] = stage != "cv_generation"
+        reuse[stage] = policy
+    frozen["reuse"] = reuse
+    frozen["experiment_reuse_policy"] = "frozen_upstream_analysis_v1"
+    return frozen
+
+
+def _stabilize_experiment_llm_configuration(database_path: Path) -> None:
+    task_ids = (
+        "candidate_profile_base_mapping",
+        "candidate_profile_derived_claims",
+        "enrich_extraction",
+        "ranking_ai_score",
+        "cv_generation_structured_write",
+        "synonym_triage_recommendation",
+    )
+    with sqlite3.connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT resource_json, revision FROM configuration_resources WHERE resource_name = ?",
+            ("llm_configuration",),
+        ).fetchone()
+        if row is None:
+            return
+        payload = json.loads(str(row[0]))
+        tasks = dict(payload.get("tasks") or {})
+        changed = False
+        for task_id in task_ids:
+            task = dict(tasks.get(task_id) or {})
+            if task.get("temperature") != 0.0:
+                task["temperature"] = 0.0
+                changed = True
+            tasks[task_id] = task
+        if not changed:
+            return
+        payload["tasks"] = tasks
+        connection.execute(
+            "UPDATE configuration_resources SET resource_json = ?, revision = ?, updated_at = ? WHERE resource_name = ?",
+            (
+                json.dumps(payload, ensure_ascii=False, sort_keys=True),
+                int(row[1]) + 1,
+                datetime.now(timezone.utc).isoformat(),
+                "llm_configuration",
+            ),
+        )
+        connection.commit()
+
+
 def _response_run_id(response: Any) -> str:
     payload = response.json()
     if not isinstance(payload, dict):
@@ -231,7 +327,13 @@ def _response_run_id(response: Any) -> str:
     return str(payload.get("run_id") or (data or {}).get("run_id") or "").strip()
 
 
-def _bind_repair_arm(*, run_id: str, arm: str, database: Path) -> None:
+def _bind_repair_arm(
+    *,
+    run_id: str,
+    arm: str,
+    database: Path,
+    freeze_upstream: bool = False,
+) -> None:
     import sys
 
     sys.path.insert(0, str(ROOT / "src"))
@@ -240,7 +342,11 @@ def _bind_repair_arm(*, run_id: str, arm: str, database: Path) -> None:
     run = sqlite_store.get_run(run_id, database_path=database)
     if run is None:
         raise RuntimeError(f"run_not_found_before_execution: {run_id}")
-    settings = _disable_cross_run_reuse(_load_run_config(run))
+    settings = (
+        _enable_frozen_upstream_reuse(_load_run_config(run))
+        if freeze_upstream
+        else _disable_cross_run_reuse(_load_run_config(run))
+    )
     settings["cv_generation_repair_arm"] = arm
     result = sqlite_store.update_run_effective_settings(
         run_id,
@@ -251,7 +357,13 @@ def _bind_repair_arm(*, run_id: str, arm: str, database: Path) -> None:
         raise RuntimeError(f"repair_arm_binding_failed: {result}")
 
 
-def _run_real_cohort(*, fixture: Path, arm: str, database: Path) -> list[str]:
+def _run_real_cohort(
+    *,
+    fixture: Path,
+    arm: str,
+    database: Path,
+    seed_database: Path | None = None,
+) -> list[str]:
     import sys
 
     sys.path.insert(0, str(ROOT / "src"))
@@ -310,13 +422,36 @@ def _run_real_cohort(*, fixture: Path, arm: str, database: Path) -> list[str]:
                 "fitcv_cp": dict(control.get("fitcv_cp") or {}),
             },
         )
-        sqlite_store.initialize_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
+        if seed_database is None:
+            sqlite_store.initialize_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
+        else:
+            if not seed_database.is_file():
+                raise ValueError(f"seed_database_missing: {seed_database}")
+            shutil.copy2(seed_database, paths.sqlite_path)
         migrate_packaged_local_integration_state(paths)
+        _stabilize_experiment_llm_configuration(paths.sqlite_path)
         configure_local_provider_credential_from_env("openai_compatible")
         canonical = yaml.safe_load(
             (ROOT / "data" / "candidate_profile.yaml").read_text(encoding="utf-8")
         )
-        profile = create_profile_fixture(paths.sqlite_path, canonical)
+        if seed_database is None:
+            profile = create_profile_fixture(paths.sqlite_path, canonical)
+        else:
+            checksum = sqlite_store.canonical_candidate_checksum(canonical)
+            profile_ref = next(
+                (
+                    item
+                    for item in sqlite_store.list_candidate_profiles(database_path=paths.sqlite_path)
+                    if str(item.get("checksum") or "") == checksum
+                ),
+                None,
+            )
+            if profile_ref is None:
+                raise RuntimeError("seed_database_profile_missing")
+            profile = sqlite_store.get_candidate_profile(
+                str(profile_ref["candidate_profile_id"]),
+                database_path=paths.sqlite_path,
+            ) or {}
 
         executor = ControlledLocalJobExecutor()
         local_app._LOCAL_EXECUTOR = executor
@@ -347,7 +482,12 @@ def _run_real_cohort(*, fixture: Path, arm: str, database: Path) -> list[str]:
             if not run_id:
                 raise RuntimeError("cohort_submission_missing_run_id")
             executor.wait_submitted()
-            _bind_repair_arm(run_id=run_id, arm=arm, database=paths.sqlite_path)
+            _bind_repair_arm(
+                run_id=run_id,
+                arm=arm,
+                database=paths.sqlite_path,
+                freeze_upstream=seed_database is not None or repeat > 0,
+            )
             executor.release()
             executor.result(timeout=900)
             run = sqlite_store.get_run(run_id, database_path=paths.sqlite_path)
@@ -370,6 +510,7 @@ def main() -> int:
     parser.add_argument("--arm", choices=sorted(VALID_ARMS))
     parser.add_argument("--database", type=Path)
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--seed-database", type=Path)
     parser.add_argument("--run-id", action="append", default=[])
     parser.add_argument("--preflight-fixture", action="store_true")
     parser.add_argument("--produce-real", action="store_true")
@@ -395,7 +536,12 @@ def main() -> int:
         frozen_input_identity = capture_input_identity(fixture) if args.produce_real else None
         if args.produce_real:
             _require_fresh_path(manifest_path)
-            run_ids = _run_real_cohort(fixture=fixture, arm=args.arm, database=database)
+            run_ids = _run_real_cohort(
+                fixture=fixture,
+                arm=args.arm,
+                database=database,
+                seed_database=args.seed_database.resolve() if args.seed_database else None,
+            )
         else:
             run_ids = [str(value).strip() for value in args.run_id if str(value).strip()]
         manifest = build_manifest(

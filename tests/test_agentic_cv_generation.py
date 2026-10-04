@@ -36,6 +36,26 @@ def test_generation_trace_measures_provider_latency_without_inventing_other_stag
     assert trace["efficiency_summary"]["stage_timings"]["render_ms"]["status"] == "unavailable"
 
 
+def test_provider_retry_does_not_count_as_local_repair() -> None:
+    trace = _empty_cv_generation_trace(template_path=None, trace_id="trace-provider-retry")
+    trace["repair_summary"] = {
+        "repair_attempted": True,
+        "repair_kind": "provider_retry",
+    }
+
+    _update_efficiency_summary(
+        trace,
+        input_metrics={},
+        started_at=0,
+        status="accepted",
+        review_question_count=0,
+    )
+
+    savings = trace["efficiency_summary"]["savings"]
+    assert savings["local_repair_attempted"] is False
+    assert savings["local_repair_succeeded"] is False
+
+
 def test_local_backfill_does_not_include_unselected_generated_nested_claims() -> None:
     for section, profile_key, entry, selected_id, expected_bullets in (
         (

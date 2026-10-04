@@ -881,10 +881,15 @@ def _update_efficiency_summary(
     repair_summary = dict(trace_payload.get("repair_summary") or {})
     savings = dict(summary.get("savings") or {})
     repair_attempted = bool(repair_summary.get("repair_attempted"))
+    repair_kind = str(repair_summary.get("repair_kind") or "").strip()
+    local_repair_attempted = repair_attempted and repair_kind in {
+        "deterministic_section_backfill",
+        "candidate_name_placeholder",
+    }
     savings.update({
-        "local_repair_attempted": repair_attempted,
-        "local_repair_succeeded": repair_attempted and status == ACCEPTED_STATUS,
-        "local_repair_failed": repair_attempted and status != ACCEPTED_STATUS,
+        "local_repair_attempted": local_repair_attempted,
+        "local_repair_succeeded": local_repair_attempted and status == ACCEPTED_STATUS,
+        "local_repair_failed": local_repair_attempted and status != ACCEPTED_STATUS,
     })
     summary["stage_timings"] = stage_timings
     summary["savings"] = savings
@@ -1461,6 +1466,7 @@ def _run_repair_cycle(
                         runtime_provenance,
                     )
         repair_attempt = _build_repair_attempt(repair_targets)
+        repair_attempt["reason"] = "provider_retry"
         repaired_cv, repaired_markdown, validation, retry_provenance = retry_executor(repair_targets)
         if isinstance(structured_cv, dict) and isinstance(repaired_cv, dict):
             for section_name in repair_targets:
@@ -2486,6 +2492,7 @@ def _generate_fresh_from_analysis(
                 "repair_attempt_count": max(len(trace_payload["attempts"]) - 1, 0),
                 "repair_targets": list(repair_attempt.get("missing_sections") or []),
                 "repair_reason": str(repair_attempt.get("reason") or ""),
+                "repair_kind": str(repair_attempt.get("reason") or ""),
             }
             _update_live_trace_validation_cycle(
                 trace_payload,
@@ -2550,6 +2557,7 @@ def _generate_fresh_from_analysis(
                 "repair_attempt_count": max(len(trace_payload["attempts"]) - 1, 0),
                 "repair_targets": list(repair_attempt.get("missing_sections") or []),
                 "repair_reason": str(repair_attempt.get("reason") or ""),
+                "repair_kind": str(repair_attempt.get("reason") or ""),
             }
             _update_live_trace_validation_cycle(
                 trace_payload,

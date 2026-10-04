@@ -29,6 +29,33 @@ def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> N
     assert "experiment_input_fingerprint_missing" in result["failures"]
 
 
+def test_experiment_report_check_rejects_non_object_json(tmp_path: Path) -> None:
+    report_path = tmp_path / "experiment.json"
+    markdown_path = tmp_path / "experiment.md"
+    report_path.write_text("[]", encoding="utf-8")
+    markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
+
+    result = _run_experiment_report_check(report_path, markdown_path, tmp_path)
+
+    assert result["passed"] is False
+    assert "experiment_json_object_required" in result["failures"]
+
+
+def test_experiment_report_check_rejects_mismatched_peer_analysis_inputs(tmp_path: Path) -> None:
+    report_path = tmp_path / "experiment.json"
+    peer_path = tmp_path / "peer.json"
+    markdown_path = tmp_path / "experiment.md"
+    base = {"analysis_input_identity": [{"fingerprints": ["one"], "selected_evidence_ids": ["ev-1"]}]}
+    report_path.write_text(json.dumps(base), encoding="utf-8")
+    peer_path.write_text(json.dumps({"analysis_input_identity": [{"fingerprints": ["two"], "selected_evidence_ids": ["ev-2"]}]}), encoding="utf-8")
+    markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
+
+    result = _run_experiment_report_check(report_path, markdown_path, tmp_path, peer_path)
+
+    assert result["passed"] is False
+    assert "experiment_analysis_inputs_not_identical" in result["failures"]
+
+
 def test_experiment_report_check_rejects_incomplete_cohort_metadata(tmp_path: Path) -> None:
     report_path = tmp_path / "experiment.json"
     markdown_path = tmp_path / "experiment.md"

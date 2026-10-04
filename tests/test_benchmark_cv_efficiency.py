@@ -454,11 +454,22 @@ def test_material_report_digest_changes_only_for_material_metrics() -> None:
     assert material_report_digest(first) != material_report_digest(changed)
 
 
+def test_material_report_digest_binds_experiment_input_manifest() -> None:
+    first = {"status": "complete", "input_manifest": {"arm": "local_first", "run_ids": ["one"]}}
+    changed = {"status": "complete", "input_manifest": {"arm": "provider_first", "run_ids": ["one"]}}
+
+    assert material_report_digest(first) != material_report_digest(changed)
+
+
 def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
     report = {
         "schema_version": "fitcv_runtime_efficiency_baseline_v3",
         "status": "complete",
         "environment": {"platform": "Windows"},
+        "input_manifest": {
+            "database_path": r"C:\Users\private\fitcv.sqlite3",
+            "arm": "local_first",
+        },
         "run": {
             "database_path": r"C:\Users\private\fitcv.sqlite3",
             "fixture_path": r"C:\Users\private\fixture.json",
@@ -466,6 +477,7 @@ def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
             "accepted": 1,
         },
     }
+    report["material_metrics_sha256"] = material_report_digest(report)
 
     evidence = build_canonical_evidence(
         report,
@@ -478,6 +490,7 @@ def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
     assert evidence["source_commit"] == "a" * 40
     assert evidence["run"] == {"accepted": 1}
     assert "environment" not in evidence
+    assert evidence["material_metrics_sha256"] == material_report_digest(evidence)
 
 
 def test_baseline_reports_unavailable_avoidance_fields_without_inventing_zeroes() -> None:
