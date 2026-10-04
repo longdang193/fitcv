@@ -12181,7 +12181,11 @@ def create_app(
                 content=_data_response(response),
             )
         except Exception:
-            if isinstance(idempotent_action, dict) and idempotent_action.get("action_id"):
+            if (
+                not replay_in_progress
+                and isinstance(idempotent_action, dict)
+                and idempotent_action.get("action_id")
+            ):
                 try:
                     store.fail_idempotent_action(str(idempotent_action["action_id"]))
                 except Exception:

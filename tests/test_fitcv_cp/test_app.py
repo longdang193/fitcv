@@ -6885,6 +6885,7 @@ def test_canonical_cv_review_action_replays_after_review_state_changes() -> None
     assert second.json()["data"] == {"status": "queued", "action_id": "action-1"}
     assert third.status_code == 409
     assert third.json()["error"]["code"] == "idempotency_in_progress"
+    store.fail_idempotent_action.assert_not_called()
 
 
 def test_review_resolution_actions_normalize_to_terminal_statuses() -> None:
