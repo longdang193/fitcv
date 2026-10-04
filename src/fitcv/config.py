@@ -31,7 +31,7 @@ from fitcv import config_compat, config_loader, config_validators
 from fitcv.fit_factors import fingerprint_eligibility_policy, validate_eligibility_policy
 from fitcv.decision_feedback import validate_decision_learning_policy
 from fitcv.ranking_contract import build_ranking_contract_context, validate_ranking_policy
-from fitcv.cv_presets import SUPPORTED_PRESETS
+from fitcv.cv_presets import SUPPORTED_PRESETS, get_section_order
 from fitcv.prompts import get_prompt_definition
 from fitcv.semantic_snapshot import compile_semantic_policy
 from fitcv_cp.retry_policy import (
@@ -1570,7 +1570,11 @@ def apply_cv_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
     # required_cv_sections: enabled composition sections only.
     required: list[str] = []
     comp = cv_cfg.get("composition") or {}
-    for section_name, section_cfg in comp.items():
+    preset = str(cv_cfg.get("preset") or "europass").strip().lower()
+    ordered_keys = list(get_section_order(preset))
+    ordered_keys.extend(str(key) for key in comp if str(key) not in ordered_keys)
+    for section_name in ordered_keys:
+        section_cfg = comp.get(section_name)
         if not isinstance(section_cfg, dict):
             continue
         enabled = section_cfg.get("enabled", False)
@@ -1781,7 +1785,6 @@ def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
         ],
     })
     return merged_policy
-
 
 
 

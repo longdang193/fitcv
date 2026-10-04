@@ -972,6 +972,22 @@ def _load_run_manifest(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _apply_manifest_measurement_gate(
+    report: dict[str, Any],
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    selection = dict(report.get("selection") or {})
+    expected = int(manifest.get("repeat_count") or len(list(manifest.get("run_ids") or [])))
+    actual = int(selection.get("run_count") or 0)
+    shortfall = max(expected - actual, 0)
+    selection["manifest_expected_run_count"] = expected
+    selection["manifest_run_count_shortfall"] = shortfall
+    report["selection"] = selection
+    if shortfall:
+        report["status"] = "incomplete"
+    return report
+
+
 def material_report_digest(report: dict[str, Any]) -> str:
     payload = json.dumps(
         material_report_metrics(report),
@@ -1089,6 +1105,7 @@ def main() -> int:
             "declared_input_fingerprint": manifest.get("declared_input_fingerprint"),
             "arm": manifest.get("arm"),
         }
+        report = _apply_manifest_measurement_gate(report, manifest)
     report["material_metrics_sha256"] = material_report_digest(report)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     args.output_markdown.parent.mkdir(parents=True, exist_ok=True)

@@ -1492,6 +1492,24 @@ def test_required_cv_sections_includes_summary_when_enabled() -> None:
     assert "Summary" in cfg["required_cv_sections"]
 
 
+def test_required_cv_sections_follow_preset_order_not_yaml_mapping_order(tmp_path: Path) -> None:
+    loaded = config_module.apply_cv_compatibility_projection(
+        {
+            "cv": {
+                "preset": "europass",
+                "composition": {
+                    "summary": {"enabled": True},
+                    "education": {"enabled": True},
+                    "experience": {"enabled": True},
+                    "skills": {"enabled": True},
+                },
+            }
+        }
+    )
+
+    assert loaded["required_cv_sections"] == ["Summary", "Experience", "Education", "Skills"]
+
+
 def test_required_cv_sections_excludes_education_when_disabled(tmp_path: Path) -> None:
     """Education must NOT appear in required_cv_sections when enabled:false."""
     env_yaml = tmp_path / ".env.yaml"

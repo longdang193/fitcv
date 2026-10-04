@@ -3,7 +3,7 @@
   "fixture_id": "fitcv-p1ab-repair-cohort-v1",
   "model": "fixture-model",
   "runtime": "fitcv-runtime",
-  "job_types": ["Part-time", "Internship"],
+  "job_types": ["Part-time", "Contract"],
   "repeat_count": 10,
   "required_evidence_categories": [
     "grounding",

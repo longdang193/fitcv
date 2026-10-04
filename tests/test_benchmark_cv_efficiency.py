@@ -8,6 +8,7 @@ from scripts.benchmark_cv_efficiency import (
     material_report_digest,
     material_report_metrics,
     _load_run_manifest,
+    _apply_manifest_measurement_gate,
 )
 from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1
 
@@ -40,6 +41,16 @@ def test_run_manifest_rejects_duplicate_run_ids(tmp_path: Path) -> None:
         assert str(exc) == "run_manifest_duplicate_run_ids"
     else:
         raise AssertionError("duplicate manifest accepted")
+
+
+def test_manifest_measurement_gate_rejects_fewer_than_declared_repeats() -> None:
+    report = {"status": "complete", "selection": {"run_count": 4, "exclusions": {"succeeded": 6}}}
+
+    gated = _apply_manifest_measurement_gate(report, {"repeat_count": 10, "run_ids": [str(i) for i in range(10)]})
+
+    assert gated["status"] == "incomplete"
+    assert gated["selection"]["manifest_expected_run_count"] == 10
+    assert gated["selection"]["manifest_run_count_shortfall"] == 6
 
 
 def _run(run_id: str, payload: dict, status: str = "succeeded") -> dict:

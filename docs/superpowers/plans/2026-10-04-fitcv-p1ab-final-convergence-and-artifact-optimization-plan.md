@@ -731,31 +731,31 @@ unchanged, and incumbent/candidate labels come from Task 2's verified mapping.
   eligible, comparable negative result may close Task 7 without promotion.
 
 **Protocol:**
-- [ ] Freeze one representative workload fingerprint, runtime/config/model,
+- [x] Freeze one representative workload fingerprint, runtime/config/model,
   fixture hash, source commit, working-tree diff hash, complete declared-input
   fingerprint, acceptance rubric, and repeat count before either arm executes.
   Persist the same executable-input fingerprint in both manifests and require
   equality before aggregation; Task 8 only revalidates this pre-run identity.
-- [ ] Refuse pre-existing arm databases, cache directories, or manifests; create
+- [x] Refuse pre-existing arm databases, cache directories, or manifests; create
   unique per-run/per-arm paths and record cache/reuse policy in each manifest.
-- [ ] Run the producer twice using the recorded mapping, for example
+- [x] Run the producer twice using the recorded mapping, for example
   `--arm $env:FITCV_INCUMBENT_ARM` and `--arm $env:FITCV_CANDIDATE_ARM`; write
   role-bound manifests/databases only after fresh-path checks pass. The exact
   commands and resolved arm values must be recorded in evidence.
-- [ ] Verify both manifests contain exactly 10 unique run IDs, at least two job
+- [x] Verify both manifests contain exactly 10 unique run IDs, at least two job
   types, complete coverage, and identical fixture/model/runtime/executable-input
   fingerprints.
   Compare normalized configuration fingerprints with only the declared repair-arm
   selector excluded; assert exact incumbent/candidate arm values separately and
   reject every other config difference.
-- [ ] Run incumbent and candidate on identical job/profile/analysis inputs with
+- [x] Run incumbent and candidate on identical job/profile/analysis inputs with
   isolated repeats and no secret values in output.
-- [ ] Compare first-pass acceptance, final acceptance, grounding defects,
+- [x] Compare first-pass acceptance, final acceptance, grounding defects,
   unsupported claims, one-page native proof, review outcomes, provider calls,
   tokens, stage p50/p95, total wall-clock, local-repair success, and retry avoidance.
-- [ ] Require candidate non-regression on correctness and lower total workload
+- [x] Require candidate non-regression on correctness and lower total workload
   calls/tokens/latency before promotion.
-- [ ] If cohort is missing, non-comparable, or any hard gate fails, reject
+- [x] If cohort is missing, non-comparable, or any hard gate fails, reject
   promotion and retain incumbent. Record diagnostic result; do not claim savings.
 
 **Authority:**
@@ -763,18 +763,26 @@ unchanged, and incumbent/candidate labels come from Task 2's verified mapping.
 - Stop for: non-identical workload, missing denominator, acceptance regression, grounding leakage, or unavailable API credentials.
 
 **Verification:**
-- [ ] Run `python scripts/run_fitcv_repair_experiment.py --fixture
+- [x] Run `python scripts/run_fitcv_repair_experiment.py --fixture
   tests/fixtures/fitcv-p1ab-repair-experiment.json --preflight-fixture`; expected:
   no provider request, at least two job types, complete required-category coverage,
   and a frozen fixture hash before either arm starts.
-- [ ] `python scripts/run_fitcv_repair_experiment.py --help`; after preflight
+- [x] `python scripts/run_fitcv_repair_experiment.py --help`; after preflight
   passes, run both fixture-bound producer commands using the recorded
   `INCUMBENT_ARM`/`CANDIDATE_ARM` mapping.
-- [ ] Run both manifest-bound `scripts/benchmark_cv_efficiency.py` commands from `Files and symbols`; expected: each scorecard contains all ten unique repeat run IDs, not a single-run subset.
-- [ ] Run both experiment-bound `scripts/verify_fitcv_acceptance.py` commands from `Files and symbols`; expected: eligibility binds to generated fixture/source hashes and reports complete coverage, diversity, attribution, and conflict-free evidence without changing tracked acceptance state.
-- [ ] Compare evidence hashes and generated scorecards; expected: identical workload/config/runtime fingerprints, no secrets, and candidate promotion only when all correctness and total-workload gates pass.
+- [x] Run both manifest-bound `scripts/benchmark_cv_efficiency.py` commands from `Files and symbols`; each scorecard contains all ten unique repeat run IDs.
+- [x] Run both experiment-bound `scripts/verify_fitcv_acceptance.py` commands from `Files and symbols`; both report `PASSED` and bind to generated fixture/source hashes without changing tracked acceptance state.
+- [x] Compare evidence hashes and generated scorecards; fingerprints match and no secrets appear; promotion gate rejects candidate.
 
 **Exit criteria:** candidate promoted only with measured total-workload improvement; otherwise explicit rejection with incumbent retained.
+
+**Result (2026-10-04):** completed with explicit rejection. Fresh incumbent and
+candidate manifests contain ten measurable runs each, identical executable-input
+fingerprints, two eligible job types, complete attribution, and passing
+experiment-bound acceptance verifiers. `provider_first` produced 3 accepted CVs
+versus 8 for `local_first`, used 17 versus 14 provider calls, 74,924 versus
+62,303 tokens, and 510,340.398 ms versus 473,626.95 ms wall time. Retain
+`local_first`; no promotion and no accepted-state update.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -821,9 +829,9 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
 
-- Task 8 remains blocked. Do not mark final verification complete while Task 7
-  lacks ten-repeat incumbent and candidate cohorts with identical executable
-  fingerprints. Production default remains `local_first`.
+- Task 7 blocker is resolved with explicit candidate rejection. Task 8 remains
+  active pending its independent final verification and reconciliation gates.
+  Production default remains `local_first`.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.
@@ -851,7 +859,8 @@ Final proof must establish:
 - [ ] one browser flow against current backend routes with persisted refresh; expected: isolated non-local backend and disposable DB only.
 - [ ] identity-bound final-artifact proof across fresh, cached, regenerated, persisted, and review-closed paths.
 - [ ] complete timing, failure-cause, savings, cache, render, proof, and resolution-reuse telemetry with explicit unavailable semantics.
-- [ ] one identical-workload experiment with promotion or explicit rejection; expected: fixture, source, config, runtime, and all repeat IDs match across arms.
+- [x] one identical-workload experiment with explicit rejection; fixture, source,
+  config, runtime, and all repeat IDs match across arms.
 - [ ] immutable historical evidence, no secret leakage, P1-C deferred, and P2 frozen.
 
 Run `skill-verification-before-completion` for final status. Source inspection,
