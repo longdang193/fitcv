@@ -81,6 +81,9 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
   - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
   - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256
+  - docs/superpowers/evidence/2026-10-04-fitcv-contract-convergence.md
+  - docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.json
+  - docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.md
 current_contract_evidence:
   json: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
   markdown: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
@@ -92,6 +95,7 @@ optimization_result:
   evidence:
     - docs/superpowers/evidence/2026-10-03-fitcv-first-pass-experiment.json
     - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
+    - docs/superpowers/evidence/2026-10-04-fitcv-generation-format-defect-experiment.json
 runtime_efficiency:
   measurement_status: measured
   baseline_evidence:

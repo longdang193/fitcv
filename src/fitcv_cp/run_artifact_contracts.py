@@ -156,6 +156,72 @@ def _render_acceptance_is_verified(value: Any) -> bool:
     )
 
 
+def build_final_cv_evidence_envelope(
+    *,
+    artifact_version_id: str | None,
+    content_checksum: str | None,
+    stored_artifact_version_id: str | None,
+    stored_content_checksum: str | None,
+    run_job_id: str | None,
+    trace_id: str | None,
+    render_acceptance: dict[str, Any] | None,
+    trim_count: Any = 0,
+    outcome: Any = None,
+    warnings: Any = None,
+) -> dict[str, Any]:
+    normalized_artifact_version_id = str(artifact_version_id or "").strip() or None
+    normalized_content_checksum = str(content_checksum or "").strip().lower() or None
+    normalized_stored_artifact_version_id = str(stored_artifact_version_id or "").strip() or None
+    normalized_stored_content_checksum = str(stored_content_checksum or "").strip().lower() or None
+    normalized_run_job_id = str(run_job_id or "").strip() or None
+    normalized_trace_id = str(trace_id or "").strip() or None
+    proof = dict(render_acceptance) if isinstance(render_acceptance, dict) else None
+    page_count = int(proof.get("page_count") or 0) if proof else None
+    page_fit_status = str((proof or {}).get("page_fit_status") or "").strip().lower() or None
+    render_status = str((proof or {}).get("render_status") or "").strip().lower() or None
+    artifact_checksum = str((proof or {}).get("artifact_checksum") or "").strip().lower() or None
+    identity_bound = bool(
+        normalized_artifact_version_id
+        and normalized_content_checksum
+        and normalized_stored_artifact_version_id
+        and normalized_stored_content_checksum
+        and normalized_artifact_version_id == normalized_stored_artifact_version_id
+        and normalized_content_checksum == normalized_stored_content_checksum
+    )
+    proof_content_matches = bool(
+        proof
+        and normalized_content_checksum
+        and str(proof.get("content_sha256") or "").strip().lower() == normalized_content_checksum
+    )
+    proof_complete = bool(proof and _render_acceptance_is_verified(proof) and proof_content_matches)
+    warning_items = warnings if isinstance(warnings, (list, tuple)) else []
+    normalized_warnings = [str(item).strip() for item in warning_items if str(item).strip()]
+    normalized_outcome = str(outcome or "").strip() or None
+    evidence_state = (
+        "missing"
+        if not identity_bound or not proof
+        else "passed"
+        if proof_complete
+        else "failed"
+    )
+    return {
+        "contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
+        "artifact_version_id": normalized_artifact_version_id,
+        "content_checksum": normalized_content_checksum,
+        "evidence_state": evidence_state,
+        "page_count": page_count,
+        "page_fit_status": page_fit_status,
+        "render_status": render_status,
+        "artifact_checksum": artifact_checksum,
+        "render_proof": proof,
+        "outcome": normalized_outcome,
+        "warnings": normalized_warnings,
+        "trace_id": normalized_trace_id,
+        "run_job_id": normalized_run_job_id,
+        "trim_count": _nonnegative_int(trim_count),
+    }
+
+
 def _nonnegative_int(value: Any) -> int:
     try:
         return max(int(value or 0), 0)

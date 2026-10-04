@@ -4723,6 +4723,11 @@ def run_pipeline(
                 if isinstance(canonical_result.get("error"), dict)
                 else None,
                 original_outcome=canonical_status,
+                render_acceptance=(
+                    dict(canonical_result.get("render_acceptance"))
+                    if isinstance(canonical_result.get("render_acceptance"), dict)
+                    else None
+                ),
             )
             version["generation_status"] = (
                 "generated" if canonical_status == "accepted" else canonical_status
@@ -5318,7 +5323,6 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
-
 
 
 

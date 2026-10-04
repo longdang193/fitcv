@@ -130,7 +130,10 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({
 
       {(() => {
         const evidence = version.quality_warnings;
-        const proofPassed = hasVerifiedNativeOnePageRender(evidence);
+        const proofPassed = hasVerifiedNativeOnePageRender(evidence, {
+          artifactVersionId: version.version_id,
+          contentChecksum: version.content_checksum,
+        });
         return (
           <div role="status" aria-label="Final CV artifact evidence" style={{ fontSize: 12 }}>
             {proofPassed ? (

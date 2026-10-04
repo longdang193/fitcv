@@ -6537,7 +6537,13 @@ def test_canonical_cv_review_resource_exposes_backend_owned_actions_and_evidence
                         "status": "review_required",
                         "review_item_id": "review-1",
                         "error": {"message": "Missing requirement evidence."},
-                        "uncertainties": [{"uncertainty_id": "u-1", "resolution_key": "skill:sql"}],
+                        "uncertainties": [{
+                            "uncertainty_id": "u-1",
+                            "resolution_key": "skill:sql",
+                            "affected_fact": "SQL architecture",
+                            "question": "Which SQL systems have you used?",
+                            "recommended_disposition": "resolve_with_answer",
+                        }],
                     }
                 ]
             }
@@ -6566,6 +6572,9 @@ def test_canonical_cv_review_resource_exposes_backend_owned_actions_and_evidence
     assert payload["review_item_id"] == "review-1"
     assert payload["status"] == "review_required"
     assert payload["allowed_actions"] == ["RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"]
+    assert payload["uncertainties"][0]["affected_fact"] == "SQL architecture"
+    assert payload["uncertainties"][0]["question"] == "Which SQL systems have you used?"
+    assert payload["uncertainties"][0]["recommended_disposition"] == "resolve_with_answer"
     assert payload["final_artifact_evidence"]["evidence_state"] == "missing"
 
 

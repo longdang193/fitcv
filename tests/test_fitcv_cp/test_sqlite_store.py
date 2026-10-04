@@ -4486,9 +4486,21 @@ def test_cv_version_quality_warnings_round_trip() -> None:
         "contract_version": "1",
         "artifact_version_id": "cv-warning-1",
         "content_checksum": hashlib.sha256(b"# Warning CV").hexdigest(),
-        "evidence_state": "passed",
         "outcome": "warning",
         "warnings": ["missing_nonessential_requirement"],
+        "trace_id": "trace-warning-1",
+        "trim_count": 1,
+        "render_proof": {
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": hashlib.sha256(b"# Warning CV").hexdigest(),
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
     }
     sqlite_store.insert_cv_version_row({
         "version_id": "cv-warning-1",
@@ -4499,7 +4511,11 @@ def test_cv_version_quality_warnings_round_trip() -> None:
     })
 
     version = sqlite_store.list_cv_versions(run_job_id)[0]
-    assert version["quality_warnings"] == envelope
+    assert version["quality_warnings"]["evidence_state"] == "passed"
+    assert version["quality_warnings"]["trace_id"] == envelope["trace_id"]
+    assert version["quality_warnings"]["render_proof"] == envelope["render_proof"]
+    assert version["quality_warnings"]["outcome"] == envelope["outcome"]
+    assert version["quality_warnings"]["warnings"] == envelope["warnings"]
     assert version["outcome_status"] == "generated"
     assert version["evidence_state"] == "passed"
 

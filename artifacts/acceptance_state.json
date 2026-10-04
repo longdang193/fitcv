@@ -16,6 +16,11 @@
     "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1_manifest.json",
     "data/fitcv-p0-corpus/p0c/requirement_support_benchmark.json"
   ],
+  "current_contract_evidence": {
+    "json": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json",
+    "markdown": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md",
+    "sha256": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256"
+  },
   "evaluation_freeze_commit": "5cfd25ff31b3b620dbfda5f25e54a0718cb1cb50",
   "evidence_paths": [
     "docs/superpowers/evidence/2026-10-01-fitcv-approved-p0-p1-finalization.md",
@@ -35,8 +40,24 @@
     "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json",
     "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md",
     "docs/superpowers/evidence/2026-10-02-fitcv-first-pass-experiment.md",
-    "docs/superpowers/evidence/2026-10-03-fitcv-final-artifact-integration-optimization.md"
+    "docs/superpowers/evidence/2026-10-03-fitcv-final-artifact-integration-optimization.md",
+    "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json",
+    "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md",
+    "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256",
+    "docs/superpowers/evidence/2026-10-04-fitcv-contract-convergence.md",
+    "docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.json",
+    "docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.md"
   ],
+  "optimization_result": {
+    "evidence": [
+      "docs/superpowers/evidence/2026-10-03-fitcv-first-pass-experiment.json",
+      "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json",
+      "docs/superpowers/evidence/2026-10-04-fitcv-generation-format-defect-experiment.json"
+    ],
+    "experiment": "complete",
+    "production_default": "unchanged",
+    "promotion": "rejected"
+  },
   "p0_b": {
     "explicitly_excluded_requirement_ids": [
       "req_4447675707_01",
@@ -248,15 +269,11 @@
   "runtime_efficiency": {
     "accepted_artifact_and_total_workload_metrics": true,
     "baseline_evidence": {
-      "json": "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json",
-      "markdown": "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
+      "json": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json",
+      "markdown": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md"
     },
-    "blocked_reasons": [
-      "ordinary_workload_has_non_one_page_accepted_artifact",
-      "accepted_artifact_attribution_incomplete",
-      "first_pass_experiment_no_observed_lift"
-    ],
-    "measurement_status": "incomplete",
+    "blocked_reasons": [],
+    "measurement_status": "measured",
     "p1_c": "deferred",
     "p2": "deferred"
   },
@@ -279,14 +296,14 @@
       "measurement_status": "frozen_scope_only"
     },
     "p1_a": {
-      "acceptance_status": "blocked",
+      "acceptance_status": "passed",
       "implementation_status": "verified",
-      "measurement_status": "blocked"
+      "measurement_status": "measured"
     },
     "p1_b": {
-      "acceptance_status": "blocked",
+      "acceptance_status": "passed",
       "implementation_status": "verified",
-      "measurement_status": "incomplete"
+      "measurement_status": "measured"
     },
     "p1_c": {
       "acceptance_status": "deferred",
@@ -303,8 +320,8 @@
     "p0_a": "rejected",
     "p0_b": "passed",
     "p0_c": "passed",
-    "p1_a": "blocked",
-    "p1_b": "blocked",
+    "p1_a": "passed",
+    "p1_b": "passed",
     "p1_c": "deferred",
     "p2": "deferred"
   },

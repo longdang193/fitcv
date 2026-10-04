@@ -8,6 +8,10 @@ import pytest
 from scripts.render_acceptance_state import render_acceptance_state
 
 
+def _canonical_bytes(path: Path) -> bytes:
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
 def _valid_state() -> dict[str, object]:
     return {
         "schema_version": "fitcv.acceptance_state.v2",
@@ -72,6 +76,17 @@ def test_render_acceptance_state_is_deterministic(tmp_path: Path) -> None:
     assert first == second
     assert first_bytes == output.read_bytes()
     assert first["evaluation_freeze_commit"] == "a" * 40
+
+
+def test_committed_acceptance_state_matches_fresh_render(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    rendered = tmp_path / "acceptance_state.json"
+    render_acceptance_state(
+        repo_root / "config/acceptance_state.yaml",
+        rendered,
+        repo_root=repo_root,
+    )
+    assert _canonical_bytes(rendered) == _canonical_bytes(repo_root / "artifacts/acceptance_state.json")
 
 
 @pytest.mark.parametrize(

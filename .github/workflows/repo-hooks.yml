@@ -193,6 +193,11 @@ jobs:
       - name: Verify FitCV acceptance claims
         run: python scripts/verify_fitcv_acceptance.py --timeout-seconds 300 --output .tmp/fitcv-acceptance-report.json
 
+      - name: Reject acceptance state drift
+        run: |
+          python scripts/render_acceptance_state.py --input config/acceptance_state.yaml --output .tmp/acceptance_state.json
+          python -c "from pathlib import Path; import hashlib; normalize=lambda path: Path(path).read_bytes().replace(b'\r\n', b'\n'); generated=normalize('.tmp/acceptance_state.json'); committed=normalize('artifacts/acceptance_state.json'); print('generated_sha256=' + hashlib.sha256(generated).hexdigest()); print('committed_sha256=' + hashlib.sha256(committed).hexdigest()); raise SystemExit(0 if generated == committed else 'acceptance_state_generated_json_drift')"
+
       - name: Upload FitCV acceptance reports
         if: always()
         uses: actions/upload-artifact@v4

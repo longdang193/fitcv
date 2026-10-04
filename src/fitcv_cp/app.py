@@ -1990,6 +1990,7 @@ def _finalize_review_draft_as_cv_artifact(
         ) or None,
         cv_generation_input_fingerprint=str(record.get("cv_generation_input_fingerprint") or "") or None,
         cv_generation_reuse_status=str(record.get("cv_generation_reuse_status") or "") or None,
+        render_acceptance=render_acceptance,
         version_id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"fitcv:review-finalize:{run.run_id}:{finalization_key}")),
     )
     errors = insert_cv_version_row(version_record, client=client)

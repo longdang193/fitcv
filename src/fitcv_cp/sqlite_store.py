@@ -78,6 +78,7 @@ from fitcv_cp.run_lifecycle import (
     run_display_status,
     run_stage_status_from_pipeline,
 )
+from fitcv_cp.run_artifact_contracts import build_final_cv_evidence_envelope
 
 DATE_RANGE_VALUES = {"today", "24h", "7d", "30d", "all"}
 
@@ -13780,14 +13781,33 @@ def _cv_projection(
     item = dict(row)
     item.pop("content_blob", None)
     item["cv_structured"] = _decode_json_or_none(item.get("cv_structured_json"))
-    quality_warnings = _decode_json_or_none(item.get("quality_warnings_json"))
-    if isinstance(quality_warnings, dict):
-        bound = (
-            str(quality_warnings.get("artifact_version_id") or "") == str(item.get("version_id") or "")
-            and str(quality_warnings.get("content_checksum") or "") == str(item.get("content_checksum") or "")
-        )
-        if not bound:
-            quality_warnings = {**quality_warnings, "evidence_state": "missing"}
+    raw_quality_warnings = _decode_json_or_none(item.get("quality_warnings_json"))
+    quality_warnings = build_final_cv_evidence_envelope(
+        artifact_version_id=item.get("version_id"),
+        content_checksum=item.get("content_checksum"),
+        stored_artifact_version_id=(raw_quality_warnings or {}).get("artifact_version_id")
+        if isinstance(raw_quality_warnings, dict)
+        else None,
+        stored_content_checksum=(raw_quality_warnings or {}).get("content_checksum")
+        if isinstance(raw_quality_warnings, dict)
+        else None,
+        run_job_id=item.get("run_job_id"),
+        trace_id=(raw_quality_warnings or {}).get("trace_id") if isinstance(raw_quality_warnings, dict) else None,
+        render_acceptance=(raw_quality_warnings or {}).get("render_proof")
+        if isinstance(raw_quality_warnings, dict) and isinstance(raw_quality_warnings.get("render_proof"), dict)
+        else (raw_quality_warnings or {}).get("render_acceptance")
+        if isinstance(raw_quality_warnings, dict)
+        else None,
+        trim_count=(raw_quality_warnings or {}).get("trim_count", 0)
+        if isinstance(raw_quality_warnings, dict)
+        else 0,
+        outcome=(raw_quality_warnings or {}).get("outcome")
+        if isinstance(raw_quality_warnings, dict)
+        else None,
+        warnings=(raw_quality_warnings or {}).get("warnings")
+        if isinstance(raw_quality_warnings, dict)
+        else None,
+    )
     item["quality_warnings"] = quality_warnings
     evidence_state = (
         str(quality_warnings.get("evidence_state") or "missing")
