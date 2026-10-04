@@ -1089,24 +1089,22 @@ def _backfill_required_sections_from_profile(
         if str(item).strip()
     }
 
-    def selected_id_matches(candidate_id: Any, parent_id: str = "") -> bool:
+    def selected_id_matches(candidate_id: Any, parent_id: str = "", *, allow_legacy_parent_prefix: bool = False) -> bool:
         normalized = str(candidate_id or "").strip()
         if not normalized:
             return False
         if normalized in selected_ids:
             return True
-        reference_id = parent_id or normalized
-        return any(
-            selected_id == reference_id or selected_id.startswith(f"ev_{reference_id}_")
-            for selected_id in selected_ids
-        )
+        if not allow_legacy_parent_prefix or not parent_id:
+            return False
+        return any(selected_id.startswith(f"ev_{parent_id}_") for selected_id in selected_ids)
 
     def selected_nested_evidence(entry: dict[str, Any]) -> list[dict[str, Any]]:
         nested = [item for item in list(entry.get("evidence") or []) if isinstance(item, dict)]
         if not nested or not selected_ids:
             return nested
         parent_id = str(entry.get("id") or "").strip()
-        if selected_id_matches(parent_id, parent_id):
+        if parent_id in selected_ids:
             return nested
         return [
             item
@@ -1128,7 +1126,7 @@ def _backfill_required_sections_from_profile(
         if evidence_refs:
             return any(selected_id_matches(evidence_ref) for evidence_ref in evidence_refs)
         parent_id = str(entry.get("id") or "").strip()
-        return selected_id_matches(parent_id, parent_id)
+        return selected_id_matches(parent_id, parent_id, allow_legacy_parent_prefix=True)
 
     if "skills" in repair_keys:
         profile_skills: list[str] = []
@@ -1150,10 +1148,13 @@ def _backfill_required_sections_from_profile(
         existing_experience = list(sections.get("experience") or [])
         if not existing_experience:
             fallback_experience: list[dict[str, Any]] = []
-            for exp in list(profile.get("experiences") or [])[:3]:
+            eligible_experiences = [
+                exp
+                for exp in list(profile.get("experiences") or [])
+                if isinstance(exp, dict) and is_selected_profile_entry(exp)
+            ]
+            for exp in eligible_experiences[:3]:
                 if not isinstance(exp, dict):
-                    continue
-                if not is_selected_profile_entry(exp):
                     continue
                 nested_evidence = selected_nested_evidence(exp)
                 if nested_evidence:
@@ -1200,10 +1201,13 @@ def _backfill_required_sections_from_profile(
         existing_projects = list(sections.get("projects") or [])
         if not existing_projects:
             fallback_projects: list[dict[str, Any]] = []
-            for project in list(profile.get("projects") or [])[:3]:
+            eligible_projects = [
+                project
+                for project in list(profile.get("projects") or [])
+                if isinstance(project, dict) and is_selected_profile_entry(project)
+            ]
+            for project in eligible_projects[:3]:
                 if not isinstance(project, dict):
-                    continue
-                if not is_selected_profile_entry(project):
                     continue
                 nested_evidence = selected_nested_evidence(project)
                 if nested_evidence:

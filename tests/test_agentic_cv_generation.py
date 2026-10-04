@@ -1,6 +1,99 @@
 from unittest.mock import Mock
 
-from fitcv.agentic_cv_generation import _run_repair_cycle
+import pytest
+
+from fitcv.agentic_cv_generation import (
+    _backfill_required_sections_from_profile,
+    _run_repair_cycle,
+)
+
+
+def test_local_backfill_does_not_include_unselected_generated_nested_claims() -> None:
+    for section, profile_key, entry, selected_id, expected_bullets in (
+        (
+            "experience",
+            "experiences",
+            {
+                "id": "exp_shared",
+                "role": "Data Analyst",
+                "company": "ACME",
+                "evidence": [
+                    {"id": "ev_exp_shared_selected", "text": "Built SQL pipelines"},
+                    {"id": "ev_exp_shared_other", "text": "Processed 999 million records"},
+                ],
+            },
+            "ev_exp_shared_selected",
+            ["Built SQL pipelines"],
+        ),
+        (
+            "projects",
+            "projects",
+            {
+                "id": "project_shared",
+                "name": "Analytics Platform",
+                "evidence": [
+                    {"id": "ev_project_shared_selected", "text": "Built SQL pipelines"},
+                    {"id": "ev_project_shared_other", "text": "Processed 999 million records"},
+                ],
+            },
+            "ev_project_shared_selected",
+            ["Built SQL pipelines"],
+        ),
+    ):
+        repaired, repaired_keys = _backfill_required_sections_from_profile(
+            structured_cv={"sections": {section: []}},
+            profile={profile_key: [entry]},
+            missing_sections=[section],
+            selected_evidence_ids=[selected_id],
+        )
+
+        assert repaired_keys == [section]
+        assert repaired["sections"][section][0]["bullets"] == expected_bullets
+
+
+@pytest.mark.parametrize(
+    ("section", "profile_key", "entries", "selected_id", "expected_name"),
+    [
+        (
+            "experience",
+            "experiences",
+            [
+                {"id": "exp_1", "company": "OTHER-1", "bullets": ["Other work 1"]},
+                {"id": "exp_2", "company": "OTHER-2", "bullets": ["Other work 2"]},
+                {"id": "exp_3", "company": "OTHER-3", "bullets": ["Other work 3"]},
+                {"id": "exp_4", "company": "ACME", "bullets": ["Built SQL pipelines"]},
+            ],
+            "ev_exp_4_selected",
+            "ACME",
+        ),
+        (
+            "projects",
+            "projects",
+            [
+                {"id": "project_1", "name": "OTHER-1", "highlights": ["Other work 1"]},
+                {"id": "project_2", "name": "OTHER-2", "highlights": ["Other work 2"]},
+                {"id": "project_3", "name": "OTHER-3", "highlights": ["Other work 3"]},
+                {"id": "project_4", "name": "ACME", "highlights": ["Built SQL pipelines"]},
+            ],
+            "ev_project_4_selected",
+            "ACME",
+        ),
+    ],
+)
+def test_local_backfill_filters_selected_entries_before_limit(
+    section, profile_key, entries, selected_id, expected_name
+) -> None:
+    repaired, repaired_keys = _backfill_required_sections_from_profile(
+        structured_cv={"sections": {section: []}},
+        profile={profile_key: entries},
+        missing_sections=[section],
+        selected_evidence_ids=[selected_id],
+    )
+
+    assert repaired_keys == [section]
+    assert len(repaired["sections"][section]) == 1
+    field = "company" if section == "experience" else "name"
+    assert repaired["sections"][section][0][field] == expected_name
 
 
 def test_missing_mandatory_section_uses_local_backfill_before_provider_retry(monkeypatch) -> None:
