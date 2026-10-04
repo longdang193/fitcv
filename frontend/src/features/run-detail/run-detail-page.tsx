@@ -34,6 +34,7 @@ import { PipelineOutcome } from "../job-evaluation/components/PipelineOutcome";
 import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawer";
 import { applyCvReviewAction, fetchCvPreview, fetchCvReviewResource, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
 import { CvReviewAction, CvReviewResource } from "../cv-review/types";
+import { hasVerifiedNativeOnePageRender } from "../cv-review/final-artifact-evidence";
 import { notificationStore } from "../../lib/notifications";
 import { EventConsole } from "./components/EventConsole";
 import { FilterTabs } from "./components/FilterTabs";
@@ -1602,7 +1603,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
             {cvReview.final_artifact_evidence && (
               <div role="status" aria-label="Final artifact proof">
                 <strong>Final artifact: </strong>
-                {cvReview.final_artifact_evidence.evidence_state === "passed"
+                {hasVerifiedNativeOnePageRender(cvReview.final_artifact_evidence)
                   ? "verified · 1 page · native render passed"
                   : "proof unavailable or not accepted"}
               </div>

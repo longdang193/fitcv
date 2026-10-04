@@ -6622,6 +6622,78 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
     )
 
 
+def test_canonical_cv_review_action_replays_after_review_state_changes() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-replay",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps({"debug_records": []}),
+    )
+    resolved_resource = {
+        "queue_items": [{
+            "review_item_id": "review-1",
+            "job_url": "https://example.com/job-1",
+            "pending": False,
+            "resolution_status": "resolved",
+            "uncertainties": [],
+        }],
+    }
+    pending_queue = {"queue_items": [{
+        "review_item_id": "review-1",
+        "job_url": "https://example.com/job-1",
+        "pending": True,
+        "resolution_status": "pending",
+        "uncertainties": [{"uncertainty_id": "u-1", "resolution_key": "skill:sql"}],
+    }]}
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {"run_job_id": "job-1", "source_url": "https://example.com/job-1"}
+    store.reserve_idempotent_action.side_effect = [
+        {"action_id": "action-1", "replayed": False, "response": None},
+        {"action_id": "action-1", "replayed": True, "response": {"status": "queued", "action_id": "action-1"}},
+    ]
+
+    with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app._build_hitl_review_queue", side_effect=[pending_queue, pending_queue, resolved_resource]), \
+         patch("fitcv_cp.app._load_run_cv_generation_debug_payload", return_value={
+             "debug_records": [{
+                 "job_url": "https://example.com/job-1",
+                 "status": "review_required",
+                 "review_item_id": "review-1",
+                 "uncertainties": [{"uncertainty_id": "u-1", "resolution_key": "skill:sql"}],
+             }],
+         }), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution", return_value={"resolution_id": "resolution-1"}), \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1"), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug"):
+        client = TestClient(_app())
+        payload = {
+            "review_item_id": "review-1",
+            "uncertainty_id": "u-1",
+            "resolution_key": "skill:sql",
+            "action": "RESOLVE_WITH_ANSWER",
+            "answer_text": "Used SQL for four years.",
+        }
+        first = client.post(
+            "/runs/run-canonical-review-replay/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-replay"},
+            json=payload,
+        )
+        second = client.post(
+            "/runs/run-canonical-review-replay/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-replay"},
+            json=payload,
+        )
+
+    assert first.status_code == 202
+    assert second.status_code == 202
+    assert second.json()["data"] == {"status": "queued", "action_id": "action-1"}
+
+
 @pytest.mark.parametrize(
     ("action", "answer_text"),
     [

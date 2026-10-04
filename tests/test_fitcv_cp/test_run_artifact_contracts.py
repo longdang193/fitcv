@@ -47,12 +47,13 @@ def test_build_final_cv_evidence_envelope_requires_bound_native_one_page_proof()
         artifact_version_id="cv-1",
         run_job_id="job-1",
         run_id="run-1",
-        content_checksum="sha-1",
+        content_checksum="a" * 64,
         generation={
             "render_proof": {
                 "page_count": 1,
                 "page_fit_status": "pass",
                 "render_acceptance": "passed",
+                "content_sha256": "a" * 64,
             }
         },
     )
@@ -65,19 +66,42 @@ def test_build_final_cv_evidence_envelope_accepts_generation_render_acceptance()
         artifact_version_id="cv-2",
         run_job_id="job-2",
         run_id="run-2",
-        content_checksum="sha-2",
+        content_checksum="b" * 64,
         generation={
             "page_fit_status": "pass",
             "render_acceptance": {
                 "render_status": "pass",
                 "page_count": 1,
                 "page_fit_status": "pass",
+                "content_sha256": "b" * 64,
             },
         },
     )
 
     assert envelope["evidence_state"] == "passed"
     assert envelope["page_count"] == 1
+
+
+def test_build_final_cv_evidence_envelope_rejects_mismatched_render_identity() -> None:
+    envelope = build_final_cv_evidence_envelope(
+        artifact_version_id="cv-3",
+        run_job_id="job-3",
+        run_id="run-3",
+        content_checksum="c" * 64,
+        generation={
+            "render_proof": {
+                "artifact_version_id": "cv-wrong",
+                "run_job_id": "job-wrong",
+                "content_sha256": "d" * 64,
+                "page_count": 1,
+                "page_fit_status": "pass",
+                "render_acceptance": "passed",
+            }
+        },
+    )
+
+    assert envelope["evidence_state"] == "missing"
+    assert "native_one_page_render_unverified" in envelope["warnings"]
 
 
 def test_normalized_run_mode_defaults_unknown_values_to_run_all() -> None:

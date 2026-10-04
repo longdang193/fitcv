@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { CvVersionResource } from "../types";
 import { StatusBadge, StatusVariant, Button } from "../../../components";
+import { hasVerifiedNativeOnePageRender } from "../final-artifact-evidence";
 
 export interface CvEvaluationCardProps {
   version: CvVersionResource | null;
@@ -129,10 +130,7 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({
 
       {(() => {
         const evidence = version.quality_warnings;
-        const proofPassed = evidence?.evidence_state === "passed"
-          && evidence.page_count === 1
-          && ["pass", "passed"].includes(String(evidence.page_fit_status || "").toLowerCase())
-          && ["true", "pass", "passed", "accepted"].includes(String(evidence.render_acceptance).toLowerCase());
+        const proofPassed = hasVerifiedNativeOnePageRender(evidence);
         return (
           <div role="status" aria-label="Final CV artifact evidence" style={{ fontSize: 12 }}>
             {proofPassed ? (

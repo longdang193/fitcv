@@ -11962,14 +11962,6 @@ def create_app(
             raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
         idempotency_key = _required_idempotency_key(request)
         job_url = str(job.get("job_url") or job.get("source_url") or "").strip()
-        resource = _canonical_cv_review_resource(run_id, run_job_id)
-        if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
-            raise ApiError(409, "review_resource_stale", "Review item changed.", action="Refresh CV review.")
-        if body.action not in set(resource.get("allowed_actions") or []):
-            raise ApiError(409, "review_action_not_allowed", "Review action is not allowed for current state.", action="Refresh CV review.")
-        if body.action == "RESOLVE_WITH_ANSWER" and not str(body.answer_text or "").strip():
-            raise ApiError(422, "answer_required", "answer_text is required for RESOLVE_WITH_ANSWER.", action="Provide an answer and retry.")
-
         request_fingerprint = _request_fingerprint(
             {
                 "run_id": run_id,
@@ -12000,6 +11992,14 @@ def create_app(
             raise
         if isinstance(idempotent_action, dict) and idempotent_action.get("replayed") and idempotent_action.get("response") is not None:
             return JSONResponse(status_code=202, content=_data_response(idempotent_action["response"]))
+
+        resource = _canonical_cv_review_resource(run_id, run_job_id)
+        if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
+            raise ApiError(409, "review_resource_stale", "Review item changed.", action="Refresh CV review.")
+        if body.action not in set(resource.get("allowed_actions") or []):
+            raise ApiError(409, "review_action_not_allowed", "Review action is not allowed for current state.", action="Refresh CV review.")
+        if body.action == "RESOLVE_WITH_ANSWER" and not str(body.answer_text or "").strip():
+            raise ApiError(422, "answer_required", "answer_text is required for RESOLVE_WITH_ANSWER.", action="Provide an answer and retry.")
 
         debug_payload = _load_run_cv_generation_debug_payload(run)
         if not isinstance(debug_payload, dict):

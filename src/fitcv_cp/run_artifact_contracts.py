@@ -115,10 +115,23 @@ def build_final_cv_evidence_envelope(
         if isinstance(render_acceptance_value, dict)
         else render_acceptance_value
     )
+    proof_content_checksum = str(
+        first(render_proof.get("content_sha256"), render_proof.get("content_checksum")) or ""
+    ).strip()
+    proof_artifact_version_id = str(render_proof.get("artifact_version_id") or "").strip()
+    proof_run_job_id = str(render_proof.get("run_job_id") or "").strip()
+    render_identity_matches = bool(
+        proof_content_checksum
+        and normalized_checksum
+        and proof_content_checksum == normalized_checksum
+        and (not proof_artifact_version_id or proof_artifact_version_id == normalized_version_id)
+        and (not proof_run_job_id or proof_run_job_id == normalized_run_job_id)
+    )
     render_passed = (
         page_count == 1
         and page_fit_status in {"pass", "passed"}
         and render_acceptance in {True, "pass", "passed", "accepted"}
+        and render_identity_matches
     )
     identity_bound = bool(normalized_version_id and normalized_run_job_id and normalized_checksum)
     evidence_state = "passed" if identity_bound and render_passed else "missing"

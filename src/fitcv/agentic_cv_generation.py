@@ -1535,7 +1535,7 @@ def _reusable_result_or_none(
         config,
         render_acceptance if isinstance(render_acceptance, dict) else None,
     ):
-        render_acceptance = render_cv_native_acceptance(structured_cv, config)
+        render_acceptance = render_cv_native_acceptance(markdown, config)
     if _native_final_artifact_enabled(config) and not final_artifact_acceptance_passes(
         content_valid=True,
         render_acceptance=render_acceptance if isinstance(render_acceptance, dict) else None,

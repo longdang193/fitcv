@@ -29,7 +29,7 @@ export interface CvQualityWarningsEnvelope {
   warnings?: string[];
   page_count?: number | null;
   page_fit_status?: string | null;
-  render_acceptance?: Record<string, unknown> | null;
+  render_acceptance?: Record<string, unknown> | string | null;
   render_proof?: Record<string, unknown> | null;
   run_id?: string | null;
   run_job_id?: string | null;

@@ -2,6 +2,7 @@ import React from "react";
 import { CvVersionResource } from "../types";
 import { StatusBadge, StatusVariant } from "../../../components";
 import { formatIdentifier, formatTimestamp } from "../../../lib/format";
+import { hasVerifiedNativeOnePageRender } from "../final-artifact-evidence";
 
 export interface CvVersionHistoryProps {
   versions: CvVersionResource[];
@@ -110,7 +111,7 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
                   </div>
                 )}
                 <div role="status" style={{ fontSize: 11, color: "var(--muted)" }}>
-                  {ver.quality_warnings?.evidence_state === "passed"
+                  {hasVerifiedNativeOnePageRender(ver.quality_warnings)
                     ? "Final artifact verified · 1 page · native render passed"
                     : "Final artifact proof unavailable"}
                 </div>

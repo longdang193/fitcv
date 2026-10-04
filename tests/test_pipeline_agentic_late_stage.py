@@ -1472,6 +1472,7 @@ def test_reuse_with_stale_render_proof_rerenders_without_provider_call(
 
     mock_generate_cv.assert_not_called()
     mock_rerender.assert_called_once()
+    assert mock_rerender.call_args.args[0] == "# Cached CV"
     assert reused["status"] == "accepted"
     assert reused["render_acceptance"] == rerender_proof
 
