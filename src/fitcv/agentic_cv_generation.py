@@ -1089,25 +1089,46 @@ def _backfill_required_sections_from_profile(
         if str(item).strip()
     }
 
+    def selected_id_matches(candidate_id: Any, parent_id: str = "") -> bool:
+        normalized = str(candidate_id or "").strip()
+        if not normalized:
+            return False
+        if normalized in selected_ids:
+            return True
+        reference_id = parent_id or normalized
+        return any(
+            selected_id == reference_id or selected_id.startswith(f"ev_{reference_id}_")
+            for selected_id in selected_ids
+        )
+
+    def selected_nested_evidence(entry: dict[str, Any]) -> list[dict[str, Any]]:
+        nested = [item for item in list(entry.get("evidence") or []) if isinstance(item, dict)]
+        if not nested or not selected_ids:
+            return nested
+        parent_id = str(entry.get("id") or "").strip()
+        if selected_id_matches(parent_id, parent_id):
+            return nested
+        return [
+            item
+            for item in nested
+            if selected_id_matches(item.get("id"))
+        ]
+
     def is_selected_profile_entry(entry: dict[str, Any]) -> bool:
         if not selected_ids:
             return True
+        nested = list(entry.get("evidence") or [])
+        if nested:
+            return bool(selected_nested_evidence(entry))
         evidence_refs = {
             str(item).strip()
             for item in list(entry.get("evidence_refs") or [])
             if str(item).strip()
         }
         if evidence_refs:
-            return any(
-                selected_id == evidence_ref or selected_id.startswith(f"ev_{evidence_ref}_")
-                for selected_id in selected_ids
-                for evidence_ref in evidence_refs
-            )
+            return any(selected_id_matches(evidence_ref) for evidence_ref in evidence_refs)
         parent_id = str(entry.get("id") or "").strip()
-        return bool(parent_id) and any(
-            selected_id == parent_id or selected_id.startswith(f"ev_{parent_id}_")
-            for selected_id in selected_ids
-        )
+        return selected_id_matches(parent_id, parent_id)
 
     if "skills" in repair_keys:
         profile_skills: list[str] = []
@@ -1134,19 +1155,33 @@ def _backfill_required_sections_from_profile(
                     continue
                 if not is_selected_profile_entry(exp):
                     continue
-                bullet_texts = [
-                    (
-                        str(item.get("text") or "").strip()
-                        if isinstance(item, dict)
-                        else str(item).strip()
-                    )
-                    for item in list(exp.get("bullets") or [])
-                    if (
-                        str(item.get("text") or "").strip()
-                        if isinstance(item, dict)
-                        else str(item).strip()
-                    )
-                ]
+                nested_evidence = selected_nested_evidence(exp)
+                if nested_evidence:
+                    bullet_texts = [
+                        str(item.get("text") or item.get("title") or "").strip()
+                        for item in nested_evidence
+                        if str(item.get("text") or item.get("title") or "").strip()
+                    ][:2]
+                else:
+                    bullet_texts = [
+                        (
+                            str(item.get("text") or "").strip()
+                            if isinstance(item, dict)
+                            else str(item).strip()
+                        )
+                        for item in list(exp.get("bullets") or [])
+                        if (
+                            str(item.get("text") or "").strip()
+                            if isinstance(item, dict)
+                            else str(item).strip()
+                        )
+                    ][:2]
+                    if not bullet_texts:
+                        bullet_texts = [
+                            "Delivered cross-functional work aligned with business goals."
+                        ]
+                if nested_evidence and not bullet_texts:
+                    continue
                 fallback_experience.append(
                     {
                         "role": str(exp.get("role") or "").strip(),
@@ -1154,7 +1189,7 @@ def _backfill_required_sections_from_profile(
                         "start": exp.get("start"),
                         "end": exp.get("end"),
                         "location": str(exp.get("location") or "").strip() or None,
-                        "bullets": bullet_texts[:2] or ["Delivered cross-functional work aligned with business goals."],
+                        "bullets": bullet_texts,
                     }
                 )
             if fallback_experience:
@@ -1170,16 +1205,26 @@ def _backfill_required_sections_from_profile(
                     continue
                 if not is_selected_profile_entry(project):
                     continue
-                bullets = [
-                    str(item).strip()
-                    for item in list(project.get("highlights") or project.get("bullets") or [])
-                    if str(item).strip()
-                ]
+                nested_evidence = selected_nested_evidence(project)
+                if nested_evidence:
+                    bullets = [
+                        str(item.get("text") or item.get("title") or "").strip()
+                        for item in nested_evidence
+                        if str(item.get("text") or item.get("title") or "").strip()
+                    ][:2]
+                else:
+                    bullets = [
+                        str(item).strip()
+                        for item in list(project.get("highlights") or project.get("bullets") or [])
+                        if str(item).strip()
+                    ][:2]
+                if not bullets:
+                    continue
                 fallback_projects.append(
                     {
                         "name": str(project.get("name") or "").strip(),
                         "context": str(project.get("context") or project.get("period") or "").strip() or None,
-                        "bullets": bullets[:2] or ["Built project outcome with measurable business impact."],
+                        "bullets": bullets,
                     }
                 )
             if fallback_projects:
@@ -1253,17 +1298,17 @@ def _run_repair_cycle(
             analysis_grounding=analysis_grounding,
         )
 
+    selected_evidence_ids = list(
+        (
+            (analysis_grounding.get("evidence_selection_summary") or {})
+            if isinstance(analysis_grounding, dict)
+            else {}
+        ).get("selected_evidence_ids")
+        or []
+    )
     repair_targets = _determine_repair_targets(validation, structured_cv)
     if repair_targets:
         if _generation_format_defect_category(validation) == "missing_mandatory_section":
-            selected_evidence_ids = list(
-                (
-                    (analysis_grounding.get("evidence_selection_summary") or {})
-                    if isinstance(analysis_grounding, dict)
-                    else {}
-                ).get("selected_evidence_ids")
-                or []
-            )
             repaired_cv, repaired_keys = _backfill_required_sections_from_profile(
                 structured_cv=structured_cv,
                 profile=profile,
@@ -1321,6 +1366,7 @@ def _run_repair_cycle(
             structured_cv=structured_cv,
             profile=profile,
             missing_sections=list(validation.get("missing_sections") or []),
+            selected_evidence_ids=selected_evidence_ids,
         )
         if repaired_keys:
             markdown = render_cv_markdown(structured_cv or {}, config)
