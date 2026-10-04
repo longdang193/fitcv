@@ -1,0 +1,259 @@
+{
+  "schema_version": "fitcv_runtime_efficiency_baseline_v3",
+  "contract_versions": {
+    "final_artifact": "fitcv.final_artifact.v1",
+    "trace": "fitcv.trace.v1",
+    "efficiency": "fitcv.efficiency.v1"
+  },
+  "status": "not_available",
+  "trace_normalization": {
+    "duplicate_count": 0,
+    "conflict_count": 0,
+    "conflict_trace_ids": [],
+    "source_candidate_count": 0,
+    "normalized_trace_count": 0
+  },
+  "generated_at": "2026-10-04T08:48:01.039815+00:00",
+  "selection": {
+    "ordinary_runs_only": true,
+    "measurable_generation_work_only": true,
+    "contract_versions": {
+      "final_artifact": "fitcv.final_artifact.v1",
+      "trace": "fitcv.trace.v1",
+      "efficiency": "fitcv.efficiency.v1"
+    },
+    "current_contract_record_count": 0,
+    "historical_record_count": 0,
+    "run_count": 0,
+    "run_ids": [],
+    "exclusions": {}
+  },
+  "workload": {
+    "attempted_generation_job_count": 0,
+    "terminal_validation_failed_job_count": 0,
+    "validation_failure_event_count": 0,
+    "validation_failure_count": 0,
+    "provider_call_count": 0,
+    "regeneration_count": 0,
+    "render_retry_count": 0,
+    "token_total": 0,
+    "generation_elapsed_ms": null
+  },
+  "timing": {
+    "generation_elapsed_ms": null,
+    "generation_timing_coverage": {
+      "measured": 0,
+      "unavailable": 0
+    },
+    "artifact_acceptance_latency_ms": 0,
+    "run_wall_ms": 0,
+    "stage_latency_ms": {
+      "analysis": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "retrieval": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "content_planning": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "provider_generation": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "validation": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "render": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "repair": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "persistence": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      }
+    }
+  },
+  "coverage": {
+    "attribution": {
+      "measured": 0,
+      "unavailable": 0,
+      "total": 0,
+      "rate": 0.0,
+      "complete": false,
+      "matched": 0,
+      "unmatched": 0
+    },
+    "cost": {
+      "measured": 0,
+      "unavailable": 0,
+      "total": 0,
+      "rate": 0.0,
+      "complete": false
+    },
+    "timing": {
+      "measured": 0,
+      "unavailable": 0,
+      "total": 0,
+      "rate": 0.0,
+      "complete": false
+    },
+    "page_fit": {
+      "measured": 0,
+      "unavailable": 0,
+      "total": 0,
+      "rate": 0.0,
+      "complete": false
+    },
+    "review_questions": {
+      "measured": 0,
+      "unavailable": 0,
+      "total": 0,
+      "rate": 0.0,
+      "complete": false
+    },
+    "human_actions": {
+      "measured": 0,
+      "unavailable": 0,
+      "total": 0,
+      "rate": 0.0,
+      "complete": false
+    },
+    "resolution_reuse": {
+      "measured": 0,
+      "unavailable": 0,
+      "total": 0,
+      "rate": 0.0,
+      "complete": false
+    },
+    "page_fit_success": {
+      "measured": 0,
+      "unavailable": 0,
+      "total": 0,
+      "rate": 0.0,
+      "complete": false
+    }
+  },
+  "run_job_diversity": {
+    "run_count": 0,
+    "job_count": 0,
+    "job_type_count": 0,
+    "job_types": []
+  },
+  "accepted_cv": {
+    "count": 0,
+    "recorded_acceptance_count": 0,
+    "cost_per_accepted_cv": null,
+    "accepted_artifact_cost_per_accepted_cv": null,
+    "total_workload_cost_per_accepted_cv": null,
+    "accepted_non_one_page_count": 0,
+    "page_fit_success": {
+      "count": 0,
+      "pass": 0,
+      "fail": 0,
+      "total": 0,
+      "rate": 0.0
+    }
+  },
+  "attribution": {
+    "unmatched_trace_count": 0,
+    "unattributed_accepted_artifact_count": 0,
+    "accepted_non_one_page_count": 0
+  },
+  "yield": {
+    "attempted_generation_job_count": 0,
+    "first_pass_acceptance_count": 0,
+    "retry_success_count": 0,
+    "retry_failure_count": 0,
+    "first_pass_acceptance_rate": null
+  },
+  "aggregate": {
+    "provider_call_count": 0,
+    "token_total": 0,
+    "regeneration_count": 0,
+    "validation_failure_event_count": 0,
+    "validation_failure_count": 0,
+    "terminal_validation_failed_job_count": 0,
+    "generation_elapsed_ms": null,
+    "end_to_end_wall_ms": 0,
+    "elapsed_ms": 0
+  },
+  "outcomes": {
+    "generation_status_counts": {},
+    "page_fit": {
+      "pass": 0,
+      "fail": 0,
+      "total": 0,
+      "rate": 0.0
+    },
+    "render_retry_count": 0,
+    "compiler_outcome_counts": {},
+    "render_outcome_counts": {}
+  },
+  "optimization_scorecard": {
+    "regeneration_causes": {},
+    "reuse_hits": {
+      "status": "measured",
+      "count": 0
+    },
+    "human_actions": {
+      "status": "measured",
+      "count": 0
+    },
+    "resolution_reuse": {
+      "status": "measured",
+      "count": 0
+    },
+    "proof_reuse": {
+      "status": "unavailable",
+      "measured": 0,
+      "reason": "current trace contract does not persist this field"
+    },
+    "provider_calls_avoided": {
+      "status": "unavailable",
+      "measured": 0,
+      "reason": "current trace contract does not persist this field"
+    },
+    "renders_avoided": {
+      "status": "unavailable",
+      "measured": 0,
+      "reason": "current trace contract does not persist this field"
+    },
+    "tokens_avoided": {
+      "status": "unavailable",
+      "measured": 0,
+      "reason": "current trace contract does not persist this field"
+    }
+  },
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Windows-10-10.0.19045-SP0"
+  },
+  "runs": [],
+  "attempted_outcomes": [],
+  "material_metrics_sha256": "bc39bae24fe992202d476b33f9e19d58e667d6c83cd796f01cdcfee2a30ccc56"
+}

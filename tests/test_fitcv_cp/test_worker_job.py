@@ -386,6 +386,18 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
         "cv_generation_input_fingerprint": "fresh-fingerprint",
         "cv_generation_reuse_status": "fresh_compute",
         "model": "model-1",
+        "trace_id": "trace-1",
+        "render_acceptance": {
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": hashlib.sha256(b"# Fresh generated CV").hexdigest(),
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
     }
     with patch("fitcv_cp.worker_job.get_run", return_value=run), \
          patch("fitcv_cp.worker_job.list_run_structured_jobs", return_value=[{
@@ -416,6 +428,9 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
     generate_cv.assert_called_once_with(analysis, {"name": "Candidate"}, {})
     assert update_version.call_args_list[-1].kwargs["generation_status"] == "review_required"
     assert update_version.call_args_list[-1].kwargs["content"] == b"# Fresh generated CV"
+    persisted_evidence = update_version.call_args_list[-1].kwargs["metadata"]["quality_warnings_json"]
+    assert persisted_evidence["evidence_state"] == "passed"
+    assert persisted_evidence["artifact_version_id"] == "cv-new"
     assert insert_evaluation.call_args.kwargs["row"]["status"] == "pending"
     assert update_evaluation.call_args.kwargs["status"] == "succeeded"
     assert update_evaluation.call_args.kwargs["fit_classification"] == "stretch"

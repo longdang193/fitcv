@@ -143,6 +143,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const [cvReviewLoading, setCvReviewLoading] = useState(false);
   const [cvReviewError, setCvReviewError] = useState<string | null>(null);
   const [cvReviewAnswer, setCvReviewAnswer] = useState("");
+  const [cvReviewUncertaintyId, setCvReviewUncertaintyId] = useState<string | null>(null);
   const [cvReviewSubmitting, setCvReviewSubmitting] = useState(false);
 
   const handleInspect = (job: RunJobItem) => {
@@ -167,9 +168,12 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     setCvReview(null);
     setCvReviewError(null);
     setCvReviewAnswer("");
+    setCvReviewUncertaintyId(null);
     setCvReviewLoading(true);
     try {
-      setCvReview(await fetchCvReviewResource(runId, job.run_job_id));
+      const resource = await fetchCvReviewResource(runId, job.run_job_id);
+      setCvReview(resource);
+      setCvReviewUncertaintyId(getPendingCvReviewUncertainty(resource.uncertainties)?.uncertainty_id || null);
     } catch (err: any) {
       setCvReviewError(err.message || "Failed to load CV review.");
     } finally {
@@ -179,7 +183,9 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
   const handleCvReviewAction = async (action: CvReviewAction) => {
     if (!cvReviewJob || !cvReview) return;
-    const pendingUncertainty = getPendingCvReviewUncertainty(cvReview.uncertainties);
+    const pendingUncertainty = cvReview.uncertainties.find(
+      (uncertainty) => uncertainty.uncertainty_id === cvReviewUncertaintyId
+    ) || getPendingCvReviewUncertainty(cvReview.uncertainties);
     if (!pendingUncertainty) {
       setCvReviewError("All review uncertainties are already resolved.");
       return;
@@ -198,7 +204,10 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         action,
         answer_text: action === "RESOLVE_WITH_ANSWER" ? cvReviewAnswer.trim() : null,
       });
-      setCvReview(refreshed);
+      setCvReview(refreshed.refresh_required
+        ? await fetchCvReviewResource(runId, cvReviewJob.run_job_id)
+        : refreshed);
+      setCvReviewUncertaintyId(null);
       await loadJobs(jobsPage, jobsPageSize, true);
       setCvReviewAnswer("");
     } catch (err: any) {
@@ -1619,11 +1628,14 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         {cvReviewError && <div className="notice error" role="alert">{cvReviewError}</div>}
         {!cvReviewLoading && cvReview && (
           <div style={{ display: "grid", gap: 12 }}>
-            <div role="status" aria-live="polite"><strong>Status: </strong>{cvReview.status}</div>
+            <div role="status" aria-live="polite"><strong>Status: </strong>{cvReview.status.replaceAll("_", " ")}</div>
             {cvReview.final_artifact_evidence && (
               <div role="status" aria-label="Final artifact proof">
                 <strong>Final artifact: </strong>
-                {hasVerifiedNativeOnePageRender(cvReview.final_artifact_evidence)
+                {hasVerifiedNativeOnePageRender(cvReview.final_artifact_evidence, {
+                  artifactVersionId: cvReview.cv_version_id,
+                  contentChecksum: cvReview.cv_version?.content_checksum,
+                })
                   ? "verified · 1 page · native render passed"
                   : "proof unavailable or not accepted"}
               </div>
@@ -1634,7 +1646,21 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                 <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
                   {cvReview.uncertainties.map((uncertainty, index) => (
                     <li key={uncertainty.uncertainty_id || `${uncertainty.resolution_key}-${index}`}>
-                      {uncertainty.message || uncertainty.qualifier || uncertainty.resolution_key || "Unresolved requirement"}
+                      <label style={{ display: "grid", gap: 4 }}>
+                        <span style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                          <input
+                            type="radio"
+                            name="cv-review-uncertainty"
+                            checked={uncertainty.uncertainty_id === cvReviewUncertaintyId}
+                            onChange={() => setCvReviewUncertaintyId(uncertainty.uncertainty_id || null)}
+                          />
+                          <strong>{uncertainty.affected_fact || uncertainty.qualifier || "Unresolved requirement"}</strong>
+                        </span>
+                        <span>{uncertainty.question || uncertainty.message || "Question unavailable"}</span>
+                        {uncertainty.recommended_disposition && (
+                          <span style={{ color: "var(--muted)" }}>Recommended: {uncertainty.recommended_disposition}</span>
+                        )}
+                      </label>
                     </li>
                   ))}
                 </ul>

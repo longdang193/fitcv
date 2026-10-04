@@ -1217,6 +1217,33 @@ def _run_repair_cycle(
         )
 
     repair_targets = _determine_repair_targets(validation, structured_cv)
+    if repair_targets and _generation_format_defect_category(validation) == "missing_mandatory_section":
+        structured_cv, repaired_keys = _backfill_required_sections_from_profile(
+            structured_cv=structured_cv,
+            profile=profile,
+            missing_sections=repair_targets,
+        )
+        if repaired_keys:
+            markdown = render_cv_markdown(structured_cv or {}, config)
+            validation = _run_generation_validations(
+                markdown,
+                profile=profile,
+                config=config,
+                structured_cv=structured_cv,
+                analysis_grounding=analysis_grounding,
+            )
+            repair_attempt = {
+                "performed": True,
+                "missing_sections": repaired_keys,
+                "reason": "deterministic_section_backfill",
+            }
+        else:
+            repair_attempt = {
+                "performed": False,
+                "missing_sections": repair_targets,
+                "reason": "deterministic_section_backfill_failed",
+            }
+        return structured_cv, markdown, validation, repair_attempt, runtime_provenance
     if repair_targets:
         repair_attempt = _build_repair_attempt(repair_targets)
         repaired_cv, repaired_markdown, validation, retry_provenance = retry_executor(repair_targets)

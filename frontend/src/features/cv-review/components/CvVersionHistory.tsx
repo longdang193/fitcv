@@ -111,7 +111,10 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
                   </div>
                 )}
                 <div role="status" style={{ fontSize: 11, color: "var(--muted)" }}>
-                  {hasVerifiedNativeOnePageRender(ver.quality_warnings)
+                  {hasVerifiedNativeOnePageRender(ver.quality_warnings, {
+                    artifactVersionId: ver.version_id,
+                    contentChecksum: ver.content_checksum,
+                  })
                     ? "Final artifact verified · 1 page · native render passed"
                     : "Final artifact proof unavailable"}
                 </div>

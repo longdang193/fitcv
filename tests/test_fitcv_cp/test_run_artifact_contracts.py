@@ -27,6 +27,7 @@ from fitcv_cp.run_artifact_contracts import (
     schema_version_or_none,
     stable_sha256_fingerprint,
     build_accepted_cv_effort_projection,
+    build_final_cv_evidence_envelope,
     accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1,
     collect_normalized_generation_traces,
 )
@@ -36,6 +37,72 @@ def accepted_cv_artifact_event_v1(**kwargs):
     kwargs.setdefault("page_fit_status", "pass")
     kwargs.setdefault("render_acceptance", {"page_count": 1, "page_fit_status": "pass"})
     return _accepted_cv_artifact_event_v1(**kwargs)
+
+
+def _native_render_proof(*, page_count: int = 1, render_status: str = "pass") -> dict:
+    return {
+        "render_status": render_status,
+        "renderer_status": "rendered",
+        "page_count": page_count,
+        "page_fit_status": "pass" if page_count == 1 else "fail",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": "b" * 64,
+        "template_sha256": "c" * 64,
+        "render_config_fingerprint": "d" * 64,
+        "renderer_contract_version": "fitcv_native_render_v1",
+    }
+
+
+def test_final_cv_evidence_envelope_accepts_identity_bound_native_proof() -> None:
+    envelope = build_final_cv_evidence_envelope(
+        artifact_version_id="cv-1",
+        content_checksum="b" * 64,
+        stored_artifact_version_id="cv-1",
+        stored_content_checksum="b" * 64,
+        run_job_id="job-1",
+        trace_id="trace-1",
+        render_acceptance=_native_render_proof(),
+        trim_count=1,
+    )
+
+    assert envelope["evidence_state"] == "passed"
+    assert envelope["artifact_version_id"] == "cv-1"
+    assert envelope["content_checksum"] == "b" * 64
+    assert envelope["page_count"] == 1
+    assert envelope["page_fit_status"] == "pass"
+    assert envelope["render_status"] == "pass"
+    assert envelope["render_proof"]["renderer_contract_version"] == "fitcv_native_render_v1"
+    assert envelope["trim_count"] == 1
+
+
+@pytest.mark.parametrize(
+    ("artifact_version_id", "content_checksum", "stored_artifact_version_id", "stored_content_checksum", "proof", "expected_state"),
+    [
+        ("cv-1", "b" * 64, "cv-2", "b" * 64, _native_render_proof(), "missing"),
+        ("cv-1", "b" * 64, "cv-1", "e" * 64, _native_render_proof(), "missing"),
+        ("cv-1", "b" * 64, "cv-1", "b" * 64, _native_render_proof(page_count=2), "failed"),
+        ("cv-1", "b" * 64, "cv-1", "b" * 64, _native_render_proof(render_status="fail"), "failed"),
+    ],
+)
+def test_final_cv_evidence_envelope_rejects_stale_or_invalid_proof(
+    artifact_version_id: str,
+    content_checksum: str,
+    stored_artifact_version_id: str,
+    stored_content_checksum: str,
+    proof: dict,
+    expected_state: str,
+) -> None:
+    envelope = build_final_cv_evidence_envelope(
+        artifact_version_id=artifact_version_id,
+        content_checksum=content_checksum,
+        stored_artifact_version_id=stored_artifact_version_id,
+        stored_content_checksum=stored_content_checksum,
+        run_job_id="job-1",
+        trace_id="trace-1",
+        render_acceptance=proof,
+    )
+
+    assert envelope["evidence_state"] == expected_state
 
 
 def test_normalized_run_mode_defaults_unknown_values_to_run_all() -> None:

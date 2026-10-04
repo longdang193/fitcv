@@ -74,6 +74,17 @@ def test_render_acceptance_state_is_deterministic(tmp_path: Path) -> None:
     assert first["evaluation_freeze_commit"] == "a" * 40
 
 
+def test_committed_acceptance_state_matches_fresh_render(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    rendered = tmp_path / "acceptance_state.json"
+    render_acceptance_state(
+        repo_root / "config/acceptance_state.yaml",
+        rendered,
+        repo_root=repo_root,
+    )
+    assert rendered.read_bytes() == (repo_root / "artifacts/acceptance_state.json").read_bytes()
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

@@ -1,0 +1,32 @@
+{
+  "schema_version": "fitcv_generation_format_defect_experiment.v1",
+  "date": "2026-10-04",
+  "workload": {
+    "source": "workspace persisted ordinary runs",
+    "attempted_generation_jobs": 0,
+    "identical_workload": true
+  },
+  "arms": {
+    "incumbent": {
+      "behavior": "provider retry remains incumbent",
+      "status": "not_measured"
+    },
+    "candidate": {
+      "behavior": "one deterministic missing_mandatory_section local backfill before provider retry",
+      "status": "not_measured"
+    }
+  },
+  "hard_gates": {
+    "identity_bound_persistence": "verified_by_focused_tests",
+    "one_page_native_proof": "verified_by_focused_tests",
+    "review_integrity": "verified_by_focused_tests",
+    "duplicate_action_guard": "preserved",
+    "secret_leakage": "not_observed"
+  },
+  "decision": {
+    "promotion": "rejected",
+    "production_default": "incumbent",
+    "reason": "No persisted ordinary runs were available, so total-workload cost per accepted CV could not be compared.",
+    "rollback": "not_required"
+  }
+}
