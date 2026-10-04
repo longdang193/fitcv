@@ -17,6 +17,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FIXTURE = ROOT / "tests/fixtures/fitcv-p1ab-repair-experiment.json"
 VALID_ARMS = {"local_first", "provider_first"}
+VALID_EVIDENCE_CATEGORIES = {"grounding", "final_artifact", "page_fit", "review_outcome"}
 REUSE_STAGES = ("enrich", "ranking", "cv_analysis", "cv_generation", "synonym_triage")
 DECLARED_INPUTS = (
     "scripts/run_fitcv_repair_experiment.py",
@@ -53,15 +54,21 @@ def _load_fixture(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict) or payload.get("schema_version") != "fitcv.p1ab.repair_experiment_fixture.v1":
         raise ValueError("fixture_schema_invalid")
-    job_types = list(payload.get("job_types") or [])
-    categories = list(payload.get("required_evidence_categories") or [])
+    job_types = [str(value).strip() for value in list(payload.get("job_types") or [])]
+    categories = [str(value).strip().casefold() for value in list(payload.get("required_evidence_categories") or [])]
     arms = dict(payload.get("arms") or {})
     incumbent = str(arms.get("INCUMBENT_ARM") or "").strip()
     candidate = str(arms.get("CANDIDATE_ARM") or "").strip()
-    if len(set(job_types)) < 2:
+    normalized_job_types = [value.casefold() for value in job_types if value]
+    if len(set(normalized_job_types)) != len(normalized_job_types):
+        raise ValueError("fixture_requires_unique_job_types")
+    if len(set(normalized_job_types)) < 2:
         raise ValueError("fixture_requires_two_job_types")
     if not categories:
         raise ValueError("fixture_missing_evidence_categories")
+    unknown_categories = sorted(set(categories) - VALID_EVIDENCE_CATEGORIES)
+    if unknown_categories:
+        raise ValueError(f"fixture_unknown_evidence_category:{','.join(unknown_categories)}")
     if incumbent not in VALID_ARMS or candidate not in VALID_ARMS:
         raise ValueError("arm_selector_invalid")
     if incumbent == candidate:
@@ -80,7 +87,15 @@ def _validate_job_types_against_exclusions(
     job_types: list[str],
     excluded_contract_types: list[str],
 ) -> None:
-    overlap = sorted(set(map(str, job_types)) & set(map(str, excluded_contract_types)))
+    overlap = sorted(
+        {
+            job_type
+            for job_type in (str(value).strip() for value in job_types)
+            if job_type
+            for excluded in (str(value).strip() for value in excluded_contract_types)
+            if excluded and job_type.casefold() == excluded.casefold()
+        }
+    )
     if overlap:
         raise ValueError(f"fixture_job_type_excluded_by_profile: {','.join(overlap)}")
 
@@ -96,7 +111,28 @@ def _input_fingerprint(fixture: Path) -> str:
     return digest.hexdigest()
 
 
-def build_manifest(*, fixture: Path, arm: str, database: Path, run_ids: list[str]) -> dict[str, Any]:
+def capture_input_identity(fixture: Path) -> dict[str, Any]:
+    payload = _load_fixture(fixture)
+    return {
+        "fixture_sha256": _sha256(fixture),
+        "source_commit": _git("rev-parse", "HEAD"),
+        "working_tree_diff_sha256": _diff_hash(),
+        "declared_input_fingerprint": _input_fingerprint(fixture),
+        "model": payload.get("model"),
+        "runtime": payload.get("runtime"),
+        "repeat_count": int(payload["repeat_count"]),
+        "job_types": sorted(str(value) for value in payload["job_types"]),
+    }
+
+
+def build_manifest(
+    *,
+    fixture: Path,
+    arm: str,
+    database: Path,
+    run_ids: list[str],
+    frozen_input_identity: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     payload = _load_fixture(fixture)
     if arm not in VALID_ARMS:
         raise ValueError("arm_selector_invalid")
@@ -106,20 +142,23 @@ def build_manifest(*, fixture: Path, arm: str, database: Path, run_ids: list[str
         raise ValueError("run_id_count_must_match_repeat_count")
     if len(set(run_ids)) != len(run_ids):
         raise ValueError("duplicate_run_ids")
+    input_identity = capture_input_identity(fixture)
+    if frozen_input_identity is not None and input_identity != frozen_input_identity:
+        raise ValueError("input_identity_changed_after_cohort")
     return {
         "schema_version": "fitcv.p1ab.repair_experiment_manifest.v1",
         "fixture": str(fixture.resolve()),
-        "fixture_sha256": _sha256(fixture),
+        "fixture_sha256": input_identity["fixture_sha256"],
         "database_path": str(database.resolve()),
         "arm": arm,
         "repeat_count": len(run_ids),
         "run_ids": run_ids,
-        "source_commit": _git("rev-parse", "HEAD"),
-        "working_tree_diff_sha256": _diff_hash(),
-        "declared_input_fingerprint": _input_fingerprint(fixture),
-        "model": payload.get("model"),
-        "runtime": payload.get("runtime"),
-        "job_types": sorted(str(value) for value in payload["job_types"]),
+        "source_commit": input_identity["source_commit"],
+        "working_tree_diff_sha256": input_identity["working_tree_diff_sha256"],
+        "declared_input_fingerprint": input_identity["declared_input_fingerprint"],
+        "model": input_identity["model"],
+        "runtime": input_identity["runtime"],
+        "job_types": input_identity["job_types"],
         "cache_policy": "isolated_per_arm",
         "provider_credentials": "loaded_from_existing_env_or_dotenv_only",
     }
@@ -353,6 +392,7 @@ def main() -> int:
             parser.error("normal run requires --arm, --database, and --manifest")
         database = args.database.resolve()
         manifest_path = args.manifest.resolve()
+        frozen_input_identity = capture_input_identity(fixture) if args.produce_real else None
         if args.produce_real:
             _require_fresh_path(manifest_path)
             run_ids = _run_real_cohort(fixture=fixture, arm=args.arm, database=database)
@@ -363,6 +403,7 @@ def main() -> int:
             arm=args.arm,
             database=database,
             run_ids=run_ids,
+            frozen_input_identity=frozen_input_identity,
         )
         manifest["producer"] = {
             "mode": "provider_backed" if args.produce_real else "manifest_only",

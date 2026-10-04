@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
+from scripts import run_fitcv_repair_experiment as experiment
 from scripts.run_fitcv_repair_experiment import (
     _disable_cross_run_reuse,
     _experiment_jobs,
@@ -56,3 +58,56 @@ def test_response_run_id_accepts_current_route_envelopes(payload: dict[str, obje
             return payload
 
     assert _response_run_id(Response()) in {"top-level", "nested"}
+
+
+def _fixture_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schema_version": "fitcv.p1ab.repair_experiment_fixture.v1",
+        "model": "fixture-model",
+        "runtime": "fitcv-runtime",
+        "job_types": ["Part-time", "Contract"],
+        "repeat_count": 10,
+        "required_evidence_categories": ["grounding", "final_artifact", "page_fit", "review_outcome"],
+        "arms": {"INCUMBENT_ARM": "local_first", "CANDIDATE_ARM": "provider_first"},
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_fixture_contract_type_exclusion_is_case_insensitive() -> None:
+    with pytest.raises(ValueError, match="fixture_job_type_excluded_by_profile"):
+        experiment._validate_job_types_against_exclusions(["contract", "Part-time"], ["Contract"])
+
+
+def test_fixture_rejects_duplicate_normalized_job_types(tmp_path: Path) -> None:
+    path = tmp_path / "fixture.json"
+    path.write_text(json.dumps(_fixture_payload(job_types=["Contract", " contract "])), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="fixture_requires_unique_job_types"):
+        experiment._load_fixture(path)
+
+
+def test_fixture_rejects_unknown_required_evidence_category(tmp_path: Path) -> None:
+    path = tmp_path / "fixture.json"
+    path.write_text(
+        json.dumps(_fixture_payload(required_evidence_categories=["grounding", "unknown"])),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="fixture_unknown_evidence_category:unknown"):
+        experiment._load_fixture(path)
+
+
+def test_manifest_rejects_changed_frozen_input_identity(monkeypatch, tmp_path: Path) -> None:
+    fixture = experiment.DEFAULT_FIXTURE
+    frozen = experiment.capture_input_identity(fixture)
+    monkeypatch.setattr(experiment, "_git", lambda *args: "changed")
+
+    with pytest.raises(ValueError, match="input_identity_changed_after_cohort"):
+        experiment.build_manifest(
+            fixture=fixture,
+            arm="local_first",
+            database=tmp_path / "cohort.sqlite3",
+            run_ids=[f"run-{index}" for index in range(10)],
+            frozen_input_identity=frozen,
+        )

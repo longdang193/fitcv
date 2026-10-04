@@ -1100,6 +1100,7 @@ def main() -> int:
         report["input_manifest"] = {
             "path": str(args.run_manifest.resolve()),
             "run_ids": list(manifest["run_ids"]),
+            "repeat_count": int(manifest.get("repeat_count") or len(manifest["run_ids"])),
             "database_path": str(Path(manifest_database).resolve()) if manifest_database else None,
             "fixture_sha256": manifest.get("fixture_sha256"),
             "declared_input_fingerprint": manifest.get("declared_input_fingerprint"),

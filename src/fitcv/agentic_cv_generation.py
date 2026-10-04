@@ -1235,6 +1235,9 @@ def _backfill_required_sections_from_profile(
                 return True
         return False
 
+    def is_selected_plain_language(value: Any) -> bool:
+        return selection_state == "LEGACY_UNAVAILABLE"
+
     if "skills" in repair_keys:
         profile_skills: list[str] = []
         for item in list(profile.get("skills") or []):
@@ -1377,6 +1380,8 @@ def _backfill_required_sections_from_profile(
                     name = str(lang.get("name") or "").strip()
                     level = str(lang.get("level") or "").strip() or None
                 else:
+                    if not is_selected_plain_language(lang):
+                        continue
                     name = str(lang).strip()
                     level = None
                 if not name:

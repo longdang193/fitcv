@@ -135,10 +135,10 @@ model, provider-routing layer, or generic closure document.
 - Expected workspace: current checkout with Task 2–4 source/test changes uncommitted and
   unrelated untracked files preserved; plan ledger must distinguish committed HEAD
   behavior from working-tree behavior
-- Next action: complete Task 6 telemetry/scorecard using an explicit isolated
-  database and frozen fixture, then execute Task 7 only if both arms are eligible
-- Blockers: comparable persisted optimization cohort is currently unavailable;
-  incumbent remains default until Task 7 produces two eligible identical cohorts
+- Next action: complete Task 8 independent final verification and reconcile the
+  current-source optimization result before any production-default change
+- Blockers: no unresolved Task 7 eligibility blocker; production-default change
+  remains pending independent final review
 
 **Latest plan review:** 2026-10-04, independent `review-1` returned `needs
 changes`. Findings: contradictory ledger/admission state, missing explicit
@@ -155,8 +155,8 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `blocked` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-04-fitcv-p1ab-repair-experiment-rejected.json`; fixture preflight passed shape, eligible provider-backed cohort absent |
-| Task 8 | `blocked` | current | `codex` | Task 7 | full verification and plan reconciliation | fresh backend/frontend/browser/CI verification passed; remains blocked by Task 7; no promotion or acceptance-state update |
+| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-04-fitcv-p1ab-optimization-rerun.md`; two eligible provider-backed ten-repeat cohorts; candidate positive on current source |
+| Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; independent final review and default-change decision remain |
 
 ## Activation Gate
 
@@ -772,17 +772,16 @@ unchanged, and incumbent/candidate labels come from Task 2's verified mapping.
   `INCUMBENT_ARM`/`CANDIDATE_ARM` mapping.
 - [x] Run both manifest-bound `scripts/benchmark_cv_efficiency.py` commands from `Files and symbols`; each scorecard contains all ten unique repeat run IDs.
 - [x] Run both experiment-bound `scripts/verify_fitcv_acceptance.py` commands from `Files and symbols`; both report `PASSED` and bind to generated fixture/source hashes without changing tracked acceptance state.
-- [x] Compare evidence hashes and generated scorecards; fingerprints match and no secrets appear; promotion gate rejects candidate.
+- [x] Compare evidence hashes and generated scorecards; fingerprints match and no secrets appear; current rerun shows candidate improvement without acceptance regression.
 
 **Exit criteria:** candidate promoted only with measured total-workload improvement; otherwise explicit rejection with incumbent retained.
 
-**Result (2026-10-04):** completed with explicit rejection. Fresh incumbent and
-candidate manifests contain ten measurable runs each, identical executable-input
-fingerprints, two eligible job types, complete attribution, and passing
-experiment-bound acceptance verifiers. `provider_first` produced 3 accepted CVs
-versus 8 for `local_first`, used 17 versus 14 provider calls, 74,924 versus
-62,303 tokens, and 510,340.398 ms versus 473,626.95 ms wall time. Retain
-`local_first`; no promotion and no accepted-state update.
+**Result (2026-10-04):** current-source rerun completed with two eligible,
+identical ten-repeat provider-backed cohorts. `provider_first` produced 8
+accepted CVs versus 7 for `local_first`, used 13 versus 16 provider calls,
+59,567 versus 73,246 tokens, and 430,759.423 versus 447,843.781 ms wall time.
+Candidate and incumbent acceptance verifiers both passed. Independent Task 8
+review must accept this evidence before changing the production default.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -829,9 +828,10 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
 
-- Task 7 blocker is resolved with explicit candidate rejection. Task 8 remains
-  active pending its independent final verification and reconciliation gates.
-  Production default remains `local_first`.
+- Task 7 blocker is resolved with current-source eligible cohorts and a positive
+  candidate result. Task 8 remains active pending independent final verification
+  and reconciliation gates. Production default remains `local_first` until that
+  review accepts the measured default change.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.
@@ -859,8 +859,8 @@ Final proof must establish:
 - [ ] one browser flow against current backend routes with persisted refresh; expected: isolated non-local backend and disposable DB only.
 - [ ] identity-bound final-artifact proof across fresh, cached, regenerated, persisted, and review-closed paths.
 - [ ] complete timing, failure-cause, savings, cache, render, proof, and resolution-reuse telemetry with explicit unavailable semantics.
-- [x] one identical-workload experiment with explicit rejection; fixture, source,
-  config, runtime, and all repeat IDs match across arms.
+- [x] one identical-workload experiment with current-source candidate improvement;
+  fixture, source, config, runtime, and all repeat IDs match across arms.
 - [ ] immutable historical evidence, no secret leakage, P1-C deferred, and P2 frozen.
 
 Run `skill-verification-before-completion` for final status. Source inspection,

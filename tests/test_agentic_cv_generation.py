@@ -112,6 +112,19 @@ def test_explicit_empty_selection_disables_profile_backfill_and_generic_prose() 
     assert "Delivered cross-functional work aligned with business goals." not in str(repaired)
 
 
+def test_explicit_empty_selection_disables_plain_string_language_backfill() -> None:
+    repaired, repaired_keys = _backfill_required_sections_from_profile(
+        structured_cv={"sections": {"languages": []}},
+        profile={"languages": ["English", "German"]},
+        missing_sections=["languages"],
+        selected_evidence_ids=[],
+        selection_present=True,
+    )
+
+    assert repaired_keys == []
+    assert repaired["sections"]["languages"] == []
+
+
 def test_plain_string_skill_requires_selected_projected_evidence() -> None:
     repaired, repaired_keys = _backfill_required_sections_from_profile(
         structured_cv={"sections": {"skills": {"groups": []}}},

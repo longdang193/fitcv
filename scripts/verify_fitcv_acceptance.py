@@ -410,11 +410,35 @@ def _run_experiment_report_check(
                 failures.append(f"experiment_markdown_missing_{heading.lower().replace(' ', '_')}")
     if isinstance(report, dict):
         selection = dict(report.get("selection") or {})
-        if str(report.get("status") or "") not in {"complete", "measured"}:
+        if str(report.get("status") or "") != "complete":
             failures.append("experiment_report_incomplete")
-        if int(selection.get("current_contract_record_count") or 0) == 0:
-            failures.append("experiment_current_contract_missing")
         manifest = dict(report.get("input_manifest") or {})
+        manifest_run_ids = [str(value).strip() for value in list(manifest.get("run_ids") or []) if str(value).strip()]
+        if int(manifest.get("repeat_count") or 0) != 10:
+            failures.append("experiment_manifest_repeat_count_invalid")
+        if len(manifest_run_ids) != 10 or len(set(manifest_run_ids)) != 10:
+            failures.append("experiment_manifest_run_ids_invalid")
+        run_count = int(selection.get("run_count") or 0)
+        if run_count != 10:
+            failures.append("experiment_run_count_invalid")
+        if int(selection.get("manifest_run_count_shortfall") or 0) != 0:
+            failures.append("experiment_manifest_shortfall")
+        current_records = int(selection.get("current_contract_record_count") or 0)
+        recorded_acceptance = int(dict(report.get("accepted_cv") or {}).get("recorded_acceptance_count") or 0)
+        if current_records == 0 or current_records < recorded_acceptance:
+            failures.append("experiment_current_contract_missing")
+        coverage = dict(report.get("coverage") or {})
+        for name in ("timing", "cost", "attribution", "page_fit", "page_fit_success", "review_questions", "human_actions", "resolution_reuse"):
+            if not bool(dict(coverage.get(name) or {}).get("complete")):
+                failures.append(f"experiment_coverage_incomplete_{name}")
+        timing = dict(report.get("timing") or {})
+        generation_elapsed = float(timing.get("generation_elapsed_ms") or 0)
+        generation_coverage = dict(timing.get("generation_timing_coverage") or {})
+        if generation_elapsed <= 0 or int(generation_coverage.get("measured") or 0) < run_count:
+            failures.append("experiment_generation_timing_incomplete")
+        diversity = dict(report.get("run_job_diversity") or {})
+        if int(diversity.get("run_count") or 0) != 10 or int(diversity.get("job_type_count") or 0) < 2:
+            failures.append("experiment_job_diversity_insufficient")
         if not manifest.get("declared_input_fingerprint"):
             failures.append("experiment_input_fingerprint_missing")
         if not manifest.get("fixture_sha256"):

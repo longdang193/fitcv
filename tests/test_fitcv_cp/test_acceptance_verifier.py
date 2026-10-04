@@ -29,6 +29,40 @@ def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> N
     assert "experiment_input_fingerprint_missing" in result["failures"]
 
 
+def test_experiment_report_check_rejects_incomplete_cohort_metadata(tmp_path: Path) -> None:
+    report_path = tmp_path / "experiment.json"
+    markdown_path = tmp_path / "experiment.md"
+    report = {
+        "status": "complete",
+        "selection": {
+            "current_contract_record_count": 1,
+            "run_count": 1,
+            "manifest_run_count_shortfall": 0,
+        },
+        "input_manifest": {
+            "declared_input_fingerprint": "input",
+            "fixture_sha256": "fixture",
+            "arm": "local_first",
+            "repeat_count": 10,
+            "run_ids": ["run-1"],
+        },
+        "timing": {"generation_elapsed_ms": 1, "generation_timing_coverage": {"measured": 1}},
+        "coverage": {},
+        "run_job_diversity": {"run_count": 1, "job_type_count": 1},
+    }
+    report["material_metrics_sha256"] = material_report_digest(report)
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
+
+    result = _run_experiment_report_check(report_path, markdown_path, tmp_path)
+
+    assert result["passed"] is False
+    assert "experiment_manifest_run_ids_invalid" in result["failures"]
+    assert "experiment_run_count_invalid" in result["failures"]
+    assert "experiment_coverage_incomplete_attribution" in result["failures"]
+    assert "experiment_job_diversity_insufficient" in result["failures"]
+
+
 def _state(tmp_path: Path, *, freeze: str = "a" * 40) -> dict[str, object]:
     manifest = tmp_path / "manifest.json"
     evidence = tmp_path / "evidence.md"
