@@ -784,7 +784,7 @@ def _empty_cv_generation_trace(
             "repair_reason": "",
         },
         "efficiency_summary": {
-            "schema_version": "accepted_cv_efficiency_v1",
+            "schema_version": "accepted_cv_efficiency_v2",
             "status": "not_run",
             "elapsed_ms": None,
             "provider_call_count": 0,
@@ -795,6 +795,34 @@ def _empty_cv_generation_trace(
             "regeneration_count": 0,
             "review_question_count": "not_applicable",
             "human_action_count": "not_applicable",
+            "stage_timings": {
+                key: {"value": None, "status": "unavailable", "owner": owner, "denominator": denominator}
+                for key, owner, denominator in (
+                    ("queue_wait_ms", "worker_boundary", "generation_attempts"),
+                    ("analysis_ms", "analysis", "generation_attempts"),
+                    ("retrieval_ms", "analysis", "retrieval_calls"),
+                    ("content_planning_ms", "generation", "generation_attempts"),
+                    ("provider_ms", "generation", "provider_calls"),
+                    ("validation_ms", "generation", "validation_cycles"),
+                    ("local_repair_ms", "generation", "repair_attempts"),
+                    ("render_ms", "artifact_boundary", "render_calls"),
+                    ("persistence_ms", "store_boundary", "persisted_artifacts"),
+                )
+            },
+            "failure_causes": [],
+            "savings": {
+                "local_repair_attempted": False,
+                "local_repair_succeeded": False,
+                "local_repair_failed": False,
+                "provider_retry_avoided": {"value": None, "status": "unavailable"},
+                "tokens_avoided": {"value": None, "status": "unavailable"},
+                "provider_latency_avoided": {"value": None, "status": "unavailable"},
+                "proof_reuse": {"value": None, "status": "unavailable"},
+                "provider_calls_avoided": {"value": None, "status": "unavailable"},
+                "renders_avoided": {"value": None, "status": "unavailable"},
+                "questions_avoided": {"value": None, "status": "unavailable"},
+                "review_time_ms": {"value": None, "status": "unavailable"},
+            },
         },
         "error_summary": None,
     }
@@ -823,7 +851,7 @@ def _update_efficiency_summary(
     summary = dict(trace_payload.get("efficiency_summary") or {})
     summary.update(
         {
-            "schema_version": "accepted_cv_efficiency_v1",
+            "schema_version": "accepted_cv_efficiency_v2",
             "status": "accepted" if status == ACCEPTED_STATUS else "not_accepted",
             "elapsed_ms": max(0, int((time.monotonic() - started_at) * 1000)),
             "provider_call_count": len(attempts),
@@ -836,6 +864,30 @@ def _update_efficiency_summary(
             "human_action_count": "not_applicable",
         }
     )
+    stage_timings = dict(summary.get("stage_timings") or {})
+    latency_values = []
+    for attempt in attempts:
+        evidence = attempt.get("llm_runtime_evidence")
+        provenance = evidence.get("provenance") if isinstance(evidence, dict) else None
+        latency = provenance.get("latency_ms") if isinstance(provenance, dict) else None
+        if isinstance(latency, (int, float)) and latency >= 0:
+            latency_values.append(int(latency))
+    provider_stage = dict(stage_timings.get("provider_ms") or {})
+    provider_stage.update({
+        "value": sum(latency_values) if latency_values else None,
+        "status": "measured" if latency_values else "unavailable",
+    })
+    stage_timings["provider_ms"] = provider_stage
+    repair_summary = dict(trace_payload.get("repair_summary") or {})
+    savings = dict(summary.get("savings") or {})
+    repair_attempted = bool(repair_summary.get("repair_attempted"))
+    savings.update({
+        "local_repair_attempted": repair_attempted,
+        "local_repair_succeeded": repair_attempted and status == ACCEPTED_STATUS,
+        "local_repair_failed": repair_attempted and status != ACCEPTED_STATUS,
+    })
+    summary["stage_timings"] = stage_timings
+    summary["savings"] = savings
     trace_payload["efficiency_summary"] = summary
 
 def _error_code_from_message(message: str) -> str | None:
@@ -870,6 +922,18 @@ def _update_live_trace_validation_cycle(
         )
         validation_summary["warning_count"] = len(list(validation_final.get("warnings") or []))
     trace_payload["validation_summary"] = validation_summary
+    causes: list[str] = []
+    if validation_summary.get("initial_missing_fields") or validation_summary.get("final_missing_fields"):
+        causes.append("missing_sections")
+    if validation_summary.get("initial_grounding_violation_count") or validation_summary.get("final_grounding_violation_count"):
+        causes.append("unsupported_claims")
+    if validation_summary.get("initial_skill_violation_count") or validation_summary.get("final_skill_violation_count"):
+        causes.append("skill_constraints")
+    if validation_summary.get("final_valid") is False and not causes:
+        causes.append("validation_failed")
+    efficiency = dict(trace_payload.get("efficiency_summary") or {})
+    efficiency["failure_causes"] = sorted(set(causes))
+    trace_payload["efficiency_summary"] = efficiency
 
 
 def _coerce_fit_classification(value: Any) -> FitClassification | None:
@@ -1064,12 +1128,21 @@ def _normalize_missing_section_keys(missing_sections: list[str] | None) -> list[
             keys.append(value)
     return list(dict.fromkeys(keys))
 
+_REPAIR_ARMS = frozenset({"provider_first", "local_first"})
+
+
+def _coerce_repair_arm(value: Any) -> str:
+    normalized = str(value or "local_first").strip().lower()
+    return normalized if normalized in _REPAIR_ARMS else "local_first"
+
+
 def _backfill_required_sections_from_profile(
     *,
     structured_cv: dict[str, Any] | None,
     profile: dict[str, Any],
     missing_sections: list[str] | None,
     selected_evidence_ids: list[str] | None = None,
+    selection_present: bool | None = None,
 ) -> tuple[dict[str, Any] | None, list[str]]:
     if not isinstance(structured_cv, dict):
         return structured_cv, []
@@ -1083,6 +1156,18 @@ def _backfill_required_sections_from_profile(
         return structured_cv, []
 
     repaired_keys: list[str] = []
+    selection_is_present = (
+        bool(selection_present)
+        if selection_present is not None
+        else selected_evidence_ids is not None
+    )
+    selection_state = (
+        "EXPLICIT_NONEMPTY_SELECTION"
+        if selection_is_present and selected_evidence_ids
+        else "EXPLICIT_EMPTY_SELECTION"
+        if selection_is_present
+        else "LEGACY_UNAVAILABLE"
+    )
     selected_ids = {
         str(item).strip()
         for item in list(selected_evidence_ids or [])
@@ -1101,8 +1186,10 @@ def _backfill_required_sections_from_profile(
 
     def selected_nested_evidence(entry: dict[str, Any]) -> list[dict[str, Any]]:
         nested = [item for item in list(entry.get("evidence") or []) if isinstance(item, dict)]
-        if not nested or not selected_ids:
+        if selection_state == "LEGACY_UNAVAILABLE":
             return nested
+        if not nested:
+            return []
         parent_id = str(entry.get("id") or "").strip()
         if parent_id in selected_ids:
             return nested
@@ -1113,8 +1200,10 @@ def _backfill_required_sections_from_profile(
         ]
 
     def is_selected_profile_entry(entry: dict[str, Any]) -> bool:
-        if not selected_ids:
+        if selection_state == "LEGACY_UNAVAILABLE":
             return True
+        if not selected_ids:
+            return False
         nested = list(entry.get("evidence") or [])
         if nested:
             return bool(selected_nested_evidence(entry))
@@ -1128,14 +1217,34 @@ def _backfill_required_sections_from_profile(
         parent_id = str(entry.get("id") or "").strip()
         return selected_id_matches(parent_id, parent_id, allow_legacy_parent_prefix=True)
 
+    def is_selected_plain_skill(value: Any) -> bool:
+        if selection_state == "LEGACY_UNAVAILABLE":
+            return True
+        skill_name = str(value or "").strip().casefold()
+        if not skill_name:
+            return False
+        for evidence in list(profile.get("_projected_evidence_pool") or []):
+            if not isinstance(evidence, dict):
+                continue
+            evidence_skills = {
+                str(item).strip().casefold()
+                for item in list(evidence.get("skills") or [])
+                if str(item).strip()
+            }
+            if skill_name in evidence_skills and selected_id_matches(evidence.get("evidence_id")):
+                return True
+        return False
+
     if "skills" in repair_keys:
         profile_skills: list[str] = []
         for item in list(profile.get("skills") or []):
-            if isinstance(item, dict) and not is_selected_profile_entry(item):
-                continue
             if isinstance(item, dict):
+                if not is_selected_profile_entry(item):
+                    continue
                 value = str(item.get("name") or "").strip()
             else:
+                if not is_selected_plain_skill(item):
+                    continue
                 value = str(item).strip()
             if value:
                 profile_skills.append(value)
@@ -1177,11 +1286,7 @@ def _backfill_required_sections_from_profile(
                             else str(item).strip()
                         )
                     ][:2]
-                    if not bullet_texts:
-                        bullet_texts = [
-                            "Delivered cross-functional work aligned with business goals."
-                        ]
-                if nested_evidence and not bullet_texts:
+                if not bullet_texts:
                     continue
                 fallback_experience.append(
                     {
@@ -1289,8 +1394,10 @@ def _run_repair_cycle(
     analysis_grounding: AnalysisGroundingPayload,
     retry_executor: Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]],
     runtime_provenance: dict[str, Any] | None,
+    repair_arm: str | None = None,
 ) -> tuple[dict[str, Any] | None, str, dict[str, Any], RepairAttempt, dict[str, Any] | None]:
     repair_attempt = _empty_repair_attempt()
+    repair_arm = _coerce_repair_arm(repair_arm or config.get("cv_generation_repair_arm"))
     if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
         repair_attempt = _build_candidate_name_repair_attempt()
         structured_cv, markdown = _repair_candidate_name_placeholder(structured_cv or {}, profile, config)
@@ -1302,22 +1409,26 @@ def _run_repair_cycle(
             analysis_grounding=analysis_grounding,
         )
 
-    selected_evidence_ids = list(
-        (
-            (analysis_grounding.get("evidence_selection_summary") or {})
-            if isinstance(analysis_grounding, dict)
-            else {}
-        ).get("selected_evidence_ids")
-        or []
+    selection_summary = (
+        (analysis_grounding.get("evidence_selection_summary") or {})
+        if isinstance(analysis_grounding, dict)
+        else {}
+    )
+    selection_present = isinstance(selection_summary, dict) and "selected_evidence_ids" in selection_summary
+    selected_evidence_ids = (
+        list(selection_summary.get("selected_evidence_ids") or [])
+        if selection_present
+        else None
     )
     repair_targets = _determine_repair_targets(validation, structured_cv)
     if repair_targets:
-        if _generation_format_defect_category(validation) == "missing_mandatory_section":
+        if repair_arm == "local_first" and _generation_format_defect_category(validation) == "missing_mandatory_section":
             repaired_cv, repaired_keys = _backfill_required_sections_from_profile(
                 structured_cv=structured_cv,
                 profile=profile,
                 missing_sections=list(validation.get("missing_sections") or []),
                 selected_evidence_ids=selected_evidence_ids,
+                selection_present=selection_present,
             )
             if repaired_keys:
                 repaired_markdown = render_cv_markdown(repaired_cv or {}, config)
@@ -1365,12 +1476,13 @@ def _run_repair_cycle(
         if retry_provenance is not None:
             runtime_provenance = retry_provenance
 
-    if not validation.get("valid"):
+    if repair_arm == "local_first" and not validation.get("valid"):
         structured_cv, repaired_keys = _backfill_required_sections_from_profile(
             structured_cv=structured_cv,
             profile=profile,
             missing_sections=list(validation.get("missing_sections") or []),
             selected_evidence_ids=selected_evidence_ids,
+            selection_present=selection_present,
         )
         if repaired_keys:
             markdown = render_cv_markdown(structured_cv or {}, config)
@@ -2336,6 +2448,7 @@ def _generate_fresh_from_analysis(
             analysis_grounding=analysis_grounding,
             retry_executor=lambda targets: _writer_attempt(targets),
             runtime_provenance=_initial_runtime_evidence,
+            repair_arm=_coerce_repair_arm(config.get("cv_generation_repair_arm")),
         )
         result_status: GenerationStatus = ACCEPTED_STATUS if validation.get("valid") else VALIDATION_FAILED_STATUS
         error: ErrorPayload | None = None

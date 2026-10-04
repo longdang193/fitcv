@@ -385,12 +385,61 @@ def format_acceptance_summary(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _run_experiment_report_check(
+    experiment_json: Path | None,
+    experiment_markdown: Path | None,
+    repo_root: Path,
+) -> dict[str, Any]:
+    if experiment_json is None and experiment_markdown is None:
+        return {"passed": True, "status": "not_requested", "failures": []}
+    failures: list[str] = []
+    report: dict[str, Any] = {}
+    if experiment_json is None or not experiment_json.is_file():
+        failures.append("experiment_json_missing")
+    else:
+        try:
+            report = json.loads(experiment_json.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            failures.append("experiment_json_invalid")
+    if experiment_markdown is None or not experiment_markdown.is_file():
+        failures.append("experiment_markdown_missing")
+    else:
+        text = experiment_markdown.read_text(encoding="utf-8")
+        for heading in ("CORRECTNESS", "PRODUCT PARITY", "EFFICIENCY", "HUMAN EFFORT"):
+            if f"## {heading}" not in text:
+                failures.append(f"experiment_markdown_missing_{heading.lower().replace(' ', '_')}")
+    if isinstance(report, dict):
+        selection = dict(report.get("selection") or {})
+        if str(report.get("status") or "") not in {"complete", "measured"}:
+            failures.append("experiment_report_incomplete")
+        if int(selection.get("current_contract_record_count") or 0) == 0:
+            failures.append("experiment_current_contract_missing")
+        manifest = dict(report.get("input_manifest") or {})
+        if not manifest.get("declared_input_fingerprint"):
+            failures.append("experiment_input_fingerprint_missing")
+        if not manifest.get("fixture_sha256"):
+            failures.append("experiment_fixture_hash_missing")
+        if not manifest.get("arm"):
+            failures.append("experiment_arm_missing")
+        if report.get("material_metrics_sha256") != material_report_digest(report):
+            failures.append("experiment_material_digest_mismatch")
+    return {
+        "passed": not failures,
+        "status": "checked",
+        "failures": sorted(set(failures)),
+        "experiment_json": str(experiment_json) if experiment_json else None,
+        "experiment_markdown": str(experiment_markdown) if experiment_markdown else None,
+    }
+
+
 def verify_acceptance(
     *,
     state_path: Path = DEFAULT_STATE,
     output_path: Path = DEFAULT_OUTPUT,
     repo_root: Path = REPO_ROOT,
     timeout_seconds: int = 180,
+    experiment_json: Path | None = None,
+    experiment_markdown: Path | None = None,
 ) -> dict[str, Any]:
     state = yaml.safe_load(state_path.read_text(encoding="utf-8")) or {}
     checks = {
@@ -409,6 +458,9 @@ def verify_acceptance(
     efficiency_check = _run_runtime_efficiency_evidence_check(state, repo_root)
     checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and efficiency_check["passed"]
     checks["p1_b"]["runtime_efficiency"] = efficiency_check
+    experiment_check = _run_experiment_report_check(experiment_json, experiment_markdown, repo_root)
+    checks["p1_b"]["experiment"] = experiment_check
+    checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and experiment_check["passed"]
     report = build_acceptance_report(
         state,
         repo_root=repo_root,
@@ -430,11 +482,15 @@ def main() -> int:
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--timeout-seconds", type=int, default=180)
+    parser.add_argument("--experiment-json", type=Path)
+    parser.add_argument("--experiment-markdown", type=Path)
     args = parser.parse_args()
     report = verify_acceptance(
         state_path=args.state,
         output_path=args.output,
         timeout_seconds=args.timeout_seconds,
+        experiment_json=args.experiment_json,
+        experiment_markdown=args.experiment_markdown,
     )
     print(format_acceptance_summary(report))
     return 0 if report["passed"] else 1

@@ -6,10 +6,27 @@ from pathlib import Path
 from scripts.benchmark_cv_efficiency import material_report_digest
 from scripts.verify_fitcv_acceptance import (
     _run_current_contract_evidence_check,
+    _run_experiment_report_check,
     _run_runtime_efficiency_evidence_check,
     build_acceptance_report,
     format_acceptance_summary,
 )
+
+
+def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> None:
+    report_path = tmp_path / "experiment.json"
+    markdown_path = tmp_path / "experiment.md"
+    report_path.write_text(
+        json.dumps({"status": "incomplete", "selection": {}, "input_manifest": {}}),
+        encoding="utf-8",
+    )
+    markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
+
+    result = _run_experiment_report_check(report_path, markdown_path, tmp_path)
+
+    assert result["passed"] is False
+    assert "experiment_report_incomplete" in result["failures"]
+    assert "experiment_input_fingerprint_missing" in result["failures"]
 
 
 def _state(tmp_path: Path, *, freeze: str = "a" * 40) -> dict[str, object]:

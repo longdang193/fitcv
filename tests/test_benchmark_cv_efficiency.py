@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from scripts.benchmark_cv_efficiency import (
     _markdown,
@@ -6,6 +7,7 @@ from scripts.benchmark_cv_efficiency import (
     build_baseline,
     material_report_digest,
     material_report_metrics,
+    _load_run_manifest,
 )
 from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1
 
@@ -27,6 +29,17 @@ def accepted_cv_artifact_event_v1(**kwargs):
         },
     )
     return _accepted_cv_artifact_event_v1(**kwargs)
+
+
+def test_run_manifest_rejects_duplicate_run_ids(tmp_path: Path) -> None:
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps({"run_ids": ["run-1", "run-1"]}), encoding="utf-8")
+    try:
+        _load_run_manifest(path)
+    except ValueError as exc:
+        assert str(exc) == "run_manifest_duplicate_run_ids"
+    else:
+        raise AssertionError("duplicate manifest accepted")
 
 
 def _run(run_id: str, payload: dict, status: str = "succeeded") -> dict:

@@ -60,6 +60,8 @@ export interface CvReviewUncertainty {
   message?: string;
   resolution_action?: CvReviewAction | string | null;
   resolution_status?: string | null;
+  is_actionable?: boolean;
+  allowed_actions?: CvReviewAction[];
   [key: string]: unknown;
 }
 
@@ -70,6 +72,7 @@ export interface CvReviewResource {
   cv_version_id?: string | null;
   status: CvLifecycleStatus;
   review_item_id?: string | null;
+  review_revision?: string;
   reason_code?: string | null;
   uncertainties: CvReviewUncertainty[];
   resolution_key?: string | null;
@@ -86,6 +89,7 @@ export interface CvReviewActionRequest {
   review_item_id?: string | null;
   uncertainty_id?: string | null;
   resolution_key?: string | null;
+  review_revision?: string | null;
   action: CvReviewAction;
   actor?: string;
   note?: string | null;

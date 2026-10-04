@@ -73,6 +73,15 @@ describe("Run Detail Request Ownership and Polling Coordination", () => {
     expect(pending?.uncertainty_id).toBe("u-2");
   });
 
+  it("trusts backend actionability over resolution text", () => {
+    const pending = getPendingCvReviewUncertainty([
+      { uncertainty_id: "u-1", is_actionable: false, resolution_status: "pending" },
+      { uncertainty_id: "u-2", is_actionable: true, resolution_status: "resolved" },
+    ]);
+
+    expect(pending?.uncertainty_id).toBe("u-2");
+  });
+
   it("does not request jobs before run detail loads", () => {
     expect(shouldLoadRunJobs(null)).toBe(false);
     expect(shouldLoadRunJobs(createMockRun("ready"))).toBe(true);

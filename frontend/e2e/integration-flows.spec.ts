@@ -1,6 +1,35 @@
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 test.describe("Full Cross-Slice Integration & Shell Journeys", () => {
+  test("real review flow persists answer and locks resolved uncertainty", async ({ page, request }) => {
+    const manifestPath = process.env.FITCV_E2E_MANIFEST;
+    const manifest = manifestPath ? JSON.parse(readFileSync(manifestPath, "utf8")) : {};
+    if (!manifest.run_id) throw new Error("FITCV_E2E_MANIFEST is required");
+    await page.goto(`/app/#/runs?run_id=${encodeURIComponent(manifest.run_id)}`);
+    await expect(page.getByRole("heading", { name: /Runs/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Review CV evidence for Analytics Engineer/i })).toBeVisible();
+    await page.getByRole("button", { name: /Review CV evidence for Analytics Engineer/i }).click();
+    await expect(page.getByRole("dialog")).toContainText("review required");
+    await expect(page.getByRole("status", { name: "Final artifact proof" })).toContainText("verified");
+    await page.getByRole("textbox", { name: "Answer" }).fill("Used Python for analytics automation.");
+    await page.getByRole("button", { name: "Resolve with answer" }).click();
+    await expect(page.getByRole("dialog")).toContainText("resolved");
+    await expect(page.getByText(/Resolved:/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Resolve with answer" })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("button", { name: /Review CV evidence for Analytics Engineer/i })).toBeVisible();
+    await page.getByRole("button", { name: /Review CV evidence for Analytics Engineer/i }).click();
+    await expect(page.getByRole("dialog")).toContainText("resolved");
+    await expect(page.getByText(/Resolved:/i)).toBeVisible();
+    const diagnostics = await request.get("/__e2e/diagnostics");
+    expect(diagnostics.ok()).toBeTruthy();
+    const diagnosticsBody = await diagnostics.json();
+    expect(diagnosticsBody.fitcv_local_mode).toBe("0");
+    expect(diagnosticsBody.inline_execution).toBe("1");
+    expect(diagnosticsBody.database).toBe(manifest.database);
+  });
+
   test("navigates across all workspace and settings routes seamlessly", async ({ page }) => {
     await page.goto("/app/#/overview");
 

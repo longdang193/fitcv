@@ -1812,6 +1812,18 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                     uncertainty_action.get("action"),
                     uncertainty_action.get("resolution_status"),
                 )
+            projected_uncertainty["resolution_status"] = _normalize_hitl_resolution_status(
+                projected_uncertainty.get("resolution_action"),
+                projected_uncertainty.get("resolution_status"),
+            )
+            projected_uncertainty["is_actionable"] = _is_hitl_resolution_pending(
+                projected_uncertainty["resolution_status"]
+            )
+            projected_uncertainty["allowed_actions"] = (
+                ["RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"]
+                if projected_uncertainty["is_actionable"]
+                else []
+            )
             uncertainties.append(projected_uncertainty)
         pending_uncertainties = [
             uncertainty for uncertainty in uncertainties
@@ -6905,6 +6917,7 @@ class CanonicalCvReviewActionRequest(BaseModel):
     review_item_id: str | None = None
     uncertainty_id: str | None = None
     resolution_key: str | None = None
+    review_revision: str | None = None
     action: Literal["RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"]
     actor: str = "local_operator"
     note: str | None = None
@@ -8535,7 +8548,13 @@ def create_app(
 
     @app.get("/healthz")
     def healthz() -> dict:
-        return {"status": "ok"}
+        return {
+            "status": "ok",
+            "local_mode": bool(local_mode),
+            "inline_execution": str(os.environ.get("FITCV_CP_INLINE_EXECUTION") or "").strip().lower()
+            in {"1", "true", "yes", "on"},
+            "database_path": str(getattr(backend_runtime, "sqlite_path", "") or ""),
+        }
 
     @app.get("/admin/diagnostics/orchestration-schema")
     def admin_orchestration_schema_diagnostics() -> dict[str, Any]:
@@ -11984,6 +12003,22 @@ def create_app(
             status = "pending"
         uncertainties = [value for value in list((item or {}).get("uncertainties") or []) if isinstance(value, dict)]
         pending = bool((item or {}).get("pending"))
+        review_revision = _stable_sha256_json(
+            {
+                "review_item_id": (item or {}).get("review_item_id"),
+                "status": status,
+                "cv_version_id": (current_version or {}).get("version_id"),
+                "uncertainties": [
+                    {
+                        "uncertainty_id": value.get("uncertainty_id"),
+                        "resolution_key": value.get("resolution_key"),
+                        "resolution_status": value.get("resolution_status"),
+                        "resolution_id": value.get("resolution_id"),
+                    }
+                    for value in uncertainties
+                ],
+            }
+        )
         return {
             "run_id": run_id,
             "run_job_id": run_job_id,
@@ -11991,6 +12026,7 @@ def create_app(
             "cv_version_id": (current_version or {}).get("version_id"),
             "status": status,
             "review_item_id": (item or {}).get("review_item_id"),
+            "review_revision": review_revision,
             "reason_code": (item or {}).get("reason_code") or (item or {}).get("reason"),
             "uncertainties": uncertainties,
             "resolution_key": next(
@@ -12119,6 +12155,8 @@ def create_app(
             resource = _canonical_cv_review_resource(run_id, run_job_id)
             if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
                 raise ApiError(409, "review_resource_stale", "Review item changed.", action="Refresh CV review.")
+            if body.review_revision and resource.get("review_revision") != body.review_revision:
+                raise ApiError(409, "review_resource_stale", "Review resource changed.", action="Refresh CV review.")
             if body.action not in set(resource.get("allowed_actions") or []):
                 raise ApiError(409, "review_action_not_allowed", "Review action is not allowed for current state.", action="Refresh CV review.")
             debug_payload = _load_run_cv_generation_debug_payload(run)
@@ -12148,28 +12186,110 @@ def create_app(
             )
             if target_uncertainty is None:
                 raise ApiError(422, "uncertainty_not_found", "Uncertainty was not found for resolution.", action="Refresh CV review.")
-            resolution_key = str(body.resolution_key or target_uncertainty.get("resolution_key") or "").strip()
-            resolution_row = sqlite_store_module.save_requirement_resolution(
-                {
-                    "candidate_profile_id": str(target_record.get("candidate_profile_id") or target_uncertainty.get("candidate_profile_id") or ""),
-                    "candidate_profile_revision": str(target_record.get("candidate_profile_revision") or target_uncertainty.get("candidate_profile_revision") or ""),
-                    "source_profile_fingerprint": str(target_record.get("source_profile_fingerprint") or target_uncertainty.get("source_profile_fingerprint") or ""),
-                    "resolution_key": resolution_key,
-                    "requirement_instance_id": str(target_uncertainty.get("requirement_instance_id") or ""),
-                    "resolution_action": body.action,
-                    "resolution_payload": {"answer_text": str(body.answer_text or "").strip()},
-                    "actor": body.actor or "local_operator",
-                }
+            resource_uncertainty = next(
+                (
+                    value for value in list(resource.get("uncertainties") or [])
+                    if isinstance(value, dict)
+                    and str(value.get("uncertainty_id") or "") == str(target_uncertainty.get("uncertainty_id") or "")
+                    and str(value.get("resolution_key") or "") == str(target_uncertainty.get("resolution_key") or "")
+                ),
+                None,
             )
+            if not isinstance(resource_uncertainty, dict):
+                raise ApiError(409, "review_action_not_allowed", "Uncertainty is not actionable in current state.", action="Refresh CV review.")
+            uncertainty_actionable = resource_uncertainty.get("is_actionable")
+            if uncertainty_actionable is None:
+                uncertainty_actionable = _is_hitl_resolution_pending(
+                    resource_uncertainty.get("resolution_status") or resource_uncertainty.get("resolution_action")
+                )
+            uncertainty_allowed_actions = resource_uncertainty.get("allowed_actions")
+            if uncertainty_allowed_actions is None and uncertainty_actionable:
+                uncertainty_allowed_actions = resource.get("allowed_actions") or []
+            if not uncertainty_actionable:
+                raise ApiError(409, "review_action_not_allowed", "Uncertainty is not actionable in current state.", action="Refresh CV review.")
+            if body.action not in set(uncertainty_allowed_actions or []):
+                raise ApiError(409, "review_action_not_allowed", "Action is not allowed for this uncertainty.", action="Refresh CV review.")
+            resolution_key = str(body.resolution_key or target_uncertainty.get("resolution_key") or "").strip()
+            resolution_id_hint = str(uuid.uuid4())
+            resolution_action_id = f"requirement-resolution:{resolution_id_hint}"
+            resolution_queue_key = resolution_action_id
+            try:
+                resolution_row = sqlite_store_module.save_requirement_resolution(
+                    {
+                        "resolution_id": resolution_id_hint,
+                        "run_job_id": run_job_id,
+                        "run_id": run_id,
+                        "expected_row_revision": job.get("row_revision"),
+                        "expected_pipeline_row_revision": sqlite_store_module.get_pipeline_run_row_revision(run_id),
+                        "candidate_profile_id": str(target_record.get("candidate_profile_id") or target_uncertainty.get("candidate_profile_id") or ""),
+                        "candidate_profile_revision": str(target_record.get("candidate_profile_revision") or target_uncertainty.get("candidate_profile_revision") or ""),
+                        "source_profile_fingerprint": str(target_record.get("source_profile_fingerprint") or target_uncertainty.get("source_profile_fingerprint") or ""),
+                        "resolution_key": resolution_key,
+                        "requirement_instance_id": str(target_uncertainty.get("requirement_instance_id") or ""),
+                        "resolution_action": body.action,
+                        "resolution_payload": {"answer_text": str(body.answer_text or "").strip()},
+                        "actor": body.actor or "local_operator",
+                        "enqueue_intent": {
+                            "run_id": run_id,
+                            "job_url": job_url,
+                            "actor": body.actor or "local_operator",
+                            "note": body.note,
+                            "idempotency_key": resolution_queue_key,
+                            "action_id": resolution_action_id,
+                        },
+                    }
+                )
+            except ValueError as exc:
+                if str(exc) == "review_resource_stale":
+                    raise ApiError(409, "review_resource_stale", "Review resource changed.", action="Refresh CV review.") from exc
+                raise
             resolution_id = str(resolution_row.get("resolution_id") or "")
-            regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
-                run_id=run_id,
-                job_url=job_url,
-                actor=body.actor or "local_operator",
-                note=body.note,
-                idempotency_key=f"requirement-resolution:{resolution_id}",
-                action_id=f"requirement-resolution:{resolution_id}",
-                redis_url=redis_url,
+            enqueue_intent = sqlite_store_module.get_requirement_resolution_enqueue_intent(resolution_id)
+            if enqueue_intent is None and resolution_row.get("created") is not False:
+                enqueue_intent = {
+                    "intent_id": f"test-only:{resolution_id}",
+                    "run_id": run_id,
+                    "job_url": job_url,
+                    "actor": body.actor or "local_operator",
+                    "note": body.note,
+                    "idempotency_key": f"requirement-resolution:{resolution_id}",
+                    "action_id": f"requirement-resolution:{resolution_id}",
+                    "status": "pending",
+                }
+            if resolution_row.get("created") is False and (
+                not isinstance(enqueue_intent, dict)
+                or str(enqueue_intent.get("status") or "") == "enqueued"
+            ):
+                raise ApiError(
+                    409,
+                    "requirement_resolution_conflict",
+                    "Requirement uncertainty already has a resolution.",
+                    action="Refresh CV review.",
+                )
+            if not isinstance(enqueue_intent, dict):
+                raise ApiError(409, "requirement_resolution_enqueue_missing", "Resolution enqueue intent is missing.", action="Refresh CV review.")
+            try:
+                regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
+                    run_id=str(enqueue_intent.get("run_id") or run_id),
+                    job_url=str(enqueue_intent.get("job_url") or job_url),
+                    actor=str(enqueue_intent.get("actor") or body.actor or "local_operator"),
+                    note=str(enqueue_intent.get("note") or body.note or "") or None,
+                    idempotency_key=str(enqueue_intent.get("idempotency_key") or f"requirement-resolution:{resolution_id}"),
+                    action_id=str(enqueue_intent.get("action_id") or f"requirement-resolution:{resolution_id}"),
+                    redis_url=redis_url,
+                )
+            except Exception as exc:
+                sqlite_store_module.update_requirement_resolution_enqueue_intent(
+                    str(enqueue_intent["intent_id"]),
+                    status="failed",
+                    error_message=str(exc),
+                )
+                raise
+            sqlite_store_module.update_requirement_resolution_enqueue_intent(
+                str(enqueue_intent["intent_id"]),
+                status="enqueued",
+                queue_job_id=regeneration_job_id,
+                error_message=None,
             )
             target_uncertainty["resolution_action"] = body.action
             target_uncertainty["resolution_payload"] = {"answer_text": str(body.answer_text or "").strip()}
@@ -14891,6 +15011,56 @@ def create_app(
             raise HTTPException(status_code=404, detail="Review-required record not found for selector")
         target_job_url = str(target_record.get("job_url") or "").strip()
         target_review_item_id = str(target_record.get("review_item_id") or "").strip() or None
+        if payload.action in {"RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"}:
+            run_job_id = next(
+                (
+                    candidate_id
+                    for candidate_id in sqlite_store_module.list_run_job_ids_for_run(run_id)
+                    if str((sqlite_store_module.get_run_job(run_id, candidate_id) or {}).get("source_url") or "").strip() == target_job_url
+                ),
+                None,
+            )
+            if not run_job_id:
+                raise HTTPException(status_code=404, detail="Run job not found for resolution")
+            idempotency_key = _request_fingerprint(
+                {
+                    "route": "admin_cv_review_resolution",
+                    "run_id": run_id,
+                    "run_job_id": run_job_id,
+                    "review_item_id": target_review_item_id,
+                    "uncertainty_id": payload.uncertainty_id,
+                    "resolution_key": payload.resolution_key,
+                    "action": payload.action,
+                    "actor": payload.actor,
+                    "answer_text": payload.answer_text,
+                }
+            )
+            scoped_request = dict(request.scope)
+            scoped_headers = [
+                (name, value)
+                for name, value in list(scoped_request.get("headers") or [])
+                if name.lower() != b"idempotency-key"
+            ]
+            scoped_headers.append((b"idempotency-key", idempotency_key.encode("ascii")))
+            scoped_request["headers"] = scoped_headers
+            try:
+                apply_canonical_cv_review_action(
+                    run_id,
+                    run_job_id,
+                    CanonicalCvReviewActionRequest(
+                        review_item_id=target_review_item_id,
+                        uncertainty_id=payload.uncertainty_id,
+                        resolution_key=payload.resolution_key,
+                        action=payload.action,
+                        actor=payload.actor or "admin",
+                        note=payload.note,
+                        answer_text=payload.answer_text,
+                    ),
+                    Request(scoped_request, request.receive),
+                )
+            except ApiError as exc:
+                raise HTTPException(status_code=exc.status_code, detail=exc.payload["error"]["message"]) from exc
+            return RedirectResponse(f"/admin/runs/{run_id}/review-queue", status_code=303)
         closure_recovery = False
         existing_actions = [
             item
@@ -14924,43 +15094,6 @@ def create_app(
         finalized_version_id: str | None = None
         regeneration_job_id: str | None = None
         resolution_regeneration_job_id: str | None = None
-        if payload.action in {"RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"}:
-            uncertainties = [item for item in list(target_record.get("uncertainties") or []) if isinstance(item, dict)]
-            target_uncertainty = next(
-                (
-                    item for item in uncertainties
-                    if (not payload.uncertainty_id or str(item.get("uncertainty_id") or "") == payload.uncertainty_id)
-                    and (not payload.resolution_key or str(item.get("resolution_key") or "") == payload.resolution_key)
-                ),
-                None,
-            )
-            if target_uncertainty is None:
-                raise HTTPException(status_code=422, detail="Uncertainty not found for resolution")
-            resolution_key = str(payload.resolution_key or target_uncertainty.get("resolution_key") or "").strip()
-            resolution_row = sqlite_store_module.save_requirement_resolution(
-                {
-                    "candidate_profile_id": str(target_record.get("candidate_profile_id") or target_uncertainty.get("candidate_profile_id") or ""),
-                    "candidate_profile_revision": str(target_record.get("candidate_profile_revision") or target_uncertainty.get("candidate_profile_revision") or ""),
-                    "source_profile_fingerprint": str(target_record.get("source_profile_fingerprint") or target_uncertainty.get("source_profile_fingerprint") or ""),
-                    "resolution_key": resolution_key,
-                    "requirement_instance_id": str(target_uncertainty.get("requirement_instance_id") or ""),
-                    "resolution_action": payload.action,
-                    "resolution_payload": {"answer_text": payload.answer_text or ""},
-                    "actor": payload.actor or "admin",
-                }
-            )
-            target_uncertainty["resolution_action"] = payload.action
-            target_uncertainty["resolution_payload"] = {"answer_text": payload.answer_text or ""}
-            target_uncertainty["resolution_id"] = str(resolution_row.get("resolution_id") or "")
-            resolution_regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
-                run_id=run_id,
-                job_url=target_job_url,
-                actor=payload.actor or "admin",
-                note=payload.note,
-                idempotency_key=f"requirement-resolution:{resolution_row.get('resolution_id')}",
-                action_id=f"requirement-resolution:{resolution_row.get('resolution_id')}",
-                redis_url=redis_url,
-            )
         if not closure_recovery and payload.action == "approve_as_is":
             finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
                 run=run,
