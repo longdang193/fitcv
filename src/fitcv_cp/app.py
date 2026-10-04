@@ -12210,6 +12210,25 @@ def create_app(
             if body.action not in set(uncertainty_allowed_actions or []):
                 raise ApiError(409, "review_action_not_allowed", "Action is not allowed for this uncertainty.", action="Refresh CV review.")
             resolution_key = str(body.resolution_key or target_uncertainty.get("resolution_key") or "").strip()
+            requested_payload = {"answer_text": str(body.answer_text or "").strip()}
+            resolution_identity = {
+                "candidate_profile_id": str(target_record.get("candidate_profile_id") or target_uncertainty.get("candidate_profile_id") or ""),
+                "candidate_profile_revision": str(target_record.get("candidate_profile_revision") or target_uncertainty.get("candidate_profile_revision") or ""),
+                "source_profile_fingerprint": str(target_record.get("source_profile_fingerprint") or target_uncertainty.get("source_profile_fingerprint") or ""),
+                "resolution_key": resolution_key,
+                "requirement_instance_id": str(target_uncertainty.get("requirement_instance_id") or ""),
+            }
+            existing_resolution = sqlite_store_module.get_requirement_resolution(**resolution_identity)
+            if isinstance(existing_resolution, dict) and (
+                str(existing_resolution.get("resolution_action") or "") != body.action
+                or dict(existing_resolution.get("resolution_payload") or {}) != requested_payload
+            ):
+                raise ApiError(
+                    409,
+                    "requirement_resolution_conflict",
+                    "Requirement uncertainty already has a different durable resolution.",
+                    action="Refresh CV review.",
+                )
             resolution_id_hint = str(uuid.uuid4())
             resolution_action_id = f"requirement-resolution:{resolution_id_hint}"
             resolution_queue_key = resolution_action_id
@@ -12221,13 +12240,9 @@ def create_app(
                         "run_id": run_id,
                         "expected_row_revision": job.get("row_revision"),
                         "expected_pipeline_row_revision": sqlite_store_module.get_pipeline_run_row_revision(run_id),
-                        "candidate_profile_id": str(target_record.get("candidate_profile_id") or target_uncertainty.get("candidate_profile_id") or ""),
-                        "candidate_profile_revision": str(target_record.get("candidate_profile_revision") or target_uncertainty.get("candidate_profile_revision") or ""),
-                        "source_profile_fingerprint": str(target_record.get("source_profile_fingerprint") or target_uncertainty.get("source_profile_fingerprint") or ""),
-                        "resolution_key": resolution_key,
-                        "requirement_instance_id": str(target_uncertainty.get("requirement_instance_id") or ""),
+                        **resolution_identity,
                         "resolution_action": body.action,
-                        "resolution_payload": {"answer_text": str(body.answer_text or "").strip()},
+                        "resolution_payload": requested_payload,
                         "actor": body.actor or "local_operator",
                         "enqueue_intent": {
                             "run_id": run_id,
@@ -12268,6 +12283,8 @@ def create_app(
                 )
             if not isinstance(enqueue_intent, dict):
                 raise ApiError(409, "requirement_resolution_enqueue_missing", "Resolution enqueue intent is missing.", action="Refresh CV review.")
+            durable_action = str(resolution_row.get("resolution_action") or body.action)
+            durable_payload = dict(resolution_row.get("resolution_payload") or requested_payload)
             try:
                 regeneration_job_id = enqueue_cv_regenerate_once_with_job_id(
                     run_id=str(enqueue_intent.get("run_id") or run_id),
@@ -12291,22 +12308,22 @@ def create_app(
                 queue_job_id=regeneration_job_id,
                 error_message=None,
             )
-            target_uncertainty["resolution_action"] = body.action
-            target_uncertainty["resolution_payload"] = {"answer_text": str(body.answer_text or "").strip()}
+            target_uncertainty["resolution_action"] = durable_action
+            target_uncertainty["resolution_payload"] = durable_payload
             target_uncertainty["resolution_id"] = resolution_id
             actions = [value for value in list(debug_payload.get("hitl_review_actions") or []) if isinstance(value, dict)]
             actions.append(
                 {
                     "review_item_id": str(target_record.get("review_item_id") or "").strip() or None,
                     "job_url": job_url,
-                    "action": body.action,
-                    "resolution_status": _normalize_hitl_resolution_status(body.action, None),
-                    "actor": body.actor or "local_operator",
+                    "action": durable_action,
+                    "resolution_status": _normalize_hitl_resolution_status(durable_action, None),
+                    "actor": str(resolution_row.get("actor") or body.actor or "local_operator"),
                     "note": body.note,
                     "uncertainty_id": body.uncertainty_id,
                     "resolution_key": resolution_key,
-                    "answer_text": str(body.answer_text or "").strip() or None,
-                    "resolution_action": body.action,
+                    "answer_text": str(durable_payload.get("answer_text") or "").strip() or None,
+                    "resolution_action": durable_action,
                     "regeneration_job_id": regeneration_job_id,
                     "resolution_id": resolution_id,
                     "idempotency_key": idempotency_key,

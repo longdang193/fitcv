@@ -27,6 +27,7 @@ def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> N
     assert result["passed"] is False
     assert "experiment_report_incomplete" in result["failures"]
     assert "experiment_input_fingerprint_missing" in result["failures"]
+    assert "experiment_peer_json_required" in result["failures"]
 
 
 def test_experiment_report_check_rejects_non_object_json(tmp_path: Path) -> None:
@@ -54,6 +55,64 @@ def test_experiment_report_check_rejects_mismatched_peer_analysis_inputs(tmp_pat
 
     assert result["passed"] is False
     assert "experiment_analysis_inputs_not_identical" in result["failures"]
+
+
+def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Path) -> None:
+    report_path = tmp_path / "experiment.json"
+    peer_path = tmp_path / "peer.json"
+    markdown_path = tmp_path / "experiment.md"
+    manifest_path = tmp_path / "manifest.json"
+    peer_manifest_path = tmp_path / "peer-manifest.json"
+    run_ids = [f"run-{index}" for index in range(10)]
+    common = {
+        "fixture_sha256": "fixture",
+        "declared_input_fingerprint": "input",
+        "repeat_count": 10,
+        "database_path": "database.sqlite3",
+        "declared_model": "model",
+        "resolved_models": ["resolved"],
+        "run_ids": run_ids,
+        "runtime": "runtime",
+        "source_commit": "old-commit",
+        "working_tree_diff_sha256": "diff",
+        "producer": {"mode": "manifest_only"},
+        "cohort_setup": {"upstream_reuse_policy": "cold_first_then_frozen"},
+    }
+    manifest = {**common, "arm": "local_first"}
+    peer_manifest = {**common, "arm": "local_first"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    peer_manifest_path.write_text(json.dumps(peer_manifest), encoding="utf-8")
+    report = {
+        "status": "complete",
+        "selection": {
+            "current_contract_record_count": 10,
+            "run_count": 10,
+            "manifest_run_count_shortfall": 0,
+            "run_ids": run_ids,
+        },
+        "input_manifest": {**manifest, "path": str(manifest_path)},
+        "analysis_input_identity": [{"fingerprints": ["same"]}],
+        "accepted_cv": {"recorded_acceptance_count": 10},
+        "coverage": {name: {"complete": True} for name in (
+            "timing", "cost", "attribution", "page_fit", "page_fit_success",
+            "review_questions", "human_actions", "resolution_reuse",
+        )},
+        "timing": {"generation_elapsed_ms": 1, "generation_timing_coverage": {"measured": 10}},
+        "run_job_diversity": {"run_count": 10, "job_type_count": 2},
+    }
+    peer_report = {**report, "input_manifest": {**peer_manifest, "path": str(peer_manifest_path)}}
+    report["material_metrics_sha256"] = material_report_digest(report)
+    peer_report["material_metrics_sha256"] = material_report_digest(peer_report)
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    peer_path.write_text(json.dumps(peer_report), encoding="utf-8")
+    markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
+
+    result = _run_experiment_report_check(report_path, markdown_path, tmp_path, peer_path, "new-commit")
+
+    assert result["passed"] is False
+    assert "experiment_source_commit_not_current" in result["failures"]
+    assert "experiment_provider_backed_required" in result["failures"]
+    assert "experiment_peer_arm_must_differ" in result["failures"]
 
 
 def test_experiment_report_check_rejects_incomplete_cohort_metadata(tmp_path: Path) -> None:

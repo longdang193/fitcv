@@ -390,11 +390,13 @@ def _run_experiment_report_check(
     experiment_markdown: Path | None,
     repo_root: Path,
     peer_experiment_json: Path | None = None,
+    current_commit: str | None = None,
 ) -> dict[str, Any]:
     if experiment_json is None and experiment_markdown is None:
         return {"passed": True, "status": "not_requested", "failures": []}
     failures: list[str] = []
     report: dict[str, Any] = {}
+    persisted_manifest: dict[str, Any] = {}
     if experiment_json is None or not experiment_json.is_file():
         failures.append("experiment_json_missing")
     else:
@@ -467,9 +469,17 @@ def _run_experiment_report_check(
                     failures.append("experiment_manifest_run_ids_mismatch")
                 if set(str(value) for value in selection.get("run_ids") or []) != set(manifest_run_ids):
                     failures.append("experiment_selection_run_ids_mismatch")
+                if current_commit and persisted_manifest.get("source_commit") != current_commit:
+                    failures.append("experiment_source_commit_not_current")
+                if dict(persisted_manifest.get("producer") or {}).get("mode") != "provider_backed":
+                    failures.append("experiment_provider_backed_required")
+                if not isinstance(persisted_manifest.get("cohort_setup"), dict):
+                    failures.append("experiment_cohort_setup_missing")
         if report.get("material_metrics_sha256") != material_report_digest(report):
             failures.append("experiment_material_digest_mismatch")
-        if peer_experiment_json is not None:
+        if peer_experiment_json is None:
+            failures.append("experiment_peer_json_required")
+        else:
             try:
                 peer_report = json.loads(peer_experiment_json.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
@@ -477,8 +487,45 @@ def _run_experiment_report_check(
             else:
                 if not isinstance(peer_report, dict):
                     failures.append("experiment_peer_json_object_required")
-                elif report.get("analysis_input_identity") != peer_report.get("analysis_input_identity"):
-                    failures.append("experiment_analysis_inputs_not_identical")
+                else:
+                    if report.get("analysis_input_identity") != peer_report.get("analysis_input_identity"):
+                        failures.append("experiment_analysis_inputs_not_identical")
+                    peer_manifest = dict(peer_report.get("input_manifest") or {})
+                    peer_manifest_path = peer_manifest.get("path")
+                    persisted_peer_manifest: dict[str, Any] = {}
+                    if not peer_manifest_path:
+                        failures.append("experiment_peer_manifest_path_missing")
+                    else:
+                        peer_manifest_file = Path(str(peer_manifest_path))
+                        if not peer_manifest_file.is_absolute():
+                            peer_manifest_file = repo_root / peer_manifest_file
+                        try:
+                            persisted_peer_manifest = json.loads(peer_manifest_file.read_text(encoding="utf-8"))
+                        except (OSError, json.JSONDecodeError):
+                            failures.append("experiment_peer_manifest_unreadable")
+                    if persisted_manifest and persisted_peer_manifest:
+                        if persisted_manifest.get("arm") == persisted_peer_manifest.get("arm"):
+                            failures.append("experiment_peer_arm_must_differ")
+                        if {persisted_manifest.get("arm"), persisted_peer_manifest.get("arm")} != {"local_first", "provider_first"}:
+                            failures.append("experiment_peer_arms_invalid")
+                        for field in (
+                            "fixture_sha256",
+                            "declared_input_fingerprint",
+                            "repeat_count",
+                            "declared_model",
+                            "resolved_models",
+                            "runtime",
+                            "source_commit",
+                            "working_tree_diff_sha256",
+                            "producer",
+                            "cohort_setup",
+                        ):
+                            if persisted_manifest.get(field) != persisted_peer_manifest.get(field):
+                                failures.append(f"experiment_peer_{field}_not_identical")
+                        if current_commit and persisted_peer_manifest.get("source_commit") != current_commit:
+                            failures.append("experiment_peer_source_commit_not_current")
+                        if dict(persisted_peer_manifest.get("producer") or {}).get("mode") != "provider_backed":
+                            failures.append("experiment_peer_provider_backed_required")
     return {
         "passed": not failures,
         "status": "checked",
@@ -499,6 +546,7 @@ def verify_acceptance(
     experiment_peer_json: Path | None = None,
 ) -> dict[str, Any]:
     state = yaml.safe_load(state_path.read_text(encoding="utf-8")) or {}
+    current_commit = _head(repo_root)
     checks = {
         priority: _run_check(repo_root, paths, timeout_seconds)
         for priority, paths in CHECKS.items()
@@ -520,13 +568,14 @@ def verify_acceptance(
         experiment_markdown,
         repo_root,
         experiment_peer_json,
+        current_commit,
     )
     checks["p1_b"]["experiment"] = experiment_check
     checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and experiment_check["passed"]
     report = build_acceptance_report(
         state,
         repo_root=repo_root,
-        current_commit=_head(repo_root),
+        current_commit=current_commit,
         checks=checks,
     )
     report["checks"] = checks

@@ -555,6 +555,11 @@ def main() -> int:
             "mode": "provider_backed" if args.produce_real else "manifest_only",
             "provider_credentials": "loaded_from_dotenv_without_emission" if args.produce_real else "not_loaded",
         }
+        manifest["cohort_setup"] = {
+            "upstream_reuse_policy": "seeded_and_frozen" if args.seed_database else "cold_first_then_frozen",
+            "seed_database_sha256": _sha256(args.seed_database.resolve()) if args.seed_database else None,
+            "freeze_upstream_from_repeat": 0 if args.seed_database else 1,
+        }
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(json.dumps({"status": "manifested", "manifest": str(manifest_path), "arm": args.arm, "run_count": len(run_ids)}, sort_keys=True))
