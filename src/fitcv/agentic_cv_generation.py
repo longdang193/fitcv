@@ -784,7 +784,7 @@ def _empty_cv_generation_trace(
             "repair_reason": "",
         },
         "efficiency_summary": {
-            "schema_version": "accepted_cv_efficiency_v2",
+            "schema_version": "accepted_cv_efficiency_v1",
             "status": "not_run",
             "elapsed_ms": None,
             "provider_call_count": 0,
@@ -851,7 +851,7 @@ def _update_efficiency_summary(
     summary = dict(trace_payload.get("efficiency_summary") or {})
     summary.update(
         {
-            "schema_version": "accepted_cv_efficiency_v2",
+            "schema_version": "accepted_cv_efficiency_v1",
             "status": "accepted" if status == ACCEPTED_STATUS else "not_accepted",
             "elapsed_ms": max(0, int((time.monotonic() - started_at) * 1000)),
             "provider_call_count": len(attempts),
@@ -1286,7 +1286,11 @@ def _backfill_required_sections_from_profile(
                             else str(item).strip()
                         )
                     ][:2]
-                if not bullet_texts:
+                has_experience_metadata = any(
+                    str(exp.get(key) or "").strip()
+                    for key in ("role", "company", "start", "end", "location")
+                )
+                if not bullet_texts and not has_experience_metadata:
                     continue
                 fallback_experience.append(
                     {

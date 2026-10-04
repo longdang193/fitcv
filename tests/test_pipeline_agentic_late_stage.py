@@ -861,6 +861,9 @@ def test_backfill_required_sections_from_profile_populates_missing_required_sect
     assert set(repaired_keys) == {"skills", "experience", "projects"}
     assert repaired["sections"]["skills"]["groups"][0]["items"]
     assert repaired["sections"]["experience"]
+    assert repaired["sections"]["experience"][0]["role"] == "DE"
+    assert repaired["sections"]["experience"][0]["company"] == "ACME"
+    assert repaired["sections"]["experience"][0]["bullets"] == []
     assert repaired["sections"]["projects"]
 
 
