@@ -156,7 +156,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
 | Task 7 | `blocked` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-04-fitcv-p1ab-repair-experiment-rejected.json`; fixture preflight passed shape, eligible provider-backed cohort absent |
-| Task 8 | `blocked` | current | `codex` | Task 7 | full verification and plan reconciliation | blocked by Task 7; no promotion or acceptance-state update |
+| Task 8 | `blocked` | current | `codex` | Task 7 | full verification and plan reconciliation | fresh backend/frontend/browser/CI verification passed; remains blocked by Task 7; no promotion or acceptance-state update |
 
 ## Activation Gate
 
@@ -192,6 +192,14 @@ return `implementation-ready` before Task 7 or Task 8 closes.
   accepted from current working-tree tests and the owned browser run. The
   historical admission remains `not evidenced`; it is not reused as current
   admission proof.
+
+- Final verification update on 2026-10-04: local backend suite passed with
+  `3137 passed, 8 skipped`; frontend typecheck, `337` frontend tests, and
+  production build passed; owned browser E2E passed; `git diff --check` and
+  evidence secret scan passed; PR #85 CI passed all required checks. Task 7
+  still has no eligible identical ten-repeat incumbent/candidate provider
+  cohorts, so Task 8 remains blocked and no acceptance-state promotion is
+  authorized.
 
 ## Task Breakdown
 
@@ -799,9 +807,9 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
 - Update only the canonical current scorecard and plan reconciliation notes.
 
 **Steps:**
-- [ ] Run backend full suite and focused boundary tests.
-- [ ] Run frontend typecheck, unit suite, production build, and browser E2E.
-- [ ] Run `git diff --check`, secret scan appropriate to repository, and inspect
+- [x] Run backend full suite and focused boundary tests.
+- [x] Run frontend typecheck, unit suite, production build, and browser E2E.
+- [x] Run `git diff --check`, secret scan appropriate to repository, and inspect
   generated evidence for credentials/raw profile leakage.
 - [ ] Confirm every P1-A/B criterion, final-artifact identity, one-page proof,
   persistence identity, review actionability, browser parity, and telemetry gate.
