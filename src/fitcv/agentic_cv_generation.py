@@ -1069,6 +1069,7 @@ def _backfill_required_sections_from_profile(
     structured_cv: dict[str, Any] | None,
     profile: dict[str, Any],
     missing_sections: list[str] | None,
+    selected_evidence_ids: list[str] | None = None,
 ) -> tuple[dict[str, Any] | None, list[str]]:
     if not isinstance(structured_cv, dict):
         return structured_cv, []
@@ -1082,9 +1083,37 @@ def _backfill_required_sections_from_profile(
         return structured_cv, []
 
     repaired_keys: list[str] = []
+    selected_ids = {
+        str(item).strip()
+        for item in list(selected_evidence_ids or [])
+        if str(item).strip()
+    }
+
+    def is_selected_profile_entry(entry: dict[str, Any]) -> bool:
+        if not selected_ids:
+            return True
+        evidence_refs = {
+            str(item).strip()
+            for item in list(entry.get("evidence_refs") or [])
+            if str(item).strip()
+        }
+        if evidence_refs:
+            return any(
+                selected_id == evidence_ref or selected_id.startswith(f"ev_{evidence_ref}_")
+                for selected_id in selected_ids
+                for evidence_ref in evidence_refs
+            )
+        parent_id = str(entry.get("id") or "").strip()
+        return bool(parent_id) and any(
+            selected_id == parent_id or selected_id.startswith(f"ev_{parent_id}_")
+            for selected_id in selected_ids
+        )
+
     if "skills" in repair_keys:
         profile_skills: list[str] = []
         for item in list(profile.get("skills") or []):
+            if isinstance(item, dict) and not is_selected_profile_entry(item):
+                continue
             if isinstance(item, dict):
                 value = str(item.get("name") or "").strip()
             else:
@@ -1102,6 +1131,8 @@ def _backfill_required_sections_from_profile(
             fallback_experience: list[dict[str, Any]] = []
             for exp in list(profile.get("experiences") or [])[:3]:
                 if not isinstance(exp, dict):
+                    continue
+                if not is_selected_profile_entry(exp):
                     continue
                 bullet_texts = [
                     (
@@ -1137,6 +1168,8 @@ def _backfill_required_sections_from_profile(
             for project in list(profile.get("projects") or [])[:3]:
                 if not isinstance(project, dict):
                     continue
+                if not is_selected_profile_entry(project):
+                    continue
                 bullets = [
                     str(item).strip()
                     for item in list(project.get("highlights") or project.get("bullets") or [])
@@ -1160,6 +1193,8 @@ def _backfill_required_sections_from_profile(
             for edu in list(profile.get("education") or [])[:2]:
                 if not isinstance(edu, dict):
                     continue
+                if not is_selected_profile_entry(edu):
+                    continue
                 fallback_education.append(
                     {
                         "degree": str(edu.get("degree") or "").strip(),
@@ -1179,6 +1214,8 @@ def _backfill_required_sections_from_profile(
             fallback_languages = []
             for lang in list(profile.get("languages") or [])[:5]:
                 if isinstance(lang, dict):
+                    if not is_selected_profile_entry(lang):
+                        continue
                     name = str(lang.get("name") or "").strip()
                     level = str(lang.get("level") or "").strip() or None
                 else:
@@ -1218,6 +1255,42 @@ def _run_repair_cycle(
 
     repair_targets = _determine_repair_targets(validation, structured_cv)
     if repair_targets:
+        if _generation_format_defect_category(validation) == "missing_mandatory_section":
+            selected_evidence_ids = list(
+                (
+                    (analysis_grounding.get("evidence_selection_summary") or {})
+                    if isinstance(analysis_grounding, dict)
+                    else {}
+                ).get("selected_evidence_ids")
+                or []
+            )
+            repaired_cv, repaired_keys = _backfill_required_sections_from_profile(
+                structured_cv=structured_cv,
+                profile=profile,
+                missing_sections=list(validation.get("missing_sections") or []),
+                selected_evidence_ids=selected_evidence_ids,
+            )
+            if repaired_keys:
+                repaired_markdown = render_cv_markdown(repaired_cv or {}, config)
+                repaired_validation = _run_generation_validations(
+                    repaired_markdown,
+                    profile=profile,
+                    config=config,
+                    structured_cv=repaired_cv,
+                    analysis_grounding=analysis_grounding,
+                )
+                if repaired_validation.get("valid"):
+                    return (
+                        repaired_cv,
+                        repaired_markdown,
+                        repaired_validation,
+                        {
+                            "performed": True,
+                            "missing_sections": repaired_keys,
+                            "reason": "deterministic_section_backfill",
+                        },
+                        runtime_provenance,
+                    )
         repair_attempt = _build_repair_attempt(repair_targets)
         repaired_cv, repaired_markdown, validation, retry_provenance = retry_executor(repair_targets)
         if isinstance(structured_cv, dict) and isinstance(repaired_cv, dict):

@@ -5,15 +5,15 @@
     "trace": "fitcv.trace.v1",
     "efficiency": "fitcv.efficiency.v1"
   },
-  "status": "not_available",
+  "status": "incomplete",
   "trace_normalization": {
-    "duplicate_count": 0,
+    "duplicate_count": 2,
     "conflict_count": 0,
     "conflict_trace_ids": [],
-    "source_candidate_count": 0,
-    "normalized_trace_count": 0
+    "source_candidate_count": 4,
+    "normalized_trace_count": 2
   },
-  "generated_at": "2026-10-04T08:48:01.039815+00:00",
+  "generated_at": "2026-10-04T10:22:19.403152+00:00",
   "selection": {
     "ordinary_runs_only": true,
     "measurable_generation_work_only": true,
@@ -24,29 +24,31 @@
     },
     "current_contract_record_count": 0,
     "historical_record_count": 0,
-    "run_count": 0,
-    "run_ids": [],
+    "run_count": 1,
+    "run_ids": [
+      "529e426f-0663-469b-9a31-def071070678"
+    ],
     "exclusions": {}
   },
   "workload": {
-    "attempted_generation_job_count": 0,
-    "terminal_validation_failed_job_count": 0,
+    "attempted_generation_job_count": 2,
+    "terminal_validation_failed_job_count": 2,
     "validation_failure_event_count": 0,
-    "validation_failure_count": 0,
-    "provider_call_count": 0,
-    "regeneration_count": 0,
+    "validation_failure_count": 2,
+    "provider_call_count": 4,
+    "regeneration_count": 2,
     "render_retry_count": 0,
-    "token_total": 0,
-    "generation_elapsed_ms": null
+    "token_total": 16423,
+    "generation_elapsed_ms": 38505.0
   },
   "timing": {
-    "generation_elapsed_ms": null,
+    "generation_elapsed_ms": 38505.0,
     "generation_timing_coverage": {
-      "measured": 0,
+      "measured": 2,
       "unavailable": 0
     },
-    "artifact_acceptance_latency_ms": 0,
-    "run_wall_ms": 0,
+    "artifact_acceptance_latency_ms": 0.0,
+    "run_wall_ms": 151418.38100000002,
     "stage_latency_ms": {
       "analysis": {
         "p50_ms": null,
@@ -67,10 +69,10 @@
         "coverage": false
       },
       "provider_generation": {
-        "p50_ms": null,
-        "p95_ms": null,
-        "measured": 0,
-        "coverage": false
+        "p50_ms": 10169.5,
+        "p95_ms": 11910.5,
+        "measured": 4,
+        "coverage": true
       },
       "validation": {
         "p50_ms": null,
@@ -116,11 +118,11 @@
       "complete": false
     },
     "timing": {
-      "measured": 0,
+      "measured": 2,
       "unavailable": 0,
-      "total": 0,
-      "rate": 0.0,
-      "complete": false
+      "total": 2,
+      "rate": 1.0,
+      "complete": true
     },
     "page_fit": {
       "measured": 0,
@@ -159,10 +161,13 @@
     }
   },
   "run_job_diversity": {
-    "run_count": 0,
-    "job_count": 0,
-    "job_type_count": 0,
-    "job_types": []
+    "run_count": 1,
+    "job_count": 2,
+    "job_type_count": 2,
+    "job_types": [
+      "Full-time",
+      "Internship"
+    ]
   },
   "accepted_cv": {
     "count": 0,
@@ -185,11 +190,11 @@
     "accepted_non_one_page_count": 0
   },
   "yield": {
-    "attempted_generation_job_count": 0,
+    "attempted_generation_job_count": 2,
     "first_pass_acceptance_count": 0,
     "retry_success_count": 0,
-    "retry_failure_count": 0,
-    "first_pass_acceptance_rate": null
+    "retry_failure_count": 2,
+    "first_pass_acceptance_rate": 0.0
   },
   "aggregate": {
     "provider_call_count": 0,
@@ -197,13 +202,15 @@
     "regeneration_count": 0,
     "validation_failure_event_count": 0,
     "validation_failure_count": 0,
-    "terminal_validation_failed_job_count": 0,
+    "terminal_validation_failed_job_count": 2,
     "generation_elapsed_ms": null,
-    "end_to_end_wall_ms": 0,
-    "elapsed_ms": 0
+    "end_to_end_wall_ms": 151418.38100000002,
+    "elapsed_ms": 0.0
   },
   "outcomes": {
-    "generation_status_counts": {},
+    "generation_status_counts": {
+      "validation_failed": 2
+    },
     "page_fit": {
       "pass": 0,
       "fail": 0,
@@ -253,7 +260,291 @@
     "python": "3.13.5",
     "platform": "Windows-10-10.0.19045-SP0"
   },
-  "runs": [],
-  "attempted_outcomes": [],
-  "material_metrics_sha256": "bc39bae24fe992202d476b33f9e19d58e667d6c83cd796f01cdcfee2a30ccc56"
+  "runs": [
+    {
+      "run_id": "529e426f-0663-469b-9a31-def071070678",
+      "created_at": "2026-10-04T10:17:00.977145+00:00",
+      "started_at": "2026-10-04T10:17:02.719935+00:00",
+      "finished_at": "2026-10-04T10:19:34.138316+00:00",
+      "elapsed_wall_ms": 151418.38100000002,
+      "generation_elapsed_ms": 38505.0,
+      "timing": {
+        "generation_elapsed_ms": 38505.0,
+        "generation_timing_coverage": {
+          "measured": 2,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 10169.5,
+            "p95_ms": 11910.5,
+            "measured": 4,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          10542.0,
+          5792.0,
+          12152.0,
+          9797.0
+        ],
+        "validation": [],
+        "render": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 2,
+        "first_pass_acceptance_count": 0,
+        "retry_success_count": 0,
+        "retry_failure_count": 2
+      },
+      "status_counts": {
+        "validation_failed": 2
+      },
+      "accepted_record_count": 0,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 2,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 4,
+          "normalized_trace_count": 2
+        },
+        "denominator": {
+          "accepted_cv_count": 0
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 0,
+          "provider_call_count": 0,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 0,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": null,
+          "generation_timing_coverage": {
+            "measured": 0,
+            "unavailable": 0
+          },
+          "elapsed_ms": 0,
+          "token_total": 0,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 0,
+            "eligible": 0
+          },
+          "page_fit_success": {
+            "verified_one_page": 0
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 2,
+            "terminal_validation_failed_job_count": 2,
+            "validation_failure_count": 2,
+            "provider_call_count": 4,
+            "regeneration_count": 2,
+            "render_retry_count": 0,
+            "token_total": 16423
+          }
+        },
+        "records": []
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "532e19b9-6998-40df-97ca-e9f7176d6ab5",
+          "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+          "status": "validation_failed",
+          "attempt_count": 2,
+          "attempt_types": [
+            "initial_generation",
+            "repair_retry"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": null
+        },
+        {
+          "trace_id": "5213e5b9-3ae2-4104-b229-b1bf9ca11dc5",
+          "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+          "status": "validation_failed",
+          "attempt_count": 2,
+          "attempt_types": [
+            "initial_generation",
+            "repair_retry"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": null
+        }
+      ],
+      "contract_coverage": {
+        "current": 0,
+        "historical": 0,
+        "total": 0,
+        "complete": false
+      },
+      "trace_normalization": {
+        "duplicate_count": 2,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 4,
+        "normalized_trace_count": 2
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 0,
+          "unmatched": 0,
+          "total": 0
+        },
+        "cost": {
+          "measured": 0,
+          "unavailable": 0,
+          "total": 0,
+          "rate": 0.0
+        },
+        "timing": {
+          "measured": 2,
+          "unavailable": 0,
+          "total": 2,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 0,
+          "unavailable": 0,
+          "total": 0,
+          "rate": 0.0
+        },
+        "page_fit_reported": {
+          "measured": 0,
+          "unavailable": 0,
+          "total": 0,
+          "rate": 0.0
+        },
+        "page_fit_coverage": {
+          "measured": 0,
+          "unavailable": 0,
+          "total": 0,
+          "rate": 0.0
+        },
+        "page_fit_success": {
+          "measured": 0,
+          "unavailable": 0,
+          "total": 0,
+          "rate": 0.0,
+          "pass": 0,
+          "fail": 0,
+          "complete": false
+        },
+        "review_questions": {
+          "measured": 0,
+          "unavailable": 0,
+          "total": 0,
+          "rate": 0.0
+        },
+        "human_actions": {
+          "measured": 0,
+          "unavailable": 0,
+          "total": 0,
+          "rate": 0.0
+        },
+        "resolution_reuse": {
+          "measured": 0,
+          "unavailable": 0,
+          "total": 0,
+          "rate": 0.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 2,
+          "job_type_count": 0,
+          "job_types": [
+            "Full-time",
+            "Internship"
+          ]
+        }
+      }
+    }
+  ],
+  "attempted_outcomes": [
+    {
+      "trace_id": "532e19b9-6998-40df-97ca-e9f7176d6ab5",
+      "job_url": "https://de.linkedin.com/jobs/view/internship-data-analytics-m-f-x-at-finn-4064488192?trk=public_jobs_topcard-title",
+      "status": "validation_failed",
+      "attempt_count": 2,
+      "attempt_types": [
+        "initial_generation",
+        "repair_retry"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": null
+    },
+    {
+      "trace_id": "5213e5b9-3ae2-4104-b229-b1bf9ca11dc5",
+      "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+      "status": "validation_failed",
+      "attempt_count": 2,
+      "attempt_types": [
+        "initial_generation",
+        "repair_retry"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": null
+    }
+  ],
+  "material_metrics_sha256": "f7824f3bbf2d48f7f4806e9e1240a60ba416b67f4ec001d37badf53eb88331d4"
 }
