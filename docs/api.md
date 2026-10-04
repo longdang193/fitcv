@@ -416,7 +416,9 @@ scoped resolution, enqueues at most one impacted-job reanalysis, and returns
 `202` with refreshed review resource data. Reusing an idempotency key with the
 same request replays the original response; using it for another request
 returns `409 idempotency_conflict`. Stale review items return
-`409 review_resource_stale`.
+`409 review_resource_stale`. A concurrent reuse of an in-flight key returns
+`409 idempotency_in_progress` with `retryable = true` and does not enqueue a
+second reanalysis.
 
 ### `GET /cv-versions/{version_id}/download`
 

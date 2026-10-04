@@ -6655,6 +6655,7 @@ def test_canonical_cv_review_action_replays_after_review_state_changes() -> None
     store.reserve_idempotent_action.side_effect = [
         {"action_id": "action-1", "replayed": False, "response": None},
         {"action_id": "action-1", "replayed": True, "response": {"status": "queued", "action_id": "action-1"}},
+        {"action_id": "action-1", "replayed": True, "response": None},
     ]
 
     with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
@@ -6688,10 +6689,17 @@ def test_canonical_cv_review_action_replays_after_review_state_changes() -> None
             headers={"Idempotency-Key": "idem-replay"},
             json=payload,
         )
+        third = client.post(
+            "/runs/run-canonical-review-replay/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-replay"},
+            json=payload,
+        )
 
     assert first.status_code == 202
     assert second.status_code == 202
     assert second.json()["data"] == {"status": "queued", "action_id": "action-1"}
+    assert third.status_code == 409
+    assert third.json()["error"]["code"] == "idempotency_in_progress"
 
 
 @pytest.mark.parametrize(

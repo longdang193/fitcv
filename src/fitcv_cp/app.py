@@ -11992,6 +11992,14 @@ def create_app(
             raise
         if isinstance(idempotent_action, dict) and idempotent_action.get("replayed") and idempotent_action.get("response") is not None:
             return JSONResponse(status_code=202, content=_data_response(idempotent_action["response"]))
+        if isinstance(idempotent_action, dict) and idempotent_action.get("replayed"):
+            raise ApiError(
+                409,
+                "idempotency_in_progress",
+                "An earlier CV review action is still in progress.",
+                retryable=True,
+                action="Retry after the earlier review action completes.",
+            )
 
         resource = _canonical_cv_review_resource(run_id, run_job_id)
         if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
