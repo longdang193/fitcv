@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from fitcv.pipeline_contracts import PIPELINE_BUNDLE_ARTIFACT_FILENAMES, PIPELINE_STAGE_SEQUENCE, timeline_stage_download_for_event, timeline_stage_label
-from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _control_plane_bundle_artifact_specs, _control_plane_stage_specs, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
+from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _control_plane_bundle_artifact_specs, _control_plane_stage_specs, _finalize_review_draft_as_cv_artifact, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
 from fitcv_cp.models import (
     CandidateProfileReviewOperation,
     CandidateProfileReviewPatchRequest,
@@ -57,6 +57,19 @@ def _valid_fitcv_job(**overrides: str) -> dict[str, str]:
     }
     job.update(overrides)
     return job
+
+
+def _native_one_page_render_acceptance() -> dict[str, object]:
+    return {
+        "renderer_contract_version": "fitcv_native_render_v1",
+        "render_status": "pass",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": "b" * 64,
+        "template_sha256": "c" * 64,
+        "render_config_fingerprint": "d" * 64,
+    }
 
 
 def test_candidate_profile_review_patch_uses_ordered_id_addressed_operations() -> None:
@@ -7217,6 +7230,18 @@ def test_admin_run_cv_review_action_retries_approve_as_is_without_duplicate_arti
                         "job_title": "Senior Data Engineer",
                         "status": "review_required",
                         "markdown_full": "# Grounded CV",
+                        "content_acceptance": True,
+                        "page_fit_status": "pass",
+                "render_acceptance": {
+                    "render_status": "pass",
+                    "page_count": 1,
+                    "page_fit_status": "pass",
+                    "artifact_checksum": "a" * 64,
+                    "content_sha256": "b" * 64,
+                    "template_sha256": "c" * 64,
+                    "render_config_fingerprint": "d" * 64,
+                    "renderer_contract_version": "fitcv_native_render_v1",
+                },
                     }
                 ]
             }
@@ -7249,6 +7274,7 @@ def test_admin_run_cv_review_action_retries_approve_as_is_without_duplicate_arti
         return []
 
     with patch("fitcv_cp.app.get_run", side_effect=get_current_run), \
+         patch("fitcv_cp.app.render_cv_native_acceptance", return_value=_native_one_page_render_acceptance()), \
          patch("fitcv_cp.app.insert_cv_version_row", side_effect=persist_once), \
          patch("fitcv_cp.app.update_run_cv_generation_debug", side_effect=fail_first_debug_write), \
          patch("fitcv_cp.app.append_event"), \
@@ -7284,6 +7310,7 @@ def test_review_finalize_replaces_same_artifact_identity_in_sqlite(tmp_path, mon
     from fitcv_cp.app import _finalize_review_draft_as_cv_artifact
 
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    monkeypatch.setattr("fitcv_cp.app.render_cv_native_acceptance", lambda *_args, **_kwargs: _native_one_page_render_acceptance())
     run = PipelineRun(
         run_id="run-review-approve-sqlite",
         status=RunStatus.AWAITING_CONTINUE,
@@ -7300,6 +7327,9 @@ def test_review_finalize_replaces_same_artifact_identity_in_sqlite(tmp_path, mon
         "job_url": "https://example.com/job-1",
         "status": "review_required",
         "markdown_full": "# Grounded CV",
+        "content_acceptance": True,
+        "page_fit_status": "pass",
+        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
     }
 
     first = _finalize_review_draft_as_cv_artifact(
@@ -7320,6 +7350,38 @@ def test_review_finalize_replaces_same_artifact_identity_in_sqlite(tmp_path, mon
     assert first[2] == second[2]
     rows = sqlite_store.list_cvs_for_run(run.run_id)
     assert [row["version_id"] for row in rows] == [first[2]]
+
+
+def test_hitl_artifact_event_preserves_render_acceptance() -> None:
+    from fitcv_cp.app import _append_accepted_artifact_event
+
+    payload: dict[str, object] = {}
+    _append_accepted_artifact_event(
+        payload,
+        run_id="run-review-render",
+        job_url="https://example.com/job-rendered",
+        artifact_id="cv-rendered-1",
+        record={
+            "trace_id": "trace-rendered-1",
+            "run_job_id": "run-review-render-job-1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+                "render_status": "pass",
+                "page_count": 1,
+                "page_fit_status": "pass",
+                "artifact_checksum": "a" * 64,
+                "content_sha256": "b" * 64,
+                "template_sha256": "c" * 64,
+                "render_config_fingerprint": "d" * 64,
+                "renderer_contract_version": "fitcv_native_render_v1",
+            },
+        },
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    event = payload["accepted_artifact_events"][0]
+    assert event["page_fit_status"] == "pass"
+    assert event["render_acceptance"]["page_count"] == 1
 
 
 def test_admin_run_cv_review_action_reconciles_historical_checkpoint_idempotently() -> None:
@@ -7625,14 +7687,18 @@ def test_admin_run_cv_review_action_approve_as_is_finalizes_cv_artifact() -> Non
                         "job_url": "https://example.com/job-1",
                         "job_title": "Senior Data Engineer",
                         "status": "review_required",
-                        "fit_classification": "stretch",
-                        "markdown_final": "# Candidate\n\nDraft",
+                            "fit_classification": "stretch",
+                            "markdown_final": "# Candidate\n\nDraft",
+                            "content_acceptance": True,
+                            "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     }
                 ]
             }
         ),
     )
     with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.render_cv_native_acceptance", return_value=_native_one_page_render_acceptance()), \
          patch("fitcv_cp.app.insert_cv_version_row", return_value=[]) as mock_insert_cv, \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
          patch("fitcv_cp.app.append_event"):
@@ -7699,15 +7765,19 @@ def test_admin_run_cv_review_action_approve_as_is_uses_markdown_full_precedence(
                         "job_url": "https://example.com/job-1",
                         "job_title": "Senior Data Engineer",
                         "status": "review_required",
-                        "fit_classification": "stretch",
-                        "markdown_full": "# Candidate\n\nFull draft",
-                        "markdown_final": "# Candidate\n\nLegacy draft",
+                            "fit_classification": "stretch",
+                            "markdown_full": "# Candidate\n\nFull draft",
+                            "markdown_final": "# Candidate\n\nLegacy draft",
+                            "content_acceptance": True,
+                            "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     }
                 ]
             }
         ),
     )
     with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.render_cv_native_acceptance", return_value=_native_one_page_render_acceptance()), \
          patch("fitcv_cp.app.insert_cv_version_row", return_value=[]), \
          patch("fitcv_cp.app.create_cv_version_record") as mock_create_version, \
          patch("fitcv_cp.app.update_run_cv_generation_debug"), \
@@ -7971,6 +8041,9 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
                         "job_title": "DE1",
                         "status": "review_required",
                         "markdown_final": "# DE1\n\nAccepted draft",
+                        "content_acceptance": True,
+                        "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     },
                     {"job_url": "https://example.com/job-2", "job_title": "DE2", "status": "review_required"},
                 ],
@@ -7981,6 +8054,7 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
         ),
     )
     with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.render_cv_native_acceptance", return_value=_native_one_page_render_acceptance()), \
          patch("fitcv_cp.app.insert_cv_version_row", return_value=[]), \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
@@ -8264,12 +8338,16 @@ def test_admin_run_cv_review_batch_action_finalize_path_no_longer_needs_zero_cv_
                         "job_title": "DE1",
                         "status": "review_required",
                         "markdown_final": "# DE1\n\nAccepted draft",
+                        "content_acceptance": True,
+                        "page_fit_status": "pass",
+                        "render_acceptance": {"page_count": 1, "page_fit_status": "pass"},
                     },
                 ],
             }
         ),
     )
     with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.render_cv_native_acceptance", return_value=_native_one_page_render_acceptance()), \
          patch("fitcv_cp.app.insert_cv_version_row", return_value=[]), \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
@@ -8380,6 +8458,66 @@ def test_admin_run_cv_review_batch_action_tracks_truncated_draft_failure_counter
     assert batch_payload["failed_truncated_draft"] == 1
     mock_update_status.assert_not_called()
     mock_update_checkpoint.assert_not_called()
+
+
+def test_review_finalize_rejects_missing_native_one_page_proof() -> None:
+    from types import SimpleNamespace
+
+    run = SimpleNamespace(
+        run_id="run-review-proof-required",
+        effective_settings_json=json.dumps({}),
+        config_path=".env.yaml",
+    )
+    record = {
+        "status": "review_required",
+        "markdown_final": "# CV\n\nAccepted draft",
+        "content_acceptance": True,
+    }
+    with patch(
+        "fitcv_cp.app.render_cv_native_acceptance",
+        return_value={"render_status": "pass", "page_count": 2, "page_fit_status": "fail"},
+    ), patch("fitcv_cp.app.insert_cv_version_row") as mock_insert:
+        finalized, reason, version_id = _finalize_review_draft_as_cv_artifact(
+            run=run,
+            job_url="https://example.com/job-proof-required",
+            record=record,
+            client=MagicMock(),
+        )
+
+    assert finalized is False
+    assert reason == "final_artifact_unverified"
+    assert version_id is None
+    mock_insert.assert_not_called()
+
+
+def test_review_finalize_rejects_explicitly_invalid_content_even_if_markdown_is_nonempty() -> None:
+    from types import SimpleNamespace
+
+    run = SimpleNamespace(
+        run_id="run-review-invalid-content",
+        effective_settings_json=json.dumps({}),
+        config_path=".env.yaml",
+        results_export_json="[]",
+    )
+    record = {
+        "status": "review_required",
+        "markdown_final": "# CV\n\nInvalid draft",
+        "content_acceptance": False,
+        "validation": {"valid": False, "errors": ["missing required evidence"]},
+    }
+    with patch("fitcv_cp.app.render_cv_native_acceptance", return_value=_native_one_page_render_acceptance()), \
+         patch("fitcv_cp.app.insert_cv_version_row") as mock_insert:
+        finalized, reason, version_id = _finalize_review_draft_as_cv_artifact(
+            run=run,
+            job_url="https://example.com/job-invalid-content",
+            record=record,
+            client=MagicMock(),
+        )
+
+    assert finalized is False
+    assert reason == "final_artifact_unverified"
+    assert version_id is None
+    mock_insert.assert_not_called()
 
 
 

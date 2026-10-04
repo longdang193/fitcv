@@ -17,10 +17,12 @@ lifecycle:
 
 import hashlib
 import json
+import hashlib
 import re
 import shutil
 import subprocess
 import textwrap
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -44,6 +46,7 @@ from fitcv.config import (
 from fitcv.contracts import (
     ANALYSIS_CHANNEL_DEFINITIONS,
     DOMAIN_ALIGNMENT_CHANNEL,
+    FINAL_ARTIFACT_CONTRACT_VERSION,
     REQUIRED_SKILL_SUPPORT_CHANNEL,
     RESPONSIBILITY_ALIGNMENT_CHANNEL,
     ROLE_ALIGNMENT_CHANNEL,
@@ -82,7 +85,6 @@ DEFAULT_CV_LOCALE = "en"
 DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE = 1
 LEGACY_MARKDOWN_PROMPT_ID = "cv_generation.write.v1"
 NATIVE_RENDER_CONTRACT_VERSION = "fitcv_native_render_v1"
-_RENDER_CONTRACT_VERSION = "cv_native_render_v2"
 _EDUCATION_PLACEHOLDER_TOKENS = {
     "",
     "none",
@@ -93,6 +95,36 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
     "not provided",
     "unknown",
 }
+
+
+_RENDER_CONTRACT_VERSION = "cv_native_render_v2"
+
+
+def _stable_render_fingerprint(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str).encode("utf-8")
+    ).hexdigest()
+
+
+def build_render_proof_identity(structured_cv: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "final_artifact_contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
+        "artifact_content_sha256": _stable_render_fingerprint(structured_cv),
+        "template_sha256": _template_sha256(config) or "",
+        "render_config_fingerprint": _render_config_fingerprint(config),
+        "renderer_contract_version": _RENDER_CONTRACT_VERSION,
+    }
+
+
+def _trim_item_identity(item: Any) -> str:
+    if not isinstance(item, dict):
+        return str(item or "").strip().casefold()
+    for key in ("evidence_id", "claim_id", "id", "name", "title"):
+        value = str(item.get(key) or "").strip()
+        if value:
+            return value.casefold()
+    return _stable_render_fingerprint(item)
+
 
 def select_template_variant(jd: dict[str, Any]) -> str:
     """Return a template variant name for the given enriched job description.
@@ -744,6 +776,21 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
             + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
+        )
+        space_budget = dict(content_plan.get("space_budget") or {})
+        max_summary_lines = space_budget.get("max_summary_lines")
+        section_limits = dict(space_budget.get("section_claim_limits") or {})
+        if max_summary_lines is not None:
+            constraint_lines.append(f"Target exactly one rendered page; keep Summary at most {int(max_summary_lines)} lines.")
+        if section_limits:
+            constraint_lines.append(
+                "Keep each section within these claim budgets: "
+                + ", ".join(f"{section}={limit}" for section, limit in sorted(section_limits.items()))
+                + "."
+            )
+        constraint_lines.append("Do not add unsupported filler or duplicate claims.")
+        constraint_lines.append(
+            "Omit optional sections deterministically when space is constrained: publications, certifications, languages, then projects."
         )
     if target_sections:
         normalized_targets = [str(item).strip().lower() for item in target_sections if str(item).strip()]
@@ -1825,6 +1872,25 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
     return _normalize_cv_markdown(rendered)
 
 
+def _canonical_render_item_key(section: str, item: dict[str, Any]) -> str:
+    section_name = str(section or "").strip().lower()
+    if section_name == "languages":
+        raw = str(item.get("name") or "")
+    elif section_name == "projects":
+        raw = " ".join(
+            [
+                str(item.get("name") or ""),
+                str(item.get("context") or ""),
+                *[str(value) for value in list(item.get("bullets") or [])],
+            ]
+        )
+    else:
+        raw = " ".join(str(value) for value in item.values())
+    normalized = re.sub(r"[^a-z0-9]+", " ", raw.casefold()).strip()
+    normalized = re.sub(r"\s+", " ", normalized)
+    return f"{section_name}:{normalized}"
+
+
 def _render_config_fingerprint(config: dict[str, Any]) -> str:
     payload = {
         "cv": dict(config.get("cv") or {}),
@@ -1850,28 +1916,30 @@ def render_cv_native_acceptance(
     output_dir: str | Path | None = None,
     artifact_name: str = "cv",
 ) -> dict[str, Any]:
-    """Render exact CV content through native tools and return proof."""
+    """Render exact markdown through native tools and return final proof."""
     structured_cv = content if isinstance(content, dict) else None
     markdown = render_cv_markdown(structured_cv, config) if structured_cv is not None else str(content or "")
-    missing_tools = [
-        tool for tool in ("pandoc", "xelatex", "pdfinfo", "pdftotext") if shutil.which(tool) is None
-    ]
+    required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
+    missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
     base = Path(output_dir) if output_dir is not None else None
     with TemporaryDirectory(dir=str(base) if base else None) as temporary_dir:
         work_dir = Path(temporary_dir)
         markdown_path = work_dir / f"{artifact_name}.md"
         pdf_path = work_dir / f"{artifact_name}.pdf"
-        markdown_path.write_text(markdown, encoding="utf-8", newline="\n")
+        markdown_path.write_text(str(markdown or ""), encoding="utf-8", newline="\n")
+        proof_identity = build_render_proof_identity(structured_cv, config) if structured_cv is not None else {}
+        render_status = "render_unavailable" if missing_tools else "render_failed"
         result: dict[str, Any] = {
-            "renderer_contract_version": _RENDER_CONTRACT_VERSION,
-            "render_status": "render_unavailable" if missing_tools else "render_failed",
-            "renderer_status": "render_unavailable" if missing_tools else "render_failed",
+            **proof_identity,
+            "renderer_contract_version": proof_identity.get("renderer_contract_version", NATIVE_RENDER_CONTRACT_VERSION),
+            "render_status": render_status,
+            "renderer_status": render_status,
             "page_count": None,
             "page_fit_status": "unresolved",
             "artifact_checksum": None,
             "template_sha256": _template_sha256(config),
             "render_config_fingerprint": _render_config_fingerprint(config),
-            "content_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+            "content_sha256": hashlib.sha256(str(markdown or "").encode("utf-8")).hexdigest(),
             "missing_tools": missing_tools,
         }
         if missing_tools:
@@ -1905,19 +1973,20 @@ def render_cv_native_acceptance(
                 cwd=work_dir,
                 timeout=30,
             )
+            checksum = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
             result.update(
                 {
                     "render_status": "pass",
                     "renderer_status": "rendered",
                     "page_count": page_count,
                     "page_fit_status": "pass" if page_count == 1 else "fail",
-                    "artifact_checksum": hashlib.sha256(pdf_path.read_bytes()).hexdigest(),
+                    "artifact_checksum": checksum,
                 }
             )
             if output_dir is not None:
                 destination = Path(output_dir)
                 destination.mkdir(parents=True, exist_ok=True)
-                (destination / f"{artifact_name}.md").write_text(markdown, encoding="utf-8")
+                (destination / f"{artifact_name}.md").write_text(markdown_path.read_text(encoding="utf-8"), encoding="utf-8")
                 (destination / f"{artifact_name}.pdf").write_bytes(pdf_path.read_bytes())
             return result
         except (OSError, subprocess.SubprocessError, ValueError):
@@ -1926,37 +1995,162 @@ def render_cv_native_acceptance(
 
 def render_proof_matches(
     value: dict[str, Any] | None,
+    config: dict[str, Any] | None = None,
+    render_acceptance: dict[str, Any] | None = None,
     *,
-    content_sha256: str,
-    template_sha256: str | None,
-    render_config_fingerprint: str,
+    content_sha256: str | None = None,
+    template_sha256: str | None = None,
+    render_config_fingerprint: str | None = None,
 ) -> bool:
-    if not isinstance(value, dict):
-        return False
-    return all(
-        value.get(key) == expected
-        for key, expected in {
+    if content_sha256 is not None:
+        proof = value
+        proof_contract_version = str((proof or {}).get("renderer_contract_version") or NATIVE_RENDER_CONTRACT_VERSION) if isinstance(proof, dict) else NATIVE_RENDER_CONTRACT_VERSION
+        if proof_contract_version not in {NATIVE_RENDER_CONTRACT_VERSION, _RENDER_CONTRACT_VERSION}:
+            return False
+        expected = {
             "content_sha256": content_sha256,
             "template_sha256": template_sha256,
-            "render_config_fingerprint": render_config_fingerprint,
-        }.items()
-    )
+            "render_config_fingerprint": str(render_config_fingerprint or ""),
+            "renderer_contract_version": proof_contract_version,
+        }
+    else:
+        proof = render_acceptance
+        if not isinstance(value, dict) or not isinstance(config, dict):
+            return False
+        expected = build_render_proof_identity(value, config)
+    if not isinstance(proof, dict):
+        return False
+    return all(proof.get(key) == expected_value for key, expected_value in expected.items())
 
 
 def final_artifact_acceptance_passes(
     *,
-    content_valid: bool,
-    render_acceptance: dict[str, Any] | None,
+    content_valid: bool | None = None,
+    render_acceptance: dict[str, Any] | None = None,
+    content_acceptance: bool | None = None,
+    page_fit_status: str | None = None,
 ) -> bool:
-    if not content_valid or not isinstance(render_acceptance, dict):
+    if not (content_valid if content_valid is not None else content_acceptance) or not isinstance(render_acceptance, dict):
         return False
+    render_status = str(render_acceptance.get("render_status") or render_acceptance.get("renderer_status") or "").strip().lower()
     return (
-        str(render_acceptance.get("render_status") or render_acceptance.get("renderer_status") or "").lower()
-        in {"pass", "rendered"}
+        render_status in {"pass", "rendered"}
         and int(render_acceptance.get("page_count") or 0) == 1
-        and str(render_acceptance.get("page_fit_status") or "").lower() == "pass"
+        and str(page_fit_status or render_acceptance.get("page_fit_status") or "").strip().lower() == "pass"
         and bool(re.fullmatch(r"[0-9a-f]{64}", str(render_acceptance.get("artifact_checksum") or "")))
     )
+
+
+def _provenance_by_key(provenance: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    if isinstance(provenance, dict):
+        provenance = provenance.get("items")
+    entries: dict[str, dict[str, Any]] = {}
+    for item in list(provenance or []):
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("canonical_item_key") or "").strip()
+        if key:
+            entries[key] = item
+    return entries
+
+
+def _render_item_provenance_for(
+    by_key: dict[str, dict[str, Any]],
+    section: str,
+    item: dict[str, Any],
+) -> dict[str, Any] | None:
+    exact = by_key.get(_canonical_render_item_key(section, item))
+    if exact is not None:
+        return exact
+    name_key = f"{section}:{re.sub(r'[^a-z0-9]+', ' ', str(item.get('name') or '').casefold()).strip()}"
+    return by_key.get(name_key)
+
+
+def render_item_requirement_support(
+    structured_cv: dict[str, Any],
+    provenance: list[dict[str, Any]] | None,
+) -> set[str]:
+    by_key = _provenance_by_key(provenance)
+    supported: set[str] = set()
+    sections = structured_cv.get("sections") if isinstance(structured_cv, dict) else None
+    if not isinstance(sections, dict):
+        return supported
+    for section in ("experience", "projects", "education", "certifications", "publications", "languages"):
+        items = sections.get(section)
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            metadata = _render_item_provenance_for(by_key, section, item)
+            if isinstance(metadata, dict):
+                supported.update(str(value) for value in list(metadata.get("supported_requirement_ids") or []) if str(value))
+    return supported
+
+
+def trim_structured_cv_for_page_fit(
+    structured_cv: dict[str, Any],
+    provenance: list[dict[str, Any]] | None = None,
+    *,
+    content_plan: dict[str, Any] | None = None,
+) -> dict[str, Any] | tuple[dict[str, Any], list[str]]:
+    if content_plan is not None:
+        trimmed = deepcopy(structured_cv)
+        sections = trimmed.get("sections")
+        if not isinstance(sections, dict):
+            return trimmed, []
+        approved_claims = [item for item in list(content_plan.get("approved_claims") or []) if isinstance(item, dict)]
+        protected_ids = {
+            str(item.get("claim_id") or item.get("evidence_id") or "").strip().casefold()
+            for item in approved_claims
+            if str(item.get("claim_id") or item.get("evidence_id") or "").strip()
+            and list(item.get("supports_requirements") or [])
+        }
+        changes: list[str] = []
+        for section_key in ("publications", "certifications", "languages", "projects"):
+            items = list(sections.get(section_key) or [])
+            candidates = [
+                (index, item)
+                for index, item in enumerate(items)
+                if _trim_item_identity(item) not in protected_ids
+                and not (isinstance(item, dict) and bool(item.get("required")))
+            ]
+            if not candidates:
+                continue
+            index, item = min(candidates, key=lambda pair: (_trim_item_identity(pair[1]), pair[0]))
+            items.pop(index)
+            sections[section_key] = items
+            changes.append(f"removed_{section_key}:{_trim_item_identity(item)}")
+        return trimmed, changes
+    """Remove only unprotected, optional content in deterministic order."""
+    trimmed = deepcopy(structured_cv)
+    by_key = _provenance_by_key(provenance)
+    sections = trimmed.get("sections")
+    if not isinstance(sections, dict) or not by_key:
+        return trimmed
+    candidates: list[tuple[str, int, int]] = []
+    for section in ("experience", "projects", "education", "certifications", "publications", "languages"):
+        items = sections.get(section)
+        if not isinstance(items, list):
+            continue
+        for index, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            metadata = _render_item_provenance_for(by_key, section, item)
+            if metadata is None or bool(metadata.get("protected", True)):
+                continue
+            candidates.append((section, index, len(list(item.get("bullets") or []))))
+    for section, index, bullet_count in sorted(candidates, key=lambda value: (-value[2], value[0], -value[1])):
+        items = sections.get(section)
+        if not isinstance(items, list) or index >= len(items):
+            continue
+        item = items[index]
+        if bullet_count > 1:
+            item["bullets"] = list(item.get("bullets") or [])[:-1]
+            return trimmed
+        del items[index]
+        return trimmed
+    return trimmed
 
 
 def _execute_cv_generation_runtime(
@@ -2125,6 +2319,3 @@ def generate_cv(
             max_output_tokens=max_output_tokens,
         )
     )
-
-
-

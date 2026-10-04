@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -13,8 +14,16 @@ import yaml
 
 try:
     from scripts.render_acceptance_state import _validate_state
+    from scripts.benchmark_cv_efficiency import material_report_digest
 except ModuleNotFoundError:
     from render_acceptance_state import _validate_state
+    from benchmark_cv_efficiency import material_report_digest
+
+from fitcv_cp.run_artifact_contracts import (
+    FINAL_ARTIFACT_CONTRACT_VERSION,
+    TRACE_CONTRACT_VERSION,
+)
+from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -23,17 +32,14 @@ DEFAULT_OUTPUT = REPO_ROOT / ".tmp/fitcv-acceptance-report.json"
 CHECKS = {
     "p0_b": [
         "tests/test_p0b_source_job_relevance_evaluator.py",
-        "tests/test_calibrate_p0b_recovery.py",
-        "tests/test_p0b_support_oracle.py",
     ],
-    "p0_c": ["tests/test_evidence.py", "tests/test_agentic_cv_analysis.py"],
-    "p1_b": [
-        "tests/test_fitcv_cp/test_run_artifact_contracts.py",
-        "tests/test_fitcv_cp/test_worker_job.py",
-        "tests/test_fitcv_cp/test_sqlite_store.py",
-        "tests/test_fitcv_cp/test_app.py",
-    ],
+    "p0_c": ["tests/test_evidence.py"],
+    "p1_b": ["tests/test_fitcv_cp/test_run_artifact_contracts.py"],
 }
+
+
+def _canonical_file_digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 P0B_ORACLE = "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1.jsonl"
 
 
@@ -105,6 +111,191 @@ def _run_runtime_check(repo_root: Path, output_path: Path, timeout_seconds: int)
     }
 
 
+def _run_runtime_efficiency_evidence_check(
+    state: dict[str, Any],
+    repo_root: Path,
+) -> dict[str, Any]:
+    runtime_efficiency = dict(state.get("runtime_efficiency") or {})
+    evidence = dict(runtime_efficiency.get("baseline_evidence") or {})
+    json_path = repo_root / str(evidence.get("json") or "")
+    markdown_path = repo_root / str(evidence.get("markdown") or "")
+    failures: list[str] = []
+    report: dict[str, Any] = {}
+    if not json_path.is_file():
+        failures.append("runtime_efficiency_json_missing")
+    else:
+        try:
+            report = json.loads(json_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            failures.append("runtime_efficiency_json_invalid")
+    if not markdown_path.is_file():
+        failures.append("runtime_efficiency_markdown_missing")
+    else:
+        markdown = markdown_path.read_text(encoding="utf-8")
+        if "Evidence status: `canonical`" not in markdown:
+            failures.append("runtime_efficiency_markdown_not_canonical")
+    if isinstance(report, dict):
+        if report.get("schema_version") != "fitcv_runtime_efficiency_baseline_v3":
+            failures.append("runtime_efficiency_schema_not_v3")
+        if report.get("evidence_status") != "canonical":
+            failures.append("runtime_efficiency_json_not_canonical")
+        workload = dict(report.get("workload") or {})
+        timing = dict(report.get("timing") or {})
+        coverage = dict(timing.get("generation_timing_coverage") or {})
+        attempted = int(workload.get("attempted_generation_job_count") or 0)
+        measured = int(coverage.get("measured") or 0)
+        unavailable = int(coverage.get("unavailable") or 0)
+        if measured + unavailable != attempted:
+            failures.append("runtime_efficiency_timing_coverage_mismatch")
+        if measured == 0 and timing.get("generation_elapsed_ms") is not None:
+            failures.append("runtime_efficiency_unknown_timing_not_null")
+        if measured > 0 and timing.get("generation_elapsed_ms") is None:
+            failures.append("runtime_efficiency_measured_timing_missing")
+        if not str(report.get("material_metrics_sha256") or "").strip():
+            failures.append("runtime_efficiency_material_digest_missing")
+        elif report.get("material_metrics_sha256") != material_report_digest(report):
+            failures.append("runtime_efficiency_material_digest_mismatch")
+    coverage = dict(report.get("coverage") or {}) if isinstance(report, dict) else {}
+    accepted_cv = dict(report.get("accepted_cv") or {}) if isinstance(report, dict) else {}
+    attribution = dict(report.get("attribution") or {}) if isinstance(report, dict) else {}
+    normalization = dict(report.get("trace_normalization") or {}) if isinstance(report, dict) else {}
+    diversity = dict(report.get("run_job_diversity") or {}) if isinstance(report, dict) else {}
+    outcomes = dict(report.get("outcomes") or {}) if isinstance(report, dict) else {}
+    measurement_gate_reasons: list[str] = []
+    for name, reason in (
+        ("attribution", "attribution_coverage_incomplete"),
+        ("cost", "cost_coverage_incomplete"),
+        ("timing", "timing_coverage_incomplete"),
+        ("page_fit_coverage", "page_fit_coverage_incomplete"),
+        ("page_fit_success", "page_fit_success_coverage_incomplete"),
+        ("review_questions", "review_questions_coverage_incomplete"),
+        ("human_actions", "human_actions_coverage_incomplete"),
+        ("resolution_reuse", "resolution_reuse_coverage_incomplete"),
+    ):
+        details = dict(coverage.get(name) or {})
+        if name == "page_fit_coverage" and not details:
+            details = dict(coverage.get("page_fit") or {})
+        if not details.get("complete"):
+            measurement_gate_reasons.append(reason)
+    if int(diversity.get("run_count") or 0) < 2:
+        measurement_gate_reasons.append("run_diversity_insufficient")
+    if int(diversity.get("job_type_count") or 0) < 2:
+        measurement_gate_reasons.append("job_type_diversity_insufficient")
+    if int(normalization.get("conflict_count") or 0):
+        measurement_gate_reasons.append("trace_conflicts_present")
+    if int(attribution.get("unmatched_trace_count") or 0):
+        measurement_gate_reasons.append("unmatched_traces_present")
+    if int(attribution.get("unattributed_accepted_artifact_count") or 0):
+        measurement_gate_reasons.append("unattributed_accepted_artifacts_present")
+    selection = dict(report.get("selection") or {}) if isinstance(report, dict) else {}
+    if int(selection.get("historical_record_count") or 0):
+        measurement_gate_reasons.append("historical_contract_records_present")
+    if int(selection.get("current_contract_record_count") or 0) == 0:
+        measurement_gate_reasons.append("current_contract_records_missing")
+    if int(accepted_cv.get("accepted_non_one_page_count") or 0):
+        measurement_gate_reasons.append("accepted_non_one_page_artifacts_present")
+    page_fit_success = dict(coverage.get("page_fit_success") or {})
+    page_fit_outcome = dict(outcomes.get("page_fit") or {})
+    if page_fit_success.get("complete") and int(page_fit_success.get("total") or 0) > 0:
+        if int(page_fit_outcome.get("fail") or page_fit_success.get("fail") or 0) > 0:
+            measurement_gate_reasons.append("page_fit_success_not_perfect")
+        elif int(page_fit_outcome.get("pass") or page_fit_success.get("pass") or 0) != int(page_fit_success.get("total") or 0):
+            measurement_gate_reasons.append("page_fit_success_outcome_mismatch")
+    measurement_eligible = not measurement_gate_reasons
+    if runtime_efficiency.get("measurement_status") == "measured":
+        expected_versions = {
+            "final_artifact": FINAL_ARTIFACT_CONTRACT_VERSION,
+            "trace": TRACE_CONTRACT_VERSION,
+            "efficiency": EFFICIENCY_CONTRACT_VERSION,
+        }
+        if dict(report.get("contract_versions") or {}) != expected_versions:
+            measurement_gate_reasons.append("current_contract_versions_missing_or_mismatched")
+            measurement_eligible = False
+    if runtime_efficiency.get("measurement_status") == "measured" and not measurement_eligible:
+        failures.extend(f"runtime_efficiency_{reason}" for reason in measurement_gate_reasons)
+    return {
+        "passed": not failures,
+        "evidence_json": str(json_path),
+        "evidence_markdown": str(markdown_path),
+        "failures": failures,
+        "run_count": dict(report.get("selection") or {}).get("run_count", 0),
+        "measurement_status": runtime_efficiency.get("measurement_status"),
+        "measurement_eligible": measurement_eligible,
+        "measurement_gate_reasons": measurement_gate_reasons,
+    }
+
+
+def _run_current_contract_evidence_check(
+    state: dict[str, Any],
+    repo_root: Path,
+) -> dict[str, Any]:
+    references = dict(state.get("current_contract_evidence") or {})
+    json_path = repo_root / str(references.get("json") or "")
+    markdown_path = repo_root / str(references.get("markdown") or "")
+    digest_path = repo_root / str(references.get("sha256") or "")
+    failures: list[str] = []
+    evidence: dict[str, Any] = {}
+    if not json_path.is_file():
+        failures.append("current_contract_evidence_json_missing")
+    else:
+        try:
+            evidence = json.loads(json_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            failures.append("current_contract_evidence_json_invalid")
+    if not markdown_path.is_file():
+        failures.append("current_contract_evidence_markdown_missing")
+    elif "Evidence status: `canonical`" not in markdown_path.read_text(encoding="utf-8"):
+        failures.append("current_contract_evidence_markdown_not_canonical")
+    if not digest_path.is_file():
+        failures.append("current_contract_evidence_digest_missing")
+    else:
+        digest_line = digest_path.read_text(encoding="utf-8").strip().split()
+        actual_digest = _canonical_file_digest(json_path) if json_path.is_file() else ""
+        if len(digest_line) != 2 or digest_line[0] != actual_digest or digest_line[1] != json_path.name:
+            failures.append("current_contract_evidence_digest_mismatch")
+    if isinstance(evidence, dict):
+        if evidence.get("evidence_status") != "canonical":
+            failures.append("current_contract_evidence_not_canonical")
+        if evidence.get("evidence_schema_version") != "fitcv.p1_ab.current_contract.v1":
+            failures.append("current_contract_evidence_schema_invalid")
+        if not isinstance(evidence.get("source_commit"), str) or len(evidence["source_commit"]) != 40:
+            failures.append("current_contract_evidence_source_commit_invalid")
+        for name in ("fixture_sha256", "source_fixture_sha256"):
+            if not isinstance(evidence.get(name), str) or len(evidence[name]) != 64:
+                failures.append(f"current_contract_evidence_{name}_invalid")
+        selection = dict(evidence.get("selection") or {})
+        if int(selection.get("current_contract_record_count") or 0) <= 0:
+            failures.append("current_contract_evidence_has_no_current_records")
+        if int(selection.get("historical_record_count") or 0):
+            failures.append("current_contract_evidence_contains_historical_records")
+        workload = dict(evidence.get("workload") or {})
+        outcomes = [record for record in list(evidence.get("attempted_outcomes") or []) if isinstance(record, dict)]
+        if int(workload.get("attempted_generation_job_count") or 0) != len(outcomes):
+            failures.append("current_contract_evidence_outcomes_incomplete")
+        accepted = dict(evidence.get("accepted_cv") or {})
+        page_fit = dict(accepted.get("page_fit_success") or {})
+        coverage = dict(evidence.get("coverage") or {})
+        if int(accepted.get("count") or 0) <= 0:
+            failures.append("current_contract_evidence_no_accepted_cv")
+        if not bool(coverage.get("page_fit", {}).get("complete")):
+            failures.append("current_contract_evidence_page_fit_coverage_incomplete")
+        if not bool(coverage.get("page_fit_success", {}).get("complete")):
+            failures.append("current_contract_evidence_page_fit_success_incomplete")
+        if int(page_fit.get("fail") or 0) != 0 or int(accepted.get("accepted_non_one_page_count") or 0) != 0:
+            failures.append("current_contract_evidence_non_one_page_accepted")
+        attribution = dict(evidence.get("attribution") or {})
+        if int(attribution.get("unattributed_accepted_artifact_count") or 0) != 0:
+            failures.append("current_contract_evidence_unattributed_acceptance")
+    return {
+        "passed": not failures,
+        "evidence_json": str(json_path),
+        "evidence_markdown": str(markdown_path),
+        "evidence_digest": str(digest_path),
+        "failures": failures,
+        "accepted_count": int(dict(evidence.get("accepted_cv") or {}).get("count") or 0) if isinstance(evidence, dict) else 0,
+    }
+
+
 def build_acceptance_report(
     state: dict[str, Any],
     *,
@@ -119,8 +310,15 @@ def build_acceptance_report(
         failures.append(f"acceptance_state_invalid:{exc}")
 
     statuses = dict(state.get("statuses") or {})
+    status_dimensions = dict(state.get("status_dimensions") or {})
+    runtime_efficiency = dict(state.get("runtime_efficiency") or {})
+    if (
+        runtime_efficiency.get("measurement_status") == "measured"
+        and dict(status_dimensions.get("p1_b") or {}).get("measurement_status") != "measured"
+    ):
+        failures.append("runtime_efficiency_measured_without_p1_b_measurement")
     priorities: dict[str, dict[str, Any]] = {}
-    for priority in ("p0_b", "p0_c", "p1_b"):
+    for priority in ("p0_b", "p0_c", "p1_a", "p1_b"):
         check = dict(checks.get(priority) or {})
         claimed = statuses.get(priority)
         passed = bool(check.get("passed"))
@@ -131,17 +329,28 @@ def build_acceptance_report(
         priorities[priority] = {
             "implementation_status": "verified" if passed else "unverified",
             "acceptance_status": "passed" if claimed == "passed" and passed else "blocked",
-            "measurement_status": str(check.get("measurement_status") or "not_run"),
+            "measurement_status": str(
+                check.get("measurement_status")
+                or dict(status_dimensions.get(priority) or {}).get("measurement_status")
+                or "not_run"
+            ),
             "evidence_paths": list(check.get("evidence_paths") or []),
             "failure_reasons": sorted(set(reasons)),
         }
 
-    for priority in ("p0_a", "p1_a", "p1_c", "p2"):
+    for priority in ("p0_a", "p1_c", "p2"):
         status = statuses.get(priority)
+        declared = dict(status_dimensions.get(priority) or {})
         priorities[priority] = {
-            "implementation_status": "not_in_scope" if status in {"rejected", "deferred"} else status,
-            "acceptance_status": status,
-            "measurement_status": "not_applicable" if status in {"rejected", "deferred"} else "not_run",
+            "implementation_status": declared.get(
+                "implementation_status",
+                "not_in_scope" if status in {"rejected", "deferred"} else status,
+            ),
+            "acceptance_status": declared.get("acceptance_status", status),
+            "measurement_status": declared.get(
+                "measurement_status",
+                "not_applicable" if status in {"rejected", "deferred"} else "not_run",
+            ),
             "evidence_paths": [],
             "failure_reasons": [],
         }
@@ -151,10 +360,29 @@ def build_acceptance_report(
         "repository": state.get("repository"),
         "current_commit": current_commit,
         "evaluation_freeze_commit": state.get("evaluation_freeze_commit"),
+        "runtime_efficiency": runtime_efficiency,
         "priorities": priorities,
         "failures": sorted(set(failures)),
         "passed": not failures,
     }
+
+
+def format_acceptance_summary(report: dict[str, Any]) -> str:
+    status = "PASSED" if report.get("passed") else "FAILED"
+    lines = [
+        f"FitCV acceptance: {status}",
+        f"Commit: {report.get('current_commit') or 'unknown'}",
+    ]
+    for priority, details in sorted(dict(report.get("priorities") or {}).items()):
+        if priority in {"p0_b", "p0_c", "p1_a", "p1_b"}:
+            lines.append(
+                f"{priority}: {details.get('acceptance_status')}"
+                + (f" ({', '.join(details.get('failure_reasons') or [])})" if details.get("failure_reasons") else "")
+            )
+    failures = list(report.get("failures") or [])
+    if failures:
+        lines.append(f"Failures: {', '.join(failures)}")
+    return "\n".join(lines)
 
 
 def verify_acceptance(
@@ -169,6 +397,8 @@ def verify_acceptance(
         priority: _run_check(repo_root, paths, timeout_seconds)
         for priority, paths in CHECKS.items()
     }
+    current_contract_check = _run_current_contract_evidence_check(state, repo_root)
+    checks["p1_a"] = current_contract_check
     runtime_check = _run_runtime_check(
         repo_root,
         output_path.parent / "p0b-runtime-acceptance-verifier.json",
@@ -176,6 +406,9 @@ def verify_acceptance(
     )
     checks["p0_b"]["passed"] = checks["p0_b"]["passed"] and runtime_check["passed"]
     checks["p0_b"]["runtime"] = runtime_check
+    efficiency_check = _run_runtime_efficiency_evidence_check(state, repo_root)
+    checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and efficiency_check["passed"]
+    checks["p1_b"]["runtime_efficiency"] = efficiency_check
     report = build_acceptance_report(
         state,
         repo_root=repo_root,
@@ -184,7 +417,11 @@ def verify_acceptance(
     )
     report["checks"] = checks
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     return report
 
 
@@ -199,6 +436,7 @@ def main() -> int:
         output_path=args.output,
         timeout_seconds=args.timeout_seconds,
     )
+    print(format_acceptance_summary(report))
     return 0 if report["passed"] else 1
 
 

@@ -1693,6 +1693,7 @@ def merge_scraped_and_enriched(
     merged: dict[str, Any] = {
         # ── scraped fields ────────────────────────────────────────────
         "job_url":            scraped.get("job_url", ""),
+        "run_job_id":         scraped.get("run_job_id"),
         "title":              scraped.get("title", ""),
         "company_name":       scraped.get("company_name", ""),
         "company_id":         scraped.get("company_id", ""),

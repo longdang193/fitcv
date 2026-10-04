@@ -1,0 +1,46 @@
+{
+  "schema_version": "fitcv_closure_verification_v1",
+  "generated_at": "2026-10-03",
+  "branch": "codex/fitcv-p0-p1-closure-contract",
+  "base_commit": "53f95ad0e2f13777e723911521a17e8cac197670",
+  "scope": {"p1_a": "closed", "p1_b": "closed", "p1_c": "deferred", "p2": "frozen"},
+  "root_causes": [
+    "Render proof used reduced config identity and post-render overlays.",
+    "Provenance used semantic overlap when canonical source identity existed."
+  ],
+  "focused_tests": {"passed": 110, "failed": 0},
+  "efficiency_tests": {"passed": 21, "failed": 0},
+  "full_suite": {"passed": 3091, "skipped": 8, "failed": 0},
+  "cache_contracts": {
+    "valid_proof": "zero provider calls and zero native renders",
+    "stale_or_missing_proof": "zero provider calls and one native render",
+    "changed_content": "one native render before decision",
+    "failed_rerender": "review_required with no accepted artifact"
+  },
+  "cohort": {
+    "evidence": "docs/superpowers/evidence/2026-10-03-fitcv-current-cohort-b.json",
+    "attempted_generation_jobs": 5,
+    "accepted_final_cvs": 3,
+    "first_pass_acceptance_rate": 0.0,
+    "accepted_final_one_page_rate": 1.0,
+    "native_proof_coverage": 1.0,
+    "unattributed_accepted_artifacts": 0,
+    "trace_conflicts": 0,
+    "provenance_loss": 0,
+    "promotion_allowed": false
+  },
+  "efficiency": {
+    "report": ".tmp/current-candidate-efficiency/report-after-stage-metrics.json",
+    "status": "complete",
+    "coverage_rate": 1.0,
+    "provider_generation_p50_ms": 13295.5,
+    "provider_generation_p95_ms": 14367.15,
+    "unmeasured_stages_remain_unavailable": true
+  },
+  "optimization": {
+    "bounded_change": "canonical render-proof cache fast path",
+    "correctness_result": "accepted",
+    "first_pass_optimization": "rejected",
+    "provider_model_retrieval_changes": "none"
+  }
+}

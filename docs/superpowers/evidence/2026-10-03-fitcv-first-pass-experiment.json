@@ -1,0 +1,131 @@
+{
+  "schema_version": "fitcv_first_pass_experiment_v1",
+  "generated_at": "2026-10-03",
+  "status": "complete",
+  "verdict": "candidate_rejected_for_first_pass_promotion",
+  "scope": {
+    "fixture_path": "data/linkedin-2026-10-02-22-52-15.json",
+    "fixture_sha256": "4ba6f4b5459c805e2455e7912120e8cde6ffb7d274493c44613ac62ad053950d",
+    "config_path": ".env.yaml",
+    "candidate_profile": "sanitized_candidate_profile",
+    "model": "cx/gpt-5.6-luna",
+    "run_mode": "run_all",
+    "same_workload": true,
+    "same_model": true,
+    "same_settings": true
+  },
+  "incumbent": {
+    "source_commit": "039a5ee625799f44734fe7dc3e732b7659c126c5",
+    "run_id": "606d0751-970f-4ac8-9b9a-76026dd1b7b6",
+    "metrics": {
+      "total_jobs": 169,
+      "ranked_jobs": 15,
+      "attempted_generation_jobs": 8,
+      "accepted_final_cvs": 5,
+      "first_pass_acceptance_count": 0,
+      "first_pass_acceptance_rate": 0.0,
+      "provider_calls": 16,
+      "tokens": 71854,
+      "regenerations": 8,
+      "terminal_validation_failed_jobs": 3,
+      "retry_success_count": 5,
+      "retry_failure_count": 3,
+      "accepted_artifact_calls_per_cv": 2.0,
+      "accepted_artifact_tokens_per_cv": 9672.2,
+      "total_workload_calls_per_cv": 3.2,
+      "total_workload_tokens_per_cv": 14370.8,
+      "page_fit_success": null,
+      "page_fit_coverage": {
+        "measured": 0,
+        "unavailable": 5,
+        "total": 5,
+        "rate": 0.0,
+        "complete": false
+      },
+      "trace_conflict_count": 0,
+      "unmatched_trace_count": 0,
+      "unattributed_accepted_artifact_count": 0,
+      "failure_category_counts": {
+        "generation_format_defect": 5
+      },
+      "timing": {
+        "generation_elapsed_ms": 208270.0,
+        "generation_timing_coverage": {
+          "measured": 8,
+          "unavailable": 0
+        },
+        "artifact_acceptance_latency_ms": 147843.0,
+        "run_wall_ms": 613301.288
+      }
+    }
+  },
+  "candidate": {
+    "source_commit": "cfeed507ed28a08c35df48cefaf7c87af0a2a467",
+    "execution_checkout_commit": "de95e2c1c21b13683bbf5607a32790e39fc399aa",
+    "source_tree_matches_merge_commit": true,
+    "run_id": "940ff9ba-e86a-49e4-8107-e7ef2593892c",
+    "metrics": {
+      "total_jobs": 169,
+      "ranked_jobs": 15,
+      "attempted_generation_jobs": 8,
+      "accepted_final_cvs": 5,
+      "first_pass_acceptance_count": 0,
+      "first_pass_acceptance_rate": 0.0,
+      "provider_calls": 16,
+      "tokens": 76152,
+      "regenerations": 8,
+      "terminal_validation_failed_jobs": 3,
+      "retry_success_count": 5,
+      "retry_failure_count": 3,
+      "accepted_artifact_calls_per_cv": 2.0,
+      "accepted_artifact_tokens_per_cv": 10331.2,
+      "total_workload_calls_per_cv": 3.2,
+      "total_workload_tokens_per_cv": 15230.4,
+      "page_fit_success": {
+        "count": 5,
+        "total": 5
+      },
+      "page_fit_coverage": {
+        "measured": 5,
+        "unavailable": 0,
+        "total": 5,
+        "rate": 1.0,
+        "complete": true
+      },
+      "trace_conflict_count": 0,
+      "unmatched_trace_count": 0,
+      "unattributed_accepted_artifact_count": 0,
+      "failure_category_counts": {
+        "generation_format_defect": 5
+      },
+      "timing": {
+        "generation_elapsed_ms": 234137.0,
+        "generation_timing_coverage": {
+          "measured": 8,
+          "unavailable": 0
+        },
+        "artifact_acceptance_latency_ms": 168626.0,
+        "run_wall_ms": 624752.599
+      }
+    }
+  },
+  "hard_gates": {
+    "same_fixture_sha256": true,
+    "unsupported_claims": 0,
+    "accepted_final_one_page": true,
+    "page_fit_success_rate": 1.0,
+    "trace_conflicts": 0,
+    "unattributed_accepted_artifacts": 0,
+    "first_pass_rate_increased": false,
+    "promotion_allowed": false
+  },
+  "deferred": [
+    "P1-C",
+    "P2"
+  ],
+  "harness_diagnostics": [
+    "Direct run_pipeline invocation was rejected by persistence boundary: control-plane run_jobs is created by local submission flow.",
+    "Disposable runner was moved out of .tmp because repository .tmp/inspect.py shadowed Python stdlib inspect module.",
+    "Runner waits on backend_status and final compatibility snapshot before extraction."
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "evidence_status": "historical_superseded",
+  "schema_version": "fitcv_runtime_efficiency_baseline_v1",
+  "status": "complete",
+  "generated_at": "2026-10-02T15:12:56.451322+00:00",
+  "selection": {
+    "ordinary_runs_only": true,
+    "required_status": "succeeded",
+    "run_count": 1,
+    "run_ids": [
+      "5558b199-f6f0-4b85-86a5-fdf71d5deddc"
+    ],
+    "exclusions": {}
+  },
+  "workload": {
+    "attempted_generation_job_count": 3,
+    "validation_failure_count": 1,
+    "provider_call_count": 5,
+    "regeneration_count": 2,
+    "render_retry_count": 0,
+    "token_total": 23485
+  },
+  "accepted_cv": {
+    "count": 2,
+    "recorded_acceptance_count": 2,
+    "cost_per_accepted_cv": {
+      "provider_call_count": 1.5,
+      "token_total": 8334.0,
+      "elapsed_ms": 25117.5
+    }
+  },
+  "attribution": {
+    "unmatched_trace_count": 0,
+    "unattributed_accepted_artifact_count": 0
+  },
+  "aggregate": {
+    "provider_call_count": 3,
+    "token_total": 16668,
+    "elapsed_ms": 50235.0
+  },
+  "outcomes": {
+    "generation_status_counts": {
+      "accepted": 2,
+      "blocked_by_reranker_fit": 12,
+      "validation_failed": 1
+    },
+    "render_retry_count": 0,
+    "compiler_outcome_counts": {},
+    "render_outcome_counts": {}
+  },
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Windows-10-10.0.19045-SP0"
+  },
+  "runs": [
+    {
+      "run_id": "5558b199-f6f0-4b85-86a5-fdf71d5deddc",
+      "created_at": "2026-10-02T14:48:42.430983+00:00",
+      "started_at": "2026-10-02T14:48:42.633692+00:00",
+      "finished_at": "2026-10-02T14:49:32.544132+00:00",
+      "elapsed_wall_ms": 49910.44,
+      "status_counts": {
+        "accepted": 2,
+        "blocked_by_reranker_fit": 12,
+        "validation_failed": 1
+      },
+      "accepted_record_count": 2,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "denominator": {
+          "accepted_cv_count": 2
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 3,
+          "provider_call_count": 3,
+          "regeneration_count": 1,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 9,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "elapsed_ms": 50235,
+          "token_total": 16668,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "failure_category_counts": {},
+          "workload": {
+            "attempted_generation_job_count": 3,
+            "validation_failure_count": 1,
+            "provider_call_count": 5,
+            "regeneration_count": 2,
+            "render_retry_count": 0,
+            "token_total": 23485
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/werkstudent-m-w-d-business-development-at-sixt-4445903991?trk=public_jobs_topcard-title",
+            "artifact_version_id": "2ee72a3f-a2e8-40a7-9308-0fb58598bebe",
+            "run_id": "5558b199-f6f0-4b85-86a5-fdf71d5deddc",
+            "run_job_id": "7345ed33-92ed-506c-bc6f-34234239ee26",
+            "generation_input_fingerprint": "3abcdf59fa8721f083bad884baa1983c3ce0df2c5652cf6e0473d292ea14b7f6",
+            "attempt_id": null,
+            "trace_id": "17ba69a8-6a0d-4836-814b-ac5f6cd24825",
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_status": "not_recorded",
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4649,
+                "output_tokens": 617,
+                "total_tokens": 5266
+              }
+            ],
+            "token_total": 5266,
+            "token_usage_status": "available",
+            "elapsed_ms": 13310,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/werkstudent-m-w-d-fahrzeugversicherungen-at-sixt-4445981211?trk=public_jobs_topcard-title",
+            "artifact_version_id": "af0e8b34-5491-4524-abab-535190a97ead",
+            "run_id": "5558b199-f6f0-4b85-86a5-fdf71d5deddc",
+            "run_job_id": "9277c098-3b84-564b-bac7-5e84badf545f",
+            "generation_input_fingerprint": "edec379feae6395865f241187e5fba57ee0a72800bef0eb3d2fa9a917b4fd451",
+            "attempt_id": null,
+            "trace_id": "ca9ae143-631f-4fec-adbb-d29d88eb7cd7",
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 5,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_status": "not_recorded",
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4876,
+                "output_tokens": 824,
+                "total_tokens": 5700
+              },
+              {
+                "input_tokens": 4937,
+                "output_tokens": 765,
+                "total_tokens": 5702
+              }
+            ],
+            "token_total": 11402,
+            "token_usage_status": "available",
+            "elapsed_ms": 36925,
+            "elapsed_status": "measured"
+          }
+        ]
+      }
+    }
+  ]
+}

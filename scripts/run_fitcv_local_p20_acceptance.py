@@ -39,7 +39,11 @@ def run(root: Path, output_path: Path) -> dict[str, Any]:
         migrate_packaged_local_integration_state,
         write_controller_overlay,
     )
-    from tests.test_fitcv_cp.acceptance_harness import ControlledLocalJobExecutor, create_profile_fixture
+    from tests.test_fitcv_cp.acceptance_harness import (
+        ControlledLocalJobExecutor,
+        configure_local_provider_credential_from_env,
+        create_profile_fixture,
+    )
     from scripts.run_fitcv_local_p0_acceptance import (
         _git_state,
         _read_inputs,
@@ -92,11 +96,7 @@ def run(root: Path, output_path: Path) -> dict[str, Any]:
         )
         sqlite_store.initialize_control_plane_database(paths.sqlite_path, paths.candidate_profile_path)
         migrate_packaged_local_integration_state(paths)
-        api_key = str(os.environ.get("FITCV_LLM_API_KEY") or "").strip()
-        if api_key:
-            from fitcv_cp.local_credentials import set_credential
-
-            set_credential("openai_compatible", api_key)
+        configure_local_provider_credential_from_env("openai_compatible")
         canonical = yaml.safe_load((root / "data" / "candidate_profile.yaml").read_text(encoding="utf-8"))
         validation_errors = fitcv_candidate.validate_profile(canonical)
         if validation_errors:

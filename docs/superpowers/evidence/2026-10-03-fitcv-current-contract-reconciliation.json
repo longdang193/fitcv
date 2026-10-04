@@ -1,0 +1,21 @@
+{
+  "schema_version": "fitcv_current_contract_reconciliation_v1",
+  "generated_at": "2026-10-03",
+  "status": "complete",
+  "verdict": "historical_page_fit_claim_not_current_contract",
+  "source_evidence": "docs/superpowers/evidence/2026-10-03-fitcv-first-pass-experiment.json",
+  "historical_candidate_claim": {
+    "accepted_final_cvs": 5,
+    "accepted_final_one_page": "5 / 5 = 100%"
+  },
+  "current_projection": {
+    "accepted_cvs": 5,
+    "verified_page_fit_proofs": 0,
+    "page_fit_coverage": "0 / 5",
+    "trace_conflicts": 0,
+    "unattributed_accepted_artifacts": 0,
+    "workload_status": "complete"
+  },
+  "root_cause": "Historical accepted-artifact events persisted page-fit claims without native render status, one-page count, and artifact checksum. Current reporting now treats those rows as audit-only and excludes them from verified page-fit coverage.",
+  "acceptance_effect": "No promotion claim is allowed from historical page-fit evidence until a fresh run persists the final-artifact proof contract."
+}

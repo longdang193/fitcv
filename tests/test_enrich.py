@@ -351,6 +351,15 @@ def test_merge_scraped_and_enriched_preserves_scraped_fields() -> None:
     assert merged["required_skills"] == ["SQL"]
 
 
+def test_merge_scraped_and_enriched_preserves_run_job_id() -> None:
+    merged = merge_scraped_and_enriched(
+        {"job_url": "url1", "run_job_id": "run-job-1"},
+        {},
+    )
+
+    assert merged["run_job_id"] == "run-job-1"
+
+
 def test_merge_scraped_and_enriched_adds_audit_fields() -> None:
     scraped = {"job_url": "url1", "title": "DE"}
     enriched = {"required_skills": ["SQL"]}

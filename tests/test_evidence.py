@@ -16,6 +16,7 @@ tags:
 import ast
 import copy
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -164,6 +165,19 @@ def test_uniform_projection_supports_education_only_and_is_deterministic() -> No
     assert {item["source_section"] for item in first["selected_evidence"]} == {"education"}
     assert profile == before
     assert canonical_candidate_checksum(profile) == checksum
+
+
+def test_retrieve_evidence_bundle_annotates_requirement_support_once() -> None:
+    profile = _v2_profile()
+
+    with patch.object(
+        evidence_module,
+        "_annotate_requirement_support",
+        wraps=evidence_module._annotate_requirement_support,
+    ) as annotate:
+        retrieve_evidence_bundle(profile, {"required_skills": ["Python"]}, 3)
+
+    assert annotate.call_count == 1
 
 
 def test_requirement_support_uses_explicit_canonical_skill_links() -> None:
@@ -726,6 +740,11 @@ def test_degree_domain_alternatives_match_complete_concepts_only() -> None:
         (
             "a bachelor's degree or higher in computer science",
             "Bachelor's Degree in International Business",
+            False,
+        ),
+        (
+            "a bachelor's degree or higher in computer science or a related field",
+            "Bachelor's Degree in Political Science",
             False,
         ),
         (
@@ -2096,6 +2115,31 @@ def test_retrieve_evidence_bundle_preserves_selection_and_debug_schema_contract(
     assert telemetry["counts"]["canonical"] >= telemetry["counts"]["candidate"]
     assert telemetry["counts"]["selected"] == bundle["selected_evidence_count"]
     assert "embedding_counts" in telemetry
+
+
+def test_stage_trace_production_path_does_not_sort_diagnostic_pairs() -> None:
+    with patch.object(evidence_module, "sorted", side_effect=AssertionError, create=True):
+        bundle = evidence_module._build_retrieve_evidence_bundle_payload(
+            channel_pools={},
+            semantic_settings=evidence_module._semantic_alignment_settings(None),
+            semantic_alignment={},
+            selection_policy=evidence_module._cv_analysis_policy_settings(None),
+            selected_evidence=[],
+            canonical_items=[
+                {"evidence_id": "ev-1", "supported_requirement_ids": ["req-1"]}
+            ],
+            merged_pool=[
+                {"evidence_id": "ev-1", "supported_requirement_ids": ["req-1"]}
+            ],
+            unselected_top_candidates=[],
+            source_profile_schema_version="candidate-profile.v1",
+            projection_fingerprint="projection-1",
+            responsibility_support={"requirement_ids": ["req-1"]},
+            include_diagnostics=False,
+        )
+
+    assert bundle["stage_traces"]["counts"]["canonical_pool"] == 1
+    assert set(bundle["stage_traces"]) == {"schema_version", "counts"}
 
 
 def test_selection_policy_model_matches_public_policy_dict_defaults() -> None:

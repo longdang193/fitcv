@@ -7,7 +7,10 @@ contract_versions:
   acceptance: fitcv.acceptance_state.v2
   support_oracle: p0b.source_job_support_oracle.v1
   runtime_acceptance: p0b.runtime_acceptance.v2
-  efficiency_measurement: accepted_cv_effort_v1
+  efficiency_measurement: fitcv_runtime_efficiency_baseline_v3
+  final_artifact: fitcv.final_artifact.v1
+  trace: fitcv.trace.v1
+  efficiency: fitcv.efficiency.v1
 corpus_manifests:
 - data/fitcv-p0-corpus/p0a/ranking_source_backed_v4_manifest.json
 - data/fitcv-p0-corpus/p0b/projection_manifest.json
@@ -18,10 +21,39 @@ statuses:
   p0_a: rejected
   p0_b: passed
   p0_c: passed
-  p1_a: maintenance_only
+  p1_a: passed
   p1_b: passed
   p1_c: deferred
   p2: deferred
+status_dimensions:
+  p0_a:
+    implementation_status: rejected
+    acceptance_status: rejected
+    measurement_status: not_applicable
+  p0_b:
+    implementation_status: verified
+    acceptance_status: passed
+    measurement_status: frozen_scope_only
+  p0_c:
+    implementation_status: verified
+    acceptance_status: passed
+    measurement_status: frozen_scope_only
+  p1_a:
+    implementation_status: verified
+    acceptance_status: passed
+    measurement_status: measured
+  p1_b:
+    implementation_status: verified
+    acceptance_status: passed
+    measurement_status: measured
+  p1_c:
+    implementation_status: deferred
+    acceptance_status: deferred
+    measurement_status: not_applicable
+  p2:
+    implementation_status: deferred
+    acceptance_status: deferred
+    measurement_status: not_applicable
 support_thresholds:
   maximum_pair_false_positives: 0
   minimum_review_completeness: 1.0
@@ -39,5 +71,35 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-01-fitcv-p1b-historical-measurement.md
   - docs/superpowers/evidence/2026-10-02-fitcv-p1b-live-measurement.md
   - docs/superpowers/evidence/2026-10-02-fitcv-final-p0-p1-closure.md
+  - docs/superpowers/evidence/2026-10-02-fitcv-p0-p1-contract-closure.md
+  - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.json
+  - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-final.md
+  - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json
+  - docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md
+  - docs/superpowers/evidence/2026-10-02-fitcv-first-pass-experiment.md
+  - docs/superpowers/evidence/2026-10-03-fitcv-final-artifact-integration-optimization.md
+  - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
+  - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
+  - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256
+current_contract_evidence:
+  json: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
+  markdown: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
+  sha256: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256
+optimization_result:
+  experiment: complete
+  promotion: rejected
+  production_default: unchanged
+  evidence:
+    - docs/superpowers/evidence/2026-10-03-fitcv-first-pass-experiment.json
+    - docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
+runtime_efficiency:
+  measurement_status: measured
+  baseline_evidence:
+    json: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json
+    markdown: docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md
+  accepted_artifact_and_total_workload_metrics: true
+  blocked_reasons: []
+  p1_c: deferred
+  p2: deferred
 p0_b:
   explicitly_excluded_requirement_ids: [req_4447675707_01,req_4447675707_02,req_4447675707_03,req_4447675707_04,req_4447675707_05,req_4447675707_06,req_4447675707_07,req_4450483712_01,req_4450483712_02,req_4450483712_03,req_4450483712_04,req_4450483712_05,req_4450483712_06,req_4452428248_01,req_4452428248_02,req_4452428248_03,req_4452428248_04,req_4452428248_05,req_4452428248_06,req_4452428248_07,req_4452428248_08,req_4455272757_01,req_4455272757_02,req_4455272757_05,req_4455272757_06,req_4455272757_07,req_4455272757_08,req_4455272757_09,req_4455272757_10,req_4455272757_11,req_4460763460_01,req_4460763460_02,req_4460763460_03,req_4460763460_04,req_4460763460_05,req_4460763460_06,req_4460763460_07,req_4462964784_01,req_4462964784_02,req_4462964784_03,req_4462964784_04,req_4462964784_05,req_4462964784_06,req_4462964784_07,req_4462964784_08,req_4462964784_09,req_4462964784_10,req_4462964784_11,req_4462964784_12,req_4462964784_13,req_4464057127_01,req_4464057127_02,req_4464057127_03,req_4464057127_04,req_4464057127_05,req_4464320539_01,req_4464320539_02,req_4464320539_03,req_4464320539_04,req_4464320539_05,req_4464320539_06,req_4464320539_07,req_4464320539_08,req_4464381002_01,req_4464381002_02,req_4464381002_03,req_4464381002_04,req_4464381002_05,req_4464381002_06,req_4464381002_07,req_4464381002_08,req_4464381002_09,req_4464381002_10,req_4464381002_11,req_4466044731_01,req_4466044731_02,req_4466044731_03,req_4466044731_04,req_4466044731_05,req_4466044731_06,req_4466044731_07,req_4466044731_08,req_4466044731_10,req_4466044731_11,req_4466044731_12,req_4466209425_01,req_4466209425_02,req_4466209425_03,req_4466209425_04,req_4469955316_01,req_4469955316_02,req_4469955316_03,req_4469955316_04,req_4469955316_05,req_4469955316_07,req_4469955316_08,req_4469955316_09,req_4469955316_10,req_4470869964_01,req_4470869964_02,req_4470869964_03,req_4470869964_04,req_4470869964_05,req_4470869964_06,req_4470869964_07,req_4470869964_08,req_4470883325_01,req_4470883325_02,req_4470883325_03,req_4470883325_04,req_4470883325_05,req_4470883325_06,req_4470883325_07,req_4470883325_08,req_4470883325_09,req_4471202126_01,req_4471202126_02,req_4471202126_03,req_4471268616_01,req_4471268616_03,req_4471268616_04,req_4471268616_05,req_4471268616_06,req_4471268616_07,req_4471268616_08,req_4471268616_09,req_4471268616_10,req_4471285859_01,req_4471285859_02,req_4471285859_03,req_4471285859_04,req_4471285859_05,req_4471285859_06,req_4471285859_07,req_4471285859_08,req_4471285859_09,req_4471285859_10,req_4471285859_11,req_4471285859_12,req_4471296800_01,req_4471296800_02,req_4471296800_03,req_4471296800_04,req_4471296800_05,req_4471296800_06,req_4471296800_07,req_4471296800_08,req_4471296800_09,req_4471296800_10,req_4471524252_01,req_4471524252_02,req_4471524252_03,req_4471524252_04,req_4471900718_01,req_4471900718_02,req_4471900718_03,req_4471900718_04,req_4471900718_05,req_4471900718_06,req_4471900718_08,req_4471900718_09,req_4471900718_10,req_4471900718_11,req_4471900718_12,req_4471900718_13,req_4472751123_01,req_4472751123_02,req_4472751123_03,req_4472751123_04,req_4472751123_05,req_4472751123_06,req_4472751123_07,req_4472751123_08,req_4472751123_09,req_4472752755_01,req_4472752755_02,req_4472752755_03,req_4472752755_04,req_4472752755_05,req_4472752755_06,req_4472752755_07,req_4472752755_08,req_4472789462_01,req_4472789462_02,req_4472789462_03,req_4472789462_04,req_4472789462_06,req_4472791065_01,req_4472791065_02,req_4472791065_04,req_4472791065_06,req_4472791065_07,req_4472791065_08,req_4472791065_09,req_4472796697_01,req_4472796697_02,req_4472796697_03,req_4472796697_04,req_4472796697_05,req_4472796697_06,req_4472796697_07,req_4472796697_08,req_4472796697_09]

@@ -25,6 +25,7 @@ from pathlib import Path
 import os
 import re
 import time
+import uuid
 from typing import Any, Callable, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
@@ -43,19 +44,24 @@ from fitcv.config import (
     get_cv_generation_prompt_version,
     get_cv_generation_structured_prompt_id,
 )
+from fitcv.contracts import FINAL_ARTIFACT_CONTRACT_VERSION, TRACE_CONTRACT_VERSION
 from fitcv.runtime_routing import resolve_cv_generation_routing_snapshot
 from fitcv.cv_generator import (
     _execute_cv_generation_runtime,
     _get_enabled_section_names,
     _resolve_template_path,
+    _canonical_render_item_key,
     _render_config_fingerprint,
     _template_sha256,
     build_live_structured_cv_response_schema as _canonical_live_structured_cv_response_schema,
+    build_render_proof_identity,
     final_artifact_acceptance_passes,
     generate_cv,
-    render_cv_native_acceptance,
     render_cv_markdown,
+    render_cv_native_acceptance,
+    render_item_requirement_support,
     render_proof_matches,
+    trim_structured_cv_for_page_fit,
 )
 from fitcv.late_stage_contract import (
     CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS as BLOCKED_BY_RERANKER_STATUS,
@@ -93,6 +99,63 @@ def _evidence_score_for_sort(value: Any) -> float:
     return score if math.isfinite(score) else 0.0
 
 
+def build_generation_preflight(
+    analysis_record: dict[str, Any],
+    content_plan: dict[str, Any],
+) -> dict[str, Any]:
+    evidence = [
+        item for item in list(analysis_record.get("evidence_payload") or []) if isinstance(item, dict)
+    ]
+    evidence_ids = {
+        str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+        for item in evidence
+        if str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+    }
+    approved_claims = [
+        item for item in list(content_plan.get("approved_claims") or []) if isinstance(item, dict)
+    ]
+    limits = dict(dict(content_plan.get("space_budget") or {}).get("section_claim_limits") or {})
+    section_counts: dict[str, int] = {}
+    invalid_claims: list[str] = []
+    for claim in approved_claims:
+        section = str(claim.get("target_section") or "").strip()
+        claim_id = str(claim.get("claim_id") or claim.get("evidence_id") or "").strip()
+        section_counts[section] = section_counts.get(section, 0) + 1
+        if not claim_id or claim_id not in evidence_ids or not list(claim.get("supports_requirements") or []):
+            invalid_claims.append(claim_id or "missing_claim_id")
+    impossible_requirements = [
+        str(item.get("requirement_instance_id") or item.get("requirement") or "").strip()
+        for item in list(analysis_record.get("requirement_coverage") or [])
+        if isinstance(item, dict)
+        and str(item.get("selected_support") or "").strip().lower() == "verified"
+        and not list(item.get("supporting_evidence_ids") or [])
+        and str(item.get("requirement_instance_id") or item.get("requirement") or "").strip()
+    ]
+    checks = {
+        "evidence_available": bool(evidence),
+        "section_budget": all(
+            count <= int(limits.get(section, count)) for section, count in section_counts.items()
+        ),
+        "grounded_high_value_claims": bool(approved_claims) and not invalid_claims,
+        "impossible_requirements": not impossible_requirements,
+    }
+    blocking_reasons: list[str] = []
+    if not checks["evidence_available"]:
+        blocking_reasons.append("no_selected_evidence")
+    if not checks["section_budget"]:
+        blocking_reasons.append("section_budget_exceeded")
+    if not checks["grounded_high_value_claims"]:
+        blocking_reasons.append("ungrounded_high_value_claims")
+    blocking_reasons.extend(f"impossible_requirement_support:{item}" for item in impossible_requirements)
+    return {
+        "schema_version": "cv_generation_preflight_v1",
+        "status": "ready" if not blocking_reasons else "review",
+        "provider_call_count_effect": 0,
+        "checks": checks,
+        "blocking_reasons": blocking_reasons,
+    }
+
+
 class RepairAttempt(TypedDict, total=False):
     performed: bool
     missing_sections: list[str]
@@ -120,6 +183,7 @@ class ErrorPayload(TypedDict, total=False):
 
 class CvGenerationResult(TypedDict, total=False):
     result_contract_version: str
+    final_artifact_contract_version: str
     raw_job_fingerprint: str
     job_url: str
     job_title: str
@@ -148,10 +212,24 @@ class CvGenerationResult(TypedDict, total=False):
     error: ErrorPayload | None
     review_required_reason_code: str | None
     validation_evidence_fingerprint: str
+    page_fit_status: str | None
+    render_acceptance: dict[str, Any] | None
+    trim_count: int
+    trimmed_claim_ids: list[str]
+    trim_reason: str | None
+    post_trim_validation_status: str
+    post_trim_missing_requirements: list[str]
     llm_runtime_observations: list[dict[str, Any]]
     cv_generation_trace: dict[str, Any]
     content_plan: dict[str, Any]
     uncertainties: list[dict[str, Any]]
+    render_item_provenance: list[dict[str, Any]]
+    content_acceptance: bool
+    final_artifact_acceptance: dict[str, Any]
+    render_acceptance: dict[str, Any]
+    page_fit_status: str | None
+    artifact_checksum: str | None
+    trim_attempt_count: int
 
 
 def build_cv_content_plan(
@@ -237,6 +315,17 @@ def build_cv_content_plan(
                 "claim": str(item.get("text") or item.get("name") or "").strip(),
                 "supports_requirements": requirement_ids,
                 "target_section": target_section,
+                "source_section": str(item.get("source_section") or "").strip().lower() or None,
+                "source_ref": str(item.get("source_ref") or "").strip() or None,
+                "canonical_source_id": str(
+                    item.get("canonical_source_id")
+                    or item.get("parent_id")
+                    or item.get("source_ref")
+                    or evidence_id
+                ).strip(),
+                "canonical_source_label": str(
+                    item.get("parent_title") or item.get("name") or item.get("title") or ""
+                ).strip() or None,
                 "protected_numbers_dates": _protected_numbers_dates(item),
             }
         )
@@ -263,10 +352,249 @@ def build_cv_content_plan(
         },
         "omitted_evidence": omitted_evidence,
     }
+    plan["generation_preflight"] = build_generation_preflight(analysis_record, plan)
     plan["content_fingerprint"] = hashlib.sha256(
         json.dumps(plan, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
     return plan
+
+
+def build_render_item_provenance_v1(
+    *,
+    content_plan: dict[str, Any],
+    evidence_payload: list[dict[str, Any]],
+    requirement_coverage: list[dict[str, Any]],
+    structured_cv: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build host-owned trim metadata without changing provider output schema."""
+    evidence_by_id = {
+        str(item.get("evidence_id") or item.get("claim_id") or "").strip(): item
+        for item in evidence_payload
+        if isinstance(item, dict) and str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+    }
+    approved_claims = [
+        item for item in list(content_plan.get("approved_claims") or []) if isinstance(item, dict)
+    ]
+    verified_by_requirement: dict[str, set[str]] = {}
+    for row in requirement_coverage:
+        if not isinstance(row, dict) or str(row.get("selected_support") or "").strip().lower() != "verified":
+            continue
+        requirement_ref = _descriptor_requirement_ref(row)
+        if requirement_ref:
+            verified_by_requirement[requirement_ref] = {
+                str(value).strip()
+                for value in list(row.get("supporting_evidence_ids") or [])
+                if str(value).strip()
+            }
+
+    def _text_tokens(value: Any, *, minimum_length: int = 3) -> set[str]:
+        return {
+            token
+            for token in re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold()).split()
+            if len(token) >= minimum_length
+        }
+
+    requirement_namespace_tokens = {
+        "required",
+        "preferred",
+        "optional",
+        "skill",
+        "skills",
+        "language",
+        "languages",
+        "experience",
+        "year",
+        "years",
+        "level",
+        "requirement",
+        "requirements",
+        "instance",
+        "support",
+        "supports",
+    }
+
+    claim_entries: list[dict[str, Any]] = []
+    for claim in approved_claims:
+        evidence_id = str(claim.get("evidence_id") or claim.get("claim_id") or "").strip()
+        claim_text = str(claim.get("claim") or "").strip()
+        evidence_text = str((evidence_by_id.get(evidence_id) or {}).get("text") or "").strip()
+        claim_entries.append(
+            {
+                "section": str(claim.get("target_section") or "summary").strip().lower(),
+                "tokens": _text_tokens(f"{claim_text} {evidence_text}"),
+                "support_tokens": _text_tokens(
+                    " ".join(str(value) for value in list(claim.get("supports_requirements") or [])),
+                    minimum_length=1,
+                ) - requirement_namespace_tokens,
+                "evidence_ids": [evidence_id] if evidence_id else [],
+                "supported_requirement_ids": [
+                    str(value).strip()
+                    for value in list(claim.get("supports_requirements") or [])
+                    if str(value).strip()
+                ],
+                "source_section": str(claim.get("source_section") or "").strip().lower(),
+                "source_ref": str(claim.get("source_ref") or "").strip(),
+                "canonical_source_id": str(claim.get("canonical_source_id") or "").strip(),
+                "canonical_source_label": str(claim.get("canonical_source_label") or "").strip(),
+            }
+        )
+
+    strict_source_claims = any(
+        claim["canonical_source_id"] or claim["canonical_source_label"]
+        for claim in claim_entries
+    )
+
+    def _identity(value: Any) -> str:
+        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold())).strip()
+
+    def _claim_identity_keys(claim: dict[str, Any]) -> set[str]:
+        keys = {
+            value
+            for value in (
+                claim.get("canonical_source_id"),
+                claim.get("source_ref"),
+                claim.get("canonical_source_label"),
+            )
+            if str(value or "").strip()
+        }
+        return {_identity(value) for value in keys if _identity(value)}
+
+    def _item_identity_keys(section: str, item: dict[str, Any]) -> set[str]:
+        values = [item.get("canonical_source_id"), item.get("source_ref"), item.get("evidence_id")]
+        if section == "experience":
+            values.extend((item.get("role"), item.get("company"), item.get("name")))
+        elif section == "projects":
+            values.append(item.get("name"))
+        elif section == "education":
+            values.extend((item.get("degree"), item.get("institution"), item.get("name")))
+        elif section == "certifications":
+            values.extend((item.get("name"), item.get("title"), item.get("issuer")))
+        elif section == "languages":
+            values.append(item.get("name"))
+        else:
+            values.extend((item.get("name"), item.get("title")))
+        return {_identity(value) for value in values if _identity(value)}
+
+    items: list[dict[str, Any]] = []
+    sections = structured_cv.get("sections") if isinstance(structured_cv, dict) else None
+    if not isinstance(sections, dict):
+        for claim in claim_entries:
+            canonical_key = f"{claim['section']}:{' '.join(sorted(claim['tokens']))}"
+            items.append(
+                {
+                    "item_id": hashlib.sha256(canonical_key.encode("utf-8")).hexdigest(),
+                    "section": claim["section"],
+                    "canonical_item_key": canonical_key,
+                    "evidence_ids": claim["evidence_ids"],
+                    "supported_requirement_ids": claim["supported_requirement_ids"],
+                    "requirement_priority": "primary" if claim["supported_requirement_ids"] else "none",
+                    "protected": bool(claim["supported_requirement_ids"]),
+                }
+            )
+        return {"schema_version": "render_item_provenance_v1", "items": items}
+
+    def _claim_matches_item(claim: dict[str, Any], item_tokens: set[str]) -> bool:
+        if not claim["tokens"] or len(item_tokens & claim["tokens"]) < 2:
+            return False
+        support_tokens = set(claim.get("support_tokens") or [])
+        return not support_tokens or bool(item_tokens & support_tokens)
+
+    for section in ("experience", "projects", "education", "certifications", "publications", "languages"):
+        section_items = sections.get(section)
+        if not isinstance(section_items, list):
+            continue
+        section_claims = [
+            claim
+            for claim in claim_entries
+            if claim["section"] == section and claim["supported_requirement_ids"]
+        ]
+        section_matched_required_claims: set[int] = set()
+        for candidate in section_items:
+            if not isinstance(candidate, dict):
+                continue
+            candidate_tokens = _text_tokens(
+                " ".join(str(value) for value in candidate.values()),
+                minimum_length=1,
+            )
+            section_matched_required_claims.update(
+                id(claim)
+                    for claim in claim_entries
+                    if claim["section"] == section
+                    and claim["supported_requirement_ids"]
+                    and _claim_matches_item(claim, candidate_tokens)
+            )
+        if len(section_items) == 1 and len(section_claims) == 1 and not section_matched_required_claims:
+            section_matched_required_claims.add(id(section_claims[0]))
+        for item in section_items:
+            if not isinstance(item, dict):
+                continue
+            canonical_key = _canonical_render_item_key(section, item)
+            item_tokens = _text_tokens(
+                " ".join(str(value) for value in item.values()),
+                minimum_length=1,
+            )
+            if strict_source_claims:
+                item_identity_keys = _item_identity_keys(section, item)
+                source_matches = [
+                    claim
+                    for claim in claim_entries
+                    if claim["section"] == section
+                    and item_identity_keys.intersection(_claim_identity_keys(claim))
+                ]
+                matched_source_ids = {
+                    claim["canonical_source_id"] or claim["source_ref"] or claim["evidence_ids"][0]
+                    for claim in source_matches
+                }
+                ambiguous = len(matched_source_ids) > 1
+                matches = [] if ambiguous else source_matches
+                attribution_status = (
+                    "ambiguous"
+                    if ambiguous
+                    else "resolved"
+                    if matches
+                    else "unmatched"
+                )
+            else:
+                matches = [
+                    claim
+                    for claim in claim_entries
+                    if claim["section"] == section and _claim_matches_item(claim, item_tokens)
+                ]
+                if not matches:
+                    if len(section_items) == 1 and len(section_claims) == 1:
+                        matches = section_claims
+                ambiguous = len(matches) > 1
+                attribution_status = "ambiguous" if ambiguous else "resolved" if matches else "unmatched"
+            unresolved_required = any(
+                id(claim) not in section_matched_required_claims for claim in section_claims
+            )
+            supported_ids = sorted({value for match in matches for value in match["supported_requirement_ids"]})
+            evidence_ids = sorted({value for match in matches for value in match["evidence_ids"]})
+            if section == "languages" and not strict_source_claims:
+                language_name = str(item.get("name") or "").strip().casefold()
+                for requirement_ref in verified_by_requirement:
+                    if language_name and language_name in requirement_ref.casefold():
+                        supported_ids.append(requirement_ref)
+                        evidence_ids.extend(sorted(verified_by_requirement[requirement_ref]))
+            supported_ids = sorted(set(supported_ids))
+            items.append(
+                {
+                    "item_id": hashlib.sha256(canonical_key.encode("utf-8")).hexdigest(),
+                    "section": section,
+                    "canonical_item_key": canonical_key,
+                    "evidence_ids": sorted(set(evidence_ids)),
+                    "supported_requirement_ids": supported_ids,
+                    "requirement_priority": "primary" if supported_ids else "none",
+                    "attribution_status": attribution_status,
+                    "protected": (
+                        ambiguous
+                        or bool(supported_ids)
+                        or unresolved_required
+                        or (strict_source_claims and bool(section_claims) and attribution_status == "unmatched")
+                    ),
+                }
+            )
+    return {"schema_version": "render_item_provenance_v1", "items": items}
 
 
 def _protected_numbers_dates(item: dict[str, Any]) -> list[str]:
@@ -416,9 +744,12 @@ def _augmented_gap_summary_from_analysis(analysis_record: dict[str, Any]) -> dic
 def _empty_cv_generation_trace(
     *,
     template_path: str | None,
+    trace_id: str,
 ) -> dict[str, Any]:
     return {
+        "trace_id": str(trace_id),
         "trace_schema_version": _LIVE_TRACE_SCHEMA_VERSION,
+        "trace_contract_version": TRACE_CONTRACT_VERSION,
         "trace_family": _LIVE_TRACE_FAMILY,
         "step_id": _LIVE_TRACE_STEP_ID,
         "trace_status": "completed",
@@ -456,19 +787,6 @@ def _empty_cv_generation_trace(
             "schema_version": "accepted_cv_efficiency_v1",
             "status": "not_run",
             "elapsed_ms": None,
-            "whole_run_latency_ms": None,
-            "provider_duration_ms": None,
-            "artifact_acceptance_latency_ms": None,
-            "stage_timings_ms": {
-                "analysis": None,
-                "retrieval": None,
-                "content_plan": None,
-                "provider": None,
-                "validation": None,
-                "render": None,
-                "repair": None,
-                "persistence": None,
-            },
             "provider_call_count": 0,
             "token_usage": None,
             "token_usage_status": "not_run",
@@ -477,16 +795,6 @@ def _empty_cv_generation_trace(
             "regeneration_count": 0,
             "review_question_count": "not_applicable",
             "human_action_count": "not_applicable",
-            "reuse_metrics": {
-                "reuse_candidate": None,
-                "reuse_hit": None,
-                "render_proof_reused": None,
-                "local_rerender_performed": None,
-                "provider_calls_avoided": None,
-                "renders_avoided": None,
-                "tokens_avoided": None,
-                "repeated_questions_avoided": None,
-            },
         },
         "error_summary": None,
     }
@@ -528,23 +836,6 @@ def _update_efficiency_summary(
             "human_action_count": "not_applicable",
         }
     )
-    summary["whole_run_latency_ms"] = summary["elapsed_ms"]
-    stage_timings = dict(summary.get("stage_timings_ms") or {})
-    provider_duration = None
-    for attempt in attempts:
-        for source in (attempt, dict(attempt.get("llm_runtime_evidence") or {})):
-            for key in ("duration_ms", "latency_ms", "elapsed_ms"):
-                value = source.get(key)
-                if isinstance(value, (int, float)) and value >= 0:
-                    provider_duration = (provider_duration or 0) + int(value)
-                    break
-            else:
-                continue
-            break
-    summary["provider_duration_ms"] = provider_duration
-    stage_timings["provider"] = provider_duration
-    summary["stage_timings_ms"] = stage_timings
-    summary["artifact_acceptance_latency_ms"] = summary["elapsed_ms"] if status == ACCEPTED_STATUS else None
     trace_payload["efficiency_summary"] = summary
 
 def _error_code_from_message(message: str) -> str | None:
@@ -680,6 +971,26 @@ def _shallow_section_repair_targets(structured_cv: dict[str, Any] | None) -> lis
     ):
         targets.append("projects")
     return targets
+
+
+def _generation_format_defect_category(validation: Mapping[str, Any]) -> str | None:
+    if list(validation.get("missing_sections") or []):
+        return "missing_mandatory_section"
+    blocking_issues = [str(item).lower() for item in list(validation.get("markdown_quality_blocking_issues") or [])]
+    if blocking_issues:
+        if any("heading" in item or "schema" in item for item in blocking_issues):
+            return "invalid_heading_or_schema"
+        return "malformed_section"
+    if any("length" in str(item).lower() or "budget" in str(item).lower() for item in list(validation.get("warnings") or [])):
+        return "length_or_budget_violation"
+    if list(validation.get("missing_required_fields") or []):
+        return "missing_required_field"
+    if not validation.get("valid") and not (
+        list(validation.get("grounding_violations") or [])
+        or list(validation.get("skill_violations") or [])
+    ):
+        return "other_deterministic_format_defect"
+    return None
 
 
 def _build_validation_grounding_payload(
@@ -1170,6 +1481,8 @@ def normalize_review_required_reason_code(
         return None
     stage = str((error or {}).get("stage") or "").strip().lower()
     message = str((error or {}).get("message") or "").strip().lower()
+    if stage == "final_artifact_acceptance":
+        return ReviewRequiredReasonCode.FINAL_ARTIFACT_ACCEPTANCE_FAILED
     if stage in {"provider", "provider_error", "generation"}:
         return ReviewRequiredReasonCode.PROVIDER_ERROR
     if "timeout" in message:
@@ -1349,9 +1662,17 @@ def _finalize_generation_result(
     fingerprint_result: dict[str, Any],
     reuse_status: str,
     reuse_reason_code: str,
+    trace_id: str,
+    profile: dict[str, Any],
     reused_cv_version_id: str | None = None,
 ) -> CvGenerationResult:
     finalized = deepcopy(result)
+    finalized = _apply_final_artifact_contract(
+        finalized,
+        analysis_record=analysis_record,
+        profile=profile,
+        config=config,
+    )
     finalized["result_contract_version"] = _CV_GENERATION_RESULT_CONTRACT_VERSION
     finalized["raw_job_fingerprint"] = str(analysis_record.get("raw_job_fingerprint") or "")
     finalized["analysis_input_fingerprint"] = str(analysis_record.get("analysis_input_fingerprint") or "")
@@ -1365,15 +1686,12 @@ def _finalize_generation_result(
         source_artifact_type="cv_generation",
     )
     finalized["reused_cv_version_id"] = reused_cv_version_id
-    trace_payload = finalized.get("cv_generation_trace")
-    if isinstance(trace_payload, dict):
-        efficiency = dict(trace_payload.get("efficiency_summary") or {})
-        reuse_metrics = dict(efficiency.get("reuse_metrics") or {})
-        reuse_metrics["reuse_candidate"] = reuse_status == "reused_exact_match" or reuse_reason_code == "candidate_rejected"
-        reuse_metrics["reuse_hit"] = reuse_status == "reused_exact_match"
-        efficiency["reuse_metrics"] = reuse_metrics
-        trace_payload["efficiency_summary"] = efficiency
-        finalized["cv_generation_trace"] = trace_payload
+    finalized["trace_id"] = str(trace_id)
+    if isinstance(finalized.get("cv_generation_trace"), dict):
+        finalized["cv_generation_trace"] = {
+            **dict(finalized["cv_generation_trace"]),
+            "trace_id": str(trace_id),
+        }
     status = str(finalized.get("status") or "")
     if status == ACCEPTED_STATUS:
         review_reason = _review_required_reason(analysis_record, finalized, config)
@@ -1409,10 +1727,13 @@ def _finalize_generation_result(
 
 
 def _native_final_artifact_enabled(config: dict[str, Any]) -> bool:
-    return bool(((config.get("cv") or {}).get("final_artifact_acceptance") or {}).get("enabled"))
+    return bool(
+        ((config.get("cv") or {}).get("final_artifact_acceptance") or {}).get("enabled")
+    )
 
 
 def _render_acceptance_matches_final_content(
+    structured_cv: dict[str, Any],
     markdown: str,
     config: dict[str, Any],
     render_acceptance: dict[str, Any] | None,
@@ -1428,50 +1749,87 @@ def _render_acceptance_matches_final_content(
 def _apply_final_artifact_contract(
     result: CvGenerationResult,
     *,
+    analysis_record: dict[str, Any],
+    profile: dict[str, Any],
     config: dict[str, Any],
 ) -> CvGenerationResult:
     finalized = cast(CvGenerationResult, deepcopy(result))
     structured_cv = finalized.get("structured_cv_final")
     markdown = finalized.get("markdown_final")
-    content_valid = bool((finalized.get("validation") or {}).get("valid"))
+    content_valid = bool(finalized.get("validation", {}).get("valid")) if isinstance(finalized.get("validation"), dict) else False
     if not isinstance(structured_cv, dict) or not isinstance(markdown, str) or not markdown:
         finalized["content_acceptance"] = content_valid
         finalized["final_artifact_acceptance"] = {"status": "not_applicable"}
+        finalized["trim_attempt_count"] = 0
         return finalized
+    evidence_payload = [item for item in list(analysis_record.get("evidence_payload") or []) if isinstance(item, dict)]
+    requirement_coverage = [item for item in list(analysis_record.get("requirement_coverage") or []) if isinstance(item, dict)]
+    provenance = build_render_item_provenance_v1(
+        content_plan=dict(analysis_record.get("content_plan") or finalized.get("content_plan") or {}),
+        evidence_payload=evidence_payload,
+        requirement_coverage=requirement_coverage,
+        structured_cv=structured_cv,
+    )
+    finalized["render_item_provenance"] = provenance
+    finalized["content_acceptance"] = content_valid
+    finalized["trim_attempt_count"] = 0
     if not _native_final_artifact_enabled(config):
-        finalized["content_acceptance"] = content_valid
         finalized["final_artifact_acceptance"] = {"status": "not_required", "content_valid": content_valid}
         return finalized
+
     render_acceptance = finalized.get("render_acceptance")
-    failed_proof_already_recorded = (
-        str(finalized.get("status") or "") == "review_required"
-        and str((finalized.get("final_artifact_acceptance") or {}).get("status") or "") == "review_required"
-        and isinstance(render_acceptance, dict)
-        and str(render_acceptance.get("render_status") or "") == "failed"
-    )
-    if not failed_proof_already_recorded and (
-        not isinstance(render_acceptance, dict)
-        or not _render_acceptance_matches_final_content(markdown, config, render_acceptance)
+    if not isinstance(render_acceptance, dict) or not _render_acceptance_matches_final_content(
+        structured_cv,
+        markdown,
+        config,
+        render_acceptance,
     ):
         render_acceptance = render_cv_native_acceptance(markdown, config)
-    final_ok = final_artifact_acceptance_passes(
-        content_valid=content_valid,
-        render_acceptance=render_acceptance,
-    )
+    final_ok = final_artifact_acceptance_passes(content_valid=content_valid, render_acceptance=render_acceptance)
+    if not final_ok and content_valid and str(render_acceptance.get("page_fit_status") or "") == "fail":
+        before_support = render_item_requirement_support(structured_cv, provenance)
+        trimmed = trim_structured_cv_for_page_fit(structured_cv, provenance)
+        trimmed_markdown = render_cv_markdown(trimmed, config)
+        grounding = _build_validation_grounding_payload(
+            analysis_record,
+            dict(analysis_record.get("job_snapshot") or {}),
+            evidence_payload,
+            list(analysis_record.get("evidence_used") or []),
+        )
+        trimmed_validation = run_all_validations(
+            trimmed_markdown,
+            profile,
+            config,
+            structured_cv=trimmed,
+            analysis_grounding=grounding,
+        )
+        after_support = render_item_requirement_support(trimmed, provenance)
+        if trimmed_validation.get("valid") and before_support == after_support and trimmed != structured_cv:
+            trimmed_render = render_cv_native_acceptance(trimmed_markdown, config)
+            finalized["trim_attempt_count"] = 1
+            if final_artifact_acceptance_passes(content_valid=True, render_acceptance=trimmed_render):
+                structured_cv = trimmed
+                markdown = trimmed_markdown
+                finalized["structured_cv_final"] = structured_cv
+                finalized["markdown_final"] = markdown
+                finalized["validation"] = trimmed_validation
+                content_valid = True
+                render_acceptance = trimmed_render
+                final_ok = True
     finalized["render_acceptance"] = render_acceptance
-    finalized["page_fit_status"] = render_acceptance.get("page_fit_status")
-    finalized["artifact_checksum"] = render_acceptance.get("artifact_checksum")
-    finalized["content_acceptance"] = content_valid
+    finalized["page_fit_status"] = render_acceptance.get("page_fit_status") if isinstance(render_acceptance, dict) else None
+    finalized["artifact_checksum"] = render_acceptance.get("artifact_checksum") if isinstance(render_acceptance, dict) else None
     finalized["final_artifact_acceptance"] = {
         "status": "accepted" if final_ok else "review_required",
         "content_valid": content_valid,
-        "page_fit_status": finalized["page_fit_status"],
+        "page_fit_status": finalized.get("page_fit_status"),
+        "trim_attempt_count": finalized["trim_attempt_count"],
     }
     if not final_ok and str(finalized.get("status") or "") == ACCEPTED_STATUS:
         finalized["status"] = "review_required"
         finalized["error"] = {
-            "stage": "final_artifact_acceptance",
-            "code": str(render_acceptance.get("render_status") or "render_unverified"),
+            "stage": "render",
+            "code": str((render_acceptance or {}).get("render_status") or "render_unverified"),
             "message": "Final CV artifact lacks verified native one-page render proof.",
         }
         finalized["structured_cv_final"] = None
@@ -1484,13 +1842,14 @@ def _apply_final_artifact_contract(
             {
                 "accepted_output_present": final_ok,
                 "final_status": finalized.get("status"),
-                "page_fit_status": finalized["page_fit_status"],
+                "page_fit_status": finalized.get("page_fit_status"),
                 "render_acceptance": render_acceptance,
             }
         )
         trace["output_summary"] = output_summary
         trace["render_acceptance"] = render_acceptance
-        trace["page_fit_status"] = finalized["page_fit_status"]
+        trace["page_fit_status"] = finalized.get("page_fit_status")
+        trace["render_item_provenance"] = provenance
         finalized["cv_generation_trace"] = trace
     return finalized
 
@@ -1530,20 +1889,16 @@ def _reusable_result_or_none(
     if not validation.get("valid"):
         return None
     render_acceptance = reusable_record.get("render_acceptance")
-    if _native_final_artifact_enabled(config) and not _render_acceptance_matches_final_content(
-        markdown,
-        config,
-        render_acceptance if isinstance(render_acceptance, dict) else None,
-    ):
-        render_acceptance = render_cv_native_acceptance(markdown, config)
+    page_fit_status = reusable_record.get("page_fit_status")
+    if not _render_acceptance_matches_final_content(structured_cv, markdown, config, render_acceptance):
+        render_acceptance = render_cv_native_acceptance(structured_cv, config)
+        page_fit_status = render_acceptance.get("page_fit_status")
     if _native_final_artifact_enabled(config) and not final_artifact_acceptance_passes(
-        content_valid=True,
-        render_acceptance=render_acceptance if isinstance(render_acceptance, dict) else None,
+        content_acceptance=bool(validation.get("valid")),
+        page_fit_status=str(page_fit_status or "").strip() or None,
+        render_acceptance=render_acceptance,
     ):
-        failed_render_acceptance = dict(render_acceptance) if isinstance(render_acceptance, dict) else {}
-        failed_render_acceptance.setdefault("render_status", "failed")
-        failed_render_acceptance.setdefault("page_fit_status", "review_required")
-        blocked = _build_result(
+        return _build_result(
             analysis_record=analysis_record,
             job=job,
             status="review_required",
@@ -1557,19 +1912,13 @@ def _reusable_result_or_none(
             error={
                 "stage": "final_artifact_acceptance",
                 "code": "reusable_render_proof_failed",
-                "message": "Cached CV content is valid, but native one-page render proof could not be verified locally.",
+                "message": "Reusable CV artifact lacks native one-page render proof.",
             },
             llm_runtime_evidence=[],
+            page_fit_status=str(page_fit_status or "").strip() or None,
+            render_acceptance=render_acceptance if isinstance(render_acceptance, dict) else None,
         )
-        blocked["render_acceptance"] = failed_render_acceptance
-        blocked["page_fit_status"] = failed_render_acceptance.get("page_fit_status")
-        blocked["final_artifact_acceptance"] = {
-            "status": "review_required",
-            "content_valid": True,
-            "page_fit_status": blocked["page_fit_status"],
-        }
-        return blocked
-    reused = _build_result(
+    return _build_result(
         analysis_record=analysis_record,
         job=job,
         status=ACCEPTED_STATUS,
@@ -1582,11 +1931,12 @@ def _reusable_result_or_none(
         validation=validation,
         error=None,
         llm_runtime_evidence=[],
+        page_fit_status=str(page_fit_status or "").strip() or None,
+        render_acceptance=render_acceptance if isinstance(render_acceptance, dict) else None,
     )
-    if isinstance(render_acceptance, dict):
-        reused["render_acceptance"] = render_acceptance
-        reused["page_fit_status"] = render_acceptance.get("page_fit_status")
-    return reused
+    if isinstance(reusable_record.get("render_acceptance"), dict):
+        reusable_result["render_acceptance"] = dict(reusable_record["render_acceptance"])
+    return reusable_result
 
 
 def transition_cv_generation_persistence_failed(
@@ -1623,6 +1973,13 @@ def _build_result(
     error: ErrorPayload | None,
     llm_runtime_evidence: list[dict[str, Any]] | None = None,
     cv_generation_trace: dict[str, Any] | None = None,
+    page_fit_status: str | None = None,
+    render_acceptance: dict[str, Any] | None = None,
+    trim_count: int = 0,
+    trimmed_claim_ids: list[str] | None = None,
+    trim_reason: str | None = None,
+    post_trim_validation_status: str = "not_run",
+    post_trim_missing_requirements: list[str] | None = None,
 ) -> CvGenerationResult:
     evidence_payload = list(analysis_record.get("evidence_payload") or [])
     evidence_used = list(analysis_record.get("evidence_used") or [])
@@ -1637,6 +1994,7 @@ def _build_result(
         cv_status = "not_attempted"
 
     result: CvGenerationResult = {
+        "final_artifact_contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
         "job_url": extract_job_url(job),
         "job_title": extract_job_title(job),
         "status": status,
@@ -1666,6 +2024,13 @@ def _build_result(
             for item in list(analysis_record.get("uncertainties") or [])
             if isinstance(item, dict)
         ],
+        "page_fit_status": page_fit_status,
+        "render_acceptance": dict(render_acceptance) if isinstance(render_acceptance, dict) else None,
+        "trim_count": int(trim_count),
+        "trimmed_claim_ids": list(trimmed_claim_ids or []),
+        "trim_reason": trim_reason,
+        "post_trim_validation_status": post_trim_validation_status,
+        "post_trim_missing_requirements": list(post_trim_missing_requirements or []),
     }
     runtime_evidence = [dict(item) for item in (llm_runtime_evidence or []) if isinstance(item, dict)]
     if runtime_evidence:
@@ -1693,8 +2058,11 @@ def _generate_fresh_from_analysis(
     analysis_record: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
+    *,
+    trace_id: str | None = None,
 ) -> CvGenerationResult:
     started_at = time.monotonic()
+    trace_id = str(trace_id or uuid.uuid4())
     analysis_record = dict(analysis_record)
     job = dict(analysis_record.get("job_snapshot") or {})
     if not job:
@@ -1736,6 +2104,8 @@ def _generate_fresh_from_analysis(
     fit = str(fit_classification or "skip")
     evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
     content_plan = dict(analysis_record.get("content_plan") or build_cv_content_plan(analysis_record, job, config))
+    if not isinstance(content_plan.get("generation_preflight"), dict):
+        content_plan["generation_preflight"] = build_generation_preflight(analysis_record, content_plan)
     analysis_record["content_plan"] = content_plan
     approved_evidence_ids = {
         str(item).strip()
@@ -1762,7 +2132,9 @@ def _generate_fresh_from_analysis(
     runtime_evidence: list[dict[str, Any]] = []
     trace_payload = _empty_cv_generation_trace(
         template_path=str(_resolve_template_path(config)),
+        trace_id=trace_id,
     )
+    trace_payload["generation_preflight"] = dict(content_plan.get("generation_preflight") or {})
     provider_generator = _build_fallback_provider_generator(
         job=job,
         evidence_payload=writer_evidence_payload,
@@ -1801,6 +2173,7 @@ def _generate_fresh_from_analysis(
             "prompt_contract": _LIVE_TRACE_PROMPT_CONTRACT,
             "template_path": str(_resolve_template_path(config)),
             "response_schema_name": _LIVE_TRACE_SCHEMA_NAME,
+            "generation_preflight": dict(content_plan.get("generation_preflight") or {}),
         }
         trace_payload["attempts"].append(attempt_trace)
         result = _execute_generation_attempt(
@@ -1816,6 +2189,10 @@ def _generate_fresh_from_analysis(
             attempt_trace.setdefault("llm_runtime_evidence", evidence)
             provenance = dict(evidence.get("provenance") or {})
             attempt_trace.setdefault("response_id", provenance.get("response_id"))
+        defect_category = _generation_format_defect_category(result[2])
+        if defect_category:
+            attempt_trace["failure_category"] = "generation_format_defect"
+            attempt_trace["generation_format_defect_category"] = defect_category
         attempt_trace.setdefault("provider_status", "accepted")
         attempt_trace.setdefault("accepted_output_present", True)
         return result
@@ -1841,6 +2218,13 @@ def _generate_fresh_from_analysis(
         error: ErrorPayload | None = None
         structured_cv_final = structured_cv if result_status == ACCEPTED_STATUS else None
         markdown_final = markdown if result_status == ACCEPTED_STATUS else None
+        page_fit_status: str | None = None
+        render_acceptance: dict[str, Any] | None = None
+        trim_count = 0
+        trimmed_claim_ids: list[str] = []
+        trim_reason: str | None = None
+        post_trim_validation_status = "not_run"
+        post_trim_missing_requirements: list[str] = []
         if result_status == VALIDATION_FAILED_STATUS:
             error = {
                 "stage": "validation",
@@ -1866,6 +2250,13 @@ def _generate_fresh_from_analysis(
             trace_payload["output_summary"] = {
                 "accepted_output_present": result_status == ACCEPTED_STATUS,
                 "final_status": result_status,
+                "page_fit_status": page_fit_status,
+                "render_acceptance": dict(render_acceptance or {}),
+                "trim_count": trim_count,
+                "trimmed_claim_ids": list(trimmed_claim_ids),
+                "trim_reason": trim_reason,
+                "post_trim_validation_status": post_trim_validation_status,
+                "post_trim_missing_requirements": list(post_trim_missing_requirements),
             }
             _update_efficiency_summary(
                 trace_payload,
@@ -1962,6 +2353,7 @@ def generate_from_analysis(
     if not isinstance(analysis_record, dict) or not isinstance(profile, dict) or not isinstance(config, dict):
         raise TypeError("analysis_record, profile, and config must be mappings")
     analysis_record = dict(analysis_record)
+    trace_id = str(uuid.uuid4())
     job = dict(analysis_record.get("job_snapshot") or {})
     analysis_record.setdefault(
         "content_plan",
@@ -1977,28 +2369,26 @@ def generate_from_analysis(
             fingerprint_result=fingerprint_result,
         )
         if reused is not None:
-            return _apply_final_artifact_contract(
-                _finalize_generation_result(
+            return _finalize_generation_result(
                 reused,
                 analysis_record=analysis_record,
                 config=config,
                 fingerprint_result=fingerprint_result,
                 reuse_status="reused_exact_match",
                 reuse_reason_code="exact_fingerprint_match",
+                trace_id=trace_id,
+                profile=profile,
                 reused_cv_version_id=str((reusable_record or {}).get("version_id") or "") or None,
-                ),
-                config=config,
             )
-    fresh = _generate_fresh_from_analysis(analysis_record, profile, config)
+    fresh = _generate_fresh_from_analysis(analysis_record, profile, config, trace_id=trace_id)
     reuse_reason = "candidate_rejected" if reusable_record is not None else "fresh_compute_required"
-    return _apply_final_artifact_contract(
-        _finalize_generation_result(
-            fresh,
-            analysis_record=analysis_record,
-            config=config,
-            fingerprint_result=fingerprint_result,
-            reuse_status="fresh_compute",
-            reuse_reason_code=reuse_reason,
-        ),
+    return _finalize_generation_result(
+        fresh,
+        analysis_record=analysis_record,
         config=config,
+        fingerprint_result=fingerprint_result,
+        reuse_status="fresh_compute",
+        reuse_reason_code=reuse_reason,
+        trace_id=trace_id,
+        profile=profile,
     )

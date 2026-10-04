@@ -437,6 +437,27 @@ def test_runtime_metrics_classify_unknown_assignments_as_unexpected() -> None:
     assert metrics["assignment_precision"] == 1.0
 
 
+def test_runtime_metrics_classify_unknown_evidence_for_known_requirement_as_unexpected() -> None:
+    oracle = {
+        "req-known::ev-good": {
+            "requirement_instance_id": "req-known",
+            "evidence_id": "ev-good",
+            "support_state": "supported",
+        },
+    }
+
+    metrics = evaluator._runtime_requirement_metrics(
+        oracle,
+        {"req-known": {"ev-unknown"}},
+        {"req-known": {"ev-unknown"}},
+    )
+
+    assert metrics["selected_pairs"] == 0
+    assert metrics["unexpected_assignment_count"] == 1
+    assert metrics["unexpected_requirement_ids"] == ["req-known"]
+    assert metrics["unexpected_assignment_pairs"] == ["req-known::ev-unknown"]
+
+
 def test_runtime_metrics_allow_only_explicitly_excluded_assignments_outside_oracle() -> None:
     oracle = {
         "req-supported::ev-good": {

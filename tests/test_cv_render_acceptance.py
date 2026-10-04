@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from fitcv.cv_generator import build_empty_structured_cv, render_cv_markdown
+from fitcv.cv_generator import build_empty_structured_cv, render_cv_markdown, render_cv_native_acceptance
 
 
 CONFIG = {"cv": {"preset": "europass"}}
@@ -166,3 +166,28 @@ def test_dense_skill_list_fits_one_page(tmp_path: Path) -> None:
 
     page_info = subprocess.run(["pdfinfo", str(pdf_path)], check=True, capture_output=True, text=True).stdout
     assert int(re.search(r"^Pages:\s+(\d+)$", page_info, re.MULTILINE).group(1)) == 1
+
+
+def test_native_renderer_returns_final_one_page_acceptance(tmp_path: Path) -> None:
+    result = render_cv_native_acceptance(
+        _build_fixture(experience_count=1, bullets_per_experience=2, include_optional=True),
+        CONFIG,
+        output_dir=tmp_path,
+    )
+
+    assert result["renderer_status"] == "rendered"
+    assert result["page_count"] == 1
+    assert result["page_fit_status"] == "pass"
+    assert re.fullmatch(r"[0-9a-f]{64}", result["artifact_checksum"])
+
+
+def test_native_renderer_marks_overflow_as_not_fit(tmp_path: Path) -> None:
+    result = render_cv_native_acceptance(
+        _build_fixture(experience_count=12, bullets_per_experience=5, include_optional=True),
+        CONFIG,
+        output_dir=tmp_path,
+    )
+
+    assert result["renderer_status"] == "rendered"
+    assert result["page_count"] > 1
+    assert result["page_fit_status"] == "fail"

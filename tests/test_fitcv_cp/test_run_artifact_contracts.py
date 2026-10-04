@@ -27,103 +27,15 @@ from fitcv_cp.run_artifact_contracts import (
     schema_version_or_none,
     stable_sha256_fingerprint,
     build_accepted_cv_effort_projection,
-    accepted_cv_artifact_event_v1,
-    build_final_cv_evidence_envelope,
+    accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1,
+    collect_normalized_generation_traces,
 )
 
 
-def test_build_final_cv_evidence_envelope_requires_bound_native_one_page_proof() -> None:
-    missing = build_final_cv_evidence_envelope(
-        artifact_version_id="cv-1",
-        run_job_id="job-1",
-        run_id="run-1",
-        content_checksum="sha-1",
-        generation={},
-    )
-    assert missing["evidence_state"] == "missing"
-    assert "native_one_page_render_unverified" in missing["warnings"]
-
-    passed = build_final_cv_evidence_envelope(
-        artifact_version_id="cv-1",
-        run_job_id="job-1",
-        run_id="run-1",
-        content_checksum="a" * 64,
-        generation={
-            "render_proof": {
-                "page_count": 1,
-                "page_fit_status": "pass",
-                "render_acceptance": "passed",
-                "content_sha256": "a" * 64,
-                "artifact_checksum": "b" * 64,
-            }
-        },
-    )
-    assert passed["evidence_state"] == "passed"
-    assert passed["warnings"] == []
-
-
-def test_build_final_cv_evidence_envelope_accepts_generation_render_acceptance() -> None:
-    envelope = build_final_cv_evidence_envelope(
-        artifact_version_id="cv-2",
-        run_job_id="job-2",
-        run_id="run-2",
-        content_checksum="b" * 64,
-        generation={
-            "page_fit_status": "pass",
-            "render_acceptance": {
-                "render_status": "pass",
-                "page_count": 1,
-                "page_fit_status": "pass",
-                "content_sha256": "b" * 64,
-                "artifact_checksum": "c" * 64,
-            },
-        },
-    )
-
-    assert envelope["evidence_state"] == "passed"
-    assert envelope["page_count"] == 1
-
-
-def test_build_final_cv_evidence_envelope_rejects_missing_native_artifact_checksum() -> None:
-    envelope = build_final_cv_evidence_envelope(
-        artifact_version_id="cv-missing-pdf-checksum",
-        run_job_id="job-missing-pdf-checksum",
-        run_id="run-missing-pdf-checksum",
-        content_checksum="d" * 64,
-        generation={
-            "render_proof": {
-                "page_count": 1,
-                "page_fit_status": "pass",
-                "render_acceptance": "passed",
-                "content_sha256": "d" * 64,
-            }
-        },
-    )
-
-    assert envelope["evidence_state"] == "missing"
-    assert "native_one_page_render_unverified" in envelope["warnings"]
-
-
-def test_build_final_cv_evidence_envelope_rejects_mismatched_render_identity() -> None:
-    envelope = build_final_cv_evidence_envelope(
-        artifact_version_id="cv-3",
-        run_job_id="job-3",
-        run_id="run-3",
-        content_checksum="c" * 64,
-        generation={
-            "render_proof": {
-                "artifact_version_id": "cv-wrong",
-                "run_job_id": "job-wrong",
-                "content_sha256": "d" * 64,
-                "page_count": 1,
-                "page_fit_status": "pass",
-                "render_acceptance": "passed",
-            }
-        },
-    )
-
-    assert envelope["evidence_state"] == "missing"
-    assert "native_one_page_render_unverified" in envelope["warnings"]
+def accepted_cv_artifact_event_v1(**kwargs):
+    kwargs.setdefault("page_fit_status", "pass")
+    kwargs.setdefault("render_acceptance", {"page_count": 1, "page_fit_status": "pass"})
+    return _accepted_cv_artifact_event_v1(**kwargs)
 
 
 def test_normalized_run_mode_defaults_unknown_values_to_run_all() -> None:
@@ -234,6 +146,7 @@ def test_accepted_cv_effort_projection_measures_zero_acceptance_workload() -> No
     assert result["denominator"] == {"accepted_cv_count": 0}
     assert result["aggregate"]["workload"] == {
         "attempted_generation_job_count": 1,
+        "terminal_validation_failed_job_count": 1,
         "validation_failure_count": 1,
         "provider_call_count": 1,
         "regeneration_count": 0,
@@ -289,9 +202,386 @@ def test_accepted_cv_effort_projection_keeps_same_job_lineage_distinct() -> None
     assert by_artifact["cv-2"]["provider_call_count"] == 3
 
 
+def test_accepted_cv_effort_projection_deduplicates_top_level_and_embedded_trace() -> None:
+    trace = {
+        "scope_key": "job-1",
+        "run_id": "run-1",
+        "trace_id": "trace-1",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"provider_call_count": 1},
+    }
+    result = build_accepted_cv_effort_projection(
+        [{"job_url": "job-1", "run_id": "run-1", "cv_generation_trace": trace}],
+        [],
+        [
+            accepted_cv_artifact_event_v1(
+                artifact_id="cv-1",
+                job_url="job-1",
+                run_id="run-1",
+                trace_id="trace-1",
+                acceptance_mode="automatic",
+                accepted_at="2026-10-02T00:01:00Z",
+                finalized_at="2026-10-02T00:01:00Z",
+            )
+        ],
+        generation_trace_records=[trace],
+    )
+
+    assert result["aggregate"]["workload"]["attempted_generation_job_count"] == 1
+
+
+def test_collect_normalized_generation_traces_merges_embedded_and_top_level_once() -> None:
+    trace = {
+        "trace_id": "trace-1",
+        "run_id": "run-1",
+        "scope_key": "job-1",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+    }
+
+    result = collect_normalized_generation_traces(
+        [{"run_id": "run-1", "cv_generation_trace": trace}],
+        [trace],
+    )
+
+    assert len(result["records"]) == 1
+    assert result["diagnostics"] == {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1,
+    }
+
+
+def test_collect_normalized_generation_traces_merges_enriched_top_level_duplicate() -> None:
+    embedded = {
+        "trace_id": "trace-enriched-duplicate",
+        "run_id": "run-1",
+        "scope_key": "job-1",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"elapsed_ms": 100},
+        "output_summary": {"final_status": "accepted"},
+    }
+    top_level = {
+        **embedded,
+        "record_id": "job-1",
+        "status": "accepted",
+        "artifact_refs": {"stage_artifact": "cv_generation.json"},
+    }
+
+    result = collect_normalized_generation_traces(
+        [{"run_id": "run-1", "cv_generation_trace": embedded}],
+        [top_level],
+    )
+
+    assert len(result["records"]) == 1
+    assert result["records"][0]["status"] == "accepted"
+    assert result["records"][0]["artifact_refs"] == {"stage_artifact": "cv_generation.json"}
+    assert result["diagnostics"] == {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1,
+    }
+
+
+def test_collect_normalized_generation_traces_excludes_conflicting_identity() -> None:
+    first = {"trace_id": "trace-1", "run_id": "run-1", "scope_key": "job-1"}
+    second = {"trace_id": "trace-1", "run_id": "run-1", "scope_key": "job-1", "status": "failed"}
+
+    result = collect_normalized_generation_traces([], [first, second])
+
+    assert result["records"] == []
+    assert result["diagnostics"] == {
+        "duplicate_count": 0,
+        "conflict_count": 1,
+        "conflict_trace_ids": ["trace-1"],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 0,
+    }
+
+
+def test_accepted_cv_artifact_event_preserves_trace_id() -> None:
+    event = accepted_cv_artifact_event_v1(
+        artifact_id="cv-1",
+        job_url="job-1",
+        run_id="run-1",
+        trace_id="trace-1",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        render_acceptance={
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": "b" * 64,
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
+    )
+
+    assert event["trace_id"] == "trace-1"
+    assert event["final_artifact_contract_version"] == "fitcv.final_artifact.v1"
+    assert event["event_id"]
+
+
+def test_accepted_cv_artifact_event_preserves_render_acceptance() -> None:
+    event = accepted_cv_artifact_event_v1(
+        artifact_id="cv-rendered",
+        job_url="job-rendered",
+        run_id="run-rendered",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        page_fit_status="pass",
+        render_acceptance={"page_count": 1, "page_fit_status": "pass"},
+    )
+
+    assert event["page_fit_status"] == "pass"
+    assert event["render_acceptance"] == {"page_count": 1, "page_fit_status": "pass"}
+    assert event["render_proof_status"] == "incomplete"
+
+
+def test_accepted_cv_effort_projection_does_not_use_content_plan_page_fit() -> None:
+    record = {
+        "job_url": "job-unverified-page-fit",
+        "run_id": "run-unverified-page-fit",
+        "cv_generation_trace": {
+            "cv_content_plan": {"space_budget": {"page_fit_status": "one_page"}},
+            "efficiency_summary": {"provider_call_count": 1},
+        },
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-unverified-page-fit",
+        job_url="job-unverified-page-fit",
+        run_id="run-unverified-page-fit",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        render_acceptance={"page_count": 1, "page_fit_status": "pass"},
+    )
+
+    result = build_accepted_cv_effort_projection([record], [], [artifact])
+
+    row = result["records"][0]
+    assert row["page_fit_status"] == "not_recorded"
+    assert row["page_fit_verified"] is False
+    assert result["aggregate"]["page_fit_coverage"] == {"verified": 0, "eligible": 1}
+
+
+def test_accepted_cv_effort_projection_counts_only_verified_render_proof() -> None:
+    proof = {
+        "render_status": "pass",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": "b" * 64,
+        "template_sha256": "c" * 64,
+        "render_config_fingerprint": "d" * 64,
+        "renderer_contract_version": "fitcv_native_render_v1",
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-verified-page-fit",
+        job_url="job-verified-page-fit",
+        run_id="run-verified-page-fit",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        page_fit_status="pass",
+        render_acceptance=proof,
+    )
+
+    result = build_accepted_cv_effort_projection(
+        [],
+        [],
+        [artifact],
+        generation_trace_records=[
+            {
+                "run_id": "run-verified-page-fit",
+                "job_url": "job-verified-page-fit",
+                "efficiency_summary": {"provider_call_count": 1},
+            }
+        ],
+    )
+
+    assert artifact["render_proof_status"] == "verified"
+    assert result["records"][0]["page_fit_verified"] is True
+    assert result["aggregate"]["page_fit_coverage"] == {"verified": 1, "eligible": 1}
+    assert result["aggregate"]["page_fit_success"] == {"verified_one_page": 1}
+
+
+def test_accepted_cv_artifact_event_rejects_non_one_page_render() -> None:
+    with pytest.raises(ValueError, match="final artifact acceptance"):
+        accepted_cv_artifact_event_v1(
+            artifact_id="cv-two-page",
+            job_url="job-two-page",
+            run_id="run-two-page",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+            page_fit_status="fail",
+            render_acceptance={"page_count": 2, "page_fit_status": "fail"},
+        )
+
+
+def test_accepted_cv_artifact_event_requires_native_render_proof() -> None:
+    with pytest.raises(ValueError, match="render proof required"):
+        _accepted_cv_artifact_event_v1(
+            artifact_id="cv-unproven",
+            job_url="job-unproven",
+            run_id="run-unproven",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+            page_fit_status="pass",
+        )
+
+
+def test_accepted_cv_effort_projection_marks_ambiguous_legacy_trace_unmatched() -> None:
+    traces = [
+        {
+            "run_id": "run-1",
+            "job_url": "same-url",
+            "efficiency_summary": {"provider_call_count": 2},
+        },
+        {
+            "run_id": "run-1",
+            "job_url": "same-url",
+            "efficiency_summary": {"provider_call_count": 3},
+        },
+    ]
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-ambiguous",
+        job_url="same-url",
+        run_id="run-1",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection([], [], [artifact], generation_trace_records=traces)
+
+    row = result["records"][0]
+    assert row["attribution_status"] == "ambiguous"
+    assert row["provider_call_count"] is None
+    assert result["aggregate"]["workload"]["provider_call_count"] == 5
+    assert result["unmatched_trace_count"] == 1
+    assert result["unattributed_accepted_artifact_count"] == 1
+
+
+def test_accepted_cv_effort_projection_requires_job_identity_within_run() -> None:
+    traces = [
+        {
+            "run_id": "run-1",
+            "run_job_id": "job-1",
+            "job_url": "same-url",
+            "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+            "efficiency_summary": {"provider_call_count": 1},
+        },
+        {
+            "run_id": "run-1",
+            "run_job_id": "job-2",
+            "job_url": "same-url",
+            "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+            "efficiency_summary": {"provider_call_count": 3},
+        },
+    ]
+    artifacts = [
+        accepted_cv_artifact_event_v1(
+            artifact_id="cv-1",
+            job_url="same-url",
+            run_id="run-1",
+            run_job_id="job-1",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:01:00Z",
+            finalized_at="2026-10-02T00:01:00Z",
+        ),
+        accepted_cv_artifact_event_v1(
+            artifact_id="cv-2",
+            job_url="same-url",
+            run_id="run-1",
+            run_job_id="job-2",
+            acceptance_mode="automatic",
+            accepted_at="2026-10-02T00:02:00Z",
+            finalized_at="2026-10-02T00:02:00Z",
+        ),
+    ]
+
+    result = build_accepted_cv_effort_projection([], [], artifacts, generation_trace_records=traces)
+    by_artifact = {row["artifact_version_id"]: row for row in result["records"]}
+
+    assert by_artifact["cv-1"]["provider_call_count"] == 1
+    assert by_artifact["cv-2"]["provider_call_count"] == 3
+
+
+def test_accepted_cv_effort_projection_rejects_conflicting_shared_legacy_identity() -> None:
+    trace = {
+        "run_id": "run-1",
+        "run_job_id": "job-1",
+        "generation_input_fingerprint": "old-input",
+        "job_url": "same-url",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"provider_call_count": 7},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-conflict",
+        job_url="same-url",
+        run_id="run-1",
+        run_job_id="job-1",
+        generation_input_fingerprint="new-input",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection(
+        [], [], [artifact], generation_trace_records=[trace]
+    )
+
+    row = result["records"][0]
+    assert row["attribution_status"] == "conflict"
+    assert row["provider_call_count"] is None
+    assert row["attempt_count"] is None
+    assert result["unmatched_trace_count"] == 1
+    assert result["unattributed_accepted_artifact_count"] == 1
+
+
+def test_accepted_cv_effort_projection_does_not_fallback_across_run_or_job() -> None:
+    trace = {
+        "run_id": "run-2",
+        "run_job_id": "job-2",
+        "job_url": "same-url",
+        "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+        "efficiency_summary": {"provider_call_count": 99},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-1",
+        job_url="same-url",
+        run_id="run-1",
+        run_job_id="job-1",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    result = build_accepted_cv_effort_projection(
+        [], [], [artifact], generation_trace_records=[trace]
+    )
+
+    assert result["records"][0]["provider_call_count"] is None
+    assert result["records"][0]["attribution_status"] == "unmatched"
+    assert result["unattributed_accepted_artifact_count"] == 1
+    assert result["records"][0]["attempt_count"] is None
+
+
 def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     record = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "cv_generation_trace": {
             "efficiency_summary": {
                 "provider_call_count": 2,
@@ -303,6 +593,7 @@ def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     }
     action = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "action": "approve_as_is",
         "created_at": "2026-09-29T00:00:00Z",
         "artifact_finalized": True,
@@ -321,14 +612,84 @@ def test_accepted_cv_effort_projection_deduplicates_replayed_action() -> None:
     assert result["records"][0]["elapsed_status"] == "not_run"
 
 
+def test_accepted_cv_effort_projection_prefers_finalized_page_fit_over_plan_default() -> None:
+    record = {
+        "job_url": "job-page-fit",
+        "run_id": "run-page-fit",
+        "cv_generation_trace": {
+            "output_summary": {"page_fit_status": "one_page"},
+            "cv_content_plan": {"space_budget": {"page_fit_status": "unverified"}},
+            "efficiency_summary": {"provider_call_count": 1},
+        },
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-page-fit",
+        job_url="job-page-fit",
+        run_id="run-page-fit",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        render_acceptance={
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": "b" * 64,
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
+    )
+
+    result = build_accepted_cv_effort_projection([record], [], [artifact])
+
+    assert result["records"][0]["page_fit_status"] == "pass"
+
+
+def test_accepted_cv_effort_projection_prefers_artifact_render_acceptance() -> None:
+    trace = {
+        "job_url": "job-page-fit-artifact",
+        "run_id": "run-page-fit-artifact",
+        "cv_content_plan": {"space_budget": {"page_fit_status": "unverified"}},
+        "efficiency_summary": {"provider_call_count": 1},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-page-fit-artifact",
+        job_url="job-page-fit-artifact",
+        run_id="run-page-fit-artifact",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+        page_fit_status="pass",
+        render_acceptance={
+            "render_status": "pass",
+            "renderer_status": "rendered",
+            "page_count": 1,
+            "page_fit_status": "pass",
+            "artifact_checksum": "a" * 64,
+            "content_sha256": "b" * 64,
+            "template_sha256": "c" * 64,
+            "render_config_fingerprint": "d" * 64,
+            "renderer_contract_version": "fitcv_native_render_v1",
+        },
+    )
+
+    result = build_accepted_cv_effort_projection([], [], [artifact], generation_trace_records=[trace])
+
+    assert result["records"][0]["page_fit_status"] == "pass"
+
+
 def test_accepted_cv_effort_projection_measures_existing_run_to_artifact_timestamps() -> None:
     record = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "started_at": "2026-09-29T00:00:00Z",
         "cv_generation_trace": {"efficiency_summary": {"provider_call_count": 1}},
     }
     action = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "action": "approve_as_is",
         "created_at": "2026-09-29T00:00:01Z",
         "artifact_finalized": True,
@@ -386,6 +747,7 @@ def test_accepted_cv_effort_projection_uses_idempotent_automatic_and_hitl_events
 def test_accepted_cv_effort_projection_keeps_all_attempts_and_failure_taxonomy() -> None:
     record = {
         "job_url": "job-1",
+        "run_id": "run-1",
         "cv_generation_trace": {
             "attempts": [
                 {"attempt_index": 1, "attempt_type": "initial_generation", "provider_status": "accepted"},
@@ -466,6 +828,7 @@ def test_accepted_cv_effort_projection_preserves_workload_attempt_baseline() -> 
     assert result["denominator"] == {"accepted_cv_count": 11}
     assert result["aggregate"]["workload"] == {
         "attempted_generation_job_count": 17,
+        "terminal_validation_failed_job_count": 6,
         "validation_failure_count": 6,
         "provider_call_count": 17,
         "regeneration_count": 9,

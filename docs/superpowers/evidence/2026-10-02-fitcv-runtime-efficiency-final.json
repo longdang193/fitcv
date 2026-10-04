@@ -1,0 +1,1081 @@
+{
+  "schema_version": "fitcv_runtime_efficiency_baseline_v2",
+  "status": "complete",
+  "generated_at": "2026-10-02T21:08:36.707999+00:00",
+  "selection": {
+    "ordinary_runs_only": true,
+    "measurable_generation_work_only": true,
+    "run_count": 2,
+    "run_ids": [
+      "1f270c23-b90a-4020-b120-6546776438d0",
+      "4f5a73bc-52b7-4221-9aca-0c18642e6005"
+    ],
+    "exclusions": {}
+  },
+  "workload": {
+    "attempted_generation_job_count": 18,
+    "validation_failure_count": 7,
+    "provider_call_count": 33,
+    "regeneration_count": 15,
+    "render_retry_count": 0,
+    "token_total": 144929,
+    "generation_elapsed_ms": 406368.0
+  },
+  "timing": {
+    "generation_elapsed_ms": 406368.0,
+    "generation_timing_coverage": {
+      "measured": 18,
+      "unavailable": 0
+    },
+    "artifact_acceptance_latency_ms": 269432.0,
+    "run_wall_ms": 1138239.99
+  },
+  "coverage": {
+    "attribution": {
+      "measured": 11,
+      "unavailable": 0,
+      "total": 11,
+      "rate": 1.0,
+      "complete": true,
+      "matched": 11,
+      "unmatched": 0
+    },
+    "cost": {
+      "measured": 11,
+      "unavailable": 0,
+      "total": 11,
+      "rate": 1.0,
+      "complete": true
+    },
+    "timing": {
+      "measured": 18,
+      "unavailable": 0,
+      "total": 18,
+      "rate": 1.0,
+      "complete": true
+    },
+    "page_fit": {
+      "measured": 11,
+      "unavailable": 0,
+      "total": 11,
+      "rate": 1.0,
+      "complete": true
+    },
+    "review_questions": {
+      "measured": 11,
+      "unavailable": 0,
+      "total": 11,
+      "rate": 1.0,
+      "complete": true
+    },
+    "human_actions": {
+      "measured": 11,
+      "unavailable": 0,
+      "total": 11,
+      "rate": 1.0,
+      "complete": true
+    },
+    "resolution_reuse": {
+      "measured": 11,
+      "unavailable": 0,
+      "total": 11,
+      "rate": 1.0,
+      "complete": true
+    }
+  },
+  "run_job_diversity": {
+    "run_count": 2,
+    "job_count": 18,
+    "job_type_count": 3,
+    "job_types": [
+      "Full-time",
+      "Internship",
+      "Part-time"
+    ]
+  },
+  "accepted_cv": {
+    "count": 11,
+    "recorded_acceptance_count": 11,
+    "cost_per_accepted_cv": {
+      "provider_call_count": 1.7272727272727273,
+      "token_total": 8387.363636363636,
+      "regeneration_count": 0.7272727272727273,
+      "validation_failure_count": 0.7272727272727273,
+      "generation_elapsed_ms": 24493.81818181818,
+      "elapsed_ms": 24493.81818181818
+    },
+    "accepted_artifact_cost_per_accepted_cv": {
+      "provider_call_count": 1.7272727272727273,
+      "token_total": 8387.363636363636,
+      "regeneration_count": 0.7272727272727273,
+      "validation_failure_count": 0.7272727272727273,
+      "generation_elapsed_ms": 24493.81818181818,
+      "elapsed_ms": 24493.81818181818
+    },
+    "total_workload_cost_per_accepted_cv": {
+      "provider_call_count": 3.0,
+      "token_total": 13175.363636363636,
+      "regeneration_count": 1.3636363636363635,
+      "validation_failure_count": 0.6363636363636364,
+      "generation_elapsed_ms": 36942.545454545456,
+      "end_to_end_wall_ms": 103476.36272727273
+    }
+  },
+  "attribution": {
+    "unmatched_trace_count": 0,
+    "unattributed_accepted_artifact_count": 0
+  },
+  "yield": {
+    "attempted_generation_job_count": 18,
+    "first_pass_acceptance_count": 3,
+    "retry_success_count": 8,
+    "retry_failure_count": 7,
+    "first_pass_acceptance_rate": 0.16666666666666666
+  },
+  "aggregate": {
+    "provider_call_count": 19,
+    "token_total": 92261,
+    "regeneration_count": 8,
+    "validation_failure_count": 8,
+    "generation_elapsed_ms": 269432.0,
+    "end_to_end_wall_ms": 1138239.99,
+    "elapsed_ms": 269432.0
+  },
+  "outcomes": {
+    "generation_status_counts": {
+      "accepted": 11,
+      "blocked_by_reranker_fit": 12,
+      "validation_failed": 7
+    },
+    "render_retry_count": 0,
+    "compiler_outcome_counts": {},
+    "render_outcome_counts": {}
+  },
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Windows-10-10.0.19045-SP0"
+  },
+  "runs": [
+    {
+      "run_id": "1f270c23-b90a-4020-b120-6546776438d0",
+      "created_at": "2026-10-02T20:53:28.470926+00:00",
+      "started_at": "2026-10-02T20:53:29.208125+00:00",
+      "finished_at": "2026-10-02T21:04:15.473167+00:00",
+      "elapsed_wall_ms": 646265.042,
+      "generation_elapsed_ms": 234140.0,
+      "timing": {
+        "generation_elapsed_ms": 234140.0,
+        "generation_timing_coverage": {
+          "measured": 10,
+          "unavailable": 0
+        }
+      },
+      "yield": {
+        "attempted_generation_job_count": 10,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 4,
+        "retry_failure_count": 5
+      },
+      "status_counts": {
+        "accepted": 5,
+        "blocked_by_reranker_fit": 5,
+        "validation_failed": 5
+      },
+      "accepted_record_count": 5,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 10,
+          "conflict_count": 0,
+          "conflict_trace_ids": []
+        },
+        "denominator": {
+          "accepted_cv_count": 5
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 9,
+          "provider_call_count": 9,
+          "regeneration_count": 4,
+          "validation_failure_count": 4,
+          "render_retry_count": 0,
+          "review_question_count": 15,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 138353.0,
+          "generation_timing_coverage": {
+            "measured": 5,
+            "unavailable": 0
+          },
+          "elapsed_ms": 138353,
+          "token_total": 46137,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "failure_category_counts": {
+            "generation_format_defect": 4
+          },
+          "workload": {
+            "attempted_generation_job_count": 10,
+            "validation_failure_count": 5,
+            "provider_call_count": 19,
+            "regeneration_count": 9,
+            "render_retry_count": 0,
+            "token_total": 82532
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4465828637",
+            "artifact_version_id": "99b7438d-d791-4930-900b-05dc6c15d83b",
+            "run_id": "1f270c23-b90a-4020-b120-6546776438d0",
+            "run_job_id": "eb5e4daa-b4da-51b5-99d3-75d937bf5eaa",
+            "generation_input_fingerprint": "20c95d943c0a252b3ecaf8df039458ae289250704e42955863dd9ae18009883d",
+            "attempt_id": null,
+            "trace_id": "1cc53ba7-2b0d-4af7-85c0-5400f7ba4b22",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "a5860189cb4f52d842e03ca64c9765478d65964a8c956a8eb6a6b139361ab755",
+              "text_chars": 1296,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 3,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4373,
+                "output_tokens": 528,
+                "total_tokens": 4901
+              }
+            ],
+            "token_total": 4901,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 12568,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 12568,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4464890464",
+            "artifact_version_id": "83e1cab5-35a8-47f2-a860-b0e230981fcc",
+            "run_id": "1f270c23-b90a-4020-b120-6546776438d0",
+            "run_job_id": "4d9122f0-9f81-5cc6-9203-9da3d7e36d62",
+            "generation_input_fingerprint": "302fd73d8ed8e296daa6112515fe513c9ffcbb03577bb9c41d095b5db6d1b181",
+            "attempt_id": null,
+            "trace_id": "3c5f91b3-f504-4cfd-844b-cfd8d0a26a84",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "cca9677f5ca7ac6627142842531fbda5e9d2ab9fa8a3783e251ac55495024cfb",
+              "text_chars": 1940,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 1,
+            "failure_category_counts": {
+              "generation_format_defect": 1
+            },
+            "render_retry_count": 0,
+            "review_question_count": 0,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4316,
+                "output_tokens": 597,
+                "total_tokens": 4913
+              },
+              {
+                "input_tokens": 4377,
+                "output_tokens": 729,
+                "total_tokens": 5106
+              }
+            ],
+            "token_total": 10019,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 28072,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 28072,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4473180686",
+            "artifact_version_id": "807f993f-4ad2-4884-92e9-1c6990012cba",
+            "run_id": "1f270c23-b90a-4020-b120-6546776438d0",
+            "run_job_id": "5b915072-1fbe-5f69-865e-dcd3d85e658b",
+            "generation_input_fingerprint": "0acce51fc951ce6a46aefbdff919b6f5841fdfe5fa00544e2874165fe7f1072a",
+            "attempt_id": null,
+            "trace_id": "4e797fcb-2ca4-4fea-a356-837763a7717b",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "86cf71af614a7e919481e8340644de97b18f41052f4511191b28a149aedb977c",
+              "text_chars": 2161,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 1,
+            "failure_category_counts": {
+              "generation_format_defect": 1
+            },
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4709,
+                "output_tokens": 680,
+                "total_tokens": 5389
+              },
+              {
+                "input_tokens": 4770,
+                "output_tokens": 787,
+                "total_tokens": 5557
+              }
+            ],
+            "token_total": 10946,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 38368,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 38368,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4470892249",
+            "artifact_version_id": "8abf0999-c564-476b-b426-959bec6c062d",
+            "run_id": "1f270c23-b90a-4020-b120-6546776438d0",
+            "run_job_id": "a3ba7e5f-1f43-52ee-bcf6-9777aa64e6d5",
+            "generation_input_fingerprint": "90777ca867dd33553fef3fdaefad3dc8ccf7a5e9d0a379c5d27d0d1995ad2caa",
+            "attempt_id": null,
+            "trace_id": "a47df462-0f4e-4f37-a3a5-f76364fa3a0f",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "870a6775ca6287430d8d12c0e1107282055c88441961400b56a18efec40a1859",
+              "text_chars": 2336,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 1,
+            "failure_category_counts": {
+              "generation_format_defect": 1
+            },
+            "render_retry_count": 0,
+            "review_question_count": 3,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4666,
+                "output_tokens": 615,
+                "total_tokens": 5281
+              },
+              {
+                "input_tokens": 4727,
+                "output_tokens": 947,
+                "total_tokens": 5674
+              }
+            ],
+            "token_total": 10955,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 33208,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 33208,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4464588596",
+            "artifact_version_id": "08e4be8d-5985-4988-9827-3296ed300cd6",
+            "run_id": "1f270c23-b90a-4020-b120-6546776438d0",
+            "run_job_id": "632cd4c5-00d3-578c-bb75-32863e09a736",
+            "generation_input_fingerprint": "fb106a924601cbdef501029735f49ac6d3a80732b571171ad4f8841d1df44106",
+            "attempt_id": null,
+            "trace_id": "56e893cf-5ace-4767-8149-bef5a6c1d5f8",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "0fe8041b73ea7162cd6968e01f2e4d1c5d3b379385315b748adce3b5d3015558",
+              "text_chars": 1457,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 1,
+            "failure_category_counts": {
+              "generation_format_defect": 1
+            },
+            "render_retry_count": 0,
+            "review_question_count": 5,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3997,
+                "output_tokens": 615,
+                "total_tokens": 4612
+              },
+              {
+                "input_tokens": 4058,
+                "output_tokens": 646,
+                "total_tokens": 4704
+              }
+            ],
+            "token_total": 9316,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 26137,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 26137,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 5,
+          "unmatched": 0,
+          "total": 5
+        },
+        "cost": {
+          "measured": 5,
+          "unavailable": 0,
+          "total": 5,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 10,
+          "unavailable": 0,
+          "total": 10,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 5,
+          "unavailable": 0,
+          "total": 5,
+          "rate": 1.0
+        },
+        "review_questions": {
+          "measured": 5,
+          "unavailable": 0,
+          "total": 5,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 5,
+          "unavailable": 0,
+          "total": 5,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 5,
+          "unavailable": 0,
+          "total": 5,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 10,
+          "job_type_count": 0,
+          "job_types": [
+            "Full-time",
+            "Internship",
+            "Part-time"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "4f5a73bc-52b7-4221-9aca-0c18642e6005",
+      "created_at": "2026-10-02T20:35:46.402962+00:00",
+      "started_at": "2026-10-02T20:35:46.982051+00:00",
+      "finished_at": "2026-10-02T20:43:58.956999+00:00",
+      "elapsed_wall_ms": 491974.948,
+      "generation_elapsed_ms": 172228.0,
+      "timing": {
+        "generation_elapsed_ms": 172228.0,
+        "generation_timing_coverage": {
+          "measured": 8,
+          "unavailable": 0
+        }
+      },
+      "yield": {
+        "attempted_generation_job_count": 8,
+        "first_pass_acceptance_count": 2,
+        "retry_success_count": 4,
+        "retry_failure_count": 2
+      },
+      "status_counts": {
+        "accepted": 6,
+        "blocked_by_reranker_fit": 7,
+        "validation_failed": 2
+      },
+      "accepted_record_count": 6,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 8,
+          "conflict_count": 0,
+          "conflict_trace_ids": []
+        },
+        "denominator": {
+          "accepted_cv_count": 6
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 10,
+          "provider_call_count": 10,
+          "regeneration_count": 4,
+          "validation_failure_count": 4,
+          "render_retry_count": 0,
+          "review_question_count": 19,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 131079.0,
+          "generation_timing_coverage": {
+            "measured": 6,
+            "unavailable": 0
+          },
+          "elapsed_ms": 131079,
+          "token_total": 46124,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "failure_category_counts": {
+            "generation_format_defect": 4
+          },
+          "workload": {
+            "attempted_generation_job_count": 8,
+            "validation_failure_count": 2,
+            "provider_call_count": 14,
+            "regeneration_count": 6,
+            "render_retry_count": 0,
+            "token_total": 62397
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4463592532",
+            "artifact_version_id": "9bc44d68-eaf0-4f4e-a87b-d52baff326e2",
+            "run_id": "4f5a73bc-52b7-4221-9aca-0c18642e6005",
+            "run_job_id": "9ae22434-e988-5a6a-96ed-ed1951bc963b",
+            "generation_input_fingerprint": "59da2a0a625275b5e325ee9db77e360636c8889125051c51a3267801fcae576f",
+            "attempt_id": null,
+            "trace_id": "48395fe5-c112-4faf-b54e-ed7af36061f6",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "54bad87f9180e42e3ed6948545756be4be884bd3c7d9e7be567a1e9b76991a82",
+              "text_chars": 1771,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 1,
+            "failure_category_counts": {
+              "generation_format_defect": 1
+            },
+            "render_retry_count": 0,
+            "review_question_count": 3,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3993,
+                "output_tokens": 697,
+                "total_tokens": 4690
+              },
+              {
+                "input_tokens": 4054,
+                "output_tokens": 603,
+                "total_tokens": 4657
+              }
+            ],
+            "token_total": 9347,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 27007,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 27007,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/working-student-%E2%80%93-data-analytics-ai-f-m-div-at-infineon-technologies-4473779487?trk=public_jobs_topcard-title",
+            "artifact_version_id": "1aad1748-3136-42a0-bd49-4a858fcffe56",
+            "run_id": "4f5a73bc-52b7-4221-9aca-0c18642e6005",
+            "run_job_id": "2b5635d3-48b7-52ca-b292-ddc18a995031",
+            "generation_input_fingerprint": "a003c11a002406a9ee1c380946bb0bdf945e5b588c47f9901c5f57622d0e9fa4",
+            "attempt_id": null,
+            "trace_id": "fdcd66f7-f19c-4f1e-9bc2-357e446c4071",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "531fdd1b20a38b6c7dd441e2031181116e71bac1e87d8dd1835cb8e1538efc2b",
+              "text_chars": 1588,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 5,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4246,
+                "output_tokens": 657,
+                "total_tokens": 4903
+              }
+            ],
+            "token_total": 4903,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 18838,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 18838,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/werkstudent-interne-kommunikation-cloud-m-w-d-at-bwi-gmbh-4465012315?trk=public_jobs_topcard-title",
+            "artifact_version_id": "4cf34873-c995-4c97-a811-7ec61fe3fd36",
+            "run_id": "4f5a73bc-52b7-4221-9aca-0c18642e6005",
+            "run_job_id": "e1cb0939-d538-5d86-b7a8-33e3daa21f35",
+            "generation_input_fingerprint": "fc5454b3c5015b796a2c2186d6bef2237792c956e82de5235c14e9ba1e3d01da",
+            "attempt_id": null,
+            "trace_id": "9839108a-1ab0-4324-8db4-2cae7503069b",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "8b9f2449a13a62c79486b98757a96ced1b6985046982e0d45b456e4a857a603d",
+              "text_chars": 1721,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 1,
+            "failure_category_counts": {
+              "generation_format_defect": 1
+            },
+            "render_retry_count": 0,
+            "review_question_count": 3,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4278,
+                "output_tokens": 593,
+                "total_tokens": 4871
+              },
+              {
+                "input_tokens": 4339,
+                "output_tokens": 666,
+                "total_tokens": 5005
+              }
+            ],
+            "token_total": 9876,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 27309,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 27309,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4473752886",
+            "artifact_version_id": "a3ce1aaa-1fd0-4709-a0e6-2d0d09297f24",
+            "run_id": "4f5a73bc-52b7-4221-9aca-0c18642e6005",
+            "run_job_id": "1c38ce27-bc76-5b07-9e66-54f85ea8961e",
+            "generation_input_fingerprint": "5ed1c864568983896e0c3ce98f524ff281e0e9faea7309fb35dc64885b3600d6",
+            "attempt_id": null,
+            "trace_id": "1eb50022-8870-4242-ac46-9091d99ecd44",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "92922d592bf75f241bd8ca7588e2ad976df2873398dc72268d0287e4797c2d87",
+              "text_chars": 2192,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 1,
+            "failure_category_counts": {
+              "generation_format_defect": 1
+            },
+            "render_retry_count": 0,
+            "review_question_count": 3,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4240,
+                "output_tokens": 707,
+                "total_tokens": 4947
+              },
+              {
+                "input_tokens": 4301,
+                "output_tokens": 671,
+                "total_tokens": 4972
+              }
+            ],
+            "token_total": 9919,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 29120,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 29120,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://www.linkedin.com/jobs/view/4472130934",
+            "artifact_version_id": "cd5e3583-0260-4082-ab1b-4c96e4399166",
+            "run_id": "4f5a73bc-52b7-4221-9aca-0c18642e6005",
+            "run_job_id": "2863b9ab-0294-5fe7-ab95-e4d1974b2fc6",
+            "generation_input_fingerprint": "817b5676b067423f1268e472b0b6daafb6d2f070e954197dfd4414c4d831de67",
+            "attempt_id": null,
+            "trace_id": "3791ae45-ad35-4c0a-ab01-c83fc6aed21a",
+            "page_fit_status": "fail",
+            "render_acceptance": {
+              "page_count": 2,
+              "page_fit_status": "fail",
+              "pdf_sha256": "6ae050bd17cacf2e10e587e024c4298e6c482d364d4d5f64fb322664b3c1c478",
+              "text_chars": 2937,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 2,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              },
+              {
+                "attempt_index": 2,
+                "attempt_type": "repair_retry",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 2,
+            "regeneration_count": 1,
+            "validation_failure_count": 1,
+            "failure_category_counts": {
+              "generation_format_defect": 1
+            },
+            "render_retry_count": 0,
+            "review_question_count": 2,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3071,
+                "output_tokens": 302,
+                "total_tokens": 3373
+              },
+              {
+                "input_tokens": 3144,
+                "output_tokens": 353,
+                "total_tokens": 3497
+              }
+            ],
+            "token_total": 6870,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 14805,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 14805,
+            "elapsed_status": "measured"
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/founder%E2%80%99s-associate-intern-m-w-d-at-thefamilygroup-4472148846?trk=public_jobs_topcard-title",
+            "artifact_version_id": "690e568b-a487-4730-b09a-2ee16f4bd4fb",
+            "run_id": "4f5a73bc-52b7-4221-9aca-0c18642e6005",
+            "run_job_id": "f59b00dd-9f9d-58aa-af44-5fa2e914f2d3",
+            "generation_input_fingerprint": "0b2a5e5383a93b25ca4bf6816cbdb07dd79423e9fbe7c992904f85dffaee9a6d",
+            "attempt_id": null,
+            "trace_id": "b69c085a-9f97-45f7-a1e9-9735d42ed35a",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "pdf_sha256": "0ecc7929f52bc18a06cae2cd2214ca3e77fc14b62795267875f8bccc3efdaa22",
+              "text_chars": 2114,
+              "renderer": "pandoc+xelatex"
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 3,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 4532,
+                "output_tokens": 677,
+                "total_tokens": 5209
+              }
+            ],
+            "token_total": 5209,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 14000,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 14000,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 6,
+          "unmatched": 0,
+          "total": 6
+        },
+        "cost": {
+          "measured": 6,
+          "unavailable": 0,
+          "total": 6,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 8,
+          "unavailable": 0,
+          "total": 8,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 6,
+          "unavailable": 0,
+          "total": 6,
+          "rate": 1.0
+        },
+        "review_questions": {
+          "measured": 6,
+          "unavailable": 0,
+          "total": 6,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 6,
+          "unavailable": 0,
+          "total": 6,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 6,
+          "unavailable": 0,
+          "total": 6,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 8,
+          "job_type_count": 0,
+          "job_types": [
+            "Full-time",
+            "Internship",
+            "Part-time"
+          ]
+        }
+      }
+    }
+  ],
+  "material_metrics_sha256": "ab9b0d8173bf525689551a48773be9e57ebea1cd889ca413518d11def23155b5",
+  "evidence_status": "canonical"
+}

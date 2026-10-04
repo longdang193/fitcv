@@ -193,6 +193,16 @@ jobs:
       - name: Verify FitCV acceptance claims
         run: python scripts/verify_fitcv_acceptance.py --timeout-seconds 300 --output .tmp/fitcv-acceptance-report.json
 
+      - name: Upload FitCV acceptance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fitcv-acceptance-reports
+          path: |
+            .tmp/fitcv-acceptance-report.json
+            .tmp/p0b-runtime-acceptance-verifier.json
+          if-no-files-found: warn
+
   render-acceptance:
     name: Render Acceptance
     runs-on: ubuntu-24.04

@@ -3762,6 +3762,84 @@ def test_build_cv_generation_debug_payload_json_safe_values() -> None:
     assert record["nested"]["seen_at"] == "2026-07-12T09:30:00+00:00"
     assert str(record.get("review_item_id") or "").strip()
 
+
+def test_build_cv_generation_debug_payload_preserves_effort_and_page_fit_telemetry() -> None:
+    from types import SimpleNamespace
+
+    from fitcv_cp.worker_job import _build_cv_generation_debug_payload
+
+    payload = json.loads(
+        _build_cv_generation_debug_payload(
+            run_id="run-telemetry-1",
+            run_record=SimpleNamespace(),
+            summary={
+                "ranked": 1,
+                "cv_generation_debug_records": [],
+                "cv_generation_trace": {
+                    "records": [
+                        {
+                            "run_id": "run-telemetry-1",
+                            "job_url": "https://example.com/job-1",
+                            "cv_content_plan": {"space_budget": {"page_fit_status": "one_page"}},
+                            "reused_resolution_count": 1,
+                            "efficiency_summary": {
+                                "review_question_count": 2,
+                                "human_action_count": 1,
+                            },
+                        }
+                    ]
+                },
+            },
+            finished_at=datetime.datetime(2026, 10, 2, 10, 0, tzinfo=datetime.timezone.utc),
+        )
+    )
+
+    trace = payload["cv_generation_trace"]["records"][0]
+    assert trace["cv_content_plan"]["space_budget"]["page_fit_status"] == "one_page"
+    assert trace["reused_resolution_count"] == 1
+    assert trace["efficiency_summary"]["review_question_count"] == 2
+    assert trace["efficiency_summary"]["human_action_count"] == 1
+
+
+def test_build_cv_generation_debug_payload_persists_render_acceptance_on_artifact() -> None:
+    from types import SimpleNamespace
+
+    from fitcv_cp.worker_job import _build_cv_generation_debug_payload
+
+    payload = json.loads(
+        _build_cv_generation_debug_payload(
+            run_id="run-render-telemetry-1",
+            run_record=SimpleNamespace(),
+            summary={
+                "ranked": 1,
+                "cv_generation_debug_records": [
+                    {
+                        "status": "accepted",
+                        "job_url": "https://example.com/job-rendered",
+                        "cv_version_id": "cv-rendered-1",
+                        "page_fit_status": "pass",
+                        "render_acceptance": {
+                            "render_status": "pass",
+                            "renderer_status": "rendered",
+                            "page_count": 1,
+                            "page_fit_status": "pass",
+                            "artifact_checksum": "a" * 64,
+                            "content_sha256": "b" * 64,
+                            "template_sha256": "c" * 64,
+                            "render_config_fingerprint": "d" * 64,
+                            "renderer_contract_version": "fitcv_native_render_v1",
+                        },
+                    }
+                ],
+            },
+            finished_at=datetime.datetime(2026, 10, 2, 10, 0, tzinfo=datetime.timezone.utc),
+        )
+    )
+
+    event = payload["accepted_artifact_events"][0]
+    assert event["page_fit_status"] == "pass"
+    assert event["render_acceptance"]["page_count"] == 1
+
 def test_build_stage_transition_artifacts_payload_dict_has_required_shape() -> None:
     from fitcv.contracts import STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION
     from fitcv_cp.worker_job import _build_stage_transition_artifacts_payload_dict

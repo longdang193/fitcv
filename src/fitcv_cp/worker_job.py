@@ -30,6 +30,7 @@ import yaml
 from fitcv.decision_feedback import build_decision_feedback_source
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.agentic_cv_generation import generate_from_analysis
+from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv.evidence import build_evidence_projection
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
@@ -115,7 +116,6 @@ from fitcv_cp.review_identity import ensure_review_item_id, is_review_resolution
 from fitcv_cp.retry_policy import classify_exception_for_retry
 from fitcv_cp.run_artifact_contracts import (
     accepted_cv_artifact_event_v1,
-    build_final_cv_evidence_envelope,
     encode_json_object,
     iso_or_none,
     decode_json_object_or_none,
@@ -244,6 +244,13 @@ def _persist_resolution_reanalysis(
             "markdown_final": generation.get("markdown_final"),
             "structured_cv_final": generation.get("structured_cv_final"),
             "validation": generation.get("validation"),
+            "render_item_provenance": generation.get("render_item_provenance"),
+            "content_acceptance": generation.get("content_acceptance"),
+            "final_artifact_acceptance": generation.get("final_artifact_acceptance"),
+            "render_acceptance": generation.get("render_acceptance"),
+            "page_fit_status": generation.get("page_fit_status"),
+            "artifact_checksum": generation.get("artifact_checksum"),
+            "trim_attempt_count": generation.get("trim_attempt_count"),
             "review_required_reason_code": generation.get("review_required_reason_code"),
             "resolution_reanalysis_job_id": resolution_job_id,
             "resolution_reanalysis_completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -542,16 +549,14 @@ def execute_cv_regenerate_once(
             "generation_failed": "generation_failed",
             "persistence_failed": "persistence_failed",
         }.get(str(generation.get("status") or ""), "generation_failed")
+        if generation_status == "generated" and not final_artifact_acceptance_passes(
+            content_acceptance=True,
+            page_fit_status=generation.get("page_fit_status"),
+            render_acceptance=generation.get("render_acceptance"),
+        ):
+            generation_status = "review_required"
         markdown = str(generation.get("markdown_final") or "")
         content = markdown.encode("utf-8") if generation_status in {"generated", "review_required"} else None
-        evidence_envelope = build_final_cv_evidence_envelope(
-            artifact_version_id=reserved_version_id,
-            run_job_id=run_job_id,
-            run_id=run_id,
-            content_checksum=hashlib.sha256(content).hexdigest() if content is not None else None,
-            generation=generation,
-            trace=dict(generation.get("cv_generation_trace") or {}),
-        )
         terminal = update_cv_version(
             reserved_version_id,
             generation_status=generation_status,
@@ -568,7 +573,12 @@ def execute_cv_regenerate_once(
                 "cv_structured_json": generation.get("structured_cv_final"),
                 "cv_generation_input_fingerprint": generation.get("cv_generation_input_fingerprint"),
                 "cv_generation_reuse_status": generation.get("cv_generation_reuse_status"),
-                "quality_warnings_json": evidence_envelope,
+                "quality_warnings_json": {
+                    "trace_id": str(generation.get("trace_id") or "").strip() or None,
+                    "page_fit_status": generation.get("page_fit_status"),
+                    "render_acceptance": generation.get("render_acceptance"),
+                    "trim_count": generation.get("trim_count", 0),
+                },
             },
             error_code=(str((generation.get("error") or {}).get("stage") or "") or None),
             error_message=(str((generation.get("error") or {}).get("message") or "") or None),
@@ -1041,14 +1051,23 @@ def _build_cv_generation_debug_payload(
             artifact_id=str(record.get("cv_version_id") or ""),
             job_url=str(record.get("job_url") or ""),
             run_id=run_id,
+            run_job_id=record.get("run_job_id"),
             acceptance_mode="automatic",
             accepted_at=record.get("accepted_at") or record.get("generated_at") or finished_at.isoformat(),
             finalized_at=record.get("finalized_at") or record.get("generated_at") or finished_at.isoformat(),
             generation_input_fingerprint=record.get("cv_generation_input_fingerprint"),
+            trace_id=record.get("trace_id"),
+            page_fit_status=record.get("page_fit_status"),
+            render_acceptance=record.get("render_acceptance"),
         )
         for record in debug_records
         if str(record.get("status") or "").strip() == "accepted"
         and str(record.get("cv_version_id") or "").strip()
+        and final_artifact_acceptance_passes(
+            content_acceptance=True,
+            page_fit_status=record.get("page_fit_status"),
+            render_acceptance=record.get("render_acceptance"),
+        )
     ]
     existing_events = [
         item for item in list(summary.get("accepted_artifact_events") or [])
@@ -2999,9 +3018,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
-
-
 
 
 

@@ -2335,7 +2335,7 @@ def _related_education_domain_match(
         return False
     related_groups = (
         {"business", "busines", "economic", "finance", "account", "commerce", "management"},
-        {"data", "science", "engineer", "mathematic", "statistic", "computer", "technology", "informatics"},
+        {"data", "engineer", "mathematic", "statistic", "computer", "technology", "informatics"},
     )
     return any(
         concept & group and evidence_tokens & group
@@ -2978,11 +2978,6 @@ class _EvidenceSelectionEngine:
 
     def run(self, channel_pools: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
         merged_pool = _merge_channel_pools(channel_pools)
-        _annotate_requirement_support(
-            merged_pool,
-            list(self.job_context.get("requirement_descriptors") or []),
-            self.job_context.get("config"),
-        )
         selected_evidence = _select_final_evidence(
             merged_pool,
             top_k=self.top_k,
@@ -3064,48 +3059,65 @@ def _build_retrieve_evidence_bundle_payload(
             if requirement_id and evidence_id
         )
 
-    canonical_ids = sorted(
-        str(item.get("evidence_id") or "")
-        for item in canonical_items
-        if str(item.get("evidence_id") or "")
+    canonical_count = sum(
+        bool(str(item.get("evidence_id") or "")) for item in canonical_items
     )
-    candidate_ids = sorted(
-        str(item.get("evidence_id") or "")
-        for item in merged_pool
-        if str(item.get("evidence_id") or "")
+    candidate_count = sum(
+        bool(str(item.get("evidence_id") or "")) for item in merged_pool
     )
-    requirement_ids = sorted(
+    requirement_ids = set(
         set((responsibility_support or {}).get("requirement_ids") or [])
         | set(responsibility_canonical)
         | set(responsibility_pool)
         | set(responsibility_selected)
     )
-    canonical_pairs = sorted(
-        f"{requirement_id}::{evidence_id}"
-        for requirement_id in requirement_ids
-        for evidence_id in canonical_ids
-    )
-    candidate_pairs = sorted(
-        f"{requirement_id}::{evidence_id}"
-        for requirement_id in requirement_ids
-        for evidence_id in candidate_ids
-    )
-    verification_pairs = _pair_ids(responsibility_pool)
-    qualification_pairs = _pair_ids(pool_qualified_support)
-    selection_pairs = _pair_ids(selected_qualified_support)
-    assignment_pairs = _pair_ids(responsibility_selected)
+
+    def _pair_count(mapping: dict[str, list[str]]) -> int:
+        return sum(
+            1
+            for requirement_id, evidence_ids in mapping.items()
+            if requirement_id
+            for evidence_id in evidence_ids
+            if evidence_id
+        )
+
     stage_traces = {
         "schema_version": "fitcv.evidence_stage_trace.v1",
         "counts": {
-            "canonical_pool": len(canonical_pairs),
-            "candidate_retrieval": len(candidate_pairs),
-            "verification": len(verification_pairs),
-            "qualification": len(qualification_pairs),
-            "selection": len(selection_pairs),
-            "assignment": len(assignment_pairs),
+            "canonical_pool": len(requirement_ids) * canonical_count,
+            "candidate_retrieval": len(requirement_ids) * candidate_count,
+            "verification": _pair_count(responsibility_pool),
+            "qualification": _pair_count(pool_qualified_support),
+            "selection": _pair_count(selected_qualified_support),
+            "assignment": _pair_count(responsibility_selected),
         },
     }
     if include_diagnostics:
+        canonical_ids = sorted(
+            str(item.get("evidence_id") or "")
+            for item in canonical_items
+            if str(item.get("evidence_id") or "")
+        )
+        candidate_ids = sorted(
+            str(item.get("evidence_id") or "")
+            for item in merged_pool
+            if str(item.get("evidence_id") or "")
+        )
+        ordered_requirement_ids = sorted(requirement_ids)
+        canonical_pairs = sorted(
+            f"{requirement_id}::{evidence_id}"
+            for requirement_id in ordered_requirement_ids
+            for evidence_id in canonical_ids
+        )
+        candidate_pairs = sorted(
+            f"{requirement_id}::{evidence_id}"
+            for requirement_id in ordered_requirement_ids
+            for evidence_id in candidate_ids
+        )
+        verification_pairs = _pair_ids(responsibility_pool)
+        qualification_pairs = _pair_ids(pool_qualified_support)
+        selection_pairs = _pair_ids(selected_qualified_support)
+        assignment_pairs = _pair_ids(responsibility_selected)
         stage_traces.update({
             "canonical_pool": canonical_pairs,
             "candidate_retrieval": candidate_pairs,
