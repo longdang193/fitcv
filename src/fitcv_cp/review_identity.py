@@ -40,11 +40,11 @@ def normalize_review_resolution_status(action_name: Any, explicit_status: Any) -
         return "rejected"
     if normalized_action == "regenerate_once":
         return "regeneration_requested"
-    if normalized_action == "RESOLVE_WITH_ANSWER":
+    if normalized_action == "resolve_with_answer":
         return "resolved_with_answer"
-    if normalized_action == "CONFIRM_OMIT":
+    if normalized_action == "confirm_omit":
         return "confirmed_omit"
-    if normalized_action == "OVERRIDE_BLOCK":
+    if normalized_action == "override_block":
         return "override_block"
     return "pending"
 

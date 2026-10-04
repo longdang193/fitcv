@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { CvVersionResource, CvReviewDecisionPayload } from "../types";
+import { CvVersionResource } from "../types";
 import { StatusBadge, StatusVariant, Button } from "../../../components";
+import { hasVerifiedNativeOnePageRender } from "../final-artifact-evidence";
 
 export interface CvEvaluationCardProps {
   version: CvVersionResource | null;
   runId?: string;
   runJobId?: string;
-  onReviewSubmit?: (decision: CvReviewDecisionPayload, ifMatch?: string | null) => Promise<{ etag?: string | null }>;
+  onReviewSubmit?: (decision: { review_state: string; notes?: string }, ifMatch?: string | null) => Promise<{ etag?: string | null }>;
 }
 
 function getReviewVariant(state: string): StatusVariant {
@@ -24,6 +25,13 @@ function getReviewVariant(state: string): StatusVariant {
     default:
       return "neutral";
   }
+}
+
+function getOutcomeVariant(status: string): StatusVariant {
+  if (status === "generated") return "success";
+  if (status === "review_required" || status === "pending" || status === "running") return "warn";
+  if (["rejected", "cancelled", "failed", "generation_failed", "validation_failed", "persistence_failed"].includes(status)) return "danger";
+  return "neutral";
 }
 
 export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({
@@ -101,10 +109,8 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({
               label={`Fit: ${evalData.fit_classification}`}
             />
           )}
-          <StatusBadge
-            status={getReviewVariant(reviewState)}
-            label={`Review: ${reviewState}`}
-          />
+          <StatusBadge status={getOutcomeVariant(outcomeStatus)} label={`Status: ${outcomeStatus}`} />
+          <StatusBadge status={getReviewVariant(reviewState)} label={`Review: ${reviewState}`} />
         </div>
       </div>
 
@@ -121,6 +127,20 @@ export const CvEvaluationCard: React.FC<CvEvaluationCardProps> = ({
           </ul>
         </aside>
       )}
+
+      {(() => {
+        const evidence = version.quality_warnings;
+        const proofPassed = hasVerifiedNativeOnePageRender(evidence);
+        return (
+          <div role="status" aria-label="Final CV artifact evidence" style={{ fontSize: 12 }}>
+            {proofPassed ? (
+              <span style={{ color: "var(--success, #15803d)" }}>Final artifact verified · 1 page · native render passed</span>
+            ) : (
+              <span style={{ color: "var(--muted)" }}>Final artifact proof unavailable or not accepted</span>
+            )}
+          </div>
+        );
+      })()}
 
       {isFailure && (
         <aside

@@ -1,0 +1,104 @@
+{
+  "schema_version": "fitcv_first_pass_current_cohort_v1",
+  "generated_at": "2026-10-03",
+  "status": "complete",
+  "verdict": "current_cohort_observed_no_first_pass_improvement",
+  "comparability": {
+    "comparable_to_historical_169_job_workload": false,
+    "reason": "The cohort excludes two jobs whose uncached enrichment repeatedly timed out and uses 167 jobs instead of the historical 169-job fixture.",
+    "historical_5_of_5_evidence_promoted": false
+  },
+  "scope": {
+    "fixture_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\current-cohort-20261003-167-fixture.json",
+    "fixture_sha256": "74843e9fd3655d3c3a8f96a60fd98da3a6a78d6144b40289c8d83dcb17c8ceb5",
+    "source_fixture": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\data\\linkedin-2026-10-02-22-52-15.json",
+    "config_path": ".env.yaml",
+    "candidate_profile": "data/candidate_profile.private.yaml",
+    "model": "cx/gpt-5.6-luna",
+    "run_mode": "run_all",
+    "source_commit": "53f95ad0e2f13777e723911521a17e8cac197670",
+    "run_id": "4acec250-ff7e-4693-bff7-6fd81b2e4c95",
+    "database_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\local-experiment-current-b\\data-root\\fitcv.sqlite3"
+  },
+  "metrics": {
+    "total_jobs": 167,
+    "ranked_jobs": 15,
+    "attempted_generation_jobs": 5,
+    "accepted_final_cvs": 3,
+    "first_pass_acceptance_count": 0,
+    "first_pass_acceptance_rate": 0.0,
+    "accepted_final_one_page_count": 3,
+    "accepted_final_one_page_total": 3,
+    "accepted_final_one_page_rate": 1.0,
+    "review_required_count": 1,
+    "review_required_rejected_count": 1,
+    "validation_failed_count": 1,
+    "provider_calls_accepted_artifacts": 6,
+    "provider_calls_attempted_workload": 10,
+    "tokens_accepted_artifacts": 29130,
+    "tokens_attempted_workload": 45922,
+    "accepted_generation_elapsed_ms": 81732.0,
+    "failure_category_counts": {
+      "generation_format_defect": 3,
+      "validation_failed": 1,
+      "page_fit_failed": 1
+    }
+  },
+  "outcomes": [
+    {
+      "status": "accepted",
+      "job_url": "https://www.linkedin.com/jobs/view/4473325131",
+      "attempt_count": 2,
+      "provider_call_count": 2,
+      "token_total": 9170,
+      "render_page_count": 1,
+      "accepted_final_one_page": true
+    },
+    {
+      "status": "accepted",
+      "job_url": "https://www.linkedin.com/jobs/view/4475001102",
+      "attempt_count": 2,
+      "provider_call_count": 2,
+      "token_total": 10112,
+      "render_page_count": 1,
+      "accepted_final_one_page": true
+    },
+    {
+      "status": "accepted",
+      "job_url": "https://www.linkedin.com/jobs/view/4464374640",
+      "attempt_count": 2,
+      "provider_call_count": 2,
+      "token_total": 9848,
+      "render_page_count": 1,
+      "accepted_final_one_page": true
+    },
+    {
+      "status": "validation_failed",
+      "job_url": "https://www.linkedin.com/jobs/view/4465828637",
+      "reason": "Selected-evidence grounding violations remained after generation."
+    },
+    {
+      "status": "review_required",
+      "job_url": "https://www.linkedin.com/jobs/view/4464588596",
+      "reason": "Native render verified page_count=2 and page_fit_status=fail.",
+      "operator_action": "reject",
+      "operator_note": "Rejected for truthful cohort accounting; not an accepted one-page CV."
+    }
+  ],
+  "hard_gates": {
+    "accepted_artifacts_have_final_render_proof": true,
+    "accepted_artifacts_are_one_page": true,
+    "first_pass_rate_increased_over_historical_0_of_8": false,
+    "promotion_allowed": false
+  },
+  "diagnostics": [
+    "The first full 169-job run failed before generation because uncached enrichment future.result() propagated one provider timeout and aborted the batch.",
+    "The current cohort uses seeded enrichment cache and excludes the two repeatedly timing-out URLs; this is experiment-boundary evidence, not a production first-pass comparison.",
+    "FITCV_LLM_API_KEY was loaded from repository .env into process environment only and was not printed or persisted in evidence."
+  ],
+  "deferred": [
+    "P1-C",
+    "historical 169-job comparable rerun",
+    "production enrichment timeout policy change"
+  ]
+}

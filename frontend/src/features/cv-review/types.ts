@@ -27,6 +27,66 @@ export interface CvQualityWarningsEnvelope {
   evidence_state?: "passed" | "failed" | "missing" | string;
   outcome?: "passed" | "warning" | "failure" | "missing" | string;
   warnings?: string[];
+  page_count?: number | null;
+  page_fit_status?: string | null;
+  render_acceptance?: Record<string, unknown> | string | null;
+  artifact_checksum?: string | null;
+  render_proof?: Record<string, unknown> | null;
+  run_id?: string | null;
+  run_job_id?: string | null;
+}
+
+export type CvLifecycleStatus =
+  | "pending"
+  | "running"
+  | "generated"
+  | "review_required"
+  | "rejected"
+  | "cancelled"
+  | "failed"
+  | "generation_failed"
+  | "validation_failed"
+  | "persistence_failed"
+  | string;
+
+export interface CvReviewUncertainty {
+  uncertainty_id?: string;
+  resolution_key?: string;
+  requirement_instance_id?: string;
+  qualifier?: string;
+  message?: string;
+  resolution_action?: CvReviewAction | string | null;
+  resolution_status?: string | null;
+  [key: string]: unknown;
+}
+
+export interface CvReviewResource {
+  run_id: string;
+  run_job_id: string;
+  job_url?: string;
+  cv_version_id?: string | null;
+  status: CvLifecycleStatus;
+  review_item_id?: string | null;
+  reason_code?: string | null;
+  uncertainties: CvReviewUncertainty[];
+  resolution_key?: string | null;
+  allowed_actions: CvReviewAction[];
+  resolution_status?: string | null;
+  final_artifact_evidence?: CvQualityWarningsEnvelope | null;
+  cv_version?: CvVersionResource | null;
+  refresh_required?: boolean;
+}
+
+export type CvReviewAction = "RESOLVE_WITH_ANSWER" | "CONFIRM_OMIT" | "OVERRIDE_BLOCK";
+
+export interface CvReviewActionRequest {
+  review_item_id?: string | null;
+  uncertainty_id?: string | null;
+  resolution_key?: string | null;
+  action: CvReviewAction;
+  actor?: string;
+  note?: string | null;
+  answer_text?: string | null;
 }
 
 export interface CvVersionResource {
@@ -63,7 +123,6 @@ export interface CvPreviewResult {
   checksum: string;
   content_length: number;
 }
-
 export interface CvRegenerateRequest {
   parent_cv_version_id?: string | null;
 }
@@ -73,14 +132,4 @@ export interface CvRegenerateResponseData {
   status: "queued" | "failed" | string;
   queue_job_id?: string | null;
   cv_version?: CvVersionResource;
-}
-
-export interface CvReviewDecisionPayload {
-  review_state: string;
-  notes?: string;
-}
-
-export interface CvReviewMutationResult {
-  version: CvVersionResource;
-  etag?: string | null;
 }

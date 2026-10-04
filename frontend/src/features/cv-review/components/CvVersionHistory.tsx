@@ -2,6 +2,7 @@ import React from "react";
 import { CvVersionResource } from "../types";
 import { StatusBadge, StatusVariant } from "../../../components";
 import { formatIdentifier, formatTimestamp } from "../../../lib/format";
+import { hasVerifiedNativeOnePageRender } from "../final-artifact-evidence";
 
 export interface CvVersionHistoryProps {
   versions: CvVersionResource[];
@@ -23,6 +24,8 @@ function getStatusVariant(status: string): StatusVariant {
     case "generation_failed":
     case "validation_failed":
     case "persistence_failed":
+    case "rejected":
+    case "cancelled":
     case "failed":
       return "danger";
     default:
@@ -107,6 +110,11 @@ export const CvVersionHistory: React.FC<CvVersionHistoryProps> = ({
                     {ver.quality_warnings.warnings.length} quality warning{ver.quality_warnings.warnings.length === 1 ? "" : "s"}
                   </div>
                 )}
+                <div role="status" style={{ fontSize: 11, color: "var(--muted)" }}>
+                  {hasVerifiedNativeOnePageRender(ver.quality_warnings)
+                    ? "Final artifact verified · 1 page · native render passed"
+                    : "Final artifact proof unavailable"}
+                </div>
               </button>
             </li>
           );

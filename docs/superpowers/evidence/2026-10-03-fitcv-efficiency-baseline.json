@@ -1,0 +1,31 @@
+{
+  "schema_version": "fitcv_efficiency_baseline_v1",
+  "arm": "incumbent",
+  "status": "measured",
+  "comparability": {
+    "comparable_to_historical_169_job_workload": false,
+    "reason": "The cohort excludes two jobs whose uncached enrichment repeatedly timed out and uses 167 jobs instead of the historical 169-job fixture.",
+    "historical_5_of_5_evidence_promoted": false
+  },
+  "metrics": {
+    "attempted_generation_jobs": 5,
+    "accepted_final_cvs": 3,
+    "first_pass_acceptance_count": 0,
+    "first_pass_acceptance_rate": 0.0,
+    "accepted_final_one_page_count": 3,
+    "accepted_final_one_page_rate": 1.0,
+    "provider_calls": 6.0,
+    "tokens": 29130.0,
+    "latency_ms": {
+      "measured_count": 0,
+      "p50": null,
+      "p95": null
+    },
+    "failure_category_counts": {
+      "generation_format_defect": 3,
+      "validation_failed": 1,
+      "page_fit_failed": 1
+    }
+  },
+  "promotion_allowed": false
+}
