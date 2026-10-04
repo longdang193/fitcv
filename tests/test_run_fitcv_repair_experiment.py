@@ -163,7 +163,27 @@ def test_fixture_rejects_unknown_required_evidence_category(tmp_path: Path) -> N
 
 
 def test_manifest_rejects_changed_frozen_input_identity(monkeypatch, tmp_path: Path) -> None:
-    fixture = experiment.DEFAULT_FIXTURE
+    fixture = tmp_path / "tests" / "fixtures" / "fitcv-p1ab-repair-experiment.json"
+    fixture.parent.mkdir(parents=True)
+    fixture.write_text(json.dumps(_fixture_payload()), encoding="utf-8")
+    profile_directory = tmp_path / "data"
+    profile_directory.mkdir()
+    profile_directory.joinpath("candidate_profile.yaml").write_text(
+        "preferences:\n  exclude_contract_types: []\n",
+        encoding="utf-8",
+    )
+    profile_directory.joinpath("candidate_profile.private.yaml").write_text(
+        "private: true\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(experiment, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        experiment,
+        "DECLARED_INPUTS",
+        ("data/candidate_profile.yaml", "data/candidate_profile.private.yaml"),
+    )
+    monkeypatch.setattr(experiment, "_git", lambda *args: "unchanged")
+    monkeypatch.setattr(experiment, "_diff_hash", lambda: "unchanged")
     frozen = experiment.capture_input_identity(fixture)
     monkeypatch.setattr(experiment, "_git", lambda *args: "changed")
 
