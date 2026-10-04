@@ -1,12 +1,15 @@
 import concurrent.futures
+import contextlib
 import datetime
 import hashlib
 import json
 import os
 import sqlite3
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -4805,6 +4808,60 @@ def test_failed_idempotent_action_can_be_reserved_again() -> None:
     assert retry["action_id"] == first["action_id"]
     assert retry["replayed"] is False
     assert retry["status"] == "queued"
+
+
+def test_failed_idempotent_action_only_one_concurrent_retry_claims(monkeypatch: pytest.MonkeyPatch) -> None:
+    first = sqlite_store.reserve_idempotent_action("cv-review", "key-race", "fingerprint-1")
+    sqlite_store.fail_idempotent_action(first["action_id"])
+    select_barrier = threading.Barrier(2)
+    connection_state = threading.local()
+    original_connection = sqlite_store._sqlite_connection
+
+    class SynchronizedConnection:
+        def __init__(self, connection: sqlite3.Connection) -> None:
+            self._connection = connection
+
+        @property
+        def row_factory(self) -> Any:
+            return self._connection.row_factory
+
+        @row_factory.setter
+        def row_factory(self, value: Any) -> None:
+            self._connection.row_factory = value
+
+        def execute(self, sql: str, *args: Any) -> Any:
+            cursor = self._connection.execute(sql, *args)
+            if (
+                str(sql).lstrip().startswith(
+                    "SELECT * FROM idempotent_actions WHERE action_scope=?"
+                )
+                and not getattr(connection_state, "synchronized", False)
+            ):
+                connection_state.synchronized = True
+                select_barrier.wait(timeout=5)
+            return cursor
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._connection, name)
+
+    @contextlib.contextmanager
+    def synchronized_connection(path: Path, *, read_only: bool = False) -> Any:
+        with original_connection(path, read_only=read_only) as connection:
+            yield SynchronizedConnection(connection)
+
+    monkeypatch.setattr(sqlite_store, "_sqlite_connection", synchronized_connection)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(
+            pool.map(
+                lambda _: sqlite_store.reserve_idempotent_action(
+                    "cv-review", "key-race", "fingerprint-1"
+                ),
+                range(2),
+            )
+        )
+
+    assert sorted(result["replayed"] for result in results) == [False, True]
 
 
 def test_bookmark_is_deleted_with_archived_run() -> None:

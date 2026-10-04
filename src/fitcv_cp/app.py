@@ -1760,7 +1760,7 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
     actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
     latest_action_by_review_item_id: dict[str, dict[str, Any]] = {}
     latest_action_by_job: dict[str, dict[str, Any]] = {}
-    latest_action_by_uncertainty: dict[tuple[str, str], dict[str, Any]] = {}
+    latest_action_by_uncertainty: dict[tuple[str, str, str, str], dict[str, Any]] = {}
     for action in actions:
         review_item_id = str(action.get("review_item_id") or "").strip()
         if review_item_id:
@@ -1772,7 +1772,9 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
         uncertainty_id = str(action.get("uncertainty_id") or "").strip()
         resolution_key = str(action.get("resolution_key") or "").strip()
         if uncertainty_id or resolution_key:
-            latest_action_by_uncertainty[(uncertainty_id, resolution_key)] = action
+            latest_action_by_uncertainty[(job_url, review_item_id, uncertainty_id, resolution_key)] = action
+            if job_url:
+                latest_action_by_uncertainty[(job_url, "", uncertainty_id, resolution_key)] = action
     queue_items: list[dict[str, Any]] = []
     for record in records:
         if not isinstance(record, dict):
@@ -1793,7 +1795,13 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
             projected_uncertainty = dict(uncertainty)
             uncertainty_id = str(projected_uncertainty.get("uncertainty_id") or "").strip()
             resolution_key = str(projected_uncertainty.get("resolution_key") or "").strip()
-            uncertainty_action = latest_action_by_uncertainty.get((uncertainty_id, resolution_key))
+            uncertainty_action = latest_action_by_uncertainty.get(
+                (job_url, review_item_id, uncertainty_id, resolution_key)
+            )
+            if uncertainty_action is None and job_url:
+                uncertainty_action = latest_action_by_uncertainty.get(
+                    (job_url, "", uncertainty_id, resolution_key)
+                )
             if uncertainty_action is None and len(list(record.get("uncertainties") or [])) == 1:
                 uncertainty_action = action
             if uncertainty_action is not None:
@@ -12027,16 +12035,59 @@ def create_app(
             raise
         if isinstance(idempotent_action, dict) and idempotent_action.get("replayed") and idempotent_action.get("response") is not None:
             return JSONResponse(status_code=202, content=_data_response(idempotent_action["response"]))
-        if isinstance(idempotent_action, dict) and idempotent_action.get("replayed"):
-            raise ApiError(
-                409,
-                "idempotency_in_progress",
-                "An earlier CV review action is still in progress.",
-                retryable=True,
-                action="Retry after the earlier review action completes.",
-            )
+        replay_in_progress = bool(
+            isinstance(idempotent_action, dict) and idempotent_action.get("replayed")
+        )
 
         try:
+            debug_payload = _load_run_cv_generation_debug_payload(run)
+            persisted_action = None
+            if isinstance(debug_payload, dict):
+                persisted_action = next(
+                    (
+                        value
+                        for value in reversed(list(debug_payload.get("hitl_review_actions") or []))
+                        if isinstance(value, dict)
+                        and str(value.get("idempotency_key") or "").strip() == idempotency_key
+                        and str(value.get("job_url") or "").strip() == job_url
+                    ),
+                    None,
+                )
+            if persisted_action is not None:
+                resolution_id = str(persisted_action.get("resolution_id") or "").strip()
+                if not resolution_id:
+                    for record in list(debug_payload.get("debug_records") or []):
+                        if not isinstance(record, dict) or str(record.get("job_url") or "").strip() != job_url:
+                            continue
+                        for uncertainty in list(record.get("uncertainties") or []):
+                            if not isinstance(uncertainty, dict):
+                                continue
+                            if (
+                                str(uncertainty.get("uncertainty_id") or "").strip() == str(persisted_action.get("uncertainty_id") or "").strip()
+                                and str(uncertainty.get("resolution_key") or "").strip() == str(persisted_action.get("resolution_key") or "").strip()
+                            ):
+                                resolution_id = str(uncertainty.get("resolution_id") or "").strip()
+                                break
+                        if resolution_id:
+                            break
+                refreshed = _canonical_cv_review_resource(run_id, run_job_id)
+                response = {
+                    **refreshed,
+                    "action_id": f"requirement-resolution:{resolution_id}" if resolution_id else str(idempotent_action.get("action_id") or ""),
+                    "regeneration_job_id": persisted_action.get("regeneration_job_id"),
+                    "status": "queued",
+                }
+                if isinstance(idempotent_action, dict) and idempotent_action.get("action_id"):
+                    store.complete_idempotent_action(str(idempotent_action["action_id"]), response)
+                return JSONResponse(status_code=202, content=_data_response(response))
+            if replay_in_progress:
+                raise ApiError(
+                    409,
+                    "idempotency_in_progress",
+                    "An earlier CV review action is still in progress.",
+                    retryable=True,
+                    action="Retry after the earlier review action completes.",
+                )
             resource = _canonical_cv_review_resource(run_id, run_job_id)
             if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
                 raise ApiError(409, "review_resource_stale", "Review item changed.", action="Refresh CV review.")
@@ -12109,6 +12160,7 @@ def create_app(
                     "answer_text": str(body.answer_text or "").strip() or None,
                     "resolution_action": body.action,
                     "regeneration_job_id": regeneration_job_id,
+                    "resolution_id": resolution_id,
                     "idempotency_key": idempotency_key,
                     "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 }

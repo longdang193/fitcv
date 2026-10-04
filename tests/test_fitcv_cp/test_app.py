@@ -6695,6 +6695,118 @@ def test_canonical_cv_review_action_retries_after_enqueue_failure() -> None:
     store.fail_idempotent_action.assert_called_once_with("action-1")
 
 
+def test_canonical_cv_review_action_reconciles_after_settlement_failure() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-settlement-retry",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps({
+            "debug_records": [{
+                "job_url": "https://example.com/job-1",
+                "status": "review_required",
+                "review_item_id": "review-1",
+                "candidate_profile_id": "candidate-1",
+                "candidate_profile_revision": "1",
+                "source_profile_fingerprint": "profile-1",
+                "uncertainties": [{
+                    "uncertainty_id": "u-1",
+                    "resolution_key": "skill:sql",
+                    "requirement_instance_id": "skill:sql",
+                }],
+            }],
+        }),
+    )
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {"run_job_id": "job-1", "source_url": "https://example.com/job-1"}
+    store.list_cv_versions.return_value = []
+    store.reserve_idempotent_action.side_effect = [
+        {"action_id": "action-1", "replayed": False, "response": None},
+        {"action_id": "action-1", "replayed": False, "response": None},
+    ]
+    store.complete_idempotent_action.side_effect = [RuntimeError("settlement unavailable"), None]
+
+    def persist_debug(_run_id: str, debug_json: str, *, client: Any) -> None:
+        run.cv_generation_debug_json = debug_json
+
+    with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution", return_value={"resolution_id": "resolution-1"}), \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue, \
+         patch("fitcv_cp.app.update_run_cv_generation_debug", side_effect=persist_debug):
+        client = TestClient(_app(), raise_server_exceptions=False)
+        payload = {
+            "review_item_id": "review-1",
+            "uncertainty_id": "u-1",
+            "resolution_key": "skill:sql",
+            "action": "RESOLVE_WITH_ANSWER",
+            "answer_text": "Used SQL for four years.",
+        }
+        first = client.post(
+            "/runs/run-canonical-review-settlement-retry/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-settlement-retry"},
+            json=payload,
+        )
+        second = client.post(
+            "/runs/run-canonical-review-settlement-retry/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-settlement-retry"},
+            json=payload,
+        )
+
+    assert first.status_code == 500
+    assert second.status_code == 202
+    assert enqueue.call_count == 1
+    assert store.complete_idempotent_action.call_count == 2
+    store.fail_idempotent_action.assert_called_once_with("action-1")
+
+
+def test_build_hitl_review_queue_scopes_uncertainty_actions_by_job() -> None:
+    from fitcv_cp.app import _build_hitl_review_queue
+
+    run = PipelineRun(
+        run_id="run-review-queue-cross-job-scope",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps({
+            "debug_records": [
+                {
+                    "job_url": "https://example.com/job-1",
+                    "status": "review_required",
+                    "review_item_id": "review-1",
+                    "uncertainties": [{"uncertainty_id": "shared-u", "resolution_key": "skill:sql"}],
+                },
+                {
+                    "job_url": "https://example.com/job-2",
+                    "status": "review_required",
+                    "review_item_id": "review-2",
+                    "uncertainties": [{"uncertainty_id": "shared-u", "resolution_key": "skill:sql"}],
+                },
+            ],
+            "hitl_review_actions": [{
+                "job_url": "https://example.com/job-1",
+                "review_item_id": "review-1",
+                "uncertainty_id": "shared-u",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+            }],
+        }),
+    )
+
+    queue = _build_hitl_review_queue(run)
+    items = {item["job_url"]: item for item in queue["queue_items"]}
+
+    assert items["https://example.com/job-1"]["pending"] is False
+    assert items["https://example.com/job-2"]["pending"] is True
+
+
 def test_canonical_cv_review_action_replays_after_review_state_changes() -> None:
     run = PipelineRun(
         run_id="run-canonical-review-replay",
@@ -6733,7 +6845,7 @@ def test_canonical_cv_review_action_replays_after_review_state_changes() -> None
 
     with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
          patch("fitcv_cp.app._build_hitl_review_queue", side_effect=[pending_queue, pending_queue, resolved_resource]), \
-         patch("fitcv_cp.app._load_run_cv_generation_debug_payload", return_value={
+         patch("fitcv_cp.app._load_run_cv_generation_debug_payload", side_effect=lambda _run: {
              "debug_records": [{
                  "job_url": "https://example.com/job-1",
                  "status": "review_required",

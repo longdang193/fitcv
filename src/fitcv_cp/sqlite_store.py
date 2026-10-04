@@ -12034,18 +12034,23 @@ def reserve_idempotent_action(scope: str, key: str, fingerprint: str) -> dict[st
                 raise ValueError("idempotency_conflict")
             if row["status"] == "failed":
                 now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                conn.execute(
-                    "UPDATE idempotent_actions SET status='queued', response_json=NULL, updated_at=? WHERE action_id=?",
+                claimed = conn.execute(
+                    "UPDATE idempotent_actions SET status='queued', response_json=NULL, updated_at=? WHERE action_id=? AND status='failed'",
                     (now, row["action_id"]),
                 )
                 conn.commit()
-                return {
-                    "action_id": row["action_id"],
-                    "status": "queued",
-                    "replayed": False,
-                    "response": None,
-                    "binary_response": None,
-                }
+                if claimed.rowcount == 1:
+                    return {
+                        "action_id": row["action_id"],
+                        "status": "queued",
+                        "replayed": False,
+                        "response": None,
+                        "binary_response": None,
+                    }
+                row = conn.execute(
+                    "SELECT * FROM idempotent_actions WHERE action_scope=? AND idempotency_key=?",
+                    (scope, key),
+                ).fetchone()
             return {
                 "action_id": row["action_id"],
                 "status": row["status"],
