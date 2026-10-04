@@ -54,6 +54,7 @@ def test_build_final_cv_evidence_envelope_requires_bound_native_one_page_proof()
                 "page_fit_status": "pass",
                 "render_acceptance": "passed",
                 "content_sha256": "a" * 64,
+                "artifact_checksum": "b" * 64,
             }
         },
     )
@@ -74,12 +75,33 @@ def test_build_final_cv_evidence_envelope_accepts_generation_render_acceptance()
                 "page_count": 1,
                 "page_fit_status": "pass",
                 "content_sha256": "b" * 64,
+                "artifact_checksum": "c" * 64,
             },
         },
     )
 
     assert envelope["evidence_state"] == "passed"
     assert envelope["page_count"] == 1
+
+
+def test_build_final_cv_evidence_envelope_rejects_missing_native_artifact_checksum() -> None:
+    envelope = build_final_cv_evidence_envelope(
+        artifact_version_id="cv-missing-pdf-checksum",
+        run_job_id="job-missing-pdf-checksum",
+        run_id="run-missing-pdf-checksum",
+        content_checksum="d" * 64,
+        generation={
+            "render_proof": {
+                "page_count": 1,
+                "page_fit_status": "pass",
+                "render_acceptance": "passed",
+                "content_sha256": "d" * 64,
+            }
+        },
+    )
+
+    assert envelope["evidence_state"] == "missing"
+    assert "native_one_page_render_unverified" in envelope["warnings"]
 
 
 def test_build_final_cv_evidence_envelope_rejects_mismatched_render_identity() -> None:

@@ -4795,6 +4795,18 @@ def test_idempotent_action_replays_same_fingerprint_and_rejects_conflict() -> No
     with pytest.raises(ValueError, match="idempotency_conflict"):
         sqlite_store.reserve_idempotent_action("runs:create", "key-1", "fingerprint-2")
 
+
+def test_failed_idempotent_action_can_be_reserved_again() -> None:
+    first = sqlite_store.reserve_idempotent_action("cv-review", "key-failed", "fingerprint-1")
+    sqlite_store.fail_idempotent_action(first["action_id"])
+
+    retry = sqlite_store.reserve_idempotent_action("cv-review", "key-failed", "fingerprint-1")
+
+    assert retry["action_id"] == first["action_id"]
+    assert retry["replayed"] is False
+    assert retry["status"] == "queued"
+
+
 def test_bookmark_is_deleted_with_archived_run() -> None:
     run = _make_run("run-bookmark")
     run.status = RunStatus.SUCCEEDED

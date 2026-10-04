@@ -42,6 +42,7 @@ from fitcv_cp.orchestrator import RunSubmission
 from fitcv_cp import sqlite_store
 from fitcv_cp.backend_runtime import set_backend_runtime
 from fitcv.persistence import sqlite_connection
+from fitcv_cp.review_identity import normalize_review_resolution_status
 
 _TEST_DATABASE_ROOT = tempfile.TemporaryDirectory(prefix="fitcv-cp-app-tests-")
 
@@ -6622,6 +6623,78 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
     )
 
 
+def test_canonical_cv_review_action_retries_after_enqueue_failure() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-retry",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps({
+            "debug_records": [{
+                "job_url": "https://example.com/job-1",
+                "status": "review_required",
+                "review_item_id": "review-1",
+                "candidate_profile_id": "candidate-1",
+                "candidate_profile_revision": "1",
+                "source_profile_fingerprint": "profile-1",
+                "uncertainties": [{
+                    "uncertainty_id": "u-1",
+                    "resolution_key": "skill:sql",
+                    "requirement_instance_id": "skill:sql",
+                }],
+            }],
+        }),
+    )
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {"run_job_id": "job-1", "source_url": "https://example.com/job-1"}
+    store.list_cv_versions.return_value = []
+    reservation_failed = False
+
+    def reserve(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        if reservation_failed:
+            return {"action_id": "action-1", "replayed": False, "response": None}
+        if store.reserve_idempotent_action.call_count == 1:
+            return {"action_id": "action-1", "replayed": False, "response": None}
+        return {"action_id": "action-1", "replayed": True, "response": None}
+
+    def fail(_action_id: str) -> None:
+        nonlocal reservation_failed
+        reservation_failed = True
+
+    store.reserve_idempotent_action.side_effect = reserve
+    store.fail_idempotent_action.side_effect = fail
+    with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution", return_value={"resolution_id": "resolution-1"}), \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", side_effect=[RuntimeError("queue unavailable"), "queue-1"]), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug"):
+        client = TestClient(_app(), raise_server_exceptions=False)
+        payload = {
+            "review_item_id": "review-1",
+            "uncertainty_id": "u-1",
+            "resolution_key": "skill:sql",
+            "action": "RESOLVE_WITH_ANSWER",
+            "answer_text": "Used SQL for four years.",
+        }
+        first = client.post(
+            "/runs/run-canonical-review-retry/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-retry"},
+            json=payload,
+        )
+        second = client.post(
+            "/runs/run-canonical-review-retry/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-retry"},
+            json=payload,
+        )
+
+    assert first.status_code == 500
+    assert second.status_code == 202
+    store.fail_idempotent_action.assert_called_once_with("action-1")
+
+
 def test_canonical_cv_review_action_replays_after_review_state_changes() -> None:
     run = PipelineRun(
         run_id="run-canonical-review-replay",
@@ -6700,6 +6773,57 @@ def test_canonical_cv_review_action_replays_after_review_state_changes() -> None
     assert second.json()["data"] == {"status": "queued", "action_id": "action-1"}
     assert third.status_code == 409
     assert third.json()["error"]["code"] == "idempotency_in_progress"
+
+
+def test_review_resolution_actions_normalize_to_terminal_statuses() -> None:
+    assert normalize_review_resolution_status("RESOLVE_WITH_ANSWER", None) == "resolved_with_answer"
+    assert normalize_review_resolution_status("CONFIRM_OMIT", None) == "confirmed_omit"
+    assert normalize_review_resolution_status("OVERRIDE_BLOCK", None) == "override_block"
+
+
+def test_canonical_cv_review_keeps_item_pending_until_all_uncertainties_resolve() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-multiple-uncertainties",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps({
+            "debug_records": [{
+                "job_url": "https://example.com/job-1",
+                "status": "review_required",
+                "review_item_id": "review-1",
+                "uncertainties": [
+                    {"uncertainty_id": "u-1", "resolution_key": "skill:sql"},
+                    {"uncertainty_id": "u-2", "resolution_key": "skill:python"},
+                ],
+            }],
+            "hitl_review_actions": [{
+                "review_item_id": "review-1",
+                "job_url": "https://example.com/job-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+            }],
+        }),
+    )
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {"run_job_id": "job-1", "source_url": "https://example.com/job-1"}
+    store.list_cv_versions.return_value = []
+
+    with patch("fitcv_cp.app._resolve_run_store", return_value=store):
+        response = TestClient(_app()).get(
+            "/runs/run-canonical-review-multiple-uncertainties/jobs/job-1/cv-review"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["status"] == "review_required"
+    assert payload["allowed_actions"] == ["RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"]
+    assert payload["resolution_key"] == "skill:python"
 
 
 @pytest.mark.parametrize(

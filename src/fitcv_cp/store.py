@@ -116,6 +116,7 @@ class RunStore(Protocol):
     def set_run_job_interest(self, run_job_id: str, rating: int, **kwargs: Any) -> dict[str, Any]: ...
     def clear_run_job_interest(self, run_job_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def reserve_idempotent_action(self, scope: str, key: str, fingerprint: str) -> dict[str, Any]: ...
+    def fail_idempotent_action(self, action_id: str) -> None: ...
     def complete_idempotent_action(self, action_id: str, response: dict[str, Any]) -> None: ...
     def complete_idempotent_binary_action(self, action_id: str, content: bytes, **kwargs: Any) -> None: ...
     def update_run_queue_job_id(self, run_id: str, queue_job_id: str, **kwargs: Any) -> dict[str, str]: ...
@@ -349,6 +350,7 @@ class ControlPlaneStore:
     set_run_job_interest_fn: Any | None = None
     clear_run_job_interest_fn: Any | None = None
     reserve_idempotent_action_fn: Any | None = None
+    fail_idempotent_action_fn: Any | None = None
     complete_idempotent_action_fn: Any | None = None
     complete_idempotent_binary_action_fn: Any | None = None
 
@@ -992,6 +994,13 @@ class ControlPlaneStore:
             response,
         )
 
+    def fail_idempotent_action(self, action_id: str) -> None:
+        self._call(
+            self.fail_idempotent_action_fn,
+            sqlite_store.fail_idempotent_action,
+            action_id,
+        )
+
     def update_run_queue_job_id(
         self, run_id: str, queue_job_id: str, **kwargs: Any
     ) -> dict[str, str]:
@@ -1508,5 +1517,4 @@ class ControlPlaneStore:
             sqlite_store.insert_cv_version_row,
             row,
         )
-
 

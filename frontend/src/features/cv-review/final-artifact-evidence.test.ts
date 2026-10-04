@@ -12,6 +12,16 @@ describe("final artifact evidence", () => {
       page_count: 1,
       page_fit_status: "pass",
       render_acceptance: "passed",
+      artifact_checksum: "a".repeat(64),
     })).toBe(true);
+  });
+
+  it("rejects passed evidence without PDF artifact checksum", () => {
+    expect(hasVerifiedNativeOnePageRender({
+      evidence_state: "passed",
+      page_count: 1,
+      page_fit_status: "pass",
+      render_acceptance: "passed",
+    })).toBe(false);
   });
 });

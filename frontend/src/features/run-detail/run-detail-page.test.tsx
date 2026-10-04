@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   RunDetailPage,
   buildRunJobsQueryKey,
+  getPendingCvReviewUncertainty,
   isTerminalRunStatus,
   resolveDefaultResultsStage,
   retainEventCursor,
@@ -61,6 +62,15 @@ describe("Run Detail Request Ownership and Polling Coordination", () => {
   it("uses backend-selected result stage for partial runs", () => {
     expect(resolveDefaultResultsStage({ default_results_stage: "screening" } as PipelineRunResource)).toBe("screening");
     expect(resolveDefaultResultsStage(createMockRun("fallback"))).toBe("ranking");
+  });
+
+  it("selects first unresolved CV review uncertainty", () => {
+    const pending = getPendingCvReviewUncertainty([
+      { uncertainty_id: "u-1", resolution_action: "RESOLVE_WITH_ANSWER" },
+      { uncertainty_id: "u-2", resolution_status: "pending" },
+    ]);
+
+    expect(pending?.uncertainty_id).toBe("u-2");
   });
 
   it("does not request jobs before run detail loads", () => {

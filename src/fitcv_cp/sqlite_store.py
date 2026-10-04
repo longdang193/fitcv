@@ -12032,6 +12032,20 @@ def reserve_idempotent_action(scope: str, key: str, fingerprint: str) -> dict[st
         if row is not None:
             if row["request_fingerprint"] != fingerprint:
                 raise ValueError("idempotency_conflict")
+            if row["status"] == "failed":
+                now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                conn.execute(
+                    "UPDATE idempotent_actions SET status='queued', response_json=NULL, updated_at=? WHERE action_id=?",
+                    (now, row["action_id"]),
+                )
+                conn.commit()
+                return {
+                    "action_id": row["action_id"],
+                    "status": "queued",
+                    "replayed": False,
+                    "response": None,
+                    "binary_response": None,
+                }
             return {
                 "action_id": row["action_id"],
                 "status": row["status"],
@@ -12070,6 +12084,15 @@ def complete_idempotent_action(action_id: str, response: dict[str, Any]) -> None
         conn.execute(
             "UPDATE idempotent_actions SET status='succeeded', response_json=?, updated_at=? WHERE action_id=?",
             (json.dumps(response, sort_keys=True), datetime.datetime.now(datetime.timezone.utc).isoformat(), action_id),
+        )
+        conn.commit()
+
+
+def fail_idempotent_action(action_id: str) -> None:
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.execute(
+            "UPDATE idempotent_actions SET status='failed', response_json=NULL, updated_at=? WHERE action_id=?",
+            (datetime.datetime.now(datetime.timezone.utc).isoformat(), action_id),
         )
         conn.commit()
 

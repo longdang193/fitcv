@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json as _json
+import re
 from typing import Any
 
 RUN_MODE_LABELS = {
@@ -118,6 +119,7 @@ def build_final_cv_evidence_envelope(
     proof_content_checksum = str(
         first(render_proof.get("content_sha256"), render_proof.get("content_checksum")) or ""
     ).strip()
+    artifact_checksum = str(render_proof.get("artifact_checksum") or "").strip()
     proof_artifact_version_id = str(render_proof.get("artifact_version_id") or "").strip()
     proof_run_job_id = str(render_proof.get("run_job_id") or "").strip()
     render_identity_matches = bool(
@@ -131,6 +133,7 @@ def build_final_cv_evidence_envelope(
         page_count == 1
         and page_fit_status in {"pass", "passed"}
         and render_acceptance in {True, "pass", "passed", "accepted"}
+        and bool(re.fullmatch(r"[0-9a-f]{64}", artifact_checksum))
         and render_identity_matches
     )
     identity_bound = bool(normalized_version_id and normalized_run_job_id and normalized_checksum)
@@ -149,6 +152,7 @@ def build_final_cv_evidence_envelope(
         "page_count": page_count,
         "page_fit_status": page_fit_status,
         "render_acceptance": render_acceptance,
+        "artifact_checksum": artifact_checksum or None,
         "render_proof": render_proof or None,
         "evidence_state": evidence_state,
         "outcome": "passed" if evidence_state == "passed" else "missing",

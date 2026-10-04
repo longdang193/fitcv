@@ -30,6 +30,7 @@ export interface CvQualityWarningsEnvelope {
   page_count?: number | null;
   page_fit_status?: string | null;
   render_acceptance?: Record<string, unknown> | string | null;
+  artifact_checksum?: string | null;
   render_proof?: Record<string, unknown> | null;
   run_id?: string | null;
   run_job_id?: string | null;
@@ -54,6 +55,8 @@ export interface CvReviewUncertainty {
   requirement_instance_id?: string;
   qualifier?: string;
   message?: string;
+  resolution_action?: CvReviewAction | string | null;
+  resolution_status?: string | null;
   [key: string]: unknown;
 }
 

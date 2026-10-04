@@ -418,7 +418,8 @@ same request replays the original response; using it for another request
 returns `409 idempotency_conflict`. Stale review items return
 `409 review_resource_stale`. A concurrent reuse of an in-flight key returns
 `409 idempotency_in_progress` with `retryable = true` and does not enqueue a
-second reanalysis.
+second reanalysis. If resolution persistence or enqueue fails, the same key
+can be retried after the failed reservation is settled.
 
 ### `GET /cv-versions/{version_id}/download`
 

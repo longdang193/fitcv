@@ -33,7 +33,7 @@ import { getInterestRatingDisabledReason, InterestRating } from "../job-evaluati
 import { PipelineOutcome } from "../job-evaluation/components/PipelineOutcome";
 import { FitEvidenceDrawer } from "../job-evaluation/components/FitEvidenceDrawer";
 import { applyCvReviewAction, fetchCvPreview, fetchCvReviewResource, downloadCvVersion, regenerateCvVersion } from "../cv-review/api";
-import { CvReviewAction, CvReviewResource } from "../cv-review/types";
+import { CvReviewAction, CvReviewResource, CvReviewUncertainty } from "../cv-review/types";
 import { hasVerifiedNativeOnePageRender } from "../cv-review/final-artifact-evidence";
 import { notificationStore } from "../../lib/notifications";
 import { EventConsole } from "./components/EventConsole";
@@ -44,6 +44,21 @@ export interface RunDetailPageProps {
   onBack: () => void;
   initialRun?: PipelineRunResource;
   initialJobs?: RunJobItem[];
+}
+
+export function getPendingCvReviewUncertainty(
+  uncertainties: CvReviewUncertainty[]
+): CvReviewUncertainty | undefined {
+  return uncertainties.find((uncertainty) => {
+    const resolutionStatus = String(uncertainty.resolution_status || uncertainty.resolution_action || "").toLowerCase();
+    return ![
+      "resolved_with_answer",
+      "confirmed_omit",
+      "override_block",
+      "resolve_with_answer",
+      "confirm_omit",
+    ].includes(resolutionStatus);
+  });
 }
 
 const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
@@ -164,6 +179,11 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
   const handleCvReviewAction = async (action: CvReviewAction) => {
     if (!cvReviewJob || !cvReview) return;
+    const pendingUncertainty = getPendingCvReviewUncertainty(cvReview.uncertainties);
+    if (!pendingUncertainty) {
+      setCvReviewError("All review uncertainties are already resolved.");
+      return;
+    }
     if (action === "RESOLVE_WITH_ANSWER" && !cvReviewAnswer.trim()) {
       setCvReviewError("Answer required for this action.");
       return;
@@ -173,8 +193,8 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     try {
       const refreshed = await applyCvReviewAction(runId, cvReviewJob.run_job_id, {
         review_item_id: cvReview.review_item_id,
-        uncertainty_id: cvReview.uncertainties[0]?.uncertainty_id,
-        resolution_key: cvReview.resolution_key || cvReview.uncertainties[0]?.resolution_key,
+        uncertainty_id: pendingUncertainty.uncertainty_id,
+        resolution_key: pendingUncertainty.resolution_key || cvReview.resolution_key,
         action,
         answer_text: action === "RESOLVE_WITH_ANSWER" ? cvReviewAnswer.trim() : null,
       });
