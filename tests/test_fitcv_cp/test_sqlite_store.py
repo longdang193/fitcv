@@ -4486,6 +4486,8 @@ def test_cv_version_quality_warnings_round_trip() -> None:
         "contract_version": "1",
         "artifact_version_id": "cv-warning-1",
         "content_checksum": hashlib.sha256(b"# Warning CV").hexdigest(),
+        "outcome": "warning",
+        "warnings": ["missing_nonessential_requirement"],
         "trace_id": "trace-warning-1",
         "trim_count": 1,
         "render_proof": {
@@ -4512,6 +4514,8 @@ def test_cv_version_quality_warnings_round_trip() -> None:
     assert version["quality_warnings"]["evidence_state"] == "passed"
     assert version["quality_warnings"]["trace_id"] == envelope["trace_id"]
     assert version["quality_warnings"]["render_proof"] == envelope["render_proof"]
+    assert version["quality_warnings"]["outcome"] == envelope["outcome"]
+    assert version["quality_warnings"]["warnings"] == envelope["warnings"]
     assert version["outcome_status"] == "generated"
     assert version["evidence_state"] == "passed"
 

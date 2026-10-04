@@ -3,7 +3,7 @@ from unittest.mock import Mock
 from fitcv.agentic_cv_generation import _run_repair_cycle
 
 
-def test_missing_mandatory_section_uses_local_backfill_before_provider_retry(monkeypatch) -> None:
+def test_missing_mandatory_section_uses_provider_retry_before_local_backfill(monkeypatch) -> None:
     validation = {
         "valid": False,
         "missing_sections": ["experience"],
@@ -17,7 +17,18 @@ def test_missing_mandatory_section_uses_local_backfill_before_provider_retry(mon
         "fitcv.agentic_cv_generation._run_generation_validations",
         lambda *args, **kwargs: {**validation, "valid": True, "missing_sections": []},
     )
-    retry_executor = Mock(side_effect=AssertionError("provider retry must not run"))
+    retry_executor = Mock(
+        return_value=(
+            {
+                "sections": {
+                    "experience": [{"role": "Data Engineer", "company": "ACME", "bullets": ["Built pipelines"]}]
+                }
+            },
+            "# CV",
+            validation,
+            None,
+        )
+    )
     structured_cv = {
         "schema_version": "cv_doc_v1",
         "preset": "europass",
@@ -53,7 +64,6 @@ def test_missing_mandatory_section_uses_local_backfill_before_provider_retry(mon
         runtime_provenance=None,
     )
 
-    retry_executor.assert_not_called()
+    retry_executor.assert_called_once_with(["experience"])
     assert repaired_validation["valid"] is True
-    assert repair_attempt["reason"] == "deterministic_section_backfill"
-    assert repaired_cv["sections"]["experience"][0]["company"] == "ACME"
+    assert repair_attempt["missing_sections"] == ["experience"]

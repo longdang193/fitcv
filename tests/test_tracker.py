@@ -145,6 +145,26 @@ def test_create_cv_version_record_includes_structured_cv_and_generation_metadata
     assert json.loads(record["quality_warnings_json"])["trace_id"] == "trace-1"
 
 
+def test_create_cv_version_record_persists_native_render_proof() -> None:
+    render_proof = {"render_status": "pass", "page_count": 1, "page_fit_status": "pass"}
+    record = create_cv_version_record(
+        job_url="u",
+        run_id="rid",
+        enrichment_version="v1",
+        vector_rank=1,
+        ai_score=0.8,
+        final_score=0.7,
+        evidence_ids=["ev-001"],
+        prompt_version="v1",
+        cv_markdown="# CV",
+        gap_summary={},
+        fit_classification="strong",
+        render_acceptance=render_proof,
+    )
+
+    assert json.loads(record["quality_warnings_json"])["render_proof"] == render_proof
+
+
 def test_create_cv_version_record_preserves_failed_original_outcome_without_diagnostic() -> None:
     record = create_cv_version_record(
         job_url="u",

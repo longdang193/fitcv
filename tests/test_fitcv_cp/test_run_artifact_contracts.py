@@ -63,6 +63,8 @@ def test_final_cv_evidence_envelope_accepts_identity_bound_native_proof() -> Non
         trace_id="trace-1",
         render_acceptance=_native_render_proof(),
         trim_count=1,
+        outcome="warning",
+        warnings=["missing_nonessential_requirement"],
     )
 
     assert envelope["evidence_state"] == "passed"
@@ -73,6 +75,8 @@ def test_final_cv_evidence_envelope_accepts_identity_bound_native_proof() -> Non
     assert envelope["render_status"] == "pass"
     assert envelope["render_proof"]["renderer_contract_version"] == "fitcv_native_render_v1"
     assert envelope["trim_count"] == 1
+    assert envelope["outcome"] == "warning"
+    assert envelope["warnings"] == ["missing_nonessential_requirement"]
 
 
 @pytest.mark.parametrize(

@@ -166,6 +166,8 @@ def build_final_cv_evidence_envelope(
     trace_id: str | None,
     render_acceptance: dict[str, Any] | None,
     trim_count: Any = 0,
+    outcome: Any = None,
+    warnings: Any = None,
 ) -> dict[str, Any]:
     normalized_artifact_version_id = str(artifact_version_id or "").strip() or None
     normalized_content_checksum = str(content_checksum or "").strip().lower() or None
@@ -192,6 +194,9 @@ def build_final_cv_evidence_envelope(
         and str(proof.get("content_sha256") or "").strip().lower() == normalized_content_checksum
     )
     proof_complete = bool(proof and _render_acceptance_is_verified(proof) and proof_content_matches)
+    warning_items = warnings if isinstance(warnings, (list, tuple)) else []
+    normalized_warnings = [str(item).strip() for item in warning_items if str(item).strip()]
+    normalized_outcome = str(outcome or "").strip() or None
     evidence_state = (
         "missing"
         if not identity_bound or not proof
@@ -209,6 +214,8 @@ def build_final_cv_evidence_envelope(
         "render_status": render_status,
         "artifact_checksum": artifact_checksum,
         "render_proof": proof,
+        "outcome": normalized_outcome,
+        "warnings": normalized_warnings,
         "trace_id": normalized_trace_id,
         "run_job_id": normalized_run_job_id,
         "trim_count": _nonnegative_int(trim_count),

@@ -13801,6 +13801,12 @@ def _cv_projection(
         trim_count=(raw_quality_warnings or {}).get("trim_count", 0)
         if isinstance(raw_quality_warnings, dict)
         else 0,
+        outcome=(raw_quality_warnings or {}).get("outcome")
+        if isinstance(raw_quality_warnings, dict)
+        else None,
+        warnings=(raw_quality_warnings or {}).get("warnings")
+        if isinstance(raw_quality_warnings, dict)
+        else None,
     )
     item["quality_warnings"] = quality_warnings
     evidence_state = (
