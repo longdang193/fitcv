@@ -196,7 +196,7 @@ jobs:
       - name: Reject acceptance state drift
         run: |
           python scripts/render_acceptance_state.py --input config/acceptance_state.yaml --output .tmp/acceptance_state.json
-          python -c "from pathlib import Path; import hashlib; generated=Path('.tmp/acceptance_state.json').read_bytes(); committed=Path('artifacts/acceptance_state.json').read_bytes(); print('generated_sha256=' + hashlib.sha256(generated).hexdigest()); print('committed_sha256=' + hashlib.sha256(committed).hexdigest()); raise SystemExit(0 if generated == committed else 'acceptance_state_generated_json_drift')"
+          python -c "from pathlib import Path; import hashlib; normalize=lambda path: Path(path).read_bytes().replace(b'\r\n', b'\n'); generated=normalize('.tmp/acceptance_state.json'); committed=normalize('artifacts/acceptance_state.json'); print('generated_sha256=' + hashlib.sha256(generated).hexdigest()); print('committed_sha256=' + hashlib.sha256(committed).hexdigest()); raise SystemExit(0 if generated == committed else 'acceptance_state_generated_json_drift')"
 
       - name: Upload FitCV acceptance reports
         if: always()
