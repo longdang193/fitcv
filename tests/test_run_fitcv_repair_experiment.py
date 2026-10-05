@@ -204,7 +204,12 @@ def test_declared_inputs_cover_private_profile_and_analysis_generation_runtime_s
         "src/fitcv/cv_generator.py",
         "src/fitcv/llm_runtime.py",
         "src/fitcv/runtime_routing.py",
-        "src/fitcv/prompts.py",
+        "src/fitcv/prompts/__init__.py",
+        "src/fitcv/prompts/loader.py",
+        "src/fitcv/prompts/models.py",
+        "src/fitcv/prompts/registry.py",
+        "src/fitcv/prompts/renderer.py",
+        "src/fitcv/prompts/templates/cv_generation_write_v1.md",
         "src/fitcv_cp/run_artifact_contracts.py",
         "src/fitcv_cp/sqlite_store.py",
     }.issubset(experiment.DECLARED_INPUTS)
@@ -215,7 +220,7 @@ def test_declared_inputs_cover_private_profile_and_analysis_generation_runtime_s
     [
         "src/fitcv/llm_runtime.py",
         "src/fitcv/runtime_routing.py",
-        "src/fitcv/prompts.py",
+        "src/fitcv/prompts/__init__.py",
         "src/fitcv_cp/run_artifact_contracts.py",
     ],
 )
