@@ -6793,12 +6793,10 @@ def test_canonical_cv_review_action_rejects_pipeline_revision_advanced_after_sna
         nonlocal snapshot_calls
         queue = original_queue_builder(current_run)
         if snapshot_calls == 0:
-            with sqlite3.connect(database_path) as connection:
-                connection.execute(
-                    "UPDATE pipeline_runs SET row_revision=row_revision+1 WHERE run_id=?",
-                    (run.run_id,),
-                )
-                connection.commit()
+            sqlite_store.update_run_cv_generation_debug(
+                run.run_id,
+                json.dumps({"concurrent_marker": "preserved"}),
+            )
         snapshot_calls += 1
         return queue
 
@@ -6823,7 +6821,100 @@ def test_canonical_cv_review_action_rejects_pipeline_revision_advanced_after_sna
         candidate_profile_revision="1",
         source_profile_fingerprint="profile-race",
     ) == []
+    current_run = sqlite_store.get_run(run.run_id)
+    assert current_run is not None
+    assert json.loads(current_run.cv_generation_debug_json or "{}") == {"concurrent_marker": "preserved"}
     enqueue.assert_not_called()
+
+
+def test_canonical_cv_review_action_preserves_debug_update_after_resolution_cas() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-debug-race",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-debug-race",
+                        "candidate_profile_revision": "1",
+                        "source_profile_fingerprint": "profile-debug-race",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "requirement_instance_id": "skill:sql",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    app = _app()
+    sqlite_store.insert_run(run)
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, source_url, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "job-1",
+                run.run_id,
+                0,
+                "profile-debug-race",
+                json.dumps({"job_url": "https://example.com/job-1"}),
+                "https://example.com/job-1",
+                "Senior Data Engineer",
+                "[]",
+            ),
+        )
+        connection.commit()
+
+    def enqueue_and_advance(**_kwargs: object) -> str:
+        result = sqlite_store.update_run_cv_generation_debug(
+            run.run_id,
+            json.dumps({"concurrent_marker": "preserved"}),
+        )
+        assert result["persistence_status"] == "persisted"
+        return "queue-1"
+
+    with patch(
+        "fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id",
+        side_effect=enqueue_and_advance,
+    ) as enqueue:
+        response = TestClient(app, raise_server_exceptions=False).post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "debug-race"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "review_resource_stale"
+    current_run = sqlite_store.get_run(run.run_id)
+    assert current_run is not None
+    assert json.loads(current_run.cv_generation_debug_json or "{}") == {"concurrent_marker": "preserved"}
+    assert len(sqlite_store.list_requirement_resolutions(
+        candidate_profile_id="candidate-debug-race",
+        candidate_profile_revision="1",
+        source_profile_fingerprint="profile-debug-race",
+    )) == 1
+    enqueue.assert_called_once()
 
 
 def test_canonical_cv_review_action_rejects_stale_revision_and_resolved_uncertainty() -> None:

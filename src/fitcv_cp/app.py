@@ -513,9 +513,16 @@ def update_run_cv_generation_debug(
     run_id: str,
     cv_generation_debug_json: str,
     *_compat_args: Any,
+    expected_row_revision: int | None = None,
     **_compat_kwargs: Any,
 ) -> dict[str, str]:
-    return dict(_resolve_run_store().update_run_cv_generation_debug(run_id, cv_generation_debug_json))
+    return dict(
+        _resolve_run_store().update_run_cv_generation_debug(
+            run_id,
+            cv_generation_debug_json,
+            expected_row_revision=expected_row_revision,
+        )
+    )
 
 def update_run_results_export_snapshot(
     run_id: str,
@@ -12152,7 +12159,9 @@ def create_app(
                     retryable=True,
                     action="Retry after the earlier review action completes.",
                 )
-            expected_pipeline_row_revision = sqlite_store_module.get_pipeline_run_row_revision(run_id)
+            expected_pipeline_row_revision = getattr(run, "row_revision", None)
+            if expected_pipeline_row_revision is None:
+                expected_pipeline_row_revision = sqlite_store_module.get_pipeline_run_row_revision(run_id)
             resource = _canonical_cv_review_resource(run_id, run_job_id)
             if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
                 raise ApiError(409, "review_resource_stale", "Review item changed.", action="Refresh CV review.")
@@ -12303,12 +12312,6 @@ def create_app(
                     error_message=str(exc),
                 )
                 raise
-            sqlite_store_module.update_requirement_resolution_enqueue_intent(
-                str(enqueue_intent["intent_id"]),
-                status="enqueued",
-                queue_job_id=regeneration_job_id,
-                error_message=None,
-            )
             target_uncertainty["resolution_action"] = durable_action
             target_uncertainty["resolution_payload"] = durable_payload
             target_uncertainty["resolution_id"] = resolution_id
@@ -12332,7 +12335,42 @@ def create_app(
                 }
             )
             debug_payload["hitl_review_actions"] = actions
-            update_run_cv_generation_debug(run_id, _json.dumps(debug_payload, ensure_ascii=False), client=client)
+            expected_debug_row_revision = (
+                int(expected_pipeline_row_revision) + 1
+                if expected_pipeline_row_revision is not None
+                else None
+            )
+            debug_update_args = {
+                "client": client,
+                **(
+                    {"expected_row_revision": expected_debug_row_revision}
+                    if expected_debug_row_revision is not None
+                    else {}
+                ),
+            }
+            debug_result = update_run_cv_generation_debug(
+                run_id,
+                _json.dumps(debug_payload, ensure_ascii=False),
+                **debug_update_args,
+            )
+            if isinstance(debug_result, dict) and debug_result.get("persistence_status") != "persisted":
+                sqlite_store_module.update_requirement_resolution_enqueue_intent(
+                    str(enqueue_intent["intent_id"]),
+                    status="failed",
+                    error_message=str(debug_result.get("degradation_reason") or "review_resource_stale"),
+                )
+                raise ApiError(
+                    409,
+                    "review_resource_stale",
+                    "Review resource changed.",
+                    action="Refresh CV review.",
+                )
+            sqlite_store_module.update_requirement_resolution_enqueue_intent(
+                str(enqueue_intent["intent_id"]),
+                status="enqueued",
+                queue_job_id=regeneration_job_id,
+                error_message=None,
+            )
             refreshed = _canonical_cv_review_resource(run_id, run_job_id)
             response = {
                 **refreshed,

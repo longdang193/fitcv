@@ -792,8 +792,9 @@ The result was positive for the candidate, but it is not the final optimization
 decision because the later R5 rerun used the completed declared-input inventory.
 Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.md`.
 
-**Final current result (2026-10-05, R13):** comparable seeded cohorts completed
-on reviewed head `2564e20`. Both arms accepted 10/10, used 15 provider calls,
+**Historical decision evidence (2026-10-05, R13):** comparable seeded cohorts
+completed on source `2564e20`; this record does not certify later branch heads.
+Both arms accepted 10/10, used 15 provider calls,
 and had 5 regenerations. `provider_first` used 70,367 versus 70,282 tokens,
 194,170 versus 216,303 generation ms, and 285,228.900 versus 308,266.482
 end-to-end wall ms. Promotion is rejected because token cost increased;
@@ -847,17 +848,16 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
 
-Resume reconciliation (2026-10-05): review head `2564e20` has clean tracked
-state before final evidence-only updates; current declared-input fingerprint is
+Resume reconciliation (2026-10-05): historical review head `2564e20` had clean
+tracked state before final evidence-only updates; historical declared-input fingerprint is
 `7813b2336ffa847549e42eb1b1566a541454ae492ac621151e8211c81237ac99`; the
-dependency-ready next action is Task 8 final verification after the current-head
-seeded cohort rerun. Prior Task 1 admission remains `not evidenced`.
+record is not current-head freshness proof. Prior Task 1 admission remains
+`not evidenced`.
 
-- Task 7 blocker is resolved with current-source seeded paired cohorts. R13
-  records both arms at 10/10; candidate calls and regenerations tie, wall time
-  decreases, and token cost increases. Task 8 remains active pending fresh full-
-  suite verification and independent final review. Production default remains
-  `local_first`.
+- R13 records both arms at 10/10; candidate calls and regenerations tie, wall
+  time decreases, and token cost increases. Task 8 remains active because fresh
+  review found two stale-CAS windows in review-action persistence. Production
+  default remains `local_first` pending fresh verification.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.

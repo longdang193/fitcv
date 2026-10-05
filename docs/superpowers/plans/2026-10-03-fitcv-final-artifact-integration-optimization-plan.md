@@ -567,8 +567,9 @@ experiment-bound acceptance verifier runs pass; paired manifests bind to source
 `ef66aa04` with equal declared-input and cohort-setup identities; this evidence
 predates the completed declared-input inventory and is superseded by R5.
 
-**Final verification (2026-10-05):** R13 is current evidence. It binds both
-manifests to current source and identical declared-input/cohort identities;
+**Final verification (2026-10-05):** R13 is historical decision evidence,
+bound to source `2564e20`, not proof for current branch head. It binds both
+manifests to identical declared-input/cohort identities;
 `local_first` remains default because `provider_first` ties correctness and
 provider calls while increasing token cost. R5 is superseded and retained only
 for audit history. Evidence:

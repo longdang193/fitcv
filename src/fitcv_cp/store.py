@@ -173,7 +173,13 @@ class RunStore(Protocol):
     def update_run_synonym_proposals(
         self, run_id: str, synonym_proposals_json: str
     ) -> dict[str, str]: ...
-    def update_run_cv_generation_debug(self, run_id: str, cv_generation_debug_json: str) -> dict[str, str]: ...
+    def update_run_cv_generation_debug(
+        self,
+        run_id: str,
+        cv_generation_debug_json: str,
+        *,
+        expected_row_revision: int | None = None,
+    ) -> dict[str, str]: ...
     def update_run_stage_transition_artifacts(self, run_id: str, stage_transition_artifacts_json: str) -> dict[str, str]: ...
     def materialize_episode_and_append_rating(self, episode: Any, alternatives: Any, event: Any) -> dict[str, str]: ...
     def list_decision_rating_events_for_run(self, run_id: str) -> list[Any]: ...
@@ -1322,12 +1328,24 @@ class ControlPlaneStore:
                 )
         )
 
-    def update_run_cv_generation_debug(self, run_id: str, cv_generation_debug_json: str) -> dict[str, str]:
+    def update_run_cv_generation_debug(
+        self,
+        run_id: str,
+        cv_generation_debug_json: str,
+        *,
+        expected_row_revision: int | None = None,
+    ) -> dict[str, str]:
+        kwargs = (
+            {"expected_row_revision": expected_row_revision}
+            if expected_row_revision is not None
+            else {}
+        )
         return self._call_dict(
             self.update_run_cv_generation_debug_fn,
             sqlite_store.update_run_cv_generation_debug,
             run_id,
             cv_generation_debug_json,
+            **kwargs,
         )
 
     def update_run_stage_transition_artifacts(
@@ -1517,4 +1535,3 @@ class ControlPlaneStore:
             sqlite_store.insert_cv_version_row,
             row,
         )
-

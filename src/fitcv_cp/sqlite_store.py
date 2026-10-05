@@ -10604,6 +10604,7 @@ def _normalized_run_from_row(row: sqlite3.Row) -> PipelineRun | None:
     run.partial_completion = bool(row["partial_completion"])
     run.progress_completed = int(row["progress_completed"])
     run.progress_total = int(row["progress_total"])
+    setattr(run, "row_revision", int(row["row_revision"]))
     return run
 
 
@@ -12765,9 +12766,33 @@ def update_run_synonym_proposals(
 
 
 def update_run_cv_generation_debug(
-    run_id: str, cv_generation_debug_json: str, *_args: Any, **_kwargs: Any
+    run_id: str,
+    cv_generation_debug_json: str,
+    *_args: Any,
+    expected_row_revision: int | None = None,
+    **_kwargs: Any,
 ) -> PersistenceResult:
-    return _update_run_compatibility_field(run_id, "cv_generation_debug_json", cv_generation_debug_json)
+    if expected_row_revision is None:
+        return _update_run_compatibility_field(run_id, "cv_generation_debug_json", cv_generation_debug_json)
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT * FROM pipeline_runs WHERE run_id=?", (run_id,)).fetchone()
+        if row is None:
+            conn.rollback()
+            return _persistence_result("degraded", "run_not_found")
+        if int(row["row_revision"]) != int(expected_row_revision):
+            conn.rollback()
+            return _persistence_result("degraded", "run_revision_conflict")
+        run = _normalized_run_from_row(row)
+        if run is None:
+            conn.rollback()
+            return _persistence_result("degraded", "run_not_found")
+        updated = dataclasses.replace(run, cv_generation_debug_json=cv_generation_debug_json)
+        _write_normalized_run(conn, updated, insert=False)
+        conn.commit()
+    return _persistence_result("persisted")
 
 
 def get_pipeline_runs_schema_status(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
