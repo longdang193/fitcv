@@ -155,7 +155,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.md`; paired current-source cohorts; candidate positive in current rerun, default change still gated |
+| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.md`; paired current-source cohorts; candidate rejected on cost/latency with no correctness gain |
 | Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; independent final review and default-change decision remain |
 
 ## Activation Gate
@@ -772,7 +772,7 @@ unchanged, and incumbent/candidate labels come from Task 2's verified mapping.
   `INCUMBENT_ARM`/`CANDIDATE_ARM` mapping.
 - [x] Run both manifest-bound `scripts/benchmark_cv_efficiency.py` commands from `Files and symbols`; each scorecard contains all ten unique repeat run IDs.
 - [x] Run both experiment-bound `scripts/verify_fitcv_acceptance.py` commands from `Files and symbols`; both report `PASSED` and bind to generated fixture/source hashes without changing tracked acceptance state.
-- [x] Compare evidence hashes and generated scorecards; fingerprints match and no secrets appear; current rerun is eligible and records a positive candidate result without authorizing default change.
+- [x] Compare evidence hashes and generated scorecards; fingerprints match and no secrets appear; current rerun is eligible and rejects candidate promotion.
 
 **Exit criteria:** candidate promoted only with measured total-workload improvement; otherwise explicit rejection with incumbent retained.
 
@@ -791,6 +791,12 @@ used 10 versus 15 provider calls, 47,367 versus 64,801 tokens, and
 The result is positive for the candidate, but production default remains
 `local_first` pending independent review and separate explicit approval.
 Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.md`.
+
+**Final current result (2026-10-05):** fresh source-bound cohorts completed
+after declared-input recomputation was added. Both arms accepted 5/10. The
+candidate used equal provider calls, more tokens, and more wall time; promotion
+is rejected and `local_first` remains default. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.md`.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -837,11 +843,10 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
 
-- Task 7 blocker is resolved with current-source paired cohorts. Current rerun
-  records `provider_first` at 10/10 versus `local_first` at 5/10, with lower
-  provider calls, tokens, and wall time. Task 8 remains active pending fresh
-  full-suite verification, independent final review, and explicit default-change
-  approval. Production default remains `local_first`.
+- Task 7 blocker is resolved with current-source paired cohorts. Final rerun
+  records both arms at 5/10; candidate cost and latency are worse. Task 8
+  remains active pending fresh full-suite verification and independent final
+  review. Production default remains `local_first`.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.
@@ -871,8 +876,7 @@ Final proof must establish:
 - [ ] complete timing, failure-cause, savings, cache, render, proof, and resolution-reuse telemetry with explicit unavailable semantics.
 - [x] one identical-workload experiment with current-source paired cohorts;
   fixture, source, config, runtime, and all repeat IDs match across arms; current
-  rerun is positive for `provider_first`, while default change remains separately
-  gated.
+  rerun rejects `provider_first` on equal correctness and higher cost/latency.
 - [ ] immutable historical evidence, no secret leakage, P1-C deferred, and P2 frozen.
 
 Run `skill-verification-before-completion` for final status. Source inspection,

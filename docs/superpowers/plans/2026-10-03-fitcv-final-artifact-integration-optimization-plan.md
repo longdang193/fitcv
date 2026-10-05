@@ -503,12 +503,11 @@ reporting gates are closed.
 **Result (2026-10-05):** Fresh source-bound incumbent `local_first` and
 candidate `provider_first` cohorts completed with 10 runs each under identical
 `cold_first_then_frozen` upstream policy. Manifest, declared executable-input,
-fixture, model, runtime, and provider provenance match. Candidate accepted 10 / 10
-versus incumbent 5 / 10, with lower provider calls, tokens, and wall time.
-Candidate result is positive, but production default remains `local_first` pending
-independent review and separate approval. Downstream provider analysis identity is
-informational because provider output is stochastic. Evidence:
-`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.json`.
+fixture, model, runtime, and provider provenance match. Both arms accepted 5 / 10;
+candidate used equal provider calls, more tokens, and more wall time. Candidate
+promotion is rejected; production default remains `local_first`. Downstream
+provider analysis identity is informational because provider output is stochastic.
+Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.json`.
 
 ### Task 7: Final verification and reconciliation
 
