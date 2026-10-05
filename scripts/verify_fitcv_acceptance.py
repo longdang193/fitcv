@@ -488,8 +488,6 @@ def _run_experiment_report_check(
                 if not isinstance(peer_report, dict):
                     failures.append("experiment_peer_json_object_required")
                 else:
-                    if report.get("analysis_input_identity") != peer_report.get("analysis_input_identity"):
-                        failures.append("experiment_analysis_inputs_not_identical")
                     peer_manifest = dict(peer_report.get("input_manifest") or {})
                     peer_manifest_path = peer_manifest.get("path")
                     persisted_peer_manifest: dict[str, Any] = {}

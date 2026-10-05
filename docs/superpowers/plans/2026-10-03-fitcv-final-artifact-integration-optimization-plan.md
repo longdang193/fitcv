@@ -500,15 +500,14 @@ reporting gates are closed.
 
 **Exit Criteria:** Optimization has reproducible current-contract evidence and either narrowly justified promotion or recorded rejection; no architecture expansion occurs.
 
-**Result (2026-10-04):** Fresh incumbent `local_first` and candidate
-`provider_first` cohorts completed with 10 runs each. Analysis identities,
-fixture hashes, executable-input fingerprints, model identity, job-type
-diversity, and current-contract coverage match. Both arms accepted 10 / 10
-one-page CVs on first pass with zero validation failures. Candidate vs
-incumbent: 10 vs 10 provider calls, 45,043 vs 44,999 tokens, and 195,964.611
-vs 247,344.076 ms end-to-end wall time. Candidate improves wall time but not
-token cost; production default remains unchanged pending independent review.
-Evidence: `docs/superpowers/evidence/2026-10-04-fitcv-p1ab-provider-backed-convergence.json`.
+**Result (2026-10-05):** Fresh source-bound incumbent `local_first` and
+candidate `provider_first` cohorts completed with 10 runs each under identical
+`cold_first_then_frozen` upstream policy. Manifest, declared executable-input,
+fixture, model, runtime, and provider provenance match. Incumbent accepted 10 / 10;
+candidate accepted 5 / 10 with five validation failures. Candidate promotion is
+rejected; production default remains `local_first`. Downstream provider analysis
+identity is informational because provider output is stochastic. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence.json`.
 
 ### Task 7: Final verification and reconciliation
 
@@ -554,11 +553,11 @@ P1-C/P2 explicitly deferred.
 
 **Exit Criteria:** skill-verification-before-completion returns verified; only then may plan status move from proposed to completed.
 
-**Current verification (2026-10-04):** Focused suites pass `105 passed`; full
-suite passes `3159 passed, 8 skipped`; both experiment-bound acceptance verifier
-runs pass; generated acceptance state renders; `git diff --check` passes. Final
-Task 7 remains open only for independent PR review and authorized Git
-disposition.
+**Current verification (2026-10-05):** Affected backend/verifier suites pass
+`548 passed`; both current-source experiment-bound acceptance verifier runs pass;
+generated acceptance state renders; paired manifests bind to source `800e349b`
+with equal declared-input and cohort-setup identities; `git diff --check` passes.
+Full suite and independent final PR review remain required before Git disposition.
 
 ## Verification
 

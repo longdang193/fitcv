@@ -155,7 +155,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-04-fitcv-p1ab-optimization-rerun.md`; two eligible provider-backed ten-repeat cohorts; candidate positive on current source |
+| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence.md`; paired current-source cohorts; candidate rejected on correctness regression |
 | Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; independent final review and default-change decision remain |
 
 ## Activation Gate
@@ -818,9 +818,9 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
 - [x] Run frontend typecheck, unit suite, production build, and browser E2E.
 - [x] Run `git diff --check`, secret scan appropriate to repository, and inspect
   generated evidence for credentials/raw profile leakage.
-- [ ] Confirm every P1-A/B criterion, final-artifact identity, one-page proof,
+- [x] Confirm every P1-A/B criterion, final-artifact identity, one-page proof,
   persistence identity, review actionability, browser parity, and telemetry gate.
-- [ ] Mark P1-C deferred and P2 frozen. Do not promote accepted-state files without
+- [x] Mark P1-C deferred and P2 frozen. Do not promote accepted-state files without
   separate authorization.
 - [ ] Revalidate the fresh `implementation-ready` resume record captured before
   Task 2, including current HEAD, working-tree diff hash, complete declared
@@ -828,10 +828,11 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
 
-- Task 7 blocker is resolved with current-source eligible cohorts and a positive
-  candidate result. Task 8 remains active pending independent final verification
-  and reconciliation gates. Production default remains `local_first` until that
-  review accepts the measured default change.
+- Task 7 blocker is resolved with current-source paired cohorts. Candidate
+  promotion is rejected: `provider_first` accepted 5/10 versus `local_first`
+  10/10 and recorded five validation failures. Task 8 remains active pending
+  fresh full-suite verification, independent final review, and reconciliation.
+  Production default remains `local_first`.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.

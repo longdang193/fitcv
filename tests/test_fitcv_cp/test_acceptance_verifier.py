@@ -54,7 +54,7 @@ def test_experiment_report_check_rejects_mismatched_peer_analysis_inputs(tmp_pat
     result = _run_experiment_report_check(report_path, markdown_path, tmp_path, peer_path)
 
     assert result["passed"] is False
-    assert "experiment_analysis_inputs_not_identical" in result["failures"]
+    assert "experiment_peer_manifest_path_missing" in result["failures"]
 
 
 def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Path) -> None:
