@@ -15,9 +15,11 @@ import yaml
 try:
     from scripts.render_acceptance_state import _validate_state
     from scripts.benchmark_cv_efficiency import material_report_digest
+    from scripts.run_fitcv_repair_experiment import DECLARED_INPUTS
 except ModuleNotFoundError:
     from render_acceptance_state import _validate_state
     from benchmark_cv_efficiency import material_report_digest
+    from run_fitcv_repair_experiment import DECLARED_INPUTS
 
 from fitcv_cp.run_artifact_contracts import (
     FINAL_ARTIFACT_CONTRACT_VERSION,
@@ -41,6 +43,21 @@ CHECKS = {
 def _canonical_file_digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 P0B_ORACLE = "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1.jsonl"
+
+
+def _source_inputs_match_current(source_commit: Any, current_commit: str | None, repo_root: Path) -> bool:
+    if not current_commit or source_commit == current_commit:
+        return bool(source_commit)
+    if not isinstance(source_commit, str) or not source_commit.strip():
+        return False
+    completed = subprocess.run(
+        ["git", "diff", "--quiet", source_commit, current_commit, "--", *DECLARED_INPUTS],
+        cwd=repo_root,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return completed.returncode == 0
 
 
 def _head(repo_root: Path) -> str:
@@ -391,6 +408,7 @@ def _run_experiment_report_check(
     repo_root: Path,
     peer_experiment_json: Path | None = None,
     current_commit: str | None = None,
+    require_peer: bool = True,
 ) -> dict[str, Any]:
     if experiment_json is None and experiment_markdown is None:
         return {"passed": True, "status": "not_requested", "failures": []}
@@ -469,7 +487,9 @@ def _run_experiment_report_check(
                     failures.append("experiment_manifest_run_ids_mismatch")
                 if set(str(value) for value in selection.get("run_ids") or []) != set(manifest_run_ids):
                     failures.append("experiment_selection_run_ids_mismatch")
-                if current_commit and persisted_manifest.get("source_commit") != current_commit:
+                if current_commit and not _source_inputs_match_current(
+                    persisted_manifest.get("source_commit"), current_commit, repo_root
+                ):
                     failures.append("experiment_source_commit_not_current")
                 if dict(persisted_manifest.get("producer") or {}).get("mode") != "provider_backed":
                     failures.append("experiment_provider_backed_required")
@@ -477,9 +497,9 @@ def _run_experiment_report_check(
                     failures.append("experiment_cohort_setup_missing")
         if report.get("material_metrics_sha256") != material_report_digest(report):
             failures.append("experiment_material_digest_mismatch")
-        if peer_experiment_json is None:
+        if peer_experiment_json is None and require_peer:
             failures.append("experiment_peer_json_required")
-        else:
+        elif peer_experiment_json is not None:
             try:
                 peer_report = json.loads(peer_experiment_json.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
@@ -488,6 +508,17 @@ def _run_experiment_report_check(
                 if not isinstance(peer_report, dict):
                     failures.append("experiment_peer_json_object_required")
                 else:
+                    peer_validation = _run_experiment_report_check(
+                        peer_experiment_json,
+                        experiment_markdown,
+                        repo_root,
+                        current_commit=current_commit,
+                        require_peer=False,
+                    )
+                    failures.extend(
+                        f"experiment_peer_{failure.removeprefix('experiment_')}"
+                        for failure in peer_validation["failures"]
+                    )
                     peer_manifest = dict(peer_report.get("input_manifest") or {})
                     peer_manifest_path = peer_manifest.get("path")
                     persisted_peer_manifest: dict[str, Any] = {}
@@ -520,7 +551,9 @@ def _run_experiment_report_check(
                         ):
                             if persisted_manifest.get(field) != persisted_peer_manifest.get(field):
                                 failures.append(f"experiment_peer_{field}_not_identical")
-                        if current_commit and persisted_peer_manifest.get("source_commit") != current_commit:
+                        if current_commit and not _source_inputs_match_current(
+                            persisted_peer_manifest.get("source_commit"), current_commit, repo_root
+                        ):
                             failures.append("experiment_peer_source_commit_not_current")
                         if dict(persisted_peer_manifest.get("producer") or {}).get("mode") != "provider_backed":
                             failures.append("experiment_peer_provider_backed_required")

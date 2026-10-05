@@ -104,6 +104,8 @@ def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Pat
     report["material_metrics_sha256"] = material_report_digest(report)
     peer_report["material_metrics_sha256"] = material_report_digest(peer_report)
     report_path.write_text(json.dumps(report), encoding="utf-8")
+    peer_report["status"] = "incomplete"
+    peer_report["material_metrics_sha256"] = material_report_digest(peer_report)
     peer_path.write_text(json.dumps(peer_report), encoding="utf-8")
     markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
 
@@ -113,6 +115,7 @@ def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Pat
     assert "experiment_source_commit_not_current" in result["failures"]
     assert "experiment_provider_backed_required" in result["failures"]
     assert "experiment_peer_arm_must_differ" in result["failures"]
+    assert "experiment_peer_report_incomplete" in result["failures"]
 
 
 def test_experiment_report_check_rejects_incomplete_cohort_metadata(tmp_path: Path) -> None:

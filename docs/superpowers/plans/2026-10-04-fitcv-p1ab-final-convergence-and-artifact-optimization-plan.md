@@ -772,16 +772,17 @@ unchanged, and incumbent/candidate labels come from Task 2's verified mapping.
   `INCUMBENT_ARM`/`CANDIDATE_ARM` mapping.
 - [x] Run both manifest-bound `scripts/benchmark_cv_efficiency.py` commands from `Files and symbols`; each scorecard contains all ten unique repeat run IDs.
 - [x] Run both experiment-bound `scripts/verify_fitcv_acceptance.py` commands from `Files and symbols`; both report `PASSED` and bind to generated fixture/source hashes without changing tracked acceptance state.
-- [x] Compare evidence hashes and generated scorecards; fingerprints match and no secrets appear; current rerun shows candidate improvement without acceptance regression.
+- [x] Compare evidence hashes and generated scorecards; fingerprints match and no secrets appear; current rerun is eligible but rejects candidate promotion because correctness regresses.
 
 **Exit criteria:** candidate promoted only with measured total-workload improvement; otherwise explicit rejection with incumbent retained.
 
-**Result (2026-10-04):** current-source rerun completed with two eligible,
+**Historical result (2026-10-04; superseded):** current-source rerun completed with two eligible,
 identical ten-repeat provider-backed cohorts. `provider_first` produced 8
 accepted CVs versus 7 for `local_first`, used 13 versus 16 provider calls,
 59,567 versus 73,246 tokens, and 430,759.423 versus 447,843.781 ms wall time.
 Candidate and incumbent acceptance verifiers both passed. Independent Task 8
-review must accept this evidence before changing the production default.
+review was still required; this result is historical and does not establish the
+current optimization decision.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -860,8 +861,9 @@ Final proof must establish:
 - [ ] one browser flow against current backend routes with persisted refresh; expected: isolated non-local backend and disposable DB only.
 - [ ] identity-bound final-artifact proof across fresh, cached, regenerated, persisted, and review-closed paths.
 - [ ] complete timing, failure-cause, savings, cache, render, proof, and resolution-reuse telemetry with explicit unavailable semantics.
-- [x] one identical-workload experiment with current-source candidate improvement;
-  fixture, source, config, runtime, and all repeat IDs match across arms.
+- [x] one identical-workload experiment with current-source paired cohorts;
+  fixture, source, config, runtime, and all repeat IDs match across arms; candidate
+  promotion is rejected on correctness regression and incumbent remains default.
 - [ ] immutable historical evidence, no secret leakage, P1-C deferred, and P2 frozen.
 
 Run `skill-verification-before-completion` for final status. Source inspection,
