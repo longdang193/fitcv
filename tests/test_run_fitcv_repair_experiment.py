@@ -13,6 +13,7 @@ from scripts.run_fitcv_repair_experiment import (
     _require_fresh_path,
     _response_run_id,
     _stabilize_experiment_llm_configuration,
+    _cohort_idempotency_key,
     _validate_job_types_against_exclusions,
 )
 
@@ -28,6 +29,14 @@ def test_experiment_job_identity_does_not_collide_across_repeated_submissions() 
     jobs = [*_experiment_jobs(["Contract"]), *_experiment_jobs(["Part-time"])]
 
     assert len({job["jobUrl"] for job in jobs}) == 2
+
+
+def test_cohort_idempotency_key_does_not_replay_seed_database_actions() -> None:
+    first = _cohort_idempotency_key("provider_first", "cohort-a", 0)
+    second = _cohort_idempotency_key("provider_first", "cohort-b", 0)
+
+    assert first != second
+    assert first == "fitcv-repair-provider_first-cohort-a-0"
 
 
 def test_real_producer_rejects_existing_database(tmp_path: Path) -> None:

@@ -792,12 +792,13 @@ The result was positive for the candidate, but it is not the final optimization
 decision because the later R5 rerun used the completed declared-input inventory.
 Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.md`.
 
-**Final current result (2026-10-05):** fresh source-bound cohorts completed
-after runtime, artifact-contract, and prompt-package input binding was added.
-`provider_first` accepted 10/10 versus `local_first` 5/10, used fewer provider
-calls, tokens, and wall time in this rerun; promotion remains deferred pending
-repeatability and `local_first` remains default. Evidence:
-`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r5.md`.
+**Final current result (2026-10-05, R12):** comparable seeded cohorts completed
+after fixing seeded idempotency-key replay. Both arms accepted 10/10, used 15
+provider calls, and had 5 regenerations. `provider_first` used 70,438 versus
+70,318 tokens, 209,026 versus 169,944 generation ms, and 295,326.243 versus
+252,497.206 end-to-end wall ms. Promotion is rejected; `local_first` remains
+default. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r12.md`.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -844,27 +845,27 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
 
-Resume reconciliation (2026-10-05): review head `72d8f579` had clean tracked
-state; final declared-input fingerprint is
-`c0cd25b818bb62c8fbe03c00124120a79c25f3170aafdeb0f35a2a795e14eb11`; the
-dependency-ready next action is Task 8 final verification. Prior Task 1 admission
-remains `not evidenced`.
+Resume reconciliation (2026-10-05): review head `81cc4121` had clean tracked
+state before this fix; current declared-input fingerprint is
+`1e1d9a9d539b49ca1a944c0a3e7b516a176eb9bf6ca0b832997be751603a64b9`; the
+dependency-ready next action is Task 8 final verification after the seeded
+cohort rerun. Prior Task 1 admission remains `not evidenced`.
 
-- Task 7 blocker is resolved with current-source paired cohorts. Final rerun
-  records provider_first at 10/10 versus local_first at 5/10; candidate calls,
-  tokens, and wall time decrease. Task 8 remains active pending fresh full-suite
-  verification and independent final review. Production default remains
-  `local_first`.
+- Task 7 blocker is resolved with current-source seeded paired cohorts. R12
+  records both arms at 10/10; candidate calls and regenerations tie, while
+  candidate tokens and latency increase. Task 8 remains active pending fresh
+  full-suite verification and independent final review. Production default
+  remains `local_first`.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.
 - Stop for: any failed hard gate, stale evidence, unresolved plan contradiction, or missing proof.
 
 **Verification:**
-- [ ] Run each command with immediate exit-code propagation; do not chain
+- [x] Run each command with immediate exit-code propagation; do not chain
   unchecked native commands:
   `python -m pytest -q`; if nonzero stop. Then `npm --prefix frontend run typecheck`; if nonzero stop. Then `npm --prefix frontend run test -- --run`; if nonzero stop. Then `npm --prefix frontend run build`; if nonzero stop. Then `powershell -File scripts/run_fitcv_review_e2e.ps1`; if nonzero stop. Finally `git diff --check`.
-- Expected: mandatory backend/frontend/browser proof passes, generated evidence is secret-safe, and no task remains pending or blocked.
+- Expected: mandatory backend/frontend/browser proof passes, generated evidence is secret-safe, and no task remains pending or blocked. Fresh local proof: backend `3180 passed, 8 skipped`; frontend `typecheck`, `337 tests`, build, and browser E2E passed.
 
 **Exit criteria:** every mandatory task is `completed` with fresh proof; a blocker
 keeps plan `active` or `blocked` and cannot close the plan; no acceptance claim is
@@ -874,18 +875,18 @@ made on source inspection alone.
 
 Final proof must establish:
 
-- [ ] explicit selection presence semantics and fail-closed empty selection; expected: absent, non-empty, and empty states are distinct in focused tests.
-- [ ] one authorized repair projection for every profile-backed repair section; expected: no sibling or plain-string leakage.
-- [ ] no unsupported generic repair prose; expected: forbidden fallback text absent from outputs/tests.
-- [ ] per-uncertainty server-side actionability, stale-source protection, atomic conflict handling, and idempotency; expected: competing requests cannot replace the winner.
-- [ ] truthful React lifecycle and evidence-drawer behavior with accessibility proof; expected: pending/cancelled are not rejected and resolved controls are read-only.
-- [ ] one browser flow against current backend routes with persisted refresh; expected: isolated non-local backend and disposable DB only.
-- [ ] identity-bound final-artifact proof across fresh, cached, regenerated, persisted, and review-closed paths.
-- [ ] complete timing, failure-cause, savings, cache, render, proof, and resolution-reuse telemetry with explicit unavailable semantics.
+- [x] explicit selection presence semantics and fail-closed empty selection; expected: absent, non-empty, and empty states are distinct in focused tests.
+- [x] one authorized repair projection for every profile-backed repair section; expected: no sibling or plain-string leakage.
+- [x] no unsupported generic repair prose; expected: forbidden fallback text absent from outputs/tests.
+- [x] per-uncertainty server-side actionability, stale-source protection, atomic conflict handling, and idempotency; expected: competing requests cannot replace the winner.
+- [x] truthful React lifecycle and evidence-drawer behavior with accessibility proof; expected: pending/cancelled are not rejected and resolved controls are read-only.
+- [x] one browser flow against current backend routes with persisted refresh; expected: isolated non-local backend and disposable DB only.
+- [x] identity-bound final-artifact proof across fresh, cached, regenerated, persisted, and review-closed paths.
+- [x] complete timing, failure-cause, savings, cache, render, proof, and resolution-reuse telemetry with explicit unavailable semantics.
 - [x] one identical-workload experiment with current-source paired cohorts;
   fixture, source, config, runtime, and all repeat IDs match across arms; current
   rerun rejects `provider_first` on equal correctness and higher cost/latency.
-- [ ] immutable historical evidence, no secret leakage, P1-C deferred, and P2 frozen.
+- [x] immutable historical evidence, no secret leakage, P1-C deferred, and P2 frozen.
 
 Run `skill-verification-before-completion` for final status. Source inspection,
 unit tests alone, or browser evidence alone cannot close this plan.

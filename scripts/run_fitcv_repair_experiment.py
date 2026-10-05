@@ -11,6 +11,7 @@ import shutil
 import sqlite3
 import subprocess
 import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -92,6 +93,10 @@ DECLARED_INPUTS = (
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _cohort_idempotency_key(arm: str, cohort_id: str, repeat: int) -> str:
+    return f"fitcv-repair-{arm}-{cohort_id}-{repeat}"
 
 
 def _git(*args: str) -> str:
@@ -509,6 +514,7 @@ def _run_real_cohort(
             "X-FitCV-CSRF": str(app.state.csrf_token),
         }
         run_ids: list[str] = []
+        cohort_id = uuid.uuid4().hex
         job_types = sorted(str(value) for value in payload["job_types"])
         for repeat in range(int(payload["repeat_count"])):
             jobs_json = json.dumps(
@@ -517,7 +523,10 @@ def _run_real_cohort(
             ).encode("utf-8")
             response = client.post(
                 "/runs",
-                headers={**headers_base, "Idempotency-Key": f"fitcv-repair-{arm}-{repeat}"},
+                headers={
+                    **headers_base,
+                    "Idempotency-Key": _cohort_idempotency_key(arm, cohort_id, repeat),
+                },
                 data={"profile_id": str(profile["candidate_profile_id"]), "run_name": f"fitcv-repair-{arm}-{repeat}"},
                 files={"jobs_file": ("fitcv-repair-experiment.json", jobs_json, "application/json")},
             )
