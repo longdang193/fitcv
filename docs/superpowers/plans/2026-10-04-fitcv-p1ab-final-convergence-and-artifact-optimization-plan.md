@@ -156,7 +156,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `active` | current | `codex` | Task 6 | current-head identical-workload incumbent/candidate benchmark | R13 is historical only; rerun must bind source commit and declared-input fingerprint to current HEAD |
+| Task 7 | `active` | current | `codex` | Task 6 | current-head identical-workload incumbent/candidate benchmark | R3 is historical source `7f351da`; rerun must bind source commit and declared-input fingerprint to current HEAD |
 | Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; candidate promotion rejected; fresh CI and final review remain |
 
 ## Activation Gate
@@ -855,10 +855,10 @@ tracked state before final evidence-only updates; historical declared-input fing
 record is not current-head freshness proof. Prior Task 1 admission remains
 `not evidenced`.
 
-- R13 records both arms at 10/10; candidate calls and regenerations tie, wall
-  time decreases, and token cost increases. Task 8 remains active because fresh
-  review found two stale-CAS windows in review-action persistence. Production
-  default remains `local_first` pending fresh verification.
+- R3 is latest historical paired evidence: both arms accept 5/10; `provider_first`
+  uses more tokens and wall time, so promotion remains rejected. R3 source
+  `7f351da` is not current-head proof. Task 8 remains active pending current-head
+  evidence and final review. Production default remains `local_first`.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.

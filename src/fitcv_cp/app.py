@@ -12376,7 +12376,7 @@ def create_app(
             )
             debug_payload["hitl_review_actions"] = actions
             expected_debug_row_revision = (
-                int(expected_pipeline_row_revision) + 1
+                int(expected_pipeline_row_revision) + (1 if resolution_row.get("created") is not False else 0)
                 if expected_pipeline_row_revision is not None
                 else None
             )

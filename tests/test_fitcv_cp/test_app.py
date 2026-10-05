@@ -7143,11 +7143,23 @@ def test_canonical_cv_review_action_rejects_conflicting_failed_enqueue_recovery(
                 "action": "CONFIRM_OMIT",
             },
         )
+        third = client.post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-retry"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
 
     assert first.status_code == 500
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "requirement_resolution_conflict"
-    assert enqueue.call_count == 1
+    assert third.status_code == 202
+    assert enqueue.call_count == 2
     saved = sqlite_store.list_requirement_resolutions(
         candidate_profile_id="candidate-1",
         candidate_profile_revision="1",
