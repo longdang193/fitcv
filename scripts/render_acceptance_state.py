@@ -58,6 +58,7 @@ ALLOWED_MEASUREMENT_STATUSES = {
     "blocked",
 }
 ALLOWED_RUNTIME_MEASUREMENT_STATUSES = {"measured", "incomplete", "blocked"}
+EVIDENCE_REGISTRY_STATUSES = {"current", "historical", "superseded"}
 OPTIMIZATION_RESULT_FIELDS = {
     "experiment",
     "promotion",
@@ -69,6 +70,44 @@ OPTIMIZATION_RESULT_FIELDS = {
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(message)
+
+
+def _validate_evidence_registry(registry: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    _require(registry.get("schema_version") == "fitcv.evidence_registry.v1", "evidence registry schema_version invalid")
+    records = registry.get("records")
+    _require(isinstance(records, list) and records, "evidence registry records invalid")
+    current_by_claim: dict[str, int] = {}
+    evidence_ids: set[str] = set()
+    for record in records:
+        _require(isinstance(record, dict), "evidence registry record invalid")
+        evidence_id = record.get("evidence_id")
+        claim = record.get("claim")
+        status = record.get("status")
+        _require(isinstance(evidence_id, str) and evidence_id.strip(), "evidence registry evidence_id invalid")
+        _require(evidence_id not in evidence_ids, "evidence registry evidence_id duplicated")
+        evidence_ids.add(evidence_id)
+        _require(isinstance(claim, str) and claim.strip(), "evidence registry claim invalid")
+        _require(status in EVIDENCE_REGISTRY_STATUSES, f"evidence registry status invalid: {claim}")
+        paths = record.get("artifact_paths")
+        _require(isinstance(paths, list) and paths and all(isinstance(path, str) for path in paths), f"evidence registry artifact_paths invalid: {claim}")
+        for relative_path in paths:
+            _require((repo_root / relative_path).is_file(), f"evidence registry missing reference: {relative_path}")
+        source_commit = record.get("source_commit")
+        _require(isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}", source_commit), f"evidence registry source_commit invalid: {claim}")
+        input_fingerprint = record.get("declared_input_fingerprint")
+        _require(isinstance(input_fingerprint, str) and re.fullmatch(r"[0-9a-f]{64}", input_fingerprint), f"evidence registry declared_input_fingerprint invalid: {claim}")
+        _require(isinstance(record.get("schema_version"), str) and record["schema_version"].strip(), f"evidence registry record schema invalid: {claim}")
+        _require(isinstance(record.get("cohort_id"), str) and record["cohort_id"].strip(), f"evidence registry cohort_id invalid: {claim}")
+        _require(isinstance(record.get("cohort_type"), str) and record["cohort_type"].strip(), f"evidence registry cohort_type invalid: {claim}")
+        metric_digest = record.get("material_metrics_sha256")
+        _require(isinstance(metric_digest, str) and re.fullmatch(r"[0-9a-f]{64}", metric_digest), f"evidence registry metric digest invalid: {claim}")
+        if status == "current":
+            current_by_claim[claim] = current_by_claim.get(claim, 0) + 1
+        if status == "superseded":
+            superseded_by = record.get("superseded_by")
+            _require(isinstance(superseded_by, str) and superseded_by in evidence_ids, f"evidence registry supersession invalid: {claim}")
+    _require(all(count == 1 for count in current_by_claim.values()), "evidence registry duplicate current claim")
+    return registry
 
 
 def _validate_state(state: dict[str, Any], repo_root: Path) -> dict[str, Any]:
@@ -84,6 +123,13 @@ def _validate_state(state: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     _require(isinstance(sanitizer_version, str) and sanitizer_version.strip(), "sanitizer_version invalid")
     contract_versions = state.get("contract_versions")
     _require(isinstance(contract_versions, dict) and contract_versions, "contract_versions invalid")
+
+    registry_path = state.get("evidence_registry")
+    if registry_path is not None:
+        _require(isinstance(registry_path, str) and (repo_root / registry_path).is_file(), "evidence_registry missing reference")
+        registry = yaml.safe_load((repo_root / registry_path).read_text(encoding="utf-8"))
+        _require(isinstance(registry, dict), "evidence_registry must be an object")
+        _validate_evidence_registry(registry, repo_root)
 
     manifests = state.get("corpus_manifests")
     _require(isinstance(manifests, list) and manifests and all(isinstance(item, str) for item in manifests), "corpus_manifests invalid")

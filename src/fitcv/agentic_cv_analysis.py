@@ -143,7 +143,14 @@ def _fit_label_from_baseline_score(score: float, config: dict[str, Any]) -> FitC
     return cast(FitClassification, fit_label_from_score(score, config))
 
 
-def resolve_ranked_job_fit(job: dict[str, Any], config: dict[str, Any]) -> FitClassification | None:
+def resolve_ranked_job_fit(
+    job: dict[str, Any],
+    config: dict[str, Any],
+    *,
+    fit_classification_override: FitClassification | None = None,
+) -> FitClassification | None:
+    if fit_classification_override in _FIT_LABEL_ORDER:
+        return fit_classification_override
     score_state = normalize_score_state(job)
     if score_state["score_status"] != SCORE_STATUS_VALID:
         return None
@@ -953,6 +960,7 @@ def analyze_ranked_job(
     *,
     top_k: int | None = None,
     reusable_record: dict[str, Any] | None = None,
+    fit_classification_override: FitClassification | None = None,
 ) -> CvAnalysisRecord:
     _validate_analysis_inputs(job, profile, config, top_k)
     raw_requirement_resolutions = [
@@ -982,7 +990,11 @@ def analyze_ranked_job(
     gap_summary: dict[str, Any] | None = None
     try:
         profile = converge_candidate_profile_for_runtime(profile)
-        ranking_fit_label = resolve_ranked_job_fit(job, config)
+        ranking_fit_label = resolve_ranked_job_fit(
+            job,
+            config,
+            fit_classification_override=fit_classification_override,
+        )
         if ranking_fit_label is None:
             return build_cv_analysis_record(
                 job=job,
@@ -1142,7 +1154,11 @@ def analyze_ranked_job(
             config=config,
         )
 
-        fit_classification = resolve_ranked_job_fit(job, config)
+        fit_classification = resolve_ranked_job_fit(
+            job,
+            config,
+            fit_classification_override=fit_classification_override,
+        )
         required_skills = [
             str(skill) for skill in list(job.get("required_skills") or []) if str(skill)
         ]

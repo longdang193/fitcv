@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from fitcv_cp import sqlite_store
+from fitcv.agentic_cv_analysis import build_evidence_projection
 from fitcv_cp.models import PipelineRun, RunStatus
 
 
@@ -21,6 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--no-cv-version", action="store_true")
     args = parser.parse_args()
     database = args.database.resolve()
     if database.exists():
@@ -37,15 +39,24 @@ def main() -> int:
         "title": "Analytics Engineer",
         "companyName": "FitCV E2E",
         "description": "Build analytics systems with SQL and Python.",
-        "required_skills": ["SQL", "Python"],
+        "required_skills": ["Python"],
         "location": "Remote",
     }]
     profile = {
         "name": "E2E Candidate",
+        "candidate_profile_id": "e2e-profile",
         "revision": 1,
         "skills": ["SQL"],
-        "experience": [{"title": "Analyst", "company": "Example", "bullets": ["Built SQL reports."]}],
+        "experience": [{
+            "title": "Analyst",
+            "company": "Example",
+            "bullets": [
+                "Built SQL reports.",
+                "Used Python for analytics automation.",
+            ],
+        }],
     }
+    source_profile_fingerprint = str(build_evidence_projection(profile).get("fingerprint") or "")
     run = PipelineRun(
         run_id=run_id,
         status=RunStatus.SUCCEEDED,
@@ -60,7 +71,14 @@ def main() -> int:
         jobs_input_manifest_json=json.dumps({"source_filenames": ["e2e-fixture.json"]}),
         candidate_profile_source="e2e-fixture",
         candidate_profile_json=json.dumps(profile, sort_keys=True),
-        effective_settings_json=json.dumps({"cv_generation_model": "e2e-fixture"}, sort_keys=True),
+        effective_settings_json=json.dumps(
+            {
+                "cv_generation_model": "e2e-fixture",
+                "required_cv_sections": ["Summary", "Experience", "Skills"],
+                "pipeline": {"evidence_top_k": 3},
+            },
+            sort_keys=True,
+        ),
     )
     sqlite_store.insert_run(run)
     run_job_id = sqlite_store.list_run_job_ids_for_run(run_id)[0]
@@ -82,23 +100,24 @@ def main() -> int:
     }
     with sqlite_store._sqlite_connection(database) as conn:
         checksum = hashlib.sha256(content).hexdigest()
-        conn.execute(
+        if not args.no_cv_version:
+            conn.execute(
             """INSERT INTO cv_versions (
                 version_id, run_job_id, ordinal, generation_status, created_at,
                 finished_at, generator_id, model_id, content_length, content_checksum,
                 content_blob, media_type, filename, run_id, job_url,
                 quality_warnings_json
             ) VALUES (?, ?, 1, 'review_required', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                version_id, run_job_id, now.isoformat(), now.isoformat(),
-                "e2e_fixture", "e2e-fixture", len(content), checksum, content,
-                "text/markdown", "e2e-cv.md", run_id, job_url, json.dumps(quality),
-            ),
-        )
-        conn.execute(
-            "UPDATE run_jobs SET current_cv_version_id=? WHERE run_job_id=?",
-            (version_id, run_job_id),
-        )
+                (
+                    version_id, run_job_id, now.isoformat(), now.isoformat(),
+                    "e2e_fixture", "e2e-fixture", len(content), checksum, content,
+                    "text/markdown", "e2e-cv.md", run_id, job_url, json.dumps(quality),
+                ),
+            )
+            conn.execute(
+                "UPDATE run_jobs SET current_cv_version_id=? WHERE run_job_id=?",
+                (version_id, run_job_id),
+            )
         conn.execute(
             """INSERT INTO run_job_stage_results (
                 run_job_id, stage_id, status, reason_code, evidence_json
@@ -114,7 +133,7 @@ def main() -> int:
             "review_item_id": "e2e-review-item",
             "candidate_profile_id": "e2e-profile",
             "candidate_profile_revision": "1",
-            "source_profile_fingerprint": "e2e-source",
+            "source_profile_fingerprint": source_profile_fingerprint,
             "fit_classification": "stretch",
             "reason": "One requirement needs candidate confirmation.",
             "markdown_preview": content.decode(),
@@ -137,7 +156,9 @@ def main() -> int:
         "run_job_id": run_job_id,
         "job_url": job_url,
         "uncertainty_id": "e2e-uncertainty",
+        "source_profile_fingerprint": source_profile_fingerprint,
         "expected_terminal_state": "review_required",
+        "cv_versions_count": 0 if args.no_cv_version else 1,
         "cleanup_owner": "run_fitcv_review_e2e.ps1",
     }, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"database": str(database), "run_id": run_id, "run_job_id": run_job_id}))

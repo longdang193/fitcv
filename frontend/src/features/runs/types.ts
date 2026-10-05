@@ -194,7 +194,12 @@ export interface RunJobItem {
     interest?: boolean;
     cv_view?: boolean;
     cv_generate?: boolean;
+    review_cv?: boolean;
     [key: string]: unknown;
+  };
+  review_capability?: {
+    available?: boolean;
+    pending_count?: number;
   };
   [key: string]: unknown;
 }

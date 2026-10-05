@@ -142,3 +142,50 @@ def test_render_acceptance_state_rejects_runtime_efficiency_claim_without_deferr
 
     with pytest.raises(ValueError, match="runtime_efficiency"):
         render_acceptance_state(source, output, repo_root=tmp_path)
+
+
+def test_render_acceptance_state_rejects_duplicate_current_evidence_claim(tmp_path: Path) -> None:
+    source = tmp_path / "state.json"
+    output = tmp_path / "rendered.json"
+    state = _valid_state()
+    state["evidence_registry"] = "config/evidence_registry.yaml"
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config/evidence_registry.yaml").write_text(
+        """
+schema_version: fitcv.evidence_registry.v1
+records:
+  - evidence_id: evidence-1
+    claim: p1_a
+    schema_version: fitcv.acceptance_state.v2
+    source_commit: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    declared_input_fingerprint: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    fixture_sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+    cohort_id: cohort-1
+    cohort_type: acceptance_fixture
+    material_metrics_sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+    artifact_paths: [docs/evidence.md]
+    status: current
+  - evidence_id: evidence-2
+    claim: p1_a
+    schema_version: fitcv.acceptance_state.v2
+    source_commit: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    declared_input_fingerprint: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    fixture_sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+    cohort_id: cohort-1
+    cohort_type: acceptance_fixture
+    material_metrics_sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+    artifact_paths: [docs/evidence.md]
+    status: current
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data/manifest.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs/evidence.md").write_text("evidence\n", encoding="utf-8")
+    (tmp_path / "docs/runtime-efficiency.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "docs/runtime-efficiency.md").write_text("runtime\n", encoding="utf-8")
+    source.write_text(json.dumps(state), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="duplicate current claim"):
+        render_acceptance_state(source, output, repo_root=tmp_path)

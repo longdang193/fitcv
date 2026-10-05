@@ -84,12 +84,10 @@ def _normalized_analysis_input_identity(report: dict[str, Any]) -> tuple[str, ..
 
 
 def _source_inputs_match_current(source_commit: Any, current_commit: str | None, repo_root: Path) -> bool:
-    if not current_commit or source_commit == current_commit:
-        return bool(source_commit)
     if not isinstance(source_commit, str) or not source_commit.strip():
         return False
     completed = subprocess.run(
-        ["git", "diff", "--quiet", source_commit, current_commit, "--", *DECLARED_INPUTS],
+        ["git", "diff", "--quiet", source_commit, "--", *DECLARED_INPUTS],
         cwd=repo_root,
         check=False,
         stdout=subprocess.DEVNULL,
@@ -319,6 +317,16 @@ def _run_current_contract_evidence_check(
         for name in ("fixture_sha256", "source_fixture_sha256"):
             if not isinstance(evidence.get(name), str) or len(evidence[name]) != 64:
                 failures.append(f"current_contract_evidence_{name}_invalid")
+        if "input_manifest" in evidence:
+            current_fixture_sha256, current_declared_input_fingerprint = _current_experiment_input_identity(repo_root)
+            input_manifest = dict(evidence.get("input_manifest") or {})
+            if current_fixture_sha256 is None or current_declared_input_fingerprint is None:
+                failures.append("current_contract_evidence_inputs_unavailable")
+            else:
+                if evidence.get("fixture_sha256") != current_fixture_sha256:
+                    failures.append("current_contract_evidence_fixture_sha256_not_current")
+                if input_manifest.get("declared_input_fingerprint") != current_declared_input_fingerprint:
+                    failures.append("current_contract_evidence_declared_input_fingerprint_not_current")
         selection = dict(evidence.get("selection") or {})
         if int(selection.get("current_contract_record_count") or 0) <= 0:
             failures.append("current_contract_evidence_has_no_current_records")

@@ -359,6 +359,7 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
                     {
                         "job_url": "https://example.com/job-1",
                         "status": "review_required",
+                        "fit_classification": "stretch",
                         "markdown_full": "# Draft 1",
                     },
                     {
@@ -425,6 +426,7 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
 
     reserve_version.assert_called_once()
     analyze_job.assert_called_once()
+    assert analyze_job.call_args.args[0]["baseline_fit_label"] == "stretch"
     generate_cv.assert_called_once_with(analysis, {"name": "Candidate"}, {})
     assert update_version.call_args_list[-1].kwargs["generation_status"] == "review_required"
     assert update_version.call_args_list[-1].kwargs["content"] == b"# Fresh generated CV"
@@ -437,6 +439,61 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
     assert insert_review.call_args.kwargs["row"]["to_state"] == "stretch"
     stages = [call.args[0].stage for call in mock_append.call_args_list]
     assert stages == ["cv_regenerate_once_started", "cv_regenerate_once_succeeded"]
+
+
+def test_execute_cv_regenerate_once_fails_closed_when_fit_classification_is_missing() -> None:
+    from fitcv_cp.worker_job import execute_cv_regenerate_once
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="run-regen-missing-fit",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        candidate_profile_json=json.dumps({"name": "Candidate"}),
+        effective_settings_json="{}",
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "markdown_full": "# Draft 1",
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+    )
+    with patch("fitcv_cp.worker_job.get_run", return_value=run), \
+         patch("fitcv_cp.worker_job.list_run_structured_jobs", return_value=[{
+             "run_job_id": "run-job-1", "job_url": "https://example.com/job-1", "title": "Role"
+         }]), \
+         patch("fitcv_cp.worker_job.reserve_cv_regeneration", return_value={
+             "version_id": "cv-missing-fit", "generation_status": "pending", "idempotent_replay": False
+         }), \
+         patch("fitcv_cp.worker_job.update_cv_version", return_value={}) as update_version, \
+         patch("fitcv_cp.worker_job.insert_cv_evaluation_row"), \
+         patch("fitcv_cp.worker_job.update_cv_evaluation") as update_evaluation, \
+         patch("fitcv_cp.worker_job.analyze_ranked_job", return_value={"status": "ready_for_generation"}), \
+         patch("fitcv_cp.worker_job.generate_from_analysis", return_value={
+             "status": "review_required", "markdown_final": "# Fresh generated CV"
+         }), \
+         patch("fitcv_cp.worker_job.append_event"):
+        with pytest.raises(ValueError, match="fit_classification_missing"):
+            execute_cv_regenerate_once(
+                run_id="run-regen-missing-fit",
+                job_url="https://example.com/job-1",
+                actor="operator",
+                note="retry",
+            )
+
+    assert update_evaluation.call_args.kwargs["status"] == "failed"
+    assert update_evaluation.call_args.kwargs["error_message"] == "fit_classification_missing"
+    assert update_version.call_args_list[-1].kwargs["generation_status"] == "generation_failed"
 
 
 def test_requirement_resolution_refresh_loads_answer_and_closes_review_queue() -> None:
@@ -501,7 +558,7 @@ def test_requirement_resolution_refresh_loads_answer_and_closes_review_queue() -
     )
     analysis = {
         "status": "ready_for_generation",
-        "fit_classification": "good",
+        "fit_classification": "stretch",
         "job_url": job_url,
         "analysis_input_fingerprint": "analysis-resolution-1",
         "analysis_input_components": {"resolution_id": "resolution-1"},
@@ -518,7 +575,7 @@ def test_requirement_resolution_refresh_loads_answer_and_closes_review_queue() -
     }
     generation = {
         "status": "accepted",
-        "fit_classification": "good",
+        "fit_classification": "stretch",
         "markdown_final": "# Truthful CV",
         "structured_cv_final": {"skills": ["SQL"]},
         "cv_generation_input_fingerprint": "generation-resolution-1",
@@ -589,9 +646,9 @@ def test_requirement_resolution_refresh_loads_answer_and_closes_review_queue() -
     assert update_debug.call_count == 1
     refreshed_payload = json.loads(update_debug.call_args.args[1])
     refreshed_record = refreshed_payload["debug_records"][0]
-    assert refreshed_record["status"] == "accepted"
+    assert refreshed_record["status"] == "review_required"
     assert refreshed_record["review_item_id"] == "review-sql-1"
-    assert refreshed_record["uncertainties"] == []
+    assert refreshed_record["uncertainties"][0]["resolution_status"] == "resolved"
     run.cv_generation_debug_json = json.dumps(refreshed_payload)
     queue = _build_hitl_review_queue(run)
     assert queue["pending_count"] == 0
@@ -667,6 +724,47 @@ def test_requirement_resolution_refresh_failure_keeps_review_queue_open() -> Non
         "cv_regenerate_once_started",
         "cv_regenerate_once_failed",
     ]
+
+
+def test_persist_resolution_reanalysis_keeps_resolved_review_row() -> None:
+    from fitcv_cp import worker_job
+
+    job_url = "https://example.com/job-resolved"
+    run = MagicMock(
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": job_url,
+                        "status": "review_required",
+                        "review_item_id": "review-resolved-1",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "uncertainty-1",
+                                "resolution_key": "required_skill:python",
+                                "resolution_action": "RESOLVE_WITH_ANSWER",
+                                "resolution_status": "resolved",
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+    with patch.object(worker_job, "get_run", return_value=run), \
+         patch.object(worker_job, "update_run_cv_generation_debug") as update_debug:
+        worker_job._persist_resolution_reanalysis(
+            run_id="run-resolved",
+            job_url=job_url,
+            analysis={"uncertainties": []},
+            generation={"status": "generated"},
+            resolution_job_id="requirement-resolution:1",
+        )
+
+    payload = json.loads(update_debug.call_args.args[1])
+    record = payload["debug_records"][0]
+    assert record["status"] == "review_required"
+    assert record["uncertainties"][0]["resolution_status"] == "resolved"
 
 
 def test_execute_cv_regenerate_once_emits_failed_event_for_missing_record() -> None:

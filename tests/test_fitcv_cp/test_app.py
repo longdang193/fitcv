@@ -104,6 +104,12 @@ def _app():
     )
     return create_app(redis_url="redis://localhost:6379/0")
 
+
+def _review_revision(client: TestClient, run_id: str, run_job_id: str = "job-1") -> str:
+    return client.get(
+        f"/runs/{run_id}/jobs/{run_job_id}/cv-review"
+    ).json()["data"]["review_revision"]
+
 def _execute_candidate_profile_stage_now(**kwargs: object) -> str:
     from fitcv_cp.candidate_profile_service import execute_candidate_profile_stage
 
@@ -4431,12 +4437,13 @@ def test_candidate_profile_confirmation_persistence_failure_is_retryable() -> No
         "expected_confirmation_fingerprint": confirmation["fingerprint"],
     }
 
+    client = TestClient(app, raise_server_exceptions=False)
     with patch.object(
         sqlite_store,
         "_insert_confirmed_candidate_profile",
         side_effect=RuntimeError("injected confirmation failure"),
     ):
-        response = TestClient(app, raise_server_exceptions=False).post(
+        response = client.post(
             f"/candidate-profile-creation-attempts/{ready['attempt_id']}/actions/confirm",
             headers={"Idempotency-Key": "http-confirm-failure"},
             json=payload,
@@ -5604,7 +5611,8 @@ def test_healthz():
     assert payload["status"] == "ok"
     assert "local_mode" in payload
     assert "inline_execution" in payload
-    assert "database_path" in payload
+    assert payload["database_available"] is True
+    assert "database_path" not in payload
 
 def test_admin_orchestration_schema_diagnostics_endpoint() -> None:
     with patch(
@@ -6572,11 +6580,13 @@ def test_admin_run_cv_review_resolution_delegates_to_canonical_action() -> None:
          patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue, \
          patch("fitcv_cp.app.update_run_cv_generation_debug"), \
          patch("fitcv_cp.app.append_event"):
-        response = TestClient(_app()).post(
+        client = TestClient(_app())
+        response = client.post(
             "/admin/runs/run-admin-resolution-delegation/cv-review-action",
             data={
                 "job_url": "https://example.com/job-1",
                 "review_item_id": "review-1",
+                "review_revision": _review_revision(client, "run-admin-resolution-delegation"),
                 "uncertainty_id": "u-1",
                 "resolution_key": "skill:sql",
                 "action": "RESOLVE_WITH_ANSWER",
@@ -6704,11 +6714,13 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
          patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution", return_value={"resolution_id": "resolution-1"}) as save_resolution, \
          patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1"), \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as update_debug:
-        response = TestClient(_app()).post(
+        client = TestClient(_app())
+        response = client.post(
             "/runs/run-canonical-review-action/jobs/job-1/cv-review/actions",
             headers={"Idempotency-Key": "idem-1"},
             json={
                 "review_item_id": "review-1",
+                "review_revision": _review_revision(client, "run-canonical-review-action"),
                 "uncertainty_id": "u-1",
                 "resolution_key": "skill:sql",
                 "action": "RESOLVE_WITH_ANSWER",
@@ -6800,13 +6812,16 @@ def test_canonical_cv_review_action_rejects_pipeline_revision_advanced_after_sna
         snapshot_calls += 1
         return queue
 
+    client = TestClient(app, raise_server_exceptions=False)
+    revision = _review_revision(client, run.run_id)
     with patch("fitcv_cp.app._build_hitl_review_queue", side_effect=advance_pipeline_after_snapshot), \
          patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue:
-        response = TestClient(app, raise_server_exceptions=False).post(
+        response = client.post(
             f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
             headers={"Idempotency-Key": "pipeline-race"},
             json={
                 "review_item_id": "review-1",
+                "review_revision": revision,
                 "uncertainty_id": "u-1",
                 "resolution_key": "skill:sql",
                 "action": "RESOLVE_WITH_ANSWER",
@@ -6927,16 +6942,19 @@ def test_canonical_cv_review_recovery_rejects_stale_failed_enqueue_before_enqueu
             connection.commit()
         return original_save(row)
 
+    client = TestClient(app, raise_server_exceptions=False)
+    revision = _review_revision(client, run.run_id)
     with patch.object(
         app_module.sqlite_store_module,
         "save_requirement_resolution",
         side_effect=advance_job_then_save,
     ), patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-2") as enqueue:
-        response = TestClient(app, raise_server_exceptions=False).post(
+        response = client.post(
             f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
             headers={"Idempotency-Key": "recovery-race"},
             json={
                 "review_item_id": "review-1",
+                "review_revision": revision,
                 "uncertainty_id": "u-1",
                 "resolution_key": "skill:sql",
                 "action": "RESOLVE_WITH_ANSWER",
@@ -7015,15 +7033,18 @@ def test_canonical_cv_review_action_preserves_debug_update_after_resolution_cas(
         assert result["persistence_status"] == "persisted"
         return "queue-1"
 
+    client = TestClient(app, raise_server_exceptions=False)
+    revision = _review_revision(client, run.run_id)
     with patch(
         "fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id",
         side_effect=enqueue_and_advance,
     ) as enqueue:
-        response = TestClient(app, raise_server_exceptions=False).post(
+        response = client.post(
             f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
             headers={"Idempotency-Key": "debug-race"},
             json={
                 "review_item_id": "review-1",
+                "review_revision": revision,
                 "uncertainty_id": "u-1",
                 "resolution_key": "skill:sql",
                 "action": "RESOLVE_WITH_ANSWER",
@@ -7256,6 +7277,7 @@ def test_canonical_cv_review_action_retries_after_enqueue_failure() -> None:
         client = TestClient(_app(), raise_server_exceptions=False)
         payload = {
             "review_item_id": "review-1",
+            "review_revision": _review_revision(client, "run-canonical-review-retry"),
             "uncertainty_id": "u-1",
             "resolution_key": "skill:sql",
             "action": "RESOLVE_WITH_ANSWER",
@@ -7327,11 +7349,13 @@ def test_canonical_cv_review_action_rejects_conflicting_failed_enqueue_recovery(
         side_effect=[RuntimeError("queue unavailable"), "queue-1"],
     ) as enqueue:
         client = TestClient(app, raise_server_exceptions=False)
+        revision = _review_revision(client, run.run_id)
         first = client.post(
             f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
             headers={"Idempotency-Key": "idem-failed"},
             json={
                 "review_item_id": "review-1",
+                "review_revision": revision,
                 "uncertainty_id": "u-1",
                 "resolution_key": "skill:sql",
                 "action": "RESOLVE_WITH_ANSWER",
@@ -7343,6 +7367,7 @@ def test_canonical_cv_review_action_rejects_conflicting_failed_enqueue_recovery(
             headers={"Idempotency-Key": "idem-conflicting"},
             json={
                 "review_item_id": "review-1",
+                "review_revision": revision,
                 "uncertainty_id": "u-1",
                 "resolution_key": "skill:sql",
                 "action": "CONFIRM_OMIT",
@@ -7353,6 +7378,7 @@ def test_canonical_cv_review_action_rejects_conflicting_failed_enqueue_recovery(
             headers={"Idempotency-Key": "idem-retry"},
             json={
                 "review_item_id": "review-1",
+                "review_revision": revision,
                 "uncertainty_id": "u-1",
                 "resolution_key": "skill:sql",
                 "action": "RESOLVE_WITH_ANSWER",
@@ -7419,6 +7445,7 @@ def test_canonical_cv_review_action_reconciles_after_settlement_failure() -> Non
         client = TestClient(_app(), raise_server_exceptions=False)
         payload = {
             "review_item_id": "review-1",
+            "review_revision": _review_revision(client, "run-canonical-review-settlement-retry"),
             "uncertainty_id": "u-1",
             "resolution_key": "skill:sql",
             "action": "RESOLVE_WITH_ANSWER",
@@ -7536,8 +7563,10 @@ def test_canonical_cv_review_action_replays_after_review_state_changes() -> None
          patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1"), \
          patch("fitcv_cp.app.update_run_cv_generation_debug"):
         client = TestClient(_app())
+        payload_revision = _review_revision(client, "run-canonical-review-replay")
         payload = {
             "review_item_id": "review-1",
+            "review_revision": payload_revision,
             "uncertainty_id": "u-1",
             "resolution_key": "skill:sql",
             "action": "RESOLVE_WITH_ANSWER",
@@ -7694,12 +7723,14 @@ def test_admin_run_cv_review_resolution_actions_store_identity_and_enqueue(
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as update_debug, \
          patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue:
-        response = TestClient(app).post(
+        client = TestClient(app)
+        response = client.post(
             f"/admin/runs/{run.run_id}/cv-review-action",
             data={
                 "job_url": "https://example.com/job-1",
                 "action": action,
                 "actor": "operator",
+                "review_revision": _review_revision(client, run.run_id),
                 "uncertainty_id": "uncertainty-1",
                 "resolution_key": "required_skill:sql",
                 "answer_text": answer_text,

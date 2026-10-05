@@ -17,7 +17,7 @@ try {
     $env:FITCV_CP_INLINE_EXECUTION = "1"
     $env:FITCV_REVIEW_E2E = "1"
     $env:FITCV_CP_SQLITE_PATH = $database
-    python (Join-Path $repo "scripts/seed_fitcv_review_e2e.py") --database $database --manifest $manifest
+    python (Join-Path $repo "scripts/seed_fitcv_review_e2e.py") --database $database --manifest $manifest --no-cv-version
     if ($LASTEXITCODE -ne 0) { throw "seed_failed:$LASTEXITCODE" }
     if (-not (Test-Path -LiteralPath $manifest)) { throw "seed_manifest_missing" }
     $serverScript = Join-Path $repo "scripts/serve_fitcv_review_e2e.py"
@@ -41,7 +41,7 @@ try {
     }
     if (-not $ready) { throw "owned_server_not_ready" }
     $env:FITCV_E2E_MANIFEST = $manifest
-    npm --prefix (Join-Path $repo "frontend") run test:e2e -- integration-flows.spec.ts -g "real review flow"
+    npm --prefix (Join-Path $repo "frontend") run test:e2e -- integration-flows.spec.ts -g "review"
     if ($LASTEXITCODE -ne 0) { throw "browser_e2e_failed:$LASTEXITCODE" }
     exit 0
 } catch {

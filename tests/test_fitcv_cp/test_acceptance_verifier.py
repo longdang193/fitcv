@@ -393,6 +393,8 @@ def test_current_contract_evidence_rejects_dropped_attempted_outcome(tmp_path: P
     evidence_json = tmp_path / "current.json"
     evidence_markdown = tmp_path / "current.md"
     evidence_sha = tmp_path / "current.sha256"
+    import hashlib
+
     evidence = {
         "evidence_status": "canonical",
         "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
@@ -408,8 +410,6 @@ def test_current_contract_evidence_rejects_dropped_attempted_outcome(tmp_path: P
     }
     evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
     evidence_markdown.write_text("Evidence status: `canonical`", encoding="utf-8")
-    import hashlib
-
     evidence_sha.write_text(
         f"{hashlib.sha256(evidence_json.read_bytes()).hexdigest()}  {evidence_json.name}\n",
         encoding="utf-8",
@@ -422,6 +422,51 @@ def test_current_contract_evidence_rejects_dropped_attempted_outcome(tmp_path: P
 
     assert result["passed"] is False
     assert "current_contract_evidence_outcomes_incomplete" in result["failures"]
+
+
+def test_current_contract_evidence_rejects_stale_declared_inputs(
+    monkeypatch, tmp_path: Path
+) -> None:
+    fixture = tmp_path / "tests" / "fixtures" / "fitcv-p1ab-repair-experiment.json"
+    fixture.parent.mkdir(parents=True)
+    fixture.write_text("fixture", encoding="utf-8")
+    dependency = tmp_path / "src" / "fitcv" / "llm_runtime.py"
+    dependency.parent.mkdir(parents=True)
+    dependency.write_text("baseline", encoding="utf-8")
+    monkeypatch.setattr(verifier, "DECLARED_INPUTS", ("src/fitcv/llm_runtime.py",))
+    _, baseline_fingerprint = verifier._current_experiment_input_identity(tmp_path)
+    evidence = {
+        "evidence_status": "canonical",
+        "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
+        "source_commit": "a" * 40,
+        "fixture_sha256": verifier.hashlib.sha256(fixture.read_bytes()).hexdigest(),
+        "source_fixture_sha256": "c" * 64,
+        "input_manifest": {"declared_input_fingerprint": baseline_fingerprint},
+        "selection": {"current_contract_record_count": 1, "historical_record_count": 0},
+        "workload": {"attempted_generation_job_count": 1},
+        "attempted_outcomes": [{"trace_id": "one"}],
+        "accepted_cv": {"count": 1, "accepted_non_one_page_count": 0, "page_fit_success": {"fail": 0}},
+        "coverage": {"page_fit": {"complete": True}, "page_fit_success": {"complete": True}},
+        "attribution": {"unattributed_accepted_artifact_count": 0},
+    }
+    evidence_json = tmp_path / "current.json"
+    evidence_markdown = tmp_path / "current.md"
+    evidence_sha = tmp_path / "current.sha256"
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_markdown.write_text("Evidence status: `canonical`", encoding="utf-8")
+    evidence_sha.write_text(
+        f"{verifier.hashlib.sha256(evidence_json.read_bytes()).hexdigest()}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+    dependency.write_text("changed", encoding="utf-8")
+
+    result = _run_current_contract_evidence_check(
+        {"current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}},
+        tmp_path,
+    )
+
+    assert result["passed"] is False
+    assert "current_contract_evidence_declared_input_fingerprint_not_current" in result["failures"]
 
 
 def test_current_contract_evidence_digest_accepts_crlf_checkout(tmp_path: Path) -> None:

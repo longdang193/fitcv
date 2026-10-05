@@ -1870,6 +1870,15 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "candidate_profile_id": str(record.get("candidate_profile_id") or "").strip() or None,
                 "candidate_profile_revision": str(record.get("candidate_profile_revision") or "").strip() or None,
                 "source_profile_fingerprint": str(record.get("source_profile_fingerprint") or "").strip() or None,
+                "review_revision": _canonical_cv_review_revision(
+                    review_item_id=review_item_id or None,
+                    status="review_required" if pending else resolution_status or "resolved",
+                    cv_version_id=record.get("cv_version_id"),
+                    candidate_profile_id=record.get("candidate_profile_id"),
+                    candidate_profile_revision=record.get("candidate_profile_revision"),
+                    source_profile_fingerprint=record.get("source_profile_fingerprint"),
+                    uncertainties=uncertainties,
+                ),
                 "uncertainties": uncertainties,
                 "resolution_actions": [
                     item for item in list(record.get("uncertainties") or [])
@@ -2487,6 +2496,29 @@ def _load_run_synonym_proposals_trace_payload(run: PipelineRun) -> dict[str, Any
 def _stable_sha256_json(payload: Any) -> str:
     canonical = _json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _canonical_cv_review_revision(
+    *,
+    review_item_id: Any,
+    status: Any,
+    cv_version_id: Any,
+    candidate_profile_id: Any,
+    candidate_profile_revision: Any,
+    source_profile_fingerprint: Any,
+    uncertainties: list[dict[str, Any]],
+) -> str:
+    return _stable_sha256_json(
+        {
+            "review_item_id": review_item_id,
+            "status": status,
+            "cv_version_id": cv_version_id,
+            "candidate_profile_id": candidate_profile_id,
+            "candidate_profile_revision": candidate_profile_revision,
+            "source_profile_fingerprint": source_profile_fingerprint,
+            "uncertainties": uncertainties,
+        }
+    )
 
 def _synonym_observability_fingerprints(run: PipelineRun) -> dict[str, str | None]:
     effective_config = _load_run_effective_config_snapshot(run)
@@ -6919,6 +6951,7 @@ class CvReviewActionRequest(BaseModel):
     note: str | None = None
     uncertainty_id: str | None = None
     resolution_key: str | None = None
+    review_revision: str | None = None
     answer_text: str | None = None
     resolution_action: str | None = None
 
@@ -8558,12 +8591,15 @@ def create_app(
 
     @app.get("/healthz")
     def healthz() -> dict:
+        configured_database_path = str(getattr(backend_runtime, "sqlite_path", "") or "").strip()
+        if not configured_database_path:
+            configured_database_path = str(sqlite_store_module._local_sqlite_path() or "").strip()
         return {
             "status": "ok",
             "local_mode": bool(local_mode),
             "inline_execution": str(os.environ.get("FITCV_CP_INLINE_EXECUTION") or "").strip().lower()
             in {"1", "true", "yes", "on"},
-            "database_path": str(getattr(backend_runtime, "sqlite_path", "") or ""),
+            "database_available": bool(configured_database_path and Path(configured_database_path).exists()),
         }
 
     @app.get("/admin/diagnostics/orchestration-schema")
@@ -12013,16 +12049,14 @@ def create_app(
             status = "pending"
         uncertainties = [value for value in list((item or {}).get("uncertainties") or []) if isinstance(value, dict)]
         pending = bool((item or {}).get("pending"))
-        review_revision = _stable_sha256_json(
-            {
-                "review_item_id": (item or {}).get("review_item_id"),
-                "status": status,
-                "cv_version_id": (current_version or {}).get("version_id"),
-                "candidate_profile_id": (item or {}).get("candidate_profile_id"),
-                "candidate_profile_revision": (item or {}).get("candidate_profile_revision"),
-                "source_profile_fingerprint": (item or {}).get("source_profile_fingerprint"),
-                "uncertainties": uncertainties,
-            }
+        review_revision = _canonical_cv_review_revision(
+            review_item_id=(item or {}).get("review_item_id"),
+            status=status,
+            cv_version_id=(current_version or {}).get("version_id"),
+            candidate_profile_id=(item or {}).get("candidate_profile_id"),
+            candidate_profile_revision=(item or {}).get("candidate_profile_revision"),
+            source_profile_fingerprint=(item or {}).get("source_profile_fingerprint"),
+            uncertainties=uncertainties,
         )
         return {
             "run_id": run_id,
@@ -12074,11 +12108,15 @@ def create_app(
         job_url = str(job.get("job_url") or job.get("source_url") or "").strip()
         if body.action == "RESOLVE_WITH_ANSWER" and not str(body.answer_text or "").strip():
             raise ApiError(422, "answer_required", "answer_text is required for RESOLVE_WITH_ANSWER.", action="Provide an answer and retry.")
+        review_revision = str(body.review_revision or "").strip()
+        if not review_revision:
+            raise ApiError(422, "review_revision_required", "review_revision is required for CV review actions.", action="Refresh CV review and retry.")
         request_fingerprint = _request_fingerprint(
             {
                 "run_id": run_id,
                 "run_job_id": run_job_id,
                 "review_item_id": body.review_item_id,
+                "review_revision": review_revision,
                 "uncertainty_id": body.uncertainty_id,
                 "resolution_key": body.resolution_key,
                 "action": body.action,
@@ -12157,14 +12195,14 @@ def create_app(
                     retryable=True,
                     action="Retry after the earlier review action completes.",
                 )
-            expected_pipeline_row_revision = getattr(run, "row_revision", None)
-            if expected_pipeline_row_revision is None:
-                expected_pipeline_row_revision = sqlite_store_module.get_pipeline_run_row_revision(run_id)
             resource = _canonical_cv_review_resource(run_id, run_job_id)
             if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
                 raise ApiError(409, "review_resource_stale", "Review item changed.", action="Refresh CV review.")
-            if body.review_revision and resource.get("review_revision") != body.review_revision:
+            if resource.get("review_revision") != review_revision:
                 raise ApiError(409, "review_resource_stale", "Review resource changed.", action="Refresh CV review.")
+            expected_pipeline_row_revision = getattr(run, "row_revision", None)
+            if expected_pipeline_row_revision is None:
+                expected_pipeline_row_revision = sqlite_store_module.get_pipeline_run_row_revision(run_id)
             if body.action not in set(resource.get("allowed_actions") or []):
                 raise ApiError(409, "review_action_not_allowed", "Review action is not allowed for current state.", action="Refresh CV review.")
             debug_payload = _load_run_cv_generation_debug_payload(run)
@@ -15054,6 +15092,7 @@ def create_app(
             note=str(form.get("note") or "").strip() or None,
             uncertainty_id=str(form.get("uncertainty_id") or "").strip() or None,
             resolution_key=str(form.get("resolution_key") or "").strip() or None,
+            review_revision=str(form.get("review_revision") or "").strip() or None,
             answer_text=str(form.get("answer_text") or "").strip() or None,
             resolution_action=str(form.get("resolution_action") or form.get("action") or "").strip() or None,
         )
@@ -15143,6 +15182,7 @@ def create_app(
                     "run_id": run_id,
                     "run_job_id": run_job_id,
                     "review_item_id": target_review_item_id,
+                    "review_revision": payload.review_revision,
                     "uncertainty_id": payload.uncertainty_id,
                     "resolution_key": payload.resolution_key,
                     "action": payload.action,
@@ -15166,6 +15206,7 @@ def create_app(
                         review_item_id=target_review_item_id,
                         uncertainty_id=payload.uncertainty_id,
                         resolution_key=payload.resolution_key,
+                        review_revision=payload.review_revision,
                         action=payload.action,
                         actor=payload.actor or "admin",
                         note=payload.note,

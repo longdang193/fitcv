@@ -72,7 +72,7 @@ export interface CvReviewResource {
   cv_version_id?: string | null;
   status: CvLifecycleStatus;
   review_item_id?: string | null;
-  review_revision?: string;
+  review_revision: string;
   reason_code?: string | null;
   uncertainties: CvReviewUncertainty[];
   resolution_key?: string | null;
@@ -89,7 +89,7 @@ export interface CvReviewActionRequest {
   review_item_id?: string | null;
   uncertainty_id?: string | null;
   resolution_key?: string | null;
-  review_revision?: string | null;
+  review_revision: string;
   action: CvReviewAction;
   actor?: string;
   note?: string | null;
