@@ -772,7 +772,7 @@ unchanged, and incumbent/candidate labels come from Task 2's verified mapping.
   `INCUMBENT_ARM`/`CANDIDATE_ARM` mapping.
 - [x] Run both manifest-bound `scripts/benchmark_cv_efficiency.py` commands from `Files and symbols`; each scorecard contains all ten unique repeat run IDs.
 - [x] Run both experiment-bound `scripts/verify_fitcv_acceptance.py` commands from `Files and symbols`; both report `PASSED` and bind to generated fixture/source hashes without changing tracked acceptance state.
-- [x] Compare evidence hashes and generated scorecards; fingerprints match and no secrets appear; current rerun is eligible and rejects candidate promotion.
+- [ ] Re-run after current-head code settles; compare evidence hashes and generated scorecards; fingerprints must match and no secrets may appear. R13 is historical only and cannot close this gate.
 
 **Exit criteria:** candidate promoted only with measured total-workload improvement; otherwise explicit rejection with incumbent retained.
 
@@ -885,9 +885,9 @@ Final proof must establish:
 - [x] one browser flow against current backend routes with persisted refresh; expected: isolated non-local backend and disposable DB only.
 - [x] identity-bound final-artifact proof across fresh, cached, regenerated, persisted, and review-closed paths.
 - [x] complete timing, failure-cause, savings, cache, render, proof, and resolution-reuse telemetry with explicit unavailable semantics.
-- [x] one identical-workload experiment with current-source paired cohorts;
-  fixture, source, config, runtime, and all repeat IDs match across arms; current
-  rerun rejects `provider_first` on equal correctness and higher cost/latency.
+- [ ] one identical-workload experiment with current-source paired cohorts;
+  fixture, source, config, runtime, and all repeat IDs must match across arms;
+  rerun after the final race fix must decide promotion or rejection.
 - [x] immutable historical evidence, no secret leakage, P1-C deferred, and P2 frozen.
 
 Run `skill-verification-before-completion` for final status. Source inspection,

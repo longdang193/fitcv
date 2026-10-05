@@ -14456,6 +14456,13 @@ def save_requirement_resolution(row: dict[str, Any], *, database_path: Path | No
                      AND requirement_instance_id=?""",
                 values[1:6],
             ).fetchone()
+            if insert_result.rowcount != 1 and result is not None:
+                existing_payload = _decode_json_or_none(result["resolution_payload_json"]) or {}
+                if (
+                    str(result["resolution_action"] or "") != str(row.get("resolution_action") or "")
+                    or existing_payload != (payload if isinstance(payload, dict) else {})
+                ):
+                    raise ValueError("requirement_resolution_conflict")
             enqueue_intent = row.get("enqueue_intent")
             if insert_result.rowcount == 1 and isinstance(enqueue_intent, dict):
                 intent_now = datetime.datetime.now(datetime.timezone.utc).isoformat()

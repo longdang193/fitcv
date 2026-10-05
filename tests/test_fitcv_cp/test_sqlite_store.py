@@ -176,19 +176,22 @@ def test_requirement_resolution_competing_writes_are_first_writer_wins(tmp_path:
 
     def save(answer: str) -> dict[str, Any]:
         barrier.wait()
-        return sqlite_store.save_requirement_resolution(
-            {
-                "candidate_profile_id": "candidate-race",
-                "candidate_profile_revision": "7",
-                "source_profile_fingerprint": "source-race",
-                "resolution_key": "required_skill:sql",
-                "requirement_instance_id": "required_skill:sql",
-                "resolution_action": "RESOLVE_WITH_ANSWER",
-                "resolution_payload": {"answer_text": answer},
-                "actor": answer,
-            },
-            database_path=database_path,
-        )
+        try:
+            return sqlite_store.save_requirement_resolution(
+                {
+                    "candidate_profile_id": "candidate-race",
+                    "candidate_profile_revision": "7",
+                    "source_profile_fingerprint": "source-race",
+                    "resolution_key": "required_skill:sql",
+                    "requirement_instance_id": "required_skill:sql",
+                    "resolution_action": "RESOLVE_WITH_ANSWER",
+                    "resolution_payload": {"answer_text": answer},
+                    "actor": answer,
+                },
+                database_path=database_path,
+            )
+        except ValueError as exc:
+            return {"error": str(exc)}
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(save, ["winner-a", "winner-b"]))
@@ -204,8 +207,27 @@ def test_requirement_resolution_competing_writes_are_first_writer_wins(tmp_path:
 
     assert stored is not None
     assert stored["resolution_payload"]["answer_text"] in {"winner-a", "winner-b"}
-    assert sum(bool(result["created"]) for result in results) == 1
-    assert all(result["resolution_id"] == stored["resolution_id"] for result in results)
+    assert sum(bool(result.get("created")) for result in results) == 1
+    assert sum(result.get("error") == "requirement_resolution_conflict" for result in results) == 1
+    assert all(
+        result.get("resolution_id") == stored["resolution_id"]
+        for result in results
+        if "resolution_id" in result
+    )
+    with pytest.raises(ValueError, match="requirement_resolution_conflict"):
+        sqlite_store.save_requirement_resolution(
+            {
+                "candidate_profile_id": "candidate-race",
+                "candidate_profile_revision": "7",
+                "source_profile_fingerprint": "source-race",
+                "resolution_key": "required_skill:sql",
+                "requirement_instance_id": "required_skill:sql",
+                "resolution_action": "RESOLVE_WITH_ANSWER",
+                "resolution_payload": {"answer_text": "different-answer"},
+                "actor": "late-writer",
+            },
+            database_path=database_path,
+        )
 
 
 def test_requirement_resolution_checks_run_job_revision_inside_write_transaction(tmp_path: Path) -> None:

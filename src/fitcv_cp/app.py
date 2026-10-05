@@ -12267,6 +12267,13 @@ def create_app(
             except ValueError as exc:
                 if str(exc) == "review_resource_stale":
                     raise ApiError(409, "review_resource_stale", "Review resource changed.", action="Refresh CV review.") from exc
+                if str(exc) == "requirement_resolution_conflict":
+                    raise ApiError(
+                        409,
+                        "requirement_resolution_conflict",
+                        "Requirement uncertainty already has a different durable resolution.",
+                        action="Refresh CV review.",
+                    ) from exc
                 raise
             resolution_id = str(resolution_row.get("resolution_id") or "")
             enqueue_intent = sqlite_store_module.get_requirement_resolution_enqueue_intent(resolution_id)
