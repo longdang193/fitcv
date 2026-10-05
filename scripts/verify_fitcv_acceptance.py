@@ -62,7 +62,7 @@ def _current_experiment_input_identity(repo_root: Path) -> tuple[str | None, str
 
 def _normalized_analysis_input_identity(report: dict[str, Any]) -> tuple[str, ...] | None:
     identities = report.get("analysis_input_identity")
-    if not isinstance(identities, list):
+    if not isinstance(identities, list) or not identities:
         return None
     normalized: list[str] = []
     for identity in identities:

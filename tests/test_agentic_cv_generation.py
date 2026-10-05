@@ -145,6 +145,48 @@ def test_explicit_empty_selection_disables_plain_string_language_backfill() -> N
     assert repaired["sections"]["languages"] == []
 
 
+def test_local_backfill_filters_selected_education_before_limit() -> None:
+    profile = {
+        "education": [
+            {"id": "edu-1", "institution": "Other 1", "evidence": [{"id": "ev-1"}]},
+            {"id": "edu-2", "institution": "Other 2", "evidence": [{"id": "ev-2"}]},
+            {"id": "edu-3", "institution": "ACME University", "evidence": [{"id": "ev-3"}]},
+        ]
+    }
+
+    repaired, repaired_keys = _backfill_required_sections_from_profile(
+        structured_cv={"sections": {"education": []}},
+        profile=profile,
+        missing_sections=["education"],
+        selected_evidence_ids=["ev-3"],
+    )
+
+    assert repaired_keys == ["education"]
+    assert repaired["sections"]["education"][0]["institution"] == "ACME University"
+
+
+def test_local_backfill_filters_selected_languages_before_limit() -> None:
+    languages = [
+        {"id": f"lang-{index}", "name": f"Other {index}", "evidence": [{"id": f"ev-lang-{index}"}]}
+        for index in range(1, 7)
+    ]
+    languages[-1] = {
+        "id": "lang-6",
+        "name": "German",
+        "evidence": [{"id": "ev-lang-6"}],
+    }
+
+    repaired, repaired_keys = _backfill_required_sections_from_profile(
+        structured_cv={"sections": {"languages": []}},
+        profile={"languages": languages},
+        missing_sections=["languages"],
+        selected_evidence_ids=["ev-lang-6"],
+    )
+
+    assert repaired_keys == ["languages"]
+    assert repaired["sections"]["languages"] == [{"name": "German", "level": None}]
+
+
 def test_plain_string_skill_requires_selected_projected_evidence() -> None:
     repaired, repaired_keys = _backfill_required_sections_from_profile(
         structured_cv={"sections": {"skills": {"groups": []}}},

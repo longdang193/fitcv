@@ -461,6 +461,18 @@ def test_material_report_digest_binds_experiment_input_manifest() -> None:
     assert material_report_digest(first) != material_report_digest(changed)
 
 
+def test_material_report_digest_binds_analysis_input_identity() -> None:
+    first = {
+        "analysis_input_identity": [{"fingerprints": ["one"], "selected_evidence_ids": ["ev-1"]}],
+    }
+    changed = {
+        **first,
+        "analysis_input_identity": [{"fingerprints": ["two"], "selected_evidence_ids": ["ev-2"]}],
+    }
+
+    assert material_report_digest(first) != material_report_digest(changed)
+
+
 def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
     report = {
         "schema_version": "fitcv_runtime_efficiency_baseline_v3",

@@ -1867,6 +1867,9 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "last_regenerated_at": _format_compact_utc_timestamp(record.get("last_regenerated_at")),
                 "regenerated_draft_fingerprint": str(record.get("regenerated_draft_fingerprint") or "").strip() or None,
                 "regeneration_job_id": str((action or {}).get("regeneration_job_id") or "").strip() or None,
+                "candidate_profile_id": str(record.get("candidate_profile_id") or "").strip() or None,
+                "candidate_profile_revision": str(record.get("candidate_profile_revision") or "").strip() or None,
+                "source_profile_fingerprint": str(record.get("source_profile_fingerprint") or "").strip() or None,
                 "uncertainties": uncertainties,
                 "resolution_actions": [
                     item for item in list(record.get("uncertainties") or [])
@@ -12015,15 +12018,10 @@ def create_app(
                 "review_item_id": (item or {}).get("review_item_id"),
                 "status": status,
                 "cv_version_id": (current_version or {}).get("version_id"),
-                "uncertainties": [
-                    {
-                        "uncertainty_id": value.get("uncertainty_id"),
-                        "resolution_key": value.get("resolution_key"),
-                        "resolution_status": value.get("resolution_status"),
-                        "resolution_id": value.get("resolution_id"),
-                    }
-                    for value in uncertainties
-                ],
+                "candidate_profile_id": (item or {}).get("candidate_profile_id"),
+                "candidate_profile_revision": (item or {}).get("candidate_profile_revision"),
+                "source_profile_fingerprint": (item or {}).get("source_profile_fingerprint"),
+                "uncertainties": uncertainties,
             }
         )
         return {

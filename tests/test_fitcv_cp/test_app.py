@@ -7005,6 +7005,79 @@ def test_canonical_cv_review_action_rejects_stale_revision_and_resolved_uncertai
     enqueue.assert_not_called()
 
 
+def test_canonical_cv_review_action_rejects_changed_question_after_revision_snapshot() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-question-race",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-1",
+                        "candidate_profile_revision": "1",
+                        "source_profile_fingerprint": "profile-1",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "question": "Which SQL systems have you used?",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {
+        "run_job_id": "job-1",
+        "source_url": "https://example.com/job-1",
+    }
+    store.list_cv_versions.return_value = []
+    store.reserve_idempotent_action.return_value = {
+        "action_id": "action-1",
+        "replayed": False,
+        "response": None,
+    }
+    with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution") as save_resolution, \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue:
+        app = _app()
+        client = TestClient(app)
+        resource = client.get(
+            "/runs/run-canonical-review-question-race/jobs/job-1/cv-review"
+        ).json()["data"]
+        payload = json.loads(run.cv_generation_debug_json or "{}")
+        payload["debug_records"][0]["uncertainties"][0]["question"] = "Which Python systems have you used?"
+        run.cv_generation_debug_json = json.dumps(payload)
+        response = client.post(
+            "/runs/run-canonical-review-question-race/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-question-race"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "review_revision": resource["review_revision"],
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "review_resource_stale"
+    save_resolution.assert_not_called()
+    enqueue.assert_not_called()
+
+
 def test_canonical_cv_review_action_retries_after_enqueue_failure() -> None:
     run = PipelineRun(
         run_id="run-canonical-review-retry",

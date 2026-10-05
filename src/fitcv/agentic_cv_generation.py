@@ -1356,10 +1356,13 @@ def _backfill_required_sections_from_profile(
         existing_education = list(sections.get("education") or [])
         if not existing_education:
             fallback_education = []
-            for edu in list(profile.get("education") or [])[:2]:
+            eligible_education = [
+                edu
+                for edu in list(profile.get("education") or [])
+                if isinstance(edu, dict) and is_selected_profile_entry(edu)
+            ]
+            for edu in eligible_education[:2]:
                 if not isinstance(edu, dict):
-                    continue
-                if not is_selected_profile_entry(edu):
                     continue
                 fallback_education.append(
                     {
@@ -1378,15 +1381,19 @@ def _backfill_required_sections_from_profile(
         existing_languages = list(sections.get("languages") or [])
         if not existing_languages:
             fallback_languages = []
-            for lang in list(profile.get("languages") or [])[:5]:
+            eligible_languages = []
+            for lang in list(profile.get("languages") or []):
                 if isinstance(lang, dict):
                     if not is_selected_profile_entry(lang):
                         continue
+                elif not is_selected_plain_language(lang):
+                    continue
+                eligible_languages.append(lang)
+            for lang in eligible_languages[:5]:
+                if isinstance(lang, dict):
                     name = str(lang.get("name") or "").strip()
                     level = str(lang.get("level") or "").strip() or None
                 else:
-                    if not is_selected_plain_language(lang):
-                        continue
                     name = str(lang).strip()
                     level = None
                 if not name:

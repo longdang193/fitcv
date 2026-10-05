@@ -135,11 +135,11 @@ model, provider-routing layer, or generic closure document.
 - Expected workspace: clean tracked checkout with unrelated disposable untracked files
   preserved; plan ledger distinguishes committed HEAD behavior from historical
   working-tree behavior
-- Next action: rerun Task 7 against current HEAD, then complete Task 8 final
-  verification and reconciliation before any production-default change
-- Blockers: R13 is historical and fails current-head identity gates; current
-  paired-cohort evidence is missing; production-default change remains pending
-  independent final review
+- Next action: commit/push review fixes, rerun Task 7 at the new current HEAD,
+  then complete Task 8 final verification and reconciliation
+- Blockers: R14 is historical after review fixes; post-fix current-head paired
+  evidence, independent review, and fresh CI remain; production default stays
+  unchanged
 
 **Latest plan review:** 2026-10-04, independent `review-1` returned `needs
 changes`. Findings: contradictory ledger/admission state, missing explicit
@@ -156,7 +156,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `active` | current | `codex` | Task 6 | current-head identical-workload incumbent/candidate benchmark | R3 is historical source `7f351da`; rerun must bind source commit and declared-input fingerprint to current HEAD |
+| Task 7 | `active` | current | `codex` | Task 6 | current-head identical-workload incumbent/candidate benchmark | R14 passed at `d35a9368` before review fixes; rerun required after new source changes |
 | Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; candidate promotion rejected; fresh CI and final review remain |
 
 ## Activation Gate
@@ -773,7 +773,7 @@ unchanged, and incumbent/candidate labels come from Task 2's verified mapping.
   `INCUMBENT_ARM`/`CANDIDATE_ARM` mapping.
 - [x] Run both manifest-bound `scripts/benchmark_cv_efficiency.py` commands from `Files and symbols`; each scorecard contains all ten unique repeat run IDs.
 - [x] Run both experiment-bound `scripts/verify_fitcv_acceptance.py` commands from `Files and symbols`; both report `PASSED` and bind to generated fixture/source hashes without changing tracked acceptance state.
-- [ ] Re-run after current-head code settles; compare evidence hashes and generated scorecards; fingerprints must match and no secrets may appear. R13 is historical only and cannot close this gate.
+- [ ] Re-run after review fixes settle; compare evidence hashes and generated scorecards; fingerprints must match, both experiment verifiers must pass, and no secrets may appear. R14 is historical until this post-fix rerun closes Task 7.
 
 **Exit criteria:** candidate promoted only with measured total-workload improvement; otherwise explicit rejection with incumbent retained.
 
@@ -803,6 +803,19 @@ end-to-end wall ms. Promotion is rejected because token cost increased;
 `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r13.md`.
 R12 remains historical and is superseded because it predates the final caller-bound
 regression patch.
+
+**Historical evidence (2026-10-05, R14; superseded after review fixes):** common-seed
+paired cohorts completed on source `d35a9368`. Both arms accepted 5/10, used 15 provider calls, and had
+5 regenerations. `provider_first` used 68,418 versus 68,394 tokens, 188,270
+generation ms versus 194,388, and 257,714.159 versus 262,235.118 end-to-end
+wall ms. Analysis identity, cohort setup, fixture, model, runtime, and declared
+inputs matched; both experiment-bound acceptance verifiers passed. Promotion is
+rejected because token cost increased by 24; `local_first` remains default. Cold
+isolated arms were non-comparable because analysis evidence selection differed;
+common seeded upstream state corrected the comparison. This record remains valid for
+the pre-fix head but cannot close Task 7 after new source changes. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r14.md`
+and `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r14.json`.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -855,10 +868,11 @@ tracked state before final evidence-only updates; historical declared-input fing
 record is not current-head freshness proof. Prior Task 1 admission remains
 `not evidenced`.
 
-- R3 is latest historical paired evidence: both arms accept 5/10; `provider_first`
-  uses more tokens and wall time, so promotion remains rejected. R3 source
-  `7f351da` is not current-head proof. Task 8 remains active pending current-head
-  evidence and final review. Production default remains `local_first`.
+- R14 is historical paired evidence: both arms accept 5/10; `provider_first`
+  lowers generation and wall time but uses 24 more tokens, so promotion remains
+  rejected. Task 7 is active pending post-fix current-head evidence. Task 8
+  remains active pending final review and CI. Production default remains
+  `local_first`.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.

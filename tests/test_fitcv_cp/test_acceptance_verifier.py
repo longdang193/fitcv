@@ -15,6 +15,10 @@ from scripts.verify_fitcv_acceptance import (
 from scripts.run_fitcv_repair_experiment import DECLARED_INPUTS
 
 
+def test_normalized_analysis_input_identity_rejects_empty_cohort() -> None:
+    assert verifier._normalized_analysis_input_identity({"analysis_input_identity": []}) is None
+
+
 def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> None:
     report_path = tmp_path / "experiment.json"
     markdown_path = tmp_path / "experiment.md"

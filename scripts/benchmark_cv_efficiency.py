@@ -977,6 +977,7 @@ def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
             "runs",
             "attempted_outcomes",
             "input_manifest",
+            "analysis_input_identity",
         )
     }
 
