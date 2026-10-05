@@ -511,6 +511,19 @@ def test_current_contract_evidence_allows_missing_private_input_in_public_checko
     assert result["passed"] is True
 
 
+def test_current_experiment_input_identity_normalizes_fixture_line_endings(
+    monkeypatch, tmp_path: Path
+) -> None:
+    fixture = tmp_path / "tests" / "fixtures" / "fitcv-p1ab-repair-experiment.json"
+    fixture.parent.mkdir(parents=True)
+    fixture.write_bytes(b"{\r\n}\r\n")
+    monkeypatch.setattr(verifier, "DECLARED_INPUTS", ())
+
+    fixture_sha256, _ = verifier._current_experiment_input_identity(tmp_path)
+
+    assert fixture_sha256 == verifier.hashlib.sha256(b"{\n}\n").hexdigest()
+
+
 def test_current_contract_evidence_digest_accepts_crlf_checkout(tmp_path: Path) -> None:
     evidence_json = tmp_path / "current.json"
     evidence_markdown = tmp_path / "current.md"

@@ -95,6 +95,10 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _canonical_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def _cohort_idempotency_key(arm: str, cohort_id: str, repeat: int) -> str:
     return f"fitcv-repair-{arm}-{cohort_id}-{repeat}"
 
@@ -193,7 +197,7 @@ def _input_fingerprint(fixture: Path) -> str:
 def capture_input_identity(fixture: Path) -> dict[str, Any]:
     payload = _load_fixture(fixture)
     return {
-        "fixture_sha256": _sha256(fixture),
+        "fixture_sha256": _canonical_sha256(fixture),
         "source_commit": _git("rev-parse", "HEAD"),
         "working_tree_diff_sha256": _diff_hash(),
         "declared_input_fingerprint": _input_fingerprint(fixture),
@@ -597,7 +601,7 @@ def main() -> int:
             print(json.dumps({
                 "status": "eligible_shape",
                 "fixture": str(fixture),
-                "fixture_sha256": _sha256(fixture),
+                "fixture_sha256": _canonical_sha256(fixture),
                 "arms": payload["arms"],
                 "repeat_count": payload["repeat_count"],
                 "job_types": sorted(payload["job_types"]),

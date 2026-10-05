@@ -52,7 +52,7 @@ def _current_experiment_input_identity(repo_root: Path) -> tuple[str | None, str
         return None, None
     available_paths = [relative for relative in paths if (repo_root / relative).is_file()]
     if len(available_paths) != len(paths):
-        return hashlib.sha256(fixture.read_bytes()).hexdigest(), None
+        return _canonical_file_digest(fixture), None
     digest = hashlib.sha256()
     for relative in available_paths:
         path = repo_root / relative
@@ -60,7 +60,7 @@ def _current_experiment_input_identity(repo_root: Path) -> tuple[str | None, str
         digest.update(b"\0")
         digest.update(path.read_bytes())
         digest.update(b"\0")
-    return hashlib.sha256(fixture.read_bytes()).hexdigest(), digest.hexdigest()
+    return _canonical_file_digest(fixture), digest.hexdigest()
 
 
 def _normalized_analysis_input_identity(report: dict[str, Any]) -> tuple[str, ...] | None:
