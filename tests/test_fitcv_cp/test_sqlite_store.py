@@ -213,6 +213,12 @@ def test_requirement_resolution_enqueue_claim_is_single_owner(tmp_path: Path) ->
         queue_job_id="queue-claim",
         database_path=database_path,
     ) is True
+    sqlite_store.update_requirement_resolution_enqueue_intent(
+        intent["intent_id"], status="failed", error_message="queue unavailable", database_path=database_path
+    )
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        retry_claims = list(pool.map(claim, ["retry-a", "retry-b"]))
+    assert sum(bool(item.get("claimed")) for item in retry_claims) == 1
 
 
 def test_requirement_resolution_competing_writes_are_first_writer_wins(tmp_path: Path) -> None:
@@ -319,7 +325,28 @@ def test_requirement_resolution_checks_run_job_revision_inside_write_transaction
     )
 
     assert saved["created"] is True
-    with pytest.raises(ValueError, match="review_resource_stale"):
+    duplicate = sqlite_store.save_requirement_resolution(
+        {
+            "run_job_id": "run-job-resolution-resource-race",
+            "expected_row_revision": 1,
+            "candidate_profile_id": "candidate-race",
+            "candidate_profile_revision": "7",
+            "source_profile_fingerprint": "source-race",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "winner"},
+            "actor": "retry-admin",
+        },
+        database_path=database_path,
+    )
+    assert duplicate["created"] is False
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute(
+            "SELECT row_revision FROM run_jobs WHERE run_job_id=?",
+            ("run-job-resolution-resource-race",),
+        ).fetchone()[0] == 2
+    with pytest.raises(ValueError, match="requirement_resolution_conflict"):
         sqlite_store.save_requirement_resolution(
             {
                 "run_job_id": "run-job-resolution-resource-race",

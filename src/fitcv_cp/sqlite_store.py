@@ -14414,30 +14414,6 @@ def save_requirement_resolution(row: dict[str, Any], *, database_path: Path | No
         expected_row_revision = row.get("expected_row_revision")
         expected_pipeline_row_revision = row.get("expected_pipeline_row_revision")
         try:
-            if expected_pipeline_row_revision is not None:
-                pipeline_revision = conn.execute(
-                    "SELECT row_revision FROM pipeline_runs WHERE run_id=?",
-                    (str(row.get("run_id") or "").strip(),),
-                ).fetchone()
-                if pipeline_revision is None or int(pipeline_revision[0]) != int(expected_pipeline_row_revision):
-                    raise ValueError("review_resource_stale")
-            if run_job_id and expected_row_revision is not None:
-                updated = conn.execute(
-                    """UPDATE run_jobs
-                       SET row_revision=row_revision+1
-                     WHERE run_job_id=? AND row_revision=?""",
-                    (run_job_id, int(expected_row_revision)),
-                )
-                if updated.rowcount != 1:
-                    raise ValueError("review_resource_stale")
-            if expected_pipeline_row_revision is not None:
-                updated = conn.execute(
-                    """UPDATE pipeline_runs SET row_revision=row_revision+1
-                       WHERE run_id=? AND row_revision=?""",
-                    (str(row.get("run_id") or "").strip(), int(expected_pipeline_row_revision)),
-                )
-                if updated.rowcount != 1:
-                    raise ValueError("review_resource_stale")
             insert_result = conn.execute(
                 """INSERT INTO requirement_resolutions (
                     resolution_id, candidate_profile_id, candidate_profile_revision,
@@ -14463,27 +14439,52 @@ def save_requirement_resolution(row: dict[str, Any], *, database_path: Path | No
                     or existing_payload != (payload if isinstance(payload, dict) else {})
                 ):
                     raise ValueError("requirement_resolution_conflict")
-            enqueue_intent = row.get("enqueue_intent")
-            if insert_result.rowcount == 1 and isinstance(enqueue_intent, dict):
-                intent_now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                conn.execute(
-                    """INSERT INTO requirement_resolution_enqueue_intents (
-                        intent_id, resolution_id, run_id, job_url, actor, note,
-                        idempotency_key, action_id, status, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)""",
-                    (
-                        str(enqueue_intent.get("intent_id") or uuid.uuid4()),
-                        resolution_id,
-                        str(enqueue_intent.get("run_id") or row.get("run_id") or ""),
-                        str(enqueue_intent.get("job_url") or ""),
-                        str(enqueue_intent.get("actor") or row.get("actor") or "system"),
-                        str(enqueue_intent.get("note") or "") or None,
-                        str(enqueue_intent.get("idempotency_key") or ""),
-                        str(enqueue_intent.get("action_id") or ""),
-                        intent_now,
-                        intent_now,
-                    ),
-                )
+            if insert_result.rowcount == 1:
+                if expected_pipeline_row_revision is not None:
+                    pipeline_revision = conn.execute(
+                        "SELECT row_revision FROM pipeline_runs WHERE run_id=?",
+                        (str(row.get("run_id") or "").strip(),),
+                    ).fetchone()
+                    if pipeline_revision is None or int(pipeline_revision[0]) != int(expected_pipeline_row_revision):
+                        raise ValueError("review_resource_stale")
+                if run_job_id and expected_row_revision is not None:
+                    updated = conn.execute(
+                        """UPDATE run_jobs
+                           SET row_revision=row_revision+1
+                         WHERE run_job_id=? AND row_revision=?""",
+                        (run_job_id, int(expected_row_revision)),
+                    )
+                    if updated.rowcount != 1:
+                        raise ValueError("review_resource_stale")
+                if expected_pipeline_row_revision is not None:
+                    updated = conn.execute(
+                        """UPDATE pipeline_runs SET row_revision=row_revision+1
+                           WHERE run_id=? AND row_revision=?""",
+                        (str(row.get("run_id") or "").strip(), int(expected_pipeline_row_revision)),
+                    )
+                    if updated.rowcount != 1:
+                        raise ValueError("review_resource_stale")
+                enqueue_intent = row.get("enqueue_intent")
+                if isinstance(enqueue_intent, dict):
+                    intent_now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    conn.execute(
+                        """INSERT INTO requirement_resolution_enqueue_intents (
+                            intent_id, resolution_id, run_id, job_url, actor, note,
+                            idempotency_key, action_id, status, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)""",
+                        (
+                            str(enqueue_intent.get("intent_id") or uuid.uuid4()),
+                            resolution_id,
+                            str(enqueue_intent.get("run_id") or row.get("run_id") or ""),
+                            str(enqueue_intent.get("job_url") or ""),
+                            str(enqueue_intent.get("actor") or row.get("actor") or "system"),
+                            str(enqueue_intent.get("note") or "") or None,
+                            str(enqueue_intent.get("idempotency_key") or ""),
+                            str(enqueue_intent.get("action_id") or ""),
+                            intent_now,
+                            intent_now,
+                        ),
+                    )
             conn.commit()
         except Exception:
             conn.rollback()
@@ -14524,13 +14525,10 @@ def claim_requirement_resolution_enqueue_intent(
                   SET queue_job_id=?, updated_at=?
                 WHERE intent_id=?
                   AND (
-                    status='failed'
-                    OR (
-                        status='pending'
-                        AND (
-                            queue_job_id IS NULL
-                            OR (queue_job_id LIKE 'claim:%' AND updated_at < ?)
-                        )
+                    status IN ('pending', 'failed')
+                    AND (
+                        queue_job_id IS NULL
+                        OR (queue_job_id LIKE 'claim:%' AND updated_at < ?)
                     )
                   )""",
             (stored_claim, now.isoformat(), str(intent_id), stale_before),
@@ -14588,19 +14586,22 @@ def update_requirement_resolution_enqueue_intent(
     if status not in {"pending", "enqueued", "failed"}:
         raise ValueError("invalid_enqueue_intent_status")
     with _sqlite_connection(database_path or Path(_local_sqlite_path())) as conn:
-        conn.execute(
-            """UPDATE requirement_resolution_enqueue_intents
-               SET status=?, queue_job_id=COALESCE(?, queue_job_id),
-                   error_message=?, updated_at=?
-               WHERE intent_id=?""",
-            (
-                status,
-                queue_job_id,
-                error_message,
-                datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                str(intent_id),
-            ),
-        )
+        updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        if status == "failed" and queue_job_id is None:
+            conn.execute(
+                """UPDATE requirement_resolution_enqueue_intents
+                   SET status=?, queue_job_id=NULL, error_message=?, updated_at=?
+                   WHERE intent_id=?""",
+                (status, error_message, updated_at, str(intent_id)),
+            )
+        else:
+            conn.execute(
+                """UPDATE requirement_resolution_enqueue_intents
+                   SET status=?, queue_job_id=COALESCE(?, queue_job_id),
+                       error_message=?, updated_at=?
+                   WHERE intent_id=?""",
+                (status, queue_job_id, error_message, updated_at, str(intent_id)),
+            )
         conn.commit()
 
 
