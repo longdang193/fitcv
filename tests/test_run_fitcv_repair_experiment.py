@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import inspect
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from scripts.run_fitcv_repair_experiment import (
     _response_run_id,
     _stabilize_experiment_llm_configuration,
     _cohort_idempotency_key,
+    _submit_cohort_run,
     _validate_job_types_against_exclusions,
 )
 
@@ -32,11 +34,43 @@ def test_experiment_job_identity_does_not_collide_across_repeated_submissions() 
 
 
 def test_cohort_idempotency_key_does_not_replay_seed_database_actions() -> None:
-    first = _cohort_idempotency_key("provider_first", "cohort-a", 0)
-    second = _cohort_idempotency_key("provider_first", "cohort-b", 0)
+    class Client:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        def post(self, path: str, **kwargs: object) -> None:
+            self.calls.append({"path": path, **kwargs})
+
+    client = Client()
+    _submit_cohort_run(
+        client,
+        headers_base={"Origin": "http://127.0.0.1"},
+        arm="provider_first",
+        cohort_id="cohort-a",
+        repeat=0,
+        profile_id="profile-1",
+        jobs_json=b"[]",
+    )
+    _submit_cohort_run(
+        client,
+        headers_base={"Origin": "http://127.0.0.1"},
+        arm="provider_first",
+        cohort_id="cohort-b",
+        repeat=0,
+        profile_id="profile-1",
+        jobs_json=b"[]",
+    )
+    first = client.calls[0]["headers"]["Idempotency-Key"]
+    second = client.calls[1]["headers"]["Idempotency-Key"]
 
     assert first != second
     assert first == "fitcv-repair-provider_first-cohort-a-0"
+
+
+def test_real_cohort_routes_submissions_through_nonce_bound_helper() -> None:
+    source = inspect.getsource(experiment._run_real_cohort)
+
+    assert "_submit_cohort_run(" in source
 
 
 def test_real_producer_rejects_existing_database(tmp_path: Path) -> None:

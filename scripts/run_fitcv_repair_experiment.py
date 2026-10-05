@@ -99,6 +99,27 @@ def _cohort_idempotency_key(arm: str, cohort_id: str, repeat: int) -> str:
     return f"fitcv-repair-{arm}-{cohort_id}-{repeat}"
 
 
+def _submit_cohort_run(
+    client: Any,
+    *,
+    headers_base: dict[str, str],
+    arm: str,
+    cohort_id: str,
+    repeat: int,
+    profile_id: str,
+    jobs_json: bytes,
+) -> Any:
+    return client.post(
+        "/runs",
+        headers={
+            **headers_base,
+            "Idempotency-Key": _cohort_idempotency_key(arm, cohort_id, repeat),
+        },
+        data={"profile_id": profile_id, "run_name": f"fitcv-repair-{arm}-{repeat}"},
+        files={"jobs_file": ("fitcv-repair-experiment.json", jobs_json, "application/json")},
+    )
+
+
 def _git(*args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
 
@@ -521,14 +542,14 @@ def _run_real_cohort(
                 _experiment_jobs([job_types[repeat % len(job_types)]]),
                 ensure_ascii=False,
             ).encode("utf-8")
-            response = client.post(
-                "/runs",
-                headers={
-                    **headers_base,
-                    "Idempotency-Key": _cohort_idempotency_key(arm, cohort_id, repeat),
-                },
-                data={"profile_id": str(profile["candidate_profile_id"]), "run_name": f"fitcv-repair-{arm}-{repeat}"},
-                files={"jobs_file": ("fitcv-repair-experiment.json", jobs_json, "application/json")},
+            response = _submit_cohort_run(
+                client,
+                headers_base=headers_base,
+                arm=arm,
+                cohort_id=cohort_id,
+                repeat=repeat,
+                profile_id=str(profile["candidate_profile_id"]),
+                jobs_json=jobs_json,
             )
             if response.status_code != 201:
                 raise RuntimeError(f"cohort_submission_failed: {response.status_code}")
