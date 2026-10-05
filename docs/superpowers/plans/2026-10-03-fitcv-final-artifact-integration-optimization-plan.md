@@ -503,11 +503,12 @@ reporting gates are closed.
 **Result (2026-10-05):** Fresh source-bound incumbent `local_first` and
 candidate `provider_first` cohorts completed with 10 runs each under identical
 `cold_first_then_frozen` upstream policy. Manifest, declared executable-input,
-fixture, model, runtime, and provider provenance match. Both arms accepted 5 / 10;
-candidate used equal provider calls, more tokens, and more wall time. Candidate
-promotion is rejected; production default remains `local_first`. Downstream
-provider analysis identity is informational because provider output is stochastic.
-Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.json`.
+fixture, model, runtime, and provider provenance match. `provider_first` accepted
+10 / 10 versus `local_first` 5 / 10, used equal provider calls and fewer tokens,
+but more wall time. Candidate promotion is rejected; production default remains
+`local_first`. Downstream provider analysis identity is informational because
+provider output is stochastic. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r4.json`.
 
 ### Task 7: Final verification and reconciliation
 
@@ -553,16 +554,17 @@ P1-C/P2 explicitly deferred.
 
 **Exit Criteria:** skill-verification-before-completion returns verified; only then may plan status move from proposed to completed.
 
-**Historical verification (2026-10-05; superseded by R3):** Full backend suite passes `3161 passed,
+**Historical verification (2026-10-05; superseded by R4):** Full backend suite passes `3161 passed,
 8 skipped`; focused verifier tests pass; both fresh current-source
 experiment-bound acceptance verifier runs pass; paired manifests bind to source
 `ef66aa04` with equal declared-input and cohort-setup identities; this evidence
-predates the completed declared-input inventory and is superseded by R3.
+predates the completed declared-input inventory and is superseded by R4.
 
-**Final verification (2026-10-05):** R3 evidence binds both manifests to source
-`7f351da9` with equal declared-input and cohort-setup identities. Both arms accept
-5/10; `provider_first` costs more tokens and wall time, so `local_first` remains
-default. Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.json`.
+**Final verification (2026-10-05):** R4 evidence binds both manifests to source
+`0e09ade4` with equal declared-input and cohort-setup identities. `provider_first`
+accepts 10/10 versus `local_first` 5/10, uses equal calls and fewer tokens, but
+adds end-to-end wall time; `local_first` remains default. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r4.json`.
 Frontend/browser CI and independent final PR review remain required before Git
 disposition.
 

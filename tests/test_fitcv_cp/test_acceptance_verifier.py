@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from scripts import verify_fitcv_acceptance as verifier
 from scripts.benchmark_cv_efficiency import material_report_digest
 from scripts.verify_fitcv_acceptance import (
     _run_current_contract_evidence_check,
@@ -29,6 +30,68 @@ def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> N
     assert "experiment_report_incomplete" in result["failures"]
     assert "experiment_input_fingerprint_missing" in result["failures"]
     assert "experiment_peer_json_required" in result["failures"]
+
+
+def test_experiment_report_check_rejects_stale_material_dependency_fingerprint(
+    monkeypatch, tmp_path: Path
+) -> None:
+    fixture = tmp_path / "tests" / "fixtures" / "fitcv-p1ab-repair-experiment.json"
+    fixture.parent.mkdir(parents=True)
+    fixture.write_text("fixture", encoding="utf-8")
+    dependency = tmp_path / "src" / "fitcv" / "llm_runtime.py"
+    dependency.parent.mkdir(parents=True)
+    dependency.write_text("baseline", encoding="utf-8")
+    monkeypatch.setattr(verifier, "DECLARED_INPUTS", ("src/fitcv/llm_runtime.py",))
+    _, baseline_fingerprint = verifier._current_experiment_input_identity(tmp_path)
+
+    manifest_path = tmp_path / "manifest.json"
+    run_ids = [f"run-{index}" for index in range(10)]
+    manifest = {
+        "fixture_sha256": verifier.hashlib.sha256(fixture.read_bytes()).hexdigest(),
+        "declared_input_fingerprint": baseline_fingerprint,
+        "arm": "local_first",
+        "repeat_count": 10,
+        "database_path": "database.sqlite3",
+        "declared_model": "model",
+        "resolved_models": ["model"],
+        "run_ids": run_ids,
+        "runtime": "runtime",
+        "source_commit": "new-commit",
+        "working_tree_diff_sha256": "diff",
+        "producer": {"mode": "provider_backed"},
+        "cohort_setup": {"upstream_reuse_policy": "cold_first_then_frozen"},
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    report = {
+        "status": "complete",
+        "selection": {
+            "current_contract_record_count": 10,
+            "run_count": 10,
+            "manifest_run_count_shortfall": 0,
+            "run_ids": run_ids,
+        },
+        "input_manifest": {**manifest, "path": str(manifest_path)},
+        "accepted_cv": {"recorded_acceptance_count": 10},
+        "coverage": {name: {"complete": True} for name in (
+            "timing", "cost", "attribution", "page_fit", "page_fit_success",
+            "review_questions", "human_actions", "resolution_reuse",
+        )},
+        "timing": {"generation_elapsed_ms": 1, "generation_timing_coverage": {"measured": 10}},
+        "run_job_diversity": {"run_count": 10, "job_type_count": 2},
+    }
+    report["material_metrics_sha256"] = material_report_digest(report)
+    report_path = tmp_path / "experiment.json"
+    markdown_path = tmp_path / "experiment.md"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
+    dependency.write_text("changed", encoding="utf-8")
+
+    result = verifier._run_experiment_report_check(
+        report_path, markdown_path, tmp_path, current_commit="new-commit", require_peer=False
+    )
+
+    assert result["passed"] is False
+    assert "experiment_declared_input_fingerprint_not_current" in result["failures"]
 
 
 def test_experiment_report_check_rejects_non_object_json(tmp_path: Path) -> None:

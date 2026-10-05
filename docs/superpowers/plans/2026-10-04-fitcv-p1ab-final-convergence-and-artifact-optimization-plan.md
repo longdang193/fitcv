@@ -155,7 +155,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.md`; paired current-source cohorts; candidate rejected on cost/latency with no correctness gain |
+| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r4.md`; paired current-source cohorts; candidate rejected on end-to-end latency despite correctness/token gains |
 | Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; candidate promotion rejected; fresh CI and final review remain |
 
 ## Activation Gate
@@ -784,19 +784,20 @@ Candidate and incumbent acceptance verifiers both passed. Independent Task 8
 review was still required; this result is historical and does not establish the
 current optimization decision.
 
-**Historical result (2026-10-05; superseded by R3):** fresh source-bound cohorts completed after
+**Historical result (2026-10-05; superseded by R4):** fresh source-bound cohorts completed after
 verifier hardening. `provider_first` accepted 10/10 versus `local_first` 5/10,
 used 10 versus 15 provider calls, 47,367 versus 64,801 tokens, and
 233,251.089 versus 268,544.321 ms wall time. Both acceptance verifiers passed.
 The result was positive for the candidate, but it is not the final optimization
-decision because the later R3 rerun used the completed declared-input inventory.
+decision because the later R4 rerun used the completed declared-input inventory.
 Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.md`.
 
 **Final current result (2026-10-05):** fresh source-bound cohorts completed
-after declared-input recomputation was added. Both arms accepted 5/10. The
-candidate used equal provider calls, more tokens, and more wall time; promotion
-is rejected and `local_first` remains default. Evidence:
-`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.md`.
+after runtime, artifact-contract, and prompt-package input binding was added.
+`provider_first` accepted 10/10 versus `local_first` 5/10, used equal provider
+calls and fewer tokens, but more wall time; promotion is rejected and
+`local_first` remains default. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r4.md`.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -843,16 +844,17 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
 
-Resume reconciliation (2026-10-05): review head `6c248477` had clean tracked
+Resume reconciliation (2026-10-05): review head `0e09ade4` had clean tracked
 state; final declared-input fingerprint is
-`687ade6331b22a10a395380b1698e5fdbdd344d620dc966307789294502f9f1b`; the
+`95cfa96299c1c255452586f082aed7b7bcb49a63d86dc8a86012acf7f0fd5160`; the
 dependency-ready next action is Task 8 final verification. Prior Task 1 admission
 remains `not evidenced`.
 
 - Task 7 blocker is resolved with current-source paired cohorts. Final rerun
-  records both arms at 5/10; candidate cost and latency are worse. Task 8
-  remains active pending fresh full-suite verification and independent final
-  review. Production default remains `local_first`.
+  records provider_first at 10/10 versus local_first at 5/10; candidate tokens
+  decrease but end-to-end latency increases. Task 8 remains active pending fresh
+  full-suite verification and independent final review. Production default remains
+  `local_first`.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.
