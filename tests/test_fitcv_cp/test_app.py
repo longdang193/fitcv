@@ -6909,11 +6909,16 @@ def test_canonical_cv_review_action_preserves_debug_update_after_resolution_cas(
     current_run = sqlite_store.get_run(run.run_id)
     assert current_run is not None
     assert json.loads(current_run.cv_generation_debug_json or "{}") == {"concurrent_marker": "preserved"}
-    assert len(sqlite_store.list_requirement_resolutions(
+    saved = sqlite_store.list_requirement_resolutions(
         candidate_profile_id="candidate-debug-race",
         candidate_profile_revision="1",
         source_profile_fingerprint="profile-debug-race",
-    )) == 1
+    )
+    assert len(saved) == 1
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(saved[0]["resolution_id"])
+    assert intent is not None
+    assert intent["status"] == "enqueued"
+    assert intent["queue_job_id"] == "queue-1"
     enqueue.assert_called_once()
 
 

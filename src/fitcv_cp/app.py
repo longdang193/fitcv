@@ -12398,13 +12398,15 @@ def create_app(
                     sqlite_store_module.settle_requirement_resolution_enqueue_intent(
                         str(enqueue_intent["intent_id"]),
                         claim_token=str(enqueue_intent["queue_job_id"]),
-                        status="failed",
+                        status="enqueued",
+                        queue_job_id=regeneration_job_id,
                         error_message=str(debug_result.get("degradation_reason") or "review_resource_stale"),
                     )
                 else:
                     sqlite_store_module.update_requirement_resolution_enqueue_intent(
                         str(enqueue_intent["intent_id"]),
-                        status="failed",
+                        status="enqueued",
+                        queue_job_id=regeneration_job_id,
                         error_message=str(debug_result.get("degradation_reason") or "review_resource_stale"),
                     )
                 raise ApiError(
