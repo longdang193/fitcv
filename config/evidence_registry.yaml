@@ -3,7 +3,7 @@ records:
   - evidence_id: p1ab-current-contract-r5-current-v1
     claim: p1b_current_contract_measurement
     schema_version: fitcv.p1_ab.current_contract.v1
-    source_commit: 529d2eb6b8d87f062c488a3a5f033bc64bff3f8a
+    source_commit: 7277df153afd17e69418f3018f744e9a7a10091f
     declared_inputs:
       - scripts/benchmark_cv_efficiency.py
       - scripts/fitcv_analytics.py
