@@ -12300,6 +12300,31 @@ def create_app(
                 )
             if not isinstance(enqueue_intent, dict):
                 raise ApiError(409, "requirement_resolution_enqueue_missing", "Resolution enqueue intent is missing.", action="Refresh CV review.")
+            claimed_enqueue_intent = False
+            if not str(enqueue_intent.get("intent_id") or "").startswith("test-only:"):
+                claimed_enqueue_intent = sqlite_store_module.claim_requirement_resolution_enqueue_intent(
+                    str(enqueue_intent["intent_id"]),
+                    claim_token=str(uuid.uuid4()),
+                )
+                if not isinstance(claimed_enqueue_intent, dict) or not claimed_enqueue_intent.get("claimed"):
+                    if (
+                        isinstance(claimed_enqueue_intent, dict)
+                        and str(claimed_enqueue_intent.get("status") or "") == "pending"
+                        and str(claimed_enqueue_intent.get("queue_job_id") or "").startswith("claim:")
+                    ):
+                        raise ApiError(
+                            409,
+                            "requirement_resolution_enqueue_in_progress",
+                            "A regeneration enqueue is already in progress for this resolution.",
+                            action="Refresh CV review.",
+                        )
+                    raise ApiError(
+                        409,
+                        "requirement_resolution_conflict",
+                        "Requirement uncertainty already has a settled resolution enqueue.",
+                        action="Refresh CV review.",
+                    )
+                enqueue_intent = claimed_enqueue_intent
             durable_action = str(resolution_row.get("resolution_action") or body.action)
             durable_payload = dict(resolution_row.get("resolution_payload") or requested_payload)
             try:
@@ -12313,11 +12338,19 @@ def create_app(
                     redis_url=redis_url,
                 )
             except Exception as exc:
-                sqlite_store_module.update_requirement_resolution_enqueue_intent(
-                    str(enqueue_intent["intent_id"]),
-                    status="failed",
-                    error_message=str(exc),
-                )
+                if claimed_enqueue_intent:
+                    sqlite_store_module.settle_requirement_resolution_enqueue_intent(
+                        str(enqueue_intent["intent_id"]),
+                        claim_token=str(enqueue_intent["queue_job_id"]),
+                        status="failed",
+                        error_message=str(exc),
+                    )
+                else:
+                    sqlite_store_module.update_requirement_resolution_enqueue_intent(
+                        str(enqueue_intent["intent_id"]),
+                        status="failed",
+                        error_message=str(exc),
+                    )
                 raise
             target_uncertainty["resolution_action"] = durable_action
             target_uncertainty["resolution_payload"] = durable_payload
@@ -12361,23 +12394,42 @@ def create_app(
                 **debug_update_args,
             )
             if isinstance(debug_result, dict) and debug_result.get("persistence_status") != "persisted":
-                sqlite_store_module.update_requirement_resolution_enqueue_intent(
-                    str(enqueue_intent["intent_id"]),
-                    status="failed",
-                    error_message=str(debug_result.get("degradation_reason") or "review_resource_stale"),
-                )
+                if claimed_enqueue_intent:
+                    sqlite_store_module.settle_requirement_resolution_enqueue_intent(
+                        str(enqueue_intent["intent_id"]),
+                        claim_token=str(enqueue_intent["queue_job_id"]),
+                        status="failed",
+                        error_message=str(debug_result.get("degradation_reason") or "review_resource_stale"),
+                    )
+                else:
+                    sqlite_store_module.update_requirement_resolution_enqueue_intent(
+                        str(enqueue_intent["intent_id"]),
+                        status="failed",
+                        error_message=str(debug_result.get("degradation_reason") or "review_resource_stale"),
+                    )
                 raise ApiError(
                     409,
                     "review_resource_stale",
                     "Review resource changed.",
                     action="Refresh CV review.",
                 )
-            sqlite_store_module.update_requirement_resolution_enqueue_intent(
-                str(enqueue_intent["intent_id"]),
-                status="enqueued",
-                queue_job_id=regeneration_job_id,
-                error_message=None,
-            )
+            if claimed_enqueue_intent:
+                settled = sqlite_store_module.settle_requirement_resolution_enqueue_intent(
+                    str(enqueue_intent["intent_id"]),
+                    claim_token=str(enqueue_intent["queue_job_id"]),
+                    status="enqueued",
+                    queue_job_id=regeneration_job_id,
+                    error_message=None,
+                )
+                if not settled:
+                    raise ApiError(409, "requirement_resolution_enqueue_conflict", "Regeneration enqueue ownership changed.", action="Refresh CV review.")
+            else:
+                sqlite_store_module.update_requirement_resolution_enqueue_intent(
+                    str(enqueue_intent["intent_id"]),
+                    status="enqueued",
+                    queue_job_id=regeneration_job_id,
+                    error_message=None,
+                )
             refreshed = _canonical_cv_review_resource(run_id, run_job_id)
             response = {
                 **refreshed,

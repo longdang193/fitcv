@@ -167,6 +167,54 @@ def test_requirement_resolution_persists_enqueue_intent_in_same_transaction(tmp_
     )["error_message"] == "queue unavailable"
 
 
+def test_requirement_resolution_enqueue_claim_is_single_owner(tmp_path: Path) -> None:
+    database_path = tmp_path / "resolution-claim.sqlite3"
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+    saved = sqlite_store.save_requirement_resolution(
+        {
+            "candidate_profile_id": "candidate-claim",
+            "candidate_profile_revision": "1",
+            "source_profile_fingerprint": "source-claim",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "yes"},
+            "enqueue_intent": {
+                "run_id": "run-claim",
+                "job_url": "https://jobs.example.test/claim",
+                "actor": "admin",
+                "idempotency_key": "requirement-resolution:claim",
+                "action_id": "requirement-resolution:claim",
+            },
+        },
+        database_path=database_path,
+    )
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(
+        saved["resolution_id"], database_path=database_path
+    )
+    assert intent is not None
+
+    def claim(token: str) -> dict[str, Any]:
+        return sqlite_store.claim_requirement_resolution_enqueue_intent(
+            intent["intent_id"], claim_token=token, database_path=database_path
+        ) or {}
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        claims = list(pool.map(claim, ["claim-a", "claim-b"]))
+
+    assert sum(bool(item.get("claimed")) for item in claims) == 1
+    owner = next(item for item in claims if item.get("claimed"))
+    assert sqlite_store.settle_requirement_resolution_enqueue_intent(
+        intent["intent_id"],
+        claim_token=owner["claim_token"],
+        status="enqueued",
+        queue_job_id="queue-claim",
+        database_path=database_path,
+    ) is True
+
+
 def test_requirement_resolution_competing_writes_are_first_writer_wins(tmp_path: Path) -> None:
     database_path = tmp_path / "resolution-race.sqlite3"
     with sqlite3.connect(database_path) as conn:

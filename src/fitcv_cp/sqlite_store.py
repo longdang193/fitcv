@@ -14508,6 +14508,75 @@ def get_requirement_resolution_enqueue_intent(
     return dict(row) if row is not None else None
 
 
+def claim_requirement_resolution_enqueue_intent(
+    intent_id: str,
+    *,
+    claim_token: str | None = None,
+    database_path: Path | None = None,
+) -> dict[str, Any] | None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    stored_claim = f"claim:{claim_token or uuid.uuid4()}"
+    stale_before = (now - datetime.timedelta(minutes=10)).isoformat()
+    with _sqlite_connection(database_path or Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        updated = conn.execute(
+            """UPDATE requirement_resolution_enqueue_intents
+                  SET queue_job_id=?, updated_at=?
+                WHERE intent_id=?
+                  AND (
+                    status='failed'
+                    OR (
+                        status='pending'
+                        AND (
+                            queue_job_id IS NULL
+                            OR (queue_job_id LIKE 'claim:%' AND updated_at < ?)
+                        )
+                    )
+                  )""",
+            (stored_claim, now.isoformat(), str(intent_id), stale_before),
+        )
+        row = conn.execute(
+            "SELECT * FROM requirement_resolution_enqueue_intents WHERE intent_id=?",
+            (str(intent_id),),
+        ).fetchone()
+        conn.commit()
+    if row is None:
+        return None
+    result = dict(row)
+    result["claimed"] = updated.rowcount == 1
+    result["claim_token"] = stored_claim
+    return result
+
+
+def settle_requirement_resolution_enqueue_intent(
+    intent_id: str,
+    *,
+    claim_token: str,
+    status: str,
+    queue_job_id: str | None = None,
+    error_message: str | None = None,
+    database_path: Path | None = None,
+) -> bool:
+    if status not in {"enqueued", "failed"}:
+        raise ValueError("invalid_enqueue_intent_settlement_status")
+    with _sqlite_connection(database_path or Path(_local_sqlite_path())) as conn:
+        updated = conn.execute(
+            """UPDATE requirement_resolution_enqueue_intents
+                  SET status=?, queue_job_id=?, error_message=?, updated_at=?
+                WHERE intent_id=? AND queue_job_id=?""",
+            (
+                status,
+                queue_job_id if status == "enqueued" else None,
+                error_message,
+                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                str(intent_id),
+                str(claim_token),
+            ),
+        )
+        conn.commit()
+    return updated.rowcount == 1
+
+
 def update_requirement_resolution_enqueue_intent(
     intent_id: str,
     *,
