@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from fitcv.pipeline_contracts import PIPELINE_BUNDLE_ARTIFACT_FILENAMES, PIPELINE_STAGE_SEQUENCE, timeline_stage_download_for_event, timeline_stage_label
-from fitcv_cp.app import _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _control_plane_bundle_artifact_specs, _control_plane_stage_specs, _finalize_review_draft_as_cv_artifact, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
+from fitcv_cp.app import _build_hitl_review_queue, _build_synonym_proposal_decision_ledger, _collapse_timeline_noise, _control_plane_bundle_artifact_specs, _control_plane_stage_specs, _finalize_review_draft_as_cv_artifact, _timeline_semantic_outcome, _timeline_stage_summary_message, _load_run_cv_generation_debug_payload, _is_hitl_resolution_pending, _normalize_hitl_resolution_status, create_app
 from fitcv_cp.models import (
     CandidateProfileReviewOperation,
     CandidateProfileReviewPatchRequest,
@@ -6741,6 +6741,80 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
     store.complete_idempotent_action.assert_called_once_with(
         "action-1", response.json()["data"]
     )
+
+
+def test_admin_cv_review_resolution_accepts_legacy_queue_revision_when_persisted_version_exists() -> None:
+    run = PipelineRun(
+        run_id="run-admin-review-version-revision",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "requirement_instance_id": "skill:sql",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {
+        "run_job_id": "job-1",
+        "source_url": "https://example.com/job-1",
+        "row_revision": 1,
+    }
+    store.list_cv_versions.return_value = [
+        {"version_id": "cv-1", "ordinal": 1, "generation_status": "review_required"}
+    ]
+    store.reserve_idempotent_action.return_value = {
+        "action_id": "action-1",
+        "replayed": False,
+        "response": None,
+    }
+    store.list_cvs_for_run.return_value = [
+        {"version_id": "cv-1", "job_url": "https://example.com/job-1", "ordinal": 1}
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app.sqlite_store_module.list_run_job_ids_for_run", return_value=["job-1"]), \
+         patch("fitcv_cp.app.sqlite_store_module.get_run_job", return_value=store.get_run_job.return_value), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution", return_value={"resolution_id": "resolution-1"}) as save_resolution, \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue, \
+         patch("fitcv_cp.app.update_run_cv_generation_debug"):
+        legacy_revision = _build_hitl_review_queue(run)["queue_items"][0]["review_revision"]
+        response = TestClient(_app()).post(
+            "/admin/runs/run-admin-review-version-revision/cv-review-action",
+            data={
+                "review_item_id": "review-1",
+                "job_url": "https://example.com/job-1",
+                "action": "RESOLVE_WITH_ANSWER",
+                "review_revision": legacy_revision,
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "answer_text": "Used SQL for four years.",
+                "actor": "operator",
+            },
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    save_resolution.assert_called_once()
+    enqueue.assert_called_once()
 
 
 def test_canonical_cv_review_action_rejects_pipeline_revision_advanced_after_snapshot() -> None:

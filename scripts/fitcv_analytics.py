@@ -116,7 +116,12 @@ def build_gold_cv_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any
         artifact_keys = sorted({
             (
                 run_job_id,
-                str(fact["payload"].get("artifact_version_id") or fact["payload"].get("version_id") or ""),
+                str(
+                    fact["payload"].get("artifact_id")
+                    or fact["payload"].get("artifact_version_id")
+                    or fact["payload"].get("version_id")
+                    or ""
+                ),
             )
             for fact in artifacts
         })

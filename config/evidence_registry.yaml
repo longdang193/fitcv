@@ -9,11 +9,11 @@ records:
       - scripts/fitcv_analytics.py
       - src/fitcv_cp/run_artifact_contracts.py
       - tests/fixtures/fitcv-p1ab-repair-experiment.json
-    declared_input_fingerprint: 898e44abc269b7dbb162663bfbe6fdf8b4dbb1c97fe2ae8e3ab9dca1fe3da12e
+    declared_input_fingerprint: 84a870a1f3c223edd076b3db92bbb97e9dfa255c8c22e7b2389b46ed6384cfd2
     fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
     cohort_id: p1ab-current-contract-r5
     cohort_type: retained_fixture_rebuild
-    material_metrics_sha256: 9b1ccc93cf5fa6307710e9e7d1ae0870cb21f0a516ac2ff189be3efeae677d41
+    material_metrics_sha256: 7999ecf191f65f1a69cf8dbe6b693610be371c49e132e1b1ef7727660d65ff85
     artifact_paths:
       - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json
       - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.md
