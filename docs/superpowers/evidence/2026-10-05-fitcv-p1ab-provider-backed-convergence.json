@@ -41,7 +41,7 @@
   "incumbent": {
     "accepted_cv_count": 10,
     "end_to_end_wall_ms": 264915.399,
-    "first_pass_acceptance_rate": 1.0,
+    "first_pass_acceptance_rate": 0.9,
     "generation_elapsed_ms": 147749.0,
     "page_fit": {
       "count": 10,

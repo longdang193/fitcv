@@ -1,0 +1,55 @@
+{
+  "evidence_schema_version": "fitcv.p1_ab.provider_backed_convergence.v2",
+  "evidence_status": "complete",
+  "source_commit": "ef66aa04180e4dca3271e49ae346b3e7a346fbec",
+  "repeat_count": 10,
+  "arms": {"incumbent": "local_first", "candidate": "provider_first"},
+  "job_types": ["Contract", "Part-time"],
+  "fixture_sha256_equal": true,
+  "declared_input_fingerprint_equal": true,
+  "declared_input_fingerprint": "b0c81a3503ab408ef33ae19e6705570578d1e6749b3b100d9a333ac0fbf633f0",
+  "resolved_models_equal": true,
+  "provider_backed_equal": true,
+  "cohort_setup_equal": true,
+  "cohort_setup": {
+    "freeze_upstream_from_repeat": 1,
+    "seed_database_sha256": null,
+    "upstream_reuse_policy": "cold_first_then_frozen"
+  },
+  "incumbent": {
+    "accepted_cv_count": 5,
+    "first_pass_acceptance_rate": 0.0,
+    "provider_call_count": 15,
+    "token_total": 64801,
+    "regeneration_count": 5,
+    "validation_failure_count": 5,
+    "generation_elapsed_ms": 172072.0,
+    "end_to_end_wall_ms": 268544.321,
+    "page_fit": {"count": 5, "fail": 0, "pass": 5, "rate": 1.0, "total": 5}
+  },
+  "candidate": {
+    "accepted_cv_count": 10,
+    "first_pass_acceptance_rate": 1.0,
+    "provider_call_count": 10,
+    "token_total": 47367,
+    "regeneration_count": 0,
+    "validation_failure_count": 0,
+    "generation_elapsed_ms": 106077.0,
+    "end_to_end_wall_ms": 233251.089,
+    "page_fit": {"count": 10, "fail": 0, "pass": 10, "rate": 1.0, "total": 10}
+  },
+  "artifacts": {
+    "incumbent_manifest": ".tmp\\fitcv-review-final-20261005-r4\\incumbent-manifest.json",
+    "candidate_manifest": ".tmp\\fitcv-review-final-20261005-r4\\candidate-manifest.json",
+    "incumbent_scorecard": ".tmp\\fitcv-review-final-20261005-r4\\incumbent-benchmark.json",
+    "candidate_scorecard": ".tmp\\fitcv-review-final-20261005-r4\\candidate-benchmark.json",
+    "incumbent_verifier": ".tmp\\fitcv-review-final-20261005-r4\\incumbent-acceptance.json",
+    "candidate_verifier": ".tmp\\fitcv-review-final-20261005-r4\\candidate-acceptance.json"
+  },
+  "promotion": {
+    "status": "pending_independent_review",
+    "decision": "candidate_positive_current_run",
+    "production_default": "local_first",
+    "notes": "Current-source paired provider-backed cohorts are eligible. provider_first accepts 10/10 versus local_first 5/10, with lower provider calls, tokens, and wall time. Default change requires separate explicit approval after independent review."
+  }
+}

@@ -503,11 +503,12 @@ reporting gates are closed.
 **Result (2026-10-05):** Fresh source-bound incumbent `local_first` and
 candidate `provider_first` cohorts completed with 10 runs each under identical
 `cold_first_then_frozen` upstream policy. Manifest, declared executable-input,
-fixture, model, runtime, and provider provenance match. Incumbent accepted 10 / 10;
-candidate accepted 5 / 10 with five validation failures. Candidate promotion is
-rejected; production default remains `local_first`. Downstream provider analysis
-identity is informational because provider output is stochastic. Evidence:
-`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence.json`.
+fixture, model, runtime, and provider provenance match. Candidate accepted 10 / 10
+versus incumbent 5 / 10, with lower provider calls, tokens, and wall time.
+Candidate result is positive, but production default remains `local_first` pending
+independent review and separate approval. Downstream provider analysis identity is
+informational because provider output is stochastic. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.json`.
 
 ### Task 7: Final verification and reconciliation
 
@@ -553,11 +554,12 @@ P1-C/P2 explicitly deferred.
 
 **Exit Criteria:** skill-verification-before-completion returns verified; only then may plan status move from proposed to completed.
 
-**Current verification (2026-10-05):** Affected backend/verifier suites pass
-`548 passed`; both current-source experiment-bound acceptance verifier runs pass;
-generated acceptance state renders; paired manifests bind to source `800e349b`
-with equal declared-input and cohort-setup identities; `git diff --check` passes.
-Full suite and independent final PR review remain required before Git disposition.
+**Current verification (2026-10-05):** Full backend suite passes `3161 passed,
+8 skipped`; focused verifier tests pass; both fresh current-source
+experiment-bound acceptance verifier runs pass; paired manifests bind to source
+`ef66aa04` with equal declared-input and cohort-setup identities; `git diff --check`
+passes. Frontend/browser CI and independent final PR review remain required before
+Git disposition.
 
 ## Verification
 
