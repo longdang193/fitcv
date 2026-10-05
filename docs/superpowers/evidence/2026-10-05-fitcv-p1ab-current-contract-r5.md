@@ -2,10 +2,10 @@
 
 - Evidence status: `canonical`
 - Evidence schema: `fitcv.p1_ab.current_contract.v1`
-- Source commit: `94eaf089a07d5fe07c84755a84170f347a1b6d72`
+- Source commit: `529d2eb6b8d87f062c488a3a5f033bc64bff3f8a`
 - Fixture SHA-256: `56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5`
 - Source fixture SHA-256: `56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5`
-- Material metrics SHA-256: `7999ecf191f65f1a69cf8dbe6b693610be371c49e132e1b1ef7727660d65ff85`
+- Material metrics SHA-256: `f51aeefd6c291d880db2b80072b8661b7180b8950a52ab221dc824a4f4ce58b5`
 - Status: `complete`
 - Persisted ordinary runs: `10`
 - Accepted CVs: `10`

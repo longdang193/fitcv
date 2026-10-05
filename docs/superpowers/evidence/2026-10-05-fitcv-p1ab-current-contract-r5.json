@@ -13,7 +13,7 @@
     "source_candidate_count": 20,
     "normalized_trace_count": 10
   },
-  "generated_at": "2026-10-05T20:20:50.613456+00:00",
+  "generated_at": "2026-10-05T21:49:28.010009+00:00",
   "selection": {
     "ordinary_runs_only": true,
     "measurable_generation_work_only": true,
@@ -4024,18 +4024,18 @@
     ],
     "repeat_count": 10,
     "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
-    "declared_input_fingerprint": "84a870a1f3c223edd076b3db92bbb97e9dfa255c8c22e7b2389b46ed6384cfd2",
+    "declared_input_fingerprint": "96d6f6619cea9bcf1cf0c2d43a76016ef325aca627823c78f3c0fb2162d41f41",
     "arm": "local_first",
     "declared_model": "fixture-model",
     "resolved_models": [
       "cx/gpt-5.6-luna"
     ]
   },
-  "material_metrics_sha256": "7999ecf191f65f1a69cf8dbe6b693610be371c49e132e1b1ef7727660d65ff85",
+  "material_metrics_sha256": "f51aeefd6c291d880db2b80072b8661b7180b8950a52ab221dc824a4f4ce58b5",
   "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
   "evidence_status": "canonical",
   "sanitizer_version": "fitcv-evidence-sanitizer.v1",
-  "source_commit": "94eaf089a07d5fe07c84755a84170f347a1b6d72",
+  "source_commit": "529d2eb6b8d87f062c488a3a5f033bc64bff3f8a",
   "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
   "source_fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5"
 }
