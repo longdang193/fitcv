@@ -553,12 +553,18 @@ P1-C/P2 explicitly deferred.
 
 **Exit Criteria:** skill-verification-before-completion returns verified; only then may plan status move from proposed to completed.
 
-**Current verification (2026-10-05):** Full backend suite passes `3161 passed,
+**Historical verification (2026-10-05; superseded by R3):** Full backend suite passes `3161 passed,
 8 skipped`; focused verifier tests pass; both fresh current-source
 experiment-bound acceptance verifier runs pass; paired manifests bind to source
-`ef66aa04` with equal declared-input and cohort-setup identities; `git diff --check`
-passes. Frontend/browser CI and independent final PR review remain required before
-Git disposition.
+`ef66aa04` with equal declared-input and cohort-setup identities; this evidence
+predates the completed declared-input inventory and is superseded by R3.
+
+**Final verification (2026-10-05):** R3 evidence binds both manifests to source
+`7f351da9` with equal declared-input and cohort-setup identities. Both arms accept
+5/10; `provider_first` costs more tokens and wall time, so `local_first` remains
+default. Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.json`.
+Frontend/browser CI and independent final PR review remain required before Git
+disposition.
 
 ## Verification
 

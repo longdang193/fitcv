@@ -784,12 +784,12 @@ Candidate and incumbent acceptance verifiers both passed. Independent Task 8
 review was still required; this result is historical and does not establish the
 current optimization decision.
 
-**Current result (2026-10-05):** fresh source-bound cohorts completed after
+**Historical result (2026-10-05; superseded by R3):** fresh source-bound cohorts completed after
 verifier hardening. `provider_first` accepted 10/10 versus `local_first` 5/10,
 used 10 versus 15 provider calls, 47,367 versus 64,801 tokens, and
 233,251.089 versus 268,544.321 ms wall time. Both acceptance verifiers passed.
-The result is positive for the candidate, but production default remains
-`local_first` pending independent review and separate explicit approval.
+The result was positive for the candidate, but it is not the final optimization
+decision because the later R3 rerun used the completed declared-input inventory.
 Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.md`.
 
 **Final current result (2026-10-05):** fresh source-bound cohorts completed

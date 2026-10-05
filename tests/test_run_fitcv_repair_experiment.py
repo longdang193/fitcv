@@ -202,5 +202,36 @@ def test_declared_inputs_cover_private_profile_and_analysis_generation_runtime_s
         "data/candidate_profile.private.yaml",
         "src/fitcv/agentic_cv_analysis.py",
         "src/fitcv/cv_generator.py",
+        "src/fitcv/llm_runtime.py",
+        "src/fitcv/runtime_routing.py",
+        "src/fitcv/prompts.py",
+        "src/fitcv_cp/run_artifact_contracts.py",
         "src/fitcv_cp/sqlite_store.py",
     }.issubset(experiment.DECLARED_INPUTS)
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "src/fitcv/llm_runtime.py",
+        "src/fitcv/runtime_routing.py",
+        "src/fitcv/prompts.py",
+        "src/fitcv_cp/run_artifact_contracts.py",
+    ],
+)
+def test_declared_input_fingerprint_changes_when_material_dependency_changes(
+    monkeypatch, tmp_path: Path, relative_path: str
+) -> None:
+    fixture = tmp_path / "tests" / "fixtures" / "fitcv-p1ab-repair-experiment.json"
+    fixture.parent.mkdir(parents=True)
+    fixture.write_text("{}", encoding="utf-8")
+    for declared in experiment.DECLARED_INPUTS:
+        path = tmp_path / declared
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("baseline", encoding="utf-8")
+    monkeypatch.setattr(experiment, "ROOT", tmp_path)
+
+    baseline = experiment._input_fingerprint(fixture)
+    (tmp_path / relative_path).write_text("changed", encoding="utf-8")
+
+    assert experiment._input_fingerprint(fixture) != baseline
