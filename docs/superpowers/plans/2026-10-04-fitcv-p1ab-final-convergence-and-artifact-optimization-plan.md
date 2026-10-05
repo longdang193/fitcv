@@ -156,7 +156,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `active` | current | `codex` | Task 6 | current-head identical-workload incumbent/candidate benchmark | R14 passed at `d35a9368` before review fixes; rerun required after new source changes |
+| Task 7 | `completed` | current | `codex` | Task 6 | current-head identical-workload incumbent/candidate benchmark | R15 passed at committed head `71cb62ac`; promotion rejected; `local_first` retained |
 | Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; candidate promotion rejected; fresh CI and final review remain |
 
 ## Activation Gate
@@ -773,7 +773,7 @@ unchanged, and incumbent/candidate labels come from Task 2's verified mapping.
   `INCUMBENT_ARM`/`CANDIDATE_ARM` mapping.
 - [x] Run both manifest-bound `scripts/benchmark_cv_efficiency.py` commands from `Files and symbols`; each scorecard contains all ten unique repeat run IDs.
 - [x] Run both experiment-bound `scripts/verify_fitcv_acceptance.py` commands from `Files and symbols`; both report `PASSED` and bind to generated fixture/source hashes without changing tracked acceptance state.
-- [ ] Re-run after review fixes settle; compare evidence hashes and generated scorecards; fingerprints must match, both experiment verifiers must pass, and no secrets may appear. R14 is historical until this post-fix rerun closes Task 7.
+- [x] Re-run after review fixes settled at committed head `71cb62ac`; compare evidence hashes and generated scorecards; fingerprints match, both experiment verifiers pass, and no secrets appear. R14 remains historical; R15 closes Task 7.
 
 **Exit criteria:** candidate promoted only with measured total-workload improvement; otherwise explicit rejection with incumbent retained.
 
@@ -816,6 +816,10 @@ common seeded upstream state corrected the comparison. This record remains valid
 the pre-fix head but cannot close Task 7 after new source changes. Evidence:
 `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r14.md`
 and `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r14.json`.
+
+**Current-head evidence (2026-10-05, R15):** committed-head common-seed paired cohorts completed on `71cb62ac`. Both arms accepted 5/10, used 15 provider calls, and had 5 regenerations; first-pass acceptance and one-page success tied. Analysis identity, cohort setup, fixture, model, runtime, and declared executable-input fingerprint matched; both experiment-bound acceptance verifiers passed with disposable digest-bound verification state. Provider-first changes token and timing totals without proving total-workload improvement, so promotion is rejected and `local_first` remains default. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r15.md`
+and `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r15.json`.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -868,11 +872,12 @@ tracked state before final evidence-only updates; historical declared-input fing
 record is not current-head freshness proof. Prior Task 1 admission remains
 `not evidenced`.
 
-- R14 is historical paired evidence: both arms accept 5/10; `provider_first`
-  lowers generation and wall time but uses 24 more tokens, so promotion remains
-  rejected. Task 7 is active pending post-fix current-head evidence. Task 8
-  remains active pending final review and CI. Production default remains
-  `local_first`.
+- R15 is current committed-head paired evidence: both arms accept 5/10 with
+  matching identity, provider provenance, first-pass rate, regenerations,
+  validation failures, and page fit. Promotion remains rejected because
+  total-workload improvement is not proven; production default remains
+  `local_first`. Task 7 is complete. Task 8 remains active pending final review,
+  full verification, CI, push, and PR disposition.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.
