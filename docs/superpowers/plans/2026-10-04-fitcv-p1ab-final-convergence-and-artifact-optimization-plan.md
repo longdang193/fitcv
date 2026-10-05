@@ -132,9 +132,9 @@ model, provider-routing layer, or generic closure document.
 - Coordination schema: `2`
 - Branch: `codex/fitcv-evidence-scoped-backfill`
 - Base commit: `1b86a119`
-- Expected workspace: current checkout with Task 2–4 source/test changes uncommitted and
-  unrelated untracked files preserved; plan ledger must distinguish committed HEAD
-  behavior from working-tree behavior
+- Expected workspace: clean tracked checkout with unrelated disposable untracked files
+  preserved; plan ledger distinguishes committed HEAD behavior from historical
+  working-tree behavior
 - Next action: complete Task 8 independent final verification and reconcile the
   current-source optimization result before any production-default change
 - Blockers: no unresolved Task 7 eligibility blocker; production-default change
@@ -156,7 +156,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
 | Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r3.md`; paired current-source cohorts; candidate rejected on cost/latency with no correctness gain |
-| Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; independent final review and default-change decision remain |
+| Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; candidate promotion rejected; fresh CI and final review remain |
 
 ## Activation Gate
 
@@ -837,11 +837,17 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   persistence identity, review actionability, browser parity, and telemetry gate.
 - [x] Mark P1-C deferred and P2 frozen. Do not promote accepted-state files without
   separate authorization.
-- [ ] Revalidate the fresh `implementation-ready` resume record captured before
+- [x] Revalidate the fresh `implementation-ready` resume record captured before
   Task 2, including current HEAD, working-tree diff hash, complete declared
   executable-input fingerprint, and dependency-ready next action. Record prior
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
+
+Resume reconciliation (2026-10-05): review head `6c248477` had clean tracked
+state; final declared-input fingerprint is
+`687ade6331b22a10a395380b1698e5fdbdd344d620dc966307789294502f9f1b`; the
+dependency-ready next action is Task 8 final verification. Prior Task 1 admission
+remains `not evidenced`.
 
 - Task 7 blocker is resolved with current-source paired cohorts. Final rerun
   records both arms at 5/10; candidate cost and latency are worse. Task 8
