@@ -135,10 +135,11 @@ model, provider-routing layer, or generic closure document.
 - Expected workspace: clean tracked checkout with unrelated disposable untracked files
   preserved; plan ledger distinguishes committed HEAD behavior from historical
   working-tree behavior
-- Next action: complete Task 8 independent final verification and reconcile the
-  current-source optimization result before any production-default change
-- Blockers: no unresolved Task 7 eligibility blocker; production-default change
-  remains pending independent final review
+- Next action: rerun Task 7 against current HEAD, then complete Task 8 final
+  verification and reconciliation before any production-default change
+- Blockers: R13 is historical and fails current-head identity gates; current
+  paired-cohort evidence is missing; production-default change remains pending
+  independent final review
 
 **Latest plan review:** 2026-10-04, independent `review-1` returned `needs
 changes`. Findings: contradictory ledger/admission state, missing explicit
@@ -155,7 +156,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r13.md`; paired seeded current-source cohorts; candidate rejected on higher token cost |
+| Task 7 | `active` | current | `codex` | Task 6 | current-head identical-workload incumbent/candidate benchmark | R13 is historical only; rerun must bind source commit and declared-input fingerprint to current HEAD |
 | Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; candidate promotion rejected; fresh CI and final review remain |
 
 ## Activation Gate
