@@ -18,7 +18,7 @@
   },
   "incumbent": {
     "accepted_cv_count": 5,
-    "first_pass_acceptance_rate": 0.0,
+    "first_pass_acceptance_rate": 0.5,
     "provider_call_count": 15,
     "token_total": 64801,
     "regeneration_count": 5,

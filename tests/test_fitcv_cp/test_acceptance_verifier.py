@@ -11,6 +11,7 @@ from scripts.verify_fitcv_acceptance import (
     build_acceptance_report,
     format_acceptance_summary,
 )
+from scripts.run_fitcv_repair_experiment import DECLARED_INPUTS
 
 
 def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> None:
@@ -108,12 +109,17 @@ def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Pat
     peer_report["material_metrics_sha256"] = material_report_digest(peer_report)
     peer_path.write_text(json.dumps(peer_report), encoding="utf-8")
     markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
+    for relative in set(DECLARED_INPUTS) | {"tests/fixtures/fitcv-p1ab-repair-experiment.json"}:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("current-input", encoding="utf-8")
 
     result = _run_experiment_report_check(report_path, markdown_path, tmp_path, peer_path, "new-commit")
 
     assert result["passed"] is False
     assert "experiment_source_commit_not_current" in result["failures"]
     assert "experiment_provider_backed_required" in result["failures"]
+    assert "experiment_declared_input_fingerprint_not_current" in result["failures"]
     assert "experiment_peer_arm_must_differ" in result["failures"]
     assert "experiment_peer_report_incomplete" in result["failures"]
 

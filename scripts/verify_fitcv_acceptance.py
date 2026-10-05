@@ -45,6 +45,21 @@ def _canonical_file_digest(path: Path) -> str:
 P0B_ORACLE = "data/fitcv-p0-corpus/p0b/p0b_source_job_support_oracle_v1.jsonl"
 
 
+def _current_experiment_input_identity(repo_root: Path) -> tuple[str | None, str | None]:
+    fixture = repo_root / "tests/fixtures/fitcv-p1ab-repair-experiment.json"
+    paths = sorted(set(DECLARED_INPUTS) | {"tests/fixtures/fitcv-p1ab-repair-experiment.json"})
+    if not fixture.is_file() or any(not (repo_root / relative).is_file() for relative in paths):
+        return None, None
+    digest = hashlib.sha256()
+    for relative in paths:
+        path = repo_root / relative
+        digest.update(relative.replace("\\", "/").encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return hashlib.sha256(fixture.read_bytes()).hexdigest(), digest.hexdigest()
+
+
 def _source_inputs_match_current(source_commit: Any, current_commit: str | None, repo_root: Path) -> bool:
     if not current_commit or source_commit == current_commit:
         return bool(source_commit)
@@ -415,6 +430,7 @@ def _run_experiment_report_check(
     failures: list[str] = []
     report: dict[str, Any] = {}
     persisted_manifest: dict[str, Any] = {}
+    current_fixture_sha256, current_declared_input_fingerprint = _current_experiment_input_identity(repo_root)
     if experiment_json is None or not experiment_json.is_file():
         failures.append("experiment_json_missing")
     else:
@@ -491,6 +507,13 @@ def _run_experiment_report_check(
                     persisted_manifest.get("source_commit"), current_commit, repo_root
                 ):
                     failures.append("experiment_source_commit_not_current")
+                if current_fixture_sha256 is None or current_declared_input_fingerprint is None:
+                    failures.append("experiment_current_declared_inputs_unavailable")
+                else:
+                    if persisted_manifest.get("fixture_sha256") != current_fixture_sha256:
+                        failures.append("experiment_fixture_sha256_not_current")
+                    if persisted_manifest.get("declared_input_fingerprint") != current_declared_input_fingerprint:
+                        failures.append("experiment_declared_input_fingerprint_not_current")
                 if dict(persisted_manifest.get("producer") or {}).get("mode") != "provider_backed":
                     failures.append("experiment_provider_backed_required")
                 if not isinstance(persisted_manifest.get("cohort_setup"), dict):

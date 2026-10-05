@@ -11,7 +11,7 @@
 | Metric | `local_first` | `provider_first` |
 | --- | ---: | ---: |
 | Accepted CVs | 5/10 | 10/10 |
-| First-pass acceptance | 0.00 | 1.00 |
+| First-pass acceptance | 0.50 | 1.00 |
 | Provider calls | 15 | 10 |
 | Tokens | 64801 | 47367 |
 | Regenerations | 5 | 0 |
